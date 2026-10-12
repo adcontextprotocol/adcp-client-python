@@ -225,6 +225,8 @@ class ReportingProductionSupport:
         self.notification_workers, self.poll_seconds = notification_workers, poll_seconds
         self.maintenance_seconds = maintenance_seconds
         self._next_maintenance = 0.0
+        #: The last pass's integer counters per operation, for health checks and dashboards.
+        self.maintenance_report: dict[str, dict[str, int]] = {}
         from adcp.reporting.production.notifications import worker_identity
 
         self._notification_identity = tuple(worker_identity(w) for w in notification_workers)
@@ -723,12 +725,19 @@ class ReportingProductionSupport:
         if loop.time() < self._next_maintenance:
             return
         self._next_maintenance = loop.time() + self.maintenance_seconds
-        from adcp.reporting.production._diagnostics import _maintenance_failed
+        from adcp.reporting.production._diagnostics import (
+            _maintenance_failed,
+            _maintenance_pending,
+            _maintenance_stalled,
+        )
 
         store: Any = self.store
         operations: list[tuple[str, Any]] = []
         if getattr(store, "_row_storage", None) is not None:
             operations.append(("intent_sweep", lambda: store.sweep_row_write_intents(limit=100)))
+            # Frees row bytes of periods past retention even while their records stay (protected
+            # by append-only guards), so storage is reclaimed whether or not records can be.
+            operations.append(("row_pruning", lambda: store.prune_expired_row_sets(limit=20)))
         if getattr(store, "_row_storage", None) is not None or getattr(
             store, "_change_feed", False
         ):
@@ -742,11 +751,25 @@ class ReportingProductionSupport:
                 raise
             except Exception:
                 _maintenance_failed(operation=name)
+                self.maintenance_report[name] = {"failed": 1}
                 continue
-            # Sweeps and retirement report per-item failures in their result instead of
+            counts = _counts(result)
+            self.maintenance_report[name] = counts
+            # Sweeps, pruning and retirement report per-item failures in their result instead of
             # raising; a binding that fails every pass must not be silent.
-            if getattr(result, "failed", None):
+            if counts.get("failed"):
                 _maintenance_failed(operation=name)
+            # Records left in place on purpose are reported too, so "retirement does nothing"
+            # is visible instead of looking like a healthy idle worker.
+            pending = {
+                key: counts[key]
+                for key in ("protected", "held", "parked", "skipped_unconfigured", "backed_off")
+                if counts.get(key)
+            }
+            if pending:
+                _maintenance_pending(operation=name, counts=pending)
+            if counts.get("stalled"):
+                _maintenance_stalled(operation=name, counts={"stalled": counts["stalled"]})
 
     async def _run_notifications(self) -> None:
         from adcp.reporting.production.notifications import notification_turn
@@ -845,3 +868,25 @@ class ReportingProductionSupport:
             return payload
         except Exception:
             return {}
+
+
+def _counts(result: Any) -> dict[str, int]:
+    """Integer counters of a maintenance result; sequences count by length."""
+    counts: dict[str, int] = {}
+    for name in (
+        "retired",
+        "swept",
+        "failed",
+        "protected",
+        "held",
+        "parked",
+        "skipped_unconfigured",
+        "backed_off",
+        "stalled",
+    ):
+        value = getattr(result, name, None)
+        if isinstance(value, (tuple, list)):
+            counts[name] = len(value)
+        elif type(value) is int:
+            counts[name] = value
+    return counts

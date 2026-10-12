@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -369,3 +370,86 @@ async def test_a_failed_sweep_reports_its_stable_cause(tmp_path: Path) -> None:
         assert await fetch_all(pool, "SELECT state FROM adcp_reporting_row_write_intents") == [
             ("sweeping",)
         ]
+
+
+async def test_intents_that_keep_failing_back_off_and_never_starve_the_rest(tmp_path: Path) -> None:
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path))
+        await store.create_schema()
+        obligation = await seeded(store)
+        await lease(pool)
+        revisions = [
+            await staged_revision(store, obligation, f"r{index}", many_rows(10 + index))
+            for index in range(4)
+        ]
+        bad, good = revisions[:3], revisions[3]
+        async with pool.connection() as connection:
+            for age, revision in enumerate([*bad, good]):
+                # The failing intents are the oldest, so oldest-first selection picks them first.
+                await connection.execute(
+                    "UPDATE adcp_reporting_row_write_intents SET expires_at ="
+                    " clock_timestamp() - make_interval(secs => %s) WHERE row_set_id = %s",
+                    (3600 - age * 60, revision.reporting_revision_id),
+                )
+            for number, revision in enumerate(bad):
+                await connection.execute(
+                    "UPDATE adcp_reporting_row_write_intents SET created_objects = %s::jsonb"
+                    " WHERE row_set_id = %s",
+                    (
+                        json.dumps(
+                            [{"objectKey": f"other/tenant/{number}", "nativeVersion": "1:2:3:4"}]
+                        ),
+                        revision.reporting_revision_id,
+                    ),
+                )
+        # Two slots per pass: before the backoff the three failing intents filled them forever.
+        swept = 0
+        for _ in range(3):
+            swept += (await store.sweep_row_write_intents(limit=2)).swept
+        assert swept == 1, "the healthy intent must be swept despite the failing ones"
+        assert await fetch_all(
+            pool, "SELECT count(*), min(attempts) FROM adcp_reporting_row_sweep_backoff"
+        ) == [(3, 1)]
+        idle = await store.sweep_row_write_intents(limit=2)
+        assert (idle.swept, idle.failed, idle.backed_off) == (0, 0, 3)
+        # Once a backoff elapses the intent is retried, and its next wait is longer.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_row_sweep_backoff SET next_attempt_at = clock_timestamp()"
+            )
+        retried = await store.sweep_row_write_intents(limit=10)
+        assert retried.failed == 3
+        assert await fetch_all(
+            pool, "SELECT min(attempts) FROM adcp_reporting_row_sweep_backoff"
+        ) == [(2,)]
+
+
+async def test_intents_nobody_handles_are_reported_as_skipped_and_then_stalled(
+    tmp_path: Path,
+) -> None:
+    async with isolated_reporting_pool() as pool:
+        configured = options(tmp_path)
+        store = PgReportingLedgerStore(pool=pool, row_storage=configured)
+        await store.create_schema()
+        obligation = await seeded(store)
+        await lease(pool)
+        await staged_revision(store, obligation, "orphan", many_rows(10))
+        # A host that no longer configures the binding cannot sweep: it counts, never errors.
+        without = PgReportingLedgerStore(
+            pool=pool, row_storage=type(configured)(deployment_namespace="test")
+        )
+        async with pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_row_write_intents"
+                " SET expires_at = clock_timestamp() - INTERVAL '2 hours'"
+            )
+        recent = await without.sweep_row_write_intents()
+        assert (recent.skipped_unconfigured, recent.stalled, recent.failed) == (1, 0, 0)
+        # Expired for much longer than any sweep interval: nobody is handling it.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_row_write_intents"
+                " SET expires_at = clock_timestamp() - INTERVAL '3 days'"
+            )
+        stale = await without.sweep_row_write_intents()
+        assert (stale.skipped_unconfigured, stale.stalled) == (1, 1)

@@ -54,6 +54,12 @@ class ReportingRowIntentSweepV1:
     causes: tuple[tuple[str, str], ...] = ()
     #: Expired intents of bindings this host does not configure; another host owns them.
     skipped_unconfigured: int = 0
+    #: Expired intents of configured bindings waiting out a failure backoff this pass.
+    backed_off: int = 0
+    #: Intents of any binding that have been expired for more than a day and are still
+    #: unresolved: nobody is handling them (a binding no host configures any more, or one
+    #: that keeps failing), so their orphaned objects are never cleaned up.
+    stalled: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,33 +88,47 @@ async def sweep_row_write_intents(
             "INVALID_INPUT", "sweep_row_write_intents requires row storage"
         )
     await store.ready_row_storage()
+    parameters = {
+        "account": account_id,
+        "bindings": list(storage._bindings),
+        "limit": limit,
+    }
     async with store._pool.connection() as connection:
+        # Intents that failed recently wait out an exponential backoff, and never-failed ones
+        # come first, so one binding that keeps failing cannot occupy every slot of every pass.
         expired = await (
             await connection.execute(
-                "SELECT row_binding_id, account_id, row_set_id, content_sha256"
-                " FROM adcp_reporting_row_write_intents"
-                " WHERE (%(account)s::text IS NULL OR account_id = %(account)s)"
-                " AND row_binding_id = ANY(%(bindings)s::text[])"
-                " AND (state = 'sweeping' OR expires_at <= clock_timestamp())"
-                " ORDER BY expires_at LIMIT %(limit)s",
-                {
-                    "account": account_id,
-                    "bindings": list(storage._bindings),
-                    "limit": limit,
-                },
+                "SELECT i.row_binding_id, i.account_id, i.row_set_id, i.content_sha256"
+                " FROM adcp_reporting_row_write_intents i"
+                " LEFT JOIN adcp_reporting_row_sweep_backoff b"
+                "   ON b.row_binding_id = i.row_binding_id AND b.row_set_id = i.row_set_id"
+                "  AND b.content_sha256 = i.content_sha256"
+                " WHERE (%(account)s::text IS NULL OR i.account_id = %(account)s)"
+                " AND i.row_binding_id = ANY(%(bindings)s::text[])"
+                " AND (i.state = 'sweeping' OR i.expires_at <= clock_timestamp())"
+                " AND (b.next_attempt_at IS NULL OR b.next_attempt_at <= clock_timestamp())"
+                " ORDER BY COALESCE(b.attempts, 0), i.expires_at LIMIT %(limit)s",
+                parameters,
             )
         ).fetchall()
-    async with store._pool.connection() as connection:
-        skipped_row = await (
+        counts = await (
             await connection.execute(
-                "SELECT count(*) FROM adcp_reporting_row_write_intents"
-                " WHERE (%(account)s::text IS NULL OR account_id = %(account)s)"
-                " AND NOT (row_binding_id = ANY(%(bindings)s::text[]))"
-                " AND (state = 'sweeping' OR expires_at <= clock_timestamp())",
-                {"account": account_id, "bindings": list(storage._bindings)},
+                "SELECT"
+                " count(*) FILTER (WHERE NOT (i.row_binding_id = ANY(%(bindings)s::text[])))"
+                " AS unconfigured,"
+                " count(*) FILTER (WHERE i.row_binding_id = ANY(%(bindings)s::text[])"
+                "   AND b.next_attempt_at > clock_timestamp()) AS backed_off"
+                " FROM adcp_reporting_row_write_intents i"
+                " LEFT JOIN adcp_reporting_row_sweep_backoff b"
+                "   ON b.row_binding_id = i.row_binding_id AND b.row_set_id = i.row_set_id"
+                "  AND b.content_sha256 = i.content_sha256"
+                " WHERE (%(account)s::text IS NULL OR i.account_id = %(account)s)"
+                " AND (i.state = 'sweeping' OR i.expires_at <= clock_timestamp())",
+                parameters,
             )
         ).fetchone()
-    skipped = int(skipped_row[0]) if skipped_row else 0
+    skipped = int(counts[0]) if counts else 0
+    backed_off = int(counts[1]) if counts else 0
     causes: list[tuple[str, str]] = []
     swept = deleted = failed = 0
     for binding_id, owner, row_set_id, content_sha256 in expired:
@@ -138,10 +158,21 @@ async def sweep_row_write_intents(
                     " AND state = 'sweeping'",
                     key,
                 )
+            async with store._pool.connection() as connection:
+                await connection.execute(
+                    "DELETE FROM adcp_reporting_row_sweep_backoff"
+                    " WHERE row_binding_id = %s AND row_set_id = %s AND content_sha256 = %s",
+                    key,
+                )
             swept += 1
             deleted += removed
         except Exception as error:
             failed += 1
+            await _back_off_intent(
+                store,
+                key,
+                error.code if isinstance(error, ReportingRowStoreError) else type(error).__name__,
+            )
             causes.append(
                 (
                     row_set_id,
@@ -152,7 +183,54 @@ async def sweep_row_write_intents(
                     ),
                 )
             )
-    return ReportingRowIntentSweepV1(swept, deleted, failed, tuple(causes), skipped)
+    async with store._pool.connection() as connection:
+        # Backoff rows outlive nothing: drop those whose intent is gone, then count what is stuck.
+        await connection.execute(
+            "DELETE FROM adcp_reporting_row_sweep_backoff b WHERE NOT EXISTS ("
+            " SELECT 1 FROM adcp_reporting_row_write_intents i"
+            "  WHERE i.row_binding_id = b.row_binding_id AND i.row_set_id = b.row_set_id"
+            "    AND i.content_sha256 = b.content_sha256)"
+        )
+        stalled_row = await (
+            await connection.execute(
+                "SELECT count(*) FROM adcp_reporting_row_write_intents"
+                " WHERE (%(account)s::text IS NULL OR account_id = %(account)s)"
+                " AND expires_at <= clock_timestamp() - INTERVAL '1 day'",
+                {"account": account_id},
+            )
+        ).fetchone()
+    return ReportingRowIntentSweepV1(
+        swept,
+        deleted,
+        failed,
+        tuple(causes),
+        skipped,
+        backed_off,
+        int(stalled_row[0]) if stalled_row else 0,
+    )
+
+
+async def _back_off_intent(
+    store: PgReportingLedgerStore, key: tuple[str, str, str], cause: str
+) -> None:
+    """Record a failed sweep of one intent; best effort, never raises."""
+    try:
+        async with store._pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_row_sweep_backoff"
+                " (row_binding_id, row_set_id, content_sha256, attempts, next_attempt_at,"
+                "  last_cause)"
+                " VALUES (%s, %s, %s, 1, clock_timestamp() + INTERVAL '1 minute', %s)"
+                " ON CONFLICT (row_binding_id, row_set_id, content_sha256) DO UPDATE SET"
+                "  attempts = adcp_reporting_row_sweep_backoff.attempts + 1,"
+                "  next_attempt_at = clock_timestamp() + LEAST(INTERVAL '1 hour',"
+                "    INTERVAL '1 minute' *"
+                "      power(2, LEAST(adcp_reporting_row_sweep_backoff.attempts, 6))),"
+                "  last_cause = EXCLUDED.last_cause",
+                (*key, cause),
+            )
+    except Exception:  # noqa: S110  # nosec B110
+        pass
 
 
 def prune_candidate_query(materializer_hold: str, *, only: bool) -> str:

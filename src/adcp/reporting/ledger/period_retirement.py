@@ -25,11 +25,17 @@ is never blocked forever.
 
 **What Python can delete today.** Several Python extension tables (provisional
 observations, reconciliation records, notification events) are append-only by trigger and
-foreign key, and their guards are frozen catalog objects. A period that still has such
-records finishes phases 1 and 2, then stays ``retiring`` with cause ``RECORDS_PROTECTED``:
-its row bytes are gone and reads answer as expired, while its records wait for the shared
-Core layout (persistence Stage 3), which carries retirement exemptions. Nothing is
-half-deleted: phase 3 either removes every record of the period or none.
+foreign key, and their guards are frozen catalog objects. A reconciliation record *holds* its
+period, so retirement never picks it up; a period whose protected records are provisional
+observations or notification events finishes phases 1 and 2, then stays ``retiring`` with
+cause ``RECORDS_PROTECTED``. Either way its row bytes are freed (the production worker also
+schedules ``prune_expired_row_sets``), reads answer as expired, and the records stay. Whether
+to relax those guards is an audit-model decision for the maintainers, not made here. Nothing
+is half-deleted: phase 3 either removes every record of the period or none.
+
+**Fairness.** A period that cannot finish is parked with an exponential attempt backoff
+(``attempts``, ``next_attempt_at``, ``last_outcome``) so it does not occupy a candidate slot
+on every pass, and fresh periods always keep half of each pass's slots.
 """
 
 from __future__ import annotations
@@ -52,9 +58,15 @@ class ReportingPeriodRetirementV1:
     retired: int
     #: Periods whose row bytes are gone but whose records remain, cause ``RECORDS_PROTECTED``.
     protected: tuple[str, ...]
-    #: Periods that failed, with a secret-free cause, and resume on the next pass.
+    #: Periods that failed, with a secret-free cause, and resume once their backoff elapses.
     failed: tuple[str, ...]
     causes: tuple[tuple[str, str], ...]
+    #: Expired periods this pass left alone because a hold applies (materializer work, a
+    #: reconciliation record, or an unread registered feed consumer). Capped at 10,000.
+    held: int = 0
+    #: ``retiring`` periods waiting out an attempt backoff (protected records or a failing
+    #: provider), so they are not occupying candidate slots.
+    parked: int = 0
 
 
 async def _table_exists(connection: Any, name: str) -> bool:
@@ -115,19 +127,26 @@ async def retire_expired_periods(
                 "   OR (consumer.account_id = change.account_id"
                 "       AND change.seq > consumer.cursor_seq)))"
             )
-        query = _candidate_query("".join(holds), only=False)
-        candidates = await (
-            await connection.execute(
-                query,
-                {
-                    "account": account_id,
-                    "only": None,
-                    "record_days": ledger_record_retention_days,
-                    "hold_days": max_feed_hold_days,
-                    "limit": limit,
-                },
-            )
+        parameters = {
+            "account": account_id,
+            "only": None,
+            "record_days": ledger_record_retention_days,
+            "hold_days": max_feed_hold_days,
+            "limit": limit,
+        }
+        resumable = await (await connection.execute(_resumable_query(), parameters)).fetchall()
+        fresh = await (
+            await connection.execute(_fresh_query("".join(holds), only=False), parameters)
         ).fetchall()
+        # Fresh periods always get a share of every pass: half the slots are reserved for them,
+        # and resumable periods take whatever the fresh ones leave. Otherwise a handful of
+        # periods that cannot finish would occupy every slot and starve retirement.
+        reserved = max(1, limit // 2)
+        take_fresh = min(len(fresh), max(reserved, limit - len(resumable)))
+        take_resumable = min(len(resumable), limit - take_fresh)
+        candidates = [*resumable[:take_resumable], *fresh[:take_fresh]]
+        held = await _held_count(connection, "".join(holds), parameters)
+        parked = await _parked_count(connection, account_id)
         has_rows = await _table_exists(connection, "adcp_reporting_row_sets")
     retired = 0
     protected: list[str] = []
@@ -140,6 +159,7 @@ async def retire_expired_periods(
         except NoLongerEligibleError:
             continue
         except Exception as error:
+            await _back_off(store, obligation_id, "failed")
             failed.append(obligation_id)
             causes.append(
                 (
@@ -156,33 +176,28 @@ async def retire_expired_periods(
             retired += 1
         elif outcome == "protected":
             protected.append(obligation_id)
-    return ReportingPeriodRetirementV1(retired, tuple(protected), tuple(failed), tuple(causes))
-
-
-def _candidate_query(holds: str, *, only: bool) -> str:
-    """Resumable ``retiring`` periods first, then expired periods that nothing holds.
-
-    ``only=True`` is the recheck under the account lock: it asks whether this one
-    obligation still qualifies, so a late revision cannot be retired with its period.
-    """
-    resumable = (
-        ""
-        if only
-        else "".join(
-            (
-                " SELECT t.reporting_obligation_id, t.account_id, 0 AS resume, t.period_end",
-                "  FROM adcp_reporting_period_tombstones t WHERE t.state = 'retiring'",
-                "   AND (%(account)s::text IS NULL OR t.account_id = %(account)s)",
-                " UNION ALL",
-            )
-        )
+    return ReportingPeriodRetirementV1(
+        retired, tuple(protected), tuple(failed), tuple(causes), held=held, parked=parked
     )
+
+
+def _resumable_query() -> str:
+    """``retiring`` periods whose attempt backoff has elapsed, oldest due first."""
+    return (
+        "SELECT t.reporting_obligation_id, t.account_id"
+        " FROM adcp_reporting_period_tombstones t WHERE t.state = 'retiring'"
+        " AND t.next_attempt_at <= clock_timestamp()"
+        " AND (%(account)s::text IS NULL OR t.account_id = %(account)s)"
+        " ORDER BY t.next_attempt_at, t.period_end, t.reporting_obligation_id LIMIT %(limit)s"
+    )
+
+
+def _eligible_query(holds: str, *, only: bool, select: str, tail: str) -> str:
     return "".join(
         (
-            "SELECT reporting_obligation_id, account_id FROM (",
-            resumable,
-            " SELECT o.reporting_obligation_id, o.account_id, 1 AS resume, o.period_end",
-            "  FROM reporting_obligations o JOIN reporting_configurations c",
+            "SELECT ",
+            select,
+            " FROM reporting_obligations o JOIN reporting_configurations c",
             "    ON c.account_id = o.account_id AND c.consumer_id = o.consumer_id",
             "   AND c.delivery_config_id = o.delivery_config_id",
             "   AND c.delivery_config_version = o.delivery_config_version",
@@ -204,9 +219,72 @@ def _candidate_query(holds: str, *, only: bool) -> str:
             "      + (GREATEST(c.status_retention_days, COALESCE(%(record_days)s::integer,",
             "           c.status_retention_days)) * INTERVAL '1 day') <= clock_timestamp()",
             holds,
-            ") candidate ORDER BY resume, period_end, reporting_obligation_id LIMIT %(limit)s",
+            tail,
         )
     )
+
+
+def _fresh_query(holds: str, *, only: bool) -> str:
+    """Expired periods nothing holds and no tombstone names.
+
+    ``only=True`` is the recheck under the account lock: it asks whether this one
+    obligation still qualifies, so a late revision cannot be retired with its period.
+    """
+    return _eligible_query(
+        holds,
+        only=only,
+        select="o.reporting_obligation_id, o.account_id",
+        tail=" ORDER BY o.period_end, o.reporting_obligation_id LIMIT %(limit)s",
+    )
+
+
+async def _held_count(connection: Any, holds: str, parameters: dict[str, Any]) -> int:
+    """Expired periods the holds kept out of this pass (a bounded count, never the rows)."""
+    if not holds:
+        return 0
+    everything = _eligible_query("", only=False, select="1", tail=" LIMIT 10001")
+    unheld = _eligible_query(holds, only=False, select="1", tail=" LIMIT 10001")
+    row = await (
+        await connection.execute(
+            f"SELECT (SELECT count(*) FROM ({everything}) a)"  # noqa: S608  # nosec B608
+            f" - (SELECT count(*) FROM ({unheld}) b)",
+            parameters,
+        )
+    ).fetchone()
+    return max(0, int(row[0])) if row else 0
+
+
+async def _parked_count(connection: Any, account_id: str | None) -> int:
+    row = await (
+        await connection.execute(
+            "SELECT count(*) FROM adcp_reporting_period_tombstones WHERE state = 'retiring'"
+            " AND next_attempt_at > clock_timestamp()"
+            " AND (%(account)s::text IS NULL OR account_id = %(account)s)",
+            {"account": account_id},
+        )
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
+_BACKOFF = (
+    "attempts = attempts + 1, last_outcome = %s,"
+    " next_attempt_at = clock_timestamp() + LEAST(INTERVAL '24 hours',"
+    "   INTERVAL '5 minutes' * power(2, LEAST(attempts, 10)))"
+)
+
+
+async def _back_off(store: PgReportingLedgerStore, obligation_id: str, outcome: str) -> None:
+    """Park a ``retiring`` period that could not finish; best effort, never raises."""
+    try:
+        async with store._pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_period_tombstones SET "  # noqa: S608  # nosec B608
+                + _BACKOFF
+                + " WHERE reporting_obligation_id = %s AND state = 'retiring'",
+                (outcome, obligation_id),
+            )
+    except Exception:  # noqa: S110  # nosec B110
+        pass
 
 
 def _tombstone_insert(has_rows: bool) -> str:
@@ -277,7 +355,7 @@ async def _retire_period(
         if resuming is None:
             still = await (
                 await connection.execute(
-                    _candidate_query(holds, only=True),
+                    _fresh_query(holds, only=True),
                     {
                         "account": account_id,
                         "only": obligation_id,
@@ -310,6 +388,12 @@ async def _retire_period(
             async with connection.transaction():  # a savepoint: all of the records or none
                 await _delete_records(connection, obligation_id, account_id)
         except (errors.RaiseException, errors.ForeignKeyViolation, errors.CheckViolation):
+            await connection.execute(
+                "UPDATE adcp_reporting_period_tombstones SET "  # noqa: S608  # nosec B608
+                + _BACKOFF
+                + " WHERE reporting_obligation_id = %s AND state = 'retiring'",
+                ("protected", obligation_id),
+            )
             return "protected"
         await connection.execute(
             "UPDATE adcp_reporting_period_tombstones SET state = 'retired',"

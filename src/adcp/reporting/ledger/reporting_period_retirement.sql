@@ -25,7 +25,34 @@ CREATE TABLE IF NOT EXISTS adcp_reporting_period_tombstones (
     adjustment_count        INTEGER NOT NULL CHECK (adjustment_count >= 0),
     retiring_at             TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
     retired_at              TIMESTAMPTZ,
+    attempts                INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    next_attempt_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    last_outcome            TEXT,
     CHECK ((state = 'retired') = (retired_at IS NOT NULL))
 );
+-- A period that cannot finish (protected records, a failing provider) backs off exponentially
+-- instead of occupying a candidate slot on every pass. Added in place for earlier installs.
+ALTER TABLE adcp_reporting_period_tombstones
+    ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0);
+ALTER TABLE adcp_reporting_period_tombstones
+    ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp();
+ALTER TABLE adcp_reporting_period_tombstones
+    ADD COLUMN IF NOT EXISTS last_outcome TEXT;
+CREATE INDEX IF NOT EXISTS adcp_reporting_period_tombstones_due
+    ON adcp_reporting_period_tombstones (next_attempt_at, period_end)
+    WHERE state = 'retiring';
 CREATE INDEX IF NOT EXISTS adcp_reporting_period_tombstones_account
     ON adcp_reporting_period_tombstones (account_id, delivery_config_id, period_start);
+
+-- Per-intent failure backoff for the intent sweep, so one binding that keeps failing cannot
+-- occupy every slot of every pass and starve the intents of other bindings. Python only: the
+-- shared write-intent table is not altered.
+CREATE TABLE IF NOT EXISTS adcp_reporting_row_sweep_backoff (
+    row_binding_id  TEXT COLLATE "C" NOT NULL,
+    row_set_id      TEXT COLLATE "C" NOT NULL,
+    content_sha256  TEXT COLLATE "C" NOT NULL,
+    attempts        INTEGER NOT NULL CHECK (attempts > 0),
+    next_attempt_at TIMESTAMPTZ NOT NULL,
+    last_cause      TEXT NOT NULL,
+    PRIMARY KEY (row_binding_id, row_set_id, content_sha256)
+);

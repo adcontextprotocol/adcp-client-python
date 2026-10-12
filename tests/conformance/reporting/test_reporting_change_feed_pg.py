@@ -143,10 +143,10 @@ async def test_the_deployment_feed_never_skips_a_slow_commit() -> None:
             await store.commit_revision(typed_revision(obligation, rows, suffix="fast"), rows)
             # The later commit is invisible while the lower transaction is in flight.
             assert (await store.changes_after(cursor=baseline.cursor)).records == ()
-            # The account feed is ordered by seq and is not delayed by other accounts' transactions.
-            assert [r.record_id for r in (await store.changes_after(account_id="acct_a")).records][
-                -1
-            ] == ("rpr_acct_a_fast")
+            # Account readers use the same guard, so ordering never relies on the account lock:
+            # they wait for the in-flight transaction too, and lose nothing by it.
+            during = await store.changes_after(account_id="acct_a")
+            assert all(r.record_id != "rpr_acct_a_fast" for r in during.records)
             await slow.commit()
         finally:
             await pool.putconn(slow)
@@ -255,3 +255,29 @@ async def test_pages_cross_99_to_100_in_numeric_order_on_both_feeds() -> None:
                 seen.extend(int(r.record_id.removeprefix("rev_")) for r in page.records)
                 cursor = page.cursor
             assert seen == list(range(95, 131)), (account, seen)
+
+
+async def test_account_readers_do_not_rely_on_the_account_lock_to_see_changes_in_order() -> None:
+    """Two writers that do not share a lock (for example two SDKs on one account) can commit
+    out of ``seq`` order; a reader must not skip the slower one's change for good."""
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        insert = (
+            "INSERT INTO adcp_reporting_changes (account_id, record_kind, record_id, obligation_id)"
+            " VALUES ('acct_a', 'revision', %s, 'obl_a')"
+        )
+        slow = await pool.getconn()
+        try:
+            await slow.execute(insert, ("slow",))  # seq 1, still in flight
+            async with pool.connection() as fast:
+                await fast.execute(insert, ("fast",))  # seq 2, commits first
+            page = await store.changes_after(account_id="acct_a")
+            # seq 2 is committed but must wait for seq 1: reading past it would skip seq 1.
+            assert [record.record_id for record in page.records] == []
+            await slow.commit()
+        finally:
+            await pool.putconn(slow)
+        page = await store.changes_after(account_id="acct_a")
+        assert [record.record_id for record in page.records] == ["slow", "fast"]
+        resumed = await store.changes_after(account_id="acct_a", cursor=page.cursor)
+        assert resumed.records == ()

@@ -29,6 +29,17 @@ the installed objects against `required_row_storage_schema.json` and refuses dri
 Two SDKs sharing one database must use the same `deployment_namespace`; a binding registered under another
 namespace is refused with `UNSAFE_BINDING`.
 
+**A ledger database has exactly one writer SDK.** Python and JavaScript can read each other's chunks (that is what the
+interop test proves), but mixed-SDK *writers* on one account are not supported. Each SDK serializes an account's commits
+under its own advisory lock key, so a Python append and a JavaScript append to one account can interleave: with a reader
+that orders by `seq` alone, the slower commit's lower `seq` is skipped for good. Account readers of the shared change
+feed now also read only changes older than every in-flight transaction (see the feed section), which removes that skip,
+but the two SDKs still keep separate obligations, revisions and tombstones, so the supported topology stays one writer
+SDK per database.
+
+To install everything this guide uses while developing: `pip install -e '.[dev,pg,reporting-gcs,reporting-s3,reporting-azure]'`
+(the `pg` extra provides psycopg).
+
 ## What changes
 
 - New revisions store their rows as canonical JSONL chunks: `JCS(row)` followed by `\n`, in 500-row segments
@@ -151,6 +162,9 @@ await store.create_schema()
 - Every read verifies the stored bytes against the recorded physical digest before decompressing, then verifies
   segments and the revision binding. A missing object is `ROWS_UNAVAILABLE`; different bytes are
   `ROWS_INTEGRITY_FAILED`.
+- **The filesystem provider is for development and single-host deployments only.** It exists so tests and local runs
+  need no cloud account; it has no replication or durability story beyond the host's disk, and its native version
+  needs a filesystem with sub-second timestamps. Use a cloud provider in production.
 - The filesystem provider records each write as `inode:birth_ns:mtime_ns:size`, the format the JavaScript provider
   uses, stamping a random sub-millisecond mtime on every write. It needs a filesystem with sub-second mtime and,
   ideally, birth time (ext4, XFS, APFS, NTFS). The `write-unique-version` conformance check fails on a coarse
@@ -319,7 +333,15 @@ await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds ba
 await store.changes_after(account_id="acct_a", cursor=page.cursor)
 ```
 
-- **Account feeds** order by `seq`, which is gap-free because the sequence value is taken under the account lock.
+- **Account feeds** order by `seq` and, like the deployment-wide feed, return only changes whose transaction is older
+  than every transaction still in flight (`xid < pg_snapshot_xmin(pg_current_snapshot())`). `seq` is taken under the
+  account lock, but ordering does not rely on that lock: a slow commit with a lower `seq` holds back the readers
+  until it commits, instead of being skipped. A long-running transaction anywhere in the database delays account
+  feeds as well as the deployment feed; it never makes either lose a record.
+- **Retirement events appear only in the shared feed.** `retire_expired_periods` appends a `retirement` change to
+  `adcp_reporting_changes`; the buyer-facing `reporting_ledger_changes` feed never carries one. The two feeds serve
+  different readers (host consumers such as warehouse sinks, and buyers holding `changes_after` cursors), so they stay
+  separate and merging them would change cursors buyers already hold.
 - **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
   older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
   this feed; it never makes it lose a record.
@@ -374,11 +396,21 @@ lock before the tombstone is written, so a late revision cannot be retired with 
 is never recreated or extended: `commit_obligation`, `commit_revision` and `commit_adjustment` refuse it with
 `PERIOD_RETIRED`.
 
-**Current limit.** Several Python extension tables (provisional observations, reconciliation records, notification
-events) are append-only by trigger and foreign key, and their guards are frozen catalog objects. A period that still has
-such records finishes phases 1 and 2, then stays `retiring` and is reported in `protected`: its row bytes are gone and
-reads answer as expired, while its records wait for the shared Core layout (persistence Stage 3), which carries
-retirement exemptions. Phase 3 deletes every record of a period or none.
+**Current limit: record deletion is effectively off for production deployments.** Several Python extension tables
+(provisional observations, reconciliation records, notification events) are append-only by trigger and foreign key, and
+their guards are frozen catalog objects. Every production period carries reconciliation records, and a reconciliation
+record *holds* its period, so retirement never even picks those periods up; a period whose protected records are
+provisional observations or notification events finishes phases 1 and 2 and then stays `retiring`, reported in
+`protected`. Either way the **row bytes are freed** (the worker schedules `prune_expired_row_sets` for exactly this),
+reads answer as expired, and the records stay. Phase 3 deletes every record of a period or none. Relaxing those guards
+is an audit-model decision for the maintainers, deliberately not made here; until it is, plan storage for the records
+themselves, which are small headers and receipts, not row bytes.
+
+Stuck periods never crowd out the rest. A period that cannot finish is parked with an exponential backoff
+(`attempts`, `next_attempt_at`, `last_outcome` on its tombstone; 5 minutes doubling to 24 hours) instead of occupying a
+candidate slot on every pass, and fresh periods always keep half the slots of each pass. The result reports what was
+left alone: `protected` (this pass), `held` (expired periods a hold kept out, bounded count) and `parked` (waiting out a
+backoff).
 
 Tombstones live in `adcp_reporting_period_tombstones`, created with row storage or the change feed.
 
@@ -390,14 +422,25 @@ Tombstones live in `adcp_reporting_period_tombstones`, created with row storage 
 | Store option | Operation | Bound |
 | --- | --- | --- |
 | `row_storage` | `sweep_row_write_intents` | 100 intents |
+| `row_storage` | `prune_expired_row_sets` | 20 periods |
 | `row_storage` or `change_feed` | `retire_expired_periods` | 20 periods |
 | `change_feed` | `prune_changes` | 10,000 rows |
 
-Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it, and
-only the closed operation name (`REPORTING_MAINTENANCE_FAILED`, `intent_sweep`, `period_retirement` or
-`change_pruning`) is logged, never an exception, provider message or identifier. An operation that finishes but reports
-failed items (a binding that cannot delete, for example) is logged the same way on every pass it does, so a stuck
-binding is visible; read `causes` from the result for the stable per-item code. `period_retirement` also removes the
-row bytes of every period it retires, so `prune_expired_row_sets` is not scheduled: call it yourself only if you want
-row bytes retired earlier than whole periods. Outside the production service, call
-the same methods from your own scheduler.
+Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it.
+Only the closed operation name and integer counters are logged, never an exception, provider message or identifier:
+
+- `REPORTING_MAINTENANCE_FAILED` (warning): the operation raised or reported failed items (a binding that cannot
+  delete, for example). Read `causes` from the result for the stable per-item code.
+- `REPORTING_MAINTENANCE_PENDING` (info): work was left in place on purpose, with the counters `protected`, `held`,
+  `parked`, `skipped_unconfigured` and `backed_off`. A retirement that does nothing because every period is held shows
+  up here instead of looking like a healthy idle worker.
+- `REPORTING_MAINTENANCE_STALLED` (warning): intents have been expired for more than a day and are still unresolved
+  (`stalled`): a binding no host configures any more, or one that keeps failing, so its orphaned objects are never
+  cleaned up.
+
+The last pass's counters are also on `ReportingProductionSupport.maintenance_report`, per operation.
+`prune_expired_row_sets` is scheduled so row bytes are reclaimed even while a period's records stay; its only hold is
+pending materializer work. The intent sweep skips bindings this host does not configure (counted in
+`skipped_unconfigured`) and backs a failing intent off exponentially (1 minute doubling to 1 hour, in
+`adcp_reporting_row_sweep_backoff`), trying never-failed intents first, so one broken binding cannot starve the others.
+Outside the production service, call the same methods from your own scheduler.

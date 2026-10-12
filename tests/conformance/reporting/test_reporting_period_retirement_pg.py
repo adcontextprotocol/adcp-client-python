@@ -21,6 +21,14 @@ async def count(pool: Any, table: str) -> int:
     return (await fetch_all(pool, f"SELECT count(*) FROM {table}"))[0][0]  # noqa: S608
 
 
+async def make_due(pool: Any) -> None:
+    """Let every attempt backoff elapse, as waiting would."""
+    async with pool.connection() as connection:
+        await connection.execute(
+            "UPDATE adcp_reporting_period_tombstones SET next_attempt_at = clock_timestamp()"
+        )
+
+
 async def committed_period(store: PgReportingLedgerStore, pool: Any, revisions: int = 2) -> Any:
     obligation = await seeded(store)
     await lease(pool)
@@ -164,6 +172,10 @@ async def test_a_failed_external_delete_leaves_the_period_retiring_and_resumes(
         assert await count(pool, "reporting_obligations") == 1
         assert len(list_objects(tmp_path / "rows")) == 1
 
+        # The failed period backs off instead of retrying on every pass.
+        assert stuck.failed and (await store.retire_expired_periods()).parked == 1
+        await make_due(pool)
+
         resumed = await store.retire_expired_periods()
         assert resumed.retired == 1
         assert list_objects(tmp_path / "rows") == []
@@ -270,3 +282,183 @@ async def test_a_change_feed_host_without_row_storage_retires_periods() -> None:
             "SELECT state, final_revision_id, final_row_manifest_sha256, revision_count"
             " FROM adcp_reporting_period_tombstones",
         ) == [("retired", revision.reporting_revision_id, None, 1)]
+
+
+BLOCK_DELETES = """
+CREATE FUNCTION block_period_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.account_id = 'acct_a_protected' THEN
+    RAISE EXCEPTION 'protected record' USING ERRCODE = 'P0001';
+  END IF;
+  RETURN OLD;
+END $$;
+CREATE TRIGGER block_period_delete BEFORE DELETE ON reporting_revisions
+  FOR EACH ROW EXECUTE FUNCTION block_period_delete();
+"""
+
+
+async def two_accounts(pool: Any) -> tuple[PgReportingLedgerStore, Any, Any]:
+    """One account whose records are protected (a guard raises on delete) and one ordinary."""
+    store = PgReportingLedgerStore(pool=pool, change_feed=True)
+    await store.create_schema()
+    obligations = []
+    for account in ("acct_a_protected", "acct_b_ordinary"):
+        config = configuration(account)
+        await store.put_configuration(config)
+        obligation = await store.commit_obligation(obligation_for(config))
+        rows = many_rows(5)
+        await store.commit_revision(typed_revision(obligation, rows, suffix=account), rows)
+        obligations.append(obligation)
+    async with pool.connection() as connection:
+        await connection.execute(BLOCK_DELETES)
+    await age(pool, days=500)
+    return store, obligations[0], obligations[1]
+
+
+async def test_protected_periods_back_off_and_never_starve_fresh_ones() -> None:
+    async with isolated_reporting_pool() as pool:
+        store, protected, ordinary = await two_accounts(pool)
+        retired = 0
+        seen_protected: list[str] = []
+        # One slot per pass: before the backoff, the stuck period took it every time.
+        for _ in range(3):
+            result = await store.retire_expired_periods(limit=1)
+            retired += result.retired
+            seen_protected.extend(result.protected)
+        assert retired == 1, "the ordinary period must be retired despite the stuck one"
+        assert seen_protected == [protected.reporting_obligation_id]
+        remaining = await fetch_all(
+            pool,
+            "SELECT reporting_obligation_id, state, attempts, last_outcome,"
+            " next_attempt_at > clock_timestamp() FROM adcp_reporting_period_tombstones"
+            " ORDER BY state",
+        )
+        assert (protected.reporting_obligation_id, "retiring", 1, "protected", True) in remaining
+        assert (await store.retire_expired_periods(limit=1)).parked == 1
+
+
+async def test_the_backoff_grows_with_each_attempt_and_the_period_is_retried_once_due() -> None:
+    async with isolated_reporting_pool() as pool:
+        store, protected, _ = await two_accounts(pool)
+        await store.retire_expired_periods(limit=5)
+
+        async def state() -> tuple[int, float]:
+            ((attempts, seconds),) = await fetch_all(
+                pool,
+                "SELECT attempts, EXTRACT(EPOCH FROM next_attempt_at - clock_timestamp())"
+                " FROM adcp_reporting_period_tombstones WHERE state = 'retiring'",
+            )
+            return attempts, float(seconds)
+
+        first_attempts, first_wait = await state()
+        assert first_attempts == 1 and 0 < first_wait <= 300
+        await make_due(pool)
+        again = await store.retire_expired_periods(limit=5)
+        assert again.protected == (protected.reporting_obligation_id,)
+        second_attempts, second_wait = await state()
+        assert second_attempts == 2 and second_wait > 300  # 10 minutes after two attempts
+
+
+async def test_held_periods_are_counted_not_silently_dropped() -> None:
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, change_feed=True)
+        await store.create_schema()
+        config = configuration("acct_held")
+        await store.put_configuration(config)
+        obligation = await store.commit_obligation(obligation_for(config))
+        rows = many_rows(5)
+        await store.commit_revision(typed_revision(obligation, rows, suffix="held"), rows)
+        await age(pool, days=500)
+        # A registered consumer that has not read the period's changes holds it.
+        await store.save_feed_consumer_cursor(
+            "reader", encode_reporting_change_cursor_v1(account="acct_held", seq="0")
+        )
+        result = await store.retire_expired_periods()
+        assert (result.retired, result.held) == (0, 1)
+
+
+async def test_row_pruning_frees_the_bytes_of_a_period_whose_records_are_held(
+    tmp_path: Path,
+) -> None:
+    """Production periods carry reconciliation records, which hold retirement. Row pruning has
+    no such hold, so the bytes are freed while the records stay."""
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path), change_feed=True)
+        await store.create_schema()
+        obligation = await committed_period(store, pool, revisions=1)
+        assert len(list_objects(tmp_path / "rows")) == 1
+        config = await fetch_all(
+            pool,
+            "SELECT consumer_id, delivery_config_id, delivery_config_version"
+            " FROM reporting_obligations",
+        )
+        consumer, config_id, version = config[0]
+        async with pool.connection() as connection, connection.transaction():
+            # The record's own guards are not under test; it only has to exist and name the period.
+            await connection.execute(
+                "ALTER TABLE reporting_reconciliation_records DISABLE TRIGGER USER"
+            )
+            await connection.execute(
+                "INSERT INTO reporting_reconciliation_records (account_id, consumer_id, namespace,"
+                " record_id, record_kind, delivery_config_id, delivery_config_version,"
+                " reporting_obligation_id, payload, content_sha256, change_id)"
+                " VALUES (%s, %s, 'obligation_delivery', 'rec_1', 'obligation_delivery', %s, %s,"
+                " %s, '{\"kind\": \"obligation_delivery\"}'::jsonb, %s, 'chg_1')",
+                (
+                    obligation.account_id,
+                    consumer,
+                    config_id,
+                    version,
+                    obligation.reporting_obligation_id,
+                    "a" * 64,
+                ),
+            )
+            await connection.execute(
+                "ALTER TABLE reporting_reconciliation_changes DISABLE TRIGGER USER"
+            )
+            await connection.execute(
+                "INSERT INTO reporting_reconciliation_changes (account_id, consumer_id, seq,"
+                " namespace, record_id, record_kind, change_id, content_sha256)"
+                " VALUES (%s, %s, 1, 'obligation_delivery', 'rec_1', 'obligation_delivery',"
+                " 'chg_1', %s)",
+                (obligation.account_id, consumer, "a" * 64),
+            )
+        await age(pool, days=500)
+
+        retirement = await store.retire_expired_periods()
+        # Held: not a candidate, no tombstone, records untouched, and counted rather than hidden.
+        assert (retirement.retired, retirement.held) == (0, 1)
+        assert await count(pool, "adcp_reporting_period_tombstones") == 0
+
+        pruned = await store.prune_expired_row_sets()
+        assert (pruned.retired, pruned.failed) == (1, ())
+        assert list_objects(tmp_path / "rows") == []
+        assert await fetch_all(pool, "SELECT rows_state FROM adcp_reporting_row_sets") == [
+            ("pruned",)
+        ]
+        assert await count(pool, "reporting_revisions") == 1  # the records stay
+        assert await count(pool, "reporting_reconciliation_records") == 1
+
+
+async def test_an_earlier_tombstone_table_gains_the_backoff_columns_in_place() -> None:
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, change_feed=True)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_period_tombstones (reporting_obligation_id, account_id,"
+                " consumer_id, delivery_config_id, delivery_config_version, period_start,"
+                " period_end, state, revision_count, adjustment_count)"
+                " VALUES ('rpo_old', 'a', 'c', 'd', 1, now(), now(), 'retiring', 0, 0)"
+            )
+            for column in ("attempts", "next_attempt_at", "last_outcome"):
+                await connection.execute(
+                    f"ALTER TABLE adcp_reporting_period_tombstones DROP COLUMN {column}"  # noqa: S608
+                )
+        await store.create_schema()  # idempotent upgrade
+        await store.create_schema()
+        assert await fetch_all(
+            pool,
+            "SELECT attempts, last_outcome, next_attempt_at <= clock_timestamp()"
+            " FROM adcp_reporting_period_tombstones",
+        ) == [(0, None, True)]

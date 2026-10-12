@@ -43,7 +43,23 @@ def _worker_stopped(*, boundary: _WorkerBoundary) -> None:
         return
 
 
-_MAINTENANCE_OPERATIONS = frozenset({"intent_sweep", "period_retirement", "change_pruning"})
+_MAINTENANCE_OPERATIONS = frozenset(
+    {"intent_sweep", "row_pruning", "period_retirement", "change_pruning"}
+)
+#: The only counters a maintenance event may carry: integers, never identifiers.
+_MAINTENANCE_COUNTERS = frozenset(
+    {
+        "retired",
+        "swept",
+        "failed",
+        "protected",
+        "held",
+        "parked",
+        "skipped_unconfigured",
+        "backed_off",
+        "stalled",
+    }
+)
 
 
 def _maintenance_failed(*, operation: str) -> None:
@@ -69,3 +85,52 @@ def _maintenance_failed(*, operation: str) -> None:
         _LOGGER.handle(record)
     except Exception:
         return
+
+
+def _maintenance_event(
+    *, code: str, level: int, operation: str, counts: dict[str, int], message: str
+) -> None:
+    """A maintenance pass left work undone or unseen. Only the closed operation name and
+    integer counters are recorded, never an identifier, an exception or a provider message."""
+    if not _LOGGER.isEnabledFor(level):
+        return
+    record = logging.LogRecord(_LOGGER.name, level, "", 0, message, (), None)
+    record.threadName = None
+    record.processName = None
+    if hasattr(record, "taskName"):
+        record.taskName = None
+    record.__dict__.update(
+        code=code,
+        operation=operation if operation in _MAINTENANCE_OPERATIONS else "maintenance",
+        **{
+            name: value
+            for name, value in counts.items()
+            if name in _MAINTENANCE_COUNTERS and type(value) is int
+        },
+    )
+    try:
+        _LOGGER.handle(record)
+    except Exception:
+        return
+
+
+def _maintenance_pending(*, operation: str, counts: dict[str, int]) -> None:
+    """Records were left in place on purpose: protected, held, parked or owned elsewhere."""
+    _maintenance_event(
+        code="REPORTING_MAINTENANCE_PENDING",
+        level=logging.INFO,
+        operation=operation,
+        counts=counts,
+        message="Reporting maintenance left work in place",
+    )
+
+
+def _maintenance_stalled(*, operation: str, counts: dict[str, int]) -> None:
+    """Work has waited far longer than any maintenance interval and nobody is handling it."""
+    _maintenance_event(
+        code="REPORTING_MAINTENANCE_STALLED",
+        level=logging.WARNING,
+        operation=operation,
+        counts=counts,
+        message="Reporting maintenance work is stalled",
+    )

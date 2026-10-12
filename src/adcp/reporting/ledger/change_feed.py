@@ -191,6 +191,11 @@ async def changes_after(
             query = (
                 f"SELECT {columns} FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
                 " WHERE change.account_id = %s AND change.seq > %s::bigint"
+                # Like the deployment feed, only changes whose transaction is older than every
+                # transaction still in flight: ``seq`` is assigned in commit order only while one
+                # writer holds the account lock, so without this a slow commit with a lower
+                # ``seq`` would be skipped for good by a reader that already saw a higher one.
+                " AND change.xid < pg_snapshot_xmin(pg_current_snapshot())"
                 " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
                 " ORDER BY change.seq LIMIT %s"
             )

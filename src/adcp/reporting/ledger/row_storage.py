@@ -701,7 +701,9 @@ class ReportingRowStorageV1:
         the exact chunk; otherwise ``CONTENT_CONFLICT``. ``on_created`` is awaited
         with ``(object_key, native_version)`` for every object this call created,
         before the next upload, so the caller can record it in its write intent.
-        Adopted objects are never reported, so a sweep never deletes them.
+        Adopted objects are never reported, so a sweep never deletes them. If ``on_created``
+        raises, the object it was told about stays in the store: an upload never deletes, because
+        its write intent may have been taken over by a writer that already adopted the object.
         """
         binding = prepared.binding
         if not isinstance(binding, ReportingObjectRowBindingV1):
@@ -742,13 +744,12 @@ class ReportingRowStorageV1:
                 budget,
             )
             if put.created:
-                try:
-                    await on_created(planned.key, put.native_version)
-                except BaseException:
-                    # The intent that would have let a sweep find this object is gone, so
-                    # remove the one object this call created before failing.
-                    await self._discard_created(binding, provider, planned.key, put.native_version)
-                    raise
+                # Never delete here. If recording fails because the intent was taken over, another
+                # writer may already have adopted this version and committed it; a version-pinned
+                # delete would remove a committed revision's bytes for good. Leave the object: at
+                # worst it is storage a later sweep removes through the reference check (the same
+                # choice the JavaScript SDK makes).
+                await on_created(planned.key, put.native_version)
                 locators.append(
                     ReportingRowChunkLocatorV1(
                         planned.key,
@@ -794,27 +795,6 @@ class ReportingRowStorageV1:
                 )
             )
         return locators
-
-    async def _discard_created(
-        self,
-        binding: ReportingObjectRowBindingV1,
-        provider: ReportingRowObjectProviderV1,
-        key: str,
-        native_version: str,
-    ) -> None:
-        try:
-            await self._provider_call(
-                provider.delete(
-                    ReportingRowObjectDeleteInputV1(
-                        binding.location, key, native_version, binding.credential_ref
-                    ),
-                    ReportingRowObjectContextV1(self._options.write_deadline_seconds),
-                ),
-                self._options.write_deadline_seconds,
-            )
-        except Exception:  # noqa: S110  # nosec B110
-            # Best effort: the original failure is what the caller must see.
-            pass
 
     async def write_in_transaction(
         self,

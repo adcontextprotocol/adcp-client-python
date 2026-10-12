@@ -96,7 +96,7 @@ async def test_an_object_bound_revision_uploads_create_only_chunks_and_serves_ve
             " FROM adcp_reporting_row_chunks",
         )
         key, version, compression, physical = chunk
-        (_, namespace) = store._row_storage.installation_identity  # type: ignore[union-attr]
+        _, namespace = store._row_storage.installation_identity  # type: ignore[union-attr]
         assert key.startswith(f"adcp-rows/{namespace}/") and key.endswith("/000000.jsonl.gz")
         assert obligation.account_id not in key
         assert compression == "gzip" and version.count(":") == 3
@@ -474,7 +474,7 @@ async def test_object_deletes_keep_referenced_objects_and_adopters_fail_closed(
         await store.commit_revision(revision, rows)
         storage = store._row_storage
         assert storage is not None
-        (binding, key, version, physical_sha, physical_size) = (
+        binding, key, version, physical_sha, physical_size = (
             await fetch_all(
                 pool,
                 "SELECT s.row_binding_id, c.object_key, c.native_version, c.physical_sha256,"
@@ -525,3 +525,61 @@ async def test_the_object_lock_uses_the_text_the_javascript_sdk_hashes(tmp_path:
                 )
             ).fetchone()
             assert held == 1
+
+
+async def test_a_failed_intent_record_leaves_the_object_and_never_deletes_it(
+    tmp_path: Path,
+) -> None:
+    """The intent may have been taken over by a writer that already adopted and committed the
+    object, so the failing upload must leak storage rather than delete a committed version."""
+    from dataclasses import replace
+
+    deletes: list[Any] = []
+    inner = create_filesystem_reporting_row_object_provider_v1(roots={"rows": tmp_path / "rows"})
+
+    class Spy:
+        name = inner.name
+        ranged_reads = inner.ranged_reads
+
+        def validate_location(self, location: Any) -> None:
+            inner.validate_location(location)
+
+        async def probe(self, *args: Any, **kwargs: Any) -> None:
+            await inner.probe(*args, **kwargs)
+
+        async def put_if_absent(self, put: Any, context: Any) -> Any:
+            return await inner.put_if_absent(put, context)
+
+        async def get(self, get: Any, context: Any) -> Any:
+            return await inner.get(get, context)
+
+        async def delete(self, delete: Any, context: Any) -> Any:
+            deletes.append(delete)
+            return await inner.delete(delete, context)
+
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(
+            pool=pool, row_storage=replace(options(tmp_path), providers={"filesystem": Spy()})
+        )
+        await store.create_schema()
+        obligation = await seeded(store)
+        await lease(pool)
+        rows = many_rows(12)
+        revision = typed_revision(obligation, rows, suffix="taken")
+        prepared = await prepare_revision_row_set(
+            store,
+            revision,
+            rows,
+            period_start="2026-09-01T00:00:00Z",
+        )
+        storage = store._row_storage
+        assert storage is not None
+
+        async def taken_over(_key: str, _version: str) -> None:
+            raise ReportingRowStoreError("STATE_UNAVAILABLE", "the intent was taken over")
+
+        with pytest.raises(ReportingRowStoreError) as failed:
+            await storage.upload(prepared, "intent", taken_over)
+        assert failed.value.code == "STATE_UNAVAILABLE"
+        assert deletes == []
+        assert len(list_objects(tmp_path / "rows")) == 1
