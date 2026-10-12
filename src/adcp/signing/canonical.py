@@ -45,10 +45,10 @@ class TargetUriMalformedError(ValueError):
 def host_has_raw_non_ascii(host: str) -> bool:
     """Whether *host* carries raw non-ASCII bytes (an un-normalized U-label).
 
-    One definition, deliberately two call sites with two different codes: here
-    it selects the UTS-46 branch on the signing path, while the verifier's
-    header precheck uses it to reject a U-label arriving on the wire as
-    ``request_signature_header_malformed``. Share the predicate, never the code.
+    One definition, two call sites with two different jobs: here it selects the
+    UTS-46 branch on the signing path, while the verifier's target-URI precheck
+    uses it to reject a U-label arriving on the wire as
+    ``request_target_uri_malformed``. Share the predicate, never the behavior.
     """
     return not host.isascii()
 
@@ -122,7 +122,10 @@ def canonicalize_target_uri(url: str) -> str:
     scheme = parts.scheme.lower()
     netloc = _canon_authority(parts.netloc, scheme)
     path = _normalize_path(parts.path)
-    if not path and parts.query:
+    if not path:
+        # RFC 9421 §2.2.2 / RFC 3986 §6.2.3 step 5: an empty path under an authority is
+        # `/`, with or without a query. The signer and the verifier derive the same base
+        # only if both normalize `https://host` and `https://host/` to one form.
         path = "/"
     # RFC 9421 §2.2.2 + RFC 7230 §5.5: effective request URI excludes the
     # fragment (client-local, never sent on wire).
@@ -200,9 +203,8 @@ def _malformed_authority_reason(authority: str) -> str | None:
     module is shared by the signer and the verifier, and the signer is required
     to CONVERT a U-label to its A-label form, not refuse it (see the
     `idn-to-punycode` vector). Rejecting a U-label received on the wire is the
-    verifier's header precheck, which raises a different code at an earlier
-    step; it shares `host_has_raw_non_ascii` with this module rather than
-    re-deriving the test.
+    verifier's target-URI precheck, which shares `host_has_raw_non_ascii` and
+    this function with this module rather than re-deriving either test.
     """
     host = authority.rsplit("@", 1)[-1]  # step 3: strip userinfo before judging the host
     if not host:

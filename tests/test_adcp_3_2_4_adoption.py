@@ -1,7 +1,7 @@
-"""The signed AdCP 3.2.3 release is the live default and retains historical bundles.
+"""The signed AdCP 3.2.4 release is the live default and retains historical bundles.
 
-Release identity values below come from the signed 3.2.3 release and its
-``schemas/releases/3.2.3.json`` pin. Until they are filled in, every test that
+Release identity values below come from the signed 3.2.4 release and its
+``schemas/releases/3.2.4.json`` pin. Until they are filled in, every test that
 depends on them fails loudly instead of passing vacuously.
 """
 
@@ -24,18 +24,18 @@ from adcp.server.mcp_tools import MCPToolSet
 from adcp.types import OptimizationGoal
 from adcp.validation import schema_loader
 
-VERSION = "3.2.3"
+VERSION = "3.2.4"
 WIRE_VERSION = "3.2"
-_TODO = "TODO: fill from the signed 3.2.3 release"
-# v3.2.3 tag commit (schemas/releases/3.2.3.json source_commit).
-SOURCE = "dfc6ad602780c1cff4fe23e16e30a570900c89d7"
-# SHA-256 of https://adcontextprotocol.org/protocol/3.2.3.tgz.
-BUNDLE = "cad841ddef4617fdb6eda130be7b471d9028123489b1384a7ca843ea97fd4ba5"
+_TODO = "TODO: fill from the signed 3.2.4 release"
+# v3.2.4 tag commit (schemas/releases/3.2.4.json source_commit).
+SOURCE = "5e6c4b01113237234b440b6c95adb8c6e0a07ca9"
+# SHA-256 of https://adcontextprotocol.org/protocol/3.2.4.tgz.
+BUNDLE = "d5a0b167b323e5ee05ac2c8da9ca01c46a5cb5a7b988570f40f746bb8b15ae76"
 # SHA-256 of test-vectors/reporting-summary/complete-summary.json.
 SUMMARY_SHA = "b72eabbc00b70c1993d53140a2427ac3208e224107c66659f5f25545fb2314e0"
-# Counts from _compliance/3.2.3 after the pinned sync.
-MANIFEST_FILE_COUNT: int | None = 4215
-PROVENANCE_FILE_COUNT: int | None = 203
+# Counts from _compliance/3.2.4 after the pinned sync.
+MANIFEST_FILE_COUNT: int | None = 4237
+PROVENANCE_FILE_COUNT: int | None = 225
 PROVENANCE_SCHEMA_COUNT: int | None = 1625
 SUMMARY_CASE_COUNT: int | None = 22
 ROOT = files("adcp").joinpath("_compliance", VERSION)
@@ -44,7 +44,7 @@ ROOT = files("adcp").joinpath("_compliance", VERSION)
 def _pinned(value):
     """Fail loudly while a release identity value is still a placeholder."""
     if value is None or (isinstance(value, str) and value.startswith("TODO")):
-        pytest.fail(f"3.2.3 release identity placeholder not filled in: {value!r}")
+        pytest.fail(f"3.2.4 release identity placeholder not filled in: {value!r}")
     return value
 
 

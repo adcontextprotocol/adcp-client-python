@@ -66,7 +66,7 @@ def test_manifest_pins_the_spec_version_the_sdk_targets() -> None:
     )
 
 
-@pytest.mark.parametrize(("subdir", "expected_count"), [("positive", 12), ("negative", 28)])
+@pytest.mark.parametrize(("subdir", "expected_count"), [("positive", 15), ("negative", 31)])
 def test_vector_counts_match_spec(subdir: str, expected_count: int) -> None:
     """Counts are stated literally so a shrunken set is obvious in the diff."""
     ids = manifest_ids(subdir)
@@ -89,10 +89,10 @@ def test_canonicalization_fixture_is_vendored_and_populated() -> None:
     """The standalone canonicalization fixture ships and carries both case kinds."""
     cases = load_canonicalization_cases()
     assert (
-        len(cases) == 37
-    ), f"AdCP {VECTOR_SET_SPEC_VERSION} canonicalization.json defines 37 cases, found {len(cases)}"
+        len(cases) == 41
+    ), f"AdCP {VECTOR_SET_SPEC_VERSION} canonicalization.json defines 41 cases, found {len(cases)}"
     assert sum(1 for _, case in cases if case.get("reject")) == 8
-    assert sum(1 for _, case in cases if not case.get("reject")) == 29
+    assert sum(1 for _, case in cases if not case.get("reject")) == 33
 
 
 def test_every_key_referenced_by_a_vector_exists_in_keys_json() -> None:
