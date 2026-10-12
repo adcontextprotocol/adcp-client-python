@@ -10,8 +10,9 @@ The rules are a predicate table rather than an if-chain: the same predicate can
 be reused at another call site that raises a different code at a different step.
 `host_has_raw_non_ascii` is shared with `canonical` for precisely that reason --
 canonicalization rejects a malformed authority as `request_target_uri_malformed`
-at step 6, while a U-label arriving on the wire is `request_signature_header_malformed`
-at step 1. Same rule, two codes, two steps.
+at step 6, and `target_uri_precheck` below applies the same code to a U-label or a
+malformed `Host` arriving on the wire (the 3.2.4 corpus corrected the 3.1 grading of
+`negative/026` from `request_signature_header_malformed`). Same rule, same code.
 
 ## What "raw headers" buys, and where it does not
 
@@ -109,6 +110,25 @@ def strict_header_precheck(
             if reason is not None:
                 return reason
 
+    return None
+
+
+def target_uri_precheck(
+    *,
+    headers: Mapping[str, str],
+    raw_headers: Sequence[tuple[bytes, bytes]] | None,
+    url: str,
+) -> str | None:
+    """Why the request's wire authority cannot be canonicalized, or `None`.
+
+    Unlike `strict_header_precheck`, a hit here is `request_target_uri_malformed`: the
+    defect is in the authority the signature base is derived from, not in a structured
+    field. It still runs before any key lookup, replay-store write, or signature work,
+    so a malformed authority is refused statelessly rather than after consuming a nonce.
+    Only malformed shapes are judged; a well-formed `Host` that differs from the URL
+    authority (a proxy) is not rejected.
+    """
+    pairs = _header_pairs(headers=headers, raw_headers=raw_headers)
     return _authority_reason(pairs=pairs, url=url)
 
 
@@ -171,7 +191,7 @@ def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None
 
 
 def _authority_reason(*, pairs: Sequence[tuple[str, str]], url: str) -> str | None:
-    """Why the authority this request carries is malformed at step 1, or `None`.
+    """Why the authority this request carries cannot be canonicalized, or `None`.
 
     Two rules, both of which the URL canonicalization algorithm states as a
     comparer MUST:
@@ -185,7 +205,7 @@ def _authority_reason(*, pairs: Sequence[tuple[str, str]], url: str) -> str | No
       identifier, userinfo or a port with no host -- are refused as written.
       `malformed_authority_reason` is the one definition of that rule and is
       shared with canonicalization, which raises `request_target_uri_malformed`
-      at step 6 over the URL. Same rule, two codes, two steps.
+      at step 6 over the URL. Same rule, same code.
 
     The non-ASCII rule runs against BOTH the `Host` header and the URL's
     authority, because neither alone is sufficient: ASGI frameworks drop a

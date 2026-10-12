@@ -100,7 +100,7 @@ def test_uri_format_checks_original_syntax(url: str, valid: bool) -> None:
 )
 def test_primary_pin_retains_internationalized_url_model_compatibility(url: str) -> None:
     asset = {"asset_type": "image", "url": url, "width": 1, "height": 1}
-    assert get_bundle_adcp_version() == "3.2.1"
+    assert get_bundle_adcp_version() == "3.2.4"
     validator = get_named_validator("core/assets/image-asset.json")
     assert validator is not None
     validator.validate(asset)

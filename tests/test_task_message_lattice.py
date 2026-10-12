@@ -81,7 +81,7 @@ _RESPONSE_PROTOCOL_RESIDUE = frozenset(
 #: (task, kind, schema path, the root classes the message validates into)
 _TaskMessage = tuple[str, str, str, tuple[type[BaseModel], ...]]
 
-_VERSION_ENVELOPE_REF = "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+_VERSION_ENVELOPE_REF = "https://adcontextprotocol.org/schemas/3.2.4/core/version-envelope.json"
 
 
 def _module_name(path: Path) -> str:
@@ -410,7 +410,7 @@ def test_version_normalization_refuses_a_schema_whose_arm_is_a_bare_ref() -> Non
         "anyOf": [
             {"required": ["results"]},
             {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-submitted.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.4/core/compact-task-submitted.json"
             },
         ],
         "properties": {

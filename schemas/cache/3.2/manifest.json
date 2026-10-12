@@ -1,7 +1,7 @@
 {
   "$schema": "/schemas/3.2.4/manifest.schema.json",
   "adcp_version": "3.2.4",
-  "generated_at": "2026-10-11T15:40:08.526Z",
+  "generated_at": "2026-10-11T21:23:01.435Z",
   "tools": {
     "accept_proposal": {
       "protocol": "media-buy",
