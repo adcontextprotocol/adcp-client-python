@@ -37,6 +37,7 @@ JOB_GROUPS = {
     "pg-reporting-production": "run_postgres",
     "pg-reporting-production-installed": "run_postgres",
     "pg-reporting-production-compatibility": "run_postgres",
+    "reporting-js-interop": "run_postgres",
     "downstream-imports": "run_packaging",
     "reporting-installed-artifact-matrix": "run_packaging",
     "storyboard": "run_storyboards",

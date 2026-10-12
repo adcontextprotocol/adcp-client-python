@@ -34,6 +34,8 @@ from . import _row_storage_interop as interop
 from ._generation_support import isolated_reporting_pool
 
 JS_SDK = os.environ.get("ADCP_JS_SDK_DIR")
+#: Set by the CI interop lane: a missing build or environment is a failure, never a skip.
+REQUIRED = os.environ.get("ADCP_REQUIRE_JS_INTEROP") == "1"
 DRIVER = Path(__file__).resolve().parents[2] / "interop" / "reporting_row_storage_js_driver.cjs"
 
 
@@ -60,10 +62,16 @@ async def setup(pool: Any, root: Path) -> tuple[PgReportingLedgerStore, Reportin
 
 
 @pytest.mark.skipif(
-    not JS_SDK or not shutil.which("node"),
+    not REQUIRED and (not JS_SDK or not shutil.which("node")),
     reason="set ADCP_JS_SDK_DIR to a built adcp-client checkout and install Node",
 )
 async def test_one_database_and_one_bucket_in_both_directions(tmp_path: Path) -> None:
+    if REQUIRED:
+        assert JS_SDK, "ADCP_REQUIRE_JS_INTEROP is set but ADCP_JS_SDK_DIR is not"
+        assert shutil.which("node"), "ADCP_REQUIRE_JS_INTEROP is set but node is not installed"
+        assert (
+            Path(JS_SDK) / "dist/lib/reporting/ledger/index.js"
+        ).is_file(), "ADCP_REQUIRE_JS_INTEROP is set but the JavaScript SDK is not built"
     root = tmp_path / "bucket"
     async with isolated_reporting_pool() as pool:
         _, storage = await setup(pool, root)

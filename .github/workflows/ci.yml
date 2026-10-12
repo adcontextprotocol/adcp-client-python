@@ -295,12 +295,83 @@ jobs:
               ;;
           esac
 
+  reporting-js-interop:
+    needs: changes
+    if: needs.changes.outputs.run_postgres == 'true'
+    name: Row storage interop with the JavaScript SDK (Postgres 16)
+    runs-on: ubuntu-latest
+    # npm ci and the full adcp-client build dominate; the interop test itself takes seconds.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # PURPOSE: the shared row-storage layout is only shared if the shipped JavaScript SDK reads
+    # what Python writes and the reverse, against one database and one bucket. This lane builds
+    # adcp-client at its main branch (deliberately not pinned to a commit) and runs
+    # test_one_database_and_one_bucket_in_both_directions with ADCP_REQUIRE_JS_INTEROP=1, so a
+    # missing build or environment fails instead of skipping. If JavaScript main changes its
+    # stored format before Python mirrors it, this job correctly fails: that is the gate.
+    services:
+      postgres:
+        image: mirror.gcr.io/library/postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_interop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.8"
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: "3.12"
+          prune-cache: true
+      - name: Check out the JavaScript SDK (main)
+        uses: actions/checkout@v6
+        with:
+          repository: adcontextprotocol/adcp-client
+          ref: main
+          path: adcp-client-js
+          persist-credentials: false
+      - name: Set up Node 22.12.0
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.12.0"
+          cache: npm
+          cache-dependency-path: adcp-client-js/package-lock.json
+      - name: Build the JavaScript SDK
+        working-directory: adcp-client-js
+        run: |
+          npm ci
+          npm run build
+          test -f dist/lib/reporting/ledger/index.js
+      - name: Install test dependencies
+        run: uv pip install --system -e ".[dev,pg]"
+      - name: Run the interop test in both directions
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_interop_test
+          ADCP_JS_SDK_DIR: ${{ github.workspace }}/adcp-client-js
+          ADCP_REQUIRE_JS_INTEROP: "1"
+        run: |
+          python -m pytest -n0 -p no:cacheprovider -v -ra \
+            tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
+
   pg-conformance-required-gate:
     name: Postgres conformance tests (Postgres 16)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: [changes, pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed, pg-reporting-production, pg-reporting-production-compatibility, pg-reporting-production-installed, reporting-installed-artifact-matrix]
+    needs: [changes, pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed, pg-reporting-production, pg-reporting-production-compatibility, pg-reporting-production-installed, reporting-js-interop, reporting-installed-artifact-matrix]
     # Failed lanes must still fail the gate; superseded runs should release
     # their concurrency slot instead of keeping an uncancelable job queued.
     if: ${{ !cancelled() }}
