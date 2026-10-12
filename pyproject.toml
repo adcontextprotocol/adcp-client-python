@@ -219,6 +219,10 @@ adcp = [
     "_compliance/3.2.3/**/*.jsonl",
     "_compliance/3.2.3/**/*.yaml",
     "_compliance/3.2.3/**/*.md",
+    "_compliance/3.2.4/**/*.json",
+    "_compliance/3.2.4/**/*.jsonl",
+    "_compliance/3.2.4/**/*.yaml",
+    "_compliance/3.2.4/**/*.md",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each

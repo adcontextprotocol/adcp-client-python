@@ -5,10 +5,11 @@ include MIGRATION*.md
 recursive-include src/adcp py.typed
 recursive-include src/adcp/reporting/materializer/assets *.json
 recursive-include src/adcp/_compliance/3.2.3 *.json *.jsonl *.yaml *.md
+recursive-include src/adcp/_compliance/3.2.4 *.json *.jsonl *.yaml *.md
 # Bundled AdCP JSON schemas. ``scripts/bundle_schemas.py`` mirrors
 # ``schemas/cache/`` into ``src/adcp/_schemas/`` before ``python -m
 # build`` so the validator ships with the wheel. Keep distributions on
-# supported released lines: 3.0, 3.1 and 3.2 (AdCP 3.2.3).
+# supported released lines: 3.0, 3.1 and 3.2 (AdCP 3.2.4).
 recursive-include src/adcp/_schemas/3.0 *.json
 recursive-include src/adcp/_schemas/3.1 *.json
 recursive-include src/adcp/_schemas/3.2 *.json
@@ -34,3 +35,4 @@ prune schemas/cache/3.2.0-rc.6
 prune schemas/cache/3.2.0-rc.7
 prune schemas/releases
 include schemas/releases/3.2.3.json
+include schemas/releases/3.2.4.json
