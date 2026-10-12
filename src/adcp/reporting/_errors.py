@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from typing import Literal, TypeVar
 
 from adcp.exceptions import ADCPTaskError
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service_lifecycle import ReliableReportingUnavailableError
 from adcp.server.helpers import STANDARD_ERROR_CODES, adcp_error
@@ -71,6 +72,11 @@ class ReliableReportingConfigurationError(ValueError):
 
 def reporting_error(code: str, message: str) -> Error:
     """Preserve the domain code and use the SDK's normative recovery defaults."""
+    if code == "REVISION_NOT_FOUND":
+        # A store-internal code for an unknown or retired revision. The protocol's
+        # nondisclosing answer is the standard reference error.
+        code = "REFERENCE_NOT_FOUND"
+        message = "Reporting revision not found"
     recovery = None
     if code not in STANDARD_ERROR_CODES:
         if code in _REPORTING_CORRECTABLE:
@@ -91,6 +97,13 @@ async def installed_reporting_call(
             "SERVICE_UNAVAILABLE", "Reporting service is temporarily unavailable"
         )
         cause: Exception = error
+    except ReportingRowStoreError as error:
+        # Rows missing or failing their binding inside the retention window: the
+        # seller still owes them, so never not-found and never unverified rows.
+        wire = reporting_error(
+            "SERVICE_UNAVAILABLE", "Reporting revision rows are temporarily unavailable"
+        )
+        cause = error
     except LedgerConflictError as error:
         wire = reporting_error(error.code, str(error))
         cause = error

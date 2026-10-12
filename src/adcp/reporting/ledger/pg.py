@@ -73,6 +73,7 @@ one failure mode a reporting ledger must not have.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -93,6 +94,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
 from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
 from adcp.reporting.ledger.health import issue_id_for_occurrence
+from adcp.reporting.ledger.host_reads import ReportingCurrentRevisionsPageV1
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     LedgerRecordKind,
@@ -149,7 +151,10 @@ if TYPE_CHECKING:
 
     from adcp.reporting._source_authorization import InlineSealPublisher
     from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
+    from adcp.reporting.ledger.change_feed import ReportingChangeKindV1, ReportingChangesPageV1
+    from adcp.reporting.ledger.period_retirement import ReportingPeriodRetirementV1
     from adcp.reporting.ledger.row_migration import ReportingRowMigrationBatchV1
+    from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 
 try:
@@ -171,6 +176,8 @@ _RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliat
 _NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox.sql"
 _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
+_CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
+_RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -223,6 +230,7 @@ class PgReportingLedgerStore:
         clock: Callable[[], datetime] | None = None,
         notifications: bool = False,
         row_storage: bool | ReportingRowStorageOptionsV1 | None = None,
+        change_feed: bool = False,
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
@@ -237,6 +245,9 @@ class PgReportingLedgerStore:
             )
         )
         self._row_sets_known = False
+        self._tombstones_known = False
+        # Opt-in shared host change feed (adcp_reporting_changes), PostgreSQL 13+.
+        self._change_feed = change_feed is True
         self._staged_rows: dict[tuple[str, str, str], Any] = {}
         # Change timestamps and the snapshot boundary default to the *database* clock,
         # which is what makes two readers of one snapshot agree even across
@@ -358,6 +369,113 @@ class PgReportingLedgerStore:
             self, limit=limit, account_id=account_id, cursor=cursor, binding_id=binding_id
         )
 
+    async def sweep_row_write_intents(
+        self, *, limit: int = 100, account_id: str | None = None
+    ) -> ReportingRowIntentSweepV1:
+        """Resolve abandoned object uploads: delete only what an expired upload created.
+
+        An expired write intent with no committed header moves to ``sweeping`` under
+        the account lock, so no writer can commit against it, then the objects it
+        created are deleted at their recorded versions. Adopted objects and objects a
+        committed chunk references are never touched. Schedule it alongside the
+        producer.
+        """
+        from adcp.reporting.ledger.row_retention import sweep_row_write_intents
+
+        return await sweep_row_write_intents(self, limit=limit, account_id=account_id)
+
+    async def prune_expired_row_sets(
+        self,
+        *,
+        limit: int = 20,
+        account_id: str | None = None,
+        ledger_record_retention_days: int | None = None,
+    ) -> ReportingRowPruneV1:
+        """Retire the row bytes of periods past their retention window, resumably.
+
+        Rows stop being served first, then external objects are deleted at their
+        recorded versions, then the manifests and bodies go. A failed delete leaves
+        the period ``pruning`` with every locator intact and the next pass resumes.
+        See :mod:`adcp.reporting.ledger.row_retention` for what qualifies a period.
+        """
+        from adcp.reporting.ledger.row_retention import prune_expired_row_sets
+
+        return await prune_expired_row_sets(
+            self,
+            limit=limit,
+            account_id=account_id,
+            ledger_record_retention_days=ledger_record_retention_days,
+        )
+
+    async def changes_after(
+        self,
+        *,
+        cursor: str | None = None,
+        account_id: str | None = None,
+        kinds: Sequence[ReportingChangeKindV1] | None = None,
+        limit: int = 500,
+    ) -> ReportingChangesPageV1:
+        """Read the shared host change feed; see :mod:`adcp.reporting.ledger.change_feed`.
+
+        Account feeds order by ``seq``; the deployment-wide feed orders by ``(xid, seq)``
+        below the reading snapshot's ``xmin``. A cursor older than the retained history
+        raises ``ReportingChangeCursorExpiredError``. Requires ``change_feed=True``.
+        """
+        from adcp.reporting.ledger.change_feed import changes_after
+
+        return await changes_after(
+            self, cursor=cursor, account_id=account_id, kinds=kinds, limit=limit
+        )
+
+    async def save_feed_consumer_cursor(self, name: str, cursor: str) -> None:
+        """Register a named consumer's position, holding back pruning and retirement."""
+        from adcp.reporting.ledger.change_feed import save_feed_consumer_cursor
+
+        await save_feed_consumer_cursor(self, name, cursor)
+
+    async def prune_changes(
+        self,
+        *,
+        change_retention_days: int = 30,
+        max_feed_hold_days: int = 7,
+        limit: int = 10_000,
+    ) -> int:
+        """Delete change rows past retention that every live registered consumer has passed."""
+        from adcp.reporting.ledger.change_feed import prune_changes
+
+        return await prune_changes(
+            self,
+            change_retention_days=change_retention_days,
+            max_feed_hold_days=max_feed_hold_days,
+            limit=limit,
+        )
+
+    async def retire_expired_periods(
+        self,
+        *,
+        limit: int = 20,
+        account_id: str | None = None,
+        ledger_record_retention_days: int | None = None,
+        max_feed_hold_days: int = 7,
+    ) -> ReportingPeriodRetirementV1:
+        """Retire whole periods past ``max(status_retention_days, ledger_record_retention_days)``.
+
+        Tombstone and stop serving rows, delete external bytes, then delete the period's
+        records: ordered and resumable, so the records that locate row bytes are never
+        deleted while the bytes remain. Periods referenced by a materialization, a receipt
+        or an unread registered feed consumer are held. See
+        :mod:`adcp.reporting.ledger.period_retirement` for what Python can delete today.
+        """
+        from adcp.reporting.ledger.period_retirement import retire_expired_periods
+
+        return await retire_expired_periods(
+            self,
+            limit=limit,
+            account_id=account_id,
+            ledger_record_retention_days=ledger_record_retention_days,
+            max_feed_hold_days=max_feed_hold_days,
+        )
+
     async def retire_legacy_inline_rows(self) -> bool:
         """Rename ``reporting_revision_rows`` after every revision is migrated or quarantined.
 
@@ -383,6 +501,10 @@ class PgReportingLedgerStore:
             Path(__file__).with_name("reporting_caller_ownership.sql"),
         ):
             await connection.execute(path.read_text())
+        if self._change_feed:
+            await connection.execute(_CHANGES_DDL_PATH.read_text())
+        if self._change_feed or self._row_storage is not None:
+            await connection.execute(_RETIREMENT_DDL_PATH.read_text())
         if self._row_storage is not None:
             await connection.execute(REPORTING_ROW_STORAGE_DDL_PATH.read_text())
             await connection.execute(_ROW_MIGRATION_DDL_PATH.read_text())
@@ -550,7 +672,16 @@ class PgReportingLedgerStore:
         record_id: str,
         *,
         consumer_id: str,
+        obligation_id: str | None = None,
     ) -> None:
+        if self._change_feed and kind != "consumer_status":
+            # The shared host feed (adcp_reporting_changes). It runs after the account
+            # lock the caller already holds, so per-account sequence order is commit order.
+            await connection.execute(
+                "INSERT INTO adcp_reporting_changes"
+                " (account_id, record_kind, record_id, obligation_id) VALUES (%s, %s, %s, %s)",
+                (account_id, kind, record_id, obligation_id or record_id),
+            )
         await connection.execute(
             "INSERT INTO reporting_ledger_changes"
             " (account_id, consumer_id, record_kind, record_id, committed_at)"
@@ -823,6 +954,58 @@ class PgReportingLedgerStore:
 
     # -- obligations ------------------------------------------------------
 
+    async def _period_is_tombstoned(
+        self, connection: Any, obligation: ReportingObligationRecord
+    ) -> bool:
+        """Whether retirement already took this period, so a replay cannot resurrect it."""
+        if not self._tombstones_known:
+            present = await (
+                await connection.execute(
+                    "SELECT to_regclass(quote_ident(current_schema())"
+                    " || '.adcp_reporting_period_tombstones')"
+                )
+            ).fetchone()
+            if present is None or present[0] is None:
+                return False
+            self._tombstones_known = True
+        key = obligation.generation_key
+        row = await (
+            await connection.execute(
+                "SELECT 1 FROM adcp_reporting_period_tombstones"
+                " WHERE reporting_obligation_id = %s OR (account_id = %s AND consumer_id = %s"
+                " AND delivery_config_id = %s AND delivery_config_version = %s"
+                " AND period_start = %s AND period_end = %s) LIMIT 1",
+                (
+                    obligation.reporting_obligation_id,
+                    key.account_id,
+                    key.consumer_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                    obligation.period.start,
+                    obligation.period.end,
+                ),
+            )
+        ).fetchone()
+        return row is not None
+
+    async def _obligation_is_tombstoned(self, connection: Any, obligation_id: str) -> bool:
+        present = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.adcp_reporting_period_tombstones')"
+            )
+        ).fetchone()
+        if present is None or present[0] is None:
+            return False
+        row = await (
+            await connection.execute(
+                "SELECT 1 FROM adcp_reporting_period_tombstones"
+                " WHERE reporting_obligation_id = %s LIMIT 1",
+                (obligation_id,),
+            )
+        ).fetchone()
+        return row is not None
+
     async def commit_obligation(
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
@@ -847,6 +1030,11 @@ class PgReportingLedgerStore:
             ).fetchone()
             if existing_row is not None:
                 return _obligation_from_row(existing_row)
+            if await self._period_is_tombstoned(connection, obligation):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period was retired; a retired obligation is never recreated",
+                )
             require_frozen_currency(obligation.currency)
             try:
                 inserted = await (
@@ -904,6 +1092,7 @@ class PgReportingLedgerStore:
                     "obligation",
                     obligation.reporting_obligation_id,
                     consumer_id=obligation.consumer_id,
+                    obligation_id=obligation.reporting_obligation_id,
                 )
                 if self._notifications_enabled:
                     await self._dirty_status(
@@ -1022,6 +1211,11 @@ class PgReportingLedgerStore:
             await self._require_writable_generation(
                 connection, _obligation_from_row(obligation).generation_key
             )
+            if await self._period_is_tombstoned(connection, _obligation_from_row(obligation)):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period is being retired; no revision may be added to it",
+                )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
@@ -1100,6 +1294,7 @@ class PgReportingLedgerStore:
                 "revision",
                 revision.reporting_revision_id,
                 consumer_id=_obligation_from_row(obligation).consumer_id,
+                obligation_id=revision.reporting_obligation_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import revision_event
@@ -1564,6 +1759,117 @@ class PgReportingLedgerStore:
             ).fetchone()
         return _revision_from_row(row) if row else None
 
+    async def get_current_revision(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> ReportingRevisionRecord | None:
+        """The obligation's current revision header: the official revision if one exists,
+        otherwise the snapshot nothing supersedes yet.
+
+        One indexed lookup. Rows are read separately through the verified paged reader.
+        """
+        query = "".join(
+            (
+                "SELECT ",
+                _REVISION_COLUMNS,
+                " FROM reporting_revisions r WHERE r.account_id = %s",
+                " AND r.reporting_obligation_id = %s AND ",
+                _CURRENT_REVISION_FILTER,
+                _CURRENT_REVISION_ORDER,
+                " LIMIT 1",
+            )
+        )
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(query, (account_id, reporting_obligation_id))
+            ).fetchone()
+        return _revision_from_row(row) if row else None
+
+    async def list_current_revisions(
+        self,
+        *,
+        account_id: str,
+        period_start_from: datetime,
+        period_start_to: datetime,
+        delivery_config_id: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> ReportingCurrentRevisionsPageV1:
+        """Current revision headers for an account's obligations whose period starts in
+        ``[period_start_from, period_start_to)``, ordered by period start.
+
+        Obligations without a revision yet are omitted. Page with ``cursor``; the
+        cursor format matches the JavaScript SDK's. A change-feed consumer that
+        received ``CURSOR_EXPIRED`` resynchronizes from this read.
+        """
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        after: tuple[str, str] | None = None
+        if cursor is not None:
+            try:
+                padded = cursor + "=" * (-len(cursor) % 4)
+                parsed = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+                start, identity = parsed["start"], parsed["id"]
+                if not isinstance(start, str) or not isinstance(identity, str):
+                    raise ValueError("invalid")
+                # A cursor the JavaScript SDK wrote or a corrupted one must fail as a
+                # cursor error here, not as a driver error from the timestamp cast.
+                moment = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                if moment.tzinfo is None:
+                    raise ValueError("invalid")
+                after = (start, identity)
+            except (ValueError, KeyError, TypeError, UnicodeError, AttributeError):
+                raise ValueError("current revisions cursor is invalid") from None
+        query = "".join(
+            (
+                "SELECT ",
+                _OUTER_REVISION_COLUMNS,
+                ", to_char(o.period_start AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')",
+                " FROM reporting_obligations o JOIN LATERAL (SELECT ",
+                _REVISION_COLUMNS,
+                " FROM reporting_revisions r WHERE r.account_id = o.account_id",
+                " AND r.reporting_obligation_id = o.reporting_obligation_id AND ",
+                _CURRENT_REVISION_FILTER,
+                _CURRENT_REVISION_ORDER,
+                " LIMIT 1) r ON TRUE",
+                " WHERE o.account_id = %s AND o.period_start >= %s AND o.period_start < %s",
+                " AND (%s::text IS NULL OR o.delivery_config_id = %s)",
+                " AND (%s::timestamptz IS NULL OR (o.period_start, o.reporting_obligation_id)",
+                "      > (%s::timestamptz, %s::text))",
+                " ORDER BY o.period_start, o.reporting_obligation_id LIMIT %s",
+            )
+        )
+        async with self._connection() as connection:
+            rows = await (
+                await connection.execute(
+                    query,
+                    (
+                        account_id,
+                        period_start_from,
+                        period_start_to,
+                        delivery_config_id,
+                        delivery_config_id,
+                        after[0] if after else None,
+                        after[0] if after else None,
+                        after[1] if after else None,
+                        limit + 1,
+                    ),
+                )
+            ).fetchall()
+        page = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = page[-1]
+            next_cursor = (
+                base64.urlsafe_b64encode(
+                    json.dumps({"start": last[-1], "id": last[2]}, separators=(",", ":")).encode()
+                )
+                .rstrip(b"=")
+                .decode("ascii")
+            )
+        return ReportingCurrentRevisionsPageV1(
+            tuple(_revision_from_row(row[:-1]) for row in page), next_cursor
+        )
+
     async def read_revision_rows(
         self,
         *,
@@ -1932,6 +2238,11 @@ class PgReportingLedgerStore:
                 raise LedgerConflictError(
                     "REVISION_NOT_FOUND", "an adjustment must name a committed revision"
                 )
+            if await self._obligation_is_tombstoned(connection, revision[1]):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period is being retired; no adjustment may be added to it",
+                )
             if revision[0] != "official":
                 raise LedgerConflictError(
                     "ADJUSTMENT_REQUIRES_OFFICIAL",
@@ -1992,6 +2303,7 @@ class PgReportingLedgerStore:
                 "adjustment",
                 adjustment.reporting_adjustment_id,
                 consumer_id=_obligation_from_row(obligation).consumer_id,
+                obligation_id=_obligation_from_row(obligation).reporting_obligation_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import adjustment_event
@@ -2961,6 +3273,17 @@ _REVISION_COLUMNS = (
     " created_at, supersedes_reporting_revision_id, finality_basis, finality_policy_id,"
     " finalized_at, readable, readable_at_commit, source_publication_id, source_manifest_sha256,"
     " canonical_content_digest, managed_control_totals"
+)
+
+_OUTER_REVISION_COLUMNS = ", ".join(f"r.{name.strip()}" for name in _REVISION_COLUMNS.split(","))
+# The current revision of an obligation is the official one if it exists, otherwise the
+# snapshot nothing supersedes yet. An official revision is terminal, so it is never superseded.
+_CURRENT_REVISION_FILTER = (
+    "NOT EXISTS (SELECT 1 FROM reporting_revisions s WHERE s.account_id = r.account_id"
+    " AND s.supersedes_reporting_revision_id = r.reporting_revision_id)"
+)
+_CURRENT_REVISION_ORDER = (
+    " ORDER BY (r.finality = 'official') DESC, r.created_at DESC, r.reporting_revision_id DESC"
 )
 
 _ADJUSTMENT_COLUMNS = (

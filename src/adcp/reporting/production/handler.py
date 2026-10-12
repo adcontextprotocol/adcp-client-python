@@ -19,6 +19,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import ConsumerStatusIngest
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor, encode_cursor
 from adcp.reporting.receipts.errors import ReportingReceiptError
 from adcp.reporting.receipts.handler import (
@@ -380,13 +381,17 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             # ownership/visibility and complete captured reconciliation checks.
             projected = await self.get_reporting_status(status_request, context)
             if not isinstance(projected, dict) or "revision" not in projected:
-                raise LedgerConflictError("LOOKUP_UNAVAILABLE", "no such revision is available")
+                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
             store = self.production.store
             revision = await store.get_revision(
                 account_id=caller.account_id, reporting_revision_id=revision_id
             )
-            if revision is None or not revision.readable:
-                raise LedgerConflictError("LOOKUP_UNAVAILABLE", "no such revision is available")
+            if revision is None:
+                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
+            if not revision.readable:
+                # A retained revision this seller still owes but cannot serve is never
+                # not-found, and never rows that fail the binding.
+                raise ReportingRowStoreError("ROWS_UNAVAILABLE", "revision rows are unreadable")
             pagination = request.get("pagination") or {}
             limit = pagination.get("max_results", 50)
             if type(limit) is not int or not 1 <= limit <= 100:
@@ -453,7 +458,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 account_id=caller.account_id, reporting_revision_id=revision_id
             )
             if after != revision:
-                raise LedgerConflictError("LOOKUP_UNAVAILABLE", "no such revision is available")
+                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
             wire = projected["revision"]
             totals = (
                 [r.to_wire() for r in revision.managed_control_totals]
@@ -491,8 +496,18 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             code, message = error.code, str(error)
         except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
             raise
-        except Exception:
-            code, message = "REPORTING_CONTENT_UNAVAILABLE", "reporting content is unavailable"
+        except Exception as error:
+            if isinstance(error, ReportingRowStoreError) or (
+                isinstance(error, ReportingNotificationError)
+                and str(error) == "reporting_revision_content_unavailable"
+            ):
+                # Operator codes never reach a buyer, so a buyer cannot probe whether an
+                # object exists. Rows that are missing or fail their binding inside the
+                # retention window are SERVICE_UNAVAILABLE, never not-found.
+                code = "SERVICE_UNAVAILABLE"
+                message = "reporting revision rows are temporarily unavailable"
+            else:
+                code, message = "REPORTING_CONTENT_UNAVAILABLE", "reporting content is unavailable"
         raise _task_error("get_media_buy_delivery", code, message)
 
 

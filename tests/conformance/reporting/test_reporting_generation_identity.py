@@ -814,7 +814,7 @@ async def test_status_and_issue_projection_use_each_accounts_own_generation(
             await handler.handle(
                 {"view": "revision", "reporting_revision_id": unavailable_id}, caller=callers[0]
             )
-        assert caught.value.code == "LOOKUP_UNAVAILABLE"
+        assert caught.value.code == "REFERENCE_NOT_FOUND"
 
 
 async def test_ingest_resolves_the_accounts_own_configuration(

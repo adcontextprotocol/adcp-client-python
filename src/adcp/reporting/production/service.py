@@ -173,6 +173,7 @@ class ReportingProductionSupport:
         poll_seconds: float = 0.25,
         adcp_version: str | None = None,
         source_registry: ReportingProductionSourceRegistry | None = None,
+        maintenance_seconds: float | None = 300.0,
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
@@ -195,6 +196,7 @@ class ReportingProductionSupport:
             or not 1 <= status_retention_days <= 36500
             or automated_recovery_window <= timedelta(0)
             or not 0.01 <= poll_seconds <= 60
+            or (maintenance_seconds is not None and not 0.01 <= maintenance_seconds <= 86_400)
             or type(notification_workers) is not tuple
             or any(type(w) is not ReportingNotificationWorker for w in notification_workers)
         ):
@@ -221,6 +223,8 @@ class ReportingProductionSupport:
             status_retention_days,
         )
         self.notification_workers, self.poll_seconds = notification_workers, poll_seconds
+        self.maintenance_seconds = maintenance_seconds
+        self._next_maintenance = 0.0
         from adcp.reporting.production.notifications import worker_identity
 
         self._notification_identity = tuple(worker_identity(w) for w in notification_workers)
@@ -688,6 +692,7 @@ class ReportingProductionSupport:
                 await self.projection.rebuild_one()
                 boundary = "sweeper"
                 await self.projection.sweep_one()
+                await self._maintain()
                 self._started.set()
                 try:
                     await asyncio.wait_for(self._stop.wait(), self.poll_seconds)
@@ -704,6 +709,44 @@ class ReportingProductionSupport:
                 _worker_stopped(boundary=boundary)
         finally:
             self._started.set()
+
+    async def _maintain(self) -> None:
+        """Scheduled retention: abandoned uploads, expired periods, old change rows.
+
+        Each operation is bounded and resumable, runs only for the features the store
+        opted into (row storage, the change feed), and a failure never stops the worker:
+        the next interval retries and only the operation's name is logged.
+        """
+        if self.maintenance_seconds is None:
+            return
+        loop = asyncio.get_running_loop()
+        if loop.time() < self._next_maintenance:
+            return
+        self._next_maintenance = loop.time() + self.maintenance_seconds
+        from adcp.reporting.production._diagnostics import _maintenance_failed
+
+        store: Any = self.store
+        operations: list[tuple[str, Any]] = []
+        if getattr(store, "_row_storage", None) is not None:
+            operations.append(("intent_sweep", lambda: store.sweep_row_write_intents(limit=100)))
+        if getattr(store, "_row_storage", None) is not None or getattr(
+            store, "_change_feed", False
+        ):
+            operations.append(("period_retirement", lambda: store.retire_expired_periods(limit=20)))
+        if getattr(store, "_change_feed", False):
+            operations.append(("change_pruning", lambda: store.prune_changes()))
+        for name, run in operations:
+            try:
+                result = await run()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                _maintenance_failed(operation=name)
+                continue
+            # Sweeps and retirement report per-item failures in their result instead of
+            # raising; a binding that fails every pass must not be silent.
+            if getattr(result, "failed", None):
+                _maintenance_failed(operation=name)
 
     async def _run_notifications(self) -> None:
         from adcp.reporting.production.notifications import notification_turn

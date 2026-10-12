@@ -158,3 +158,246 @@ await store.create_schema()
 - Custom providers implement `ReportingRowObjectProviderV1`. Run
   `run_reporting_row_object_provider_conformance_v1(provider, location=..., prefix=...)` against a dedicated test
   prefix before using one.
+
+### Cloud providers
+
+Cloud providers wrap official clients that the host constructs with its own credentials, so the extras only need to
+be installed where those clients are created: `pip install 'adcp[reporting-gcs]'`, `'adcp[reporting-s3]'` or
+`'adcp[reporting-azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
+`credential_ref` names one of the clients you injected; an unknown reference fails `UNSAFE_BINDING`. Provider errors
+surface only as stable `ReportingRowStoreError` codes. Row buckets are separate from Managed Delivery buckets. A
+native version always identifies exactly one write, and every read and delete is pinned to it. An ETag is never
+enough, because an identical upload re-created at the same key has the same ETag and a delayed delete would remove
+the replacement.
+
+**Google Cloud Storage** (`adcp.reporting.ledger.row_storage_gcs`):
+
+```python
+from google.cloud import storage
+from adcp.reporting.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
+
+gcs = create_gcs_reporting_row_object_provider_v1(
+    storage=storage.Client(),  # keyless credentials: workload identity or ADC
+    clients={"tenant-eu": eu_client},  # optional, selected by credential_ref
+)
+# ReportingObjectRowBindingV1(provider="gcs", location={"bucket": "acme-adcp-rows"}, prefix="adcp-rows")
+# providers={"gcs": gcs}
+```
+
+- Writes are single-request uploads with `if_generation_match=0` and a declared MD5. The recorded native version is
+  the object generation. Reads request raw stored bytes, so GCS never transcodes them.
+- The probe requires uniform bucket-level access and enforced public access prevention. Versioning, soft delete and
+  retention policies are allowed. A lifecycle `Delete` rule that can match live objects under the binding prefix
+  (no `matchesPrefix`, or one that overlaps it) is refused; rules limited to noncurrent versions are allowed. Keep
+  retention-driven deletion in the ledger, not in bucket lifecycle.
+- The client needs `storage.buckets.get` for the probe plus object create, get and delete.
+
+**Amazon S3 and S3-compatible stores** (`adcp.reporting.ledger.row_storage_s3`):
+
+```python
+import boto3
+from adcp.reporting.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
+
+s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region_name="us-east-1"))
+# ReportingObjectRowBindingV1(provider="s3", location={"bucket": "acme-adcp-rows", "region": "us-east-1"}, ...)
+```
+
+- **Bucket versioning is required.** Writes use `put_object` with `IfNoneMatch="*"` (a 409 is retried once). The
+  recorded native version is the write-unique `VersionId`; reads pin it, and a delete confirms the exact version
+  with `head_object` first, then deletes that version, which removes it permanently without a delete marker. The
+  probe refuses any bucket whose versioning status is not `Enabled`, and a write that returns no `VersionId`.
+- Endpoint, region, credentials and path style come only from the client you inject; `location` accepts just `bucket`
+  and an optional `region`, which the probe checks against the client.
+- **Bound the client's own timeouts.** botocore takes timeouts from the client's `Config`, not per call, and the
+  call budget cannot stop a thread already blocked on a socket. The probe therefore refuses a client whose
+  `connect_timeout` or `read_timeout` is `None` or non-positive. botocore's defaults (60 seconds each) pass; set
+  tighter values with `botocore.config.Config(connect_timeout=..., read_timeout=...)`. GCS and Azure carry the budget
+  into each call as `timeout=` instead.
+- S3-compatible stores may ignore `If-None-Match`, so the probe writes a probe key under the binding prefix twice and
+  requires the second write to fail with 412, then deletes it. It also refuses missing or inaccessible buckets, a
+  bucket policy reported as public, and enabled lifecycle `Expiration` rules that can match the prefix.
+- The client needs `s3:ListBucket`, `s3:GetLifecycleConfiguration`, `s3:GetBucketVersioning`, object put and get,
+  `s3:GetObjectVersion` and `s3:DeleteObjectVersion`. `s3:GetBucketPolicyStatus` is optional.
+
+**Azure Blob Storage** (`adcp.reporting.ledger.row_storage_azure`):
+
+```python
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+from adcp.reporting.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
+
+azure = create_azure_blob_reporting_row_object_provider_v1(
+    client=BlobServiceClient("https://acmerows.blob.core.windows.net", credential=DefaultAzureCredential())
+)
+# ReportingObjectRowBindingV1(provider="azure_blob", location={"account": "acmerows", "container": "rows"}, ...)
+```
+
+- **Blob versioning is required** on the storage account. Writes are block-blob uploads with `If-None-Match: *`;
+  the recorded native version is the write-unique `version_id`, and a delete removes the base blob when it is still
+  that version, then the version itself. The probe refuses containers that allow anonymous read access or that do
+  not enforce create-only writes, and a write that returns no `version_id`.
+- The client you inject must belong to the binding's `account`.
+
+## Retention
+
+Two maintenance operations keep row storage bounded. Both are safe to run from any worker on a schedule, in bounded
+batches; neither runs on its own, so schedule them next to your producer.
+
+```python
+await store.sweep_row_write_intents(limit=100)  # abandoned uploads
+await store.prune_expired_row_sets(limit=20)  # periods past their retention window
+```
+
+**Intent sweeps** resolve uploads whose ledger commit never happened (a crash, a lost lease, a numbering conflict).
+An expired write intent moves to `sweeping` under the account lock, so no writer can commit against it. Only the
+objects that upload *created* are then deleted, at their recorded native versions. Adopted objects are never recorded
+as created, and any object a committed chunk references is skipped. A sweep that cannot delete leaves the intent for
+the next pass and reports a stable, secret-free code per failed intent in `causes` (`(row_set_id, code)`), so a
+scheduled sweep that keeps failing is diagnosable. Intents of bindings this host does not configure are not this
+host's to sweep; they are counted in `skipped_unconfigured` and left for the host that does.
+
+**Row pruning** retires one period's row bytes at a time, in an ordered, resumable sequence:
+
+1. Under the account lock, live row sets become `pruning`. Reads of those revisions now answer `REVISION_NOT_FOUND`,
+   exactly like an unknown revision, never as an integrity failure.
+2. The period's recorded object versions are deleted outside any transaction. A failure leaves the period `pruning`
+   with every locator intact and the next pass resumes.
+3. Under the account lock, chunk manifests and PostgreSQL bodies are deleted and the row sets become `pruned`.
+
+A period qualifies once the later of its period end and its newest revision or adjustment is older than
+`max(status_retention_days, ledger_record_retention_days)`, and no materializer work is pending for it. The default
+`ledger_record_retention_days` is the generation's `status_retention_days`; a shorter value is ignored, because a row
+retention shorter than the advertised window is non-conformant.
+
+Python keeps revision headers and their records until the shared Core layout (persistence Stage 3). A pruned row set
+stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
+whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
+backstops, but a `pruned` period is not "erased" while they keep the old bytes.
+
+## Interoperability with the JavaScript SDK
+
+Both SDKs read and write the same `adcp_reporting_row_*` tables and the same canonical bytes, so chunks written by
+either verify in the other. Three things must match between the two deployments:
+
+- **The same `deployment_namespace`** (and therefore the same installation identity) on both sides, or the binding is
+  refused with `UNSAFE_BINDING`.
+- **The same binding definitions.** A binding's identity digest is `sha256(JCS([kind, provider, identity_config]))`
+  over the names the JavaScript SDK uses (`location`, `prefix`, `keyTemplate`), so an object binding that differs in
+  location, prefix or key template is a different binding and is refused rather than silently redirected.
+- **The row-storage migration applied by this SDK first**, because the JavaScript `adcp_reporting_row_sets` has a
+  foreign key to its own obligations table that Python obligations can never satisfy. See "Layout notes".
+
+Until the shared Core layout (persistence Stage 3) each SDK keeps its own revision headers, so what is shared today
+is the row sets: JavaScript-written row sets verify through `ReportingRowStorageV1.find` and `read_all` here, and the
+other way around.
+
+The acceptance test runs both SDKs against one PostgreSQL schema and one filesystem bucket root, in both directions:
+
+```bash
+ADCP_JS_SDK_DIR=/path/to/adcp-client ADCP_PG_TEST_URL=postgresql://... \
+    pytest tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
+```
+
+It needs Node and a built `adcp-client` checkout (`npm ci && npm run build`); without them it skips. The rows each SDK
+wrote are committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
+`ADCP_UPDATE_INTEROP_FIXTURES=1`), and the replay tests load them into a fresh database and bucket and verify them
+here, so Python CI does not need Node. The JavaScript SDK can replay `python-written.json` the same way.
+
+## Host change feed and consumers
+
+`PgReportingLedgerStore(pool=pool, change_feed=True)` also appends one row to the shared `adcp_reporting_changes`
+table (PostgreSQL 13 or later, `xid8`) for every obligation, revision and adjustment, in the transaction that writes
+the record and after the account lock. The JavaScript SDK writes the same table. It is separate from
+`reporting_ledger_changes`, the buyer-facing feed behind `changes_checkpoint` and `changes_after`, until the shared
+Core layout.
+
+```python
+page = await store.changes_after(account_id="acct_a", kinds=["revision"], limit=500)
+for change in page.records:
+    ...
+await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds back pruning
+await store.changes_after(account_id="acct_a", cursor=page.cursor)
+```
+
+- **Account feeds** order by `seq`, which is gap-free because the sequence value is taken under the account lock.
+- **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
+  older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
+  this feed; it never makes it lose a record.
+- A cursor older than the retained history raises `ReportingChangeCursorExpiredError` (`code == "CURSOR_EXPIRED"`).
+  Resynchronize from `list_current_revisions` and resume from the cursor returned with that read.
+- A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
+  `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
+  `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
+
+## Host reads
+
+In-process consumers such as pacing, alerts and a warehouse sink read the ledger directly. Both reads return revision
+headers; rows come from the verified paged reader.
+
+```python
+current = await store.get_current_revision(account_id="acct_a", reporting_obligation_id="robl_1")
+page = await store.list_current_revisions(
+    account_id="acct_a", period_start_from=start, period_start_to=end, delivery_config_id="daily", limit=100
+)
+while page.cursor:
+    page = await store.list_current_revisions(..., cursor=page.cursor)
+```
+
+The current revision is the official revision if one exists, otherwise the snapshot nothing supersedes yet.
+`list_current_revisions` pages obligations whose period starts in `[period_start_from, period_start_to)` in period order
+and omits obligations without a revision. Its cursor is the format the JavaScript SDK uses. A change-feed consumer
+that receives `CURSOR_EXPIRED` resynchronizes from this read.
+
+`list_current_revisions` pages by `(period_start, reporting_obligation_id)`. Enabling `change_feed` creates
+`reporting_obligations_account_period_idx` to back that order; a host without it can create the same index itself on
+`reporting_obligations (account_id, period_start, reporting_obligation_id)`. A cursor whose position is not a
+timestamp with a zone raises `ValueError`, never a driver error.
+
+## Period retirement
+
+`store.retire_expired_periods()` retires a whole period once its retention window has elapsed, as one ordered,
+resumable sequence that never deletes the records that locate row bytes while the bytes remain stored:
+
+1. **Tombstone.** Under the account lock, a `retiring` tombstone records the final revision, its digests, and the
+   revision and adjustment counts, and the period's row sets stop being served.
+2. **External bytes.** The period's recorded object versions are deleted. A failure leaves the period `retiring` with
+   every locator intact; the next pass resumes `retiring` periods before new candidates.
+3. **Records.** Under the account lock the manifests, bodies and the period's ledger records are deleted, the
+   tombstone becomes `retired`, and a `retirement` change is appended when the change feed is on.
+
+A period qualifies once the later of its period end, its newest revision's `created_at` and its newest adjustment's
+`created_at`, plus `max(status_retention_days, ledger_record_retention_days)`, has passed. It is held, and simply not a
+candidate this pass, while a materialization, a receipt or pending materializer work references it, or while a
+registered feed consumer updated within `max_feed_hold_days` has not passed its change rows. A silent consumer stops
+holding after `max_feed_hold_days`, so retention is never blocked forever. Eligibility is re-checked under the account
+lock before the tombstone is written, so a late revision cannot be retired with a stale candidate. A tombstoned period
+is never recreated or extended: `commit_obligation`, `commit_revision` and `commit_adjustment` refuse it with
+`PERIOD_RETIRED`.
+
+**Current limit.** Several Python extension tables (provisional observations, reconciliation records, notification
+events) are append-only by trigger and foreign key, and their guards are frozen catalog objects. A period that still has
+such records finishes phases 1 and 2, then stays `retiring` and is reported in `protected`: its row bytes are gone and
+reads answer as expired, while its records wait for the shared Core layout (persistence Stage 3), which carries
+retirement exemptions. Phase 3 deletes every record of a period or none.
+
+Tombstones live in `adcp_reporting_period_tombstones`, created with row storage or the change feed.
+
+## Scheduling
+
+`ReportingProductionSupport` runs the maintenance for the features your store opted into, every
+`maintenance_seconds` (default 300; `None` disables it), on the same worker loop as the producer and materializer:
+
+| Store option | Operation | Bound |
+| --- | --- | --- |
+| `row_storage` | `sweep_row_write_intents` | 100 intents |
+| `row_storage` or `change_feed` | `retire_expired_periods` | 20 periods |
+| `change_feed` | `prune_changes` | 10,000 rows |
+
+Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it, and
+only the closed operation name (`REPORTING_MAINTENANCE_FAILED`, `intent_sweep`, `period_retirement` or
+`change_pruning`) is logged, never an exception, provider message or identifier. An operation that finishes but reports
+failed items (a binding that cannot delete, for example) is logged the same way on every pass it does, so a stuck
+binding is visible; read `causes` from the result for the stable per-item code. `period_retirement` also removes the
+row bytes of every period it retires, so `prune_expired_row_sets` is not scheduled: call it yourself only if you want
+row bytes retired earlier than whole periods. Outside the production service, call
+the same methods from your own scheduler.
