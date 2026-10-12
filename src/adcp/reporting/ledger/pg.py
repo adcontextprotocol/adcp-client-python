@@ -370,19 +370,28 @@ class PgReportingLedgerStore:
         )
 
     async def sweep_row_write_intents(
-        self, *, limit: int = 100, account_id: str | None = None
+        self,
+        *,
+        limit: int = 100,
+        account_id: str | None = None,
+        overdue_after_seconds: int = 24 * 3600,
     ) -> ReportingRowIntentSweepV1:
         """Resolve abandoned object uploads: delete only what an expired upload created.
 
         An expired write intent with no committed header moves to ``sweeping`` under
         the account lock, so no writer can commit against it, then the objects it
         created are deleted at their recorded versions. Adopted objects and objects a
-        committed chunk references are never touched. Schedule it alongside the
+        committed chunk references are never touched. An intent that fails backs off
+        (1 minute, doubling, capped at 6 hours) and never-failed intents go first, so one
+        broken binding cannot starve the rest; ``overdue_after_seconds`` (default 24 hours)
+        sets when an unswept intent is counted as ``overdue``. Schedule it alongside the
         producer.
         """
         from adcp.reporting.ledger.row_retention import sweep_row_write_intents
 
-        return await sweep_row_write_intents(self, limit=limit, account_id=account_id)
+        return await sweep_row_write_intents(
+            self, limit=limit, account_id=account_id, overdue_after_seconds=overdue_after_seconds
+        )
 
     async def prune_expired_row_sets(
         self,

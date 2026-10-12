@@ -131,6 +131,38 @@ def _require_feed(store: PgReportingLedgerStore) -> None:
         raise ValueError("this operation requires the store change_feed option")
 
 
+def _page_query(*, account: bool) -> str:
+    """The change page query for an account feed (``seq`` order) or the deployment feed.
+
+    Every column is qualified with the table alias, in the projection and in ORDER BY.
+    ``seq::text`` is *named* ``seq``, and PostgreSQL resolves a bare ORDER BY name to the output
+    column first, so ``ORDER BY seq`` would sort 100 before 95 as text and a page boundary would
+    silently skip changes. ``change.seq`` always means the bigint column.
+    """
+    columns = (
+        "change.seq::text AS cursor_seq, change.xid::text AS cursor_xid, change.account_id,"
+        " change.record_kind, change.record_id, change.obligation_id,"
+        " to_char(change.recorded_at AT TIME ZONE 'UTC',"
+        ' \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')'
+    )
+    if account:
+        return (
+            f"SELECT {columns},"  # noqa: S608  # nosec B608
+            " change.xid >= pg_snapshot_xmin(pg_current_snapshot()) AS in_flight"
+            " FROM adcp_reporting_changes change"
+            " WHERE change.account_id = %s AND change.seq > %s::bigint"
+            " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
+            " ORDER BY change.seq LIMIT %s"
+        )
+    return (
+        f"SELECT {columns} FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
+        " WHERE (change.xid, change.seq) > (%s::text::xid8, %s::bigint)"
+        " AND change.xid < pg_snapshot_xmin(pg_current_snapshot())"
+        " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
+        " ORDER BY change.xid, change.seq LIMIT %s"
+    )
+
+
 async def changes_after(
     store: PgReportingLedgerStore,
     *,
@@ -177,39 +209,26 @@ async def changes_after(
                 raise ReportingChangeCursorExpiredError()
         position_seq = decoded["seq"] if decoded else horizon_seq
         position_xid = decoded.get("xid", "0") if decoded else horizon_xid
-        # Every column is qualified with the table alias, in the projection and in ORDER BY.
-        # ``seq::text`` is *named* ``seq``, and PostgreSQL resolves a bare ORDER BY name to the
-        # output column first, so ``ORDER BY seq`` would sort 100 before 95 as text and a page
-        # boundary would silently skip changes. ``change.seq`` always means the bigint column.
-        columns = (
-            "change.seq::text AS cursor_seq, change.xid::text AS cursor_xid, change.account_id,"
-            " change.record_kind, change.record_id, change.obligation_id,"
-            " to_char(change.recorded_at AT TIME ZONE 'UTC',"
-            ' \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')'
-        )
+        query = _page_query(account=account_id is not None)
         if account_id is not None:
-            query = (
-                f"SELECT {columns} FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
-                " WHERE change.account_id = %s AND change.seq > %s::bigint"
-                # Like the deployment feed, only changes whose transaction is older than every
-                # transaction still in flight: ``seq`` is assigned in commit order only while one
-                # writer holds the account lock, so without this a slow commit with a lower
-                # ``seq`` would be skipped for good by a reader that already saw a higher one.
-                " AND change.xid < pg_snapshot_xmin(pg_current_snapshot())"
-                " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
-                " ORDER BY change.seq LIMIT %s"
-            )
             params: tuple[Any, ...] = (account_id, position_seq, selected, selected, limit)
         else:
-            query = (
-                f"SELECT {columns} FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
-                " WHERE (change.xid, change.seq) > (%s::text::xid8, %s::bigint)"
-                " AND change.xid < pg_snapshot_xmin(pg_current_snapshot())"
-                " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
-                " ORDER BY change.xid, change.seq LIMIT %s"
-            )
             params = (position_xid, position_seq, selected, selected, limit)
         rows = await (await connection.execute(query, params)).fetchall()
+    if account_id is not None:
+        # The account feed orders by ``seq``, which equals commit order only while every writer
+        # takes the account lock before ``nextval``. Defense in depth for a writer that does not:
+        # stop the page at the first change whose transaction is not below every in-flight
+        # transaction (``xid >= xmin``). A plain ``xid < xmin`` filter would not do, because seq
+        # order and xid order can differ, and it would hand out a later change while skipping an
+        # earlier one it excluded. Truncating keeps the page a prefix of seq order. This narrows
+        # the window for a second writer but does not close it for every interleaving: one
+        # writer SDK per database remains the contract. ``xmin`` is cluster-wide, so any older
+        # open transaction holds account pages back until it ends; an empty page can mean
+        # "caught up" or "held back". The row scan is still served by the (account_id, seq) index.
+        blocked = next((index for index, row in enumerate(rows) if row[7]), None)
+        if blocked is not None:
+            rows = rows[:blocked]
     records = tuple(ReportingChangeRecordV1(row[3], row[4], row[5], row[2], row[6]) for row in rows)
     if rows:
         last = rows[-1]

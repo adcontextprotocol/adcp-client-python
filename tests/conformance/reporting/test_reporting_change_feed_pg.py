@@ -257,27 +257,132 @@ async def test_pages_cross_99_to_100_in_numeric_order_on_both_feeds() -> None:
             assert seen == list(range(95, 131)), (account, seen)
 
 
-async def test_account_readers_do_not_rely_on_the_account_lock_to_see_changes_in_order() -> None:
-    """Two writers that do not share a lock (for example two SDKs on one account) can commit
-    out of ``seq`` order; a reader must not skip the slower one's change for good."""
+# -- account feed ordering, ported from the JavaScript SDK (adcp-client #3228) ---------------
+
+INSERT_CHANGE = (
+    "INSERT INTO adcp_reporting_changes (account_id, record_kind, record_id, obligation_id)"
+    " VALUES ('acct_hol_feed', 'revision', %s, 'robl_hol_feed')"
+)
+
+
+def ids(page: Any) -> list[str]:
+    return [record.record_id for record in page.records]
+
+
+async def committed(pool: Any, record_id: str) -> None:
+    async with pool.connection() as connection:
+        await connection.execute(INSERT_CHANGE, (record_id,))
+
+
+async def until(read: Any, expected: list[str]) -> Any:
+    """Other tests share the cluster, so an unrelated older transaction can briefly hold a page
+    back: positive reads poll. The assertions that a page is held back do not need it."""
+    import asyncio
+
+    for _ in range(200):
+        page = await read()
+        if ids(page) == expected:
+            return page
+        await asyncio.sleep(0.05)
+    return page
+
+
+async def test_a_lower_seq_that_commits_after_a_higher_one_is_never_passed_over() -> None:
     async with isolated_reporting_pool() as pool:
         store = await feed_store(pool)
-        insert = (
-            "INSERT INTO adcp_reporting_changes (account_id, record_kind, record_id, obligation_id)"
-            " VALUES ('acct_a', 'revision', %s, 'obl_a')"
-        )
+        start = await store.changes_after(account_id="acct_hol_feed")
         slow = await pool.getconn()
         try:
-            await slow.execute(insert, ("slow",))  # seq 1, still in flight
-            async with pool.connection() as fast:
-                await fast.execute(insert, ("fast",))  # seq 2, commits first
-            page = await store.changes_after(account_id="acct_a")
-            # seq 2 is committed but must wait for seq 1: reading past it would skip seq 1.
-            assert [record.record_id for record in page.records] == []
+            await slow.execute(INSERT_CHANGE, ("rrev_low",))  # the lower seq, commits last
+            await committed(pool, "rrev_high")  # a higher seq, committed already
+            during = await store.changes_after(account_id="acct_hol_feed", cursor=start.cursor)
+            assert ids(during) == [], "the page stops before the unfinished transaction"
+            assert during.cursor == start.cursor, "the cursor does not move past it"
             await slow.commit()
         finally:
             await pool.putconn(slow)
-        page = await store.changes_after(account_id="acct_a")
-        assert [record.record_id for record in page.records] == ["slow", "fast"]
-        resumed = await store.changes_after(account_id="acct_a", cursor=page.cursor)
-        assert resumed.records == ()
+        after = await until(
+            lambda: store.changes_after(account_id="acct_hol_feed", cursor=start.cursor),
+            ["rrev_low", "rrev_high"],
+        )
+        assert ids(after) == ["rrev_low", "rrev_high"]
+
+
+async def test_a_held_back_change_is_never_skipped_when_a_later_one_passes_a_plain_xid_filter() -> (
+    None
+):
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        start = await store.changes_after(account_id="acct_hol_feed")
+        early = await pool.getconn()
+        blocker = await pool.getconn()
+        try:
+            # xid order: early < blocker < the change inserted next.
+            await early.execute("SELECT pg_current_xact_id()")
+            await blocker.execute("SELECT pg_current_xact_id()")
+            await committed(pool, "rrev_first")  # lower seq, but a transaction after `blocker`
+            await early.execute(INSERT_CHANGE, ("rrev_second",))  # higher seq, xid before `blocker`
+            await early.commit()
+            # `blocker` is the oldest transaction in flight, so rrev_first is held back while
+            # rrev_second sits below it. Filtering on xid alone would return rrev_second and a
+            # cursor past rrev_first, which would then never be seen.
+            during = await store.changes_after(account_id="acct_hol_feed", cursor=start.cursor)
+            assert ids(during) == []
+            assert during.cursor == start.cursor, "the cursor does not move past the held change"
+            await blocker.commit()
+        finally:
+            await pool.putconn(early)
+            await pool.putconn(blocker)
+        after = await until(
+            lambda: store.changes_after(account_id="acct_hol_feed", cursor=start.cursor),
+            ["rrev_first", "rrev_second"],
+        )
+        assert ids(after) == ["rrev_first", "rrev_second"]
+
+
+async def test_a_committed_prefix_is_returned_and_the_cursor_stops_before_the_first_in_flight() -> (
+    None
+):
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        start = await store.changes_after(account_id="acct_hol_feed")
+        await committed(pool, "rrev_prefix_a")
+        opened = await pool.getconn()
+        try:
+            await opened.execute(INSERT_CHANGE, ("rrev_prefix_b",))  # in flight
+            await committed(pool, "rrev_prefix_c")  # committed after it
+            during = await until(
+                lambda: store.changes_after(account_id="acct_hol_feed", cursor=start.cursor),
+                ["rrev_prefix_a"],
+            )
+            assert ids(during) == ["rrev_prefix_a"], "truncated, not filtered"
+            await opened.commit()
+            rest = await until(
+                lambda: store.changes_after(account_id="acct_hol_feed", cursor=during.cursor),
+                ["rrev_prefix_b", "rrev_prefix_c"],
+            )
+            assert ids(rest) == ["rrev_prefix_b", "rrev_prefix_c"]
+        finally:
+            await pool.putconn(opened)
+
+
+async def test_the_account_feed_query_is_served_by_the_account_seq_index() -> None:
+    from adcp.reporting.ledger.change_feed import _page_query
+
+    async with isolated_reporting_pool() as pool:
+        await feed_store(pool)
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_changes (account_id, record_kind, record_id,"
+                " obligation_id) SELECT 'acct_filler_' || n, 'revision', 'rrev_filler_' || n,"
+                " 'robl_filler' FROM generate_series(1, 2000) AS n"
+            )
+            await connection.execute("ANALYZE adcp_reporting_changes")
+            # The very query the store runs for an account page, planned with its parameters.
+            plan = await (
+                await connection.execute(
+                    "EXPLAIN " + _page_query(account=True),
+                    ("acct_hol_feed", 0, None, None, 500),
+                )
+            ).fetchall()
+        assert "adcp_reporting_changes_account" in "\n".join(row[0] for row in plan)

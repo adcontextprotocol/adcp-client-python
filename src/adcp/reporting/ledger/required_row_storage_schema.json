@@ -215,6 +215,10 @@
     "enabled": true,
     "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
   },
+  "column:adcp_reporting_row_write_intents.next_sweep_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
   "column:adcp_reporting_row_write_intents.owner_token": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -230,6 +234,10 @@
   "column:adcp_reporting_row_write_intents.state": {
     "enabled": true,
     "fingerprint": "69ff456c4ece2240eee5eddda514b673f39e572f0191c402234ea6371a703b95"
+  },
+  "column:adcp_reporting_row_write_intents.sweep_attempts": {
+    "enabled": true,
+    "fingerprint": "007695a9578f516b3258aec34c21226bcc951e9cf02c8fc089e3926cbb871e25"
   },
   "constraint:adcp_persistence_installation.adcp_persistence_installation_pkey": {
     "enabled": true,

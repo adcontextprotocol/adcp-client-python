@@ -25,7 +25,7 @@ async def make_due(pool: Any) -> None:
     """Let every attempt backoff elapse, as waiting would."""
     async with pool.connection() as connection:
         await connection.execute(
-            "UPDATE adcp_reporting_period_tombstones SET next_attempt_at = clock_timestamp()"
+            "UPDATE adcp_reporting_period_tombstones SET next_attempt_at = NULL"
         )
 
 
@@ -173,7 +173,7 @@ async def test_a_failed_external_delete_leaves_the_period_retiring_and_resumes(
         assert len(list_objects(tmp_path / "rows")) == 1
 
         # The failed period backs off instead of retrying on every pass.
-        assert stuck.failed and (await store.retire_expired_periods()).parked == 1
+        assert stuck.failed and (await store.retire_expired_periods()).deferred == 1
         await make_due(pool)
 
         resumed = await store.retire_expired_periods()
@@ -329,12 +329,18 @@ async def test_protected_periods_back_off_and_never_starve_fresh_ones() -> None:
         assert seen_protected == [protected.reporting_obligation_id]
         remaining = await fetch_all(
             pool,
-            "SELECT reporting_obligation_id, state, attempts, last_outcome,"
+            "SELECT reporting_obligation_id, state, attempts, last_failure,"
             " next_attempt_at > clock_timestamp() FROM adcp_reporting_period_tombstones"
             " ORDER BY state",
         )
-        assert (protected.reporting_obligation_id, "retiring", 1, "protected", True) in remaining
-        assert (await store.retire_expired_periods(limit=1)).parked == 1
+        assert (
+            protected.reporting_obligation_id,
+            "retiring",
+            1,
+            "RECORDS_PROTECTED",
+            True,
+        ) in remaining
+        assert (await store.retire_expired_periods(limit=1)).deferred == 1
 
 
 async def test_the_backoff_grows_with_each_attempt_and_the_period_is_retried_once_due() -> None:
@@ -351,12 +357,12 @@ async def test_the_backoff_grows_with_each_attempt_and_the_period_is_retried_onc
             return attempts, float(seconds)
 
         first_attempts, first_wait = await state()
-        assert first_attempts == 1 and 0 < first_wait <= 300
+        assert first_attempts == 1 and 30 < first_wait <= 60  # the first backoff is a minute
         await make_due(pool)
         again = await store.retire_expired_periods(limit=5)
         assert again.protected == (protected.reporting_obligation_id,)
         second_attempts, second_wait = await state()
-        assert second_attempts == 2 and second_wait > 300  # 10 minutes after two attempts
+        assert second_attempts == 2 and 90 < second_wait <= 120  # then it doubles
 
 
 async def test_held_periods_are_counted_not_silently_dropped() -> None:
@@ -451,7 +457,7 @@ async def test_an_earlier_tombstone_table_gains_the_backoff_columns_in_place() -
                 " period_end, state, revision_count, adjustment_count)"
                 " VALUES ('rpo_old', 'a', 'c', 'd', 1, now(), now(), 'retiring', 0, 0)"
             )
-            for column in ("attempts", "next_attempt_at", "last_outcome"):
+            for column in ("attempts", "next_attempt_at", "last_failure"):
                 await connection.execute(
                     f"ALTER TABLE adcp_reporting_period_tombstones DROP COLUMN {column}"  # noqa: S608
                 )
@@ -459,6 +465,106 @@ async def test_an_earlier_tombstone_table_gains_the_backoff_columns_in_place() -
         await store.create_schema()
         assert await fetch_all(
             pool,
-            "SELECT attempts, last_outcome, next_attempt_at <= clock_timestamp()"
+            "SELECT attempts, last_failure, next_attempt_at IS NULL"
             " FROM adcp_reporting_period_tombstones",
         ) == [(0, None, True)]
+
+
+# -- head-of-line parity with the JavaScript SDK (adcp-client #3228) -------------------------
+
+
+async def object_period(store: PgReportingLedgerStore, pool: Any, account: str) -> Any:
+    config = configuration(account)
+    await store.put_configuration(config)
+    obligation = await store.commit_obligation(obligation_for(config))
+    await lease(pool)
+    rows = many_rows(10)
+    revision = typed_revision(obligation, rows, suffix=account)
+    await store.stage_revision_rows(revision, rows)
+    await store.commit_revision(revision, rows)
+    return obligation
+
+
+def without_binding(configured: Any, pool: Any) -> PgReportingLedgerStore:
+    """A host that no longer configures the binding: deleting the period's objects fails."""
+    return PgReportingLedgerStore(
+        pool=pool, row_storage=type(configured)(deployment_namespace="test"), change_feed=True
+    )
+
+
+async def wait_seconds(pool: Any, obligation_id: str) -> float:
+    ((seconds,),) = await fetch_all(
+        pool,
+        "SELECT EXTRACT(EPOCH FROM next_attempt_at - clock_timestamp())"
+        " FROM adcp_reporting_period_tombstones WHERE reporting_obligation_id = %s",
+        (obligation_id,),
+    )
+    return float(seconds)
+
+
+async def test_backoff_doubles_to_six_hours_and_a_persistent_failure_is_reported(
+    tmp_path: Path,
+) -> None:
+    async with isolated_reporting_pool() as pool:
+        configured = options(tmp_path)
+        store = PgReportingLedgerStore(pool=pool, row_storage=configured, change_feed=True)
+        await store.create_schema()
+        period = await object_period(store, pool, "acct_a1")
+        await age(pool, days=500)
+        broken = without_binding(configured, pool)
+        for attempt in range(1, 6):
+            result = await broken.retire_expired_periods()
+            assert result.failed == (period.reporting_obligation_id,)
+            expected = 60 * 2 ** (attempt - 1)
+            seconds = await wait_seconds(pool, period.reporting_obligation_id)
+            assert expected - 30 < seconds <= expected, (attempt, seconds)
+            # Four failures are not yet persistent.
+            assert len(result.stuck) == (1 if attempt >= 5 else 0)
+            await make_due(pool)
+        assert result.stuck == ((period.reporting_obligation_id, 5, "STATE_UNAVAILABLE"),)
+
+        # The cap.
+        async with pool.connection() as connection:
+            await connection.execute("UPDATE adcp_reporting_period_tombstones SET attempts = 40")
+        await broken.retire_expired_periods()
+        capped = await wait_seconds(pool, period.reporting_obligation_id)
+        assert 6 * 3600 - 30 < capped <= 6 * 3600
+
+
+async def test_with_only_retries_ready_the_cap_does_not_slow_the_drain(tmp_path: Path) -> None:
+    async with isolated_reporting_pool() as pool:
+        configured = options(tmp_path)
+        store = PgReportingLedgerStore(pool=pool, row_storage=configured, change_feed=True)
+        await store.create_schema()
+        for account in ("acct_a1", "acct_a2", "acct_a3"):
+            await object_period(store, pool, account)
+        await age(pool, days=500)
+        failed = await without_binding(configured, pool).retire_expired_periods(limit=3)
+        assert len(failed.failed) == 3
+        await make_due(pool)
+        # Three retries are ready and nothing else is eligible: both slots go to retries.
+        result = await store.retire_expired_periods(limit=2)
+        assert (result.retired, result.failed) == (2, ())
+
+
+async def test_fresh_periods_keep_a_share_when_failing_periods_are_ready_to_retry(
+    tmp_path: Path,
+) -> None:
+    async with isolated_reporting_pool() as pool:
+        configured = options(tmp_path)
+        store = PgReportingLedgerStore(pool=pool, row_storage=configured, change_feed=True)
+        await store.create_schema()
+        first = await object_period(store, pool, "acct_a1")
+        await object_period(store, pool, "acct_a2")
+        await age(pool, days=500)
+        failed = await without_binding(configured, pool).retire_expired_periods(limit=2)
+        assert len(failed.failed) == 2
+        await make_due(pool)
+        fresh = await object_period(store, pool, "acct_a3")
+        await age(pool, days=500)  # the fresh period is expired too
+
+        # Two failing retries are ready, but they may take only half the pass: one retry (the
+        # oldest with the fewest attempts) and the fresh period share it. This host cannot
+        # delete, so both attempts fail, which shows who was selected.
+        result = await without_binding(configured, pool).retire_expired_periods(limit=2)
+        assert result.failed == (first.reporting_obligation_id, fresh.reporting_obligation_id)

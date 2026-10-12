@@ -125,10 +125,10 @@ async def test_protected_held_parked_and_skipped_work_is_logged_and_reported(
         failed=(),
         protected=("rpo_a", "rpo_b"),
         held=3,
-        parked=1,
+        deferred=1,
         skipped_unconfigured=4,
-        backed_off=5,
-        stalled=0,
+        stuck=(("rpo_stuck", 6, "STATE_UNAVAILABLE"),),
+        overdue=0,
     )
     worker = service(store)
     with caplog.at_level(logging.INFO, logger="adcp.reporting.production"):
@@ -143,11 +143,12 @@ async def test_protected_held_parked_and_skipped_work_is_logged_and_reported(
     }
     one = pending[0]
     # Integer counters only: no obligation or account identifiers reach the log.
-    assert (one.protected, one.held, one.parked) == (2, 3, 1)
-    assert (one.skipped_unconfigured, one.backed_off) == (4, 5)
+    assert (one.protected, one.held, one.deferred) == (2, 3, 1)
+    assert one.skipped_unconfigured == 4
     assert all("rpo_" not in r.getMessage() for r in pending)
     # The same counters are available to health checks and dashboards.
     assert worker.maintenance_report["period_retirement"]["protected"] == 2
+    assert worker.maintenance_report["period_retirement"]["stuck"] == 1
     assert worker.maintenance_report["intent_sweep"]["skipped_unconfigured"] == 4
     assert not [
         r for r in caplog.records if getattr(r, "code", "") == "REPORTING_MAINTENANCE_FAILED"
@@ -158,13 +159,14 @@ async def test_work_nobody_is_handling_is_warned_about(caplog: pytest.LogCapture
     from types import SimpleNamespace
 
     store = Store(rows=True, feed=False)
-    store.report = SimpleNamespace(failed=(), stalled=7)
+    store.report = SimpleNamespace(failed=(), overdue=7, stuck=(("rpo_a", 5, "X"),))
     with caplog.at_level(logging.INFO, logger="adcp.reporting.production"):
         await service(store)._maintain()
     stalled = [
         r for r in caplog.records if getattr(r, "code", "") == "REPORTING_MAINTENANCE_STALLED"
     ]
-    assert stalled and all(r.levelno == logging.WARNING and r.stalled == 7 for r in stalled)
+    assert stalled and all(r.levelno == logging.WARNING and r.overdue == 7 for r in stalled)
+    assert all(r.stuck == 1 for r in stalled)
 
 
 async def test_a_quiet_pass_logs_nothing_and_still_records_its_counters(

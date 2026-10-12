@@ -372,84 +372,218 @@ async def test_a_failed_sweep_reports_its_stable_cause(tmp_path: Path) -> None:
         ]
 
 
-async def test_intents_that_keep_failing_back_off_and_never_starve_the_rest(tmp_path: Path) -> None:
-    async with isolated_reporting_pool() as pool:
-        store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path))
-        await store.create_schema()
-        obligation = await seeded(store)
-        await lease(pool)
-        revisions = [
-            await staged_revision(store, obligation, f"r{index}", many_rows(10 + index))
-            for index in range(4)
-        ]
-        bad, good = revisions[:3], revisions[3]
-        async with pool.connection() as connection:
-            for age, revision in enumerate([*bad, good]):
-                # The failing intents are the oldest, so oldest-first selection picks them first.
-                await connection.execute(
-                    "UPDATE adcp_reporting_row_write_intents SET expires_at ="
-                    " clock_timestamp() - make_interval(secs => %s) WHERE row_set_id = %s",
-                    (3600 - age * 60, revision.reporting_revision_id),
-                )
-            for number, revision in enumerate(bad):
-                await connection.execute(
-                    "UPDATE adcp_reporting_row_write_intents SET created_objects = %s::jsonb"
-                    " WHERE row_set_id = %s",
-                    (
-                        json.dumps(
-                            [{"objectKey": f"other/tenant/{number}", "nativeVersion": "1:2:3:4"}]
-                        ),
-                        revision.reporting_revision_id,
-                    ),
-                )
-        # Two slots per pass: before the backoff the three failing intents filled them forever.
-        swept = 0
-        for _ in range(3):
-            swept += (await store.sweep_row_write_intents(limit=2)).swept
-        assert swept == 1, "the healthy intent must be swept despite the failing ones"
-        assert await fetch_all(
-            pool, "SELECT count(*), min(attempts) FROM adcp_reporting_row_sweep_backoff"
-        ) == [(3, 1)]
-        idle = await store.sweep_row_write_intents(limit=2)
-        assert (idle.swept, idle.failed, idle.backed_off) == (0, 0, 3)
-        # Once a backoff elapses the intent is retried, and its next wait is longer.
-        async with pool.connection() as connection:
+# -- head-of-line parity with the JavaScript SDK (adcp-client #3228) -------------------------
+
+
+class SweepHarness:
+    """Intents inserted directly, with provider deletes that fail for chosen keys."""
+
+    def __init__(self, pool: Any, store: PgReportingLedgerStore, failing: set[str]) -> None:
+        self.pool = pool
+        self.store = store
+        self.failing = failing
+        storage = store._row_storage
+        assert storage is not None
+        self.namespace = storage.installation_identity[1]
+
+    def key(self, name: str) -> str:
+        return f"adcp-rows/{self.namespace}/hol/{name}.jsonl"
+
+    async def add(
+        self,
+        row_set_id: str,
+        *,
+        binding: str = "reports",
+        objects: tuple[str, ...] = (),
+        expired_seconds: int = 3600,
+        state: str = "open",
+    ) -> None:
+        created = [{"objectKey": self.key(name), "nativeVersion": "v1"} for name in objects]
+        async with self.pool.connection() as connection:
             await connection.execute(
-                "UPDATE adcp_reporting_row_sweep_backoff SET next_attempt_at = clock_timestamp()"
+                "INSERT INTO adcp_reporting_row_write_intents (row_binding_id, account_id,"
+                " row_set_id, content_sha256, state, owner_token, created_objects, expires_at)"
+                " VALUES (%s, 'acct_hol', %s, %s, %s, 'owner', %s::jsonb,"
+                " clock_timestamp() - make_interval(secs => %s))",
+                (binding, row_set_id, "d" * 64, state, json.dumps(created), expired_seconds),
             )
-        retried = await store.sweep_row_write_intents(limit=10)
-        assert retried.failed == 3
-        assert await fetch_all(
-            pool, "SELECT min(attempts) FROM adcp_reporting_row_sweep_backoff"
-        ) == [(2,)]
 
-
-async def test_intents_nobody_handles_are_reported_as_skipped_and_then_stalled(
-    tmp_path: Path,
-) -> None:
-    async with isolated_reporting_pool() as pool:
-        configured = options(tmp_path)
-        store = PgReportingLedgerStore(pool=pool, row_storage=configured)
-        await store.create_schema()
-        obligation = await seeded(store)
-        await lease(pool)
-        await staged_revision(store, obligation, "orphan", many_rows(10))
-        # A host that no longer configures the binding cannot sweep: it counts, never errors.
-        without = PgReportingLedgerStore(
-            pool=pool, row_storage=type(configured)(deployment_namespace="test")
+    async def row(self, row_set_id: str) -> Any:
+        rows = await fetch_all(
+            self.pool,
+            "SELECT state, sweep_attempts, next_sweep_at FROM adcp_reporting_row_write_intents"
+            " WHERE row_set_id = %s",
+            (row_set_id,),
         )
+        return rows[0] if rows else None
+
+    async def clear_backoff(self) -> None:
+        async with self.pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_row_write_intents SET next_sweep_at = NULL"
+            )
+
+    async def sweep(self, **kwargs: Any) -> tuple[int, int, int, int, int, int]:
+        result = await self.store.sweep_row_write_intents(**kwargs)
+        return (
+            result.swept,
+            result.objects_deleted,
+            result.failed,
+            result.skipped_unconfigured,
+            result.deferred,
+            result.overdue,
+        )
+
+
+@pytest.fixture
+async def harness(tmp_path: Path) -> Any:
+    from dataclasses import replace
+
+    failing: set[str] = set()
+    inner = create_filesystem_reporting_row_object_provider_v1(roots={"rows": tmp_path / "rows"})
+
+    class Failing:
+        name = inner.name
+        ranged_reads = inner.ranged_reads
+
+        def validate_location(self, location: Any) -> None:
+            inner.validate_location(location)
+
+        async def probe(self, *args: Any, **kwargs: Any) -> None:
+            await inner.probe(*args, **kwargs)
+
+        async def put_if_absent(self, put: Any, context: Any) -> Any:
+            return await inner.put_if_absent(put, context)
+
+        async def get(self, get: Any, context: Any) -> Any:
+            return await inner.get(get, context)
+
+        async def delete(self, delete: Any, context: Any) -> Any:
+            if delete.key in failing:
+                raise RuntimeError("provider unavailable")
+            return await inner.delete(delete, context)
+
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(
+            pool=pool, row_storage=replace(options(tmp_path), providers={"filesystem": Failing()})
+        )
+        await store.create_schema()
+        # A binding another host configured and this one does not.
         async with pool.connection() as connection:
             await connection.execute(
-                "UPDATE adcp_reporting_row_write_intents"
-                " SET expires_at = clock_timestamp() - INTERVAL '2 hours'"
+                "INSERT INTO adcp_reporting_row_bindings (row_binding_id, kind, provider,"
+                " identity_config, identity_sha256, namespace_key)"
+                " VALUES ('ghost', 'object', 'filesystem', '{}', %s, %s)",
+                ("e" * 64, "f" * 64),
             )
-        recent = await without.sweep_row_write_intents()
-        assert (recent.skipped_unconfigured, recent.stalled, recent.failed) == (1, 0, 0)
-        # Expired for much longer than any sweep interval: nobody is handling it.
-        async with pool.connection() as connection:
-            await connection.execute(
-                "UPDATE adcp_reporting_row_write_intents"
-                " SET expires_at = clock_timestamp() - INTERVAL '3 days'"
-            )
-        stale = await without.sweep_row_write_intents()
-        assert (stale.skipped_unconfigured, stale.stalled) == (1, 1)
+        yield SweepHarness(pool, store, failing)
+
+
+async def test_with_limit_one_a_permanently_failing_intent_does_not_block_an_eligible_one(
+    harness: SweepHarness,
+) -> None:
+    harness.failing.add(harness.key("failing"))
+    await harness.add("rrev_failing", objects=("failing",), expired_seconds=3 * 3600)
+    await harness.add("rrev_healthy", objects=("healthy",), expired_seconds=3600)
+
+    # The oldest intent is tried first and fails.
+    assert await harness.sweep(limit=1) == (0, 0, 1, 0, 1, 0)
+    state, attempts, next_sweep_at = await harness.row("rrev_failing")
+    assert attempts == 1 and next_sweep_at is not None
+    # It backs off, so the healthy one is swept.
+    assert await harness.sweep(limit=1) == (1, 1, 0, 0, 1, 0)
+    assert await harness.row("rrev_healthy") is None
+    # Not retried before its backoff elapses; once the provider recovers it is swept.
+    assert await harness.sweep(limit=1) == (0, 0, 0, 0, 1, 0)
+    harness.failing.clear()
+    await harness.clear_backoff()
+    assert await harness.sweep(limit=1) == (1, 1, 0, 0, 0, 0)
+    assert await harness.row("rrev_failing") is None
+
+
+async def test_a_retry_never_takes_the_slot_of_a_fresh_intent(harness: SweepHarness) -> None:
+    harness.failing.add(harness.key("retry_first"))
+    await harness.add("rrev_retry_first", objects=("retry_first",), expired_seconds=5 * 3600)
+    await harness.sweep(limit=1)
+    await harness.clear_backoff()
+    await harness.add("rrev_fresh_after", objects=("fresh_after",), expired_seconds=3600)
+    # The failed intent is ready again and older, but the fresh one goes first.
+    result = await harness.sweep(limit=1)
+    assert result[0] == 1
+    assert await harness.row("rrev_fresh_after") is None
+    assert await harness.row("rrev_retry_first") is not None
+
+
+async def test_unconfigured_bindings_are_skipped_and_counted_unless_there_is_nothing_to_delete(
+    harness: SweepHarness,
+) -> None:
+    await harness.add(
+        "rrev_ghost", binding="ghost", objects=("ghost_object",), expired_seconds=3 * 86400
+    )
+    # Nothing to delete means no binding is needed.
+    await harness.add("rrev_ghost_empty", binding="ghost", expired_seconds=7200)
+    await harness.add("rrev_local", objects=("local",), expired_seconds=3600)
+
+    # swept, objects_deleted, failed, skipped_unconfigured, deferred, overdue
+    assert await harness.sweep(limit=10) == (2, 1, 0, 1, 0, 1)
+    skipped = await harness.row("rrev_ghost")
+    assert skipped == ("open", 0, None), "left untouched for a host that configures the binding"
+
+
+async def test_an_unconfigured_binding_at_the_head_of_the_queue_does_not_take_the_slot(
+    harness: SweepHarness,
+) -> None:
+    await harness.add(
+        "rrev_ghost_head", binding="ghost", objects=("ghost_head",), expired_seconds=3 * 86400
+    )
+    await harness.add("rrev_local_next", objects=("local_next",), expired_seconds=3600)
+    result = await harness.sweep(limit=1)
+    assert result[0] == 1 and result[3] == 1
+    assert await harness.row("rrev_local_next") is None
+
+
+async def test_a_sweeping_intent_backs_off_like_an_open_one(harness: SweepHarness) -> None:
+    harness.failing.add(harness.key("sweeping"))
+    await harness.add(
+        "rrev_sweeping", objects=("sweeping",), expired_seconds=7200, state="sweeping"
+    )
+    await harness.add("rrev_after_sweeping", objects=("after",), expired_seconds=3600)
+    assert (await harness.sweep(limit=1))[2] == 1
+    assert (await harness.sweep(limit=1))[0] == 1
+    assert await harness.row("rrev_after_sweeping") is None
+
+
+async def test_overdue_also_counts_a_configured_intent_that_keeps_failing(
+    harness: SweepHarness,
+) -> None:
+    harness.failing.add(harness.key("provider_down"))
+    await harness.add("rrev_provider_down", objects=("provider_down",), expired_seconds=2 * 86400)
+    assert (await harness.sweep())[2] == 1
+    # Backing off, still unswept after the threshold: deferred and overdue, not skipped, because
+    # this host configures the binding and the provider is the fault.
+    assert await harness.sweep() == (0, 0, 0, 0, 1, 1)
+
+
+async def test_intents_expired_far_longer_than_the_sweep_interval_are_flagged(
+    harness: SweepHarness,
+) -> None:
+    await harness.add("rrev_recent", binding="ghost", objects=("recent",), expired_seconds=7200)
+    assert (await harness.sweep())[5] == 0
+    assert (await harness.sweep(overdue_after_seconds=3600))[5] == 1
+    with pytest.raises(ValueError):
+        await harness.store.sweep_row_write_intents(overdue_after_seconds=0)
+
+
+async def test_an_earlier_intent_table_gains_the_sweep_backoff_columns_in_place(
+    harness: SweepHarness,
+) -> None:
+    async with harness.pool.connection() as connection:
+        await connection.execute(
+            "ALTER TABLE adcp_reporting_row_write_intents DROP COLUMN sweep_attempts,"
+            " DROP COLUMN next_sweep_at"
+        )
+    await harness.store.create_schema()
+    await harness.store.create_schema()
+    await harness.store.ready_row_storage()  # the catalog check accepts the upgraded table
+    await harness.add("rrev_after_upgrade", objects=("x",), expired_seconds=10)
+    assert await harness.row("rrev_after_upgrade") == ("open", 0, None)

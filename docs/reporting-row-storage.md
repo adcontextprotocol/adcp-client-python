@@ -333,15 +333,15 @@ await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds ba
 await store.changes_after(account_id="acct_a", cursor=page.cursor)
 ```
 
-- **Account feeds** order by `seq` and, like the deployment-wide feed, return only changes whose transaction is older
-  than every transaction still in flight (`xid < pg_snapshot_xmin(pg_current_snapshot())`). `seq` is taken under the
-  account lock, but ordering does not rely on that lock: a slow commit with a lower `seq` holds back the readers
-  until it commits, instead of being skipped. A long-running transaction anywhere in the database delays account
-  feeds as well as the deployment feed; it never makes either lose a record.
-- **Retirement events appear only in the shared feed.** `retire_expired_periods` appends a `retirement` change to
-  `adcp_reporting_changes`; the buyer-facing `reporting_ledger_changes` feed never carries one. The two feeds serve
-  different readers (host consumers such as warehouse sinks, and buyers holding `changes_after` cursors), so they stay
-  separate and merging them would change cursors buyers already hold.
+- **Account feeds** order by `seq` and truncate each page before the first change whose transaction is not below
+  every transaction still in flight (`xid >= pg_snapshot_xmin(pg_current_snapshot())`): a page is the committed prefix
+  in `seq` order and stops there, and its cursor never moves past a held-back change. `seq` is taken under the account
+  lock, but ordering does not rely on that lock. Truncation is deliberate: a plain `xid < xmin` *filter* would be
+  wrong, because `seq` order and `xid` order can differ, and it would hand out a later change while skipping an earlier
+  one it excluded. `xmin` is cluster-wide, so **any older open transaction anywhere in the database holds account pages
+  back until it ends, and an empty page can mean "caught up" or "held back"**; poll again rather than concluding
+  nothing is new. The row scan is still served by the `(account_id, seq)` index. This narrows the window for a second
+  writer but does not close it for every interleaving: one writer SDK per database remains the contract.
 - **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
   older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
   this feed; it never makes it lose a record.
@@ -406,11 +406,13 @@ reads answer as expired, and the records stay. Phase 3 deletes every record of a
 is an audit-model decision for the maintainers, deliberately not made here; until it is, plan storage for the records
 themselves, which are small headers and receipts, not row bytes.
 
-Stuck periods never crowd out the rest. A period that cannot finish is parked with an exponential backoff
-(`attempts`, `next_attempt_at`, `last_outcome` on its tombstone; 5 minutes doubling to 24 hours) instead of occupying a
-candidate slot on every pass, and fresh periods always keep half the slots of each pass. The result reports what was
-left alone: `protected` (this pass), `held` (expired periods a hold kept out, bounded count) and `parked` (waiting out a
-backoff).
+Stuck periods never crowd out the rest, with the same names and numbers as the JavaScript SDK. A period that cannot
+finish records `attempts`, `next_attempt_at` and `last_failure` (a stable code, `RECORDS_PROTECTED` for protected
+records) on its tombstone and backs off: 1 minute, doubling, capped at 6 hours. Ready retries take at most half of a
+pass, rounded up, and fresh periods fill the rest; retries only backfill slots fresh periods leave empty. The result
+reports what was left alone: `protected` (this pass), `held` (expired periods a hold kept out, bounded count),
+`deferred` (retiring periods backing off, not attempted this pass) and `stuck` (periods with five or more failed
+attempts, worst first, at most 20: `(reporting_obligation_id, attempts, cause)`).
 
 Tombstones live in `adcp_reporting_period_tombstones`, created with row storage or the change feed.
 
@@ -432,15 +434,17 @@ Only the closed operation name and integer counters are logged, never an excepti
 - `REPORTING_MAINTENANCE_FAILED` (warning): the operation raised or reported failed items (a binding that cannot
   delete, for example). Read `causes` from the result for the stable per-item code.
 - `REPORTING_MAINTENANCE_PENDING` (info): work was left in place on purpose, with the counters `protected`, `held`,
-  `parked`, `skipped_unconfigured` and `backed_off`. A retirement that does nothing because every period is held shows
-  up here instead of looking like a healthy idle worker.
-- `REPORTING_MAINTENANCE_STALLED` (warning): intents have been expired for more than a day and are still unresolved
-  (`stalled`): a binding no host configures any more, or one that keeps failing, so its orphaned objects are never
-  cleaned up.
+  `deferred` and `skipped_unconfigured`. A retirement that does nothing because every period is held shows up here
+  instead of looking like a healthy idle worker.
+- `REPORTING_MAINTENANCE_STALLED` (warning): work nobody is reaching, with `overdue` (intents expired for more than
+  `overdue_after_seconds`, default 24 hours, and still unswept: a binding no host configures any more, or one that
+  keeps failing, so objects leak) and `stuck` (periods with five or more failed retirement attempts).
 
 The last pass's counters are also on `ReportingProductionSupport.maintenance_report`, per operation.
 `prune_expired_row_sets` is scheduled so row bytes are reclaimed even while a period's records stay; its only hold is
 pending materializer work. The intent sweep skips bindings this host does not configure (counted in
-`skipped_unconfigured`) and backs a failing intent off exponentially (1 minute doubling to 1 hour, in
-`adcp_reporting_row_sweep_backoff`), trying never-failed intents first, so one broken binding cannot starve the others.
+`skipped_unconfigured`, unless an intent has no recorded objects, which needs no binding) and backs a failing intent
+off (`sweep_attempts` and `next_sweep_at` on the shared write-intent table, the same columns the JavaScript SDK adds:
+1 minute, doubling, capped at 6 hours; counted as `deferred`), trying never-failed intents first, so one broken binding
+cannot starve the others.
 Outside the production service, call the same methods from your own scheduler.

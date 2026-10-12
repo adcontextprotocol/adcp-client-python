@@ -54,10 +54,10 @@ _MAINTENANCE_COUNTERS = frozenset(
         "failed",
         "protected",
         "held",
-        "parked",
+        "deferred",
+        "stuck",
         "skipped_unconfigured",
-        "backed_off",
-        "stalled",
+        "overdue",
     }
 )
 

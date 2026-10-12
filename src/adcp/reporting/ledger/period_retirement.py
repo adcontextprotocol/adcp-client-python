@@ -33,9 +33,10 @@ schedules ``prune_expired_row_sets``), reads answer as expired, and the records 
 to relax those guards is an audit-model decision for the maintainers, not made here. Nothing
 is half-deleted: phase 3 either removes every record of the period or none.
 
-**Fairness.** A period that cannot finish is parked with an exponential attempt backoff
-(``attempts``, ``next_attempt_at``, ``last_outcome``) so it does not occupy a candidate slot
-on every pass, and fresh periods always keep half of each pass's slots.
+**Fairness.** A period that cannot finish records ``attempts``, ``next_attempt_at`` and
+``last_failure`` and backs off (1 minute, doubling, capped at 6 hours), so it does not occupy a
+candidate slot on every pass. Ready retries take at most half of a pass, rounded up, and fresh
+periods fill the rest. The same names and numbers as the JavaScript SDK.
 """
 
 from __future__ import annotations
@@ -64,9 +65,13 @@ class ReportingPeriodRetirementV1:
     #: Expired periods this pass left alone because a hold applies (materializer work, a
     #: reconciliation record, or an unread registered feed consumer). Capped at 10,000.
     held: int = 0
-    #: ``retiring`` periods waiting out an attempt backoff (protected records or a failing
-    #: provider), so they are not occupying candidate slots.
-    parked: int = 0
+    #: ``retiring`` periods backing off after a failure (protected records or a failing
+    #: provider); they are not attempted this pass and occupy no candidate slot.
+    deferred: int = 0
+    #: Periods still ``retiring`` after five or more failed attempts, worst first, at most 20:
+    #: ``(reporting_obligation_id, attempts, cause)``. They need operator attention, for
+    #: example a removed binding or a permanent provider error.
+    stuck: tuple[tuple[str, int, str], ...] = ()
 
 
 async def _table_exists(connection: Any, name: str) -> bool:
@@ -138,15 +143,13 @@ async def retire_expired_periods(
         fresh = await (
             await connection.execute(_fresh_query("".join(holds), only=False), parameters)
         ).fetchall()
-        # Fresh periods always get a share of every pass: half the slots are reserved for them,
-        # and resumable periods take whatever the fresh ones leave. Otherwise a handful of
-        # periods that cannot finish would occupy every slot and starve retirement.
-        reserved = max(1, limit // 2)
-        take_fresh = min(len(fresh), max(reserved, limit - len(resumable)))
-        take_resumable = min(len(resumable), limit - take_fresh)
-        candidates = [*resumable[:take_resumable], *fresh[:take_fresh]]
+        # Ready retries (interrupted, failed or protected periods whose backoff has elapsed) are
+        # guaranteed at most half the pass, rounded up, ahead of fresh periods; a retry beyond
+        # that only fills the slots fresh periods leave empty. The same split as the JavaScript
+        # SDK, so a few periods that cannot finish never take every slot.
+        first = (limit + 1) // 2
+        candidates = [*resumable[:first], *fresh, *resumable[first:]][:limit]
         held = await _held_count(connection, "".join(holds), parameters)
-        parked = await _parked_count(connection, account_id)
         has_rows = await _table_exists(connection, "adcp_reporting_row_sets")
     retired = 0
     protected: list[str] = []
@@ -159,7 +162,11 @@ async def retire_expired_periods(
         except NoLongerEligibleError:
             continue
         except Exception as error:
-            await _back_off(store, obligation_id, "failed")
+            await _back_off(
+                store,
+                obligation_id,
+                error.code if isinstance(error, ReportingRowStoreError) else type(error).__name__,
+            )
             failed.append(obligation_id)
             causes.append(
                 (
@@ -176,19 +183,29 @@ async def retire_expired_periods(
             retired += 1
         elif outcome == "protected":
             protected.append(obligation_id)
+    # What is left after this pass, so a host can see work no pass is reaching.
+    async with store._pool.connection() as connection:
+        deferred = await _deferred_count(connection, account_id)
+        stuck = await _stuck(connection, account_id)
     return ReportingPeriodRetirementV1(
-        retired, tuple(protected), tuple(failed), tuple(causes), held=held, parked=parked
+        retired,
+        tuple(protected),
+        tuple(failed),
+        tuple(causes),
+        held=held,
+        deferred=deferred,
+        stuck=stuck,
     )
 
 
 def _resumable_query() -> str:
-    """``retiring`` periods whose attempt backoff has elapsed, oldest due first."""
+    """``retiring`` periods whose backoff has elapsed: fewest failed attempts, then oldest."""
     return (
         "SELECT t.reporting_obligation_id, t.account_id"
         " FROM adcp_reporting_period_tombstones t WHERE t.state = 'retiring'"
-        " AND t.next_attempt_at <= clock_timestamp()"
+        " AND (t.next_attempt_at IS NULL OR t.next_attempt_at <= clock_timestamp())"
         " AND (%(account)s::text IS NULL OR t.account_id = %(account)s)"
-        " ORDER BY t.next_attempt_at, t.period_end, t.reporting_obligation_id LIMIT %(limit)s"
+        " ORDER BY t.attempts, t.period_end, t.reporting_obligation_id LIMIT %(limit)s"
     )
 
 
@@ -254,7 +271,7 @@ async def _held_count(connection: Any, holds: str, parameters: dict[str, Any]) -
     return max(0, int(row[0])) if row else 0
 
 
-async def _parked_count(connection: Any, account_id: str | None) -> int:
+async def _deferred_count(connection: Any, account_id: str | None) -> int:
     row = await (
         await connection.execute(
             "SELECT count(*) FROM adcp_reporting_period_tombstones WHERE state = 'retiring'"
@@ -266,10 +283,28 @@ async def _parked_count(connection: Any, account_id: str | None) -> int:
     return int(row[0]) if row else 0
 
 
+#: Failed attempts after which a period is reported as stuck (the JavaScript SDK's threshold).
+PERSISTENT_FAILURE_ATTEMPTS = 5
+
+
+async def _stuck(connection: Any, account_id: str | None) -> tuple[tuple[str, int, str], ...]:
+    rows = await (
+        await connection.execute(
+            "SELECT reporting_obligation_id, attempts, last_failure"
+            " FROM adcp_reporting_period_tombstones"
+            " WHERE state = 'retiring' AND attempts >= %(threshold)s"
+            " AND (%(account)s::text IS NULL OR account_id = %(account)s)"
+            " ORDER BY attempts DESC, retiring_at, reporting_obligation_id LIMIT 20",
+            {"account": account_id, "threshold": PERSISTENT_FAILURE_ATTEMPTS},
+        )
+    ).fetchall()
+    return tuple((row[0], int(row[1]), row[2] or "Error") for row in rows)
+
+
 _BACKOFF = (
-    "attempts = attempts + 1, last_outcome = %s,"
-    " next_attempt_at = clock_timestamp() + LEAST(INTERVAL '24 hours',"
-    "   INTERVAL '5 minutes' * power(2, LEAST(attempts, 10)))"
+    "attempts = attempts + 1, last_failure = %s,"
+    " next_attempt_at = clock_timestamp()"
+    " + LEAST(21600, 60 * power(2, LEAST(attempts, 12))) * INTERVAL '1 second'"
 )
 
 
@@ -392,7 +427,7 @@ async def _retire_period(
                 "UPDATE adcp_reporting_period_tombstones SET "  # noqa: S608  # nosec B608
                 + _BACKOFF
                 + " WHERE reporting_obligation_id = %s AND state = 'retiring'",
-                ("protected", obligation_id),
+                ("RECORDS_PROTECTED", obligation_id),
             )
             return "protected"
         await connection.execute(

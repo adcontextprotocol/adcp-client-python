@@ -763,13 +763,16 @@ class ReportingProductionSupport:
             # is visible instead of looking like a healthy idle worker.
             pending = {
                 key: counts[key]
-                for key in ("protected", "held", "parked", "skipped_unconfigured", "backed_off")
+                for key in ("protected", "held", "deferred", "skipped_unconfigured")
                 if counts.get(key)
             }
             if pending:
                 _maintenance_pending(operation=name, counts=pending)
-            if counts.get("stalled"):
-                _maintenance_stalled(operation=name, counts={"stalled": counts["stalled"]})
+            # Work nobody is reaching: intents expired past the overdue threshold, or periods that
+            # keep failing (five or more attempts). The same signals the JavaScript SDK reports.
+            stalled = {key: counts[key] for key in ("overdue", "stuck") if counts.get(key)}
+            if stalled:
+                _maintenance_stalled(operation=name, counts=stalled)
 
     async def _run_notifications(self) -> None:
         from adcp.reporting.production.notifications import notification_turn
@@ -879,10 +882,10 @@ def _counts(result: Any) -> dict[str, int]:
         "failed",
         "protected",
         "held",
-        "parked",
+        "deferred",
+        "stuck",
         "skipped_unconfigured",
-        "backed_off",
-        "stalled",
+        "overdue",
     ):
         value = getattr(result, name, None)
         if isinstance(value, (tuple, list)):

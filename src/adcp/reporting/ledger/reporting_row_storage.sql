@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS adcp_reporting_row_write_intents (
   created_objects JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(created_objects) = 'array'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   expires_at TIMESTAMPTZ NOT NULL,
+  sweep_attempts INTEGER NOT NULL DEFAULT 0,
+  next_sweep_at TIMESTAMPTZ,
   PRIMARY KEY (row_binding_id, row_set_id, content_sha256)
 );
 CREATE INDEX IF NOT EXISTS adcp_reporting_row_write_intents_expiry
@@ -197,3 +199,9 @@ BEGIN
   END LOOP;
 END
 $triggers$;
+
+-- Per-intent sweep backoff (1 minute doubling to 6 hours), so one failing intent cannot hold the
+-- head of every pass. The same columns the JavaScript SDK adds, for installs created before.
+ALTER TABLE adcp_reporting_row_write_intents
+  ADD COLUMN IF NOT EXISTS sweep_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE adcp_reporting_row_write_intents ADD COLUMN IF NOT EXISTS next_sweep_at TIMESTAMPTZ;
