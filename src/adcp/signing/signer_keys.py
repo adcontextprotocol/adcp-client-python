@@ -66,7 +66,8 @@ class SignerKeyResolver(Protocol):
 class WbaSignerKeyResolver(Protocol):
     """Resolve a WBA thumbprint only in the covered signer's origin directory."""
 
-    async def __call__(self, keyid: str, *, signer_origin: str) -> ResolvedSignerKey | None: ...
+    async def __call__(self, keyid: str, *, signer_origin: str) -> ResolvedSignerKey | None:
+        raise NotImplementedError("implement origin-scoped Web Bot Auth key resolution")
 
 
 def _jwks_keys(agent_url: str, jwks: Mapping[str, Any]) -> list[Mapping[str, Any]]:

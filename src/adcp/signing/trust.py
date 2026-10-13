@@ -39,6 +39,10 @@ class TrustRecordAbsentError(TrustRecordError):
     """404/410 before any successful discovery permits configured legacy fallback."""
 
 
+class _TrustRecordCapacityError(TrustRecordError):
+    """Local backpressure proves nothing about authority and must not be cached."""
+
+
 @dataclass(frozen=True)
 class TrustResponse:
     body: bytes
@@ -46,7 +50,8 @@ class TrustResponse:
 
 
 class TrustFetcher(Protocol):
-    async def __call__(self, url: str, *, allow_private: bool = False) -> TrustResponse: ...
+    async def __call__(self, url: str, *, allow_private: bool = False) -> TrustResponse:
+        raise NotImplementedError
 
 
 def trust_record_url(origin_or_domain: str) -> str:
@@ -253,8 +258,9 @@ class TrustRecordEvaluator:
         self._max_fetches_per_host = max_fetches_per_host
         self._responses: OrderedDict[str, tuple[float, TrustResponse]] = OrderedDict()
         self._response_pending: dict[str, asyncio.Task[tuple[float, TrustResponse]]] = {}
-        self._hosts_inflight: dict[str, int] = {}
-        self._host_failures: OrderedDict[str, float] = OrderedDict()
+        self._hosts_inflight: dict[tuple[str, str], int] = {}
+        self._host_totals: dict[str, int] = {}
+        self._host_failures: OrderedDict[tuple[str, str], float] = OrderedDict()
         self._seen_200: set[str] = set()
         self._lock = asyncio.Lock()
 
@@ -274,7 +280,7 @@ class TrustRecordEvaluator:
                 task = self._pending.get(domain)
                 if task is None:
                     if len(self._pending) >= self._max_records:
-                        raise TrustRecordError("trust discovery capacity exceeded")
+                        raise _TrustRecordCapacityError("trust discovery capacity exceeded")
                     task = asyncio.create_task(self._refresh(domain, url, now))
                     # One disconnected caller cannot cancel the shared fetch or
                     # leave a background task's exception unobserved.
@@ -312,6 +318,10 @@ class TrustRecordEvaluator:
                 while len(self._cache) > self._max_records:
                     self._cache.popitem(last=False)
             return record
+        except _TrustRecordCapacityError:
+            # A busy local fetch pool is not evidence of a counterparty outage.
+            # Retry immediately once a slot becomes available.
+            raise
         except Exception as exc:
             error = (
                 exc
@@ -338,8 +348,10 @@ class TrustRecordEvaluator:
         for hop in range(2):
             _validate_fetch_target(source)
             try:
-                response_expires, response = await self._fetch_response(source)
+                response_expires, response = await self._fetch_response(source, owner_domain=domain)
                 expires_at = min(expires_at, response_expires)
+            except _TrustRecordCapacityError:
+                raise
             except Exception as exc:
                 raise TrustRecordError("trust record fetch failed") from exc
             if response.status in {404, 410} and hop == 0 and domain not in self._seen_200:
@@ -362,35 +374,39 @@ class TrustRecordEvaluator:
             source = pointer
         raise TrustRecordError("trust record resolution failed")
 
-    async def _fetch_response(self, url: str) -> tuple[float, TrustResponse]:
+    async def _fetch_response(self, url: str, *, owner_domain: str) -> tuple[float, TrustResponse]:
         """Share transport bytes while preserving each original owner's validation."""
         host = urlsplit(url).hostname or ""
+        owner_host = (owner_domain, host)
         async with self._lock:
             now = self._clock()
             cached = self._responses.get(url)
             if cached is not None and cached[0] > now:
                 self._responses.move_to_end(url)
                 return cached
-            if self._host_failures.get(host, 0) > now:
-                self._host_failures.move_to_end(host)
+            if self._host_failures.get(owner_host, 0) > now:
+                self._host_failures.move_to_end(owner_host)
                 raise TrustRecordError("trust fetch host is cooling down")
             task = self._response_pending.get(url)
             if task is None:
                 if (
                     len(self._response_pending) >= self._max_records
-                    or self._hosts_inflight.get(host, 0) >= self._max_fetches_per_host
+                    or self._host_totals.get(host, 0) >= self._max_fetches_per_host
                 ):
-                    raise TrustRecordError("trust fetch host capacity exceeded")
-                task = asyncio.create_task(self._refresh_response(url, host, now))
+                    raise _TrustRecordCapacityError("trust fetch host capacity exceeded")
+                task = asyncio.create_task(self._refresh_response(url, owner_host, now))
                 task.add_done_callback(
                     lambda done: done.exception() if not done.cancelled() else None
                 )
                 self._response_pending[url] = task
-                self._hosts_inflight[host] = self._hosts_inflight.get(host, 0) + 1
+                self._hosts_inflight[owner_host] = self._hosts_inflight.get(owner_host, 0) + 1
+                # Bound actual outbound pressure across owners, but do not
+                # turn this temporary resource limit into cached denial.
+                self._host_totals[host] = self._host_totals.get(host, 0) + 1
         return await asyncio.shield(task)
 
     async def _refresh_response(
-        self, url: str, host: str, now: float
+        self, url: str, owner_host: tuple[str, str], now: float
     ) -> tuple[float, TrustResponse]:
         try:
             response = await self._fetcher(url, allow_private=self._allow_private)
@@ -404,25 +420,36 @@ class TrustRecordEvaluator:
                 while len(self._responses) > self._max_records:
                     self._responses.popitem(last=False)
                 if response.status >= 500 or response.status == 429:
-                    self._cool_down_host(host)
+                    self._cool_down_host(owner_host)
             return cached
+        except _TrustRecordCapacityError:
+            raise
         except Exception as exc:
-            async with self._lock:
-                self._cool_down_host(host)
+            # Validation/content errors (including the streaming size and
+            # encoding guards) describe one URL, not a host outage.
+            if not isinstance(exc, ValueError):
+                async with self._lock:
+                    self._cool_down_host(owner_host)
             raise TrustRecordError("trust record fetch failed") from exc
         finally:
             async with self._lock:
                 self._response_pending.pop(url, None)
-                remaining = self._hosts_inflight[host] - 1
+                remaining = self._hosts_inflight[owner_host] - 1
                 if remaining:
-                    self._hosts_inflight[host] = remaining
+                    self._hosts_inflight[owner_host] = remaining
                 else:
-                    self._hosts_inflight.pop(host, None)
+                    self._hosts_inflight.pop(owner_host, None)
+                host = owner_host[1]
+                host_remaining = self._host_totals[host] - 1
+                if host_remaining:
+                    self._host_totals[host] = host_remaining
+                else:
+                    self._host_totals.pop(host, None)
 
-    def _cool_down_host(self, host: str) -> None:
-        """Called under the state lock; host failures never imply record absence."""
-        self._host_failures[host] = self._clock() + 60
-        self._host_failures.move_to_end(host)
+    def _cool_down_host(self, owner_host: tuple[str, str]) -> None:
+        """A pointer selected by one owner cannot suppress another owner's fetches."""
+        self._host_failures[owner_host] = self._clock() + 60
+        self._host_failures.move_to_end(owner_host)
         while len(self._host_failures) > self._max_records:
             self._host_failures.popitem(last=False)
 
@@ -569,9 +596,14 @@ class TrustGrantEvaluator:
             brand_record = await self.records.evaluate(brand_domain)
         except TrustRecordAbsentError:
             if self._legacy_authorization is not None:
+                authorized = bool(await self._legacy_authorization(request))
+                fallback_expiry = signer_record.expires_at if signer_record is not None else None
+                if fallback_expiry is not None and fallback_expiry <= self._clock():
+                    return GrantAuthorization(False, "signer_trust_record_unavailable")
                 return GrantAuthorization(
-                    bool(await self._legacy_authorization(request)),
+                    authorized,
                     legacy_fallback_allowed=True,
+                    expires_at=fallback_expiry,
                 )
             return GrantAuthorization(False, "trust_record_absent", legacy_fallback_allowed=True)
         except TrustRecordError:
@@ -626,7 +658,13 @@ class TrustGrantEvaluator:
                 for grant in brand_record.document.get("grants", [])
             )
             if not exhaustive and self._seller_authorization is not None:
-                return GrantAuthorization(bool(await self._seller_authorization(request)))
+                authorized = bool(await self._seller_authorization(request))
+                expiry = min(record.expires_at for record in used_records)
+                # Seller discretion cannot outlive the required operator role
+                # evaluation while its application-owned policy lookup awaits.
+                if expiry <= self._clock():
+                    return GrantAuthorization(False, "trust_record_unavailable")
+                return GrantAuthorization(authorized, expires_at=expiry)
             return GrantAuthorization(False, "grant_absent")
         # Every surviving grant covers the same requested dimensions. The
         # best path's expiry is the minimum of each link's best expiry. Avoid

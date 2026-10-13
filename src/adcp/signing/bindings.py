@@ -11,7 +11,8 @@ from adcp.signing.canonical import canonical_origin
 class OriginBindingResolver(Protocol):
     """Application-owned durable lookup; discovery must never write bindings."""
 
-    async def __call__(self, origin: str) -> str | None: ...
+    async def __call__(self, origin: str) -> str | None:
+        raise NotImplementedError("implement the application-owned origin binding lookup")
 
 
 class OriginBindings:

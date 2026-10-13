@@ -236,3 +236,72 @@ async def test_explicit_bearer_identity_keeps_its_independent_registry_authority
     )
     assert await _resolve_buyer_agent(bearer_only_registry(lookup), auth) is buyer
     assert looked_up == [credential]
+
+
+@pytest.mark.parametrize("policy_delay", [0, 49, 50, 51])
+async def test_discretionary_authority_cannot_outlive_required_operator_membership(policy_delay):
+    now = [1000.0]
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url(ORIGIN):
+            now[0] += 10
+            document = {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+        else:
+            # The brand's record expires later than the required signer record.
+            document = {"grants": []}
+        return TrustResponse(json.dumps(document).encode())
+
+    async def seller(request):
+        now[0] += policy_delay
+        return True
+
+    records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
+    result = await TrustGrantEvaluator(records, seller_authorization=seller).check(
+        agent_origin=ORIGIN, brand_domain="brand.com", account_operator="platform.com"
+    )
+    assert (await records.evaluate("brand.com")).expires_at == 1070
+    if policy_delay < 50:
+        assert result.authorized
+        assert result.expires_at == 1060
+    else:
+        assert not result.authorized
+        assert result.reason == "trust_record_unavailable"
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", LEGACY_PROFILE])
+@pytest.mark.parametrize("policy_delay", [0, 60, 61])
+async def test_legacy_fallback_retains_required_wba_membership_expiry(
+    signing_profile, policy_delay
+):
+    now = [1000.0]
+    fetched = []
+
+    async def fetch(url, *, allow_private=False):
+        fetched.append(url)
+        if url == trust_record_url(ORIGIN):
+            return TrustResponse(
+                json.dumps({"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}).encode()
+            )
+        return TrustResponse(b"", 404)
+
+    async def legacy(request):
+        now[0] += policy_delay
+        return True
+
+    records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
+    result = await TrustGrantEvaluator(records, legacy_authorization=legacy).check(
+        agent_origin=ORIGIN,
+        brand_domain="brand.com",
+        account_operator="platform.com",
+        signing_profile=signing_profile,
+    )
+    if signing_profile == LEGACY_PROFILE:
+        assert result.authorized
+        assert result.expires_at is None
+        assert fetched == [trust_record_url("brand.com")]
+    elif policy_delay < 60:
+        assert result.authorized
+        assert result.expires_at == 1060
+    else:
+        assert not result.authorized
+        assert result.reason == "signer_trust_record_unavailable"

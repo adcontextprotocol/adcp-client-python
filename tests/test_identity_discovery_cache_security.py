@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
+from adcp.signing._bounded_http import ResponseTooLargeError
 from adcp.signing.crypto import b64url_encode
 from adcp.signing.revocation_fetcher import FetchResult, RevocationListFetchError
 from adcp.signing.signer_keys import ResolvedSignerKey
@@ -38,7 +39,7 @@ async def test_slow_trust_fetch_does_not_block_another_operators_cached_record()
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
         if urlsplit(url).hostname == "slow.com":
             started.set()
-            await release.wait()
+            assert await asyncio.wait_for(release.wait(), timeout=5)
         return response(
             "https://buyer.slow.com"
             if urlsplit(url).hostname == "slow.com"
@@ -46,15 +47,17 @@ async def test_slow_trust_fetch_does_not_block_another_operators_cached_record()
         )
 
     records = TrustRecordEvaluator(fetcher=fetch)
-    await records.evaluate("https://buyer.fast.com", role="adcp:buying")
+    assert (
+        await records.evaluate("https://buyer.fast.com", role="adcp:buying")
+    ).operator_domain == "fast.com"
     slow = asyncio.create_task(records.evaluate("https://buyer.slow.com"))
     try:
-        await started.wait()
+        assert await asyncio.wait_for(started.wait(), timeout=5)
         fast = await asyncio.wait_for(records.evaluate("https://buyer.fast.com"), timeout=1)
         assert fast.operator_domain == "fast.com"
     finally:
         release.set()
-        await slow
+        assert (await asyncio.wait_for(slow, timeout=5)).operator_domain == "slow.com"
 
 
 async def test_same_operator_trust_fetch_is_shared_and_survives_waiter_cancellation():
@@ -65,19 +68,19 @@ async def test_same_operator_trust_fetch_is_shared_and_survives_waiter_cancellat
         nonlocal calls
         calls += 1
         started.set()
-        await release.wait()
+        assert await asyncio.wait_for(release.wait(), timeout=5)
         return response("https://buyer.agency.com")
 
     records = TrustRecordEvaluator(fetcher=fetch)
     first = asyncio.create_task(records.evaluate("https://buyer.agency.com"))
-    await started.wait()
+    assert await asyncio.wait_for(started.wait(), timeout=5)
     second = asyncio.create_task(records.evaluate("https://other.agency.com"))
     await asyncio.sleep(0)
     first.cancel()
     with pytest.raises(asyncio.CancelledError):
-        await first
+        await asyncio.wait_for(first, timeout=5)
     release.set()
-    assert (await second).operator_domain == "agency.com"
+    assert (await asyncio.wait_for(second, timeout=5)).operator_domain == "agency.com"
     assert calls == 1
 
 
@@ -107,17 +110,17 @@ async def test_trust_discovery_bounds_pending_and_negative_records():
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
         started.set()
-        await release.wait()
+        assert await asyncio.wait_for(release.wait(), timeout=5)
         return TrustResponse(b"", 404)
 
     records = TrustRecordEvaluator(fetcher=fetch, max_records=1)
     first = asyncio.create_task(records.evaluate("https://one.com"))
-    await started.wait()
+    assert await asyncio.wait_for(started.wait(), timeout=5)
     with pytest.raises(TrustRecordError, match="capacity"):
         await records.evaluate("https://two.com")
     release.set()
     with pytest.raises(TrustRecordAbsentError):
-        await first
+        await asyncio.wait_for(first, timeout=5)
     with pytest.raises(TrustRecordAbsentError):
         await records.evaluate("https://two.com")
     assert len(records._failures) == 1
@@ -137,8 +140,8 @@ async def test_negative_cache_and_eviction_do_not_forget_successful_trust_discov
         return TrustResponse(b"", 404) if absent else response(origin)
 
     records = TrustRecordEvaluator(fetcher=fetch, max_records=1, clock=lambda: now[0])
-    await records.evaluate("https://buyer.agency.com")
-    await records.evaluate("https://other.com")
+    assert (await records.evaluate("https://buyer.agency.com")).operator_domain == "agency.com"
+    assert (await records.evaluate("https://other.com")).operator_domain == "other.com"
     absent = True
     now[0] += 60
     for _ in range(2):
@@ -157,19 +160,19 @@ async def test_shared_hop_fetch_coalesces_without_sharing_operator_authority():
         if url == target:
             calls += 1
             started.set()
-            await release.wait()
+            assert await asyncio.wait_for(release.wait(), timeout=5)
             return response("https://buyer.one.com")
         return TrustResponse(json.dumps({"authoritative_location": target}).encode())
 
     records = TrustRecordEvaluator(fetcher=fetch, max_fetches_per_host=1)
     first = asyncio.create_task(records.evaluate("https://buyer.one.com"))
-    await started.wait()
+    assert await asyncio.wait_for(started.wait(), timeout=5)
     second = asyncio.create_task(records.evaluate("https://buyer.two.com"))
     await asyncio.sleep(0)
     release.set()
-    assert (await first).operator_domain == "one.com"
+    assert (await asyncio.wait_for(first, timeout=5)).operator_domain == "one.com"
     with pytest.raises(TrustRecordError, match="owner"):
-        await second
+        await asyncio.wait_for(second, timeout=5)
     assert calls == 1
     assert not records._hosts_inflight
 
@@ -182,7 +185,7 @@ async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host
         if urlsplit(url).hostname == "hosting.com":
             host_calls.append(url)
             started.set()
-            await release.wait()
+            assert await asyncio.wait_for(release.wait(), timeout=5)
             return TrustResponse(b'{"agents":[]}')
         if urlsplit(url).hostname == "fast.com":
             return response("https://buyer.fast.com")
@@ -194,7 +197,7 @@ async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host
     records = TrustRecordEvaluator(fetcher=fetch, max_fetches_per_host=1)
     first = asyncio.create_task(records.evaluate("https://buyer.one.com"))
     try:
-        await started.wait()
+        assert await asyncio.wait_for(started.wait(), timeout=5)
         with pytest.raises(TrustRecordError):
             await records.evaluate("https://buyer.two.com")
         fast = await asyncio.wait_for(records.evaluate("https://buyer.fast.com"), timeout=1)
@@ -202,7 +205,9 @@ async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host
         assert len(host_calls) == 1
     finally:
         release.set()
-        await first
+        assert (await asyncio.wait_for(first, timeout=5)).operator_domain == "one.com"
+    assert (await records.evaluate("https://buyer.two.com")).operator_domain == "two.com"
+    assert len(host_calls) == 2
 
 
 async def test_hop_transport_cache_cannot_extend_old_authority_freshness():
@@ -227,7 +232,7 @@ async def test_hop_transport_cache_cannot_extend_old_authority_freshness():
     assert calls == 2
 
 
-async def test_hop_host_failure_cooldown_cannot_be_mistaken_for_owner_absence():
+async def test_hop_host_failure_cooldown_is_scoped_to_original_owner():
     now, calls = [1000.0], 0
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
@@ -243,14 +248,116 @@ async def test_hop_host_failure_cooldown_cannot_be_mistaken_for_owner_absence():
         )
 
     records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
-    for origin in ("https://one.com", "https://two.com"):
-        with pytest.raises(TrustRecordError) as exc:
-            await records.evaluate(origin)
-        assert not isinstance(exc.value, TrustRecordAbsentError)
+    with pytest.raises(TrustRecordError) as exc:
+        await records.evaluate("https://one.com")
+    assert not isinstance(exc.value, TrustRecordAbsentError)
     assert calls == 1
-    now[0] += 60
     assert (await records.evaluate("https://two.com")).operator_domain == "two.com"
     assert calls == 2
+    now[0] += 60
+    assert (await records.evaluate("https://one.com")).operator_domain == "one.com"
+    assert calls == 3
+
+
+@pytest.mark.parametrize(
+    "failure", ["raises", "server_error", "oversized", "stream_oversized", "encoded_body"]
+)
+async def test_attacker_pointer_cannot_poison_victims_own_trust_fetch(failure: str):
+    victim_calls = []
+    attack_target = "https://victim.com/attacker-selected.json"
+
+    async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
+        if urlsplit(url).hostname == "attacker.com":
+            return TrustResponse(json.dumps({"authoritative_location": attack_target}).encode())
+        victim_calls.append(url)
+        if url == attack_target:
+            if failure == "raises":
+                raise OSError("attacker-selected path is offline")
+            if failure == "server_error":
+                return TrustResponse(b"", 503)
+            if failure == "stream_oversized":
+                raise ResponseTooLargeError(limit=2 * 1024 * 1024, received=2 * 1024 * 1024 + 1)
+            if failure == "encoded_body":
+                raise ValueError("encoded security document responses are not accepted")
+            return TrustResponse(b" " * (2 * 1024 * 1024 + 1))
+        return response("https://buyer.victim.com")
+
+    records = TrustRecordEvaluator(fetcher=fetch)
+    with pytest.raises(TrustRecordError):
+        await records.evaluate("https://buyer.attacker.com")
+    victim = await records.evaluate("https://buyer.victim.com", role="adcp:buying")
+    assert victim.operator_domain == "victim.com"
+    assert victim_calls == [attack_target, "https://victim.com/.well-known/trust.json"]
+    assert ("victim.com", "victim.com") not in records._host_failures
+    if failure in {"oversized", "stream_oversized", "encoded_body"}:
+        assert not records._host_failures
+
+
+async def test_fifth_shared_host_owner_retries_immediately_after_backpressure():
+    release, full = asyncio.Event(), asyncio.Event()
+    host_calls = []
+
+    async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
+        host = urlsplit(url).hostname
+        if host == "hosting.com":
+            host_calls.append(url)
+            if len(host_calls) == 4:
+                full.set()
+            assert await asyncio.wait_for(release.wait(), timeout=5)
+            return TrustResponse(b'{"agents":[]}')
+        return TrustResponse(
+            json.dumps({"authoritative_location": f"https://hosting.com/{host}.json"}).encode()
+        )
+
+    records = TrustRecordEvaluator(fetcher=fetch, max_fetches_per_host=4)
+    existing = [
+        asyncio.create_task(records.evaluate(f"https://owner-{index}.com")) for index in range(4)
+    ]
+    try:
+        assert await asyncio.wait_for(full.wait(), timeout=5)
+        with pytest.raises(TrustRecordError, match="capacity"):
+            await records.evaluate("https://owner-4.com")
+        assert "owner-4.com" not in records._failures
+        assert ("owner-4.com", "hosting.com") not in records._host_failures
+        assert len(host_calls) == 4
+    finally:
+        release.set()
+        finished = await asyncio.wait_for(asyncio.gather(*existing), timeout=5)
+        assert {record.operator_domain for record in finished} == {
+            f"owner-{index}.com" for index in range(4)
+        }
+    recovered = await records.evaluate("https://owner-4.com")
+    assert recovered.operator_domain == "owner-4.com"
+    assert len(host_calls) == 5
+    assert not records._host_totals
+    assert not records._hosts_inflight
+
+
+async def test_exhausted_global_discovery_capacity_is_not_negative_cached():
+    started, release = asyncio.Event(), asyncio.Event()
+    calls = []
+
+    async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
+        host = urlsplit(url).hostname
+        calls.append(host)
+        if host == "first.com":
+            started.set()
+            assert await asyncio.wait_for(release.wait(), timeout=5)
+        return response(f"https://buyer.{host}")
+
+    records = TrustRecordEvaluator(fetcher=fetch, max_records=1)
+    first = asyncio.create_task(records.evaluate("https://buyer.first.com"))
+    try:
+        assert await asyncio.wait_for(started.wait(), timeout=5)
+        with pytest.raises(TrustRecordError, match="capacity"):
+            await records.evaluate("https://buyer.second.com")
+        assert "second.com" not in records._failures
+    finally:
+        release.set()
+        assert (await asyncio.wait_for(first, timeout=5)).operator_domain == "first.com"
+    recovered = await records.evaluate("https://buyer.second.com")
+    assert recovered.operator_domain == "second.com"
+    assert calls == ["first.com", "second.com"]
 
 
 def signed_revocations(private, origin: str, *, revoked: bool = False) -> FetchResult:
@@ -360,18 +467,18 @@ async def test_revocation_first_discovery_is_shared_and_not_cancelled_by_one_wai
         nonlocal calls
         calls += 1
         started.set()
-        await release.wait()
+        assert await asyncio.wait_for(release.wait(), timeout=5)
         return signed_revocations(private, origin)
 
     checker = OriginRevocationChecker(resolve, fetcher=fetch)
     first = asyncio.create_task(checker(origin, jwk["kid"]))
-    await started.wait()
+    assert await asyncio.wait_for(started.wait(), timeout=5)
     second = asyncio.create_task(checker(origin, jwk["kid"]))
     await asyncio.sleep(0)
     first.cancel()
     with pytest.raises(asyncio.CancelledError):
-        await first
+        await asyncio.wait_for(first, timeout=5)
     release.set()
-    assert not await second
+    assert not await asyncio.wait_for(second, timeout=5)
     assert calls == 1
     assert not checker._pending

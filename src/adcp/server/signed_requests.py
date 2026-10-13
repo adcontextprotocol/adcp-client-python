@@ -60,6 +60,7 @@ from adcp.signing.errors import (
 from adcp.signing.middleware import VERIFIED_SIGNER_SCOPE_KEY, unauthorized_response_headers
 from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker
+from adcp.signing.signer_keys import WbaSignerKeyResolver
 from adcp.signing.verifier import (
     VerifiedSigner,
     VerifierCapability,
@@ -76,7 +77,7 @@ from adcp.signing.wba import (
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
-    from adcp.signing.signer_keys import ResolvedSignerKey, SignerKeyResolver, WbaSignerKeyResolver
+    from adcp.signing.signer_keys import ResolvedSignerKey, SignerKeyResolver
     from adcp.signing.trust import TrustRecordEvaluator
     from adcp.signing.verifier import CoversDigestPolicy, SigningProfileVersion
 
@@ -181,7 +182,7 @@ class RequestSignatureVerification:
             object.__setattr__(
                 self,
                 "wba_revocation_checker",
-                OriginRevocationChecker(cast("WbaSignerKeyResolver", self.signer_keys)),
+                OriginRevocationChecker(cast(WbaSignerKeyResolver, self.signer_keys)),
             )
         if self.enable_web_bot_auth and self.trust_records is None:
             from adcp.signing.trust import TrustRecordEvaluator
@@ -521,7 +522,7 @@ class SignedRequestVerificationMiddleware:
                 url=str(request.url),
                 headers=dict(request.headers),
                 body=body,
-                signer_keys=cast("WbaSignerKeyResolver", config.signer_keys),
+                signer_keys=cast(WbaSignerKeyResolver, config.signer_keys),
                 replay_store=config.replay_store,
                 raw_headers=scope.get("headers"),
                 revocation_checker=config.wba_revocation_checker,
