@@ -155,7 +155,7 @@ async def test_reapplying_the_migration_is_a_no_op() -> None:
 
 
 async def test_an_out_of_bounds_recorded_key_fails_the_migration_and_rolls_back() -> None:
-    import psycopg
+    psycopg = pytest.importorskip("psycopg")
 
     migration = REPORTING_ROW_STORAGE_DDL_PATH.read_text()
     async with isolated_reporting_pool() as pool:
@@ -180,7 +180,7 @@ async def test_an_out_of_bounds_recorded_key_fails_the_migration_and_rolls_back(
 
 
 async def test_the_new_bounds_are_enforced_on_a_fresh_install() -> None:
-    import psycopg
+    psycopg = pytest.importorskip("psycopg")
 
     migration = REPORTING_ROW_STORAGE_DDL_PATH.read_text()
     async with isolated_reporting_pool() as pool:
