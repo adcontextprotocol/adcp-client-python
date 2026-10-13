@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -35,10 +36,14 @@ async def test_slow_trust_fetch_does_not_block_another_operators_cached_record()
     started, release = asyncio.Event(), asyncio.Event()
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
-        if "slow.com" in url:
+        if urlsplit(url).hostname == "slow.com":
             started.set()
             await release.wait()
-        return response("https://buyer.slow.com" if "slow.com" in url else "https://buyer.fast.com")
+        return response(
+            "https://buyer.slow.com"
+            if urlsplit(url).hostname == "slow.com"
+            else "https://buyer.fast.com"
+        )
 
     records = TrustRecordEvaluator(fetcher=fetch)
     await records.evaluate("https://buyer.fast.com", role="adcp:buying")
@@ -124,7 +129,11 @@ async def test_negative_cache_and_eviction_do_not_forget_successful_trust_discov
     absent = False
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
-        origin = "https://buyer.agency.com" if "agency.com" in url else "https://other.com"
+        origin = (
+            "https://buyer.agency.com"
+            if urlsplit(url).hostname == "agency.com"
+            else "https://other.com"
+        )
         return TrustResponse(b"", 404) if absent else response(origin)
 
     records = TrustRecordEvaluator(fetcher=fetch, max_records=1, clock=lambda: now[0])
@@ -170,14 +179,14 @@ async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host
     host_calls = []
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
-        if "hosting.com" in url:
+        if urlsplit(url).hostname == "hosting.com":
             host_calls.append(url)
             started.set()
             await release.wait()
             return TrustResponse(b'{"agents":[]}')
-        if "fast.com" in url:
+        if urlsplit(url).hostname == "fast.com":
             return response("https://buyer.fast.com")
-        path = "one" if "one.com" in url else "two"
+        path = "one" if urlsplit(url).hostname == "one.com" else "two"
         return TrustResponse(
             json.dumps({"authoritative_location": f"https://hosting.com/{path}.json"}).encode()
         )
@@ -223,12 +232,12 @@ async def test_hop_host_failure_cooldown_cannot_be_mistaken_for_owner_absence():
 
     async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
         nonlocal calls
-        if "hosting.com" in url:
+        if urlsplit(url).hostname == "hosting.com":
             calls += 1
             if calls == 1:
                 raise OSError("offline")
             return TrustResponse(b'{"agents":[]}')
-        path = "one" if "one.com" in url else "two"
+        path = "one" if urlsplit(url).hostname == "one.com" else "two"
         return TrustResponse(
             json.dumps({"authoritative_location": f"https://hosting.com/{path}.json"}).encode()
         )
