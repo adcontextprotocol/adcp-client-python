@@ -42,6 +42,7 @@ def validate_notification_body(
     idempotency_key: str | None = None,
     notification_type: str | None = None,
     account_id: str | None = None,
+    experimental_agent_identity: bool = False,
 ) -> dict[str, Any]:
     """Reject malformed envelopes before committing and again before HTTP.
 
@@ -76,7 +77,17 @@ def validate_notification_body(
     validator = get_named_validator(NOTIFICATION_SCHEMAS[kind])
     if validator is None:
         raise ValueError("bundled notification schema is unavailable")
-    error = next(validator.iter_errors(payload), None)
+    schema_payload = payload
+    if (
+        experimental_agent_identity
+        and kind == "principal.changed"
+        and isinstance(payload.get("reason"), str)
+        and payload.get("reason") in {"relationship_changed", "relationship_expiring"}
+    ):
+        # The pinned draft adds two enum values; all other wire constraints
+        # still come from the stable offline schema. Preserve delivery bytes.
+        schema_payload = {**payload, "reason": "other"}
+    error = next(validator.iter_errors(schema_payload), None)
     if error is not None:
         raise ValueError(f"notification envelope failed schema validation ({error.validator})")
     if kind.startswith(("product.", "signal.")) or kind == "wholesale_feed.bulk_change":

@@ -12,6 +12,7 @@ module is the thin glue between capabilities and that primitive.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -115,6 +116,7 @@ class SigningConfig:
     alg: str = ALG_ED25519
     tag: str = DEFAULT_TAG
     signing_profile_version: SigningProfileVersion | None = None
+    agent_origin: str | None = None
 
     def __post_init__(self) -> None:
         if self.alg not in ALLOWED_ALGS:
@@ -123,6 +125,20 @@ class SigningConfig:
             raise ValueError("key_id must be a non-empty string")
         if self.signing_profile_version not in {None, "3.0", "3.1", "3.2"}:
             raise ValueError("signing_profile_version must be None, '3.0', '3.1', or '3.2'")
+        if self.agent_origin is not None:
+            from adcp.signing.wba import WBA_TAG, _https_origin, public_directory_key
+
+            object.__setattr__(self, "agent_origin", _https_origin(self.agent_origin))
+            if self.key_id != public_directory_key(self.private_key)["kid"]:
+                raise ValueError("Web Bot Auth key_id must be the public key's thumbprint")
+            object.__setattr__(self, "tag", WBA_TAG)
+        else:
+            warnings.warn(
+                "RFC 9421-profile signing is deprecated in AdCP 3.3 and remains supported "
+                "through 3.x; opt into Web Bot Auth with agent_origin when peers support it.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     def __repr__(self) -> str:
         # Redact the private key from string representations so accidental
@@ -131,7 +147,7 @@ class SigningConfig:
         return (
             f"SigningConfig(key_id={self.key_id!r}, alg={self.alg!r}, "
             f"tag={self.tag!r}, signing_profile_version={self.signing_profile_version!r}, "
-            f"private_key=<redacted>)"
+            f"agent_origin={self.agent_origin!r}, private_key=<redacted>)"
         )
 
 
@@ -196,6 +212,21 @@ def operation_needs_signing(
     if operation in lists.warn or operation in lists.supported:
         return "optional"
     return "skip"
+
+
+def require_signing_profile(capability: RequestSigning | None, signing: SigningConfig) -> None:
+    """Reject unsupported opt-in profiles before sending or changing credentials."""
+    profiles = getattr(capability, "profiles", None)
+    accepted = (
+        {DEFAULT_TAG}
+        if profiles is None
+        else {getattr(profile, "value", profile) for profile in profiles}
+    )
+    if signing.tag not in accepted:
+        raise ValueError(
+            f"Seller does not advertise request-signing profile {signing.tag!r}; "
+            "automatic signing cannot downgrade the configured identity"
+        )
 
 
 __all__ = [

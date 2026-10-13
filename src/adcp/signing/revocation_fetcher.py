@@ -522,6 +522,8 @@ class _CheckerState:
         now_mono: float,
     ) -> None:
         """Commit a validated list to the cache."""
+        if self._current_list is not None:
+            revocation_list.retain(self._current_list)
         self._current_list = revocation_list
         self._current_etag = result.etag
         # Sanitize again at write-side: custom fetcher impls may not have
@@ -586,7 +588,10 @@ def _build_list_from_payload(payload: dict[str, Any], expected_issuer: str) -> R
             f"spec floor ({MIN_POLLING_INTERVAL_SECONDS}s)"
         )
 
-    return RevocationList.from_dict(payload)
+    try:
+        return RevocationList.from_dict(payload)
+    except (ValueError, TypeError) as exc:
+        raise RevocationListParseError("invalid revocation identifiers or details") from exc
 
 
 class CachingRevocationChecker(_CheckerState):

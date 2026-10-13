@@ -37,10 +37,11 @@ import json
 import logging
 import os
 import time
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from functools import partial
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import anyio
 import anyio.from_thread
@@ -49,6 +50,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from adcp.server._size_limit import make_replay_receive
+from adcp.signing.bindings import OriginBindingResolver
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_HEADER_MALFORMED,
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
@@ -64,10 +66,18 @@ from adcp.signing.verifier import (
     VerifyOptions,
     verify_request_signature,
 )
+from adcp.signing.wba import (
+    OriginRevocationChecker,
+    WbaAuthorizationError,
+    WbaVerificationError,
+    uses_web_bot_auth,
+    verify_wba_request,
+)
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
-    from adcp.signing.signer_keys import ResolvedSignerKey, SignerKeyResolver
+    from adcp.signing.signer_keys import ResolvedSignerKey, SignerKeyResolver, WbaSignerKeyResolver
+    from adcp.signing.trust import TrustRecordEvaluator
     from adcp.signing.verifier import CoversDigestPolicy, SigningProfileVersion
 
 logger = logging.getLogger(__name__)
@@ -132,7 +142,18 @@ class RequestSignatureVerification:
     :param replay_store: Nonce store shared by every request. The default is
         one per-process :class:`~adcp.signing.InMemoryReplayStore`, which
         does not protect a multi-replica deployment; wire a shared store
-        (e.g. ``PgReplayStore``) there. ``None`` disables replay checks.
+        (e.g. ``PgReplayStore``) there. ``None`` disables replay checks for
+        the legacy profile and is rejected when Web Bot Auth is enabled.
+    :param wba_revocation_checker: Async origin/key revocation checker. When
+        Web Bot Auth is enabled, defaults to ``OriginRevocationChecker``
+        using the configured signer keys; revocation fetch failures reject
+        the signed request.
+    :param trust_records: Operator membership evaluator used when authorizing
+        an existing WBA binding. Defaults to ``TrustRecordEvaluator``. Its
+        cache bounds binding freshness; it never participates in key discovery.
+    :param unbound_for: Operations available to an identity-established caller
+        before approval. Match the application's anonymous permissions; add
+        ``sync_principal`` only when its handler implements an open policy.
     """
 
     signer_keys: SignerKeyResolver
@@ -146,8 +167,33 @@ class RequestSignatureVerification:
     replay_store: ReplayStore | None = field(default_factory=InMemoryReplayStore)
     revocation_checker: RevocationChecker | None = None
     signing_profile_version: SigningProfileVersion = "3.1"
+    enable_web_bot_auth: bool = False
+    origin_bindings: OriginBindingResolver | None = None
+    wba_revocation_checker: Any = None
+    trust_records: TrustRecordEvaluator | None = None
+    binding_role: str = "adcp:buying"
+    unbound_for: frozenset[str] = frozenset({"get_adcp_capabilities", "get_principal"})
 
     def __post_init__(self) -> None:
+        if self.enable_web_bot_auth and self.replay_store is None:
+            raise ValueError("Web Bot Auth requires a replay store")
+        if self.enable_web_bot_auth and self.wba_revocation_checker is None:
+            object.__setattr__(
+                self,
+                "wba_revocation_checker",
+                OriginRevocationChecker(cast("WbaSignerKeyResolver", self.signer_keys)),
+            )
+        if self.enable_web_bot_auth and self.trust_records is None:
+            from adcp.signing.trust import TrustRecordEvaluator
+
+            object.__setattr__(self, "trust_records", TrustRecordEvaluator())
+        if not self.enable_web_bot_auth:
+            warnings.warn(
+                "RFC 9421-profile verification is deprecated in AdCP 3.3 and remains "
+                "supported through 3.x; enable_web_bot_auth opts into the experimental profile.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         overlap = self.required_for & self.warn_for
         if overlap:
             raise ValueError(
@@ -315,7 +361,9 @@ class SignedRequestVerificationMiddleware:
         self._config = config
         self._transport = transport
         self._message_parser = message_parser
-        self._parse_skill = bool(config.required_for or config.warn_for)
+        self._parse_skill = bool(
+            config.required_for or config.warn_for or config.enable_web_bot_auth
+        )
         self._bearer_configured = bearer_configured
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
@@ -333,6 +381,43 @@ class SignedRequestVerificationMiddleware:
             # the framework's resolver never vouches for a key it did not
             # check.
             if existing.agent_url is not None:
+                from adcp.signing.canonical import canonical_origin
+
+                origin = canonical_origin(existing.agent_url)
+                if existing.profile == "web-bot-auth":
+                    try:
+                        if not self._config.enable_web_bot_auth:
+                            raise WbaVerificationError("Web Bot Auth is not enabled")
+                        if await self._config.wba_revocation_checker(
+                            existing.agent_url, existing.key_id
+                        ):
+                            raise WbaAuthorizationError("signing key revoked")
+                        target = _jsonrpc_target(
+                            json.dumps(existing.parsed_body).encode(),
+                            self._transport,
+                            self._message_parser,
+                            parse_skill=True,
+                        )
+                        existing = await self._authorize_wba_signer(
+                            existing, target.operation or target.method or ""
+                        )
+                    except WbaVerificationError as exc:
+                        await self._reject_wba(scope, receive, send, exc)
+                        return
+                    await self._call_with_signer(scope, receive, send, existing)
+                    return
+                principal = (
+                    await self._config.origin_bindings(origin)
+                    if self._config.origin_bindings is not None
+                    else None
+                )
+                if principal is not None:
+                    response = JSONResponse(
+                        {"errors": [{"code": "PERMISSION_DENIED"}]}, status_code=403
+                    )
+                    await response(scope, receive, send)
+                    return
+                existing = replace(existing, principal_id=principal)
                 await self._call_with_signer(scope, receive, send, existing)
             else:
                 await self._app(scope, receive, send)
@@ -363,7 +448,8 @@ class SignedRequestVerificationMiddleware:
 
         signature_input = _header(scope, b"signature-input")
         signature = _header(scope, b"signature")
-        if signature_input is None and signature is None:
+        wba = uses_web_bot_auth(dict(Request(scope).headers))
+        if signature_input is None and signature is None and not wba:
             if posture == "required":
                 if self._config.allow_bearer_fallback and self._bearer_configured:
                     scope[_SIGNATURE_FALLBACK_SCOPE_KEY] = REQUEST_SIGNATURE_REQUIRED
@@ -388,6 +474,9 @@ class SignedRequestVerificationMiddleware:
 
         try:
             signer = await self._verify(scope, body, label, posture)
+        except WbaVerificationError as exc:
+            await self._reject_wba(scope, replay, send, exc)
+            return
         except SignatureVerificationError as exc:
             if posture == "warn" and exc.code != REQUEST_SIGNATURE_HEADER_MALFORMED:
                 logger.warning(
@@ -423,6 +512,24 @@ class SignedRequestVerificationMiddleware:
 
         config = self._config
         request = Request(scope)
+        if uses_web_bot_auth(dict(request.headers)):
+            if not config.enable_web_bot_auth:
+                raise WbaVerificationError("Web Bot Auth is not enabled")
+            assert config.replay_store is not None
+            signers = await verify_wba_request(
+                method=request.method,
+                url=str(request.url),
+                headers=dict(request.headers),
+                body=body,
+                signer_keys=cast("WbaSignerKeyResolver", config.signer_keys),
+                replay_store=config.replay_store,
+                raw_headers=scope.get("headers"),
+                revocation_checker=config.wba_revocation_checker,
+            )
+            # The originating signer owns the AdCP caller; relays are verified
+            # independently and do not acquire the originator's account access.
+            signer = signers[0]
+            return await self._authorize_wba_signer(signer, label)
         options = VerifyOptions(
             now=time.time(),
             capability=VerifierCapability(
@@ -449,7 +556,47 @@ class SignedRequestVerificationMiddleware:
             )
         )
         key = resolved.get(signer.key_id)
+        if key is not None and config.origin_bindings is not None:
+            from adcp.signing.canonical import canonical_origin
+
+            if await config.origin_bindings(canonical_origin(key.agent_url)) is not None:
+                raise WbaAuthorizationError("bound origin requires Web Bot Auth")
         return replace(signer, agent_url=key.agent_url if key is not None else None)
+
+    async def _authorize_wba_signer(self, signer: VerifiedSigner, operation: str) -> VerifiedSigner:
+        """Re-evaluate operator membership at the binding authorization gate."""
+        from adcp.signing.trust import TrustRecordError
+
+        config = self._config
+        principal = (
+            await config.origin_bindings(signer.agent_url or "")
+            if config.origin_bindings is not None
+            else None
+        )
+        if principal is None:
+            if operation not in config.unbound_for:
+                raise WbaAuthorizationError("signer identity is not bound")
+            return replace(signer, principal_id=None)
+        if config.trust_records is None:
+            raise WbaAuthorizationError("origin binding evaluation unavailable")
+        try:
+            await config.trust_records.evaluate(signer.agent_url or "", role=config.binding_role)
+        except TrustRecordError as exc:
+            raise WbaAuthorizationError("signer origin is not authorized by its operator") from exc
+        # Preserve the historical binding when membership ends, so delisting
+        # cannot enable the deprecated transport as a downgrade.
+        return replace(signer, principal_id=principal)
+
+    async def _reject_wba(
+        self, scope: Any, receive: Any, send: Any, exc: WbaVerificationError
+    ) -> None:
+        payload = (
+            {"errors": [{"code": "PERMISSION_DENIED", "message": exc.reason}]}
+            if isinstance(exc, WbaAuthorizationError)
+            else {"error": exc.reason}
+        )
+        response = JSONResponse(payload, status_code=exc.status, headers=exc.headers)
+        await response(scope, receive, send)
 
     async def _resolve(self, keyid: str) -> ResolvedSignerKey | None:
         try:
@@ -585,7 +732,14 @@ def apply_verified_signer(
         # request's signer into another.
         context = copy.copy(context)
         context.metadata = dict(context.metadata)
-    context.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(signer)
+    context.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(
+        signer,
+        extra=(
+            {"signing_profile": signer.profile, "principal_id": signer.principal_id}
+            if signer.profile == "web-bot-auth"
+            else None
+        ),
+    )
     context.caller_identity = signer.agent_url
     return context
 

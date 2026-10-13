@@ -61,6 +61,7 @@ from adcp.signing.autosign import (
     SigningConfig,
     current_operation,
     operation_needs_signing,
+    require_signing_profile,
     signing_profile_for_adcp_version,
 )
 from adcp.signing.signer import sign_request
@@ -160,6 +161,9 @@ def install_signing_event_hook(
         signing_profile_version = signing.signing_profile_version
     elif adcp_version is not None:
         signing_profile_version = signing_profile_for_adcp_version(adcp_version)
+    elif signing.agent_origin is not None:
+        # WBA fixes its own encoding and does not use the legacy wire version.
+        signing_profile_version = "3.2"
     else:
         raise ValueError(
             "install_signing_event_hook requires adcp_version when "
@@ -214,6 +218,7 @@ def install_signing_event_hook(
         decision = operation_needs_signing(capability, operation)
         if decision == "skip":
             return
+        require_signing_profile(capability, signing)
 
         covers_policy: str | None = None
         if capability is not None and capability.covers_content_digest is not None:
@@ -238,6 +243,7 @@ def install_signing_event_hook(
             alg=signing.alg,
             cover_content_digest=cover_digest,
             tag=signing.tag,
+            agent_origin=signing.agent_origin,
             signing_profile_version=signing_profile_version,
         )
         # pop-then-set so our values are authoritative even if an

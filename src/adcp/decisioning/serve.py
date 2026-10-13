@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
+    from adcp.decisioning.trust_grants import TrustGrantGate
     from adcp.reporting.outbox.activity import ReportingActivityProjector
     from adcp.reporting.outbox.status_support import ReportingStatusSupport
     from adcp.reporting.outbox.support import ReportingActivitySupport
@@ -100,6 +101,7 @@ def create_adcp_server_from_platform(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
+    trust_grant_gate: TrustGrantGate | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
     property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
@@ -383,6 +385,8 @@ def create_adcp_server_from_platform(
     # has a brand to check; an extractor without a resolver never has
     # anything to do) — fail closed at boot with a specific diagnostic
     # rather than a silent never-fires gate at request time.
+    if trust_grant_gate is not None and buyer_agent_registry is None:
+        raise ValueError("trust_grant_gate requires buyer_agent_registry for established identity")
     if (brand_authz_resolver is None) != (brand_identity_resolver is None):
         raise ValueError(
             "brand_authz_resolver and brand_identity_resolver must be wired "
@@ -414,6 +418,7 @@ def create_adcp_server_from_platform(
         auto_emit_task_webhooks=auto_emit_task_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         brand_authorization_gate=brand_authorization_gate,
+        trust_grant_gate=trust_grant_gate,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
         property_list_filter_mode=property_list_filter_mode,
@@ -513,6 +518,7 @@ def serve(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
+    trust_grant_gate: TrustGrantGate | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
     property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
@@ -671,6 +677,7 @@ def serve(
         buyer_agent_registry=buyer_agent_registry,
         brand_authz_resolver=brand_authz_resolver,
         brand_identity_resolver=brand_identity_resolver,
+        trust_grant_gate=trust_grant_gate,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
         property_list_filter_mode=property_list_filter_mode,

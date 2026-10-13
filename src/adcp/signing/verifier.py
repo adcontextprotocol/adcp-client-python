@@ -122,6 +122,8 @@ class VerifiedSigner:
     parsed_body: Any = field(default=None, compare=False, repr=False)
     body_authenticated: bool = field(default=False, compare=False)
     operator_brand_json: dict[str, Any] | None = field(default=None, compare=False, repr=False)
+    profile: str = DEFAULT_TAG
+    principal_id: str | None = None
 
 
 class RequestBodyMalformedError(SignatureVerificationError):
@@ -264,6 +266,12 @@ def verify_request_signature(
     supply a meaningful raw list at all.
     """
     body = _coerce_body(body)
+    from adcp.signing.wba import WbaVerificationError, uses_web_bot_auth
+
+    if uses_web_bot_auth(headers):
+        raise WbaVerificationError(
+            "Web Bot Auth requires verify_wba_request; legacy fallback is forbidden"
+        )
     sig_input_raw = _lookup(headers, "signature-input")
     sig_raw = _lookup(headers, "signature")
 

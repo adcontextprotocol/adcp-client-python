@@ -969,13 +969,16 @@ def test_decisioning_serve_warns_when_required_signatures_are_unenforced() -> No
     with pytest.warns(UserWarning, match="not verifying request signatures"):
         _configure_request_signature_verification(_platform(capability), None, None, {})
 
+    # Configuration itself emits the intentional 3.3 profile deprecation;
+    # the composition helper must emit no unenforced-signature warning.
+    verification = _config()
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         _configure_request_signature_verification(
             _platform(capability),
             None,
             None,
-            {"request_signature_verification": _config()},
+            {"request_signature_verification": verification},
         )
 
 

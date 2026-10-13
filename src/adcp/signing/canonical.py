@@ -150,6 +150,19 @@ def canonicalize_authority(url: str) -> str:
     return _canon_authority(parts.netloc, parts.scheme.lower())
 
 
+def canonical_origin(url: str) -> str:
+    """Return scheme and authority after AdCP URL canonicalization steps 1–4.
+
+    Paths, queries and fragments do not participate in an origin identity.
+    Only absolute HTTP(S) URLs have an origin in this SDK.
+    """
+    parts = _split_or_reject(url)
+    scheme = parts.scheme.lower()
+    if scheme not in {"http", "https"} or not parts.netloc:
+        raise ValueError("an origin requires an absolute HTTP(S) URL")
+    return f"{scheme}://{_canon_authority(parts.netloc, scheme)}"
+
+
 def _split_or_reject(url: str) -> SplitResult:
     """`urlsplit`, with its bare refusals normalized onto the typed error.
 
