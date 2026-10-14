@@ -20,6 +20,20 @@
 
 ### Features
 
+* **client:** Agent responses are capped at 4 MiB by default on every MCP and
+  A2A call path — tool calls, `tools/list`, discovery, the A2A agent card, and
+  SSE streams. The budget is enforced while the body is read: an over-cap
+  `Content-Length` is refused before the first body byte, decoded (not wire)
+  bytes are counted as they arrive, and SSE is capped per event as well as
+  cumulatively per call. An oversized response raises the new
+  `ADCPResponseTooLargeError` and is never truncated. **This is a behavior
+  change for adopters with very large catalogs:** raise
+  `AgentConfig.max_response_bytes` for that agent, override one call with
+  `TaskOptions(max_response_bytes=...)`, or set
+  `AgentConfig.max_response_bytes=None` to opt out entirely. So the decoded
+  size stays measurable, the SDK now requests only `gzip`/`deflate` and refuses
+  responses in another content coding. Refs #1503, adcontextprotocol/adcp#8190.
+
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
   principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.
   Supplied credential headers always select bearer auth; invalid credentials

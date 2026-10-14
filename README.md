@@ -41,6 +41,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
   - [Signed webhooks: sender quickstart](#signed-webhooks-sender-quickstart)
   - [Debug Mode](#debug-mode)
   - [Resource Management](#resource-management)
+  - [Response size limits](#response-size-limits)
   - [Error Handling](#error-handling)
   - [Idempotency and retries](#idempotency-and-retries)
   - [Building a seller: idempotency middleware](#building-a-seller-idempotency-middleware)
@@ -949,6 +950,54 @@ Multi-agent fan-out intentionally does not yet accept it because one timeout
 exception cannot safely represent several sellers' independent mutation
 outcomes and idempotency keys.
 
+### Response size limits
+
+Agent responses are untrusted input. Every MCP and A2A response is capped at
+**4 MiB by default** — tool calls, `tools/list`, discovery, the A2A agent card,
+and SSE streams alike. The budget is enforced *while the body is read*: a
+declared `Content-Length` over the cap is refused before the first body byte,
+and the running total of **decoded** bytes aborts the read the moment it passes
+the cap. SSE streams are capped per event and cumulatively per call, so a peer
+cannot slip a large payload past the budget by replying with
+`Content-Type: text/event-stream`.
+
+An oversized response raises `ADCPResponseTooLargeError` — it is never silently
+truncated:
+
+```python
+from adcp import ADCPResponseTooLargeError
+
+try:
+    result = await client.get_products(request)
+except ADCPResponseTooLargeError as error:
+    print(error.limit, error.received, error.per_event, error.declared)
+```
+
+Raise the budget for an agent with a legitimately large catalog, or override a
+single call:
+
+```python
+from adcp import AgentConfig, DEFAULT_MAX_RESPONSE_BYTES, Protocol, TaskOptions
+
+config = AgentConfig(
+    id="big-catalog-seller",
+    agent_uri="https://agent.example.com",
+    protocol=Protocol.MCP,
+    max_response_bytes=32 * 1024 * 1024,   # per agent
+)
+
+result = await client.get_products(
+    request,
+    options=TaskOptions(max_response_bytes=16 * 1024 * 1024),   # per call
+)
+```
+
+Prefer asking the agent to paginate over raising the cap. `max_response_bytes=None`
+on `AgentConfig` removes the budget entirely and is not recommended for agents
+you do not control. Because the decoded size has to be measurable before it is
+expanded, the SDK requests only `gzip`/`deflate` and refuses a response that
+comes back in another content coding.
+
 ### Optional OpenTelemetry tracing
 
 AdCP client calls create one OpenTelemetry `CLIENT` span when an application
@@ -997,6 +1046,7 @@ from adcp.exceptions import (
     ADCPAuthenticationError, # Auth failed (401, 403)
     ADCPTimeoutError,        # Request timed out
     ADCPProtocolError,       # Invalid response format
+    ADCPResponseTooLargeError,  # Response over max_response_bytes
     ADCPToolNotFoundError,   # Tool not found
     ADCPWebhookSignatureError  # Invalid webhook signature
 )

@@ -22,11 +22,28 @@ class TaskOptions:
     not replace the transport timeout configured on :class:`~adcp.AgentConfig`.
 
     A timeout of ``None`` disables the task-level deadline.
+
+    ``max_response_bytes`` overrides :attr:`~adcp.AgentConfig.max_response_bytes`
+    for the duration of this call, for agents whose catalog is legitimately
+    larger than the 4 MiB default. ``None`` inherits the agent's configured
+    budget; to remove the budget entirely, set ``AgentConfig.max_response_bytes
+    = None``.
     """
 
     timeout: float | None = None
+    max_response_bytes: int | None = None
 
     def __post_init__(self) -> None:
+        max_response_bytes = self.max_response_bytes
+        if max_response_bytes is not None and (
+            isinstance(max_response_bytes, bool)
+            or not isinstance(max_response_bytes, int)
+            or max_response_bytes <= 0
+        ):
+            raise ValueError(
+                "max_response_bytes must be a positive integer, or None to inherit "
+                "the agent's configured budget"
+            )
         timeout = self.timeout
         if timeout is None:
             return

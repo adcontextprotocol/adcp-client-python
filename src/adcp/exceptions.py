@@ -267,6 +267,66 @@ class ADCPProtocolError(ADCPError):
         super().__init__(message, agent_id, None, suggestion)
 
 
+class ADCPResponseTooLargeError(ADCPError):
+    """An agent response exceeded the configured ``max_response_bytes`` budget.
+
+    Raised while the body is still streaming in, so the oversized payload is
+    never fully buffered. The response is rejected outright — the SDK never
+    truncates a response and hands back a partial object.
+
+    ``limit`` is the budget in force for the call, ``received`` the number of
+    decoded bytes seen (or declared by ``Content-Length``) when the budget was
+    blown. ``per_event`` marks an overrun of a single SSE event rather than of
+    the cumulative per-call total, and ``declared`` marks a pre-emptive
+    rejection made from ``Content-Length`` before any body byte was read.
+    """
+
+    def __init__(
+        self,
+        *,
+        limit: int,
+        received: int,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        per_event: bool = False,
+        declared: bool = False,
+        url: str | None = None,
+    ):
+        """Initialize response-too-large error."""
+        self.limit = limit
+        self.received = received
+        self.per_event = per_event
+        self.declared = declared
+        self.url = url
+
+        if declared:
+            message = (
+                f"Agent response declares {received} bytes, over the "
+                f"{limit}-byte max_response_bytes budget"
+            )
+        elif per_event:
+            message = (
+                f"Agent SSE event exceeds the {limit}-byte max_response_bytes "
+                f"budget (received at least {received} bytes)"
+            )
+        else:
+            message = (
+                f"Agent response exceeds the {limit}-byte max_response_bytes "
+                f"budget (received at least {received} bytes)"
+            )
+        if url:
+            message = f"{message} from {url}"
+
+        suggestion = (
+            "Agent responses are untrusted input, so the SDK caps them by default.\n"
+            "     Raise AgentConfig.max_response_bytes for an agent that legitimately\n"
+            "     returns large payloads, or override one call with\n"
+            "     TaskOptions(max_response_bytes=...). Prefer asking the agent to\n"
+            "     paginate; set max_response_bytes=None to remove the cap entirely."
+        )
+        super().__init__(message, agent_id, agent_uri, suggestion)
+
+
 class ADCPToolNotFoundError(ADCPError):
     """Requested tool not found on agent."""
 

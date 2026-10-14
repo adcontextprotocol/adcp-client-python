@@ -14,10 +14,17 @@ from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from adcp import _idempotency
+from adcp._response_limit import (
+    ResponseLimitPolicy,
+    find_response_too_large,
+    install_response_limit,
+    resolve_max_response_bytes,
+)
 from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
+    ADCPResponseTooLargeError,
     ADCPTimeoutError,
     IdempotencyConflictError,
     IdempotencyExpiredError,
@@ -275,7 +282,24 @@ class A2AAdapter(ProtocolAdapter):
                 client_kwargs["event_hooks"] = event_hooks
 
             # ``client_kwargs`` always includes the configured timeout above.
-            self._httpx_client = httpx.AsyncClient(**client_kwargs)  # nosec B113
+            client = httpx.AsyncClient(**client_kwargs)  # nosec B113
+
+            # Every byte the peer sends — JSON-RPC results, streamed SSE
+            # events, and the agent card A2ACardResolver fetches over this same
+            # client — is metered against the agent's response budget while it
+            # is read. a2a-sdk buffers whole response bodies internally, so a
+            # check after the fact would be too late.
+            self._httpx_client = install_response_limit(
+                client,
+                httpx_module=httpx,
+                policy=ResponseLimitPolicy(
+                    limit_provider=lambda: resolve_max_response_bytes(
+                        self.agent_config.max_response_bytes
+                    ),
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ),
+            )
             logger.debug(
                 f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
             )
@@ -330,6 +354,14 @@ class A2AAdapter(ProtocolAdapter):
                     agent_id=self.agent_config.id,
                     agent_uri=self.agent_config.agent_uri,
                 ) from e
+            except Exception as e:
+                # a2a-sdk converts card-fetch failures to its own
+                # AgentCardResolutionError; an oversized card is a size
+                # violation, not an unreachable agent.
+                oversize = find_response_too_large(e)
+                if oversize is not None:
+                    raise oversize from e
+                raise
 
             # Build a non-streaming client that reuses our httpx pool.
             # Streaming is disabled: the ADCP adapter surface is one
@@ -640,13 +672,21 @@ class A2AAdapter(ProtocolAdapter):
                 debug_info=debug_info,
                 idempotency_key=idempotency_key,
             )
-        except (IdempotencyConflictError, IdempotencyExpiredError):
+        except (IdempotencyConflictError, IdempotencyExpiredError, ADCPResponseTooLargeError):
             # Propagate typed idempotency errors — callers MUST handle these
-            # distinctly (mint fresh key / reconcile state). Other ADCPError
-            # subclasses (connection, timeout, auth) continue to be converted
-            # to TaskResult(failed) below, preserving the existing contract.
+            # distinctly (mint fresh key / reconcile state). An oversized
+            # response propagates for the same reason: it is a local policy
+            # decision about untrusted input, not an agent-reported task
+            # failure. Other ADCPError subclasses (connection, timeout, auth)
+            # continue to be converted to TaskResult(failed) below, preserving
+            # the existing contract.
             raise
         except Exception as e:
+            # a2a-sdk re-raises transport failures as its own error types, so
+            # recover the typed size violation from the cause chain.
+            oversize = find_response_too_large(e)
+            if oversize is not None:
+                raise oversize from e
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(

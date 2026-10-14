@@ -9,6 +9,9 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from adcp._response_limit import DEFAULT_MAX_RESPONSE_BYTES as DEFAULT_MAX_RESPONSE_BYTES
+from adcp._response_limit import validate_max_response_bytes
+
 
 def is_loopback_http_uri(uri: str) -> bool:
     """Return True for HTTP URIs that target the local machine."""
@@ -45,6 +48,25 @@ class AgentConfig(BaseModel):
     auth_header: str = "x-adcp-auth"  # Header name for authentication
     auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
     timeout: float = 30.0  # Request timeout in seconds
+    max_response_bytes: int | None = DEFAULT_MAX_RESPONSE_BYTES
+    """Maximum decoded bytes accepted from this agent in one HTTP response.
+
+    Agent responses are untrusted input: a single oversized reply can exhaust
+    the buyer's memory before any parser runs. The budget is enforced **while
+    the body streams in** — a declared ``Content-Length`` over the cap is
+    rejected before the first body byte, and the running decoded total aborts
+    the read the moment it passes the cap. It covers every MCP and A2A
+    response: tool calls, ``tools/list``, discovery, and the A2A agent card.
+    SSE responses are capped per event and cumulatively per call.
+
+    An oversized response raises
+    :class:`~adcp.exceptions.ADCPResponseTooLargeError`; it is never silently
+    truncated. Defaults to 4 MiB
+    (:data:`~adcp._response_limit.DEFAULT_MAX_RESPONSE_BYTES`).
+    Raise it for an agent with a legitimately large catalog, override a single
+    call with ``TaskOptions(max_response_bytes=...)``, or set ``None`` to
+    disable the budget entirely (not recommended for untrusted agents).
+    """
     mcp_transport: str = (
         "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
     )
@@ -102,6 +124,20 @@ class AgentConfig(BaseModel):
             )
 
         return v
+
+    @field_validator("max_response_bytes", mode="before")
+    @classmethod
+    def reject_boolean_max_response_bytes(cls, v: Any) -> Any:
+        """Catch ``True`` before pydantic coerces it into a 1-byte budget."""
+        if isinstance(v, bool):
+            raise ValueError(f"max_response_bytes must be a positive integer or None, got: {v!r}")
+        return v
+
+    @field_validator("max_response_bytes")
+    @classmethod
+    def validate_max_response_bytes(cls, v: int | None) -> int | None:
+        """Validate the per-response byte budget."""
+        return validate_max_response_bytes(v, field="max_response_bytes")
 
     @field_validator("mcp_transport")
     @classmethod

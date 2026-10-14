@@ -26,6 +26,10 @@ if TYPE_CHECKING:
     from mcp import ClientSession
 
 from adcp._null_clear import preserve_explicit_nulls
+from adcp._response_limit import (
+    reset_call_max_response_bytes,
+    set_call_max_response_bytes,
+)
 from adcp._version import resolve_adcp_version
 from adcp.accounts import (
     ACCOUNT_POLICIES,
@@ -1517,6 +1521,14 @@ class ADCPClient:
             task_name=task_name,
         )
         token = _set_task_execution(state)
+        # The response budget rides a ContextVar rather than the adapter:
+        # MCP and A2A both hold pooled, long-lived HTTP clients, so the
+        # limiter has to read the override at request time.
+        limit_token = (
+            set_call_max_response_bytes(options.max_response_bytes)
+            if options.max_response_bytes is not None
+            else None
+        )
         try:
             if options.timeout is None:
                 return await awaitable_factory()
@@ -1540,6 +1552,8 @@ class ADCPClient:
                     recovery=state.mutation_recovery,
                 ) from exc
         finally:
+            if limit_token is not None:
+                reset_call_max_response_bytes(limit_token)
             _reset_task_execution(token)
 
     def _task_operation_id(self) -> str:

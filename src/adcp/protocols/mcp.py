@@ -67,10 +67,17 @@ _ALL_HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (
 import json
 
 from adcp import _idempotency
+from adcp._response_limit import (
+    ResponseLimitPolicy,
+    find_response_too_large,
+    install_response_limit,
+    resolve_max_response_bytes,
+)
 from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
+    ADCPResponseTooLargeError,
     ADCPTimeoutError,
     IdempotencyConflictError,
     IdempotencyExpiredError,
@@ -98,6 +105,15 @@ _MCP_HTTP_AUTH_ERRORS: ContextVar[list[ADCPAuthenticationError] | None] = Contex
     "mcp_http_auth_errors", default=None
 )
 
+# Same holder trick for response-size violations. The limiter raises inside
+# MCP's HTTP writer task, where anyio rewraps the failure into an
+# ExceptionGroup and the session surfaces a generic transport error; the list
+# carries the typed error back to the awaiting call.
+_MCP_HTTP_OVERSIZE_ERRORS: ContextVar[list[ADCPResponseTooLargeError] | None] = ContextVar(
+    "mcp_http_oversize_errors", default=None
+)
+
+
 MCPHttpxClientFactory = Callable[..., Any]
 """Factory returning an MCP-compatible async HTTP client.
 
@@ -112,6 +128,7 @@ security and compose RFC 9421 signing hooks.
 def _make_hardened_mcp_http_factory(
     request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
     response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+    response_limit: ResponseLimitPolicy | None = None,
 ) -> Callable[..., Any]:
     """Build an MCP HTTP client factory with fail-closed network defaults."""
 
@@ -139,7 +156,10 @@ def _make_hardened_mcp_http_factory(
             kwargs["headers"] = headers
         if auth is not None:
             kwargs["auth"] = auth
-        return _mcp_httpx.AsyncClient(**kwargs)
+        client = _mcp_httpx.AsyncClient(**kwargs)
+        if response_limit is not None:
+            install_response_limit(client, httpx_module=_mcp_httpx, policy=response_limit)
+        return client
 
     return factory
 
@@ -234,6 +254,7 @@ def _make_custom_mcp_http_factory(
     custom_factory: MCPHttpxClientFactory,
     request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
     response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+    response_limit: ResponseLimitPolicy | None = None,
 ) -> MCPHttpxClientFactory:
     """Wrap an adopter factory with mandatory MCP transport invariants."""
 
@@ -287,6 +308,10 @@ def _make_custom_mcp_http_factory(
                     ]
                 else:
                     installed_hooks.extend(additions)
+        if response_limit is not None:
+            # After _reject_foreign_httpx_transport: the generation check has
+            # to see the adopter's own transport, not our wrapper.
+            install_response_limit(client, httpx_module=_mcp_httpx, policy=response_limit)
         return client
 
     return factory
@@ -465,6 +490,9 @@ class MCPAdapter(ProtocolAdapter):
         # True when the session was injected by ADCPClient.from_mcp_client().
         # Caller owns the lifecycle — close() is a no-op on injected adapters.
         self._session_is_injected: bool = False
+        # Set when the response limiter trips outside a tool call (i.e. during
+        # session setup), where there is no per-call holder to collect it.
+        self._connect_oversize_error: ADCPResponseTooLargeError | None = None
 
     def _inject_session(self, session: ClientSession) -> None:
         """Pre-wire a caller-owned session, bypassing URL-based connection.
@@ -501,6 +529,27 @@ class MCPAdapter(ProtocolAdapter):
             urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
         return urls_to_try
 
+    def _record_oversize(self, error: ADCPResponseTooLargeError) -> None:
+        """Stash a size violation so the awaiting call can re-raise it typed.
+
+        Mirrors ``capture_auth_response``: a per-call holder collects it when a
+        tool call is in flight, otherwise it belongs to session setup.
+        """
+        call_errors = _MCP_HTTP_OVERSIZE_ERRORS.get()
+        if call_errors is not None:
+            call_errors.append(error)
+        else:
+            self._connect_oversize_error = error
+
+    def _response_limit_policy(self) -> ResponseLimitPolicy:
+        """Budget every MCP response body against the agent's configured cap."""
+        return ResponseLimitPolicy(
+            limit_provider=lambda: resolve_max_response_bytes(self.agent_config.max_response_bytes),
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+            report=self._record_oversize,
+        )
+
     def _streamable_http_client_factory(
         self,
         response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
@@ -511,13 +560,15 @@ class MCPAdapter(ProtocolAdapter):
             for hook in (self.tracing_request_hook, self.signing_request_hook)
             if hook is not None
         )
+        response_limit = self._response_limit_policy()
         if self._httpx_client_factory is not None:
             return _make_custom_mcp_http_factory(
                 self._httpx_client_factory,
                 request_hooks,
                 response_hooks,
+                response_limit,
             )
-        return _make_hardened_mcp_http_factory(request_hooks, response_hooks)
+        return _make_hardened_mcp_http_factory(request_hooks, response_hooks, response_limit)
 
     def current_mcp_session_id(self) -> str | None:
         """Return the current SDK-managed MCP Streamable HTTP session id."""
@@ -603,7 +654,8 @@ class MCPAdapter(ProtocolAdapter):
             and ("cancel scope" in exc_str or "async context" in exc_str)
         ) or (
             # HTTP errors during cleanup (if httpx is available)
-            HTTPX_AVAILABLE and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
+            HTTPX_AVAILABLE
+            and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
         )
 
         if is_known_cleanup_error:
@@ -688,6 +740,7 @@ class MCPAdapter(ProtocolAdapter):
                 )
 
             last_error = None
+            self._connect_oversize_error = None
             for url in urls_to_try:
                 try:
                     get_session_id: Callable[[], str | None] | None = None
@@ -709,15 +762,19 @@ class MCPAdapter(ProtocolAdapter):
                             else ()
                         )
                         # Use SSE transport (legacy, but widely supported)
+                        sse_response_limit = self._response_limit_policy()
                         sse_http_factory = (
                             _make_custom_mcp_http_factory(
                                 self._httpx_client_factory,
                                 sse_request_hooks,
                                 (capture_auth_response,),
+                                sse_response_limit,
                             )
                             if self._httpx_client_factory is not None
                             else _make_hardened_mcp_http_factory(
-                                sse_request_hooks, (capture_auth_response,)
+                                sse_request_hooks,
+                                (capture_auth_response,),
+                                sse_response_limit,
                             )
                         )
                         read, write = await self._exit_stack.enter_async_context(
@@ -769,6 +826,12 @@ class MCPAdapter(ProtocolAdapter):
                     # before conversion, and stop URL probing for bad tokens.
                     if auth_failure is not None:
                         raise auth_failure from e
+
+                    # An agent whose handshake alone blows the byte budget is
+                    # not a wrong-URL probe; report it as itself and stop.
+                    oversize = self._connect_oversize_error or find_response_too_large(e)
+                    if oversize is not None:
+                        raise oversize from e
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -907,6 +970,8 @@ class MCPAdapter(ProtocolAdapter):
             signing_token = _signing_operation.set(tool_name)
             auth_errors: list[ADCPAuthenticationError] = []
             auth_token = _MCP_HTTP_AUTH_ERRORS.set(auth_errors)
+            oversize_errors: list[ADCPResponseTooLargeError] = []
+            oversize_token = _MCP_HTTP_OVERSIZE_ERRORS.set(oversize_errors)
             try:
                 # Call the tool using MCP client session
                 mark_task_dispatched(
@@ -924,13 +989,29 @@ class MCPAdapter(ProtocolAdapter):
                         params,
                         meta=cast("RequestParamsMeta", trace_meta),
                     )
-            except Exception as exc:
-                if auth_errors:
+            except BaseException as exc:
+                # Size violations outrank the generic transport failure MCP
+                # reports once its writer task unwinds. BaseException because
+                # that failure reaches the caller as a CancelledError: the
+                # limiter raises inside MCP's writer task, which tears down the
+                # anyio task group the pending request is parked on. Only a
+                # recorded violation is converted, so an ordinary cancellation
+                # (task deadline, caller shutdown) still propagates untouched.
+                oversize = oversize_errors[-1] if oversize_errors else find_response_too_large(exc)
+                if oversize is not None:
+                    # The transport error killed the session along with the
+                    # request; drop it so the next call reconnects.
+                    await self._cleanup_failed_connection("after oversized MCP response")
+                    raise oversize from exc
+                if isinstance(exc, Exception) and auth_errors:
                     raise auth_errors[-1] from exc
                 raise
             finally:
+                _MCP_HTTP_OVERSIZE_ERRORS.reset(oversize_token)
                 _MCP_HTTP_AUTH_ERRORS.reset(auth_token)
                 _signing_operation.reset(signing_token)
+            if oversize_errors:
+                raise oversize_errors[-1]
             if auth_errors:
                 raise auth_errors[-1]
 
@@ -1070,11 +1151,15 @@ class MCPAdapter(ProtocolAdapter):
             )
             return _idempotency.annotate_result(task_result, idempotency_key)
 
-        except (IdempotencyConflictError, IdempotencyExpiredError):
+        except (IdempotencyConflictError, IdempotencyExpiredError, ADCPResponseTooLargeError):
             # Propagate typed idempotency errors — callers MUST handle these
-            # distinctly (mint fresh key / reconcile state). Other ADCPError
-            # subclasses (connection, timeout) continue to be converted to
-            # TaskResult(failed) below, preserving the existing contract.
+            # distinctly (mint fresh key / reconcile state). An oversized
+            # response is propagated for the same reason: it is a local policy
+            # decision about untrusted input, not an agent-reported task
+            # failure, and collapsing it into TaskResult(failed) would hide a
+            # memory-exhaustion attempt behind an ordinary error string. Other
+            # ADCPError subclasses (connection, timeout) continue to be
+            # converted to TaskResult(failed) below, preserving the contract.
             raise
         except Exception as e:
             if self.agent_config.debug and start_time:
@@ -1314,13 +1399,22 @@ class MCPAdapter(ProtocolAdapter):
             if self.signing_request_hook is not None:
                 event_hooks["request"] = [self.signing_request_hook]
 
+            close_response_limit = self._response_limit_policy()
+
             def client_factory(**kwargs: Any) -> Any:
-                return _httpx.AsyncClient(
-                    **kwargs,
-                    timeout=timeout,
-                    follow_redirects=False,
-                    trust_env=False,
-                    event_hooks=event_hooks,
+                # This path runs on httpx (not httpx2): it is a plain DELETE
+                # outside the MCP session, but the peer's reply is still
+                # untrusted and gets the same budget.
+                return install_response_limit(
+                    _httpx.AsyncClient(
+                        **kwargs,
+                        timeout=timeout,
+                        follow_redirects=False,
+                        trust_env=False,
+                        event_hooks=event_hooks,
+                    ),
+                    httpx_module=_httpx,
+                    policy=close_response_limit,
                 )
 
             redirect_error_type = HTTPStatusError
