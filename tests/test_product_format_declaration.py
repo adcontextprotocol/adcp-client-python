@@ -295,3 +295,65 @@ def test_concurrent_authoring_validation_uses_independent_resolvers() -> None:
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(validate_batch, range(4)))
+
+
+_VENDOR_TOKEN = {
+    "dialect": "vendor",
+    "dialect_namespace": "https://ads.example.com/macros",
+    "dialect_revision": "2026-10-14",
+    "dialect_semantic": "CACHEBUSTER",
+    "mapping_status": "verified_universal",
+    "universal_semantic": "CACHEBUSTER",
+}
+_UNENCODED = {"kind": "none", "depth": 0}
+# A seller translating {CACHEBUSTER} to its ad server's token, and the ad server resolving it.
+_MACRO_CAPABILITIES = [
+    {
+        "dialect": "adcp",
+        "dialect_semantic": "CACHEBUSTER",
+        "mapping_status": "verified_universal",
+        "universal_semantic": "CACHEBUSTER",
+        "operation": "translate_to_native",
+        "performed_by": "seller",
+        "supported_contexts": ["url_query_value"],
+        "translation_target": {
+            "token": "%%CACHEBUSTER%%",
+            **_VENDOR_TOKEN,
+            "next_operation": "resolve_value",
+            "performed_by": "source_ad_server",
+            "encoding": _UNENCODED,
+        },
+    },
+    {
+        **_VENDOR_TOKEN,
+        "operation": "resolve_value",
+        "performed_by": "source_ad_server",
+        "supported_contexts": ["url_query_value"],
+        "supported_encodings": [_UNENCODED],
+    },
+]
+
+
+@pytest.mark.parametrize("model", [Format, ProductFormatDeclaration])
+def test_macro_resolution_capabilities_round_trip(model: type[Format]) -> None:
+    # ``translation_target.token`` is a spec field, not a credential.
+    payload = {
+        **_payload(),
+        "format_option_id": "image_1",
+        "macro_resolution_capabilities": _MACRO_CAPABILITIES,
+    }
+    validator = get_named_validator("core/product-format-declaration.json")
+    assert validator is not None
+    assert list(validator.iter_errors(payload)) == []
+
+    declaration = model.model_validate(payload)
+
+    dumped = declaration.model_dump(mode="json", exclude_none=True)
+    assert dumped["macro_resolution_capabilities"] == _MACRO_CAPABILITIES
+
+
+def test_macro_resolution_capabilities_accept_only_the_capability_shape() -> None:
+    unknown_key = [{**_MACRO_CAPABILITIES[1], "vendor_note": "x"}]
+    with pytest.raises(ValidationError) as exc:
+        Format.model_validate({**_payload(), "macro_resolution_capabilities": unknown_key})
+    assert exc.value.errors()[0]["loc"] == ("macro_resolution_capabilities", 0, "vendor_note")

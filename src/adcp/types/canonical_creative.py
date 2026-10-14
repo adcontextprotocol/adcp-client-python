@@ -105,6 +105,7 @@ from adcp.types.domains.core.creative_manifest import (
     CreativeManifest as _CanonicalCreativeManifestWire,
 )
 from adcp.types.domains.core.creative_variant import CreativeVariant as _LegacyCreativeVariant
+from adcp.types.domains.core.macro_resolution_capability import MacroProcessingCapability
 from adcp.types.domains.core.package import Package as _LegacyPackage
 from adcp.types.domains.core.placement import Placement as _LegacyPlacement
 from adcp.types.domains.core.platform_extension_ref import PlatformExtensionReference
@@ -678,6 +679,16 @@ class Format(CanonicalBoundaryModel):
     format_schema: PlatformExtensionReference | None = None
     format_kind: str
     params: dict[str, Any]
+    # Declared so the spec's ``translation_target.token`` is validated as a
+    # macro capability instead of being screened as a credential-shaped extra.
+    macro_resolution_capabilities: list[MacroProcessingCapability] | None = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "Binding format-option processing capabilities for exact macro dialect "
+            "identities, semantics, operations, actors, contexts, and encodings."
+        ),
+    )
 
     _legacy_format_refs: list[LegacyFormatId] = PrivateAttr(default_factory=list)
 
