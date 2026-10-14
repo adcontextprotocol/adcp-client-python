@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import inspect
+import json
 import logging
 import os
 import sys
@@ -618,6 +619,105 @@ def _log_advertised_tools(
     )
 
 
+#: The default byte budget a buyer applies to one agent response, from the
+#: cross-SDK contract (adcontextprotocol/adcp#8190). A ``tools/list`` larger
+#: than this is not "slow discovery" — it is discovery the buyer refuses to
+#: read, so the agent looks unreachable rather than verbose.
+BUYER_RESPONSE_BYTE_BUDGET: int = 4 * 1024 * 1024
+
+#: Where to start telling the operator. Half the budget, because the payload
+#: grows with every tool a seller implements and the operator wants to hear
+#: about it while there is still room, not once buyers are already failing.
+_DISCOVERY_PAYLOAD_WARN_BYTES: int = BUYER_RESPONSE_BYTE_BUDGET // 2
+
+
+def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
+    """Serialized size of the ``tools/list`` result these definitions produce.
+
+    Close enough to the wire to act on: the JSON-RPC envelope around it is a
+    few dozen bytes, and separators differ by a few percent.
+    """
+    try:
+        return len(
+            json.dumps(
+                {"tools": [_discovery_entry(tool_def) for tool_def in tool_defs]},
+                separators=(",", ":"),
+                default=str,
+            )
+        )
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return 0
+
+
+def _discovery_entry(tool_def: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in (
+            ("name", tool_def.get("name")),
+            ("description", tool_def.get("description")),
+            ("inputSchema", tool_def.get("inputSchema")),
+            ("outputSchema", tool_def.get("outputSchema")),
+            ("annotations", tool_def.get("annotations")),
+        )
+        if value is not None
+    }
+
+
+def warn_if_discovery_payload_is_oversized(
+    *,
+    tool_defs: Sequence[dict[str, Any]],
+    advertise_all: bool,
+    stacklevel: int = 4,
+) -> int:
+    """Report the ``tools/list`` payload size, and warn when a buyer refuses it.
+
+    Serving an oversized ``tools/list`` fails in the least diagnosable way
+    available: the buyer aborts mid-body and reports a transport error, so the
+    seller's logs show a completed response and the buyer's show an
+    unreachable agent. Measuring it here, once, at startup, puts the number in
+    front of the one person who can act on it.
+
+    MCP only — an A2A agent card advertises skills by name and description,
+    with no JSON Schema, so it has no equivalent growth.
+
+    Returns the measured size so callers can log or assert on it.
+    """
+    size = _discovery_payload_bytes(tool_defs)
+    logger.info(
+        "mcp server tools/list payload: %d bytes across %d tools",
+        size,
+        len(tool_defs),
+    )
+    if size <= _DISCOVERY_PAYLOAD_WARN_BYTES:
+        return size
+
+    over_budget = size > BUYER_RESPONSE_BYTE_BUDGET
+    verdict = (
+        "Buyers applying the AdCP default response budget "
+        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes) will REJECT this tools/list, so "
+        "the agent will look unreachable rather than verbose."
+        if over_budget
+        else "That is over half the AdCP default buyer response budget "
+        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes); the next few tools may not fit."
+    )
+    advice = (
+        "Advertise only the tools this agent serves (declare "
+        "``advertised_tools`` and drop advertise_all=True)"
+        if advertise_all
+        else "Advertise only the tools this agent serves (declare " "``advertised_tools``)"
+    )
+    warnings.warn(
+        f"mcp server tools/list is {size} bytes across "
+        f"{len(tool_defs)} tools. {verdict}\n\n"
+        f"{advice}, and keep schema_mode at its default 'compact' — "
+        "'inline' expands every shared subtree once per reference and is "
+        "what makes this payload large.",
+        UserWarning,
+        stacklevel=stacklevel,
+    )
+    return size
+
+
 #: Bases whose tool set is broad-by-design — when an adopter subclass
 #: lands on one of these via MRO without registering its own
 #: ``advertised_tools``, the result is over-advertisement (the broad
@@ -639,13 +739,20 @@ def _warn_if_unregistered_subclass(
     ``_HANDLER_TOOLS``, has no ``advertised_tools`` declaration of its
     own, and inherits its tool set from a broad-surface base (see
     :data:`_BROAD_SURFACE_BASES`) rather than a specialized base like
-    ``GovernanceHandler``. That combination almost always means the
-    adopter meant to declare a focused tool set but forgot to register
-    it; the framework over-advertises by silently falling through to
-    the broad base's full surface.
+    ``GovernanceHandler``.
+
+    What that costs, precisely: the *candidate universe* becomes the
+    broad base's full surface, and what actually reaches ``tools/list``
+    is whatever survives override detection. So the advertised set is
+    still narrow for a handler that only implements a few tools — but
+    it is a byproduct of which methods happen to exist rather than a
+    declaration, and any method added later joins ``tools/list``
+    silently. Declaring ``advertised_tools`` makes the surface a
+    statement of intent and bounds it independently of method names.
 
     Suppressed when ``advertise_all=True`` — that's the explicit "yes,
-    advertise everything" opt-in.
+    advertise everything" opt-in, and the one case where the broad
+    universe really is served whole.
     """
     if advertise_all:
         return
@@ -672,9 +779,12 @@ def _warn_if_unregistered_subclass(
     warnings.warn(
         f"Handler class {cls.__name__!r} subclasses ADCPHandler directly "
         f"but isn't registered in the framework's tool-discovery "
-        f"registry. tools/list will inherit the full ADCPHandler tool "
-        f"surface — this almost always means over-advertising for a "
-        f"new specialism.\n\n"
+        f"registry, so its tools/list universe is the full ADCPHandler "
+        f"surface and the advertised set is whatever override detection "
+        f"leaves behind — a byproduct of which methods exist rather than "
+        f"a declaration. Any method added later joins tools/list "
+        f"silently, and advertise_all=True would serve the whole "
+        f"surface.\n\n"
         f"Pick one:\n"
         f"  (a) declare ``advertised_tools: set[str] = {{...}}`` on "
         f"{cls.__name__} (auto-registers via __init_subclass__)\n"
@@ -3142,6 +3252,11 @@ def _register_handler_tools(
         handler=handler,
         advertise_all=advertise_all,
         registered=registered,
+    )
+    registered_set = set(registered)
+    warn_if_discovery_payload_is_oversized(
+        tool_defs=[tool for tool in tool_defs if tool["name"] in registered_set],
+        advertise_all=advertise_all,
     )
 
 

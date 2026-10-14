@@ -491,18 +491,34 @@ def test_inline_mode_is_ref_free_for_every_input_schema() -> None:
         assert '"$defs"' not in serialized, tool_name
 
 
-def test_no_dollar_refs_or_defs_in_any_advertised_output_schema() -> None:
-    """Output aliases must be fully portable for non-ref-resolving clients."""
-    for tool in ADCP_TOOL_DEFINITIONS:
-        serialized = json.dumps(tool["outputSchema"])
-        assert '"$ref"' not in serialized, (
-            f"tool {tool['name']!r} outputSchema contains unresolved $ref. "
-            "Check _inline_refs in adcp.server.mcp_tools."
-        )
-        assert '"$defs"' not in serialized, (
-            f"tool {tool['name']!r} outputSchema retains $defs after inlining. "
-            "Check _inline_refs drop-when-resolved path."
-        )
+def test_inline_mode_is_ref_free_for_every_output_schema() -> None:
+    """``schema_mode="inline"`` stays fully portable for clients that do not
+    resolve references — the counterpart of the input-side guarantee above.
+
+    It is no longer the default. Inlining expands every shared subtree once
+    per reference, which took a 13-tool seller's ``tools/list`` to 22 MiB
+    while its input schemas (compact since they were introduced) were 15 KB
+    each. Adopters serving ref-averse clients opt in with
+    ``schema_mode="inline"``.
+    """
+    for tool_name, schema in _generate_pydantic_output_schemas(schema_mode="inline").items():
+        serialized = json.dumps(schema)
+        assert '"$ref"' not in serialized, tool_name
+        assert '"$defs"' not in serialized, tool_name
+
+
+def test_advertised_output_schemas_use_local_refs_like_input_schemas() -> None:
+    """The default advertised shape is compact on both sides.
+
+    Output schemas used to be inlined unconditionally while inputs were
+    compact, so a client already had to resolve ``$ref`` to read an
+    ``inputSchema``. Locking the symmetry here keeps a future change from
+    re-introducing the asymmetry that made discovery unservable.
+    """
+    by_name = {tool["name"]: tool for tool in ADCP_TOOL_DEFINITIONS}
+    create_media_buy = by_name["create_media_buy"]
+    assert "$defs" in json.dumps(create_media_buy["inputSchema"])
+    assert "$defs" in json.dumps(create_media_buy["outputSchema"])
 
 
 # ---------------------------------------------------------------------------

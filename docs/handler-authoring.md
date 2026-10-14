@@ -55,13 +55,14 @@ Pass ``advertise_all=True`` to ``serve()`` / ``create_mcp_server()`` /
 storyboards, agents that deliberately signal
 ``not_supported`` on specific tools).
 
-### MCP input-schema migration
+### MCP schema modes
 
 The default MCP ``schema_mode="compact"`` keeps ``tools/list`` responses
-small by using local JSON Schema ``$ref`` entries and ``$defs``. MCP clients
-must resolve those references before inspecting nested input fields. If a
-client does not resolve local JSON Schema references, use the compatibility
-escape hatch when constructing the MCP server:
+small by using local JSON Schema ``$ref`` entries and ``$defs``. It applies
+to **both** ``inputSchema`` and ``outputSchema``. MCP clients must resolve
+those references before inspecting nested fields. If a client does not
+resolve local JSON Schema references, use the compatibility escape hatch when
+constructing the MCP server:
 
 ```python
 from adcp.server import create_mcp_server
@@ -69,10 +70,26 @@ from adcp.server import create_mcp_server
 mcp = create_mcp_server(MyAgent(), schema_mode="inline")
 ```
 
-``schema_mode="inline"`` restores the historical, reference-free input
-schema at the cost of a substantially larger ``tools/list`` response.
+``schema_mode="inline"`` restores the historical, reference-free schema at
+the cost of a substantially larger ``tools/list`` response — inlining
+expands every shared subtree once per reference, so a response model whose
+compact form is 25 KB can go out at 4.8 MB. Measure before shipping it:
+a buyer applying the AdCP default 4 MiB response budget rejects an oversized
+``tools/list`` outright, and the agent then looks unreachable rather than
+verbose. The SDK logs the payload size at startup and warns past half the
+budget.
+
 ``schema_mode="defs"`` is also available when a client resolves references
 and needs the complete, unpruned Pydantic schema graph.
+
+**Keeping discovery small.** The two levers are the number of tools you
+advertise (declare ``advertised_tools``; avoid ``advertise_all=True`` unless
+you mean it) and the schema mode. Both are visible in the startup line:
+
+```
+mcp server advertising 13 of 13 tools
+mcp server tools/list payload: 1351670 bytes across 13 tools
+```
 
 **Custom handler bases — declare ``advertised_tools``.** The override
 filter works perfectly for direct ``ADCPHandler`` subclasses and the

@@ -84,6 +84,20 @@ def test_create_media_buy_output_schema_includes_response_union() -> None:
     assert len(schema["anyOf"]) >= 2
 
 
+def _resolve(schema: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
+    """Follow a local ``$ref`` into ``schema["$defs"]``.
+
+    Advertised schemas are compact on both sides, so a union arm is a
+    reference rather than an inline object.
+    """
+    ref = node.get("$ref")
+    if not isinstance(ref, str) or not ref.startswith("#/$defs/"):
+        return node
+    target = schema.get("$defs", {})[ref[len("#/$defs/") :]]
+    assert isinstance(target, dict)
+    return target
+
+
 def test_media_buy_output_schema_accepts_negotiated_30_statuses() -> None:
     """The advertised schema must match the negotiated 3.0 wire shape too."""
     by_name = {t["name"]: t for t in ADCP_TOOL_DEFINITIONS}
@@ -99,7 +113,7 @@ def test_media_buy_output_schema_accepts_negotiated_30_statuses() -> None:
 
     for tool_name in ("create_media_buy", "update_media_buy"):
         schema = by_name[tool_name]["outputSchema"]
-        success_schema = schema["anyOf"][0]
+        success_schema = _resolve(schema, schema["anyOf"][0])
         success_status = success_schema["properties"]["status"]
         status_variants = success_status["anyOf"]
         assert "status" not in success_schema["required"]

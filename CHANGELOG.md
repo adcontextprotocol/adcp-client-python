@@ -18,6 +18,21 @@
   such as `{"format_kind": "image", "params": {"width": 300}}` is now refused
   by `image.json`'s size-mode mutex. Refs #1401.
 
+### Bug fixes
+
+* **server:** MCP ``outputSchema`` now honours ``schema_mode`` instead of
+  always inlining every ``$ref``. Inlining expands each shared subtree once
+  per reference, so ``ListCreativesResponse`` was advertised at 4.8 MB where
+  its compact form is 25 KB — and ``examples/seller_agent.py`` served a
+  22 MiB ``tools/list`` for 13 tools, which a buyer applying the new 4 MiB
+  response budget rejects outright. Output schemas are now compact by
+  default, matching input schemas, which have shipped local ``$ref``/``$defs``
+  since they were introduced; the reference seller's discovery payload drops
+  to 1.29 MiB. Adopters serving clients that do not resolve references keep
+  the old shape with ``schema_mode="inline"``. The server also logs its
+  ``tools/list`` size at startup and warns past half the buyer budget, and
+  ``examples/seller_agent.py`` declares ``advertised_tools``. Refs #1505.
+
 ### Features
 
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer

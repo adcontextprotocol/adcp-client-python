@@ -22,7 +22,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_DOWN, Decimal
-from typing import Any
+from typing import Any, ClassVar
 
 from adcp import (
     ActionAvailabilityStatus,
@@ -926,6 +926,29 @@ PRODUCTS: list[dict[str, Any]] = [
 
 
 class DemoSeller(ADCPHandler):
+    #: The tools this seller actually serves. Without it, a handler that
+    #: subclasses ``ADCPHandler`` directly inherits the full 78-tool universe
+    #: and relies on the framework's override detection to narrow it — which
+    #: works, but leaves the declared surface implicit and warns at startup.
+    #: Declaring it registers the class with the tool-discovery registry, so
+    #: ``tools/list`` is a statement of intent rather than a byproduct of
+    #: which methods happen to exist. The framework adds the always-on
+    #: protocol/discovery tools (``get_adcp_capabilities``) on top.
+    advertised_tools: ClassVar[set[str]] = {
+        "control_media_buy",
+        "create_media_buy",
+        "get_media_buy_delivery",
+        "get_media_buys",
+        "get_products",
+        "list_creative_formats",
+        "list_creatives",
+        "list_products",
+        "sync_accounts",
+        "sync_creatives",
+        "sync_governance",
+        "update_media_buy",
+    }
+
     legacy_format_converter = staticmethod(_legacy_format_converter)
     canonical_format_legacy_resolver = staticmethod(_canonical_format_legacy_resolver)
 

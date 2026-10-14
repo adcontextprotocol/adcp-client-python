@@ -183,10 +183,21 @@ def _widen_media_buy_output_schema_for_legacy_statuses(
     """
     if tool_name not in {"create_media_buy", "update_media_buy"}:
         return
+    defs = schema.get("$defs")
+    defs = defs if isinstance(defs, dict) else {}
     variants = schema.get("anyOf") or schema.get("oneOf") or []
     for variant in variants:
         if not isinstance(variant, dict):
             continue
+        # Outside ``schema_mode="inline"`` a union arm is a local reference.
+        # Widen the definition it points at — mutating it in place is what
+        # reaches the advertised arm, since the arm *is* that definition.
+        ref = variant.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            target = defs.get(ref[len("#/$defs/") :])
+            if not isinstance(target, dict):
+                continue
+            variant = target
         required = variant.get("required")
         properties = variant.get("properties")
         if not isinstance(required, list) or not isinstance(properties, dict):
@@ -2174,6 +2185,8 @@ def _generate_pydantic_schemas(
 
 def _generate_pydantic_output_schemas(
     tool_names: Iterable[str] | None = None,
+    *,
+    schema_mode: SchemaMode = "compact",
 ) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic response models.
 
@@ -2191,6 +2204,15 @@ def _generate_pydantic_output_schemas(
     Unlike input schemas, root-level ``anyOf`` is allowed — discriminated
     response unions are valid JSON Schema and clients that consume
     ``outputSchema`` already handle them.
+
+    ``schema_mode`` matches the input side, and for the same reason. Inlining
+    every ``$ref`` expands a response model's shared subtrees once per
+    reference: ``ListCreativesResponse`` is 25 KB compact, 418 KB with local
+    ``$defs``, and 4.8 MB inlined. A handful of tools in that last shape is a
+    multi-megabyte ``tools/list`` that a buyer with a response-size budget
+    rejects outright. Compact stays a permissive description — dropping an
+    optional nested property reopens ``additionalProperties`` — so a real
+    response still validates against it.
     """
     try:
         from adcp.types import (
@@ -2384,7 +2406,9 @@ def _generate_pydantic_output_schemas(
     for tool_name, response_type in _tool_to_response.items():
         if selected is not None and tool_name not in selected:
             continue
-        schema = _model_to_json_schema(response_type, allow_root_union=True)
+        schema = _model_to_json_schema(
+            response_type, allow_root_union=True, schema_mode=schema_mode
+        )
         if schema is None:
             logger.debug(
                 "Pydantic output-schema generation failed for %s",
@@ -2706,14 +2730,19 @@ def get_tools_for_handler(
         # mutable JSON values, matching the pre-memoization behavior.
         definitions = [_copy_json_without_aliases(tool) for tool in selected]
         if schema_mode != "compact":
-            alternate_inputs = _generate_pydantic_schemas(
-                (definition["name"] for definition in definitions),
-                schema_mode=schema_mode,
-            )
+            names = [definition["name"] for definition in definitions]
+            alternate_inputs = _generate_pydantic_schemas(names, schema_mode=schema_mode)
+            # Outputs follow the same mode. They used to be inlined
+            # unconditionally, which is what made a 13-tool seller advertise a
+            # 24 MB tools/list while its input schemas were 15 KB each.
+            alternate_outputs = _generate_pydantic_output_schemas(names, schema_mode=schema_mode)
             for definition in definitions:
                 alternate = alternate_inputs.get(definition["name"])
                 if alternate is not None:
                     definition["inputSchema"] = alternate
+                alternate_output = alternate_outputs.get(definition["name"])
+                if alternate_output is not None:
+                    definition["outputSchema"] = alternate_output
         for definition in definitions:
             if definition["name"] == "sync_reporting_receipts":
                 from adcp.reporting.receipts.wire import receipt_schema
