@@ -1593,6 +1593,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ctx: ToolContext,
         *,
         tool_name: str | None = None,
+        request_params: Any = None,
     ) -> Account[Any]:
         """Resolve a wire :class:`AccountReference` to a typed
         :class:`Account` via the platform's :class:`AccountStore`.
@@ -1713,6 +1714,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
                 signing_profile=self._grant_signing_profile(ctx),
                 operation=tool_name,
+                bound_wba_identity=self._has_bound_wba_identity(ctx),
+                operation_params=(
+                    request_params.model_dump(mode="json", exclude_unset=True)
+                    if hasattr(request_params, "model_dump")
+                    else request_params
+                ),
+                spend_committing=self._wba_spend_decision(ctx),
             )
         elif self._brand_authorization_gate is not None:
             buyer_agent_for_gate = cast(
@@ -1725,6 +1733,23 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 buyer_agent_for_gate,
             )
         return resolved
+
+    @classmethod
+    def _wba_spend_decision(cls, ctx: ToolContext) -> bool | None:
+        auth_info = cls._extract_auth_info(ctx)
+        value = auth_info.extra.get("wba_spend_committing") if auth_info is not None else None
+        return value if isinstance(value, bool) else None
+
+    @classmethod
+    def _has_bound_wba_identity(cls, ctx: ToolContext) -> bool:
+        """Only trusted transport state can preserve an established binding."""
+        auth_info = cls._extract_auth_info(ctx)
+        return bool(
+            auth_info is not None
+            and auth_info.extra.get("signing_profile") == "web-bot-auth"
+            and isinstance(auth_info.extra.get("principal_id"), str)
+            and auth_info.extra["principal_id"]
+        )
 
     @classmethod
     def _grant_signing_profile(
@@ -2238,7 +2263,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Resolve account context and dispatch one compact 3.2 lifecycle task."""
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
-            getattr(params, "account", None), tool_ctx, tool_name=method_name
+            getattr(params, "account", None), tool_ctx, tool_name=method_name, request_params=params
         )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
@@ -2835,7 +2860,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
-            params.account, tool_ctx, tool_name="update_media_buy"
+            params.account, tool_ctx, tool_name="update_media_buy", request_params=params
         )
         ctx = self._build_ctx(tool_ctx, account)
         # v1.5: hydrate ctx.recipes from the consumed proposal via the

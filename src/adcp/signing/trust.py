@@ -35,11 +35,23 @@ class TrustRecordError(ValueError):
     """A missing, invalid or unavailable trust record provides no authority."""
 
 
-class TrustRecordAbsentError(TrustRecordError):
+class TrustRecordNotFoundError(TrustRecordError):
+    """A definitive 404/410 provides no current operator membership."""
+
+
+class TrustRecordAbsentError(TrustRecordNotFoundError):
     """404/410 before any successful discovery permits configured legacy fallback."""
 
 
-class _TrustRecordCapacityError(TrustRecordError):
+class TrustRecordUnavailableError(TrustRecordError):
+    """A temporary outage cannot establish delisting or new spend authority."""
+
+
+class TrustRecordMatchError(TrustRecordError):
+    """A fetched record no longer lists the origin with its required role."""
+
+
+class _TrustRecordCapacityError(TrustRecordUnavailableError):
     """Local backpressure proves nothing about authority and must not be cached."""
 
 
@@ -210,7 +222,7 @@ class EvaluatedTrustRecord:
             if canonical_origin(agent["url"]) == origin
         ]
         if len(matches) != 1 or role not in matches[0]["roles"]:
-            raise TrustRecordError(
+            raise TrustRecordMatchError(
                 "record must list exactly one matching agent with the required role"
             )
         return dict(matches[0])
@@ -295,7 +307,7 @@ class TrustRecordEvaluator:
             record = await asyncio.shield(task)
         assert record is not None
         if record.expires_at <= self._clock():
-            raise TrustRecordError("trust record expired while being evaluated")
+            raise TrustRecordUnavailableError("trust record expired while being evaluated")
         if role is not None:
             record.agent(origin_or_domain, role=role)
         # Callers cannot mutate cached authority through a returned mapping.
@@ -326,7 +338,7 @@ class TrustRecordEvaluator:
             error = (
                 exc
                 if isinstance(exc, TrustRecordError)
-                else TrustRecordError("trust record fetch failed")
+                else TrustRecordUnavailableError("trust record fetch failed")
             )
             async with self._lock:
                 self._failures[domain] = _TrustRecordFailure(
@@ -352,10 +364,16 @@ class TrustRecordEvaluator:
                 expires_at = min(expires_at, response_expires)
             except _TrustRecordCapacityError:
                 raise
+            except TrustRecordError:
+                raise
             except Exception as exc:
-                raise TrustRecordError("trust record fetch failed") from exc
+                raise TrustRecordUnavailableError("trust record fetch failed") from exc
             if response.status in {404, 410} and hop == 0 and domain not in self._seen_200:
                 raise TrustRecordAbsentError("no trust record is published")
+            if response.status in {404, 410}:
+                raise TrustRecordNotFoundError("operator trust record was removed")
+            if response.status >= 500 or response.status == 429:
+                raise TrustRecordUnavailableError("trust record is temporarily unavailable")
             if response.status != 200 or len(response.body) > 2 * 1024 * 1024:
                 raise TrustRecordError("trust record is unavailable or oversized")
             self._seen_200.add(domain)
@@ -386,7 +404,7 @@ class TrustRecordEvaluator:
                 return cached
             if self._host_failures.get(owner_host, 0) > now:
                 self._host_failures.move_to_end(owner_host)
-                raise TrustRecordError("trust fetch host is cooling down")
+                raise TrustRecordUnavailableError("trust fetch host is cooling down")
             task = self._response_pending.get(url)
             if task is None:
                 if (
@@ -430,7 +448,10 @@ class TrustRecordEvaluator:
             if not isinstance(exc, ValueError):
                 async with self._lock:
                     self._cool_down_host(owner_host)
-            raise TrustRecordError("trust record fetch failed") from exc
+                raise TrustRecordUnavailableError("trust record fetch failed") from exc
+            if isinstance(exc, TrustRecordError):
+                raise
+            raise TrustRecordError("trust record content is invalid") from exc
         finally:
             async with self._lock:
                 self._response_pending.pop(url, None)
@@ -482,16 +503,28 @@ class GrantAuthorization:
     reason: str | None = None
     legacy_fallback_allowed: bool = False
     expires_at: float | None = None
+    error_code: Literal["PERMISSION_DENIED", "SERVICE_UNAVAILABLE"] = "PERMISSION_DENIED"
+    include_grant_absent_details: bool = True
 
     def require(self) -> None:
         """Only call after signer establishment/registry authorization, avoiding an oracle."""
         if not self.authorized:
             from adcp.decisioning.types import AdcpError
 
+            if self.error_code == "SERVICE_UNAVAILABLE":
+                raise AdcpError(
+                    "SERVICE_UNAVAILABLE",
+                    message="Trust record is temporarily unavailable",
+                    recovery="transient",
+                )
             raise AdcpError(
                 "PERMISSION_DENIED",
                 message="Agent has no authority for this brand",
-                details={"scope": "agent", "reason": "grant_absent"},
+                details=(
+                    {"scope": "agent", "reason": "grant_absent"}
+                    if self.include_grant_absent_details
+                    else None
+                ),
                 recovery="correctable",
             )
 
@@ -510,6 +543,29 @@ class GrantRequest:
 
 def _scope_covers(scopes: Sequence[str], scope: str) -> bool:
     return scope in scopes or "*" in scopes or (scope.startswith("adcp:") and "adcp:all" in scopes)
+
+
+def _trust_grant_failure(error: TrustRecordError, reason: str) -> GrantAuthorization:
+    """Keep an outage distinct from an uncovered grant after identity establishment."""
+    return GrantAuthorization(
+        False,
+        reason,
+        error_code=(
+            "SERVICE_UNAVAILABLE"
+            if isinstance(error, TrustRecordUnavailableError)
+            else "PERMISSION_DENIED"
+        ),
+        include_grant_absent_details=False,
+    )
+
+
+def _expired_grant_evaluation(reason: str) -> GrantAuthorization:
+    return GrantAuthorization(
+        False,
+        reason,
+        error_code="SERVICE_UNAVAILABLE",
+        include_grant_absent_details=False,
+    )
 
 
 def _grant_matches(
@@ -577,7 +633,7 @@ class TrustGrantEvaluator:
         brand_operator = registrable_domain(brand_domain)
         operator = registrable_domain(account_operator)
         if signer_operator is None or brand_operator is None or operator is None:
-            return GrantAuthorization(False, "grant_absent")
+            return GrantAuthorization(False, "grant_absent", include_grant_absent_details=False)
         request = GrantRequest(
             origin, brand_domain, account_operator, scope, brand_id, tuple(countries)
         )
@@ -588,8 +644,8 @@ class TrustGrantEvaluator:
             try:
                 # WBA authority always requires a current operator role entry.
                 signer_record = await self.records.evaluate(origin, role="adcp:buying")
-            except TrustRecordError:
-                return GrantAuthorization(False, "signer_trust_record_unavailable")
+            except TrustRecordError as exc:
+                return _trust_grant_failure(exc, "signer_trust_record_unavailable")
             if signer_operator == brand_operator == operator:
                 return GrantAuthorization(True, expires_at=signer_record.expires_at)
         try:
@@ -599,23 +655,23 @@ class TrustGrantEvaluator:
                 authorized = bool(await self._legacy_authorization(request))
                 fallback_expiry = signer_record.expires_at if signer_record is not None else None
                 if fallback_expiry is not None and fallback_expiry <= self._clock():
-                    return GrantAuthorization(False, "signer_trust_record_unavailable")
+                    return _expired_grant_evaluation("signer_trust_record_unavailable")
                 return GrantAuthorization(
                     authorized,
                     legacy_fallback_allowed=True,
                     expires_at=fallback_expiry,
                 )
             return GrantAuthorization(False, "trust_record_absent", legacy_fallback_allowed=True)
-        except TrustRecordError:
-            return GrantAuthorization(False, "trust_record_unavailable")
+        except TrustRecordError as exc:
+            return _trust_grant_failure(exc, "trust_record_unavailable")
         if signer_record is None:
             # Legacy credentials retain their established onboarding path when
             # the brand has no trust record. Once the brand serves HTTP 200,
             # grants have one source and require the new operator role entry.
             try:
                 signer_record = await self.records.evaluate(origin, role="adcp:buying")
-            except TrustRecordError:
-                return GrantAuthorization(False, "signer_trust_record_unavailable")
+            except TrustRecordError as exc:
+                return _trust_grant_failure(exc, "signer_trust_record_unavailable")
             if signer_operator == brand_operator == operator:
                 return GrantAuthorization(True, expires_at=signer_record.expires_at)
         args: dict[str, Any] = {
@@ -625,20 +681,22 @@ class TrustGrantEvaluator:
             "countries": frozenset(countries),
             "now": self._clock(),
         }
+        direct = operator in {signer_operator, brand_operator}
+        grantee = signer_operator if direct else operator
         first = [
             g
             for g in brand_record.document.get("grants", [])
-            if _grant_matches(g, grantee=operator, **args)
+            if _grant_matches(g, grantee=grantee, **args)
         ]
         links: list[list[Mapping[str, Any]]] = []
         used_records = [signer_record, brand_record]
-        if operator == signer_operator:
+        if direct:
             links = [first]
         elif first:
             try:
                 intermediary = await self.records.evaluate(operator)
-            except TrustRecordError:
-                return GrantAuthorization(False, "trust_record_unavailable")
+            except TrustRecordError as exc:
+                return _trust_grant_failure(exc, "trust_record_unavailable")
             used_records.append(intermediary)
             # Fetching the intermediary may outlive an earlier grant. Evaluate
             # both links at the decision time, not at request receipt.
@@ -651,7 +709,7 @@ class TrustGrantEvaluator:
             ]
             links = [first, second]
         if any(record.expires_at <= self._clock() for record in used_records):
-            return GrantAuthorization(False, "trust_record_unavailable")
+            return _expired_grant_evaluation("trust_record_unavailable")
         if not links or any(not link for link in links):
             exhaustive = brand_record.document.get("exclusive_grants", False) and any(
                 _scope_covers(grant["scopes"], scope)
@@ -663,7 +721,7 @@ class TrustGrantEvaluator:
                 # Seller discretion cannot outlive the required operator role
                 # evaluation while its application-owned policy lookup awaits.
                 if expiry <= self._clock():
-                    return GrantAuthorization(False, "trust_record_unavailable")
+                    return _expired_grant_evaluation("trust_record_unavailable")
                 return GrantAuthorization(authorized, expires_at=expiry)
             return GrantAuthorization(False, "grant_absent")
         # Every surviving grant covers the same requested dimensions. The
@@ -696,6 +754,9 @@ __all__ = [
     "TrustGrantEvaluator",
     "TrustRecordAbsentError",
     "TrustRecordError",
+    "TrustRecordMatchError",
+    "TrustRecordNotFoundError",
+    "TrustRecordUnavailableError",
     "TrustRecordEvaluator",
     "TrustResponse",
     "trust_record_url",

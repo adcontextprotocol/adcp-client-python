@@ -9,11 +9,17 @@ from pathlib import Path
 import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
+from adcp.decisioning.types import AdcpError
 from adcp.server.signed_requests import (
     RequestSignatureVerification,
     SignedRequestVerificationMiddleware,
+    apply_verified_signer,
+    check_wba_authorization,
 )
+from adcp.server.translate import build_mcp_error_result
 from adcp.signing import (
     DirectoryResponse,
     DiscoveredSignerKeys,
@@ -40,6 +46,18 @@ VECTORS = sorted((ROOT / "positive").glob("*.json")) + sorted((ROOT / "negative"
 
 async def _not_revoked(origin, keyid):
     return False
+
+
+def _mcp_adcp_error(response):
+    payload = response.json()
+    # The bare ASGI fixture serializes the installed MCP model directly;
+    # supported MCP versions expose this field in camel or snake case.
+    content = (
+        payload["structuredContent"]
+        if "structuredContent" in payload
+        else payload["structured_content"]
+    )
+    return content["adcp_error"]
 
 
 async def test_standalone_verification_requires_origin_revocation_checker():
@@ -272,25 +290,35 @@ async def test_framework_requires_explicit_binding_before_dispatch():
     origin = "https://buyer.example.com"
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
+    legacy_jwk = {**jwk, "adcp_use": "request-signing", "key_ops": ["verify"]}
     bindings = OriginBindings()
     dispatched = []
 
     async def app(scope, receive, send):
-        from starlette.responses import JSONResponse
-
+        context = apply_verified_signer(None, Request(scope))
+        try:
+            check_wba_authorization(context)
+        except AdcpError as exc:
+            await JSONResponse(build_mcp_error_result(exc).model_dump(mode="json", by_alias=True))(
+                scope, receive, send
+            )
+            return
         dispatched.append(
             scope["adcp.verified_signer"] if "adcp.verified_signer" in scope else scope
         )
         await JSONResponse({"ok": True})(scope, receive, send)
 
     config = RequestSignatureVerification(
-        signer_keys=StaticSignerKeys({origin: {"keys": [jwk]}}),
+        signer_keys=StaticSignerKeys({origin: {"keys": [legacy_jwk]}}),
         enable_web_bot_auth=True,
         origin_bindings=bindings,
         wba_revocation_checker=_not_revoked,
         trust_records=_trust_records(origin),
+        signing_profile_version="3.2",
     )
-    app = SignedRequestVerificationMiddleware(app, config, transport="mcp")
+    app = SignedRequestVerificationMiddleware(
+        app, config, transport="mcp", defer_authorization_errors=True
+    )
     body = (
         b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
         b'"params":{"name":"sync_accounts","arguments":{}}}'
@@ -314,7 +342,9 @@ async def test_framework_requires_explicit_binding_before_dispatch():
             return await client.post("/mcp", content=body, headers=headers)
 
         denied = await post()
-        assert denied.status_code == 403
+        assert denied.status_code == 200, denied.text
+        assert _mcp_adcp_error(denied)["code"] == "PERMISSION_DENIED"
+        assert "Accept-Signature" not in denied.headers
         assert not dispatched
         bindings.bind(origin, "principal-1")
         assert (await post()).status_code == 200
@@ -332,7 +362,9 @@ async def test_framework_requires_explicit_binding_before_dispatch():
         response = await client.post(
             "/mcp", content=body, headers={"Content-Type": "application/json", **legacy.as_dict()}
         )
-        assert response.status_code in {401, 403}
+        assert response.status_code == 200, response.text
+        assert _mcp_adcp_error(response)["code"] == "PERMISSION_DENIED"
+        assert "Accept-Signature" not in response.headers
         assert len(dispatched) == 1
 
 
@@ -640,12 +672,20 @@ async def test_framework_checks_origin_revocations_by_default(monkeypatch, revoc
     assert isinstance(config.wba_revocation_checker, OriginRevocationChecker)
 
     async def dispatch(scope, receive, send):
-        from starlette.responses import JSONResponse
-
+        context = apply_verified_signer(None, Request(scope))
+        try:
+            check_wba_authorization(context)
+        except AdcpError as exc:
+            await JSONResponse(build_mcp_error_result(exc).model_dump(mode="json", by_alias=True))(
+                scope, receive, send
+            )
+            return
         dispatched.append(True)
         await JSONResponse({"ok": True})(scope, receive, send)
 
-    app = SignedRequestVerificationMiddleware(dispatch, config, transport="mcp")
+    app = SignedRequestVerificationMiddleware(
+        dispatch, config, transport="mcp", defer_authorization_errors=True
+    )
     body = (
         b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
         b'"params":{"name":"sync_accounts","arguments":{}}}'
@@ -667,7 +707,11 @@ async def test_framework_checks_origin_revocations_by_default(monkeypatch, revoc
         response = await client.post("/mcp", content=body, headers=headers)
     assert calls == [origin + "/.well-known/governance-revocations.json"]
     assert bool(dispatched) == (revocation_state == "clear")
-    assert response.status_code == (200 if revocation_state == "clear" else 403)
+    assert response.status_code == (
+        403 if revocation_state == "unavailable" else 200
+    ), response.text
     if revocation_state == "revoked":
-        assert response.json()["errors"][0]["code"] == "PERMISSION_DENIED"
+        error = _mcp_adcp_error(response)
+        assert error["code"] == "PERMISSION_DENIED"
+        assert error["message"] == "Authentication failed"
         assert "Accept-Signature" not in response.headers

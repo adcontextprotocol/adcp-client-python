@@ -38,7 +38,7 @@ import logging
 import os
 import time
 import warnings
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -76,6 +76,7 @@ from adcp.signing.wba import (
 )
 
 if TYPE_CHECKING:
+    from adcp.decisioning.types import AdcpError
     from adcp.server.base import ToolContext
     from adcp.signing.signer_keys import ResolvedSignerKey, SignerKeyResolver
     from adcp.signing.trust import TrustRecordEvaluator
@@ -89,6 +90,73 @@ logger = logging.getLogger(__name__)
 current_verified_signer: contextvars.ContextVar[VerifiedSigner | None] = contextvars.ContextVar(
     "adcp_current_verified_signer", default=None
 )
+current_wba_authorization_error: contextvars.ContextVar[AdcpError | None] = contextvars.ContextVar(
+    "adcp_wba_authorization_error", default=None
+)
+_WBA_AUTHORIZATION_ERROR_KEY = "adcp.server.wba_authorization_error"
+_WBA_ERROR_PROJECTION_ONLY_KEY = "adcp.server.wba_error_projection_only"
+_WBA_SPEND_COMMITTING_KEY = "adcp.wba_spend_committing"
+current_wba_spend_committing: contextvars.ContextVar[bool | None] = contextvars.ContextVar(
+    "adcp_wba_spend_committing", default=None
+)
+current_wba_error_projection_only: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "adcp_wba_error_projection_only", default=False
+)
+
+
+def is_wba_spend_committing(operation: str, params: Mapping[str, Any] | None = None) -> bool:
+    """Classify new spend; sellers can override ambiguous budget changes with state."""
+    if operation in {"create_media_buy", "buy_products", "accept_proposal"} or operation.startswith(
+        "acquire_"
+    ):
+        return True
+    if operation not in {"update_media_buy", "control_media_buy"}:
+        from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS
+
+        protocol_reads = {
+            "initialize",
+            "tools/list",
+            "ping",
+            "tasks/get",
+            "tasks/list",
+            "tasks/cancel",
+            "tasks/resubscribe",
+            "GetTask",
+            "ListTasks",
+            "CancelTask",
+            "SubscribeToTask",
+            "notifications/initialized",
+            "notifications/cancelled",
+        }
+        return operation not in protocol_reads and not any(
+            tool["name"] == operation for tool in ADCP_TOOL_DEFINITIONS
+        )
+    if params is None:
+        return True
+    params = params or {}
+    if params.get("paused") is False or params.get("new_packages"):
+        return True
+    financial = {"budget", "total_budget", "daily_budget_cap", "budget_allocation", "bidding"}
+    if financial.intersection(params):
+        return True
+    packages = params.get("packages")
+    if not isinstance(packages, list):
+        return False
+    return any(
+        isinstance(package, Mapping)
+        and (package.get("paused") is False or bool(financial.intersection(package)))
+        for package in packages
+    )
+
+
+def check_wba_authorization(context: ToolContext | None) -> None:
+    """Raise deferred identity authorization through the transport's AdCP error binding."""
+    from adcp.decisioning.types import AdcpError
+
+    error = context.metadata.get(_WBA_AUTHORIZATION_ERROR_KEY) if context is not None else None
+    if isinstance(error, AdcpError):
+        raise error
+
 
 SignaturePosture = Literal["required", "warn", "supported"]
 
@@ -174,6 +242,10 @@ class RequestSignatureVerification:
     trust_records: TrustRecordEvaluator | None = None
     binding_role: str = "adcp:buying"
     unbound_for: frozenset[str] = frozenset({"get_adcp_capabilities", "get_principal"})
+    spend_classifier: Callable[[str, Mapping[str, Any]], bool] = is_wba_spend_committing
+    _binding_membership: dict[str, bool] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         if self.enable_web_bot_auth and self.replay_store is None:
@@ -357,6 +429,7 @@ class SignedRequestVerificationMiddleware:
         transport: Literal["mcp", "a2a"],
         message_parser: Any = None,
         bearer_configured: bool = False,
+        defer_authorization_errors: bool = False,
     ) -> None:
         self._app = app
         self._config = config
@@ -366,6 +439,8 @@ class SignedRequestVerificationMiddleware:
             config.required_for or config.warn_for or config.enable_web_bot_auth
         )
         self._bearer_configured = bearer_configured
+        self._defer_authorization_errors = defer_authorization_errors
+        self._binding_membership = config._binding_membership
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Only JSON-RPC POSTs carry an operation; GET (SSE, agent card),
@@ -399,13 +474,20 @@ class SignedRequestVerificationMiddleware:
                             self._message_parser,
                             parse_skill=True,
                         )
-                        existing = await self._authorize_wba_signer(
+                        existing, authorization_error = await self._authorize_wba_signer(
                             existing, target.operation or target.method or ""
                         )
                     except WbaVerificationError as exc:
+                        if isinstance(exc, WbaAuthorizationError):
+                            await self._project_wba_authentication_error(
+                                scope, receive, send, json.dumps(existing.parsed_body).encode()
+                            )
+                            return
                         await self._reject_wba(scope, receive, send, exc)
                         return
-                    await self._call_with_signer(scope, receive, send, existing)
+                    await self._call_with_signer(
+                        scope, receive, send, existing, authorization_error=authorization_error
+                    )
                     return
                 principal = (
                     await self._config.origin_bindings(origin)
@@ -413,10 +495,19 @@ class SignedRequestVerificationMiddleware:
                     else None
                 )
                 if principal is not None:
-                    response = JSONResponse(
-                        {"errors": [{"code": "PERMISSION_DENIED"}]}, status_code=403
+                    from adcp.decisioning.types import AdcpError
+
+                    await self._call_with_signer(
+                        scope,
+                        receive,
+                        send,
+                        replace(existing, principal_id=None),
+                        authorization_error=AdcpError(
+                            "PERMISSION_DENIED",
+                            message="Bound origin requires Web Bot Auth",
+                            recovery="correctable",
+                        ),
                     )
-                    await response(scope, receive, send)
                     return
                 existing = replace(existing, principal_id=principal)
                 await self._call_with_signer(scope, receive, send, existing)
@@ -474,8 +565,11 @@ class SignedRequestVerificationMiddleware:
             return
 
         try:
-            signer = await self._verify(scope, body, label, posture)
+            signer, authorization_error = await self._verify(scope, body, label, posture)
         except WbaVerificationError as exc:
+            if isinstance(exc, WbaAuthorizationError):
+                await self._project_wba_authentication_error(scope, replay, send, body)
+                return
             await self._reject_wba(scope, replay, send, exc)
             return
         except SignatureVerificationError as exc:
@@ -488,7 +582,9 @@ class SignedRequestVerificationMiddleware:
                 return
             await self._reject(send, exc)
             return
-        await self._call_with_signer(scope, replay, send, signer)
+        await self._call_with_signer(
+            scope, replay, send, signer, authorization_error=authorization_error
+        )
 
     async def _verify(
         self,
@@ -496,7 +592,7 @@ class SignedRequestVerificationMiddleware:
         body: bytes,
         label: str,
         posture: SignaturePosture | None,
-    ) -> VerifiedSigner:
+    ) -> tuple[VerifiedSigner, AdcpError | None]:
         resolved: dict[str, ResolvedSignerKey] = {}
 
         # The verifier looks the key up at its own checklist step 7, after
@@ -561,12 +657,26 @@ class SignedRequestVerificationMiddleware:
             from adcp.signing.canonical import canonical_origin
 
             if await config.origin_bindings(canonical_origin(key.agent_url)) is not None:
-                raise WbaAuthorizationError("bound origin requires Web Bot Auth")
-        return replace(signer, agent_url=key.agent_url if key is not None else None)
+                from adcp.decisioning.types import AdcpError
 
-    async def _authorize_wba_signer(self, signer: VerifiedSigner, operation: str) -> VerifiedSigner:
+                return replace(signer, agent_url=key.agent_url), AdcpError(
+                    "PERMISSION_DENIED",
+                    message="Bound origin requires Web Bot Auth",
+                    recovery="correctable",
+                )
+        return replace(signer, agent_url=key.agent_url if key is not None else None), None
+
+    async def _authorize_wba_signer(
+        self, signer: VerifiedSigner, operation: str
+    ) -> tuple[VerifiedSigner, AdcpError | None]:
         """Re-evaluate operator membership at the binding authorization gate."""
-        from adcp.signing.trust import TrustRecordError
+        from adcp.decisioning.types import AdcpError
+        from adcp.signing.trust import (
+            TrustRecordError,
+            TrustRecordMatchError,
+            TrustRecordNotFoundError,
+            TrustRecordUnavailableError,
+        )
 
         config = self._config
         principal = (
@@ -575,29 +685,128 @@ class SignedRequestVerificationMiddleware:
             else None
         )
         if principal is None:
-            if operation not in config.unbound_for:
-                raise WbaAuthorizationError("signer identity is not bound")
-            return replace(signer, principal_id=None)
+            return self._identity_established(signer, operation)
         if config.trust_records is None:
-            raise WbaAuthorizationError("origin binding evaluation unavailable")
+            return replace(signer, principal_id=principal), AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Origin binding evaluation unavailable",
+                recovery="transient",
+            )
         try:
             await config.trust_records.evaluate(signer.agent_url or "", role=config.binding_role)
+        except (TrustRecordMatchError, TrustRecordNotFoundError):
+            self._binding_membership[signer.agent_url or ""] = False
+            return self._identity_established(signer, operation)
+        except TrustRecordUnavailableError:
+            if not self._binding_membership.get(signer.agent_url or "", True):
+                return self._identity_established(signer, operation)
+            if self._is_spend_committing(signer, operation):
+                return replace(signer, principal_id=principal), AdcpError(
+                    "SERVICE_UNAVAILABLE",
+                    message="Operator trust record is temporarily unavailable",
+                    recovery="transient",
+                )
+            return replace(signer, principal_id=principal), None
         except TrustRecordError as exc:
-            raise WbaAuthorizationError("signer origin is not authorized by its operator") from exc
+            self._binding_membership[signer.agent_url or ""] = False
+            logger.info("operator trust record rejected", extra={"reason": type(exc).__name__})
+            return replace(signer, principal_id=None), AdcpError(
+                "PERMISSION_DENIED",
+                message="Signer origin is not authorized by its operator",
+                recovery="correctable",
+            )
+        self._binding_membership[signer.agent_url or ""] = True
         # Preserve the historical binding when membership ends, so delisting
         # cannot enable the deprecated transport as a downgrade.
-        return replace(signer, principal_id=principal)
+        return replace(signer, principal_id=principal), None
+
+    def _identity_established(
+        self, signer: VerifiedSigner, operation: str
+    ) -> tuple[VerifiedSigner, AdcpError | None]:
+        from adcp.decisioning.types import AdcpError
+
+        error = (
+            None
+            if operation in self._config.unbound_for or operation == "get_principal"
+            else AdcpError(
+                "PERMISSION_DENIED",
+                message="Caller is not authorized for this operation",
+                recovery="correctable",
+            )
+        )
+        return replace(signer, principal_id=None), error
+
+    def _is_spend_committing(self, signer: VerifiedSigner, operation: str) -> bool:
+        payload = signer.parsed_body
+        params: Mapping[str, Any] = {}
+        if isinstance(payload, Mapping):
+            if self._transport == "mcp":
+                envelope = payload.get("params")
+                arguments = envelope.get("arguments") if isinstance(envelope, Mapping) else None
+                if isinstance(arguments, Mapping):
+                    params = arguments
+            else:
+                from adcp.server.a2a_server import parse_a2a_jsonrpc_skill
+
+                _skill, arguments = parse_a2a_jsonrpc_skill(dict(payload), self._message_parser)
+                if isinstance(arguments, Mapping):
+                    params = arguments
+        return self._config.spend_classifier(operation, params)
 
     async def _reject_wba(
         self, scope: Any, receive: Any, send: Any, exc: WbaVerificationError
     ) -> None:
         payload = (
-            {"errors": [{"code": "PERMISSION_DENIED", "message": exc.reason}]}
+            {"errors": [{"code": "PERMISSION_DENIED", "message": "Authentication failed"}]}
             if isinstance(exc, WbaAuthorizationError)
-            else {"error": exc.reason}
+            else {"error": "Request signature verification failed"}
         )
         response = JSONResponse(payload, status_code=exc.status, headers=exc.headers)
         await response(scope, receive, send)
+
+    async def _project_wba_authentication_error(
+        self, scope: Any, receive: Any, send: Any, body: bytes
+    ) -> None:
+        """Render a rejected key's AdCP error without authenticating its origin."""
+        from starlette.authentication import UnauthenticatedUser
+
+        from adcp.decisioning.types import AdcpError
+        from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS
+
+        if not self._defer_authorization_errors:
+            await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
+            return
+        target = _jsonrpc_target(body, self._transport, self._message_parser, parse_skill=True)
+        if not any(tool["name"] == target.operation for tool in ADCP_TOOL_DEFINITIONS):
+            await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
+            return
+        if target.a2a_parsed is not None:
+            from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
+
+            scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = target.a2a_parsed
+        error = AdcpError(
+            "PERMISSION_DENIED", message="Authentication failed", recovery="correctable"
+        )
+        scope.pop(VERIFIED_SIGNER_SCOPE_KEY, None)
+        scope.pop(_FRAMEWORK_VERIFIED_SCOPE_KEY, None)
+        state = scope.setdefault("state", {})
+        state.pop(VERIFIED_SIGNER_SCOPE_KEY, None)
+        state[_WBA_AUTHORIZATION_ERROR_KEY] = error
+        state[_WBA_SPEND_COMMITTING_KEY] = None
+        scope[_WBA_ERROR_PROJECTION_ONLY_KEY] = True
+        scope["user"] = UnauthenticatedUser()
+        scope.pop("auth", None)
+        signer_token = current_verified_signer.set(None)
+        error_token = current_wba_authorization_error.set(error)
+        spend_token = current_wba_spend_committing.set(None)
+        projection_token = current_wba_error_projection_only.set(True)
+        try:
+            await self._app(scope, receive, send)
+        finally:
+            current_verified_signer.reset(signer_token)
+            current_wba_authorization_error.reset(error_token)
+            current_wba_spend_committing.reset(spend_token)
+            current_wba_error_projection_only.reset(projection_token)
 
     async def _resolve(self, keyid: str) -> ResolvedSignerKey | None:
         try:
@@ -615,14 +824,60 @@ class SignedRequestVerificationMiddleware:
             ) from exc
 
     async def _call_with_signer(
-        self, scope: Any, receive: Any, send: Any, signer: VerifiedSigner
+        self,
+        scope: Any,
+        receive: Any,
+        send: Any,
+        signer: VerifiedSigner,
+        *,
+        authorization_error: AdcpError | None = None,
     ) -> None:
+        if authorization_error is not None and not self._defer_authorization_errors:
+            await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
+            return
+        target = _jsonrpc_target(
+            json.dumps(signer.parsed_body).encode(),
+            self._transport,
+            self._message_parser,
+            parse_skill=True,
+        )
+        raw_method = (
+            signer.parsed_body.get("method") if isinstance(signer.parsed_body, Mapping) else None
+        )
+        skill_dispatch = target.operation is not None or (
+            raw_method == "tools/call"
+            if self._transport == "mcp"
+            else isinstance(raw_method, str) and raw_method in _A2A_MESSAGE_METHODS
+        )
+        if authorization_error is not None and not skill_dispatch:
+            # Task polling/cancellation and protocol methods never enter the
+            # AdCP skill error binding. They must not inherit historical task
+            # ownership from an anonymous or delisted origin.
+            if (
+                signer.profile == "web-bot-auth"
+                and self._bearer_configured
+                and _header(scope, b"authorization") is not None
+            ):
+                await self._app(scope, receive, send)
+            else:
+                await JSONResponse({"error": "unauthenticated"}, status_code=401)(
+                    scope, receive, send
+                )
+            return
         scope[VERIFIED_SIGNER_SCOPE_KEY] = signer
         scope[_FRAMEWORK_VERIFIED_SCOPE_KEY] = True
         scope.setdefault("state", {})[VERIFIED_SIGNER_SCOPE_KEY] = signer
+        scope["state"][_WBA_AUTHORIZATION_ERROR_KEY] = authorization_error
+        spend_committing = None
+        if signer.profile == "web-bot-auth":
+            spend_committing = self._is_spend_committing(
+                signer, target.operation or target.method or ""
+            )
+        scope["state"][_WBA_SPEND_COMMITTING_KEY] = spend_committing
         if (
             self._transport == "a2a"
             and signer.agent_url is not None
+            and (signer.profile != "web-bot-auth" or signer.principal_id is not None)
             and not getattr(scope.get("user"), "is_authenticated", False)
         ):
             # a2a-sdk scopes task ownership by the authenticated user. Without
@@ -633,10 +888,14 @@ class SignedRequestVerificationMiddleware:
 
             scope["user"] = _A2AAuthenticatedUser(display_name=signer.agent_url)
         token = current_verified_signer.set(signer)
+        error_token = current_wba_authorization_error.set(authorization_error)
+        spend_token = current_wba_spend_committing.set(spend_committing)
         try:
             await self._app(scope, receive, send)
         finally:
             current_verified_signer.reset(token)
+            current_wba_authorization_error.reset(error_token)
+            current_wba_spend_committing.reset(spend_token)
 
     @staticmethod
     async def _reject(send: Any, exc: SignatureVerificationError) -> None:
@@ -702,6 +961,18 @@ def scope_has_verified_signer(scope: Mapping[str, Any]) -> bool:
     return scope.get(_FRAMEWORK_VERIFIED_SCOPE_KEY) is True
 
 
+def scope_has_wba_error_projection(scope: Mapping[str, Any]) -> bool:
+    """A known AdCP skill admitted only to render a framework-owned denial."""
+    from adcp.decisioning.types import AdcpError
+
+    state = scope.get("state")
+    return (
+        scope.get(_WBA_ERROR_PROJECTION_ONLY_KEY) is True
+        and isinstance(state, Mapping)
+        and isinstance(state.get(_WBA_AUTHORIZATION_ERROR_KEY), AdcpError)
+    )
+
+
 def apply_verified_signer(
     context: ToolContext | None,
     request_context: Any,
@@ -716,27 +987,67 @@ def apply_verified_signer(
     owns identity there. Also unchanged when the request carried no
     framework-verified signature.
     """
-    signer = verified_signer_for_request(request_context)
-    if signer is None or signer.agent_url is None:
-        return context
-
     from adcp.decisioning.context import AuthInfo
     from adcp.server.base import ToolContext
 
+    request_scope = getattr(request_context, "scope", None)
+    if isinstance(request_scope, Mapping):
+        state = request_scope.get("state")
+        authorization_error = (
+            state.get(_WBA_AUTHORIZATION_ERROR_KEY) if isinstance(state, Mapping) else None
+        )
+        spend_committing = (
+            state.get(_WBA_SPEND_COMMITTING_KEY) if isinstance(state, Mapping) else None
+        )
+    else:
+        authorization_error = current_wba_authorization_error.get()
+        spend_committing = current_wba_spend_committing.get()
+    signer = verified_signer_for_request(request_context)
+    if signer is None or signer.agent_url is None:
+        if authorization_error is None:
+            return context
+        context = copy.copy(context) if context is not None else ToolContext()
+        context.metadata = {**context.metadata, _WBA_AUTHORIZATION_ERROR_KEY: authorization_error}
+        projection_only = (
+            scope_has_wba_error_projection(request_scope)
+            if isinstance(request_scope, Mapping)
+            else current_wba_error_projection_only.get()
+        )
+        if projection_only:
+            context.caller_identity = None
+            context.metadata.pop("adcp.auth_info", None)
+            context.metadata.pop("auth_info", None)
+        return context
     if context is None:
         context = ToolContext()
     else:
         existing = context.metadata.get("adcp.auth_info")
         if existing is not None and getattr(existing, "credential", None) is not None:
+            if signer.profile != "web-bot-auth" and authorization_error is not None:
+                # Independent bearer credentials cannot revive the deprecated
+                # signed profile after an origin's approved migration.
+                context = copy.copy(context)
+                context.metadata = {
+                    **context.metadata,
+                    _WBA_AUTHORIZATION_ERROR_KEY: authorization_error,
+                }
             return context
         # Copy so a factory that returns a shared instance never carries one
         # request's signer into another.
         context = copy.copy(context)
         context.metadata = dict(context.metadata)
+    if authorization_error is not None:
+        context.metadata[_WBA_AUTHORIZATION_ERROR_KEY] = authorization_error
+    if type(spend_committing) is bool:
+        context.metadata[_WBA_SPEND_COMMITTING_KEY] = spend_committing
     context.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(
         signer,
         extra=(
-            {"signing_profile": signer.profile, "principal_id": signer.principal_id}
+            {
+                "signing_profile": signer.profile,
+                "principal_id": signer.principal_id,
+                "wba_spend_committing": spend_committing,
+            }
             if signer.profile == "web-bot-auth"
             else None
         ),
@@ -797,6 +1108,7 @@ def wrap_with_signature_verification(
     transport: Literal["mcp", "a2a"],
     message_parser: Any = None,
     bearer_configured: bool = False,
+    defer_authorization_errors: bool = True,
 ) -> Any:
     """Wrap ``app`` with verification when ``config`` is set; else return it."""
     if config is None:
@@ -807,6 +1119,7 @@ def wrap_with_signature_verification(
         transport=transport,
         message_parser=message_parser,
         bearer_configured=bearer_configured,
+        defer_authorization_errors=defer_authorization_errors,
     )
 
 

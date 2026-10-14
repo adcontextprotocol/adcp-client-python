@@ -90,7 +90,11 @@ class WbaVerificationError(ValueError):
 
 
 class WbaAuthorizationError(WbaVerificationError):
-    """Established identity without authority; uses AdCP authorization semantics."""
+    """A key-policy rejection uses AdCP authentication semantics without a re-sign challenge.
+
+    A revoked key establishes no identity. Principal and grant authorization
+    after establishment uses the normal AdCP transport error binding.
+    """
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)

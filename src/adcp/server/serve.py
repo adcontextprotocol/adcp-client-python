@@ -57,6 +57,7 @@ from adcp.server.operational_routes import (
 from adcp.server.signed_requests import (
     apply_verified_signer,
     check_request_signature_verification,
+    check_wba_authorization,
     wrap_with_signature_verification,
 )
 from adcp.validation.client_hooks import (
@@ -715,6 +716,7 @@ async def _dispatch_with_middleware(
     exception-observation behaviors are owned by the transport-level
     executor, not the composer.
     """
+    check_wba_authorization(context)
     if not middleware:
         return await call_handler()
 
@@ -2071,6 +2073,7 @@ def _build_a2a_app(
         transport="a2a",
         message_parser=message_parser,
         bearer_configured=auth is not None,
+        defer_authorization_errors=request_handler is None,
     )
     if include_discovery:
         app = _wrap_with_discovery(
@@ -2338,6 +2341,7 @@ def _build_mcp_and_a2a_app(
         transport="a2a",
         message_parser=message_parser,
         bearer_configured=auth is not None,
+        defer_authorization_errors=request_handler is None,
     )
 
     # Lifespan composition: FastMCP's session manager initializes a
@@ -3243,6 +3247,7 @@ def _register_tool(
                     frozen_reporting_feed=frozen_reporting_feed,
                 )
             else:
+                check_wba_authorization(context)
                 result = await _call_handler()
         except ADCPError as exc:
             # AdCP-typed exceptions (IdempotencyConflictError, ADCPTaskError
