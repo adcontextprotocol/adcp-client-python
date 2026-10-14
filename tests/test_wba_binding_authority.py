@@ -34,7 +34,7 @@ from adcp.signing import (
     sign_wba_request,
 )
 from adcp.signing.middleware import VERIFIED_SIGNER_SCOPE_KEY
-from adcp.signing.trust import TrustRecordMatchError
+from adcp.signing.trust import TrustRecordMatchError, TrustRecordNotFoundError
 
 ORIGIN = "https://buyer.platform.com"
 TARGET = "https://seller.com/mcp"
@@ -342,8 +342,10 @@ async def test_binding_final_check_rejects_newer_policy_or_time_after_evaluation
                 mode[0], now[0] = newer_policy, 1061
                 try:
                     await evaluate("https://other.platform.com")
-                except ValueError:
-                    pass
+                except TrustRecordNotFoundError:
+                    # Retain the removal, then return the older in-flight listing
+                    # so the framework's final guard must reject that snapshot.
+                    assert newer_policy == "removed"
             return captured
 
         monkeypatch.setattr(records, "evaluate", delayed_evaluate)
