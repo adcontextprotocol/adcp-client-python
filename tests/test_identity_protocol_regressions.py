@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from adcp.decisioning import (
@@ -24,7 +26,15 @@ from adcp.decisioning.handler import PlatformHandler, _resolve_buyer_agent
 from adcp.decisioning.trust_grants import TrustGrantClaim, TrustGrantGate
 from adcp.decisioning.types import Account, AdcpError
 from adcp.server import ToolContext
-from adcp.signing import TrustGrantEvaluator, TrustRecordEvaluator, TrustResponse, trust_record_url
+from adcp.signing import (
+    TrustGrantEvaluator,
+    TrustRecordEvaluator,
+    TrustRecordMatchError,
+    TrustRecordUnavailableError,
+    TrustResponse,
+    trust_record_url,
+)
+from adcp.signing.trust import fetch_trust_record
 
 ORIGIN = "https://buyer.platform.com"
 LEGACY_PROFILE = "adcp/request-signing/v1"
@@ -455,3 +465,432 @@ async def test_undefined_operator_derivation_is_not_an_uncovered_grant(overrides
         result.require()
     assert error.value.code == "PERMISSION_DENIED"
     assert not error.value.details
+
+
+@pytest.mark.parametrize("when,allowed", [(1061, True), (1299.999, True), (1300, False)])
+async def test_public_record_outage_grace_is_bounded_and_never_fresh(when, allowed):
+    now, offline = [1000.0], [False]
+
+    async def fetch(url, *, allow_private=False):
+        if offline[0]:
+            raise OSError("offline")
+        return TrustResponse(
+            json.dumps({"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}).encode()
+        )
+
+    records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
+    initial = await records.evaluate(ORIGIN, role="adcp:buying")
+    assert records.polling_interval_seconds == 60
+    assert not initial.stale_on_outage
+    offline[0], now[0] = True, when
+    with pytest.raises(TrustRecordUnavailableError):
+        await records.evaluate(ORIGIN, role="adcp:buying")
+    if allowed:
+        cached = await records.evaluate(ORIGIN, role="adcp:buying", allow_stale_on_outage=True)
+        assert cached.stale_on_outage
+        assert cached.expires_at == 1060
+        assert cached.revision == initial.revision
+        await records.validate_snapshots((cached,), origin_or_domain=ORIGIN, role="adcp:buying")
+    else:
+        with pytest.raises(TrustRecordUnavailableError, match="grace"):
+            await records.evaluate(ORIGIN, role="adcp:buying", allow_stale_on_outage=True)
+
+
+async def test_initial_outage_cannot_create_record_authority():
+    async def fetch(url, *, allow_private=False):
+        raise OSError("offline before first read")
+
+    records = TrustRecordEvaluator(fetcher=fetch)
+    with pytest.raises(TrustRecordUnavailableError, match="no prior"):
+        await records.evaluate(ORIGIN, role="adcp:buying", allow_stale_on_outage=True)
+
+
+async def test_other_origin_negative_read_survives_global_capacity_and_age():
+    now, mode = [1000.0], ["listed"]
+    started, release = asyncio.Event(), asyncio.Event()
+    other_origin = "https://other.platform.com"
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url("busy.com"):
+            started.set()
+            await asyncio.wait_for(release.wait(), timeout=5)
+            return TrustResponse(json.dumps({"agents": []}).encode())
+        agents = [other_origin, ORIGIN] if mode[0] == "listed" else [other_origin]
+        return TrustResponse(
+            json.dumps(
+                {"agents": [{"url": origin, "roles": ["adcp:buying"]} for origin in agents]}
+            ).encode()
+        )
+
+    records = TrustRecordEvaluator(fetcher=fetch, max_records=1, clock=lambda: now[0])
+    await records.evaluate(ORIGIN, role="adcp:buying")
+    mode[0], now[0] = "delisted", 1061
+    await records.evaluate(other_origin, role="adcp:buying")
+    now[0] = 2000
+    pending = asyncio.create_task(records.evaluate("busy.com"))
+    await asyncio.wait_for(started.wait(), timeout=5)
+    try:
+        for allow_stale in (False, True):
+            with pytest.raises(TrustRecordMatchError):
+                await records.evaluate(
+                    ORIGIN, role="adcp:buying", allow_stale_on_outage=allow_stale
+                )
+    finally:
+        release.set()
+        await asyncio.wait_for(pending, timeout=5)
+
+
+@pytest.mark.parametrize("grantor", ["brand.com", "agency.com"])
+@pytest.mark.parametrize("status", [404, 410])
+async def test_removed_grantor_stays_grant_absent_during_later_outage(grantor, status):
+    now, mode, legacy_calls = [1000.0], ["published"], []
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url(grantor) and mode[0] != "published":
+            if mode[0] == "offline":
+                raise OSError("later outage")
+            return TrustResponse(b"", status)
+        document = (
+            {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+            if url == trust_record_url(ORIGIN)
+            else {
+                "grants": [
+                    {
+                        "grantee": (
+                            "agency.com" if url == trust_record_url("brand.com") else "platform.com"
+                        ),
+                        "scopes": ["adcp:media_buying"],
+                    }
+                ]
+            }
+        )
+        return TrustResponse(json.dumps(document).encode())
+
+    async def legacy(request):
+        legacy_calls.append(request)
+        return True
+
+    evaluator = TrustGrantEvaluator(
+        TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0]), legacy_authorization=legacy
+    )
+    claim = {"agent_origin": ORIGIN, "brand_domain": "brand.com", "account_operator": "agency.com"}
+    assert (await evaluator.check(**claim)).authorized
+    for phase, when in (("removed", 1061), ("offline", 1122)):
+        mode[0], now[0] = phase, when
+        result = await evaluator.check(**claim, allow_stale_on_outage=True)
+        assert not result.authorized
+        assert result.error_code == "PERMISSION_DENIED"
+        assert result.include_grant_absent_details
+        assert result.reason == "grant_absent"
+    assert not legacy_calls
+
+
+@pytest.mark.parametrize("grant_expiry", [None, 1200])
+async def test_grant_grace_checks_all_chain_records_and_hard_validity(grant_expiry):
+    now, offline = [1000.0], [False]
+
+    async def fetch(url, *, allow_private=False):
+        if offline[0]:
+            raise OSError("offline")
+        now[0] += 10
+        if url == trust_record_url(ORIGIN):
+            document = {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+        else:
+            grant = {
+                "grantee": "agency.com" if url == trust_record_url("brand.com") else "platform.com",
+                "scopes": ["adcp:media_buying"],
+            }
+            if grant_expiry is not None:
+                grant["valid_until"] = "1970-01-01T00:20:00Z"
+            document = {"grants": [grant]}
+        return TrustResponse(json.dumps(document).encode())
+
+    evaluator = TrustGrantEvaluator(TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0]))
+    claim = {"agent_origin": ORIGIN, "brand_domain": "brand.com", "account_operator": "agency.com"}
+    initial = await evaluator.check(**claim)
+    assert initial.authorized
+    assert initial.expires_at == 1060
+    assert initial.outage_expires_at == (grant_expiry or 1300)
+    offline[0], now[0] = True, (grant_expiry or 1300) - 0.001
+    grace = await evaluator.check(**claim, allow_stale_on_outage=True)
+    assert grace.authorized and grace.stale_on_outage
+    assert grace.outage_expires_at == initial.outage_expires_at
+    now[0] = grant_expiry or 1300
+    expired = await evaluator.check(**claim, allow_stale_on_outage=True)
+    assert not expired.authorized
+    assert expired.error_code == ("PERMISSION_DENIED" if grant_expiry else "SERVICE_UNAVAILABLE")
+
+
+async def test_shared_grantor_latest_withdrawal_overrides_older_claim_snapshot():
+    now, mode = [1000.0], ["allowed"]
+
+    async def fetch(url, *, allow_private=False):
+        if mode[0] == "offline":
+            raise OSError("offline")
+        document = (
+            {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+            if url == trust_record_url(ORIGIN)
+            else {
+                "exclusive_grants": True,
+                "grants": [
+                    {
+                        "grantee": "platform.com" if mode[0] == "allowed" else "other.com",
+                        "scopes": ["adcp:media_buying"],
+                    }
+                ],
+            }
+        )
+        return TrustResponse(json.dumps(document).encode())
+
+    records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
+    evaluator = TrustGrantEvaluator(records)
+    claim = {
+        "agent_origin": ORIGIN,
+        "brand_domain": "brand.com",
+        "account_operator": "platform.com",
+    }
+    assert (await evaluator.check(**claim)).authorized
+    mode[0], now[0] = "withdrawn", 1061
+    await records.evaluate("brand.com")  # Another account refreshes this grantor.
+    mode[0], now[0] = "offline", 1122
+    result = await evaluator.check(**claim, allow_stale_on_outage=True)
+    assert not result.authorized
+    assert result.error_code == "PERMISSION_DENIED"
+    assert result.reason == "grant_absent"
+
+
+async def test_captured_listing_cannot_approve_after_other_origin_refresh_delists_it():
+    now, delisted = [1000.0], [False]
+    started, release = asyncio.Event(), asyncio.Event()
+    other_origin = "https://other.platform.com"
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url("brand.com"):
+            started.set()
+            await asyncio.wait_for(release.wait(), timeout=5)
+            document = {"grants": [{"grantee": "platform.com", "scopes": ["adcp:media_buying"]}]}
+        elif url == trust_record_url(ORIGIN):
+            origins = [other_origin] if delisted[0] else [ORIGIN, other_origin]
+            document = {"agents": [{"url": origin, "roles": ["adcp:buying"]} for origin in origins]}
+        else:
+            document = {"agents": []}
+        return TrustResponse(json.dumps(document).encode())
+
+    records = TrustRecordEvaluator(fetcher=fetch, max_records=2, clock=lambda: now[0])
+    captured = await records.evaluate(ORIGIN, role="adcp:buying")
+    claim = {
+        "agent_origin": ORIGIN,
+        "brand_domain": "brand.com",
+        "account_operator": "platform.com",
+    }
+    pending = asyncio.create_task(TrustGrantEvaluator(records).check(**claim))
+    await asyncio.wait_for(started.wait(), timeout=5)
+    try:
+        # Evict transport/cache entries while the original snapshot remains
+        # inside its TTL, allowing an independent origin to read newer policy.
+        await records.evaluate("other.com")
+        await records.evaluate("third.com")
+        delisted[0], now[0] = True, 1001
+        newer = await records.evaluate(other_origin, role="adcp:buying")
+        assert newer.revision > captured.revision
+        assert not await records.snapshots_current((captured,))
+        release.set()
+        result = await asyncio.wait_for(pending, timeout=5)
+        assert not result.authorized
+        assert result.error_code == "PERMISSION_DENIED"
+        assert not result.include_grant_absent_details
+        with pytest.raises(TrustRecordMatchError):
+            await records.validate_snapshots(
+                (captured,), origin_or_domain=ORIGIN, role="adcp:buying"
+            )
+    finally:
+        release.set()
+        if not pending.done():
+            await asyncio.wait_for(pending, timeout=5)
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", LEGACY_PROFILE])
+async def test_brand_publication_during_legacy_callback_supersedes_old_fallback(signing_profile):
+    now, published = [1000.0], [False]
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url(ORIGIN):
+            document = {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+        elif not published[0]:
+            return TrustResponse(b"", 404)
+        else:
+            document = {"grants": []}
+        return TrustResponse(json.dumps(document).encode())
+
+    async def legacy(request):
+        entered.set()
+        await asyncio.wait_for(release.wait(), timeout=5)
+        return True
+
+    records = TrustRecordEvaluator(
+        fetcher=fetch, polling_interval_seconds=1800, clock=lambda: now[0]
+    )
+    evaluator = TrustGrantEvaluator(records, legacy_authorization=legacy)
+    pending = asyncio.create_task(
+        evaluator.check(
+            agent_origin=ORIGIN,
+            brand_domain="brand.com",
+            account_operator="platform.com",
+            signing_profile=signing_profile,
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=5)
+    try:
+        # The negative retry cache expires while the operator remains fresh.
+        published[0], now[0] = True, 1061
+        await records.evaluate("brand.com")
+        release.set()
+        result = await asyncio.wait_for(pending, timeout=5)
+        assert not result.authorized
+        assert result.error_code == "SERVICE_UNAVAILABLE"
+        assert result.reason == "trust_record_changed_during_evaluation"
+        assert not result.legacy_fallback_allowed
+    finally:
+        release.set()
+        if not pending.done():
+            await asyncio.wait_for(pending, timeout=5)
+
+
+@pytest.mark.parametrize("status", [404, 410, 500, 503, 429, 401, 403, 302])
+async def test_production_trust_fetch_preserves_error_status_without_consuming_body(
+    monkeypatch, status
+):
+    consumed = []
+
+    class UnreadableErrorPage(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            consumed.append(True)
+            raise AssertionError("Error response bodies must not be consumed")
+            yield b""
+
+    def respond(request):
+        return httpx.Response(
+            status,
+            headers={"content-encoding": "gzip", "content-length": str(3 * 1024 * 1024)},
+            stream=UnreadableErrorPage(),
+        )
+
+    monkeypatch.setattr(
+        "adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport",
+        lambda url, *, allow_private: httpx.MockTransport(respond),
+    )
+    response = await fetch_trust_record(trust_record_url("brand.com"))
+    assert response.status == status
+    assert response.body == b""
+    assert not consumed
+
+
+@pytest.mark.parametrize("status", [404, 410, 500, 503, 429, 401, 403, 302])
+async def test_custom_fetcher_error_page_preserves_removal_or_outage_grace(status):
+    now, fail = [1000.0], [False]
+
+    async def fetch(url, *, allow_private=False):
+        if url == trust_record_url(ORIGIN):
+            document = {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}
+        elif fail[0]:
+            return TrustResponse(b"x" * (3 * 1024 * 1024), status)
+        else:
+            document = {"grants": [{"grantee": "platform.com", "scopes": ["adcp:media_buying"]}]}
+        return TrustResponse(json.dumps(document).encode())
+
+    evaluator = TrustGrantEvaluator(TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0]))
+    claim = {
+        "agent_origin": ORIGIN,
+        "brand_domain": "brand.com",
+        "account_operator": "platform.com",
+    }
+    assert (await evaluator.check(**claim)).authorized
+    fail[0], now[0] = True, 1061
+    fresh = await evaluator.check(**claim)
+    assert not fresh.authorized
+    grace = await evaluator.check(**claim, allow_stale_on_outage=True)
+    if status in {404, 410}:
+        assert fresh.error_code == grace.error_code == "PERMISSION_DENIED"
+        assert fresh.reason == grace.reason == "grant_absent"
+        assert fresh.include_grant_absent_details and grace.include_grant_absent_details
+    else:
+        assert fresh.error_code == "SERVICE_UNAVAILABLE"
+        assert grace.authorized and grace.stale_on_outage
+        assert grace.outage_expires_at == 1300
+
+
+@pytest.mark.parametrize(
+    "guard_headers,read_timeout,total_deadline",
+    [
+        ({"content-encoding": "gzip"}, False, False),
+        ({"content-length": str(3 * 1024 * 1024)}, False, False),
+        ({}, True, False),
+        ({}, False, True),
+    ],
+)
+async def test_rejected_production_200_still_supersedes_legacy_fallback(
+    monkeypatch, guard_headers, read_timeout, total_deadline
+):
+    now, removed, legacy_calls = [1000.0], [False], []
+    cancelled = []
+
+    if total_deadline:
+        original_wait_for = asyncio.wait_for
+
+        async def shortened_deadline(awaitable, timeout):
+            return await original_wait_for(awaitable, timeout=1 if timeout == 10 else timeout)
+
+        monkeypatch.setattr("adcp.signing.trust.asyncio.wait_for", shortened_deadline)
+
+    class GuardedBody(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            if read_timeout:
+                raise httpx.ReadTimeout("body stalled after HTTP 200")
+            if total_deadline:
+                try:
+                    # Independent bound: removing the production deadline must
+                    # fail this fixture promptly instead of hanging CI.
+                    await original_wait_for(asyncio.Event().wait(), timeout=5)
+                except asyncio.CancelledError:
+                    cancelled.append(True)
+                    raise
+            pytest.fail("The 200 body guard must reject before consuming bytes")
+            yield b""
+
+    def respond(request):
+        return httpx.Response(
+            404 if removed[0] else 200, headers=guard_headers, stream=GuardedBody()
+        )
+
+    monkeypatch.setattr(
+        "adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport",
+        lambda url, *, allow_private: httpx.MockTransport(respond),
+    )
+
+    async def legacy(request):
+        legacy_calls.append(request)
+        return True
+
+    evaluator = TrustGrantEvaluator(
+        TrustRecordEvaluator(clock=lambda: now[0]), legacy_authorization=legacy
+    )
+    claim = {
+        "agent_origin": ORIGIN,
+        "brand_domain": "brand.com",
+        "account_operator": "platform.com",
+        "signing_profile": LEGACY_PROFILE,
+    }
+    rejected = await evaluator.check(**claim)
+    assert not rejected.authorized
+    assert rejected.error_code == (
+        "SERVICE_UNAVAILABLE" if read_timeout or total_deadline else "PERMISSION_DENIED"
+    )
+    assert bool(cancelled) == total_deadline
+    assert not rejected.include_grant_absent_details
+    removed[0], now[0] = True, 1061
+    removal = await evaluator.check(**claim)
+    assert not removal.authorized
+    assert removal.reason == "grant_absent"
+    assert not removal.legacy_fallback_allowed
+    assert not legacy_calls

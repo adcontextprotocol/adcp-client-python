@@ -14,6 +14,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
@@ -99,6 +100,13 @@ class WbaAuthorizationError(WbaVerificationError):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.headers = {}
+
+
+class WbaUnavailableError(WbaVerificationError):
+    """Identity cannot be checked during an outage; retry without serving the request."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason, status=503)
 
 
 def _dictionary(value: str | None) -> Dictionary:
@@ -531,10 +539,28 @@ async def fetch_key_directory(url: str, *, allow_private: bool = False) -> Direc
                 return DirectoryResponse(
                     status=response.status_code,
                     headers=dict(response.headers),
-                    body=await async_read_limited_bytes(response, limit=256 * 1024),
+                    body=(
+                        await async_read_limited_bytes(response, limit=256 * 1024)
+                        if response.status_code == 200
+                        else b""
+                    ),
                 )
 
     return await asyncio.wait_for(fetch(), timeout=10)
+
+
+@dataclass(frozen=True)
+class _DirectoryFailure:
+    reason: str
+    status: int
+    unavailable: bool
+
+    def exception(self) -> WbaVerificationError:
+        return (
+            WbaUnavailableError(self.reason)
+            if self.unavailable
+            else WbaVerificationError(self.reason, status=self.status)
+        )
 
 
 @dataclass
@@ -543,6 +569,7 @@ class _DirectoryCache:
     keys: dict[str, dict[str, Any]]
     expires: float
     retry_after: float = 0
+    failure: _DirectoryFailure | None = None
 
 
 class DiscoveredSignerKeys:
@@ -589,11 +616,13 @@ class DiscoveredSignerKeys:
                 key = cached.keys.get(keyid)
                 return ResolvedSignerKey(origin, dict(key)) if key is not None else None
             if cached is not None and cached.retry_after > now:
-                raise WbaVerificationError("key directory discovery is cooling down")
+                if cached.failure is not None:
+                    raise cached.failure.exception()
+                raise WbaUnavailableError("key directory discovery is cooling down")
             task = self._pending.get(origin)
             if task is None:
                 if len(self._pending) >= self._max_origins:
-                    raise WbaVerificationError("directory discovery capacity exceeded", status=429)
+                    raise WbaUnavailableError("directory discovery capacity exceeded")
                 task = asyncio.create_task(self._refresh(origin, cached))
                 # A cancelled HTTP request must not cancel discovery for other
                 # waiters or leave an unobserved exception in a background task.
@@ -611,6 +640,8 @@ class DiscoveredSignerKeys:
                 origin + DIRECTORY_PATH, allow_private=self._allow_private
             )
             now = self._clock()
+            if response.status not in (200, 404, 410):
+                raise WbaUnavailableError("key directory temporarily unavailable")
             keys = verify_directory_response(origin, response, now=now)
             inputs = _dictionary(_lookup(response.headers, "signature-input"))
             expires = min(now + 300, *(float(m.params["expires"]) for m in inputs.values()))
@@ -621,14 +652,28 @@ class DiscoveredSignerKeys:
                 self._trim()
             return fresh
         except Exception as exc:
+            failure = (
+                exc
+                if isinstance(exc, WbaVerificationError)
+                else (
+                    WbaVerificationError("invalid key directory response")
+                    if isinstance(exc, ValueError)
+                    else WbaUnavailableError("key directory discovery failed")
+                )
+            )
             # Keep the previous signed snapshot as evidence. Expired keys never
             # authenticate requests, and a fetch failure never proves removal.
             async with self._lock:
                 failed = previous or _DirectoryCache(None, {}, 0)
                 failed.retry_after = self._clock() + 60
+                failed.failure = _DirectoryFailure(
+                    failure.reason, failure.status, isinstance(failure, WbaUnavailableError)
+                )
                 self._cache[origin] = failed
                 self._trim()
-            raise WbaVerificationError("key directory discovery failed") from exc
+            if failure is exc:
+                raise
+            raise failure from exc
         finally:
             self._pending.pop(origin, None)
 
@@ -716,7 +761,7 @@ async def verify_wba_request(
         except WbaVerificationError:
             raise
         except Exception as exc:
-            raise WbaVerificationError("signer key resolution failed", label=label) from exc
+            raise WbaUnavailableError("signer key resolution unavailable") from exc
         if (
             key is None
             or canonical_origin(key.agent_url) != origin
@@ -730,7 +775,13 @@ async def verify_wba_request(
             digest = _lookup(headers, "content-digest")
             if digest is None or not content_digest_matches(digest, body):
                 raise WbaVerificationError("request digest mismatch", label=label)
-        if await revocation_checker(origin, keyid):
+        try:
+            revoked = await revocation_checker(origin, keyid)
+        except WbaVerificationError:
+            raise
+        except Exception as exc:
+            raise WbaUnavailableError("origin revocation status unavailable") from exc
+        if revoked:
             raise WbaAuthorizationError("signing key revoked")
         verified.append(
             (
@@ -770,6 +821,7 @@ async def verify_wba_request(
 __all__ = [
     "OriginRevocationChecker",
     "WbaAuthorizationError",
+    "WbaUnavailableError",
     "DIRECTORY_MEDIA_TYPE",
     "DirectoryResponse",
     "DiscoveredSignerKeys",
@@ -801,6 +853,7 @@ class OriginRevocationChecker:
         max_origins: int = 256,
         max_origins_per_operator: int = 8,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
         if max_origins <= 0 or max_origins_per_operator <= 0:
             raise ValueError("origin admission limits must be positive")
@@ -809,6 +862,7 @@ class OriginRevocationChecker:
         self._max_origins = max_origins
         self._max_origins_per_operator = max_origins_per_operator
         self._clock = clock
+        self._wall_clock = wall_clock
         self._checkers: dict[str, Any] = {}
         self._pending: dict[str, asyncio.Task[Any]] = {}
         self._failures: OrderedDict[str, float] = OrderedDict()
@@ -822,22 +876,18 @@ class OriginRevocationChecker:
             if checker is None:
                 if self._failures.get(origin, 0) > self._clock():
                     self._failures.move_to_end(origin)
-                    raise WbaVerificationError("origin revocation discovery is cooling down")
+                    raise WbaUnavailableError("origin revocation discovery is cooling down")
                 task = self._pending.get(origin)
                 if task is None:
                     if len(self._checkers) + len(self._pending) >= self._max_origins:
-                        raise WbaVerificationError(
-                            "origin revocation capacity exceeded", status=429
-                        )
+                        raise WbaUnavailableError("origin revocation capacity exceeded")
                     operator = self._operator(origin)
                     admitted = sum(
                         self._operator(admitted_origin) == operator
                         for admitted_origin in (*self._checkers, *self._pending)
                     )
                     if admitted >= self._max_origins_per_operator:
-                        raise WbaVerificationError(
-                            "operator revocation capacity exceeded", status=429
-                        )
+                        raise WbaUnavailableError("operator revocation capacity exceeded")
                     task = asyncio.create_task(self._discover(origin))
                     task.add_done_callback(
                         lambda done: done.exception() if not done.cancelled() else None
@@ -849,7 +899,7 @@ class OriginRevocationChecker:
         try:
             return bool(await checker(keyid))
         except Exception as exc:
-            raise WbaVerificationError("origin revocation status unavailable") from exc
+            raise WbaUnavailableError("origin revocation status unavailable") from exc
 
     @staticmethod
     def _operator(origin: str) -> str:
@@ -862,6 +912,7 @@ class OriginRevocationChecker:
     async def _discover(self, origin: str) -> Any:
         from adcp.signing.revocation_fetcher import AsyncCachingRevocationChecker
 
+        checker = None
         try:
 
             async def resolve(keyid: str) -> dict[str, Any] | None:
@@ -869,11 +920,15 @@ class OriginRevocationChecker:
                 return dict(resolved.jwk) if resolved is not None else None
 
             checker = AsyncCachingRevocationChecker.from_issuer_origin(
-                origin, jwks_resolver=resolve, fetcher=self._fetcher
+                origin,
+                jwks_resolver=resolve,
+                fetcher=self._fetcher,
+                grace_multiplier=4,
+                clock=self._clock,
+                wall_clock=self._wall_clock,
             )
-            # Reserve permanent history only after a signed, fresh list has
-            # actually been authenticated. A 404 or attacker-controlled outage
-            # must not consume an origin slot until process restart.
+            # Authenticated revocations are permanent history. A 404 or
+            # transport failure with no signed evidence consumes no slot.
             await checker.aprime()
             async with self._lock:
                 self._checkers[origin] = checker
@@ -881,11 +936,15 @@ class OriginRevocationChecker:
             return checker
         except Exception as exc:
             async with self._lock:
+                if checker is not None and checker.has_verified_list:
+                    # Freshness failure denies this request but cannot erase
+                    # revocations learned from the authenticated document.
+                    self._checkers[origin] = checker
                 self._failures[origin] = self._clock() + 60
                 self._failures.move_to_end(origin)
                 while len(self._failures) > self._max_origins:
                     self._failures.popitem(last=False)
-            raise WbaVerificationError("origin revocation status unavailable") from exc
+            raise WbaUnavailableError("origin revocation status unavailable") from exc
         finally:
             async with self._lock:
                 self._pending.pop(origin, None)

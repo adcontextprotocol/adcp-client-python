@@ -707,11 +707,14 @@ async def test_framework_checks_origin_revocations_by_default(monkeypatch, revoc
         response = await client.post("/mcp", content=body, headers=headers)
     assert calls == [origin + "/.well-known/governance-revocations.json"]
     assert bool(dispatched) == (revocation_state == "clear")
-    assert response.status_code == (
-        403 if revocation_state == "unavailable" else 200
-    ), response.text
+    assert response.status_code == 200, response.text
     if revocation_state == "revoked":
         error = _mcp_adcp_error(response)
         assert error["code"] == "PERMISSION_DENIED"
         assert error["message"] == "Authentication failed"
+        assert "Accept-Signature" not in response.headers
+    elif revocation_state == "unavailable":
+        error = _mcp_adcp_error(response)
+        assert error["code"] == "SERVICE_UNAVAILABLE"
+        assert error["recovery"] == "transient"
         assert "Accept-Signature" not in response.headers

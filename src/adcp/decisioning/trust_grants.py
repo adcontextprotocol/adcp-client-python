@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 from _thread import LockType
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -38,6 +39,7 @@ _ClaimKey = tuple[str, str | None, str | None, str, str | None, frozenset[str]]
 @dataclass
 class _DenialHistory:
     denials: dict[_ClaimKey, tuple[int, GrantAuthorization]] = field(default_factory=dict)
+    positives: OrderedDict[_ClaimKey, GrantAuthorization] = field(default_factory=OrderedDict)
     revision: int = 0
     saturated_revision: int | None = None
     lock: LockType = field(default_factory=threading.Lock)
@@ -145,6 +147,32 @@ class TrustGrantGate:
             scope=claim.scope,
             signing_profile=signing_profile,
         )
+        continuity_deadline: float | None = None
+        if result.error_code == "SERVICE_UNAVAILABLE" and allow_cached_binding_on_outage:
+            with self._history.lock:
+                positive = self._history.positives.get(key)
+                if (
+                    key not in self._history.denials
+                    and self._history.saturated_revision is None
+                    and positive is not None
+                    and positive.outage_expires_at is not None
+                    and positive.outage_expires_at > self.evaluator.current_time()
+                ):
+                    continuity_deadline = positive.outage_expires_at
+            if continuity_deadline is not None:
+                # A positive claim alone is insufficient: another request may
+                # have read a newer owner withdrawal or delisting. Revalidate
+                # every link against the latest retained record snapshots.
+                result = await self.evaluator.check(
+                    agent_origin=agent.agent_url,
+                    brand_domain=claim.brand_domain,
+                    account_operator=claim.account_operator,
+                    brand_id=claim.brand_id,
+                    countries=claim.countries,
+                    scope=claim.scope,
+                    signing_profile=signing_profile,
+                    allow_stale_on_outage=True,
+                )
         with self._history.lock:
             denied = self._history.denials.get(key)
             if result.authorized:
@@ -158,9 +186,36 @@ class TrustGrantGate:
                     result = GrantAuthorization(
                         False, error_code="SERVICE_UNAVAILABLE", include_grant_absent_details=False
                     )
+                elif continuity_deadline is not None:
+                    if (
+                        result.outage_expires_at is None
+                        or min(continuity_deadline, result.outage_expires_at)
+                        <= self.evaluator.current_time()
+                    ):
+                        result = GrantAuthorization(
+                            False,
+                            error_code="SERVICE_UNAVAILABLE",
+                            include_grant_absent_details=False,
+                        )
+                    # An outage read must never refresh the retained proof.
+                elif (
+                    result.expires_at is not None
+                    and result.expires_at <= self.evaluator.current_time()
+                ):
+                    result = GrantAuthorization(
+                        False, error_code="SERVICE_UNAVAILABLE", include_grant_absent_details=False
+                    )
                 else:
                     self._history.denials.pop(key, None)
+                    if result.outage_expires_at is not None:
+                        self._history.positives[key] = result
+                        self._history.positives.move_to_end(key)
+                        while len(self._history.positives) > self.max_denials:
+                            # Forgetting a positive closes outage access; unlike
+                            # withdrawals, it is safe to bound these snapshots.
+                            self._history.positives.popitem(last=False)
             elif result.error_code == "PERMISSION_DENIED":
+                self._history.positives.pop(key, None)
                 self._history.revision += 1
                 if denied is not None or len(self._history.denials) < self.max_denials:
                     self._history.denials[key] = (self._history.revision, result)
@@ -172,8 +227,6 @@ class TrustGrantGate:
             elif result.error_code == "SERVICE_UNAVAILABLE":
                 if denied is not None:
                     result = denied[1]
-                elif allow_cached_binding_on_outage and self._history.saturated_revision is None:
-                    return
         result.require()
 
     async def require_account(

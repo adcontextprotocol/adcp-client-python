@@ -50,7 +50,7 @@ def grant_gate(failure: str) -> tuple[TrustGrantGate, TrustRecordEvaluator]:
 
 
 def changing_grant_gate(
-    *, initial: str, max_denials: int = 4096
+    *, initial: str, max_denials: int = 4096, grant_valid_until: str | None = None
 ) -> tuple[TrustGrantGate, list[str], list[float]]:
     mode, now = [initial], [1000.0]
 
@@ -69,6 +69,8 @@ def changing_grant_gate(
                     }
                 ],
             }
+            if grant_valid_until is not None:
+                document["grants"][0]["valid_until"] = grant_valid_until
         return TrustResponse(json.dumps(document).encode())
 
     records = TrustRecordEvaluator(fetcher=fetch, clock=lambda: now[0])
@@ -115,6 +117,44 @@ async def test_fresh_restored_grant_clears_previously_observed_denial() -> None:
     await require_existing_claim(gate)
     mode[0], now[0] = "offline", now[0] + 61
     await require_existing_claim(gate)
+
+
+@pytest.mark.parametrize("grace_offset,allowed", [(239, True), (240, False), (241, False)])
+async def test_positive_claim_outage_continuity_has_a_fixed_grace_deadline(
+    grace_offset: int, allowed: bool
+) -> None:
+    gate, mode, now = changing_grant_gate(initial="allowed")
+    await require_existing_claim(gate)
+    mode[0], now[0] = "offline", 1061
+    await require_existing_claim(gate)
+    # Freshness expires at 1060; a successful outage read never refreshes the
+    # original four-polling-interval grace deadline of 1300.
+    now[0] = 1060 + grace_offset
+    if allowed:
+        await require_existing_claim(gate)
+    else:
+        with pytest.raises(AdcpError, match="SERVICE_UNAVAILABLE"):
+            await require_existing_claim(gate)
+
+
+async def test_initial_trust_outage_cannot_create_claim_authority() -> None:
+    gate, _ = grant_gate("offline")
+    with pytest.raises(AdcpError, match="SERVICE_UNAVAILABLE"):
+        await gate.require_account(
+            Account(id="existing"), BUYER, operation="get_products", bound_wba_identity=True
+        )
+
+
+async def test_outage_grace_never_extends_an_explicit_grant_expiry() -> None:
+    gate, mode, now = changing_grant_gate(
+        initial="allowed", grant_valid_until="1970-01-01T00:17:50Z"
+    )
+    await require_existing_claim(gate)
+    mode[0], now[0] = "offline", 1061
+    await require_existing_claim(gate)
+    now[0] = 1070
+    with pytest.raises(AdcpError, match="SERVICE_UNAVAILABLE"):
+        await require_existing_claim(gate)
 
 
 async def test_claim_aliases_and_country_order_cannot_bypass_known_denial() -> None:
@@ -229,14 +269,14 @@ async def test_grant_error_codes_separate_outage_from_authorization(failure: str
 async def test_bound_existing_account_nonspend_continues_on_true_outage(
     operation: str, params: dict[str, Any] | None
 ) -> None:
-    gate, _ = grant_gate("offline")
-    await gate.require_account(
-        Account(id="existing"),
-        BUYER,
-        operation=operation,
-        operation_params=params,
-        bound_wba_identity=True,
-    )
+    gate, mode, now = changing_grant_gate(initial="allowed")
+    account = Account(id="existing", metadata={"claim": CLAIM})
+    for state in ("allowed", "offline"):
+        mode[0] = state
+        await gate.require_account(
+            account, BUYER, operation=operation, operation_params=params, bound_wba_identity=True
+        )
+        now[0] += 61
 
 
 @pytest.mark.parametrize("operation", ["sync_accounts", "create_media_buy", "unknown_operation"])
@@ -536,12 +576,17 @@ async def assert_public_typed_error(
 
 
 @pytest.mark.parametrize("transport", ["mcp", "a2a"])
+@pytest.mark.parametrize(
+    "signer_failure",
+    ["revoked", "directory_offline", "directory_503", "directory_429", "revocation_offline"],
+)
 async def test_revoked_key_projects_error_without_authentication_or_business_effects(
-    transport: str, monkeypatch: pytest.MonkeyPatch
+    transport: str, signer_failure: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from adcp.server import ToolContext
     from adcp.server.auth import BearerTokenAuth, current_principal
     from adcp.server.signed_requests import current_verified_signer, verified_signer_for_request
+    from adcp.signing import DirectoryResponse, DiscoveredSignerKeys, OriginRevocationChecker
 
     monkeypatch.setenv("ADCP_SANDBOX", "1")
     private = Ed25519PrivateKey.generate()
@@ -574,12 +619,31 @@ async def test_revoked_key_projects_error_without_authentication_or_business_eff
 
     async def revoked(origin: str, keyid: str) -> bool:
         assert origin == ORIGIN and keyid == jwk["kid"]
-        return True
+        return signer_failure == "revoked"
+
+    async def directory_fetch(url: str, *, allow_private: bool = False) -> DirectoryResponse:
+        if signer_failure == "directory_offline":
+            raise OSError("directory offline")
+        return DirectoryResponse(b"", {}, status=503 if signer_failure == "directory_503" else 429)
+
+    async def revocation_fetch(url: str, *, allow_private: bool = False) -> Any:
+        raise OSError("revocation list unavailable past grace")
+
+    signer_keys = (
+        DiscoveredSignerKeys(fetcher=directory_fetch)
+        if signer_failure.startswith("directory_")
+        else StaticSignerKeys({ORIGIN: {"keys": [jwk]}})
+    )
+    revocation_checker = (
+        OriginRevocationChecker(signer_keys, fetcher=revocation_fetch)
+        if signer_failure == "revocation_offline"
+        else revoked
+    )
 
     config = RequestSignatureVerification(
-        signer_keys=StaticSignerKeys({ORIGIN: {"keys": [jwk]}}),
+        signer_keys=signer_keys,
         enable_web_bot_auth=True,
-        wba_revocation_checker=revoked,
+        wba_revocation_checker=revocation_checker,
     )
     app = _build_mcp_and_a2a_app(
         Handler(),
@@ -662,6 +726,9 @@ async def test_revoked_key_projects_error_without_authentication_or_business_eff
             for part in artifact["parts"]
             if part.get("kind") == "data"
         )
-    assert error is not None and error["code"] == "PERMISSION_DENIED"
+    assert error is not None and error["code"] == (
+        "PERMISSION_DENIED" if signer_failure == "revoked" else "SERVICE_UNAVAILABLE"
+    )
+    assert error["recovery"] == ("correctable" if signer_failure == "revoked" else "transient")
     assert not error.get("details")
     await assert_public_typed_error(transport, wire, error, monkeypatch)

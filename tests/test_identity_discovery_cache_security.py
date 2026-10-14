@@ -448,7 +448,7 @@ async def test_operator_revocation_admission_quota_leaves_room_for_other_operato
         assert not await checker(f"https://buyer-{index}.agency.com", jwk["kid"])
     with pytest.raises(WbaVerificationError, match="operator") as exc:
         await checker("https://buyer-3.agency.com", jwk["kid"])
-    assert exc.value.status == 429
+    assert exc.value.status == 503
     assert not await checker("https://buyer.other.com", jwk["kid"])
     assert len(checker._checkers) == 3
 

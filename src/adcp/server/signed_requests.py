@@ -70,6 +70,7 @@ from adcp.signing.verifier import (
 from adcp.signing.wba import (
     OriginRevocationChecker,
     WbaAuthorizationError,
+    WbaUnavailableError,
     WbaVerificationError,
     uses_web_bot_auth,
     verify_wba_request,
@@ -464,9 +465,17 @@ class SignedRequestVerificationMiddleware:
                     try:
                         if not self._config.enable_web_bot_auth:
                             raise WbaVerificationError("Web Bot Auth is not enabled")
-                        if await self._config.wba_revocation_checker(
-                            existing.agent_url, existing.key_id
-                        ):
+                        try:
+                            revoked = await self._config.wba_revocation_checker(
+                                existing.agent_url, existing.key_id
+                            )
+                        except WbaVerificationError:
+                            raise
+                        except Exception as error:
+                            raise WbaUnavailableError(
+                                "origin revocation status unavailable"
+                            ) from error
+                        if revoked:
                             raise WbaAuthorizationError("signing key revoked")
                         target = _jsonrpc_target(
                             json.dumps(existing.parsed_body).encode(),
@@ -478,9 +487,13 @@ class SignedRequestVerificationMiddleware:
                             existing, target.operation or target.method or ""
                         )
                     except WbaVerificationError as exc:
-                        if isinstance(exc, WbaAuthorizationError):
+                        if isinstance(exc, (WbaAuthorizationError, WbaUnavailableError)):
                             await self._project_wba_authentication_error(
-                                scope, receive, send, json.dumps(existing.parsed_body).encode()
+                                scope,
+                                receive,
+                                send,
+                                json.dumps(existing.parsed_body).encode(),
+                                exc,
                             )
                             return
                         await self._reject_wba(scope, receive, send, exc)
@@ -567,8 +580,8 @@ class SignedRequestVerificationMiddleware:
         try:
             signer, authorization_error = await self._verify(scope, body, label, posture)
         except WbaVerificationError as exc:
-            if isinstance(exc, WbaAuthorizationError):
-                await self._project_wba_authentication_error(scope, replay, send, body)
+            if isinstance(exc, (WbaAuthorizationError, WbaUnavailableError)):
+                await self._project_wba_authentication_error(scope, replay, send, body, exc)
                 return
             await self._reject_wba(scope, replay, send, exc)
             return
@@ -693,20 +706,25 @@ class SignedRequestVerificationMiddleware:
                 recovery="transient",
             )
         try:
-            await config.trust_records.evaluate(signer.agent_url or "", role=config.binding_role)
+            record = await config.trust_records.evaluate(
+                signer.agent_url or "",
+                role=config.binding_role,
+                allow_stale_on_outage=not self._is_spend_committing(signer, operation),
+            )
+            await config.trust_records.validate_snapshots(
+                (record,), origin_or_domain=signer.agent_url or "", role=config.binding_role
+            )
         except (TrustRecordMatchError, TrustRecordNotFoundError):
             self._binding_membership[signer.agent_url or ""] = False
             return self._identity_established(signer, operation)
         except TrustRecordUnavailableError:
             if not self._binding_membership.get(signer.agent_url or "", True):
                 return self._identity_established(signer, operation)
-            if self._is_spend_committing(signer, operation):
-                return replace(signer, principal_id=principal), AdcpError(
-                    "SERVICE_UNAVAILABLE",
-                    message="Operator trust record is temporarily unavailable",
-                    recovery="transient",
-                )
-            return replace(signer, principal_id=principal), None
+            return replace(signer, principal_id=principal), AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Operator trust record is temporarily unavailable",
+                recovery="transient",
+            )
         except TrustRecordError as exc:
             self._binding_membership[signer.agent_url or ""] = False
             logger.info("operator trust record rejected", extra={"reason": type(exc).__name__})
@@ -757,35 +775,61 @@ class SignedRequestVerificationMiddleware:
         self, scope: Any, receive: Any, send: Any, exc: WbaVerificationError
     ) -> None:
         payload = (
-            {"errors": [{"code": "PERMISSION_DENIED", "message": "Authentication failed"}]}
-            if isinstance(exc, WbaAuthorizationError)
-            else {"error": "Request signature verification failed"}
+            {
+                "errors": [
+                    {
+                        "code": "SERVICE_UNAVAILABLE",
+                        "message": "Signer identity is temporarily unavailable",
+                        "recovery": "transient",
+                    }
+                ]
+            }
+            if isinstance(exc, WbaUnavailableError)
+            else (
+                {"errors": [{"code": "PERMISSION_DENIED", "message": "Authentication failed"}]}
+                if isinstance(exc, WbaAuthorizationError)
+                else {"error": "Request signature verification failed"}
+            )
         )
         response = JSONResponse(payload, status_code=exc.status, headers=exc.headers)
         await response(scope, receive, send)
 
     async def _project_wba_authentication_error(
-        self, scope: Any, receive: Any, send: Any, body: bytes
+        self, scope: Any, receive: Any, send: Any, body: bytes, failure: WbaVerificationError
     ) -> None:
-        """Render a rejected key's AdCP error without authenticating its origin."""
+        """Render a key rejection or outage without authenticating its origin."""
         from starlette.authentication import UnauthenticatedUser
 
         from adcp.decisioning.types import AdcpError
         from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS
 
         if not self._defer_authorization_errors:
+            if isinstance(failure, WbaUnavailableError):
+                await self._reject_wba(scope, receive, send, failure)
+                return
             await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
             return
         target = _jsonrpc_target(body, self._transport, self._message_parser, parse_skill=True)
         if not any(tool["name"] == target.operation for tool in ADCP_TOOL_DEFINITIONS):
+            if isinstance(failure, WbaUnavailableError):
+                await self._reject_wba(scope, receive, send, failure)
+                return
             await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
             return
         if target.a2a_parsed is not None:
             from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
 
             scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = target.a2a_parsed
-        error = AdcpError(
-            "PERMISSION_DENIED", message="Authentication failed", recovery="correctable"
+        error = (
+            AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Signer identity is temporarily unavailable",
+                recovery="transient",
+            )
+            if isinstance(failure, WbaUnavailableError)
+            else AdcpError(
+                "PERMISSION_DENIED", message="Authentication failed", recovery="correctable"
+            )
         )
         scope.pop(VERIFIED_SIGNER_SCOPE_KEY, None)
         scope.pop(_FRAMEWORK_VERIFIED_SCOPE_KEY, None)
@@ -833,6 +877,11 @@ class SignedRequestVerificationMiddleware:
         authorization_error: AdcpError | None = None,
     ) -> None:
         if authorization_error is not None and not self._defer_authorization_errors:
+            if authorization_error.code == "SERVICE_UNAVAILABLE":
+                await JSONResponse({"errors": [authorization_error.to_wire()]}, status_code=503)(
+                    scope, receive, send
+                )
+                return
             await JSONResponse({"error": "unauthenticated"}, status_code=401)(scope, receive, send)
             return
         target = _jsonrpc_target(
@@ -859,6 +908,10 @@ class SignedRequestVerificationMiddleware:
                 and _header(scope, b"authorization") is not None
             ):
                 await self._app(scope, receive, send)
+            elif authorization_error.code == "SERVICE_UNAVAILABLE":
+                await JSONResponse({"errors": [authorization_error.to_wire()]}, status_code=503)(
+                    scope, receive, send
+                )
             else:
                 await JSONResponse({"error": "unauthenticated"}, status_code=401)(
                     scope, receive, send

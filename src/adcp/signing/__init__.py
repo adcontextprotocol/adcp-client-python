@@ -360,6 +360,7 @@ from adcp.signing.wba import (
     DiscoveredSignerKeys,
     OriginRevocationChecker,
     WbaAuthorizationError,
+    WbaUnavailableError,
     WbaVerificationError,
     public_directory_key,
     sign_key_directory,
@@ -397,6 +398,7 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 __all__ = [
     "GrantRequest",
     "WbaAuthorizationError",
+    "WbaUnavailableError",
     "RevocationDetails",
     "OriginRevocationChecker",
     "EvaluatedTrustRecord",

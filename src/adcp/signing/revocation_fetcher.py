@@ -506,6 +506,11 @@ class _CheckerState:
         self._last_polling_interval_seconds = None
         self._last_refresh_attempt = None
 
+    @property
+    def has_verified_list(self) -> bool:
+        """Whether authenticated revocation evidence must be retained, even if stale."""
+        return self._current_list is not None
+
     def _handle_not_modified(self, *, now_mono: float) -> None:
         """Record a successful conditional request without changing signed freshness.
 
@@ -535,6 +540,13 @@ class _CheckerState:
     def _grace_seconds(self) -> float:
         interval = self._last_polling_interval_seconds or MAX_POLLING_INTERVAL_SECONDS
         return interval * self._grace_multiplier
+
+    def _check_fetched_freshness(self, revocation_list: RevocationList, now: datetime) -> None:
+        deadline = _parse_iso8601(revocation_list.next_update).timestamp() + (
+            _polling_interval_seconds(revocation_list) * self._grace_multiplier
+        )
+        if now.timestamp() >= deadline:
+            raise RevocationListFreshnessError("fetched revocation list is past its grace window")
 
 
 def _build_list_from_payload(payload: dict[str, Any], expected_issuer: str) -> RevocationList:
@@ -819,7 +831,7 @@ class CachingRevocationChecker(_CheckerState):
             )
 
         grace_seconds = self._grace_seconds()
-        if now_wall.timestamp() >= next_update.timestamp() + grace_seconds:
+        if self._wall_clock().timestamp() >= next_update.timestamp() + grace_seconds:
             raise RevocationListFreshnessError(
                 f"revocation list {self._revocation_uri!r} past next_update "
                 f"({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); "
@@ -854,10 +866,11 @@ class CachingRevocationChecker(_CheckerState):
         revocation_list = _post_jws_validation(
             payload,
             expected_issuer=self._issuer,
-            now_wall=now_wall,
+            now_wall=self._wall_clock(),
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
+        self._check_fetched_freshness(revocation_list, self._wall_clock())
         return True
 
 
@@ -1024,7 +1037,7 @@ class AsyncCachingRevocationChecker(_CheckerState):
             )
 
         grace_seconds = self._grace_seconds()
-        if now_wall.timestamp() >= next_update.timestamp() + grace_seconds:
+        if self._wall_clock().timestamp() >= next_update.timestamp() + grace_seconds:
             raise RevocationListFreshnessError(
                 f"revocation list {self._revocation_uri!r} past next_update "
                 f"({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); "
@@ -1072,10 +1085,11 @@ class AsyncCachingRevocationChecker(_CheckerState):
         revocation_list = _post_jws_validation(
             payload,
             expected_issuer=self._issuer,
-            now_wall=now_wall,
+            now_wall=self._wall_clock(),
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
+        self._check_fetched_freshness(revocation_list, self._wall_clock())
         return True
 
 
