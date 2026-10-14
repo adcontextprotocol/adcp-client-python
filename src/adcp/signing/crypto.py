@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
     encode_dss_signature,
 )
 
+from adcp.signing._structured_fields import reject_dictionary_duplicates
 from adcp.signing.canonical import split_structured_field
 
 PublicKey = ed25519.Ed25519PublicKey | ec.EllipticCurvePublicKey
@@ -227,6 +228,7 @@ def extract_signature_bytes(
     permits the historical Base64URL spelling; 3.2 callers disable that
     fallback so malformed Structured Fields fail at verifier step 1.
     """
+    reject_dictionary_duplicates(signature_header)
     for entry in split_structured_field(signature_header, ","):
         entry = entry.strip()
         if not entry:

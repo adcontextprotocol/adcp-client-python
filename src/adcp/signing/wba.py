@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import secrets
 import time
 from collections import OrderedDict
@@ -26,12 +25,12 @@ from http_sfv.item import InnerList, Item
 from adcp.signing._bounded_http import async_read_limited_bytes
 from adcp.signing._header_precheck import strict_header_precheck
 from adcp.signing._strict_json import StrictJsonError, parse_strict_json
+from adcp.signing._structured_fields import dictionary_has_parameter, reject_dictionary_duplicates
 from adcp.signing.canonical import (
     _lookup,
     canonical_origin,
     canonicalize_authority,
     canonicalize_target_uri,
-    split_structured_field,
 )
 from adcp.signing.crypto import (
     PrivateKey,
@@ -112,54 +111,15 @@ class WbaUnavailableError(WbaVerificationError):
 def _dictionary(value: str | None) -> Dictionary:
     if value is None or len(value) > 65536:
         raise WbaVerificationError("missing or oversized signature field", status=400)
-    # RFC parsers may keep the last duplicate. Reject before that loses evidence.
-    seen: set[str] = set()
-    for entry in split_structured_field(value, ","):
-        key = entry.strip().partition("=")[0]
-        if key in seen:
-            raise WbaVerificationError("duplicate signature dictionary member", status=400)
-        seen.add(key)
-        _reject_duplicate_parameters(entry)
     try:
+        reject_dictionary_duplicates(value)
         result = Dictionary()
         result.parse(value.encode("ascii"))
         if not result:
             raise ValueError("empty dictionary")
         return result
     except (ValueError, UnicodeError) as exc:
-        raise WbaVerificationError("malformed signature field", status=400) from exc
-
-
-def _reject_duplicate_parameters(entry: str) -> None:
-    """Reject parameters before a Structured Fields parser keeps their last value."""
-    seen: set[str] = set()
-    quoted = escaped = False
-    previous = ""
-    for index, character in enumerate(entry):
-        if quoted:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                quoted = False
-                previous = character
-            continue
-        if character == '"':
-            if previous != "=":
-                seen.clear()  # A new inner-list component has its own parameters.
-            quoted = True
-        elif character in "()":
-            seen.clear()  # Inner-list parameters are independent of item parameters.
-        elif character == ";":
-            match = re.match(r"\s*([a-z*][a-z0-9_.*-]*)", entry[index + 1 :])
-            if match:
-                parameter = match.group(1)
-                if parameter in seen:
-                    raise WbaVerificationError("duplicate signature parameter", status=400)
-                seen.add(parameter)
-        if not character.isspace():
-            previous = character
+        raise WbaVerificationError(f"malformed signature field: {exc}", status=400) from exc
 
 
 def uses_web_bot_auth(headers: Mapping[str, str]) -> bool:
@@ -169,11 +129,9 @@ def uses_web_bot_auth(headers: Mapping[str, str]) -> bool:
     raw = _lookup(headers, "signature-input")
     if raw is None:
         return False
-    try:
-        return any(member.params.get("tag") == WBA_TAG for member in _dictionary(raw).values())
-    except WbaVerificationError:
-        # Malformed markers must not cause a downgrade to the legacy path.
-        return WBA_TAG in raw
+    # Observe every explicit tag, including one an ambiguous duplicate would
+    # overwrite. Text inside nonce/component strings cannot select a profile.
+    return dictionary_has_parameter(raw, "tag", WBA_TAG)
 
 
 def _https_origin(url: str) -> str:
@@ -585,11 +543,18 @@ class DiscoveredSignerKeys:
         fetcher: DirectoryFetcher = fetch_key_directory,
         allow_private: bool = False,
         max_origins: int = 256,
+        max_origins_per_operator: int = 8,
         clock: Callable[[], float] = time.time,
         legacy_resolver: SignerKeyResolver | None = None,
     ) -> None:
-        if max_origins <= 0:
-            raise ValueError("max_origins must be positive")
+        if any(
+            type(limit) is not int or limit <= 0
+            for limit in (
+                max_origins,
+                max_origins_per_operator,
+            )
+        ):
+            raise ValueError("origin admission limits must be positive")
         self._fetcher, self._allow_private, self._max_origins, self._clock = (
             fetcher,
             allow_private,
@@ -597,6 +562,8 @@ class DiscoveredSignerKeys:
             clock,
         )
         self._cache: OrderedDict[str, _DirectoryCache] = OrderedDict()
+        self._max_origins_per_operator = max_origins_per_operator
+        self._failed_discoveries: OrderedDict[str, _DirectoryCache] = OrderedDict()
         self._lock = asyncio.Lock()
         self._legacy_resolver = legacy_resolver
         self._pending: dict[str, asyncio.Task[_DirectoryCache]] = {}
@@ -610,7 +577,7 @@ class DiscoveredSignerKeys:
         origin = _https_origin(signer_origin)
         async with self._lock:
             now = self._clock()
-            cached = self._cache.get(origin)
+            cached = self._cache.get(origin) or self._failed_discoveries.get(origin)
             if cached is not None and cached.expires > now and cached.response is not None:
                 self._cache.move_to_end(origin)
                 key = cached.keys.get(keyid)
@@ -621,8 +588,18 @@ class DiscoveredSignerKeys:
                 raise WbaUnavailableError("key directory discovery is cooling down")
             task = self._pending.get(origin)
             if task is None:
-                if len(self._pending) >= self._max_origins:
+                admitted = self._cache.keys() | self._pending.keys()
+                if origin not in admitted and len(admitted) >= self._max_origins:
                     raise WbaUnavailableError("directory discovery capacity exceeded")
+                operator = OriginRevocationChecker._operator(origin)
+                if (
+                    origin not in admitted
+                    and sum(
+                        OriginRevocationChecker._operator(value) == operator for value in admitted
+                    )
+                    >= self._max_origins_per_operator
+                ):
+                    raise WbaUnavailableError("operator directory discovery capacity exceeded")
                 task = asyncio.create_task(self._refresh(origin, cached))
                 # A cancelled HTTP request must not cancel discovery for other
                 # waiters or leave an unobserved exception in a background task.
@@ -649,7 +626,7 @@ class DiscoveredSignerKeys:
             async with self._lock:
                 self._cache[origin] = fresh
                 self._cache.move_to_end(origin)
-                self._trim()
+                self._failed_discoveries.pop(origin, None)
             return fresh
         except Exception as exc:
             failure = (
@@ -669,17 +646,18 @@ class DiscoveredSignerKeys:
                 failed.failure = _DirectoryFailure(
                     failure.reason, failure.status, isinstance(failure, WbaUnavailableError)
                 )
-                self._cache[origin] = failed
-                self._trim()
+                if failed.response is not None:
+                    self._cache[origin] = failed
+                else:
+                    self._failed_discoveries[origin] = failed
+                    self._failed_discoveries.move_to_end(origin)
+                    while len(self._failed_discoveries) > self._max_origins:
+                        self._failed_discoveries.popitem(last=False)
             if failure is exc:
                 raise
             raise failure from exc
         finally:
             self._pending.pop(origin, None)
-
-    def _trim(self) -> None:
-        while len(self._cache) > self._max_origins:
-            self._cache.popitem(last=False)
 
 
 async def verify_wba_request(
@@ -854,8 +832,20 @@ class OriginRevocationChecker:
         max_origins_per_operator: int = 8,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        max_facts_per_origin: int = 2048,
+        max_facts_per_operator: int = 8192,
+        max_history_facts: int = 65536,
     ) -> None:
-        if max_origins <= 0 or max_origins_per_operator <= 0:
+        if any(
+            type(limit) is not int or limit <= 0
+            for limit in (
+                max_origins,
+                max_origins_per_operator,
+                max_facts_per_origin,
+                max_facts_per_operator,
+                max_history_facts,
+            )
+        ):
             raise ValueError("origin admission limits must be positive")
         self._signer_keys = signer_keys
         self._fetcher = fetcher
@@ -863,6 +853,12 @@ class OriginRevocationChecker:
         self._max_origins_per_operator = max_origins_per_operator
         self._clock = clock
         self._wall_clock = wall_clock
+        self._max_facts_per_origin = max_facts_per_origin
+        self._max_facts_per_operator = max_facts_per_operator
+        self._max_history_facts = max_history_facts
+        self._revoked_facts: dict[str, set[tuple[str, str]]] = {}
+        self._operator_fact_counts: dict[str, int] = {}
+        self._history_fact_count = 0
         self._checkers: dict[str, Any] = {}
         self._pending: dict[str, asyncio.Task[Any]] = {}
         self._failures: OrderedDict[str, float] = OrderedDict()
@@ -879,12 +875,13 @@ class OriginRevocationChecker:
                     raise WbaUnavailableError("origin revocation discovery is cooling down")
                 task = self._pending.get(origin)
                 if task is None:
-                    if len(self._checkers) + len(self._pending) >= self._max_origins:
+                    admitted_origins = self._checkers.keys() | self._pending.keys()
+                    if len(admitted_origins) >= self._max_origins:
                         raise WbaUnavailableError("origin revocation capacity exceeded")
                     operator = self._operator(origin)
                     admitted = sum(
                         self._operator(admitted_origin) == operator
-                        for admitted_origin in (*self._checkers, *self._pending)
+                        for admitted_origin in admitted_origins
                     )
                     if admitted >= self._max_origins_per_operator:
                         raise WbaUnavailableError("operator revocation capacity exceeded")
@@ -909,6 +906,27 @@ class OriginRevocationChecker:
         # but still share a hostname bucket for anonymous identity discovery.
         return registrable_domain(origin) or urlsplit(origin).hostname or origin
 
+    def _admit_revocations(self, record: Any) -> bool:
+        # Called synchronously after authentication and schema validation.
+        # No await separates checking shared counters from committing them.
+        origin = record.issuer
+        operator = self._operator(origin)
+        known = self._revoked_facts.get(origin, set())
+        facts = {("kid", value) for value in record.revoked_kids} | {
+            ("jti", value) for value in record.revoked_jtis
+        }
+        added = len(facts - known)
+        if (
+            len(known | facts) > self._max_facts_per_origin
+            or self._operator_fact_counts.get(operator, 0) + added > self._max_facts_per_operator
+            or self._history_fact_count + added > self._max_history_facts
+        ):
+            return False
+        self._revoked_facts[origin] = known | facts
+        self._operator_fact_counts[operator] = self._operator_fact_counts.get(operator, 0) + added
+        self._history_fact_count += added
+        return True
+
     async def _discover(self, origin: str) -> Any:
         from adcp.signing.revocation_fetcher import AsyncCachingRevocationChecker
 
@@ -926,6 +944,7 @@ class OriginRevocationChecker:
                 grace_multiplier=4,
                 clock=self._clock,
                 wall_clock=self._wall_clock,
+                history_admission=self._admit_revocations,
             )
             # Authenticated revocations are permanent history. A 404 or
             # transport failure with no signed evidence consumes no slot.

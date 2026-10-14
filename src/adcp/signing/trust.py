@@ -283,12 +283,17 @@ class TrustRecordEvaluator:
         allow_private: bool = False,
         polling_interval_seconds: float = 60,
         max_records: int = 256,
+        max_history_records: int = 256,
         max_fetches_per_host: int = 4,
         clock: Callable[[], float] = time.time,
     ) -> None:
         if (
             not 0 < polling_interval_seconds <= 1800
+            or type(max_records) is not int
             or max_records <= 0
+            or type(max_history_records) is not int
+            or max_history_records <= 0
+            or type(max_fetches_per_host) is not int
             or max_fetches_per_host <= 0
         ):
             raise ValueError("invalid trust cache bounds")
@@ -298,6 +303,14 @@ class TrustRecordEvaluator:
             polling_interval_seconds,
         )
         self._max_records, self._clock = max_records, clock
+        self._max_history_records = max_history_records
+        # One authoritative record per eTLD+1. Pending owners reserve their
+        # slot before any response can establish irreversible publication.
+        self._history_owners: set[str] = set()
+        # A previously used non-publisher also keeps its admission, so a
+        # hosted-tenant flood cannot disable its configured legacy policy.
+        # This is not reusable absence evidence during an outage.
+        self._known_absent_owners: set[str] = set()
         self._cache: OrderedDict[str, EvaluatedTrustRecord] = OrderedDict()
         self._failures: OrderedDict[str, _TrustRecordFailure] = OrderedDict()
         self._pending: dict[str, asyncio.Task[EvaluatedTrustRecord]] = {}
@@ -308,8 +321,8 @@ class TrustRecordEvaluator:
         self._host_totals: dict[str, int] = {}
         self._host_failures: OrderedDict[tuple[str, str], float] = OrderedDict()
         self._seen_200: set[str] = set()
-        # An outage cannot replace the latest policy with an earlier positive
-        # snapshot. Eviction closes grace rather than inventing authority.
+        # Authoritative history is never evicted. New operators are refused
+        # before fetching when the permanent admission budget is full.
         self._last_policy: OrderedDict[str, EvaluatedTrustRecord | _TrustRecordFailure] = (
             OrderedDict()
         )
@@ -330,8 +343,6 @@ class TrustRecordEvaluator:
     ) -> None:
         self._last_policy[domain] = policy
         self._last_policy.move_to_end(domain)
-        while len(self._last_policy) > self._max_records:
-            self._last_policy.popitem(last=False)
 
     async def cached_record(
         self, origin_or_domain: str, *, role: str | None = None
@@ -340,7 +351,7 @@ class TrustRecordEvaluator:
 
         A positive snapshot is usable only through freshness plus four polling
         intervals. Negative reads remain negative even beyond that window.
-        Unknown or evicted history fails closed. No fetch is performed.
+        Unknown history fails closed. No fetch is performed.
         """
         domain = urlsplit(trust_record_url(origin_or_domain)).hostname or ""
         async with self._lock:
@@ -449,6 +460,11 @@ class TrustRecordEvaluator:
             now = self._clock()
             record = self._cache.get(domain)
             if record is None or record.expires_at <= now:
+                if (
+                    domain not in self._history_owners
+                    and len(self._history_owners) >= self._max_history_records
+                ):
+                    raise _TrustRecordCapacityError("trust history admission capacity exceeded")
                 failure = self._failures.get(domain)
                 if failure is not None and failure.retry_after > now:
                     self._failures.move_to_end(domain)
@@ -457,6 +473,7 @@ class TrustRecordEvaluator:
                 if task is None:
                     if len(self._pending) >= self._max_records:
                         raise _TrustRecordCapacityError("trust discovery capacity exceeded")
+                    self._history_owners.add(domain)
                     task = asyncio.create_task(self._refresh(domain, url, now))
                     # One disconnected caller cannot cancel the shared fetch or
                     # leave a background task's exception unobserved.
@@ -511,6 +528,8 @@ class TrustRecordEvaluator:
             async with self._lock:
                 failure = _TrustRecordFailure(type(error), str(error), self._clock() + 60)
                 self._failures[domain] = failure
+                if isinstance(error, TrustRecordAbsentError):
+                    self._known_absent_owners.add(domain)
                 if not isinstance(error, (TrustRecordUnavailableError, TrustRecordAbsentError)):
                     # Removal and malformed policy supersede older authority;
                     # subsequent network/rate/capacity failures never undo it.
@@ -525,6 +544,12 @@ class TrustRecordEvaluator:
         finally:
             async with self._lock:
                 self._pending.pop(domain, None)
+                if (
+                    domain not in self._seen_200
+                    and domain not in self._last_policy
+                    and domain not in self._known_absent_owners
+                ):
+                    self._history_owners.discard(domain)
 
     async def _fetch(self, domain: str, url: str, now: float) -> EvaluatedTrustRecord:
         source = url
@@ -551,9 +576,9 @@ class TrustRecordEvaluator:
                 raise TrustRecordNotFoundError("operator trust record was removed")
             if response.status != 200:
                 raise TrustRecordUnavailableError("trust record is temporarily unavailable")
+            self._seen_200.add(domain)
             if len(response.body) > 2 * 1024 * 1024:
                 raise TrustRecordError("trust record is unavailable or oversized")
-            self._seen_200.add(domain)
             try:
                 document = parse_strict_json(response.body)
             except StrictJsonError as exc:

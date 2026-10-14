@@ -17,6 +17,7 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 import idna
 
 from adcp.signing._idna_canonicalize import canonicalize_host
+from adcp.signing._structured_fields import reject_dictionary_duplicates
 
 #: Spec code for an authority the AdCP profile requires be rejected rather than
 #: canonicalized. Declared here rather than imported from ``errors`` so this
@@ -70,6 +71,7 @@ def parse_signature_input_header(header_value: str) -> dict[str, SignatureInputL
     `sig1=(...);..., sig2=(...);...`. The AdCP profile mandates that verifiers
     process exactly one label (conventionally `sig1`) and ignore others.
     """
+    reject_dictionary_duplicates(header_value)
     labels: dict[str, SignatureInputLabel] = {}
     for entry in split_structured_field(header_value, ","):
         entry = entry.strip()

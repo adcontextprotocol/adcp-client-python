@@ -511,7 +511,7 @@ async def test_execute_handler_exception():
 
 
 async def test_cancel():
-    """Cancel returns a canceled task."""
+    """Cancel updates the existing task instead of replacing it."""
     executor = ADCPAgentExecutor(_TestHandler())
     ctx = RequestContext(task_id="t1", context_id="c1")
     queue = EventQueue()
@@ -519,7 +519,7 @@ async def test_cancel():
     await executor.cancel(ctx, queue)
 
     event = await queue.dequeue_event()
-    assert isinstance(event, Task)
+    assert isinstance(event, pb.TaskStatusUpdateEvent)
     assert event.status.state == pb.TaskState.TASK_STATE_CANCELED
 
 

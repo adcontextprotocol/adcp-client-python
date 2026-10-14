@@ -40,8 +40,9 @@ _ClaimKey = tuple[str, str | None, str | None, str, str | None, frozenset[str]]
 class _DenialHistory:
     denials: dict[_ClaimKey, tuple[int, GrantAuthorization]] = field(default_factory=dict)
     positives: OrderedDict[_ClaimKey, GrantAuthorization] = field(default_factory=OrderedDict)
+    claims: dict[_ClaimKey, int] = field(default_factory=dict)
+    operator_counts: dict[str, int] = field(default_factory=dict)
     revision: int = 0
-    saturated_revision: int | None = None
     lock: LockType = field(default_factory=threading.Lock)
 
 
@@ -107,15 +108,87 @@ class TrustGrantGate:
     extract_claim: GrantClaimResolver
     extract_operation_claim: OperationGrantClaimResolver | None = None
     max_denials: int = 4096
+    max_claims_per_operator: int = 128
     _history: _DenialHistory = field(
         default_factory=_DenialHistory, init=False, repr=False, compare=False
     )
 
     def __post_init__(self) -> None:
-        if type(self.max_denials) is not int or self.max_denials <= 0:
-            raise ValueError("max_denials must be a positive integer")
+        if (
+            type(self.max_denials) is not int
+            or self.max_denials <= 0
+            or type(self.max_claims_per_operator) is not int
+            or self.max_claims_per_operator <= 0
+        ):
+            raise ValueError("claim admission limits must be positive integers")
 
     async def require_claim(
+        self,
+        claim: TrustGrantClaim,
+        agent: BuyerAgent | None,
+        *,
+        signing_profile: Literal["web-bot-auth", "adcp/request-signing/v1"] = "web-bot-auth",
+        allow_cached_binding_on_outage: bool = False,
+    ) -> None:
+        if agent is None:
+            await self._require_admitted_claim(
+                claim,
+                agent,
+                signing_profile=signing_profile,
+                allow_cached_binding_on_outage=allow_cached_binding_on_outage,
+            )
+            return
+        operator = registrable_domain(agent.agent_url)
+        if operator is None:
+            raise AdcpError(
+                "PERMISSION_DENIED", message="Buyer agent is not authorized", recovery="correctable"
+            )
+        key: _ClaimKey = (
+            canonical_origin(agent.agent_url),
+            registrable_domain(claim.brand_domain),
+            registrable_domain(claim.account_operator),
+            claim.scope,
+            claim.brand_id,
+            frozenset(claim.countries),
+        )
+        with self._history.lock:
+            if key not in self._history.claims:
+                if (
+                    len(self._history.claims) >= self.max_denials
+                    or self._history.operator_counts.get(operator, 0)
+                    >= self.max_claims_per_operator
+                ):
+                    raise AdcpError(
+                        "SERVICE_UNAVAILABLE",
+                        message="Claim history admission capacity exceeded",
+                        recovery="transient",
+                    )
+                self._history.claims[key] = 0
+                self._history.operator_counts[operator] = (
+                    self._history.operator_counts.get(operator, 0) + 1
+                )
+            self._history.claims[key] += 1
+        try:
+            await self._require_admitted_claim(
+                claim,
+                agent,
+                signing_profile=signing_profile,
+                allow_cached_binding_on_outage=allow_cached_binding_on_outage,
+            )
+        finally:
+            with self._history.lock:
+                self._history.claims[key] -= 1
+                if (
+                    self._history.claims[key] == 0
+                    and key not in self._history.positives
+                    and key not in self._history.denials
+                ):
+                    del self._history.claims[key]
+                    self._history.operator_counts[operator] -= 1
+                    if not self._history.operator_counts[operator]:
+                        del self._history.operator_counts[operator]
+
+    async def _require_admitted_claim(
         self,
         claim: TrustGrantClaim,
         agent: BuyerAgent | None,
@@ -153,7 +226,6 @@ class TrustGrantGate:
                 positive = self._history.positives.get(key)
                 if (
                     key not in self._history.denials
-                    and self._history.saturated_revision is None
                     and positive is not None
                     and positive.outage_expires_at is not None
                     and positive.outage_expires_at > self.evaluator.current_time()
@@ -179,13 +251,6 @@ class TrustGrantGate:
                 if denied is not None and denied[0] > started_revision:
                     # An older in-flight approval cannot undo a newer denial.
                     result = denied[1]
-                elif (
-                    self._history.saturated_revision is not None
-                    and self._history.saturated_revision > started_revision
-                ):
-                    result = GrantAuthorization(
-                        False, error_code="SERVICE_UNAVAILABLE", include_grant_absent_details=False
-                    )
                 elif continuity_deadline is not None:
                     if (
                         result.outage_expires_at is None
@@ -210,20 +275,10 @@ class TrustGrantGate:
                     if result.outage_expires_at is not None:
                         self._history.positives[key] = result
                         self._history.positives.move_to_end(key)
-                        while len(self._history.positives) > self.max_denials:
-                            # Forgetting a positive closes outage access; unlike
-                            # withdrawals, it is safe to bound these snapshots.
-                            self._history.positives.popitem(last=False)
             elif result.error_code == "PERMISSION_DENIED":
                 self._history.positives.pop(key, None)
                 self._history.revision += 1
-                if denied is not None or len(self._history.denials) < self.max_denials:
-                    self._history.denials[key] = (self._history.revision, result)
-                else:
-                    # Never evict a withdrawal into a permissive cache miss.
-                    # Fresh checks still work; outage fallback remains closed
-                    # for this gate's lifetime once denial admission fills.
-                    self._history.saturated_revision = self._history.revision
+                self._history.denials[key] = (self._history.revision, result)
             elif result.error_code == "SERVICE_UNAVAILABLE":
                 if denied is not None:
                     result = denied[1]

@@ -103,7 +103,7 @@ async def test_directory_failure_classification_survives_cooldown(outcome):
         exceptions.append(caught.value)
     assert len(calls) == 1
     assert len({id(error) for error in exceptions}) == len(exceptions)
-    metadata = resolver._cache[ORIGIN].failure
+    metadata = resolver._failed_discoveries[ORIGIN].failure
     assert metadata is not None
     assert not isinstance(metadata, BaseException)
     assert all(not isinstance(value, BaseException) for value in vars(metadata).values())

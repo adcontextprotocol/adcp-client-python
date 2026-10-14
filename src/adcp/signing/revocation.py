@@ -58,12 +58,21 @@ class RevocationDetails:
 
     def merge(self, newer: RevocationDetails) -> RevocationDetails:
         dates = [date for date in (self.invalidity_date, newer.invalidity_date) if date is not None]
+        undated_compromise = any(
+            detail.reason == "keyCompromise" and detail.invalidity_date is None
+            for detail in (self, newer)
+        )
         reason = (
             "keyCompromise"
             if "keyCompromise" in {self.reason, newer.reason}
             else self.reason or newer.reason
         )
-        return RevocationDetails(reason=reason, invalidity_date=min(dates) if dates else None)
+        # An undated compromise exposes all prior receipts. Attaching a later
+        # date would narrow that previously observed exposure window.
+        return RevocationDetails(
+            reason=reason,
+            invalidity_date=None if undated_compromise or not dates else min(dates),
+        )
 
     def exposes(self, received_at: datetime) -> bool:
         """Compromise exposure uses seller receipt time, never signature creation."""

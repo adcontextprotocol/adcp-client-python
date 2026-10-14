@@ -518,7 +518,7 @@ async def test_delisted_membership_is_shared_across_mcp_and_a2a_middleware():
 
 
 @pytest.mark.parametrize("method", ["tasks/get", "tasks/cancel"])
-async def test_delisted_a2a_origin_cannot_access_historical_task_ownership(method):
+async def test_delisted_a2a_origin_keeps_only_historical_task_owner(method):
     async with bound_client(transport="a2a") as (
         post,
         now,
@@ -533,9 +533,8 @@ async def test_delisted_a2a_origin_cannot_access_historical_task_ownership(metho
         assert observed == [("principal-1", ORIGIN)]
         mode[0], now[0] = "delisted", 1061
         response = await post("unused", method=method)
-        assert response.status_code == 401
-        assert response.json() == {"error": "unauthenticated"}
-        assert len(observed) == 1
+        assert response.status_code == 200
+        assert observed == [("principal-1", ORIGIN), (None, ORIGIN)]
         assert "Accept-Signature" not in response.headers
 
 

@@ -97,6 +97,19 @@ current_wba_authorization_error: contextvars.ContextVar[AdcpError | None] = cont
 _WBA_AUTHORIZATION_ERROR_KEY = "adcp.server.wba_authorization_error"
 _WBA_ERROR_PROJECTION_ONLY_KEY = "adcp.server.wba_error_projection_only"
 _WBA_SPEND_COMMITTING_KEY = "adcp.wba_spend_committing"
+_WBA_PRIOR_TASK_CONTROL_KEY = "adcp.server.wba_prior_task_control"
+_PRIOR_TASK_CONTROL_METHODS = frozenset(
+    {"tasks/get", "tasks/cancel", "tasks/resubscribe", "GetTask", "CancelTask", "SubscribeToTask"}
+)
+
+
+@dataclass
+class _AuthorizationDecision:
+    """Carry the request's evaluated permission without another authority read."""
+
+    prior_task_control: bool = False
+
+
 current_wba_spend_committing: contextvars.ContextVar[bool | None] = contextvars.ContextVar(
     "adcp_wba_spend_committing", default=None
 )
@@ -246,6 +259,9 @@ class RequestSignatureVerification:
     spend_classifier: Callable[[str, Mapping[str, Any]], bool] = is_wba_spend_committing
     _binding_membership: dict[str, bool] = field(
         default_factory=dict, init=False, repr=False, compare=False
+    )
+    _delisted_task_origins: set[str] = field(
+        default_factory=set, init=False, repr=False, compare=False
     )
 
     def __post_init__(self) -> None:
@@ -462,6 +478,7 @@ class SignedRequestVerificationMiddleware:
 
                 origin = canonical_origin(existing.agent_url)
                 if existing.profile == "web-bot-auth":
+                    decision = _AuthorizationDecision()
                     try:
                         if not self._config.enable_web_bot_auth:
                             raise WbaVerificationError("Web Bot Auth is not enabled")
@@ -484,7 +501,7 @@ class SignedRequestVerificationMiddleware:
                             parse_skill=True,
                         )
                         existing, authorization_error = await self._authorize_wba_signer(
-                            existing, target.operation or target.method or ""
+                            existing, target.operation or target.method or "", decision=decision
                         )
                     except WbaVerificationError as exc:
                         if isinstance(exc, (WbaAuthorizationError, WbaUnavailableError)):
@@ -499,7 +516,12 @@ class SignedRequestVerificationMiddleware:
                         await self._reject_wba(scope, receive, send, exc)
                         return
                     await self._call_with_signer(
-                        scope, receive, send, existing, authorization_error=authorization_error
+                        scope,
+                        receive,
+                        send,
+                        existing,
+                        authorization_error=authorization_error,
+                        prior_task_control=decision.prior_task_control,
                     )
                     return
                 principal = (
@@ -539,7 +561,7 @@ class SignedRequestVerificationMiddleware:
             chunks.append(message.get("body", b""))
             more_body = bool(message.get("more_body", False))
         body = b"".join(chunks)
-        replay = make_replay_receive(chunks)
+        replay = make_replay_receive(chunks, receive=receive)
 
         target = _jsonrpc_target(
             body, self._transport, self._message_parser, parse_skill=self._parse_skill
@@ -577,8 +599,11 @@ class SignedRequestVerificationMiddleware:
             await self._app(scope, replay, send)
             return
 
+        decision = _AuthorizationDecision()
         try:
-            signer, authorization_error = await self._verify(scope, body, label, posture)
+            signer, authorization_error = await self._verify(
+                scope, body, label, posture, decision=decision
+            )
         except WbaVerificationError as exc:
             if isinstance(exc, (WbaAuthorizationError, WbaUnavailableError)):
                 await self._project_wba_authentication_error(scope, replay, send, body, exc)
@@ -596,7 +621,12 @@ class SignedRequestVerificationMiddleware:
             await self._reject(send, exc)
             return
         await self._call_with_signer(
-            scope, replay, send, signer, authorization_error=authorization_error
+            scope,
+            replay,
+            send,
+            signer,
+            authorization_error=authorization_error,
+            prior_task_control=decision.prior_task_control,
         )
 
     async def _verify(
@@ -605,6 +635,8 @@ class SignedRequestVerificationMiddleware:
         body: bytes,
         label: str,
         posture: SignaturePosture | None,
+        *,
+        decision: _AuthorizationDecision | None = None,
     ) -> tuple[VerifiedSigner, AdcpError | None]:
         resolved: dict[str, ResolvedSignerKey] = {}
 
@@ -639,7 +671,7 @@ class SignedRequestVerificationMiddleware:
             # The originating signer owns the AdCP caller; relays are verified
             # independently and do not acquire the originator's account access.
             signer = signers[0]
-            return await self._authorize_wba_signer(signer, label)
+            return await self._authorize_wba_signer(signer, label, decision=decision)
         options = VerifyOptions(
             now=time.time(),
             capability=VerifierCapability(
@@ -680,10 +712,15 @@ class SignedRequestVerificationMiddleware:
         return replace(signer, agent_url=key.agent_url if key is not None else None), None
 
     async def _authorize_wba_signer(
-        self, signer: VerifiedSigner, operation: str
+        self,
+        signer: VerifiedSigner,
+        operation: str,
+        *,
+        decision: _AuthorizationDecision | None = None,
     ) -> tuple[VerifiedSigner, AdcpError | None]:
         """Re-evaluate operator membership at the binding authorization gate."""
         from adcp.decisioning.types import AdcpError
+        from adcp.signing.canonical import canonical_origin
         from adcp.signing.trust import (
             TrustRecordError,
             TrustRecordMatchError,
@@ -692,13 +729,15 @@ class SignedRequestVerificationMiddleware:
         )
 
         config = self._config
+        if signer.agent_url is not None:
+            signer = replace(signer, agent_url=canonical_origin(signer.agent_url))
         principal = (
             await config.origin_bindings(signer.agent_url or "")
             if config.origin_bindings is not None
             else None
         )
         if principal is None:
-            return self._identity_established(signer, operation)
+            return self._identity_established(signer, operation, decision=decision)
         if config.trust_records is None:
             return replace(signer, principal_id=principal), AdcpError(
                 "SERVICE_UNAVAILABLE",
@@ -716,10 +755,18 @@ class SignedRequestVerificationMiddleware:
             )
         except (TrustRecordMatchError, TrustRecordNotFoundError):
             self._binding_membership[signer.agent_url or ""] = False
-            return self._identity_established(signer, operation)
+            config._delisted_task_origins.add(signer.agent_url or "")
+            return self._identity_established(
+                signer, operation, prior_task_control=True, decision=decision
+            )
         except TrustRecordUnavailableError:
             if not self._binding_membership.get(signer.agent_url or "", True):
-                return self._identity_established(signer, operation)
+                return self._identity_established(
+                    signer,
+                    operation,
+                    prior_task_control=signer.agent_url in config._delisted_task_origins,
+                    decision=decision,
+                )
             return replace(signer, principal_id=principal), AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message="Operator trust record is temporarily unavailable",
@@ -727,6 +774,7 @@ class SignedRequestVerificationMiddleware:
             )
         except TrustRecordError as exc:
             self._binding_membership[signer.agent_url or ""] = False
+            config._delisted_task_origins.discard(signer.agent_url or "")
             logger.info("operator trust record rejected", extra={"reason": type(exc).__name__})
             return replace(signer, principal_id=None), AdcpError(
                 "PERMISSION_DENIED",
@@ -734,18 +782,30 @@ class SignedRequestVerificationMiddleware:
                 recovery="correctable",
             )
         self._binding_membership[signer.agent_url or ""] = True
+        config._delisted_task_origins.discard(signer.agent_url or "")
         # Preserve the historical binding when membership ends, so delisting
         # cannot enable the deprecated transport as a downgrade.
         return replace(signer, principal_id=principal), None
 
     def _identity_established(
-        self, signer: VerifiedSigner, operation: str
+        self,
+        signer: VerifiedSigner,
+        operation: str,
+        *,
+        prior_task_control: bool = False,
+        decision: _AuthorizationDecision | None = None,
     ) -> tuple[VerifiedSigner, AdcpError | None]:
         from adcp.decisioning.types import AdcpError
 
+        if decision is not None:
+            decision.prior_task_control = (
+                prior_task_control and operation in _PRIOR_TASK_CONTROL_METHODS
+            )
         error = (
             None
-            if operation in self._config.unbound_for or operation == "get_principal"
+            if operation in self._config.unbound_for
+            or operation == "get_principal"
+            or (prior_task_control and operation in _PRIOR_TASK_CONTROL_METHODS)
             else AdcpError(
                 "PERMISSION_DENIED",
                 message="Caller is not authorized for this operation",
@@ -875,6 +935,7 @@ class SignedRequestVerificationMiddleware:
         signer: VerifiedSigner,
         *,
         authorization_error: AdcpError | None = None,
+        prior_task_control: bool = False,
     ) -> None:
         if authorization_error is not None and not self._defer_authorization_errors:
             if authorization_error.code == "SERVICE_UNAVAILABLE":
@@ -899,9 +960,7 @@ class SignedRequestVerificationMiddleware:
             else isinstance(raw_method, str) and raw_method in _A2A_MESSAGE_METHODS
         )
         if authorization_error is not None and not skill_dispatch:
-            # Task polling/cancellation and protocol methods never enter the
-            # AdCP skill error binding. They must not inherit historical task
-            # ownership from an anonymous or delisted origin.
+            # Protocol methods do not enter the AdCP skill error binding.
             if (
                 signer.profile == "web-bot-auth"
                 and self._bearer_configured
@@ -927,11 +986,28 @@ class SignedRequestVerificationMiddleware:
                 signer, target.operation or target.method or ""
             )
         scope["state"][_WBA_SPEND_COMMITTING_KEY] = spend_committing
+        prior_task_control = (
+            prior_task_control
+            and signer.profile == "web-bot-auth"
+            and signer.principal_id is None
+            and target.method in _PRIOR_TASK_CONTROL_METHODS
+            and target.operation is None
+            and authorization_error is None
+        )
+        if prior_task_control:
+            # This restores only the old task-store owner. The signer remains
+            # identity-established, and no skill dispatch can carry this marker.
+            scope[_WBA_PRIOR_TASK_CONTROL_KEY] = signer.agent_url
+            scope.pop("auth", None)
         if (
             self._transport == "a2a"
             and signer.agent_url is not None
-            and (signer.profile != "web-bot-auth" or signer.principal_id is not None)
-            and not getattr(scope.get("user"), "is_authenticated", False)
+            and (
+                signer.profile != "web-bot-auth"
+                or signer.principal_id is not None
+                or prior_task_control
+            )
+            and (prior_task_control or not getattr(scope.get("user"), "is_authenticated", False))
         ):
             # a2a-sdk scopes task ownership by the authenticated user. Without
             # this every signed buyer shares one owner and can read or cancel
@@ -1023,6 +1099,19 @@ def scope_has_wba_error_projection(scope: Mapping[str, Any]) -> bool:
         scope.get(_WBA_ERROR_PROJECTION_ONLY_KEY) is True
         and isinstance(state, Mapping)
         and isinstance(state.get(_WBA_AUTHORIZATION_ERROR_KEY), AdcpError)
+    )
+
+
+def scope_has_wba_prior_task_control(scope: Mapping[str, Any]) -> bool:
+    """A delisted verified origin admitted solely to its pre-existing task owner."""
+    signer = scope.get(VERIFIED_SIGNER_SCOPE_KEY)
+    return (
+        scope.get(_FRAMEWORK_VERIFIED_SCOPE_KEY) is True
+        and isinstance(signer, VerifiedSigner)
+        and signer.profile == "web-bot-auth"
+        and signer.principal_id is None
+        and signer.agent_url is not None
+        and scope.get(_WBA_PRIOR_TASK_CONTROL_KEY) == signer.agent_url
     )
 
 

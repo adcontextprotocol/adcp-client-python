@@ -179,11 +179,12 @@ async def test_claim_aliases_and_country_order_cannot_bypass_known_denial() -> N
 async def test_denial_admission_capacity_cannot_forget_a_withdrawn_claim() -> None:
     gate, mode, now = changing_grant_gate(initial="denied", max_denials=1)
     untracked = TrustGrantClaim("brand.com", "platform.com", brand_id="brand-2")
-    for claim in (CLAIM, untracked):
-        with pytest.raises(AdcpError, match="PERMISSION_DENIED"):
-            await require_existing_claim(gate, claim)
-    # Restoring a tracked grant frees space, but cannot resurrect the denial
-    # that could not be retained when the bounded history was full.
+    with pytest.raises(AdcpError, match="PERMISSION_DENIED"):
+        await require_existing_claim(gate, CLAIM)
+    with pytest.raises(AdcpError, match="SERVICE_UNAVAILABLE"):
+        await require_existing_claim(gate, untracked)
+    # Already admitted claims remain usable after overflow; an unadmitted
+    # claim cannot consume a slot or disable another claim's outage proof.
     mode[0], now[0] = "allowed", now[0] + 61
     await require_existing_claim(gate)
     mode[0], now[0] = "offline", now[0] + 61

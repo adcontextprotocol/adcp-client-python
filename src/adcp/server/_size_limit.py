@@ -45,12 +45,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_REQUEST_BYTES: int = 10 * 1024 * 1024
 
 
-def make_replay_receive(chunks: Sequence[bytes]) -> Callable[[], Any]:
+def make_replay_receive(
+    chunks: Sequence[bytes], *, receive: Callable[[], Any] | None = None
+) -> Callable[[], Any]:
     """Return an ASGI ``receive`` callable that replays buffered body chunks.
 
-    Once the body is drained, subsequent reads return ``http.disconnect``.
-    This is important for streaming applications, which may keep polling the
-    receive channel while producing a response.
+    After the buffered body, forward to ``receive`` when supplied so a
+    streaming response observes the client's real disconnect. Standalone
+    callers without a receive channel retain the immediate disconnect.
     """
     index = 0
     chunks_count = len(chunks)
@@ -65,7 +67,7 @@ def make_replay_receive(chunks: Sequence[bytes]) -> Callable[[], Any]:
                 "body": body,
                 "more_body": index < chunks_count,
             }
-        return {"type": "http.disconnect"}
+        return await receive() if receive is not None else {"type": "http.disconnect"}
 
     return replay_receive
 
@@ -164,7 +166,7 @@ class RequestSizeLimitMiddleware:
             more_body = bool(msg.get("more_body", False))
 
         # Body fit within the cap — replay to the app.
-        await self.app(scope, make_replay_receive(chunks), send)
+        await self.app(scope, make_replay_receive(chunks, receive=receive), send)
 
     @staticmethod
     async def _send_413(send: Any, max_bytes: int) -> None:
