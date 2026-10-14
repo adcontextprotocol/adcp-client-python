@@ -434,7 +434,7 @@ class _MCPHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("content-type", "application/json")
         self.send_header("mcp-session-id", "session-1")
-        if self.content_encoding:
+        if self.content_encoding and method == self.padded_method:
             self.send_header("content-encoding", self.content_encoding)
         self.send_header("content-length", str(len(body)))
         self.end_headers()
@@ -698,13 +698,27 @@ async def test_mcp_custom_httpx_client_factory_is_metered_too(mcp_agent):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "mcp_agent", [{"tool_payload_size": 10, "content_encoding": "br"}], indirect=True
+    "mcp_agent",
+    [{"padded_method": "initialize", "content_encoding": "br"}],
+    indirect=True,
 )
 async def test_mcp_unmeasurable_content_encoding_raises_typed(mcp_agent):
     adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
     try:
         with pytest.raises(ADCPResponseEncodingError):
             await adapter._get_session()
+    finally:
+        await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mcp_agent", [{"content_encoding": "br"}], indirect=True)
+async def test_mcp_tool_call_encoding_rejection_is_typed_not_a_task_result(mcp_agent):
+    """The typed surface must not diverge by protocol or by coding."""
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
+    try:
+        with pytest.raises(ADCPResponseEncodingError):
+            await adapter.get_products({"brief": "anything"})
     finally:
         await adapter.close()
 

@@ -6657,8 +6657,6 @@ async def _gather_agent_results(*calls: Any) -> list[Any]:
     Convert it back into that agent's failed result here. Everything else keeps
     ``asyncio.gather``'s abort-on-first-exception behavior.
     """
-    import asyncio
-
     settled = await asyncio.gather(*calls, return_exceptions=True)
     results: list[Any] = []
     for outcome in settled:

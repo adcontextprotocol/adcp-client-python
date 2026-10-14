@@ -607,11 +607,11 @@ class MCPAdapter(ProtocolAdapter):
             _uncancel_current_task()
         try:
             await self._cleanup_failed_connection("after a rejected MCP response")
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except BaseException as cleanup_error:  # noqa: BLE001 - diagnosis wins
-            # Cleanup runs while a cancellation may still be unwinding; never
-            # let it replace the rejection the caller needs to see.
+        except (Exception, asyncio.CancelledError) as cleanup_error:  # noqa: BLE001
+            # Cleanup runs while a cancellation may still be unwinding, so the
+            # re-delivered CancelledError is caught too — it must never replace
+            # the rejection the caller needs to see. Interpreter-level exits
+            # (KeyboardInterrupt, SystemExit, GeneratorExit) still propagate.
             logger.debug("MCP session cleanup failed after a budget rejection: %s", cleanup_error)
         return budget_error
 
@@ -626,7 +626,7 @@ class MCPAdapter(ProtocolAdapter):
         token = _MCP_HTTP_BUDGET_ERRORS.set(budget_errors)
         try:
             result = await operation()
-        except BaseException as exc:
+        except (Exception, asyncio.CancelledError) as exc:
             budget_error = await self._budget_error_for(exc, budget_errors)
             if budget_error is not None:
                 raise budget_error from exc
@@ -1108,7 +1108,12 @@ class MCPAdapter(ProtocolAdapter):
                         params,
                         meta=cast("RequestParamsMeta", trace_meta),
                     )
-            except BaseException as exc:
+            except (Exception, asyncio.CancelledError) as exc:
+                # CancelledError is listed because that is how a limiter abort
+                # reaches this await: it raises inside MCP's writer task, which
+                # tears down the anyio task group the request is parked on.
+                # Only a recorded rejection is converted, so an ordinary
+                # cancellation (task deadline, shutdown) propagates untouched.
                 budget_error = await self._budget_error_for(exc, budget_errors)
                 if budget_error is not None:
                     raise budget_error from exc
@@ -1260,14 +1265,16 @@ class MCPAdapter(ProtocolAdapter):
             )
             return _idempotency.annotate_result(task_result, idempotency_key)
 
-        except (IdempotencyConflictError, IdempotencyExpiredError, ADCPResponseTooLargeError):
+        except (IdempotencyConflictError, IdempotencyExpiredError, *_BUDGET_ERRORS):
             # Propagate typed idempotency errors — callers MUST handle these
-            # distinctly (mint fresh key / reconcile state). An oversized
-            # response is propagated for the same reason: it is a local policy
-            # decision about untrusted input, not an agent-reported task
-            # failure, and collapsing it into TaskResult(failed) would hide a
-            # memory-exhaustion attempt behind an ordinary error string. Other
-            # ADCPError subclasses (connection, timeout) continue to be
+            # distinctly (mint fresh key / reconcile state). A budget rejection
+            # is propagated for the same reason: it is a local policy decision
+            # about untrusted input, not an agent-reported task failure, and
+            # collapsing it into TaskResult(failed) would hide a
+            # memory-exhaustion attempt behind an ordinary error string.
+            # `_BUDGET_ERRORS` rather than one of them, so the typed surface
+            # does not diverge by protocol or by which coding the peer used.
+            # Other ADCPError subclasses (connection, timeout) continue to be
             # converted to TaskResult(failed) below, preserving the contract.
             raise
         except Exception as e:
