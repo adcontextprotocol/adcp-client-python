@@ -5,6 +5,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from adcp import ADCPClient, ADCPMultiAgentClient
+from adcp._response_limit import unwrap_response_limit
 from adcp.decisioning.upstream import NoAuth, UpstreamHttpClient
 from adcp.protocols import mcp as mcp_mod
 from adcp.protocols.a2a import A2AAdapter
@@ -419,7 +420,9 @@ def test_custom_mcp_factory_accepts_httpx2_pinned_transport() -> None:
     )
 
     client = adapter._streamable_http_client_factory()()
-    assert client._transport is pinned
+    # The response-size budget wraps the transport, so compare the pinned
+    # transport underneath it rather than the outermost object.
+    assert unwrap_response_limit(client._transport) is pinned
     assert client.follow_redirects is False
     assert client.trust_env is False
 

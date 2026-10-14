@@ -952,14 +952,22 @@ outcomes and idempotency keys.
 
 ### Response size limits
 
-Agent responses are untrusted input. Every MCP and A2A response is capped at
-**4 MiB by default** — tool calls, `tools/list`, discovery, the A2A agent card,
-and SSE streams alike. The budget is enforced *while the body is read*: a
-declared `Content-Length` over the cap is refused before the first body byte,
-and the running total of **decoded** bytes aborts the read the moment it passes
-the cap. SSE streams are capped per event and cumulatively per call, so a peer
-cannot slip a large payload past the budget by replying with
-`Content-Type: text/event-stream`.
+Agent responses are untrusted input. Every MCP and A2A response the SDK's own
+transports read is capped at **4 MiB by default** — tool calls, `tools/list`,
+discovery, the A2A agent card, and SSE streams alike. The budget is enforced
+*while the body is read*: a declared `Content-Length` over the cap is refused
+before the first body byte, and the running total of **decoded** bytes aborts
+the read the moment it passes the cap. SSE streams are capped per event, so a
+peer cannot slip a large payload past the budget by replying with
+`Content-Type: text/event-stream`, and a per-call response also carries a
+cumulative cap.
+
+Two scopes are deliberately different. MCP's session-lifetime server-push
+stream (the standalone `GET` SSE channel, and the whole legacy
+`mcp_transport="sse"` channel) is capped **per event only** — a cumulative cap
+there would be a session total, not a per-call cap, and would fail a healthy
+long session. `ADCPClient.from_mcp_client()` sessions are **not** capped at
+all: the caller owns that transport, so bounding it is the caller's job.
 
 An oversized response raises `ADCPResponseTooLargeError` — it is never silently
 truncated:
@@ -995,8 +1003,13 @@ result = await client.get_products(
 Prefer asking the agent to paginate over raising the cap. `max_response_bytes=None`
 on `AgentConfig` removes the budget entirely and is not recommended for agents
 you do not control. Because the decoded size has to be measurable before it is
-expanded, the SDK requests only `gzip`/`deflate` and refuses a response that
-comes back in another content coding.
+expanded, the SDK requests only `gzip`/`deflate` and raises
+`ADCPResponseEncodingError` (an `ADCPProtocolError`) for a response that comes
+back in another content coding.
+
+In a multi-agent fan-out the rejection is contained to the offending agent: it
+becomes that agent's `TaskResult(FAILED)` rather than aborting the batch, so
+one oversized reply cannot discard every other agent's results.
 
 ### Optional OpenTelemetry tracing
 
@@ -1047,6 +1060,7 @@ from adcp.exceptions import (
     ADCPTimeoutError,        # Request timed out
     ADCPProtocolError,       # Invalid response format
     ADCPResponseTooLargeError,  # Response over max_response_bytes
+    ADCPResponseEncodingError,  # Response in an unmeasurable content coding
     ADCPToolNotFoundError,   # Tool not found
     ADCPWebhookSignatureError  # Invalid webhook signature
 )

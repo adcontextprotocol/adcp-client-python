@@ -20,13 +20,14 @@ from adcp import ADCPClient, TaskOptions, ValidationHookConfig
 from adcp._response_limit import (
     DEFAULT_MAX_RESPONSE_BYTES,
     ResponseLimitPolicy,
+    _DecodedCounter,
     _EventSizeTracker,
     install_response_limit,
     reset_call_max_response_bytes,
     resolve_max_response_bytes,
     set_call_max_response_bytes,
 )
-from adcp.exceptions import ADCPProtocolError, ADCPResponseTooLargeError
+from adcp.exceptions import ADCPResponseEncodingError, ADCPResponseTooLargeError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter
 from adcp.types import GetProductsRequest
@@ -37,12 +38,12 @@ from adcp.types.core import AgentConfig, Protocol
 # ---------------------------------------------------------------------------
 
 
-def _limited_client(handler, limit, *, module=httpx):
+def _limited_client(handler, limit, *, module=httpx, agent_id=None):
     client = module.AsyncClient(transport=module.MockTransport(handler))
     return install_response_limit(
         client,
         httpx_module=module,
-        policy=ResponseLimitPolicy(limit_provider=lambda: limit),
+        policy=ResponseLimitPolicy(limit_provider=lambda _long_lived: limit, agent_id=agent_id),
     )
 
 
@@ -127,13 +128,128 @@ async def test_cumulative_sse_events_over_cap_are_rejected():
     client = _limited_client(handler, 1024)
 
     with pytest.raises(ADCPResponseTooLargeError) as caught:
-        async with client.stream("GET", "https://agent.example/tool") as response:
+        # POST: a streamable-HTTP tool call answered as an event stream. One
+        # call, so the cumulative budget applies.
+        async with client.stream("POST", "https://agent.example/tool") as response:
             async for _ in response.aiter_bytes():
                 pass
 
     # No single event came close; the per-call total is what tripped.
     assert caught.value.per_event is False
     assert caught.value.received > 1024
+
+
+@pytest.mark.asyncio
+async def test_session_lifetime_get_stream_is_capped_per_event_only():
+    """A standing server-push channel must not fail just for running long."""
+    events = [b"data: " + b"z" * 100 + b"\n\n"] * 50
+    handler, _ = _streaming(events, {"content-type": "text/event-stream"})
+    client = _limited_client(handler, 1024)
+
+    async with client.stream("GET", "https://agent.example/stream") as response:
+        total = 0
+        async for chunk in response.aiter_bytes():
+            total += len(chunk)
+
+    assert total > 1024
+
+    # One oversized event on that same channel is still refused.
+    handler, _ = _streaming(
+        [b"data: " + b"z" * 4000 + b"\n\n"], {"content-type": "text/event-stream"}
+    )
+    client = _limited_client(handler, 1024)
+    with pytest.raises(ADCPResponseTooLargeError) as caught:
+        async with client.stream("GET", "https://agent.example/stream") as response:
+            async for _ in response.aiter_bytes():
+                pass
+    assert caught.value.per_event is True
+
+
+@pytest.mark.asyncio
+async def test_padded_compressed_stream_trips_the_wire_ceiling():
+    """Empty deflate blocks decode to nothing; the wire still has to end."""
+    padding = b"\x00\x00\x00\xff\xff" * 40_000  # ~200 KB, decodes to 0 bytes
+    handler, _ = _streaming(
+        [zlib.compressobj().compress(b"") + padding], {"content-encoding": "deflate"}
+    )
+    client = _limited_client(handler, 1024)
+
+    with pytest.raises(ADCPResponseTooLargeError) as caught:
+        await client.get("https://agent.example/tool")
+
+    assert caught.value.received > 1024
+
+
+@pytest.mark.asyncio
+async def test_bomb_measurement_does_not_allocate_a_multiple_of_the_budget():
+    """The limiter must not become the allocation it is defending against."""
+    payload = gzip.compress(b"0" * 64_000_000)
+    handler, _ = _streaming([payload], {"content-encoding": "gzip"})
+    counter = _DecodedCounter(encoding="gzip", limit=8 * 1024 * 1024, collect=False)
+
+    returned = counter.feed(payload)
+
+    assert counter.total > 8 * 1024 * 1024
+    assert returned == b""
+
+
+@pytest.mark.asyncio
+async def test_multi_member_gzip_is_counted_whole():
+    """A second gzip member must not hide behind the first one's size."""
+    payload = gzip.compress(b"a" * 512) + gzip.compress(b"b" * 5_000_000)
+    handler, _ = _streaming([payload], {"content-encoding": "gzip"})
+    client = _limited_client(handler, 16_384)
+
+    with pytest.raises(ADCPResponseTooLargeError):
+        await client.get("https://agent.example/tool")
+
+
+@pytest.mark.asyncio
+async def test_error_message_hides_url_credentials():
+    handler, _ = _streaming([b"x" * 50_000], {"content-length": "50000"})
+    client = _limited_client(handler, 1024)
+
+    with pytest.raises(ADCPResponseTooLargeError) as caught:
+        await client.get("https://agent.example/tool?api_key=s3cret")
+
+    assert "s3cret" not in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_mounted_transports_are_wrapped_too():
+    handler, _ = _streaming([b"x" * 50_000])
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(204)),
+        mounts={"all://proxied.example": httpx.MockTransport(handler)},
+    )
+    install_response_limit(
+        client,
+        httpx_module=httpx,
+        policy=ResponseLimitPolicy(limit_provider=lambda _long_lived: 1024),
+    )
+
+    with pytest.raises(ADCPResponseTooLargeError):
+        await client.get("https://proxied.example/tool")
+
+
+def test_install_fails_closed_on_a_client_it_cannot_meter():
+    class DelegatingClient:
+        """A wrapper that reads through but would absorb our assignment."""
+
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+    wrapper = DelegatingClient(httpx.AsyncClient())
+
+    with pytest.raises(TypeError, match="response-size budget"):
+        install_response_limit(
+            wrapper,
+            httpx_module=httpx,
+            policy=ResponseLimitPolicy(limit_provider=lambda _long_lived: 1024),
+        )
 
 
 @pytest.mark.asyncio
@@ -172,10 +288,18 @@ async def test_uncountable_content_encoding_is_refused():
     handler, _ = _streaming([b"whatever"], {"content-encoding": "br"})
     client = _limited_client(handler, 1024)
 
-    with pytest.raises(ADCPProtocolError) as caught:
+    with pytest.raises(ADCPResponseEncodingError) as caught:
         await client.get("https://agent.example/tool")
 
-    assert "br" in str(caught.value)
+    assert caught.value.encoding == "br"
+
+
+@pytest.mark.asyncio
+async def test_identity_is_not_treated_as_an_extra_coding():
+    handler, _ = _streaming([b"{}"], {"content-encoding": "identity, identity"})
+    client = _limited_client(handler, 1024)
+
+    assert (await client.get("https://agent.example/tool")).text == "{}"
 
 
 @pytest.mark.asyncio
@@ -199,9 +323,9 @@ async def test_none_limit_opts_out_entirely():
 @pytest.mark.asyncio
 async def test_limit_is_re_read_per_request():
     handler, _ = _streaming([b"x" * 2048])
-    client = _limited_client(handler, lambda: None)
+    client = _limited_client(handler, None)
     # Swap the provider for one driven by the per-call ContextVar.
-    client._transport._limit_provider = lambda: resolve_max_response_bytes(8192)
+    client._transport._limit_provider = lambda _long_lived: resolve_max_response_bytes(8192)
 
     assert len((await client.get("https://agent.example/tool")).content) == 2048
 
@@ -279,6 +403,8 @@ class _MCPHandler(BaseHTTPRequestHandler):
 
     protocol_version = "HTTP/1.1"
     tool_payload_size = 0
+    padded_method = "tools/call"
+    content_encoding: str | None = None
 
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler override
         message = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))))
@@ -288,23 +414,28 @@ class _MCPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         method = message.get("method")
+        padding = "x" * self.tool_payload_size if method == self.padded_method else ""
         if method == "initialize":
             result = {
                 "protocolVersion": message["params"]["protocolVersion"],
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "oversize-agent", "version": "1"},
+                "serverInfo": {"name": "oversize-agent", "version": padding or "1"},
             }
         elif method == "tools/call":
             result = {
-                "content": [{"type": "text", "text": "x" * self.tool_payload_size}],
+                "content": [{"type": "text", "text": padding}],
                 "structuredContent": {"products": []},
             }
         else:
-            result = {"tools": []}
+            result = {
+                "tools": [{"name": padding or "get_products", "inputSchema": {"type": "object"}}]
+            }
         body = json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}).encode()
         self.send_response(200)
         self.send_header("content-type", "application/json")
         self.send_header("mcp-session-id", "session-1")
+        if self.content_encoding:
+            self.send_header("content-encoding", self.content_encoding)
         self.send_header("content-length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -325,7 +456,10 @@ class _MCPHandler(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def mcp_agent(request):
-    handler = type("_Handler", (_MCPHandler,), {"tool_payload_size": request.param})
+    param = (
+        request.param if isinstance(request.param, dict) else {"tool_payload_size": request.param}
+    )
+    handler = type("_Handler", (_MCPHandler,), param)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
@@ -475,3 +609,155 @@ async def test_a2a_agent_card_fetch_is_capped(oversized_http_agent):
             await adapter._get_a2a_client()
     finally:
         await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 400_000, "padded_method": "initialize"}],
+    indirect=True,
+)
+async def test_mcp_handshake_over_cap_raises_typed(mcp_agent):
+    """A budget abort during setup must not surface as a bare CancelledError."""
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
+    try:
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            await adapter._get_session()
+    finally:
+        await adapter.close()
+
+    assert caught.value.limit == 50_000
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 400_000, "padded_method": "tools/list"}],
+    indirect=True,
+)
+async def test_mcp_tools_list_over_cap_raises_typed(mcp_agent):
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
+    try:
+        with pytest.raises(ADCPResponseTooLargeError):
+            await adapter.list_tools()
+    finally:
+        await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 400_000, "padded_method": "tools/list"}],
+    indirect=True,
+)
+async def test_mcp_get_agent_info_does_not_swallow_a_rejection(mcp_agent):
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
+    try:
+        with pytest.raises(ADCPResponseTooLargeError):
+            await adapter.get_agent_info()
+    finally:
+        await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mcp_agent", [5 * 1024 * 1024], indirect=True)
+async def test_mcp_four_mib_default_applies_without_configuration(mcp_agent):
+    """Nothing is configured here — the default alone has to reject this."""
+    adapter = _mcp_adapter(mcp_agent)
+    assert adapter.agent_config.max_response_bytes == DEFAULT_MAX_RESPONSE_BYTES
+    try:
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            await adapter.get_products({"brief": "anything"})
+    finally:
+        await adapter.close()
+
+    assert caught.value.limit == DEFAULT_MAX_RESPONSE_BYTES
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mcp_agent", [400_000], indirect=True)
+async def test_mcp_custom_httpx_client_factory_is_metered_too(mcp_agent):
+    import httpx2
+
+    adapter = MCPAdapter(
+        AgentConfig(
+            id="seller",
+            agent_uri=mcp_agent,
+            protocol=Protocol.MCP,
+            max_response_bytes=50_000,
+        ),
+        httpx_client_factory=lambda **kwargs: httpx2.AsyncClient(**kwargs),
+    )
+    adapter.response_validation_mode = "warn"
+    try:
+        with pytest.raises(ADCPResponseTooLargeError):
+            await adapter.get_products({"brief": "anything"})
+    finally:
+        await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent", [{"tool_payload_size": 10, "content_encoding": "br"}], indirect=True
+)
+async def test_mcp_unmeasurable_content_encoding_raises_typed(mcp_agent):
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=50_000)
+    try:
+        with pytest.raises(ADCPResponseEncodingError):
+            await adapter._get_session()
+    finally:
+        await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mcp_agent", [400_000], indirect=True)
+async def test_fan_out_contains_one_agents_rejection(mcp_agent):
+    """One hostile seller must not discard every honest seller's result."""
+    import adcp.client as client_module
+
+    honest = AgentConfig(
+        id="honest", agent_uri=mcp_agent, protocol=Protocol.MCP, max_response_bytes=None
+    )
+    hostile = AgentConfig(
+        id="hostile", agent_uri=mcp_agent, protocol=Protocol.MCP, max_response_bytes=50_000
+    )
+    multi = client_module.ADCPMultiAgentClient([honest, hostile])
+    for agent_client in multi.agents.values():
+        agent_client.adapter.response_validation_mode = "warn"
+    try:
+        results = await multi.get_products(GetProductsRequest(buying_mode="brief", brief="video"))
+    finally:
+        await multi.close()
+
+    assert len(results) == 2
+    assert results[0].success is True
+    assert results[1].success is False
+    assert "max_response_bytes" in (results[1].error or "")
+
+
+@pytest.mark.asyncio
+async def test_a2a_tool_call_recovers_the_typed_error_from_a_wrapper():
+    """a2a-sdk rewraps transport failures; the budget rejection must survive."""
+    adapter = A2AAdapter(
+        AgentConfig(
+            id="seller",
+            agent_uri="https://agent.example",
+            protocol=Protocol.A2A,
+            max_response_bytes=50_000,
+        )
+    )
+    adapter.response_validation_mode = "warn"
+    budget_error = ADCPResponseTooLargeError(limit=50_000, received=400_000, agent_id="seller")
+
+    async def fake_get_a2a_client():
+        return object()
+
+    async def fake_send(client, message):
+        # What a2a-sdk does to a transport failure: its own type, original
+        # attached as __cause__.
+        raise RuntimeError("A2A client failed") from budget_error
+
+    adapter._get_a2a_client = fake_get_a2a_client  # type: ignore[method-assign]
+    adapter._send_and_aggregate = fake_send  # type: ignore[method-assign]
+    with pytest.raises(ADCPResponseTooLargeError):
+        await adapter.get_products({"brief": "anything"})

@@ -327,6 +327,34 @@ class ADCPResponseTooLargeError(ADCPError):
         super().__init__(message, agent_id, agent_uri, suggestion)
 
 
+class ADCPResponseEncodingError(ADCPProtocolError):
+    """An agent response used a content coding the SDK cannot size-bound.
+
+    The SDK advertises only the codings whose decoded size it can measure
+    while the body streams in. A response in any other coding would have to be
+    expanded before its size could be known, which is the allocation
+    ``max_response_bytes`` exists to prevent, so it is refused instead.
+    """
+
+    def __init__(
+        self,
+        encoding: str,
+        *,
+        accepted: str,
+        agent_id: str | None = None,
+    ):
+        """Initialize unsupported-encoding error."""
+        self.encoding = encoding
+        self.accepted = accepted
+        super().__init__(
+            f"Agent response uses unsupported Content-Encoding {encoding!r}; the SDK "
+            f"requests only {accepted}, and an unknown coding cannot be size-bounded "
+            "before it is expanded",
+            agent_id,
+            "HTTP",
+        )
+
+
 class ADCPToolNotFoundError(ADCPError):
     """Requested tool not found on agent."""
 

@@ -69,7 +69,7 @@ import json
 from adcp import _idempotency
 from adcp._response_limit import (
     ResponseLimitPolicy,
-    find_response_too_large,
+    find_response_limit_error,
     install_response_limit,
     resolve_max_response_bytes,
 )
@@ -77,6 +77,8 @@ from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
+    ADCPError,
+    ADCPResponseEncodingError,
     ADCPResponseTooLargeError,
     ADCPTimeoutError,
     IdempotencyConflictError,
@@ -105,13 +107,35 @@ _MCP_HTTP_AUTH_ERRORS: ContextVar[list[ADCPAuthenticationError] | None] = Contex
     "mcp_http_auth_errors", default=None
 )
 
-# Same holder trick for response-size violations. The limiter raises inside
+# Same holder trick for response-budget rejections. The limiter raises inside
 # MCP's HTTP writer task, where anyio rewraps the failure into an
-# ExceptionGroup and the session surfaces a generic transport error; the list
-# carries the typed error back to the awaiting call.
-_MCP_HTTP_OVERSIZE_ERRORS: ContextVar[list[ADCPResponseTooLargeError] | None] = ContextVar(
-    "mcp_http_oversize_errors", default=None
+# ExceptionGroup and the awaiting request is cancelled along with the task
+# group; the list carries the typed error back to the awaiting call.
+_MCP_HTTP_BUDGET_ERRORS: ContextVar[list[ADCPError] | None] = ContextVar(
+    "mcp_http_budget_errors", default=None
 )
+_BUDGET_ERRORS = (ADCPResponseTooLargeError, ADCPResponseEncodingError)
+
+
+def _uncancel_current_task() -> None:
+    """Balance a ``CancelledError`` this module swallows.
+
+    MCP's writer task group cancels the awaiting request when the limiter
+    aborts a body. Converting that into the typed rejection means the
+    cancellation stops here, so the task's cancellation count has to come back
+    down or a later ``asyncio.timeout`` on the same task misreads it.
+    """
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:  # pragma: no cover - no running loop
+        return
+    if task is None:
+        return
+    # Python 3.11+; on 3.10 there is no cancellation count to balance.
+    uncancel = getattr(task, "uncancel", None)
+    cancelling = getattr(task, "cancelling", None)
+    if uncancel is not None and cancelling is not None and cancelling():
+        uncancel()
 
 
 MCPHttpxClientFactory = Callable[..., Any]
@@ -122,6 +146,12 @@ The callable must accept ``headers=``, ``timeout=``, ``auth=``,
 client must expose ``follow_redirects``, ``trust_env``, and ``event_hooks``
 like :class:`httpx2.AsyncClient` so the adapter can enforce its transport
 security and compose RFC 9421 signing hooks.
+
+Return an actual :class:`httpx2.AsyncClient` (or a subclass) to keep
+``AgentConfig.max_response_bytes`` in force: the budget is installed by
+wrapping the client's transport, which this SDK can only do on the real
+client type. A duck-typed stand-in still works, but its responses are not
+capped and a warning says so at construction time.
 """
 
 
@@ -310,8 +340,15 @@ def _make_custom_mcp_http_factory(
                     installed_hooks.extend(additions)
         if response_limit is not None:
             # After _reject_foreign_httpx_transport: the generation check has
-            # to see the adopter's own transport, not our wrapper.
-            install_response_limit(client, httpx_module=_mcp_httpx, policy=response_limit)
+            # to see the adopter's own transport, not our wrapper. Not
+            # `required` — an adopter may return a duck-typed client that this
+            # SDK cannot reach into, and that client is theirs to bound.
+            install_response_limit(
+                client,
+                httpx_module=_mcp_httpx,
+                policy=response_limit,
+                required=False,
+            )
         return client
 
     return factory
@@ -490,9 +527,11 @@ class MCPAdapter(ProtocolAdapter):
         # True when the session was injected by ADCPClient.from_mcp_client().
         # Caller owns the lifecycle — close() is a no-op on injected adapters.
         self._session_is_injected: bool = False
-        # Set when the response limiter trips outside a tool call (i.e. during
-        # session setup), where there is no per-call holder to collect it.
-        self._connect_oversize_error: ADCPResponseTooLargeError | None = None
+        # Collects budget rejections raised during the current session setup,
+        # where there is no per-call holder to put them in. Replaced on every
+        # connect attempt so a dying session's background stream cannot leak a
+        # stale rejection into the next one.
+        self._connect_budget_errors: list[ADCPError] = []
 
     def _inject_session(self, session: ClientSession) -> None:
         """Pre-wire a caller-owned session, bypassing URL-based connection.
@@ -529,25 +568,97 @@ class MCPAdapter(ProtocolAdapter):
             urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
         return urls_to_try
 
-    def _record_oversize(self, error: ADCPResponseTooLargeError) -> None:
-        """Stash a size violation so the awaiting call can re-raise it typed.
+    def _record_budget_error(self, sink: list[ADCPError], error: ADCPError) -> None:
+        """Stash a budget rejection so the awaiting call can re-raise it typed.
 
         Mirrors ``capture_auth_response``: a per-call holder collects it when a
-        tool call is in flight, otherwise it belongs to session setup.
+        tool call is in flight. Otherwise it belongs to the session setup that
+        built this client, which reads ``sink`` as it unwinds — or to the
+        standalone server-push stream, whose failures MCP swallows in a
+        background task. Log either way, so a rejection nobody is waiting on is
+        still visible to an operator.
         """
-        call_errors = _MCP_HTTP_OVERSIZE_ERRORS.get()
+        call_errors = _MCP_HTTP_BUDGET_ERRORS.get()
         if call_errors is not None:
             call_errors.append(error)
-        else:
-            self._connect_oversize_error = error
+            return
+        sink.append(error)
+        logger.warning(
+            "Response budget rejected an MCP response for agent %s outside a tool call: %s",
+            self.agent_config.id,
+            error.message,
+        )
+
+    async def _budget_error_for(
+        self, exc: BaseException, recorded: Sequence[ADCPError]
+    ) -> ADCPError | None:
+        """Return the budget rejection behind ``exc``, tearing down the session.
+
+        The limiter raises inside MCP's writer task, which takes down the anyio
+        task group the awaiting request is parked on — so the caller sees a
+        bare ``CancelledError`` with no link to the real cause, and the session
+        is unusable afterwards. Only a *recorded* rejection is converted, so an
+        ordinary cancellation (task deadline, caller shutdown) is untouched.
+        """
+        budget_error = recorded[-1] if recorded else find_response_limit_error(exc)
+        if budget_error is None:
+            return None
+        if isinstance(exc, asyncio.CancelledError):
+            _uncancel_current_task()
+        try:
+            await self._cleanup_failed_connection("after a rejected MCP response")
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except BaseException as cleanup_error:  # noqa: BLE001 - diagnosis wins
+            # Cleanup runs while a cancellation may still be unwinding; never
+            # let it replace the rejection the caller needs to see.
+            logger.debug("MCP session cleanup failed after a budget rejection: %s", cleanup_error)
+        return budget_error
+
+    async def _session_request(self, operation: Callable[[], Awaitable[Any]], what: str) -> Any:
+        """Run a non-tool session request under the response budget holder.
+
+        ``tools/list`` and the capability handshake carry agent-controlled
+        payloads just like a tool call does, so they need the same conversion
+        from MCP's cancellation back into the typed rejection.
+        """
+        budget_errors: list[ADCPError] = []
+        token = _MCP_HTTP_BUDGET_ERRORS.set(budget_errors)
+        try:
+            result = await operation()
+        except BaseException as exc:
+            budget_error = await self._budget_error_for(exc, budget_errors)
+            if budget_error is not None:
+                raise budget_error from exc
+            raise
+        finally:
+            _MCP_HTTP_BUDGET_ERRORS.reset(token)
+        if budget_errors:
+            raise budget_errors[-1]
+        logger.debug("MCP %s completed within the response budget", what)
+        return result
 
     def _response_limit_policy(self) -> ResponseLimitPolicy:
-        """Budget every MCP response body against the agent's configured cap."""
+        """Budget every MCP response body against the agent's configured cap.
+
+        The sink is created per policy, i.e. per connect attempt, so a stream
+        still unwinding from a previous session reports into that session's
+        list rather than failing the reconnect in progress.
+        """
+        sink: list[ADCPError] = []
+        self._connect_budget_errors = sink
+
+        def limit_provider(long_lived: bool) -> int | None:
+            configured = self.agent_config.max_response_bytes
+            # A per-call override must not reach the session-lifetime stream;
+            # see ResponseLimitPolicy.
+            return configured if long_lived else resolve_max_response_bytes(configured)
+
         return ResponseLimitPolicy(
-            limit_provider=lambda: resolve_max_response_bytes(self.agent_config.max_response_bytes),
+            limit_provider=limit_provider,
             agent_id=self.agent_config.id,
             agent_uri=self.agent_config.agent_uri,
-            report=self._record_oversize,
+            report=lambda error: self._record_budget_error(sink, error),
         )
 
     def _streamable_http_client_factory(
@@ -740,7 +851,6 @@ class MCPAdapter(ProtocolAdapter):
                 )
 
             last_error = None
-            self._connect_oversize_error = None
             for url in urls_to_try:
                 try:
                     get_session_id: Callable[[], str | None] | None = None
@@ -815,6 +925,21 @@ class MCPAdapter(ProtocolAdapter):
                     # Clean up the exit stack on failure to avoid resource leaks
                     await self._cleanup_failed_connection("during connection attempt")
 
+                    # An agent whose handshake alone blows the byte budget is
+                    # not a wrong-URL probe; report it as itself and stop.
+                    # Checked before the cancellation branch below, because a
+                    # limiter abort inside MCP's writer task is delivered to
+                    # this await *as* a CancelledError.
+                    budget_error = (
+                        self._connect_budget_errors[-1]
+                        if self._connect_budget_errors
+                        else find_response_limit_error(e)
+                    )
+                    if budget_error is not None:
+                        if isinstance(e, asyncio.CancelledError):
+                            _uncancel_current_task()
+                        raise budget_error from e
+
                     # A task-level deadline and caller cancellation both use
                     # CancelledError to abort discovery. Never reinterpret it
                     # as a failed URL probe or continue to a fallback URL.
@@ -826,12 +951,6 @@ class MCPAdapter(ProtocolAdapter):
                     # before conversion, and stop URL probing for bad tokens.
                     if auth_failure is not None:
                         raise auth_failure from e
-
-                    # An agent whose handshake alone blows the byte budget is
-                    # not a wrong-URL probe; report it as itself and stop.
-                    oversize = self._connect_oversize_error or find_response_too_large(e)
-                    if oversize is not None:
-                        raise oversize from e
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -970,8 +1089,8 @@ class MCPAdapter(ProtocolAdapter):
             signing_token = _signing_operation.set(tool_name)
             auth_errors: list[ADCPAuthenticationError] = []
             auth_token = _MCP_HTTP_AUTH_ERRORS.set(auth_errors)
-            oversize_errors: list[ADCPResponseTooLargeError] = []
-            oversize_token = _MCP_HTTP_OVERSIZE_ERRORS.set(oversize_errors)
+            budget_errors: list[ADCPError] = []
+            budget_token = _MCP_HTTP_BUDGET_ERRORS.set(budget_errors)
             try:
                 # Call the tool using MCP client session
                 mark_task_dispatched(
@@ -990,28 +1109,18 @@ class MCPAdapter(ProtocolAdapter):
                         meta=cast("RequestParamsMeta", trace_meta),
                     )
             except BaseException as exc:
-                # Size violations outrank the generic transport failure MCP
-                # reports once its writer task unwinds. BaseException because
-                # that failure reaches the caller as a CancelledError: the
-                # limiter raises inside MCP's writer task, which tears down the
-                # anyio task group the pending request is parked on. Only a
-                # recorded violation is converted, so an ordinary cancellation
-                # (task deadline, caller shutdown) still propagates untouched.
-                oversize = oversize_errors[-1] if oversize_errors else find_response_too_large(exc)
-                if oversize is not None:
-                    # The transport error killed the session along with the
-                    # request; drop it so the next call reconnects.
-                    await self._cleanup_failed_connection("after oversized MCP response")
-                    raise oversize from exc
+                budget_error = await self._budget_error_for(exc, budget_errors)
+                if budget_error is not None:
+                    raise budget_error from exc
                 if isinstance(exc, Exception) and auth_errors:
                     raise auth_errors[-1] from exc
                 raise
             finally:
-                _MCP_HTTP_OVERSIZE_ERRORS.reset(oversize_token)
+                _MCP_HTTP_BUDGET_ERRORS.reset(budget_token)
                 _MCP_HTTP_AUTH_ERRORS.reset(auth_token)
                 _signing_operation.reset(signing_token)
-            if oversize_errors:
-                raise oversize_errors[-1]
+            if budget_errors:
+                raise budget_errors[-1]
             if auth_errors:
                 raise auth_errors[-1]
 
@@ -1313,7 +1422,7 @@ class MCPAdapter(ProtocolAdapter):
     async def list_tools(self) -> list[str]:
         """List available tools from MCP agent."""
         session = await self._get_session()
-        result = await session.list_tools()
+        result = await self._session_request(session.list_tools, "tools/list")
         return [tool.name for tool in result.tools]
 
     async def get_agent_info(self) -> dict[str, Any]:
@@ -1337,12 +1446,15 @@ class MCPAdapter(ProtocolAdapter):
             "protocol": "mcp",
         }
 
-        # Get available tools
+        # Get available tools. A budget rejection is not a "this agent has no
+        # tools" answer, so it propagates instead of being logged away.
         try:
-            tools_result = await session.list_tools()
+            tools_result = await self._session_request(session.list_tools, "tools/list")
             tool_names = [tool.name for tool in tools_result.tools]
             if tool_names:
                 info["tools"] = tool_names
+        except _BUDGET_ERRORS:
+            raise
         except Exception as e:
             logger.warning(f"Failed to list tools for {self.agent_config.id}: {e}")
 

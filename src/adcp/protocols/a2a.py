@@ -16,7 +16,7 @@ from google.protobuf.struct_pb2 import Value
 from adcp import _idempotency
 from adcp._response_limit import (
     ResponseLimitPolicy,
-    find_response_too_large,
+    find_response_limit_error,
     install_response_limit,
     resolve_max_response_bytes,
 )
@@ -24,6 +24,7 @@ from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
+    ADCPResponseEncodingError,
     ADCPResponseTooLargeError,
     ADCPTimeoutError,
     IdempotencyConflictError,
@@ -293,7 +294,7 @@ class A2AAdapter(ProtocolAdapter):
                 client,
                 httpx_module=httpx,
                 policy=ResponseLimitPolicy(
-                    limit_provider=lambda: resolve_max_response_bytes(
+                    limit_provider=lambda _long_lived: resolve_max_response_bytes(
                         self.agent_config.max_response_bytes
                     ),
                     agent_id=self.agent_config.id,
@@ -356,11 +357,11 @@ class A2AAdapter(ProtocolAdapter):
                 ) from e
             except Exception as e:
                 # a2a-sdk converts card-fetch failures to its own
-                # AgentCardResolutionError; an oversized card is a size
-                # violation, not an unreachable agent.
-                oversize = find_response_too_large(e)
-                if oversize is not None:
-                    raise oversize from e
+                # AgentCardResolutionError; an oversized card is a budget
+                # rejection, not an unreachable agent.
+                budget_error = find_response_limit_error(e)
+                if budget_error is not None:
+                    raise budget_error from e
                 raise
 
             # Build a non-streaming client that reuses our httpx pool.
@@ -672,7 +673,12 @@ class A2AAdapter(ProtocolAdapter):
                 debug_info=debug_info,
                 idempotency_key=idempotency_key,
             )
-        except (IdempotencyConflictError, IdempotencyExpiredError, ADCPResponseTooLargeError):
+        except (
+            IdempotencyConflictError,
+            IdempotencyExpiredError,
+            ADCPResponseTooLargeError,
+            ADCPResponseEncodingError,
+        ):
             # Propagate typed idempotency errors — callers MUST handle these
             # distinctly (mint fresh key / reconcile state). An oversized
             # response propagates for the same reason: it is a local policy
@@ -683,10 +689,10 @@ class A2AAdapter(ProtocolAdapter):
             raise
         except Exception as e:
             # a2a-sdk re-raises transport failures as its own error types, so
-            # recover the typed size violation from the cause chain.
-            oversize = find_response_too_large(e)
-            if oversize is not None:
-                raise oversize from e
+            # recover the typed budget rejection from the cause chain.
+            budget_error = find_response_limit_error(e)
+            if budget_error is not None:
+                raise budget_error from e
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(

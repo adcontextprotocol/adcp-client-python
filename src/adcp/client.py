@@ -56,6 +56,8 @@ from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import (
     ACCOUNT_ERROR_CODE_MAP,
     ADCPError,
+    ADCPResponseEncodingError,
+    ADCPResponseTooLargeError,
     ADCPTimeoutError,
     ADCPWebhookSignatureError,
     classify_task_error,
@@ -1207,6 +1209,11 @@ class ADCPClient:
             responsible for closing it. Code that relies on ``async with
             ADCPClient.from_mcp_client(...) as c:`` to clean up the session
             will leak the session.
+
+            ``AgentConfig.max_response_bytes`` does **not** apply. The budget
+            is enforced in the transport under a client this SDK builds, and
+            an injected session brings its own — so an in-process or
+            caller-owned transport is the caller's to bound.
 
             Webhook delivery and ``on_activity`` callbacks are **not wired**
             on the in-process path — there is no HTTP transport for the
@@ -6637,6 +6644,39 @@ class ADCPClient:
             )
 
 
+async def _gather_agent_results(*calls: Any) -> list[Any]:
+    """Fan out to every agent, containing one agent's budget rejection.
+
+    A response over ``max_response_bytes`` propagates as
+    :class:`~adcp.exceptions.ADCPResponseTooLargeError` instead of becoming a
+    ``TaskResult(failed)`` — the right contract for a single-agent call, where
+    a local policy decision about untrusted input should not look like an
+    agent-reported task failure. In a fan-out it is the wrong one: it is the
+    only failure a *remote* agent can trigger that escapes its own slot, so one
+    hostile seller padding a reply could discard every honest seller's results.
+    Convert it back into that agent's failed result here. Everything else keeps
+    ``asyncio.gather``'s abort-on-first-exception behavior.
+    """
+    import asyncio
+
+    settled = await asyncio.gather(*calls, return_exceptions=True)
+    results: list[Any] = []
+    for outcome in settled:
+        if isinstance(outcome, (ADCPResponseTooLargeError, ADCPResponseEncodingError)):
+            results.append(
+                TaskResult[Any](
+                    status=TaskStatus.FAILED,
+                    error=outcome.message,
+                    success=False,
+                )
+            )
+        elif isinstance(outcome, BaseException):
+            raise outcome
+        else:
+            results.append(outcome)
+    return results
+
+
 class ADCPMultiAgentClient:
     """Client for managing multiple AdCP agents."""
 
@@ -6828,18 +6868,16 @@ class ADCPMultiAgentClient:
         Returns:
             List of TaskResults containing GetProductsResponse for each agent
         """
-        import asyncio
 
         tasks = [agent.get_products(request) for agent in self.agents.values()]
-        return await asyncio.gather(*tasks)
+        return await _gather_agent_results(*tasks)
 
     async def list_products(
         self, request: ListProductsRequest
     ) -> list[TaskResult[ListProductsResponse]]:
         """Execute compact product discovery across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.list_products(request) for agent in self.agents.values())
         )
 
@@ -6847,9 +6885,8 @@ class ADCPMultiAgentClient:
         self, request: RequestProposalsRequest
     ) -> list[TaskResult[RequestProposalsResponse]]:
         """Request proposals from all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.request_proposals(request) for agent in self.agents.values())
         )
 
@@ -6857,9 +6894,8 @@ class ADCPMultiAgentClient:
         self, request: RefineProposalsRequest
     ) -> list[TaskResult[RefineProposalsResponse]]:
         """Refine proposals across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.refine_proposals(request) for agent in self.agents.values())
         )
 
@@ -6867,9 +6903,8 @@ class ADCPMultiAgentClient:
         self, request: DeclineProposalsRequest
     ) -> list[TaskResult[DeclineProposalsResponse]]:
         """Decline proposals across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.decline_proposals(request) for agent in self.agents.values())
         )
 
@@ -6877,9 +6912,8 @@ class ADCPMultiAgentClient:
         self, request: BuyProductsRequest
     ) -> list[TaskResult[BuyProductsResponse]]:
         """Commit direct purchases across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.buy_products(request) for agent in self.agents.values())
         )
 
@@ -6887,9 +6921,8 @@ class ADCPMultiAgentClient:
         self, request: AcceptProposalRequest
     ) -> list[TaskResult[AcceptProposalResponse]]:
         """Accept proposals across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.accept_proposal(request) for agent in self.agents.values())
         )
 
@@ -6897,9 +6930,8 @@ class ADCPMultiAgentClient:
         self, request: ControlMediaBuyRequest
     ) -> list[TaskResult[ControlMediaBuyResponse]]:
         """Control media buys across all agents."""
-        import asyncio
 
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.control_media_buy(request) for agent in self.agents.values())
         )
 
@@ -6908,18 +6940,14 @@ class ADCPMultiAgentClient:
     ) -> list[TaskResult[LegacyGetProductsResponse]]:
         """Execute the explicit raw discovery adapter across all agents."""
 
-        import asyncio
-
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.get_products_legacy(request) for agent in self.agents.values())
         )
 
     async def execute_task(self, task_name: str, request: BaseModel) -> list[TaskResult[Any]]:
         """Execute a canonical task across all configured agents."""
 
-        import asyncio
-
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.execute_task(task_name, request) for agent in self.agents.values())
         )
 
@@ -6928,9 +6956,7 @@ class ADCPMultiAgentClient:
     ) -> list[TaskResult[Any]]:
         """Execute an explicit raw task adapter across all configured agents."""
 
-        import asyncio
-
-        return await asyncio.gather(
+        return await _gather_agent_results(
             *(agent.execute_task_legacy(task_name, request) for agent in self.agents.values())
         )
 
