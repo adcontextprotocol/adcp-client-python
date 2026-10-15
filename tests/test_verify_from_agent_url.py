@@ -19,9 +19,9 @@ from adcp.signing.agent_resolver import (
     AgentResolution,
     AgentResolverError,
     AgentResolverErrorCode,
+    request_signature_code,
     verify_from_agent_url,
 )
-from adcp.signing.agent_resolver import request_signature_code
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
     REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING,

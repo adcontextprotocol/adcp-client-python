@@ -966,8 +966,11 @@ Two scopes are deliberately different. MCP's session-lifetime server-push
 stream (the standalone `GET` SSE channel, and the whole legacy
 `mcp_transport="sse"` channel) is capped **per event only** — a cumulative cap
 there would be a session total, not a per-call cap, and would fail a healthy
-long session. `ADCPClient.from_mcp_client()` sessions are **not** capped at
-all: the caller owns that transport, so bounding it is the caller's job.
+long session. `ADCPClient.from_mcp_client()` sessions get no *streaming*
+cap — the caller owns that transport, so counting bytes as they arrive is the
+caller's job — but the `content[].text` bound below still applies, and on
+that path it is the only one. Pass `max_response_bytes=` to
+`from_mcp_client()` to raise or remove it.
 
 An oversized response raises `ADCPResponseTooLargeError` — it is never silently
 truncated:

@@ -424,6 +424,24 @@ def _text_of(item: Any) -> str | None:
     return text if isinstance(text, str) and text else None
 
 
+#: How much server text may appear in a diagnostic. Attacker-controlled bytes
+#: that have passed no hygiene reach logs and, in an agentic buyer, a model
+#: context window — spec §Response Size Bounds (6) asks for a per-field limit
+#: there, separate from the byte cap on the response as a whole.
+_MAX_DIAGNOSTIC_TEXT = 512
+
+
+def _content_summary(result: Any) -> str:
+    """A bounded description of ``content[]`` for an error message."""
+    content = getattr(result, "content", None)
+    if content is None:
+        return "none"
+    rendered = repr(content)
+    if len(rendered) <= _MAX_DIAGNOSTIC_TEXT:
+        return rendered
+    return f"{rendered[:_MAX_DIAGNOSTIC_TEXT]}… ({len(rendered)} chars total)"
+
+
 def _result_is_error(result: Any) -> bool:
     return bool(getattr(result, "isError", getattr(result, "is_error", False)))
 
@@ -455,17 +473,36 @@ def _assert_text_within_budget(
     server that genuinely sent none — spec §Response Size Bounds (7) requires
     the distinct error instead.
 
-    The transport-level budget has already bounded the body, so this is
-    defense in depth: it catches a text item that slipped past under a larger
-    whole-call allowance, or a caller using these extractors on a result it
-    obtained some other way.
+    On both HTTP transports the streaming budget has already bounded the whole
+    body, which makes this bound unreachable there. It is live for a session
+    the caller injected via :meth:`~adcp.ADCPClient.from_mcp_client` — whose
+    transport this SDK does not own — and for anyone calling these extractors
+    on a result obtained some other way.
+
+    Note the asymmetry that follows. ``structuredContent`` arrives already
+    parsed by the MCP SDK, so its allocation happened before any SDK code ran
+    and no post-hoc check can undo it. The spec's extraction algorithm bounds
+    ``content[].text`` for exactly that reason: it is the one payload this
+    layer sees before decoding it.
     """
     if limit is None:
         return
-    # A UTF-8 character is 1 to 4 bytes, so anything shorter than a quarter of
-    # the budget cannot exceed it — and never pays for an encode.
+    # UTF-8 is 1 to 4 bytes per character, which brackets the answer from both
+    # sides without encoding anything. Under a quarter of the budget cannot
+    # exceed it; over the budget in characters already does, and `received`
+    # reads "at least", so the character count is a true lower bound.
+    # Encoding is the last resort, and only for a string already known to be
+    # within a factor of four — this guard must never allocate a multiple of
+    # the budget it is defending.
     if len(text) <= limit // 4:
         return
+    if len(text) > limit:
+        raise ADCPResponseTooLargeError(
+            limit=limit,
+            received=len(text),
+            agent_id=agent_id,
+            agent_uri=agent_uri,
+        )
     size = len(text.encode("utf-8", "surrogatepass"))
     if size <= limit:
         return
@@ -594,6 +631,9 @@ class MCPAdapter(ProtocolAdapter):
         # True when the session was injected by ADCPClient.from_mcp_client().
         # Caller owns the lifecycle — close() is a no-op on injected adapters.
         self._session_is_injected: bool = False
+        # One-shot so an agent configured without a response budget says so
+        # once, not on every call.
+        self._warned_unbounded_responses: bool = False
         # Collects budget rejections raised during the current session setup,
         # where there is no per-call holder to put them in. Replaced on every
         # connect attempt so a dying session's background stream cannot leak a
@@ -705,17 +745,29 @@ class MCPAdapter(ProtocolAdapter):
         logger.debug("MCP %s completed within the response budget", what)
         return result
 
-    def _extraction_budget(self) -> dict[str, Any]:
-        """Budget kwargs for the ``content[].text`` extractors.
+    def _extraction_budget(self) -> int | None:
+        """The budget the ``content[].text`` extractors enforce.
 
         The same number the transport enforces, resolved per call so a
-        ``TaskOptions`` override reaches the post-parse check too.
+        ``TaskOptions`` override reaches the post-parse check too. (The
+        transport deliberately withholds that override from the
+        session-lifetime SSE stream — see :meth:`_response_limit_policy`.
+        Text arriving over that stream is still bounded here by the per-call
+        number, which is never looser than the one the transport applied.)
+
+        ``None`` means the agent has no bound at all, post-parse or streaming.
+        Spec §Response Size Bounds (8) asks that calls made without one be
+        logged, so say it once per agent rather than silently.
         """
-        return {
-            "max_response_bytes": resolve_max_response_bytes(self.agent_config.max_response_bytes),
-            "agent_id": self.agent_config.id,
-            "agent_uri": self.agent_config.agent_uri,
-        }
+        budget = resolve_max_response_bytes(self.agent_config.max_response_bytes)
+        if budget is None and not self._warned_unbounded_responses:
+            self._warned_unbounded_responses = True
+            logger.warning(
+                "Agent %s runs with max_response_bytes=None: its responses are "
+                "read unbounded, with no streaming or post-parse limit.",
+                self.agent_config.id,
+            )
+        return budget
 
     def _response_limit_policy(self) -> ResponseLimitPolicy:
         """Budget every MCP response body against the agent's configured cap.
@@ -1226,7 +1278,12 @@ class MCPAdapter(ProtocolAdapter):
             # Order. Extract the adcp_error object from structuredContent first,
             # then from text fallback — whichever is present.
             if is_error:
-                adcp_error = extract_adcp_error(result, **self._extraction_budget())
+                adcp_error = extract_adcp_error(
+                    result,
+                    max_response_bytes=self._extraction_budget(),
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                )
                 # Raise typed idempotency exceptions before building a generic
                 # TaskResult(failed), so callers that catch them distinctly
                 # don't lose the signal.
@@ -1273,13 +1330,18 @@ class MCPAdapter(ProtocolAdapter):
             # Algorithm: prefer structuredContent (MCP 2025-03-26+), fall back
             # to JSON-parsing content[].text for older servers (including the
             # AdCP reference training agent).
-            data_to_return = extract_adcp_success(result, **self._extraction_budget())
+            data_to_return = extract_adcp_success(
+                result,
+                max_response_bytes=self._extraction_budget(),
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            )
             if data_to_return is None:
                 raise ValueError(
                     f"MCP tool {tool_name} returned no structured AdCP data. "
                     f"Neither structuredContent nor content[].text yielded a "
                     f"parseable non-adcp_error JSON object. "
-                    f"Got content: {result.content if hasattr(result, 'content') else 'none'}"
+                    f"Got content: {_content_summary(result)}"
                 )
 
             if self.agent_config.debug and start_time:

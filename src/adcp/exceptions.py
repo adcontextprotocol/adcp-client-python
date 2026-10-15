@@ -270,9 +270,11 @@ class ADCPProtocolError(ADCPError):
 class ADCPResponseTooLargeError(ADCPError):
     """An agent response exceeded the configured ``max_response_bytes`` budget.
 
-    Raised while the body is still streaming in, so the oversized payload is
-    never fully buffered. The response is rejected outright — the SDK never
-    truncates a response and hands back a partial object.
+    Raised while the body streams in — so the oversized payload is never
+    fully buffered — or, on a path whose transport this SDK does not own,
+    when a decoded ``content[].text`` item exceeds the same budget before
+    ``json.loads`` runs. Either way the response is rejected outright: the
+    SDK never truncates a response and hands back a partial object.
 
     ``limit`` is the budget in force for the call, ``received`` the number of
     decoded bytes seen (or declared by ``Content-Length``) when the budget was

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._response_limit import (
+    DEFAULT_MAX_RESPONSE_BYTES,
     reset_call_max_response_bytes,
     set_call_max_response_bytes,
 )
@@ -1195,6 +1196,7 @@ class ADCPClient:
         capabilities_ttl: float = 3600.0,
         validate_features: bool = False,
         strict_idempotency: bool = False,
+        max_response_bytes: int | None = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> ADCPClient:
         """Create an ADCPClient wrapping a pre-connected MCP ClientSession.
 
@@ -1210,10 +1212,15 @@ class ADCPClient:
             ADCPClient.from_mcp_client(...) as c:`` to clean up the session
             will leak the session.
 
-            ``AgentConfig.max_response_bytes`` does **not** apply. The budget
-            is enforced in the transport under a client this SDK builds, and
-            an injected session brings its own — so an in-process or
-            caller-owned transport is the caller's to bound.
+            The **streaming** half of ``max_response_bytes`` does not apply:
+            that budget is enforced in the transport under a client this SDK
+            builds, and an injected session brings its own, so bounding bytes
+            as they arrive is the caller's to do. The post-parse half does
+            apply — an oversized ``content[].text`` item still raises
+            :class:`~adcp.exceptions.ADCPResponseTooLargeError` before
+            ``json.loads`` — and on this path it is the only bound there is.
+            Set ``max_response_bytes`` here to raise or (with ``None``)
+            remove it.
 
             Webhook delivery and ``on_activity`` callbacks are **not wired**
             on the in-process path — there is no HTTP transport for the
@@ -1266,6 +1273,9 @@ class ADCPClient:
                 declarations (same as ``__init__``).
             capabilities_ttl: TTL for the capability cache in seconds
                 (same as ``__init__``).
+            max_response_bytes: Budget for the ``content[].text`` extraction
+                bound, the only response-size bound that applies to an
+                injected session. ``None`` removes it.
 
         Returns:
             A fully configured ``ADCPClient`` backed by the injected session.
@@ -1277,6 +1287,7 @@ class ADCPClient:
             # not to route to a real host. Self-documenting in error messages.
             agent_uri="http://in-process.invalid",
             protocol=Protocol.MCP,
+            max_response_bytes=max_response_bytes,
         )
         instance = cls(
             config,

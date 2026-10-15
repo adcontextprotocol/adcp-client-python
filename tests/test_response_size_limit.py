@@ -13,6 +13,7 @@ import json
 import threading
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -837,6 +838,10 @@ async def test_text_fallback_response_over_the_configured_budget_raises(mcp_agen
         await adapter.close()
 
     assert caught.value.limit == 512 * 1024
+    # Pin which layer rejected it: the transport pre-rejects on the declared
+    # Content-Length, so `declared` tells the two apart. Without this the
+    # assertion above passes even if the extraction bound is deleted.
+    assert caught.value.declared is True
 
 
 @pytest.mark.asyncio
@@ -867,3 +872,60 @@ async def test_text_fallback_budget_follows_a_per_call_override(mcp_agent):
         assert result.success
     finally:
         await client.close()
+
+
+async def _injected_session(text: str):
+    """A caller-owned MCP session, which is the shape `from_mcp_client` takes.
+
+    This is the only path where the extraction bound is load-bearing: the
+    transport is the caller's, so nothing counted those bytes on the way in.
+    """
+
+    class _Session:
+        async def initialize(self):
+            return None
+
+        async def call_tool(self, name, params, **kwargs):
+            return SimpleNamespace(isError=False, content=[{"type": "text", "text": text}])
+
+        async def list_tools(self):
+            return SimpleNamespace(tools=[])
+
+    return _Session()
+
+
+@pytest.mark.asyncio
+async def test_injected_session_text_is_bounded_by_the_extraction_budget():
+    """`from_mcp_client` has no transport budget; this is its only bound."""
+    payload = json.dumps({"products": [], "padding": "x" * 200_000})
+    client = ADCPClient.from_mcp_client(
+        await _injected_session(payload),
+        validation=ValidationHookConfig(responses="warn"),
+        max_response_bytes=4096,
+    )
+
+    with pytest.raises(ADCPResponseTooLargeError) as caught:
+        await client.get_products(GetProductsRequest(buying_mode="brief", brief="video"))
+
+    assert caught.value.limit == 4096
+    # No transport ran, so this can only have come from extraction.
+    assert caught.value.declared is False
+    assert caught.value.url is None
+
+
+@pytest.mark.asyncio
+async def test_injected_session_budget_is_configurable():
+    """Raising it accepts the same response; `None` removes the bound."""
+    payload = json.dumps({"products": [], "padding": "x" * 200_000})
+
+    for budget in (4 * 1024 * 1024, None):
+        client = ADCPClient.from_mcp_client(
+            await _injected_session(payload),
+            validation=ValidationHookConfig(responses="warn"),
+            max_response_bytes=budget,
+        )
+        result = await client.get_products(GetProductsRequest(buying_mode="brief", brief="video"))
+
+        # The same 200 KB payload the 4 KiB budget rejected now parses.
+        assert result.success, result.error
+        assert result.data is not None

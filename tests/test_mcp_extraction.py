@@ -180,6 +180,63 @@ class TestSuccessExtractionEdgeCases:
             extract_adcp_success(resp, max_response_bytes=1100)
         assert caught.value.received == 1200
 
+    def test_quarter_bound_is_tight_for_astral_characters(self) -> None:
+        """The encode short-circuit assumes 4 bytes per character is the max.
+
+        An astral-plane character is exactly 4 UTF-8 bytes, so
+        ``limit // 4`` characters is exactly ``limit`` bytes — the one input
+        that catches the bound being loosened to ``limit // 2``.
+        """
+        limit = 4096
+        at_the_bound = "\U0001F600" * (limit // 4)
+        assert len(at_the_bound.encode("utf-8")) == limit
+        resp = _response_shim({"content": [{"type": "text", "text": at_the_bound}]})
+        assert extract_adcp_success(resp, max_response_bytes=limit) is None
+
+        over = at_the_bound + "\U0001F600"
+        resp = _response_shim({"content": [{"type": "text", "text": over}]})
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            extract_adcp_success(resp, max_response_bytes=limit)
+        assert caught.value.received == limit + 4
+
+    def test_exactly_at_the_budget_is_accepted(self) -> None:
+        """The comparison is ``>``, not ``>=``."""
+        payload = json.dumps({"status": "completed", "pad": ""})
+        padded = json.dumps({"status": "completed", "pad": "x" * (4096 - len(payload))})
+        assert len(padded.encode("utf-8")) == 4096
+        resp = _response_shim({"content": [{"type": "text", "text": padded}]})
+
+        assert extract_adcp_success(resp, max_response_bytes=4096) is not None
+
+    def test_lone_surrogate_does_not_crash_the_guard(self) -> None:
+        """``json.loads`` yields lone surrogates from ``\\ud800`` escapes.
+
+        Encoding one without ``surrogatepass`` raises ``UnicodeEncodeError``
+        from inside the size guard, which escapes the JSON-decode handler and
+        lands as an opaque failure.
+        """
+        text = "\ud800" * 2000  # 3 UTF-8 bytes each under surrogatepass
+        resp = _response_shim({"content": [{"type": "text", "text": text}]})
+
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            extract_adcp_success(resp, max_response_bytes=4096)
+        assert caught.value.received == 6000
+
+    def test_structured_content_wins_before_the_text_budget_applies(self) -> None:
+        """A long human summary alongside a payload must not fail the call.
+
+        Servers routinely send both; the budget check belongs after the
+        ``structuredContent`` branch, not before it.
+        """
+        resp = _response_shim(
+            {
+                "structuredContent": {"status": "completed"},
+                "content": [{"type": "text", "text": "x" * 100_000}],
+            }
+        )
+
+        assert extract_adcp_success(resp, max_response_bytes=1024) == {"status": "completed"}
+
     def test_budget_can_be_disabled(self) -> None:
         """``None`` matches ``AgentConfig.max_response_bytes=None``."""
         payload = json.dumps({"status": "completed", "pad": "x" * 8192})
@@ -188,14 +245,6 @@ class TestSuccessExtractionEdgeCases:
         got = extract_adcp_success(resp, max_response_bytes=None)
 
         assert got is not None and got["status"] == "completed"
-
-    def test_error_extraction_shares_the_same_budget(self) -> None:
-        """``isError: true`` plus a giant payload is the same primitive."""
-        oversized = json.dumps({"adcp_error": {"code": "X", "message": "y" * 4096}})
-        resp = _response_shim({"isError": True, "content": [{"type": "text", "text": oversized}]})
-
-        with pytest.raises(ADCPResponseTooLargeError):
-            extract_adcp_error(resp, max_response_bytes=1024)
 
     def test_array_json_rejected(self) -> None:
         resp = _response_shim({"content": [{"type": "text", "text": "[1,2,3]"}]})
@@ -301,6 +350,14 @@ class TestErrorExtractionPaths:
             }
         )
         assert extract_adcp_error(resp) is None
+
+    def test_error_extraction_shares_the_same_budget(self) -> None:
+        """``isError: true`` plus a giant payload is the same primitive."""
+        oversized = json.dumps({"adcp_error": {"code": "X", "message": "y" * 4096}})
+        resp = _response_shim({"isError": True, "content": [{"type": "text", "text": oversized}]})
+
+        with pytest.raises(ADCPResponseTooLargeError):
+            extract_adcp_error(resp, max_response_bytes=1024)
 
     def test_error_path_enforces_pre_parse_size_limit(self) -> None:
         # DoS guard: a malicious server returning isError=true plus a giant

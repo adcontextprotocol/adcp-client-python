@@ -39,9 +39,16 @@
   failed `TaskResult` instead of aborting the batch.
   The MCP text-fallback bound follows the same budget: a fixed 1 MiB cap on
   `content[].text` used to be the effective call limit for any server that
-  answers with text and no `structuredContent`, and an over-cap item was
-  skipped rather than reported. Refs #1503, adcontextprotocol/adcp#8190,
-  adcontextprotocol/adcp#8200.
+  answers with text and no `structuredContent`. **`extract_adcp_success` and
+  `extract_adcp_error` now raise `ADCPResponseTooLargeError` where they
+  previously returned `None`**, and an over-cap text item surfaces as that
+  raised error rather than as `TaskResult(FAILED, "no structured AdCP
+  data")` — or, when a later item happened to parse, rather than silently
+  vanishing from a call that then succeeded. Both functions take
+  `max_response_bytes` (4 MiB default) if you call them directly.
+  `ADCPClient.from_mcp_client()` takes it too: an injected session has no
+  streaming budget, so this is its only response-size bound. Refs #1503,
+  adcontextprotocol/adcp#8190, adcontextprotocol/adcp#8200.
 
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
   principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.
