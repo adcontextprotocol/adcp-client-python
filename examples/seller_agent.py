@@ -934,6 +934,12 @@ class DemoSeller(ADCPHandler):
     #: ``tools/list`` is a statement of intent rather than a byproduct of
     #: which methods happen to exist. The framework adds the always-on
     #: protocol/discovery tools (``get_adcp_capabilities``) on top.
+    #:
+    #: One consequence worth knowing before copying this: declaring it also
+    #: registers ``DemoSeller`` as a tool-discovery base, so a subclass of
+    #: *this* class is measured against it and advertises only what it
+    #: overrides itself. Subclass ``ADCPHandler`` and declare your own set
+    #: rather than subclassing a concrete seller.
     advertised_tools: ClassVar[set[str]] = {
         "control_media_buy",
         "create_media_buy",

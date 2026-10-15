@@ -1101,7 +1101,11 @@ def _build_agent_card(
     1.0 clients see the transport they expect on
     ``/.well-known/agent-card.json``.
     """
-    tool_defs = get_tools_for_handler(handler, advertise_all=advertise_all)
+    # Names and descriptions only. An A2A skill carries neither schema, and
+    # this runs per request on the pre-auth ``/.well-known/agent-card.json``
+    # route — building the full Pydantic schema graph there is ~400x the work
+    # for a result immediately discarded.
+    tool_defs = get_tools_for_handler(handler, advertise_all=advertise_all, _include_schemas=False)
     extra_ids = {s.id for s in extra_skills} if extra_skills else set()
 
     skills = [

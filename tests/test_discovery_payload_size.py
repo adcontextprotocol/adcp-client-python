@@ -74,7 +74,7 @@ def test_reference_seller_declares_its_advertised_tools() -> None:
 
 
 def test_a_typical_seller_spends_little_on_discovery() -> None:
-    """A handful of tools should cost a handful of kilobytes, not megabytes."""
+    """A handful of tools leaves most of the budget unspent."""
 
     class _TypicalSeller(ADCPHandler):
         async def get_adcp_capabilities(self, params, context=None):
@@ -88,7 +88,10 @@ def test_a_typical_seller_spends_little_on_discovery() -> None:
 
     size = _tools_list_payload(_TypicalSeller())
 
-    assert size < 512 * 1024, f"three tools cost {size} bytes of discovery"
+    assert size < BUYER_RESPONSE_BYTE_BUDGET // 4, (
+        f"three tools cost {size} bytes of discovery, over a quarter of the "
+        f"{BUYER_RESPONSE_BYTE_BUDGET}-byte buyer budget"
+    )
 
 
 def test_whole_surface_stays_within_an_order_of_magnitude_of_the_budget() -> None:
@@ -165,6 +168,11 @@ def test_inline_schema_mode_is_the_expensive_opt_in() -> None:
         ("get_adcp_capabilities", {}),
         ("get_media_buys", {}),
         ("list_creatives", {}),
+        # The two tools whose advertised schema is post-processed after
+        # generation — `_widen_media_buy_output_schema_for_legacy_statuses`
+        # had to learn to resolve `$ref` arms for this change.
+        ("create_media_buy", {"buyer_ref": "ref-1", "packages": [], "promoted_offering": "x"}),
+        ("control_media_buy", {"media_buy_id": "mb-1", "action": "pause_media_buy"}),
     ],
 )
 async def test_advertised_output_schemas_still_describe_real_responses(

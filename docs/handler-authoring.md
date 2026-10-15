@@ -91,6 +91,13 @@ mcp server advertising 13 of 13 tools
 mcp server tools/list payload: 1351670 bytes across 13 tools
 ```
 
+**Declaring ``advertised_tools`` makes that class a discovery base.** Once
+declared, the framework measures *subclasses* of that class against it, so a
+subclass advertises only what it overrides itself — a subclass of a concrete
+seller that adds nothing advertises nothing. Declare the set on the class your
+adopters subclass, not on a leaf, and subclass ``ADCPHandler`` with your own
+declaration rather than extending someone else's concrete handler.
+
 **Custom handler bases — declare ``advertised_tools``.** The override
 filter works perfectly for direct ``ADCPHandler`` subclasses and the
 specialized bases (``GovernanceHandler``, ``ContentStandardsHandler``,

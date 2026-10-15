@@ -190,14 +190,22 @@ def _widen_media_buy_output_schema_for_legacy_statuses(
         if not isinstance(variant, dict):
             continue
         # Outside ``schema_mode="inline"`` a union arm is a local reference.
-        # Widen the definition it points at — mutating it in place is what
-        # reaches the advertised arm, since the arm *is* that definition.
+        # Widen a *copy* under a new definition name and repoint this arm at
+        # it: a `$defs` entry may be referenced from more than one site, and
+        # loosening a status constraint somewhere else is not what this is
+        # for. Today each arm's definition has exactly one reference, so the
+        # copy is free — it is the invariant that is worth not depending on.
         ref = variant.get("$ref")
         if isinstance(ref, str) and ref.startswith("#/$defs/"):
-            target = defs.get(ref[len("#/$defs/") :])
+            source_name = ref[len("#/$defs/") :]
+            target = defs.get(source_name)
             if not isinstance(target, dict):
                 continue
-            variant = target
+            widened_name = f"{source_name}LegacyStatus"
+            widened = copy.deepcopy(target)
+            defs[widened_name] = widened
+            variant["$ref"] = f"#/$defs/{widened_name}"
+            variant = widened
         required = variant.get("required")
         properties = variant.get("properties")
         if not isinstance(required, list) or not isinstance(properties, dict):
@@ -1773,9 +1781,11 @@ def _prune_to_required_fields(
     nested objects required properties, scalar optionals, and protected
     mutation-discovery fields remain. Protected fields keep their complete
     referenced Pydantic model graph. When optional properties are omitted from
-    an object that otherwise rejects unknown fields, the compact discovery
-    shape is opened with ``additionalProperties: true`` so it remains a
-    permissive description of payloads accepted by the runtime model.
+    an object that otherwise rejects unknown fields, each omitted name is
+    re-admitted with the permissive boolean schema ``true`` rather than the
+    object being opened with ``additionalProperties: true`` — the compact
+    shape stays a permissive description of what the runtime model accepts
+    *and* keeps rejecting what it rejects.
 
     The transform operates only on Pydantic's JSON Schema output; it never
     substitutes hand-written tool shapes.
@@ -1844,8 +1854,28 @@ def _prune_to_required_fields(
             protected_defs=_protected_defs,
         )
 
-    if dropped_optional_properties and result.get("additionalProperties") is False:
-        result["additionalProperties"] = True
+    if dropped_optional_properties:
+        # Re-admit every dropped name with the permissive boolean schema
+        # ``true`` rather than deleting it. Two things follow, both of which
+        # the previous "open the object with additionalProperties: true"
+        # approach lost:
+        #
+        # * The object stays closed if it was closed. Opening it would make
+        #   the compact shape accept keys the model rejects — on an
+        #   outputSchema that is the only check a buyer has against a seller
+        #   smuggling extra fields into a payload it feeds to a model.
+        # * The field inventory survives. A reader still learns that
+        #   ``errors`` and ``ext`` exist on a task envelope; only their
+        #   subtrees are gone, which is the size that made compaction
+        #   necessary.
+        #
+        # The cost is the length of each dropped name, not its subtree.
+        pruned_properties = result.get("properties")
+        if isinstance(pruned_properties, dict) and isinstance(properties, dict):
+            for name in properties:
+                pruned_properties.setdefault(name, True)
+        elif result.get("additionalProperties") is False:
+            result["additionalProperties"] = True
     return result
 
 
@@ -2654,7 +2684,10 @@ def get_tools_for_handler(
             (default) keeps every root request field, required nested fields,
             scalar optionals, and protected mutation surfaces; ``"defs"``
             keeps the complete schema with local references, and ``"inline"``
-            preserves the historical fully expanded schema.
+            preserves the historical fully expanded schema. Both non-default
+            modes regenerate input *and* output schemas on every call with no
+            memoization — seconds per construction for a 13-tool handler —
+            where ``"compact"`` reads the memoized registry.
             Version-pinned handlers continue to advertise their exact bundled
             wire schemas.
 
@@ -3773,6 +3806,15 @@ class MCPToolSet:
             advertise_all=advertise_all,
             adcp_version=resolved_adcp_version,
             schema_mode=schema_mode,
+        )
+        # Adopters who wire ``tool_definitions`` into their own
+        # ``@server.list_tools()`` never reach ``create_mcp_server``, so this
+        # is their only size signal.
+        from adcp.server.serve import warn_if_discovery_payload_is_oversized
+
+        warn_if_discovery_payload_is_oversized(
+            tool_defs=self._filtered_definitions,
+            advertise_all=advertise_all,
         )
         self._tools: dict[str, Callable[..., Any]] = {}
 

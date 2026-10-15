@@ -144,7 +144,7 @@ class ReportingStatusSupport:
             or projection._escalation != getattr(self.store, "escalation", None)
             or not projection._consumer_status_enabled
             or "get_reporting_status"
-            not in {t["name"] for t in get_tools_for_handler(self.handler)}
+            not in {t["name"] for t in get_tools_for_handler(self.handler, _include_schemas=False)}
         ):
             return False
         return all([await self.account_ready(account_id=a) for a in sorted(set(self.account_ids))])
@@ -183,7 +183,7 @@ async def validate_status_claims(
     from adcp.server.mcp_tools import get_tools_for_handler
 
     assert support.handler is not None
-    mounted = {t["name"] for t in get_tools_for_handler(support.handler)}
+    mounted = {t["name"] for t in get_tools_for_handler(support.handler, _include_schemas=False)}
     for field, task in block.items():
         if field.endswith("_task") and isinstance(task, str) and task not in mounted:
             raise ReportingNotificationError("reporting_capability_requires_mounted_task")

@@ -91,7 +91,14 @@ def test_pydantic_fallback_rejects_conditional_root() -> None:
     assert _model_to_json_schema(ConditionalRoot) is None
 
 
-def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> None:
+def test_compact_pruning_keeps_root_fields_and_keeps_pruned_objects_closed() -> None:
+    """A pruned object re-admits the names it dropped instead of opening.
+
+    Opening it would make the advertised shape accept keys the runtime model
+    rejects — on an ``outputSchema`` that is the only check a buyer has
+    against a seller smuggling extra fields into a payload it feeds to a
+    model.
+    """
     schema = {
         "type": "object",
         "properties": {
@@ -116,9 +123,11 @@ def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> 
 
     assert set(compact["properties"]) == {"required_root", "optional_root"}
     nested = compact["properties"]["optional_root"]
-    assert set(nested["properties"]) == {"required_nested"}
+    assert set(nested["properties"]) == {"required_nested", "optional_complex"}
+    # The dropped optional keeps its name and loses only its subtree.
+    assert nested["properties"]["optional_complex"] is True
     assert nested["required"] == ["required_nested"]
-    assert nested["additionalProperties"] is True
+    assert nested["additionalProperties"] is False
 
 
 def test_compact_pruning_keeps_scalar_optional_discovery_floor() -> None:
@@ -142,7 +151,15 @@ def test_compact_pruning_keeps_scalar_optional_discovery_floor() -> None:
     compact = _prune_to_required_fields(schema)
     properties = compact["properties"]["container"]["properties"]
 
-    assert set(properties) == {"optional_scalar", "optional_nullable_scalar"}
+    # Scalars keep their schema; the complex optional keeps only its name, so
+    # a reader still learns the field exists.
+    assert set(properties) == {
+        "optional_scalar",
+        "optional_nullable_scalar",
+        "optional_complex",
+    }
+    assert properties["optional_scalar"] == {"type": "integer"}
+    assert properties["optional_complex"] is True
 
 
 def test_compact_pruning_does_not_rewrite_literal_schema_values() -> None:
@@ -219,11 +236,18 @@ def test_compact_pruning_keeps_pydantic_targeting_overlay_contract() -> None:
     compact = _prune_to_required_fields(schema)
     package = compact["properties"]["packages"]["items"]
 
-    assert set(package["properties"]) == {"product_id", "targeting_overlay"}
+    assert set(package["properties"]) == {
+        "product_id",
+        "targeting_overlay",
+        "optional_complex",
+    }
     assert (
         package["properties"]["targeting_overlay"]
         == schema["properties"]["packages"]["items"]["properties"]["targeting_overlay"]
     )
+    # Dropped subtree, kept name — the object stays closed.
+    assert package["properties"]["optional_complex"] is True
+    assert package["additionalProperties"] is False
 
 
 def test_input_schemas_match_pydantic_generation() -> None:
@@ -517,8 +541,14 @@ def test_advertised_output_schemas_use_local_refs_like_input_schemas() -> None:
     """
     by_name = {tool["name"]: tool for tool in ADCP_TOOL_DEFINITIONS}
     create_media_buy = by_name["create_media_buy"]
-    assert "$defs" in json.dumps(create_media_buy["inputSchema"])
-    assert "$defs" in json.dumps(create_media_buy["outputSchema"])
+
+    # Assert on structure, not on a substring: an inlined schema still
+    # mentions "#/$defs/..." inside `discriminator.mapping`, so a `"$defs" in
+    # json.dumps(...)` check passes against the very shape this guards.
+    assert "$defs" in create_media_buy["inputSchema"]
+    output = create_media_buy["outputSchema"]
+    assert "$defs" in output
+    assert all("$ref" in arm for arm in output["anyOf"])
 
 
 # ---------------------------------------------------------------------------

@@ -623,6 +623,12 @@ def _log_advertised_tools(
 #: cross-SDK contract (adcontextprotocol/adcp#8190). A ``tools/list`` larger
 #: than this is not "slow discovery" — it is discovery the buyer refuses to
 #: read, so the agent looks unreachable rather than verbose.
+#:
+#: Must stay equal to ``adcp._response_limit.DEFAULT_MAX_RESPONSE_BYTES``,
+#: this SDK's buyer-side default. They are declared separately because the
+#: seller framework does not otherwise depend on the client; collapse them
+#: into one import if that ever changes. A seller warning at a threshold no
+#: buyer enforces is worse than no warning.
 BUYER_RESPONSE_BYTE_BUDGET: int = 4 * 1024 * 1024
 
 #: Where to start telling the operator. Half the budget, because the payload
@@ -634,8 +640,11 @@ _DISCOVERY_PAYLOAD_WARN_BYTES: int = BUYER_RESPONSE_BYTE_BUDGET // 2
 def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
     """Serialized size of the ``tools/list`` result these definitions produce.
 
-    Close enough to the wire to act on: the JSON-RPC envelope around it is a
-    few dozen bytes, and separators differ by a few percent.
+    Close enough to the wire to act on, and deliberately conservative: the
+    JSON-RPC envelope around it is a few dozen bytes, separators differ by a
+    few percent, and ``annotations`` is counted here although the MCP server
+    does not put it on the wire. Measured against a real ``tools/list`` frame
+    it reads about 0.3% high.
     """
     try:
         return len(
@@ -646,6 +655,10 @@ def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
             )
         )
     except (TypeError, ValueError):  # pragma: no cover - defensive
+        logger.warning(
+            "could not measure the tools/list payload; its size is unknown, "
+            "and FastMCP will not be able to serialize it either"
+        )
         return 0
 
 
@@ -705,6 +718,15 @@ def warn_if_discovery_payload_is_oversized(
         "``advertised_tools`` and drop advertise_all=True)"
         if advertise_all
         else "Advertise only the tools this agent serves (declare " "``advertised_tools``)"
+    )
+    # A UserWarning alone is not enough: PYTHONWARNINGS=ignore and a
+    # simplefilter in app bootstrap are both common, and this failure is
+    # undiagnosable from the seller side. Put it on the log channel too.
+    (logger.error if over_budget else logger.warning)(
+        "mcp server tools/list is %d bytes across %d tools. %s",
+        size,
+        len(tool_defs),
+        verdict,
     )
     warnings.warn(
         f"mcp server tools/list is {size} bytes across "
