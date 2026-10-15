@@ -14,6 +14,14 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.1.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.2...v8.1.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* **protocol:** adopt signed AdCP 3.2.4 on SDK 8 ([#1477](https://github.com/adcontextprotocol/adcp-client-python/issues/1477)) ([9483ae1](https://github.com/adcontextprotocol/adcp-client-python/commit/9483ae16112c19cdfbcf06ed26edf874e8f89f6e))
+* **types:** backport macro_resolution_capabilities on Format to 8.x ([#1506](https://github.com/adcontextprotocol/adcp-client-python/issues/1506)) ([897ab4a](https://github.com/adcontextprotocol/adcp-client-python/commit/897ab4a29a3c475d3c7e36147dabd049a0d1e1b0))
+
 ## [8.1.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.1...v8.1.2) (2026-10-08)
 
 
