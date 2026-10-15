@@ -37,7 +37,11 @@
   `ADCPClient.from_mcp_client()` sessions are not capped (the caller owns that
   transport). In a multi-agent fan-out an over-cap reply becomes that agent's
   failed `TaskResult` instead of aborting the batch.
-  Refs #1503, adcontextprotocol/adcp#8190.
+  The MCP text-fallback bound follows the same budget: a fixed 1 MiB cap on
+  `content[].text` used to be the effective call limit for any server that
+  answers with text and no `structuredContent`, and an over-cap item was
+  skipped rather than reported. Refs #1503, adcontextprotocol/adcp#8190,
+  adcontextprotocol/adcp#8200.
 
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
   principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.

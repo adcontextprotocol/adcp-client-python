@@ -68,6 +68,7 @@ import json
 
 from adcp import _idempotency
 from adcp._response_limit import (
+    DEFAULT_MAX_RESPONSE_BYTES,
     ResponseLimitPolicy,
     find_response_limit_error,
     install_response_limit,
@@ -95,10 +96,6 @@ from adcp.validation.client_hooks import (
     validate_outgoing_request,
 )
 from adcp.validation.schema_validator import SchemaValidationError, format_issues
-
-# Spec-defined limits from docs/building/implementation/mcp-response-extraction.mdx
-# and docs/building/implementation/transport-errors.mdx.
-_MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
 
 # MCP replays the sender's context in its HTTP writer task. A mutable holder
 # keeps HTTP diagnostics scoped to the awaiting call, including concurrent
@@ -435,20 +432,77 @@ def _result_structured_content(result: Any) -> Any:
     return getattr(result, "structuredContent", getattr(result, "structured_content", None))
 
 
-def extract_adcp_success(result: Any) -> dict[str, Any] | None:
+def _assert_text_within_budget(
+    text: str,
+    *,
+    limit: int | None,
+    agent_id: str | None,
+    agent_uri: str | None,
+) -> None:
+    """Bound one ``content[].text`` item before it reaches ``json.loads``.
+
+    The bound is the configured per-call budget, not a tighter figure of its
+    own. AdCP spec §MCP Response Extraction / Size Limits
+    (docs/building/by-layer/L0/mcp-response-extraction.mdx) is explicit about
+    why: for a server that answers with ``content[].text`` and no
+    ``structuredContent``, that item *is* the whole response, so a sub-limit
+    here would silently become the effective call cap. This SDK shipped a
+    fixed 1 MiB, which made 1 MiB the real limit for every text-fallback
+    server no matter what ``max_response_bytes`` said.
+
+    Oversize raises rather than skipping. A skipped item leaves extraction to
+    report "no structured data found", which the caller cannot tell from a
+    server that genuinely sent none — spec §Response Size Bounds (7) requires
+    the distinct error instead.
+
+    The transport-level budget has already bounded the body, so this is
+    defense in depth: it catches a text item that slipped past under a larger
+    whole-call allowance, or a caller using these extractors on a result it
+    obtained some other way.
+    """
+    if limit is None:
+        return
+    # A UTF-8 character is 1 to 4 bytes, so anything shorter than a quarter of
+    # the budget cannot exceed it — and never pays for an encode.
+    if len(text) <= limit // 4:
+        return
+    size = len(text.encode("utf-8", "surrogatepass"))
+    if size <= limit:
+        return
+    raise ADCPResponseTooLargeError(
+        limit=limit,
+        received=size,
+        agent_id=agent_id,
+        agent_uri=agent_uri,
+    )
+
+
+def extract_adcp_success(
+    result: Any,
+    *,
+    max_response_bytes: int | None = DEFAULT_MAX_RESPONSE_BYTES,
+    agent_id: str | None = None,
+    agent_uri: str | None = None,
+) -> dict[str, Any] | None:
     """Extract AdCP success response data from an MCP tool result.
 
     Implements the normative algorithm from AdCP spec §MCP Response Extraction
-    (docs/building/implementation/mcp-response-extraction.mdx):
+    (docs/building/by-layer/L0/mcp-response-extraction.mdx):
 
     1. If ``isError`` is truthy, return ``None`` — error extraction is a
        separate path.
     2. ``structuredContent`` — if present and a non-array object that is NOT
        an ``adcp_error``-only payload, return it.
     3. Text fallback — iterate ``content[]`` in order; for each ``type='text'``
-       item within the 1MB size limit, ``json.loads`` and return the result
-       if it is a non-array object that is NOT ``adcp_error``-only.
+       item, enforce ``max_response_bytes``, then ``json.loads`` and return
+       the result if it is a non-array object that is NOT ``adcp_error``-only.
     4. No structured data found — return ``None``.
+
+    ``max_response_bytes`` is the same per-call budget the transport enforces
+    — see :func:`_assert_text_within_budget` for why it must not be tighter.
+    ``None`` disables it, matching ``AgentConfig.max_response_bytes``.
+
+    :raises ADCPResponseTooLargeError: a text item exceeds the budget.
     """
     if _result_is_error(result):
         return None
@@ -459,8 +513,11 @@ def extract_adcp_success(result: Any) -> dict[str, Any] | None:
 
     for item in getattr(result, "content", None) or []:
         text = _text_of(item)
-        if text is None or len(text) > _MAX_TEXT_SIZE_BYTES:
+        if text is None:
             continue
+        _assert_text_within_budget(
+            text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
+        )
         try:
             parsed = json.loads(text)
         except (json.JSONDecodeError, ValueError):
@@ -470,12 +527,20 @@ def extract_adcp_success(result: Any) -> dict[str, Any] | None:
     return None
 
 
-def extract_adcp_error(result: Any) -> dict[str, Any] | None:
+def extract_adcp_error(
+    result: Any,
+    *,
+    max_response_bytes: int | None = DEFAULT_MAX_RESPONSE_BYTES,
+    agent_id: str | None = None,
+    agent_uri: str | None = None,
+) -> dict[str, Any] | None:
     """Extract and validate an AdCP ``adcp_error`` object from an MCP result.
 
     Implements AdCP spec §Client Detection Order (MCP paths 1 + 5) from
-    docs/building/implementation/transport-errors.mdx. Only applies when
+    docs/building/operating/transport-errors.mdx. Only applies when
     ``isError`` is truthy. Returns a validated error object or ``None``.
+
+    :raises ADCPResponseTooLargeError: a text item exceeds the budget.
     """
     if not _result_is_error(result):
         return None
@@ -488,12 +553,14 @@ def extract_adcp_error(result: Any) -> dict[str, Any] | None:
 
     for item in getattr(result, "content", None) or []:
         text = _text_of(item)
-        # Apply the same 1MB pre-parse cap as the success path to prevent a
-        # malicious server returning ``isError=true`` plus a giant payload from
-        # forcing a multi-MB json.loads into memory before the 4KB validation
-        # would reject it.
-        if text is None or len(text) > _MAX_TEXT_SIZE_BYTES:
+        if text is None:
             continue
+        # Same budget as the success path. A server answering ``isError=true``
+        # with a giant payload is the same allocation primitive, and the 4 KiB
+        # `adcp_error` cap only applies after json.loads has already run.
+        _assert_text_within_budget(
+            text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
+        )
         try:
             parsed = json.loads(text)
         except (json.JSONDecodeError, ValueError):
@@ -637,6 +704,18 @@ class MCPAdapter(ProtocolAdapter):
             raise budget_errors[-1]
         logger.debug("MCP %s completed within the response budget", what)
         return result
+
+    def _extraction_budget(self) -> dict[str, Any]:
+        """Budget kwargs for the ``content[].text`` extractors.
+
+        The same number the transport enforces, resolved per call so a
+        ``TaskOptions`` override reaches the post-parse check too.
+        """
+        return {
+            "max_response_bytes": resolve_max_response_bytes(self.agent_config.max_response_bytes),
+            "agent_id": self.agent_config.id,
+            "agent_uri": self.agent_config.agent_uri,
+        }
 
     def _response_limit_policy(self) -> ResponseLimitPolicy:
         """Budget every MCP response body against the agent's configured cap.
@@ -1147,7 +1226,7 @@ class MCPAdapter(ProtocolAdapter):
             # Order. Extract the adcp_error object from structuredContent first,
             # then from text fallback — whichever is present.
             if is_error:
-                adcp_error = extract_adcp_error(result)
+                adcp_error = extract_adcp_error(result, **self._extraction_budget())
                 # Raise typed idempotency exceptions before building a generic
                 # TaskResult(failed), so callers that catch them distinctly
                 # don't lose the signal.
@@ -1194,7 +1273,7 @@ class MCPAdapter(ProtocolAdapter):
             # Algorithm: prefer structuredContent (MCP 2025-03-26+), fall back
             # to JSON-parsing content[].text for older servers (including the
             # AdCP reference training agent).
-            data_to_return = extract_adcp_success(result)
+            data_to_return = extract_adcp_success(result, **self._extraction_budget())
             if data_to_return is None:
                 raise ValueError(
                     f"MCP tool {tool_name} returned no structured AdCP data. "

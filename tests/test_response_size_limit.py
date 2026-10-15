@@ -7,6 +7,7 @@ contract these tests encode.
 
 from __future__ import annotations
 
+import contextlib
 import gzip
 import json
 import threading
@@ -405,6 +406,9 @@ class _MCPHandler(BaseHTTPRequestHandler):
     tool_payload_size = 0
     padded_method = "tools/call"
     content_encoding: str | None = None
+    #: Answer like a pre-2025-03-26 server: the whole AdCP payload serialized
+    #: into one ``content[].text`` item, with no ``structuredContent``.
+    text_fallback = False
 
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler override
         message = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))))
@@ -422,10 +426,20 @@ class _MCPHandler(BaseHTTPRequestHandler):
                 "serverInfo": {"name": "oversize-agent", "version": padding or "1"},
             }
         elif method == "tools/call":
-            result = {
-                "content": [{"type": "text", "text": padding}],
-                "structuredContent": {"products": []},
-            }
+            if self.text_fallback:
+                result = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps({"products": [], "padding": padding}),
+                        }
+                    ]
+                }
+            else:
+                result = {
+                    "content": [{"type": "text", "text": padding}],
+                    "structuredContent": {"products": []},
+                }
         else:
             result = {
                 "tools": [{"name": padding or "get_products", "inputSchema": {"type": "object"}}]
@@ -438,7 +452,10 @@ class _MCPHandler(BaseHTTPRequestHandler):
             self.send_header("content-encoding", self.content_encoding)
         self.send_header("content-length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+            # A client that aborts mid-body is this suite's happy path; let it
+            # go rather than printing a socketserver traceback over the result.
+            self.wfile.write(body)
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler override
         self.send_response(405)
@@ -775,3 +792,78 @@ async def test_a2a_tool_call_recovers_the_typed_error_from_a_wrapper():
     adapter._send_and_aggregate = fake_send  # type: ignore[method-assign]
     with pytest.raises(ADCPResponseTooLargeError):
         await adapter.get_products({"brief": "anything"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 2 * 1024 * 1024, "text_fallback": True}],
+    indirect=True,
+)
+async def test_text_fallback_response_under_the_default_budget_succeeds(mcp_agent):
+    """A 2 MiB text-fallback response is ordinary traffic under the default.
+
+    For a server with no ``structuredContent``, the single text item *is* the
+    response. The SDK used to bound that item at a fixed 1 MiB, so 1 MiB —
+    not ``max_response_bytes`` — was the effective call cap for every such
+    server, and an item over it was skipped rather than reported.
+    """
+    adapter = _mcp_adapter(mcp_agent)
+    assert adapter.agent_config.max_response_bytes == DEFAULT_MAX_RESPONSE_BYTES
+    try:
+        result = await adapter.get_products({"brief": "anything"})
+    finally:
+        await adapter.close()
+
+    assert result.success, result.error
+    assert result.data is not None
+    assert result.data["products"] == []
+    assert len(result.data["padding"]) == 2 * 1024 * 1024
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 2 * 1024 * 1024, "text_fallback": True}],
+    indirect=True,
+)
+async def test_text_fallback_response_over_the_configured_budget_raises(mcp_agent):
+    """Lowering the budget rejects the same response, typed."""
+    adapter = _mcp_adapter(mcp_agent, max_response_bytes=512 * 1024)
+    try:
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            await adapter.get_products({"brief": "anything"})
+    finally:
+        await adapter.close()
+
+    assert caught.value.limit == 512 * 1024
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mcp_agent",
+    [{"tool_payload_size": 2 * 1024 * 1024, "text_fallback": True}],
+    indirect=True,
+)
+async def test_text_fallback_budget_follows_a_per_call_override(mcp_agent):
+    """The post-parse bound is the per-call number, not a fixed one."""
+    client = ADCPClient(
+        AgentConfig(
+            id="seller",
+            agent_uri=mcp_agent,
+            protocol=Protocol.MCP,
+            max_response_bytes=512 * 1024,
+        ),
+        validation=ValidationHookConfig(responses="warn"),
+    )
+    request = GetProductsRequest(buying_mode="brief", brief="video")
+    try:
+        with pytest.raises(ADCPResponseTooLargeError):
+            await client.get_products(request)
+
+        result = await client.get_products(
+            request, options=TaskOptions(max_response_bytes=4 * 1024 * 1024)
+        )
+        assert result.success
+    finally:
+        await client.close()

@@ -1000,6 +1000,13 @@ result = await client.get_products(
 )
 ```
 
+The same budget bounds the MCP text-fallback path. For a server that answers
+with `content[].text` and no `structuredContent`, that one item is the whole
+response, so bounding it at anything tighter would silently become the real
+call cap — the SDK used to apply a fixed 1 MiB there. An over-budget text item
+raises rather than being skipped, so it cannot be mistaken for an agent that
+sent no structured data.
+
 Prefer asking the agent to paginate over raising the cap. `max_response_bytes=None`
 on `AgentConfig` removes the budget entirely and is not recommended for agents
 you do not control. Because the decoded size has to be measurable before it is

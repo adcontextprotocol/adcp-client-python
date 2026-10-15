@@ -21,6 +21,8 @@ from typing import Any
 
 import pytest
 
+from adcp._response_limit import DEFAULT_MAX_RESPONSE_BYTES
+from adcp.exceptions import ADCPResponseTooLargeError
 from adcp.protocols._adcp_errors import (
     MAX_ERROR_SIZE_BYTES as _MAX_ERROR_SIZE_BYTES,
 )
@@ -28,7 +30,6 @@ from adcp.protocols._adcp_errors import (
     validate_adcp_error as _validate_adcp_error,
 )
 from adcp.protocols.mcp import (
-    _MAX_TEXT_SIZE_BYTES,
     extract_adcp_error,
     extract_adcp_success,
 )
@@ -113,13 +114,48 @@ class TestSuccessExtractionEdgeCases:
         )
         assert extract_adcp_success(resp) is None
 
-    def test_oversized_text_item_skipped(self) -> None:
-        oversized = "x" * (_MAX_TEXT_SIZE_BYTES + 1)
-        resp = _response_shim({"content": [{"type": "text", "text": oversized}]})
-        assert extract_adcp_success(resp) is None
+    def test_text_item_under_the_default_budget_is_parsed(self) -> None:
+        """2 MiB of text fallback is a normal response under the 4 MiB default.
 
-    def test_oversized_text_skipped_then_smaller_used(self) -> None:
-        oversized = '{"ok":true,' + "x" * _MAX_TEXT_SIZE_BYTES + "}"
+        It was not: this SDK bounded text items at a fixed 1 MiB, so for a
+        server that answers with ``content[].text`` and no
+        ``structuredContent`` — where that item is the entire response — 1 MiB
+        was the real call cap no matter what ``max_response_bytes`` said.
+        """
+        filler = "x" * (2 * 1024 * 1024)
+        payload = json.dumps({"status": "completed", "filler": filler})
+        assert len(payload) > 2 * 1024 * 1024
+        assert len(payload) < DEFAULT_MAX_RESPONSE_BYTES
+        resp = _response_shim({"content": [{"type": "text", "text": payload}]})
+
+        got = extract_adcp_success(resp)
+
+        assert got is not None
+        assert got["status"] == "completed"
+
+    def test_text_item_over_the_configured_budget_raises(self) -> None:
+        """Oversize errors; it does not skip.
+
+        A skipped item leaves extraction reporting "no structured data found",
+        which a caller cannot tell from a server that genuinely sent none.
+        """
+        oversized = "x" * 4096
+        resp = _response_shim({"content": [{"type": "text", "text": oversized}]})
+
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            extract_adcp_success(resp, max_response_bytes=1024, agent_id="seller")
+
+        assert caught.value.limit == 1024
+        assert caught.value.received == 4096
+        assert caught.value.agent_id == "seller"
+
+    def test_oversized_text_does_not_fall_through_to_a_later_item(self) -> None:
+        """The old behaviour skipped to the next item and returned it.
+
+        That hid the oversized item entirely: the caller saw a successful
+        extraction of whatever came after it.
+        """
+        oversized = '{"ok":true,"pad":"' + "x" * 4096 + '"}'
         small = '{"status":"completed"}'
         resp = _response_shim(
             {
@@ -129,8 +165,37 @@ class TestSuccessExtractionEdgeCases:
                 ]
             }
         )
-        got = extract_adcp_success(resp)
-        assert got == {"status": "completed"}
+
+        with pytest.raises(ADCPResponseTooLargeError):
+            extract_adcp_success(resp, max_response_bytes=1024)
+
+    def test_budget_counts_utf8_bytes_not_characters(self) -> None:
+        """A multi-byte character costs what it costs on the wire."""
+        text = "\u00e9" * 600  # 600 characters, 1200 UTF-8 bytes
+        resp = _response_shim({"content": [{"type": "text", "text": text}]})
+
+        assert extract_adcp_success(resp, max_response_bytes=1300) is None
+
+        with pytest.raises(ADCPResponseTooLargeError) as caught:
+            extract_adcp_success(resp, max_response_bytes=1100)
+        assert caught.value.received == 1200
+
+    def test_budget_can_be_disabled(self) -> None:
+        """``None`` matches ``AgentConfig.max_response_bytes=None``."""
+        payload = json.dumps({"status": "completed", "pad": "x" * 8192})
+        resp = _response_shim({"content": [{"type": "text", "text": payload}]})
+
+        got = extract_adcp_success(resp, max_response_bytes=None)
+
+        assert got is not None and got["status"] == "completed"
+
+    def test_error_extraction_shares_the_same_budget(self) -> None:
+        """``isError: true`` plus a giant payload is the same primitive."""
+        oversized = json.dumps({"adcp_error": {"code": "X", "message": "y" * 4096}})
+        resp = _response_shim({"isError": True, "content": [{"type": "text", "text": oversized}]})
+
+        with pytest.raises(ADCPResponseTooLargeError):
+            extract_adcp_error(resp, max_response_bytes=1024)
 
     def test_array_json_rejected(self) -> None:
         resp = _response_shim({"content": [{"type": "text", "text": "[1,2,3]"}]})
@@ -238,12 +303,15 @@ class TestErrorExtractionPaths:
         assert extract_adcp_error(resp) is None
 
     def test_error_path_enforces_pre_parse_size_limit(self) -> None:
-        # DoS guard: a malicious server returning isError=true plus a
-        # multi-MB text blob must NOT be json.loads'd into memory.
-        padding = "y" * _MAX_TEXT_SIZE_BYTES
+        # DoS guard: a malicious server returning isError=true plus a giant
+        # text blob must NOT be json.loads'd into memory. The budget is the
+        # configured call limit; the 4 KiB `adcp_error` cap only applies once
+        # json.loads has already run, which is too late to be the guard.
+        padding = "y" * (DEFAULT_MAX_RESPONSE_BYTES + 1)
         oversized = '{"adcp_error":{"code":"X","pad":"' + padding + '"}}'
         resp = _response_shim({"isError": True, "content": [{"type": "text", "text": oversized}]})
-        assert extract_adcp_error(resp) is None
+        with pytest.raises(ADCPResponseTooLargeError):
+            extract_adcp_error(resp)
 
     def test_invalid_error_passes_through_to_none(self) -> None:
         # structuredContent has adcp_error but it's malformed — spec says treat
