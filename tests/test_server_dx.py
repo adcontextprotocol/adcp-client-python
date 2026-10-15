@@ -1603,17 +1603,35 @@ class TestPydanticSchemas:
             "rejected",
             "canceled",
         }
+
+        def _deref(schema, node):
+            """Follow a local ``$ref``.
+
+            Advertised schemas are compact, so union arms and nested models
+            are references rather than inline objects.
+            """
+            ref = node.get("$ref") if isinstance(node, dict) else None
+            if isinstance(ref, str) and ref.startswith("#/$defs/"):
+                return schema["$defs"][ref[len("#/$defs/") :]]
+            return node
+
+        def _arm(schema, index):
+            return _deref(schema, schema["anyOf"][index])
+
         for tool in ("create_media_buy", "update_media_buy"):
-            success_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][0]
+            success_schema = _arm(_PYDANTIC_OUTPUT_SCHEMAS[tool], 0)
             properties = success_schema["properties"]
             assert "status" not in success_schema["required"]
             status_variants = properties["status"]["anyOf"]
             assert status_variants[0]["const"] == "completed"
             advertised_statuses = {status_variants[0]["const"], *status_variants[1]["enum"]}
             assert advertised_statuses == media_buy_statuses
-            assert set(properties["media_buy_status"]["anyOf"][0]["enum"]) == media_buy_statuses
+            media_buy_status = _deref(
+                _PYDANTIC_OUTPUT_SCHEMAS[tool], properties["media_buy_status"]["anyOf"][0]
+            )
+            assert set(media_buy_status["enum"]) == media_buy_statuses
 
-            submitted_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][2]
+            submitted_schema = _arm(_PYDANTIC_OUTPUT_SCHEMAS[tool], 2)
             submitted_properties = submitted_schema["properties"]
             assert submitted_properties["status"]["const"] == "submitted"
             assert "task_id" in submitted_schema["required"]

@@ -91,7 +91,14 @@ def test_pydantic_fallback_rejects_conditional_root() -> None:
     assert _model_to_json_schema(ConditionalRoot) is None
 
 
-def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> None:
+def test_compact_pruning_keeps_root_fields_and_keeps_pruned_objects_closed() -> None:
+    """A pruned object re-admits the names it dropped instead of opening.
+
+    Opening it would make the advertised shape accept keys the runtime model
+    rejects — on an ``outputSchema`` that is the only check a buyer has
+    against a seller smuggling extra fields into a payload it feeds to a
+    model.
+    """
     schema = {
         "type": "object",
         "properties": {
@@ -116,9 +123,11 @@ def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> 
 
     assert set(compact["properties"]) == {"required_root", "optional_root"}
     nested = compact["properties"]["optional_root"]
-    assert set(nested["properties"]) == {"required_nested"}
+    assert set(nested["properties"]) == {"required_nested", "optional_complex"}
+    # The dropped optional keeps its name and loses only its subtree.
+    assert nested["properties"]["optional_complex"] is True
     assert nested["required"] == ["required_nested"]
-    assert nested["additionalProperties"] is True
+    assert nested["additionalProperties"] is False
 
 
 def test_compact_pruning_keeps_scalar_optional_discovery_floor() -> None:
@@ -142,7 +151,15 @@ def test_compact_pruning_keeps_scalar_optional_discovery_floor() -> None:
     compact = _prune_to_required_fields(schema)
     properties = compact["properties"]["container"]["properties"]
 
-    assert set(properties) == {"optional_scalar", "optional_nullable_scalar"}
+    # Scalars keep their schema; the complex optional keeps only its name, so
+    # a reader still learns the field exists.
+    assert set(properties) == {
+        "optional_scalar",
+        "optional_nullable_scalar",
+        "optional_complex",
+    }
+    assert properties["optional_scalar"] == {"type": "integer"}
+    assert properties["optional_complex"] is True
 
 
 def test_compact_pruning_does_not_rewrite_literal_schema_values() -> None:
@@ -219,11 +236,18 @@ def test_compact_pruning_keeps_pydantic_targeting_overlay_contract() -> None:
     compact = _prune_to_required_fields(schema)
     package = compact["properties"]["packages"]["items"]
 
-    assert set(package["properties"]) == {"product_id", "targeting_overlay"}
+    assert set(package["properties"]) == {
+        "product_id",
+        "targeting_overlay",
+        "optional_complex",
+    }
     assert (
         package["properties"]["targeting_overlay"]
         == schema["properties"]["packages"]["items"]["properties"]["targeting_overlay"]
     )
+    # Dropped subtree, kept name — the object stays closed.
+    assert package["properties"]["optional_complex"] is True
+    assert package["additionalProperties"] is False
 
 
 def test_input_schemas_match_pydantic_generation() -> None:
@@ -491,18 +515,40 @@ def test_inline_mode_is_ref_free_for_every_input_schema() -> None:
         assert '"$defs"' not in serialized, tool_name
 
 
-def test_no_dollar_refs_or_defs_in_any_advertised_output_schema() -> None:
-    """Output aliases must be fully portable for non-ref-resolving clients."""
-    for tool in ADCP_TOOL_DEFINITIONS:
-        serialized = json.dumps(tool["outputSchema"])
-        assert '"$ref"' not in serialized, (
-            f"tool {tool['name']!r} outputSchema contains unresolved $ref. "
-            "Check _inline_refs in adcp.server.mcp_tools."
-        )
-        assert '"$defs"' not in serialized, (
-            f"tool {tool['name']!r} outputSchema retains $defs after inlining. "
-            "Check _inline_refs drop-when-resolved path."
-        )
+def test_inline_mode_is_ref_free_for_every_output_schema() -> None:
+    """``schema_mode="inline"`` stays fully portable for clients that do not
+    resolve references — the counterpart of the input-side guarantee above.
+
+    It is no longer the default. Inlining expands every shared subtree once
+    per reference, which took a 12-tool seller's ``tools/list`` to 21.7 MiB
+    while its input schemas (compact since they were introduced) were 15 KB
+    each. Adopters serving ref-averse clients opt in with
+    ``schema_mode="inline"``.
+    """
+    for tool_name, schema in _generate_pydantic_output_schemas(schema_mode="inline").items():
+        serialized = json.dumps(schema)
+        assert '"$ref"' not in serialized, tool_name
+        assert '"$defs"' not in serialized, tool_name
+
+
+def test_advertised_output_schemas_use_local_refs_like_input_schemas() -> None:
+    """The default advertised shape is compact on both sides.
+
+    Output schemas used to be inlined unconditionally while inputs were
+    compact, so a client already had to resolve ``$ref`` to read an
+    ``inputSchema``. Locking the symmetry here keeps a future change from
+    re-introducing the asymmetry that made discovery unservable.
+    """
+    by_name = {tool["name"]: tool for tool in ADCP_TOOL_DEFINITIONS}
+    create_media_buy = by_name["create_media_buy"]
+
+    # Assert on structure, not on a substring: an inlined schema still
+    # mentions "#/$defs/..." inside `discriminator.mapping`, so a `"$defs" in
+    # json.dumps(...)` check passes against the very shape this guards.
+    assert "$defs" in create_media_buy["inputSchema"]
+    output = create_media_buy["outputSchema"]
+    assert "$defs" in output
+    assert all("$ref" in arm for arm in output["anyOf"])
 
 
 # ---------------------------------------------------------------------------

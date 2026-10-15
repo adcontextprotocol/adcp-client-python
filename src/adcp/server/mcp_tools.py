@@ -21,7 +21,7 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Literal
 
 from adcp.server._hooks import (
@@ -170,7 +170,7 @@ def _normalize_response_envelope(
 def _widen_media_buy_output_schema_for_legacy_statuses(
     tool_name: str,
     schema: dict[str, Any],
-) -> None:
+) -> bool:
     """Advertise both 3.1 and negotiated 3.0 media-buy success shapes.
 
     The Pydantic success arm normalizes legacy lifecycle ``status`` values
@@ -180,15 +180,35 @@ def _widen_media_buy_output_schema_for_legacy_statuses(
     buyer legitimately receives ``status: "pending_creatives"`` with no
     ``media_buy_status``. Widen only the advertised schema; the runtime model
     remains the canonical 3.1 ergonomic shape.
+
+    Returns whether any arm was widened, so the caller can collect the
+    definitions a repointed arm stranded.
     """
     if tool_name not in {"create_media_buy", "update_media_buy"}:
-        return
+        return False
+    widened_any = False
+    defs = schema.get("$defs")
+    defs = defs if isinstance(defs, dict) else {}
     variants = schema.get("anyOf") or schema.get("oneOf") or []
     for variant in variants:
         if not isinstance(variant, dict):
             continue
-        required = variant.get("required")
-        properties = variant.get("properties")
+        # Outside ``schema_mode="inline"`` a union arm is a local reference,
+        # and without resolving it the widening silently no-ops — advertising
+        # a schema that rejects a legitimate negotiated-3.0
+        # ``status: "pending_creatives"``.
+        ref = variant.get("$ref")
+        source_name = None
+        target = variant
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            source_name = ref[len("#/$defs/") :]
+            resolved = defs.get(source_name)
+            if not isinstance(resolved, dict):
+                continue
+            target = resolved
+
+        required = target.get("required")
+        properties = target.get("properties")
         if not isinstance(required, list) or not isinstance(properties, dict):
             continue
         if "media_buy_id" not in required or "status" not in properties:
@@ -198,7 +218,21 @@ def _widen_media_buy_output_schema_for_legacy_statuses(
         if not (isinstance(status_schema, dict) and status_schema.get("const") == "completed"):
             continue
 
-        variant["required"] = [field for field in required if field != "status"]
+        if source_name is not None:
+            # Only now, having established this arm is the one to widen, take
+            # a copy and repoint at it. A `$defs` entry may be referenced from
+            # more than one site, and loosening a status constraint somewhere
+            # else is not what this is for — but cloning every arm first would
+            # ship a definition per arm with only one of them referenced.
+            widened_name = f"{source_name}LegacyStatus"
+            target = copy.deepcopy(target)
+            defs[widened_name] = target
+            variant["$ref"] = f"#/$defs/{widened_name}"
+            required = target["required"]
+            properties = target["properties"]
+
+        widened_any = True
+        target["required"] = [field for field in required if field != "status"]
         properties["status"] = {
             "anyOf": [
                 {"const": "completed", "type": "string"},
@@ -213,6 +247,8 @@ def _widen_media_buy_output_schema_for_legacy_statuses(
                 "media-buy lifecycle status for AdCP 3.0 compatibility."
             ),
         }
+
+    return widened_any
 
 
 # MCP ToolAnnotations — behavioral hints for agent planning.
@@ -1761,10 +1797,14 @@ def _prune_to_required_fields(
     Every root request property is retained, including optional fields. Inside
     nested objects required properties, scalar optionals, and protected
     mutation-discovery fields remain. Protected fields keep their complete
-    referenced Pydantic model graph. When optional properties are omitted from
-    an object that otherwise rejects unknown fields, the compact discovery
-    shape is opened with ``additionalProperties: true`` so it remains a
-    permissive description of payloads accepted by the runtime model.
+    referenced Pydantic model graph. When optional properties are omitted,
+    each omitted name is re-admitted with the permissive boolean schema
+    ``true`` rather than the object being opened with
+    ``additionalProperties: true`` — the compact shape stays a permissive
+    description of what the runtime model accepts *and* keeps rejecting what
+    it rejects. Where a model sets ``extra="allow"`` the object is open in
+    every mode; the property preserved here is fidelity to the model, not a
+    filter a buyer can lean on.
 
     The transform operates only on Pydantic's JSON Schema output; it never
     substitutes hand-written tool shapes.
@@ -1833,8 +1873,30 @@ def _prune_to_required_fields(
             protected_defs=_protected_defs,
         )
 
-    if dropped_optional_properties and result.get("additionalProperties") is False:
-        result["additionalProperties"] = True
+    if dropped_optional_properties:
+        # Re-admit every dropped name with the permissive boolean schema
+        # ``true`` rather than deleting it. Two things follow, both of which
+        # the previous "open the object with additionalProperties: true"
+        # approach lost:
+        #
+        # * The object stays closed if it was closed. Opening it would make
+        #   the compact shape accept keys the runtime model rejects, i.e.
+        #   advertise something the server does not honour. Note the scope:
+        #   where a model sets ``extra="allow"`` the object is open in every
+        #   mode, so this is schema fidelity, not a filter a buyer can lean
+        #   on to catch a seller smuggling fields past it.
+        # * The field inventory survives. A reader still learns that
+        #   ``errors`` and ``ext`` exist on a task envelope; only their
+        #   subtrees are gone, which is the size that made compaction
+        #   necessary.
+        #
+        # The cost is the length of each dropped name, not its subtree.
+        pruned_properties = result.get("properties")
+        if isinstance(pruned_properties, dict) and isinstance(properties, dict):
+            for name in properties:
+                pruned_properties.setdefault(name, True)
+        elif result.get("additionalProperties") is False:
+            result["additionalProperties"] = True
     return result
 
 
@@ -2174,6 +2236,8 @@ def _generate_pydantic_schemas(
 
 def _generate_pydantic_output_schemas(
     tool_names: Iterable[str] | None = None,
+    *,
+    schema_mode: SchemaMode = "compact",
 ) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic response models.
 
@@ -2191,6 +2255,16 @@ def _generate_pydantic_output_schemas(
     Unlike input schemas, root-level ``anyOf`` is allowed — discriminated
     response unions are valid JSON Schema and clients that consume
     ``outputSchema`` already handle them.
+
+    ``schema_mode`` matches the input side, and for the same reason. Inlining
+    every ``$ref`` expands a response model's shared subtrees once per
+    reference: ``ListCreativesResponse`` is 25 KB compact and 4.8 MB inlined.
+    A handful of tools in that last shape is a multi-megabyte ``tools/list``
+    that a buyer applying the AdCP default 4 MiB response budget rejects
+    outright — the agent then looks unreachable rather than verbose. Compact
+    stays a permissive description: dropping an optional nested property
+    leaves the name behind bound to ``true``, so a real response still
+    validates against it.
     """
     try:
         from adcp.types import (
@@ -2384,7 +2458,9 @@ def _generate_pydantic_output_schemas(
     for tool_name, response_type in _tool_to_response.items():
         if selected is not None and tool_name not in selected:
             continue
-        schema = _model_to_json_schema(response_type, allow_root_union=True)
+        schema = _model_to_json_schema(
+            response_type, allow_root_union=True, schema_mode=schema_mode
+        )
         if schema is None:
             logger.debug(
                 "Pydantic output-schema generation failed for %s",
@@ -2400,7 +2476,14 @@ def _generate_pydantic_output_schemas(
         # union is itself an object, so adding ``"type": "object"``
         # at the root is semantically equivalent and MCP-spec-conformant.
         schema.setdefault("type", "object")
-        _widen_media_buy_output_schema_for_legacy_statuses(tool_name, schema)
+        if _widen_media_buy_output_schema_for_legacy_statuses(tool_name, schema):
+            # Widening repoints an arm at a new definition, which strands the
+            # one it was pointing at. Leaving it published is not just dead
+            # weight: the stranded twin still carries the narrow
+            # ``status: {"const": "completed"}``, so a client that resolves
+            # definitions by model name rather than by following ``$ref``
+            # would pick the shape this widening exists to replace.
+            schema = _drop_unreachable_defs(schema)
         schemas[tool_name] = schema
 
     return schemas
@@ -2583,6 +2666,39 @@ def _resolve_handler_adcp_version(
     return candidate if isinstance(candidate, str) else None
 
 
+#: Non-compact schemas, memoized per (kind, mode, tool). The compact path
+#: reads the already-built ``ADCP_TOOL_DEFINITIONS``; without this the other
+#: two modes regenerate the whole Pydantic graph on *every* call, which lands
+#: on per-request callers including the pre-auth agent-card route. Bounded by
+#: the tool count times two kinds times two modes.
+_ALTERNATE_SCHEMAS: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+
+def _alternate_schemas(
+    kind: str,
+    tool_names: Sequence[str],
+    schema_mode: SchemaMode,
+) -> dict[str, dict[str, Any]]:
+    """Generate ``schema_mode`` schemas for ``tool_names``, reusing prior work.
+
+    Returns deep copies: a tool definition handed to a caller is an ordinary
+    mutable JSON value, and the cache must not be reachable through one.
+    """
+    missing = [name for name in tool_names if (kind, schema_mode, name) not in _ALTERNATE_SCHEMAS]
+    if missing:
+        generate = (
+            _generate_pydantic_schemas if kind == "input" else _generate_pydantic_output_schemas
+        )
+        for name, schema in generate(missing, schema_mode=schema_mode).items():
+            _ALTERNATE_SCHEMAS[(kind, schema_mode, name)] = schema
+    result: dict[str, dict[str, Any]] = {}
+    for name in tool_names:
+        cached = _ALTERNATE_SCHEMAS.get((kind, schema_mode, name))
+        if cached is not None:
+            result[name] = copy.deepcopy(cached)
+    return result
+
+
 def get_tools_for_handler(
     handler: ADCPHandler[Any] | type[ADCPHandler[Any]],
     *,
@@ -2626,13 +2742,19 @@ def get_tools_for_handler(
             ``get_adcp_version()`` / ``_adcp_version`` pin is used when
             available. Class-only introspection retains the current generated
             model surface.
-        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
-            (default) keeps every root request field, required nested fields,
-            scalar optionals, and protected mutation surfaces; ``"defs"``
-            keeps the complete schema with local references, and ``"inline"``
-            preserves the historical fully expanded schema.
-            Version-pinned handlers continue to advertise their exact bundled
-            wire schemas.
+        schema_mode: Pydantic-derived discovery shape, applied to ``inputSchema``
+            *and* ``outputSchema``. ``"compact"`` (default) keeps every root
+            field, required nested fields, scalar optionals, and protected
+            mutation surfaces, leaving a dropped optional's name behind bound
+            to ``true``; ``"defs"`` keeps the complete schema with local
+            references, and ``"inline"`` preserves the historical fully
+            expanded schema. Both non-default modes regenerate input and
+            output schemas on every call with no memoization — measured at
+            ~8s per call for a 12-tool handler, against ~0.01s for
+            ``"compact"``, which reads the memoized registry. That cost lands
+            on any per-request caller, including the pre-auth agent-card
+            route. Version-pinned handlers continue to advertise their exact
+            bundled wire schemas.
 
     Returns:
         Filtered list of tool definitions.
@@ -2706,14 +2828,19 @@ def get_tools_for_handler(
         # mutable JSON values, matching the pre-memoization behavior.
         definitions = [_copy_json_without_aliases(tool) for tool in selected]
         if schema_mode != "compact":
-            alternate_inputs = _generate_pydantic_schemas(
-                (definition["name"] for definition in definitions),
-                schema_mode=schema_mode,
-            )
+            names = [definition["name"] for definition in definitions]
+            alternate_inputs = _alternate_schemas("input", names, schema_mode)
+            # Outputs follow the same mode. They used to be inlined
+            # unconditionally, which is what made a 12-tool seller advertise a
+            # 21.7 MiB tools/list while its input schemas were 15 KB each.
+            alternate_outputs = _alternate_schemas("output", names, schema_mode)
             for definition in definitions:
                 alternate = alternate_inputs.get(definition["name"])
                 if alternate is not None:
                     definition["inputSchema"] = alternate
+                alternate_output = alternate_outputs.get(definition["name"])
+                if alternate_output is not None:
+                    definition["outputSchema"] = alternate_output
         for definition in definitions:
             if definition["name"] == "sync_reporting_receipts":
                 from adcp.reporting.receipts.wire import receipt_schema
@@ -3692,7 +3819,8 @@ class MCPToolSet:
             response_enhancer: Optional server-wide :data:`ResponseEnhancer`
                 applied to every successful response. See
                 :func:`create_tool_caller`.
-            schema_mode: Pydantic-derived input discovery shape. See
+            schema_mode: Pydantic-derived discovery shape for input *and*
+                output schemas. See
                 :func:`get_tools_for_handler`.
         """
         self.handler = handler
@@ -3800,10 +3928,12 @@ def create_mcp_tools(
         adcp_version: Trusted server protocol pin for version-scoped
             ``tools/list`` schemas. Decorator-built handlers carry this pin
             automatically; class-based handlers can pass it here.
-        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
-            is bounded and complete at the request root; use ``"defs"`` for
-            the full referenced schema or ``"inline"`` for legacy clients
-            that do not resolve local JSON Schema references.
+        schema_mode: Pydantic-derived discovery shape for ``inputSchema`` and
+            ``outputSchema``. ``"compact"`` is bounded and complete at the
+            root; use ``"defs"`` for the full referenced schema or
+            ``"inline"`` for legacy clients that do not resolve local JSON
+            Schema references. See :func:`get_tools_for_handler` for the cost
+            of the non-default modes.
 
     Returns:
         MCPToolSet with tool definitions and handlers.

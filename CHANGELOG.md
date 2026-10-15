@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Advertised schema shape
+
+* **server:** MCP `outputSchema` is now generated in the same `schema_mode` as
+  `inputSchema` — `"compact"` by default — instead of always inlining every
+  `$ref`. This is what makes discovery servable: `examples/seller_agent.py`
+  advertised a 22,777,757-byte `tools/list` for 12 tools, which a buyer
+  applying the AdCP default 4 MiB response budget rejects outright; it is now
+  1,251,781 bytes.
+
+  **The advertised wire shape changes.** Across the reference seller's 12
+  tools the output schemas gain ~530 local `$ref` sites and ~500 boolean
+  property schemas (a dropped optional keeps its name bound to `true`) where
+  there were previously none of either. Client code written against the fully
+  inlined shape may need updating: `schema["properties"][name]["type"]` raises
+  `TypeError: 'bool' object is not subscriptable` on a kept name, and a client
+  that does not resolve local references cannot read the schema at all. Input
+  schemas have been compact since they were introduced, so a client that
+  already reads `inputSchema` resolves references today.
+
+  `inputSchema` changes too, though less: compaction is shared, so 38 nested
+  objects across 11 tools now advertise `additionalProperties: false` where
+  8.1.3 advertised `true`. That tracks what the runtime models already
+  enforced (`extra="forbid"`), so the server's behaviour is unchanged — but a
+  client that pre-validates its own request against the advertised schema and
+  sends a vendor extension on, say, `BusinessEntity` now fails locally where
+  8.1.3 let it through and the server rejected it.
+
+  To keep the previous shape, pass `schema_mode="inline"` to
+  `create_mcp_server()` / `serve()` / `MCPToolSet`.
+
 ### ⚠ BREAKING CHANGES
 
 * **types:** `CreativeAsset.format_kind`, `Creative.format_kind`, and
