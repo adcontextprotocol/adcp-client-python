@@ -12,7 +12,9 @@ order. The JavaScript SDK writes the same table, so a host reads one feed.
 * Cursors are opaque, versioned and stable across restarts, processes and SDKs. A cursor
   older than the retained history raises :class:`ReportingChangeCursorExpiredError`; the
   consumer then resynchronizes from ``list_current_revisions`` and resumes from the
-  cursor that read returns.
+  cursor that read returns. The horizon is read again after the page, so a prune that
+  commits mid-read raises the same error (for a cursorless read too) instead of returning
+  a page that skipped the pruned changes.
 * A named consumer registered with ``save_feed_consumer_cursor`` holds back change pruning
   (and period retirement) until it has passed those changes, up to ``max_feed_hold_days``
   after its last update, so a dead consumer cannot block retention indefinitely.
@@ -163,6 +165,39 @@ def _page_query(*, account: bool) -> str:
     )
 
 
+async def _read_horizon(connection: Any, account_id: str | None) -> tuple[str, str]:
+    """The pruned horizon ``(xid, seq)`` in this feed's order; ``xid`` is ``"0"`` for accounts."""
+    if account_id is not None:
+        row = await (
+            await connection.execute(
+                "SELECT pruned_through_seq::text FROM adcp_reporting_change_account_horizon"
+                " WHERE account_id = %s",
+                (account_id,),
+            )
+        ).fetchone()
+        return "0", (row[0] if row else "0")
+    row = await (
+        await connection.execute(
+            "SELECT pruned_through_xid::text, pruned_through_seq::text"
+            " FROM adcp_reporting_change_horizon WHERE singleton"
+        )
+    ).fetchone()
+    return (row[0], row[1]) if row else ("0", "0")
+
+
+def _assert_retained(
+    account_id: str | None, position: tuple[str, str], horizon: tuple[str, str]
+) -> None:
+    """Raise unless ``position`` ``(xid, seq)`` is at or past the pruned ``horizon``."""
+    behind = (
+        int(horizon[1]) > int(position[1])
+        if account_id is not None
+        else (int(horizon[0]), int(horizon[1])) > (int(position[0]), int(position[1]))
+    )
+    if behind:
+        raise ReportingChangeCursorExpiredError()
+
+
 async def changes_after(
     store: PgReportingLedgerStore,
     *,
@@ -171,7 +206,14 @@ async def changes_after(
     kinds: Sequence[ReportingChangeKindV1] | None = None,
     limit: int = 500,
 ) -> ReportingChangesPageV1:
-    """Read the host change feed. Omit ``cursor`` to start at the oldest retained change."""
+    """Read the host change feed. Omit ``cursor`` to start at the oldest retained change.
+
+    Raises :class:`ReportingChangeCursorExpiredError` (``code == "CURSOR_EXPIRED"``) when the
+    starting position is older than the retained history. A read **without** a ``cursor`` can
+    raise it too: the pruned horizon is read again after the page, so a prune that commits
+    mid-read rejects the page instead of returning one that silently skips the pruned changes.
+    Retrying starts from the new, later horizon.
+    """
     _require_feed(store)
     _positive(limit, "limit", 10_000)
     if kinds is not None and any(kind not in _KINDS for kind in kinds):
@@ -181,32 +223,11 @@ async def changes_after(
     async with store._pool.connection() as connection:
         # The pruned horizon in this feed's own order. A supplied cursor below it may have
         # missed a pruned change and fails closed; a consumer with no cursor begins at it.
-        if account_id is not None:
-            row = await (
-                await connection.execute(
-                    "SELECT pruned_through_seq::text FROM adcp_reporting_change_account_horizon"
-                    " WHERE account_id = %s",
-                    (account_id,),
-                )
-            ).fetchone()
-            horizon_seq, horizon_xid = (row[0] if row else "0"), "0"
-        else:
-            row = await (
-                await connection.execute(
-                    "SELECT pruned_through_xid::text, pruned_through_seq::text"
-                    " FROM adcp_reporting_change_horizon WHERE singleton"
-                )
-            ).fetchone()
-            horizon_xid, horizon_seq = (row[0], row[1]) if row else ("0", "0")
+        horizon_xid, horizon_seq = await _read_horizon(connection, account_id)
         if decoded is not None:
-            behind = (
-                int(horizon_seq) > int(decoded["seq"])
-                if account_id is not None
-                else (int(horizon_xid), int(horizon_seq))
-                > (int(decoded["xid"]), int(decoded["seq"]))
+            _assert_retained(
+                account_id, (decoded.get("xid", "0"), decoded["seq"]), (horizon_xid, horizon_seq)
             )
-            if behind:
-                raise ReportingChangeCursorExpiredError()
         position_seq = decoded["seq"] if decoded else horizon_seq
         position_xid = decoded.get("xid", "0") if decoded else horizon_xid
         query = _page_query(account=account_id is not None)
@@ -215,6 +236,15 @@ async def changes_after(
         else:
             params = (position_xid, position_seq, selected, selected, limit)
         rows = await (await connection.execute(query, params)).fetchall()
+        # Pruning can commit between the horizon read and the page read, and a prune deletes rows
+        # and advances the horizon in one transaction. Read the horizon again, as a new statement
+        # after the page, and compare it with the position this page started from: a page read
+        # after such a prune lacks the pruned changes, and handing out a cursor past them would
+        # skip them silently. This covers a read with no cursor too. Retrying starts from the
+        # new, later horizon. A prune that commits after this read cannot have affected the page.
+        _assert_retained(
+            account_id, (position_xid, position_seq), await _read_horizon(connection, account_id)
+        )
     if account_id is not None:
         # The account feed orders by ``seq``, which equals commit order only while every writer
         # takes the account lock before ``nextval``. Defense in depth for a writer that does not:

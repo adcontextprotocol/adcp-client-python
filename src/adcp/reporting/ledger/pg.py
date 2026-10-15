@@ -428,7 +428,9 @@ class PgReportingLedgerStore:
 
         Account feeds order by ``seq``; the deployment-wide feed orders by ``(xid, seq)``
         below the reading snapshot's ``xmin``. A cursor older than the retained history
-        raises ``ReportingChangeCursorExpiredError``. Requires ``change_feed=True``.
+        raises ``ReportingChangeCursorExpiredError``, and so does a read with no cursor when a
+        prune commits while the page is being read (the horizon is read again after the page).
+        Requires ``change_feed=True``.
         """
         from adcp.reporting.ledger.change_feed import changes_after
 

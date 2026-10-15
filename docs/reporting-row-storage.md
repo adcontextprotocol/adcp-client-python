@@ -395,6 +395,12 @@ await store.changes_after(account_id="acct_a", cursor=page.cursor)
   this feed; it never makes it lose a record.
 - A cursor older than the retained history raises `ReportingChangeCursorExpiredError` (`code == "CURSOR_EXPIRED"`).
   Resynchronize from `list_current_revisions` and resume from the cursor returned with that read.
+- **A read with no cursor can raise `CURSOR_EXPIRED` too.** `changes_after` reads the prune horizon, reads the page,
+  then reads the horizon again. A prune deletes rows and advances the horizon in one transaction, so one that commits
+  between those reads would otherwise yield a page that lacks the pruned changes and a cursor that silently passes them.
+  The page is rejected instead. Retrying the read starts from the new, later horizon, which is the oldest retained
+  change; a consumer that had been reading from a cursor resynchronizes from `list_current_revisions` as usual. Handle
+  `CURSOR_EXPIRED` on every `changes_after` call, including a first read, by matching `error.code`.
 - A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
   `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
   `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
