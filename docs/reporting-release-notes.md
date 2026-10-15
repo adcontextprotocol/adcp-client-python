@@ -18,6 +18,16 @@ restart across the upgrade does not turn a replay into a conflict. This is part 
 the shared layout in adcontextprotocol/adcp#7996 (Stage 2, tracked in
 [#1457](https://github.com/adcontextprotocol/adcp-client-python/issues/1457)).
 
+## Feed consumer checkpoints are forward-only
+
+`save_feed_consumer_cursor` used to replace the saved position unconditionally. It now ignores a cursor behind the
+saved one within the same feed scope, matching the JavaScript SDK, so a delayed or repeated acknowledgment cannot move
+a consumer or its retention hold backward. It returns `True` when the checkpoint was written and `False` when it was
+ignored, where it used to return `None`. A caller that relied on saving an earlier cursor to replay changes must now
+pass `rewind=True`. Callers that only save the cursor of the page they just processed are unaffected. See
+[host change feed and consumers](reporting-row-storage.md#host-change-feed-and-consumers)
+([#1509](https://github.com/adcontextprotocol/adcp-client-python/issues/1509)).
+
 ## Chunked row storage (opt-in)
 
 `PgReportingLedgerStore(row_storage=...)` stores new revisions' rows as verified canonical JSONL chunks in the shared

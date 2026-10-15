@@ -398,6 +398,18 @@ await store.changes_after(account_id="acct_a", cursor=page.cursor)
 - A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
   `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
   `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
+- **Checkpoints are forward-only within a feed scope.** `save_feed_consumer_cursor` ignores a cursor behind the saved
+  one, so a delayed or repeated acknowledgment cannot pull the consumer, or its retention hold, backward and make it
+  reprocess changes. Account consumers compare `seq`; deployment consumers compare `(xid, seq)`. The call returns
+  `True` when it wrote the checkpoint and `False` when it ignored it (behind the saved position, or equal with
+  `refresh_unchanged=False`). An equal cursor by default rewrites the checkpoint and renews the hold, which is the
+  heartbeat for an idle consumer. A change of scope (account to deployment, deployment to account, or between
+  accounts) replaces the position, because positions in different feeds are not comparable. To replay deliberately,
+  pass `rewind=True`; the position and hold move to that cursor and the write always applies. A rewound cursor is not
+  checked against the retention horizon, so it must still be inside retained history or the next read raises
+  `CURSOR_EXPIRED`. The scope is read from the cursor itself, so save only cursors your own code got from
+  `changes_after`. `remove_feed_consumer(name)` unregisters a consumer so it stops holding back pruning; it returns
+  `True` when a registration was removed.
 
 ## Host reads
 

@@ -15,7 +15,9 @@ order. The JavaScript SDK writes the same table, so a host reads one feed.
   cursor that read returns.
 * A named consumer registered with ``save_feed_consumer_cursor`` holds back change pruning
   (and period retirement) until it has passed those changes, up to ``max_feed_hold_days``
-  after its last update, so a dead consumer cannot block retention indefinitely.
+  after its last update, so a dead consumer cannot block retention indefinitely. Its
+  checkpoint is forward-only within a feed scope; ``rewind=True`` replays deliberately and
+  ``remove_feed_consumer`` unregisters it.
 
 These are host APIs, not buyer surfaces. Buyers keep the protocol's ``changes_checkpoint``
 and ``changes_after``, which project from ``reporting_ledger_changes`` until the shared
@@ -46,6 +48,7 @@ __all__ = [
     "decode_reporting_change_cursor_v1",
     "encode_reporting_change_cursor_v1",
     "prune_changes",
+    "remove_feed_consumer",
     "save_feed_consumer_cursor",
 ]
 
@@ -242,11 +245,37 @@ async def changes_after(
     return ReportingChangesPageV1(records, next_cursor)
 
 
-async def save_feed_consumer_cursor(store: PgReportingLedgerStore, name: str, cursor: str) -> None:
+async def save_feed_consumer_cursor(
+    store: PgReportingLedgerStore,
+    name: str,
+    cursor: str,
+    *,
+    refresh_unchanged: bool = True,
+    rewind: bool = False,
+) -> bool:
     """Record a named durable consumer's position in its own feed order.
 
     A registered consumer holds back change pruning and period retirement until it has
     passed those changes, until ``max_feed_hold_days`` after its last update.
+
+    Checkpoints are forward-only within a feed scope: a cursor behind the saved one is
+    ignored, so a delayed or repeated acknowledgment cannot pull the retention hold back or
+    make the consumer reprocess changes. Account consumers compare ``seq``; deployment
+    consumers compare ``(xid, seq)``. Returns ``True`` when the checkpoint was written and
+    ``False`` when it was ignored (behind the saved position, or equal with
+    ``refresh_unchanged=False``).
+
+    To rewind a consumer deliberately, for example to replay changes, pass ``rewind=True``:
+    the saved position and retention hold then move to ``cursor`` and the write always
+    applies. The cursor is not checked against the retention horizon, so it must still be
+    inside the retained history or the next read raises
+    :class:`ReportingChangeCursorExpiredError`. Any change of ``account_id`` (account to
+    deployment, deployment to account, or between accounts) replaces the position. The scope
+    is read from the cursor itself, so pass only cursors your own code obtained from
+    :func:`changes_after`, never ones supplied by an untrusted caller.
+
+    ``refresh_unchanged=False`` recovers an acknowledgment without renewing the retention
+    hold when its position has not advanced.
     """
     _require_feed(store)
     if not isinstance(name, str) or not _CONSUMER_NAME.match(name):
@@ -259,16 +288,59 @@ async def save_feed_consumer_cursor(store: PgReportingLedgerStore, name: str, cu
     if account is not None and not isinstance(account, str):
         raise ValueError("feed consumer cursor is invalid")
     decoded = decode_reporting_change_cursor_v1(cursor, account)
+    # One atomic upsert: the WHERE of DO UPDATE is re-evaluated against the latest committed
+    # row version under the row lock, so concurrent writers cannot interleave a stale position
+    # over a newer one. No row is returned when the update is skipped.
     async with store._pool.connection() as connection:
-        await connection.execute(
+        result = await connection.execute(
             "INSERT INTO adcp_reporting_feed_consumers"
             " (consumer_name, account_id, cursor_xid, cursor_seq)"
-            " VALUES (%s, %s, %s::text::xid8, %s::bigint)"
+            " VALUES (%(name)s, %(account)s, %(xid)s::text::xid8, %(seq)s::bigint)"
             " ON CONFLICT (consumer_name) DO UPDATE"
             "   SET account_id = EXCLUDED.account_id, cursor_xid = EXCLUDED.cursor_xid,"
-            "       cursor_seq = EXCLUDED.cursor_seq, updated_at = clock_timestamp()",
-            (name, account, decoded.get("xid") if account is None else None, decoded["seq"]),
+            "       cursor_seq = EXCLUDED.cursor_seq, updated_at = clock_timestamp()"
+            " WHERE %(rewind)s::boolean"
+            "    OR adcp_reporting_feed_consumers.account_id IS DISTINCT FROM EXCLUDED.account_id"
+            "    OR CASE WHEN EXCLUDED.account_id IS NULL"
+            "       THEN (adcp_reporting_feed_consumers.cursor_xid,"
+            "             adcp_reporting_feed_consumers.cursor_seq)"
+            "            < (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq)"
+            "         OR (%(refresh)s::boolean AND"
+            "             (adcp_reporting_feed_consumers.cursor_xid,"
+            "              adcp_reporting_feed_consumers.cursor_seq)"
+            "            = (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq))"
+            "       ELSE adcp_reporting_feed_consumers.cursor_seq < EXCLUDED.cursor_seq"
+            "         OR (%(refresh)s::boolean"
+            "             AND adcp_reporting_feed_consumers.cursor_seq = EXCLUDED.cursor_seq) END"
+            " RETURNING consumer_name",
+            {
+                "name": name,
+                "account": account,
+                "xid": decoded.get("xid") if account is None else None,
+                "seq": decoded["seq"],
+                "refresh": refresh_unchanged,
+                "rewind": rewind,
+            },
         )
+        return await result.fetchone() is not None
+
+
+async def remove_feed_consumer(store: PgReportingLedgerStore, name: str) -> bool:
+    """Unregister a durable consumer so it stops holding back pruning and period retention.
+
+    Returns ``True`` when a registration was removed. Saving a cursor under the same name
+    registers it again.
+    """
+    _require_feed(store)
+    if not isinstance(name, str) or not _CONSUMER_NAME.match(name):
+        raise ValueError("feed consumer name is invalid")
+    async with store._pool.connection() as connection:
+        result = await connection.execute(
+            "DELETE FROM adcp_reporting_feed_consumers WHERE consumer_name = %s"
+            " RETURNING consumer_name",
+            (name,),
+        )
+        return await result.fetchone() is not None
 
 
 async def prune_changes(
