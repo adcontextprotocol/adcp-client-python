@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-11 15:56:10 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -164,9 +164,9 @@ from adcp.types.domains.protocol.get_principal_response import (
     PrincipalReadFailedResult,
     PrincipalRecognizedResult,
     PrincipalUnconfiguredResult,
-    Result6,
-    Result7,
-    Result9,
+    Result2,
+    Result3,
+    Result5,
 )
 from adcp.types.domains.protocol.get_task_status_request import GetTaskStatusRequest
 from adcp.types.domains.protocol.get_task_status_response import (
@@ -198,8 +198,8 @@ from adcp.types.domains.protocol.sync_principal_response import (
     PrincipalAppliedResult,
     PrincipalSyncFailedResult,
     PrincipalValidatedResult,
-    Result17,
-    Result19,
+    Result13,
+    Result15,
     SyncPrincipalResponse,
 )
 
@@ -325,11 +325,11 @@ __all__ = [
     "RequiredForItem",
     "Requirement",
     "ResourceType",
-    "Result17",
-    "Result19",
-    "Result6",
-    "Result7",
-    "Result9",
+    "Result13",
+    "Result15",
+    "Result2",
+    "Result3",
+    "Result5",
     "RightsAttestations",
     "Route",
     "RuntimeAttestations",

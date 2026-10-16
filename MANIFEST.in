@@ -5,6 +5,7 @@ include MIGRATION*.md
 recursive-include src/adcp py.typed
 recursive-include src/adcp/reporting/materializer/assets *.json
 recursive-include src/adcp/_compliance/3.2.1 *.json *.jsonl *.yaml *.md
+recursive-include src/adcp/_compliance/3.2.4 *.json *.jsonl *.yaml *.md
 # build_py copies the tracked cache into wheels. Do not duplicate those
 # inputs with ignored, generated package copies in the source distribution.
 prune src/adcp/_schemas
@@ -25,4 +26,5 @@ prune schemas/cache/3.2.0-rc.6
 prune schemas/cache/3.2.0-rc.7
 prune schemas/releases
 include schemas/releases/3.2.1.json
+include schemas/releases/3.2.4.json
 include schemas/releases/3.1.27.json

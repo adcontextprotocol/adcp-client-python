@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 from pydantic import TypeAdapter
+from typing_extensions import TypeForm
 
 from adcp.account_identity import account_key, account_key_payload
 from adcp.exceptions import (
@@ -356,7 +357,7 @@ class AccountRegistry:
                 if operation == "list_products":
                     brand = account_key_payload(wire)["brand"]
                 updates["brand"] = TypeAdapter(
-                    type(request).model_fields["brand"].annotation
+                    cast(TypeForm[Any], type(request).model_fields["brand"].annotation)
                 ).validate_python(brand)
             # Account-scoped version tokens cannot be reused for a public read.
             for name in ("if_wholesale_feed_version", "if_feed_version", "if_pricing_version"):

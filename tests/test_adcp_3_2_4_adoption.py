@@ -1,7 +1,7 @@
-"""The signed AdCP 3.2.1 release is the live default and retains historical bundles.
+"""The signed AdCP 3.2.4 release is the live default and retains historical bundles.
 
-Release identity values below come from the signed 3.2.1 release and its
-``schemas/releases/3.2.1.json`` pin. Until they are filled in, every test that
+Release identity values below come from the signed 3.2.4 release and its
+``schemas/releases/3.2.4.json`` pin. Until they are filled in, every test that
 depends on them fails loudly instead of passing vacuously.
 """
 
@@ -24,18 +24,18 @@ from adcp.server.mcp_tools import MCPToolSet
 from adcp.types import OptimizationGoal
 from adcp.validation import schema_loader
 
-VERSION = "3.2.1"
+VERSION = "3.2.4"
 WIRE_VERSION = "3.2"
-_TODO = "TODO: fill from the signed 3.2.1 release"
-# v3.2.1 tag commit (schemas/releases/3.2.1.json source_commit).
-SOURCE = "c32bd78c5389753e3b8f3ffd8a1c04b777854d83"
-# SHA-256 of https://adcontextprotocol.org/protocol/3.2.1.tgz.
-BUNDLE = "00b682c32a36dcc439ccc5e4f5a842f1e08e7b71c85dbbb033a5544365f90287"
+_TODO = "TODO: fill from the signed 3.2.4 release"
+# v3.2.4 tag commit (schemas/releases/3.2.4.json source_commit).
+SOURCE = "5e6c4b01113237234b440b6c95adb8c6e0a07ca9"
+# SHA-256 of https://adcontextprotocol.org/protocol/3.2.4.tgz.
+BUNDLE = "d5a0b167b323e5ee05ac2c8da9ca01c46a5cb5a7b988570f40f746bb8b15ae76"
 # SHA-256 of test-vectors/reporting-summary/complete-summary.json.
 SUMMARY_SHA = "b72eabbc00b70c1993d53140a2427ac3208e224107c66659f5f25545fb2314e0"
-# Counts from _compliance/3.2.1 after the pinned sync.
-MANIFEST_FILE_COUNT: int | None = 4182
-PROVENANCE_FILE_COUNT: int | None = 170
+# Counts from _compliance/3.2.4 after the pinned sync.
+MANIFEST_FILE_COUNT: int | None = 4237
+PROVENANCE_FILE_COUNT: int | None = 225
 PROVENANCE_SCHEMA_COUNT: int | None = 1625
 SUMMARY_CASE_COUNT: int | None = 22
 ROOT = files("adcp").joinpath("_compliance", VERSION)
@@ -44,7 +44,7 @@ ROOT = files("adcp").joinpath("_compliance", VERSION)
 def _pinned(value):
     """Fail loudly while a release identity value is still a placeholder."""
     if value is None or (isinstance(value, str) and value.startswith("TODO")):
-        pytest.fail(f"3.2.1 release identity placeholder not filled in: {value!r}")
+        pytest.fail(f"3.2.4 release identity placeholder not filled in: {value!r}")
     return value
 
 
@@ -68,7 +68,7 @@ def test_signed_release_and_package_bytes():
     assert provenance["release"]["source_commit"] == _pinned(SOURCE)
     assert provenance["release"]["artifacts"][VERSION + ".tgz"]["sha256"] == _pinned(BUNDLE)
     assert provenance["release"]["certificate_identity"] == (
-        "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/main"
+        "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/3.2.x"
     )
     manifest = json.loads(ROOT.joinpath("bundle-manifest.json").read_bytes())
     assert manifest["adcp_version"] == manifest["published_version"] == VERSION

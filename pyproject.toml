@@ -265,6 +265,10 @@ adcp = [
     "_compliance/3.2.1/**/*.jsonl",
     "_compliance/3.2.1/**/*.yaml",
     "_compliance/3.2.1/**/*.md",
+    "_compliance/3.2.4/**/*.json",
+    "_compliance/3.2.4/**/*.jsonl",
+    "_compliance/3.2.4/**/*.yaml",
+    "_compliance/3.2.4/**/*.md",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each
@@ -322,6 +326,10 @@ ignore = [
 ]
 
 [tool.mypy]
+enable_incomplete_feature = ["TypeForm"]
+# Mypy 1.20.2 drops is_type_form in its fixed-format cache. The JSON
+# cache preserves Pydantic 2.14 adapter signatures across incremental checks.
+fixed_format_cache = false
 python_version = "3.10"
 strict = true
 warn_return_any = true

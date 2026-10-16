@@ -74,6 +74,32 @@ def b1_wheels(built_distribution):
     )
 
 
+def test_current_signed_compliance_bytes_ship_in_each_distribution(b1_wheels, built_distribution):
+    _, wheels, _ = b1_wheels
+    _, _, source = built_distribution
+    version = (ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
+    compliance = ROOT / "src/adcp/_compliance" / version
+    compliance_files = sorted(p for p in compliance.rglob("*") if p.is_file())
+    assert compliance_files, f"signed compliance bundle is missing for {version}"
+    with (
+        zipfile.ZipFile(wheels["vcs"]) as vcs,
+        zipfile.ZipFile(wheels["sdist"]) as wheel,
+        tarfile.open(source) as tar,
+    ):
+        prefix = tar.getnames()[0].split("/")[0]
+        for file in compliance_files:
+            member = f"adcp/_compliance/{version}/{file.relative_to(compliance).as_posix()}"
+            raw = file.read_bytes()
+            assert vcs.read(member) == wheel.read(member) == raw
+            archived = tar.extractfile(f"{prefix}/src/{member}")
+            assert archived is not None
+            assert archived.read() == raw
+        pin = f"schemas/releases/{version}.json"
+        archived_pin = tar.extractfile(f"{prefix}/{pin}")
+        assert archived_pin is not None
+        assert archived_pin.read() == (ROOT / pin).read_bytes()
+
+
 @pytest.mark.parametrize("kind", ["vcs", "sdist"])
 def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter(request, kind):
     interpreter = os.environ.get("ADCP_PYTHON310") or (

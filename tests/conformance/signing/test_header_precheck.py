@@ -22,7 +22,7 @@ from adcp.signing import (
     VerifyOptions,
     verify_request_signature,
 )
-from adcp.signing.errors import REQUEST_SIGNATURE_HEADER_MALFORMED
+from adcp.signing.errors import REQUEST_SIGNATURE_HEADER_MALFORMED, REQUEST_TARGET_URI_MALFORMED
 
 _URL = "https://seller.example.com/adcp/create_media_buy"
 _SIG_INPUT = (
@@ -131,7 +131,8 @@ def test_non_ascii_host_header_is_rejected_even_when_the_url_is_clean() -> None:
     (Starlette's `URL` falls back to `scope["server"]` when the Host header
     fails its host regex), so in production the U-label survives only on the
     header. A gate that checked the URL alone would pass vector 026 -- which
-    ships no Host header -- and miss every real request.
+    ships no Host header -- and miss every real request. Graded as
+    `request_target_uri_malformed` per the AdCP 3.2.4 corpus.
     """
     raw = [
         (b"host", "bücher.example.com".encode()),
@@ -147,8 +148,8 @@ def test_non_ascii_host_header_is_rejected_even_when_the_url_is_clean() -> None:
     }
     with pytest.raises(SignatureVerificationError) as exc_info:
         _verify(raw, collapsed)
-    assert exc_info.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
-    assert exc_info.value.step == 1
+    assert exc_info.value.code == REQUEST_TARGET_URI_MALFORMED
+    assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
 
 
 def test_duplicate_label_on_the_signature_header_is_rejected_at_step_1() -> None:
@@ -203,7 +204,7 @@ def test_content_digest_algorithms_differing_only_in_case_are_rejected_at_step_1
     ["::1", "[::1", "[fe80::1%25eth0]", ":443", "user@"],
     ids=["bare-ipv6", "unclosed-bracket", "zone-id", "port-no-host", "userinfo-no-host"],
 )
-def test_malformed_authority_on_the_host_header_is_rejected_at_step_1(host: str) -> None:
+def test_malformed_authority_on_the_host_header_is_target_uri_malformed(host: str) -> None:
     """The URL canonicalization algorithm's steps 2-3 MUST-reject shapes.
 
     Step 3 names the four malformed authority shapes and binds comparers to
@@ -215,7 +216,8 @@ def test_malformed_authority_on_the_host_header_is_rejected_at_step_1(host: str)
 
     `malformed_authority_reason` is the rule's one definition and
     canonicalization already applies it to the URL. Applying it here is what
-    makes the header side refuse the same shapes, at step 1, with step 1's code.
+    makes the header side refuse the same shapes with the same code
+    (`request_target_uri_malformed`, per the AdCP 3.2.4 corpus's `negative/031`).
     """
     raw = [
         (b"host", host.encode("latin-1")),
@@ -231,8 +233,8 @@ def test_malformed_authority_on_the_host_header_is_rejected_at_step_1(host: str)
     }
     with pytest.raises(SignatureVerificationError) as exc_info:
         _verify(raw, collapsed)
-    assert exc_info.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
-    assert exc_info.value.step == 1
+    assert exc_info.value.code == REQUEST_TARGET_URI_MALFORMED
+    assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
 
 
 @pytest.mark.parametrize(
@@ -261,7 +263,10 @@ def test_well_formed_host_header_is_not_rejected(host: str) -> None:
     }
     with pytest.raises(SignatureVerificationError) as exc_info:
         _verify(raw, collapsed)
-    assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
+    assert exc_info.value.code not in {
+        REQUEST_SIGNATURE_HEADER_MALFORMED,
+        REQUEST_TARGET_URI_MALFORMED,
+    }
 
 
 def test_two_distinct_signature_labels_are_not_rejected() -> None:
@@ -302,3 +307,71 @@ def test_multi_algorithm_content_digest_is_not_rejected() -> None:
     with pytest.raises(SignatureVerificationError) as exc_info:
         _verify(None, headers)
     assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
+
+
+def _options_with_probes() -> tuple[VerifyOptions, list[str], InMemoryReplayStore]:
+    resolved: list[str] = []
+    store = InMemoryReplayStore()
+
+    def resolver(keyid: str) -> None:
+        resolved.append(keyid)
+        return None
+
+    options = VerifyOptions(
+        now=1776520800.0,
+        capability=VerifierCapability(),
+        operation="create_media_buy",
+        jwks_resolver=resolver,
+        replay_store=store,
+    )
+    return options, resolved, store
+
+
+def _probe_headers(**overrides: str) -> dict[str, str]:
+    headers = {
+        "Content-Type": "application/json",
+        "Signature-Input": _SIG_INPUT,
+        "Signature": _SIG,
+    }
+    headers.update(overrides)
+    return headers
+
+
+def test_malformed_host_is_refused_before_key_lookup_and_consumes_no_state() -> None:
+    """Precedence: the target-URI precheck runs before key resolution and replay claims.
+
+    A malformed authority is refused statelessly, so it also wins over later faults in the
+    same request (here an expired window). Only malformed shapes are judged: this is not a
+    complete Host canonicalization and does not require Host and URL authority to match.
+    """
+    options, resolved, store = _options_with_probes()
+    expired = _SIG_INPUT.replace("created=1776520800", "created=1").replace(
+        "expires=1776521100", "expires=2"
+    )
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        verify_request_signature(
+            method="POST",
+            url=_URL,
+            headers=_probe_headers(Host="::1", **{"Signature-Input": expired}),
+            body=b'{"plan_id":"plan_001"}',
+            options=options,
+        )
+    assert exc_info.value.code == REQUEST_TARGET_URI_MALFORMED
+    assert resolved == []
+    assert store.seen("test-ed25519-2026", "KXYnfEfJ0PBRZXQyVXfVQA") is False
+
+
+def test_valid_proxy_host_that_differs_from_the_canonical_url_is_not_rejected() -> None:
+    """Documented proxy contract: a well-formed Host need not equal the URL authority."""
+    options, resolved, _ = _options_with_probes()
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        verify_request_signature(
+            method="POST",
+            url=_URL,
+            headers=_probe_headers(Host="internal-proxy.local:8080"),
+            body=b'{"plan_id":"plan_001"}',
+            options=options,
+        )
+    # Proceeds past the precheck to key resolution, where this fixture has no key.
+    assert exc_info.value.code != REQUEST_TARGET_URI_MALFORMED
+    assert resolved == ["test-ed25519-2026"]

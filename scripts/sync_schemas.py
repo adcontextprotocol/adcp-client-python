@@ -259,6 +259,10 @@ def load_release_pin(version: str) -> dict | None:
     allowed_identities = {release_workflow + "main"}
     if re.fullmatch(r"3\.1\.\d+", version):
         allowed_identities.add(release_workflow + "3.1.x")
+    # Stable 3.2 patches are published by the reviewed maintenance workflow.
+    # Keep the exact identity in the audited pin; no wildcard or fallback.
+    if re.fullmatch(r"3\.2\.[0-9]+", version):
+        allowed_identities.add(release_workflow + "3.2.x")
     if (
         pin.get("version") != version
         or pin.get("bundle_url") != f"https://adcontextprotocol.org/protocol/{version}.tgz"

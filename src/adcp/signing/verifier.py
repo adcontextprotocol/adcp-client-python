@@ -15,9 +15,10 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from adcp.signing._header_precheck import strict_header_precheck
+from adcp.signing._header_precheck import strict_header_precheck, target_uri_precheck
 from adcp.signing._strict_json import StrictJsonError, body_is_empty, parse_strict_json
 from adcp.signing.canonical import (
+    REQUEST_TARGET_URI_MALFORMED,
     TargetUriMalformedError,
     _lookup,
     build_signature_base,
@@ -294,6 +295,18 @@ def verify_request_signature(
             REQUEST_SIGNATURE_HEADER_MALFORMED,
             step=1,
             message=precheck_reason,
+        )
+
+    # A malformed or raw non-ASCII authority is `request_target_uri_malformed`, not a header
+    # defect. Judged up front for the same reason as step 1: before key lookup or replay-store
+    # writes, so a bad authority consumes no state. Labelled step 6, where the verifier
+    # otherwise derives the signature base; the code, not the step, is what conformance grades.
+    target_reason = target_uri_precheck(headers=headers, raw_headers=raw_headers, url=url)
+    if target_reason is not None:
+        raise SignatureVerificationError(
+            REQUEST_TARGET_URI_MALFORMED,
+            step=6,
+            message=target_reason,
         )
 
     try:
