@@ -7,6 +7,7 @@ must not move a consumer, or its retention hold, backward.
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
@@ -158,46 +159,79 @@ async def test_a_change_of_feed_scope_replaces_the_position() -> None:
         assert await saved(pool, "sink") == ("acct_a", None, 900)
 
 
-async def test_concurrent_writers_cannot_interleave_a_stale_position_over_a_newer_one() -> None:
-    """A newer acknowledgment is queued first and a stale one second, both behind a row lock.
+async def test_concurrent_writers_cannot_interleave_a_stale_position_over_a_newer_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale acknowledgment waits on the newer acknowledgment's uncommitted update.
 
-    The unconditional upsert let the stale write land last; the conditional one re-evaluates
-    against the committed row once the lock is released and skips it.
+    Merely queuing both writers behind a third transaction does not order their writes.
+    Hold the real newer write before commit, then prove the stale write is blocked by it.
+    The conditional upsert must re-evaluate against the committed row and skip the stale write.
     """
     async with isolated_reporting_pool() as pool:
         store = await feed_store(pool)
         await store.save_feed_consumer_cursor("sink", account_cursor(1))
 
-        holder = await pool.getconn()
-        try:
-            await holder.execute(
-                "UPDATE adcp_reporting_feed_consumers SET cursor_seq = cursor_seq"
-                " WHERE consumer_name = 'sink'"
-            )
-            newer = asyncio.create_task(store.save_feed_consumer_cursor("sink", account_cursor(9)))
-            await blocked_writers(pool, 1)
-            stale = asyncio.create_task(store.save_feed_consumer_cursor("sink", account_cursor(5)))
-            await blocked_writers(pool, 2)
-            await holder.commit()
-        finally:
-            await pool.putconn(holder)
+        newer: asyncio.Task[bool] | None = None
+        stale: asyncio.Task[bool] | None = None
+        newer_written = asyncio.Event()
+        stale_connected = asyncio.Event()
+        commit_newer = asyncio.Event()
+        pids: dict[str, int] = {}
+        checkout = pool.connection
 
-        results = (await newer, await stale)
+        @asynccontextmanager
+        async def connection(*args: Any, **kwargs: Any):
+            async with checkout(*args, **kwargs) as current:
+                task = asyncio.current_task()
+                if task is newer:
+                    pids["newer"] = current.info.backend_pid
+                elif task is stale:
+                    pids["stale"] = current.info.backend_pid
+                    stale_connected.set()
+                yield current
+                if task is newer:
+                    newer_written.set()
+                    await commit_newer.wait()
+
+        with monkeypatch.context() as patch:
+            patch.setattr(pool, "connection", connection)
+            try:
+                newer = asyncio.create_task(
+                    store.save_feed_consumer_cursor("sink", account_cursor(9))
+                )
+                await asyncio.wait_for(newer_written.wait(), timeout=5)
+                stale = asyncio.create_task(
+                    store.save_feed_consumer_cursor("sink", account_cursor(5))
+                )
+                await asyncio.wait_for(stale_connected.wait(), timeout=5)
+                await blocked_writer(pool, pids["stale"], pids["newer"])
+                assert not stale.done(), "the stale writer must overlap the uncommitted newer write"
+                commit_newer.set()
+                results = tuple(await asyncio.wait_for(asyncio.gather(newer, stale), timeout=10))
+            finally:
+                commit_newer.set()
+                tasks = [task for task in (newer, stale) if task is not None]
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+
         assert await saved(pool, "sink") == ("acct_a", None, 9), "a stale write landed last"
         assert results == (True, False)
 
 
-async def blocked_writers(pool: Any, count: int) -> None:
+async def blocked_writer(pool: Any, writer_pid: int, blocker_pid: int) -> None:
     for _ in range(400):
         rows = await fetch_all(
             pool,
-            "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock'"
-            " AND query LIKE 'INSERT INTO adcp_reporting_feed_consumers%'",
+            "SELECT %s = ANY(pg_blocking_pids(%s))",
+            (blocker_pid, writer_pid),
         )
-        if rows[0][0] >= count:
+        if rows[0][0]:
             return
         await asyncio.sleep(0.025)
-    pytest.fail(f"{count} writers never queued behind the row lock")
+    pytest.fail("the stale writer never blocked on the newer writer's transaction")
 
 
 async def test_remove_feed_consumer_releases_the_hold() -> None:
