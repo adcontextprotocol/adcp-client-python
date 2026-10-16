@@ -2,7 +2,7 @@
 /**
  * JavaScript half of the cross-SDK row storage interop test.
  *
- * Drives the shipped `@adcp/sdk` row storage (`ReportingRowStorageV1`) against a
+ * Drives the shipped JavaScript row storage (`ReportingRowStorageV1`) against a
  * PostgreSQL schema and a filesystem bucket root shared with the Python SDK.
  *
  *   node reporting_row_storage_js_driver.cjs write --out js-written.json
@@ -36,6 +36,11 @@ const sdkEntry = fs.existsSync(path.join(sdkDir, 'dist/lib/reporting/ledger/inde
   ? path.join(sdkDir, 'dist/lib/reporting/ledger/index.js')
   : require.resolve('@adcp/sdk/reporting/ledger', { paths: [sdkDir] });
 const ledger = require(sdkEntry);
+// SDK 16 moved the storage implementations into their own workspace package.
+const rowStorage = typeof ledger.ReportingRowStorageV1 === 'function'
+  && typeof ledger.createFilesystemReportingRowObjectProviderV1 === 'function'
+  ? ledger
+  : requireFromSdk('@adcp/reporting-storage');
 const canonicalize = fs.existsSync(path.join(sdkDir, 'dist/lib/utils/jcs.js'))
   ? require(path.join(sdkDir, 'dist/lib/utils/jcs.js')).canonicalize
   : requireFromSdk('@adcp/sdk').canonicalize;
@@ -71,7 +76,7 @@ function rowsOnly(rows) {
 
 async function main() {
   const pool = new Pool({ connectionString: url, options: `-c search_path="${schema}"` });
-  const storage = new ledger.ReportingRowStorageV1(pool, {
+  const storage = new rowStorage.ReportingRowStorageV1(pool, {
     deploymentNamespace: namespace,
     bindings: {
       inline: { kind: 'postgres' },
@@ -83,7 +88,7 @@ async function main() {
         compression: 'gzip',
       },
     },
-    providers: { filesystem: ledger.createFilesystemReportingRowObjectProviderV1({ roots: { reports: root } }) },
+    providers: { filesystem: rowStorage.createFilesystemReportingRowObjectProviderV1({ roots: { reports: root } }) },
   });
   await storage.ready();
   try {
