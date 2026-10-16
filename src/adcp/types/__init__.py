@@ -1164,7 +1164,7 @@ if not TYPE_CHECKING:
         generated layer) resolve through the import system rather than ``_eager``.
         That matters for correctness, not just speed: ``aliases`` imports
         ``_generated`` from this package, and routing that through ``_eager`` would
-        re-enter the eager body (``_forward_compat`` → ``aliases``) and deadlock on
+        re-enter the eager body (which imports ``aliases`` itself) and deadlock on
         a circular import. Passing submodules straight to the import system avoids it.
 
         Also keeps the removed ``GeoPostalArea`` name importable while emitting a
@@ -1184,7 +1184,7 @@ if not TYPE_CHECKING:
         # Submodule passthrough — the curated partial surfaces, ``aliases``, and
         # the internal generated layer are real submodules; import them directly
         # so they never round-trip through the eager body (which would re-enter
-        # on the ``_forward_compat`` → ``aliases`` cycle). ``_PARTIAL_MODULES`` is
+        # on the ``_eager`` → ``aliases`` cycle). ``_PARTIAL_MODULES`` is
         # the fast path for the curated set; ``find_spec`` covers the rest.
         if name in _PARTIAL_MODULES or (
             not name.startswith("__") and importlib.util.find_spec(f"adcp.types.{name}") is not None

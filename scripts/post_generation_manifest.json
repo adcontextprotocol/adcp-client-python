@@ -73,6 +73,7 @@
     "point_integer_fields_at_the_schema_integer_type": true,
     "remove_imports_shadowed_by_a_local_class": true,
     "remove_unused_pydantic_field_imports": true,
+    "emit_open_asset_unions": true,
     "declare_root_schema_module_exports": true,
     "strip_extra_blank_lines_at_eof": true
   }

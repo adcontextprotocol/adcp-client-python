@@ -32,6 +32,17 @@ without an open-union escape hatch, or changing the discriminator key on a model
 already on the wire is a `high` finding — adopter deserialization breaks the
 moment upstream adds a variant.
 
+The two asset unions are the exception to the file list: `FormatAssetUnion` and
+`GroupFormatAssetUnion`, their fallback arms and the `asset_type` vocabulary
+they route by are EMITTED into `src/adcp/types/domains/core/format.py` by
+`_OPEN_ASSET_UNIONS` in `scripts/post_generate_fixes.py`, and `aliases.py`
+re-exports them. Review a change to them there. A hand-written vocabulary beside
+a generated union is itself the `high` finding: the callable discriminator reads
+the vocabulary before pydantic reaches the arms, so a stale entry degrades a
+declared asset type to the fallback while its generated class sits unused — and
+counting arms does not detect it. Grade it with a parse-level check
+(`tests/test_forward_compat_assets.py::TestDeclaredAssetTypesAreNotDegraded`).
+
 ### Mandatory: type-system import layering
 
 Only `_generated.py`, `_eager.py`, `aliases.py`, `capabilities.py`, and

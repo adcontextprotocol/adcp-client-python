@@ -1,9 +1,15 @@
 """Forward-compatibility and generated-model composition patches.
 
-Patches Format.assets and RepeatableAssetGroup.assets at import
-time so responses containing novel asset_type values (e.g., 'pixel_tracker')
-parse as UnknownFormatAsset / UnknownGroupAsset instead of raising a cascade
-of ValidationErrors that zero out the entire list_creative_formats response.
+The two asset slots are declared where their arms are. ``Format.assets`` and the
+repeatable group's ``assets`` carry their open union BY GENERATION:
+``_OPEN_ASSET_UNIONS`` in scripts/post_generate_fixes.py emits the fallback
+class, the derived ``asset_type`` vocabulary, the callable discriminator and the
+tagged union into core/format.py, beside the classes they route to. This module
+used to rewrite both annotations at import time instead, over a vocabulary
+written down by hand in aliases.py — and a hand-written vocabulary beside a
+generated union is what fell 7 and 9 arms behind the schema, degrading declared
+asset types to the fallback. A patch reaches the class it names; a generated
+annotation reaches every class that nests it, and needs nothing kept in sync.
 
 This module is intentionally NOT auto-generated. It lives outside
 the generated tree and is preserved across codegen runs (generate_types.py only
@@ -17,10 +23,9 @@ The rc.3 targeting mutation fields retain TargetingOverlayInput for raw data
 while accepting beta.14 TargetingOverlay instances as a compatibility bridge.
 
 Import order: comes after _ergonomic in types/__init__.py (alphabetical by
-underscore-preserved sort). Importing this module directly triggers import of
-adcp.types.aliases as a side effect (via ``from adcp.types.aliases import …``)
-so there is no circular-import risk and no strict ordering requirement against
-aliases in __init__.py.
+underscore-preserved sort). This module no longer imports adcp.types.aliases at
+all — the asset patch was its only reason to — so it has no ordering
+requirement against aliases and takes no part in a cycle through it.
 
 Import layering: this module imports directly from the generated tree (like
 aliases.py and _ergonomic.py) because it must patch the generated classes
@@ -52,7 +57,6 @@ from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
-from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.base import AdCPBaseModel
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
@@ -76,7 +80,6 @@ from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
 from adcp.types.domains.core.canonical_product import PublisherDomain
 from adcp.types.domains.core.creative_manifest import CreativeManifest
 from adcp.types.domains.core.creative_variant import CreativeVariant
-from adcp.types.domains.core.format import Format
 from adcp.types.domains.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.domains.core.media_buy_features import MediaBuyFeatures
 from adcp.types.domains.core.reporting_webhook import (
@@ -423,7 +426,7 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
 
 
 def _apply_forward_compat() -> None:
-    """Apply open-union, capability, and public-model compatibility patches."""
+    """Apply readback, capability, and public-model compatibility patches."""
     for model in (
         PackageRequest,
         PackageUpdate,
@@ -499,12 +502,6 @@ def _apply_forward_compat() -> None:
     # Rebuilding it re-resolves AdcpAsyncResponseData, a union type alias, so
     # completed task callbacks retain typed manifests.
     McpWebhookPayload.model_rebuild(force=True)
-
-    _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
-    Format.model_rebuild(force=True)
-
-    _patch_model_field(RepeatableAssetGroup, "assets", list[GroupFormatAssetUnion])
-    cast(type[BaseModel], RepeatableAssetGroup).model_rebuild(force=True)
 
     # The 3.1 canonical-creatives capability was published after the bundled
     # generated model. Preserve it across code generation until the schema

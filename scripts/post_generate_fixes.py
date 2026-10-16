@@ -7602,6 +7602,366 @@ def insert_task_message_markers() -> None:
     print(f"  marked {len(wanted)} task-message classes across {len(by_module)} modules")
 
 
+# ---------------------------------------------------------------------------
+# #742: open asset unions, emitted where the arms are declared.
+#
+# ``core/format.py`` generates a CLOSED discriminated union per asset slot, and
+# the spec requires a consumer to keep an unrecognised ``asset_type`` rather
+# than fail the whole ``list_creative_formats`` response. So each slot gains one
+# fallback arm, and the field carries the open union instead.
+#
+# This used to be a runtime patch: ``src/adcp/types/aliases.py`` declared the
+# fallback class, the union and a frozenset of known ``asset_type`` values by
+# hand, and ``_forward_compat._apply_forward_compat()`` rewrote
+# ``Format.assets`` and the repeatable group's ``assets`` over the generated
+# annotation at import time. The declaration is what broke: the two frozensets
+# held 14 and 12 members beside a generated union of 21 and 21, and the callable
+# discriminator reads the frozenset BEFORE pydantic reaches the arms, so seven
+# individual asset types the pinned schema declares (``zip``, ``display_tag``,
+# ``published_post``, ``card``, ``pixel_tracker``, ``vast_tracker``,
+# ``daast_tracker``) and nine group types parsed as the unknown arm with their
+# typed fields in ``__pydantic_extra__``, while generated classes for every one
+# of them sat unused.
+#
+# Emitting here removes the declaration rather than deriving it: the generator
+# knows each arm's ``asset_type`` literal because it emitted that literal, so a
+# schema that adds an asset type adds its class AND its tag in the same run.
+
+
+class OpenAssetUnion(NamedTuple):
+    """One asset slot's generated union, plus the fallback arm the spec needs."""
+
+    #: The union's name in the generated module.
+    alias: str
+    #: The base class whose direct subclasses are the arms.
+    base: str
+    #: The fallback arm's class name.
+    fallback: str
+    #: The callable discriminator's function name.
+    discriminator: str
+    #: The class carrying the field whose list element type becomes the alias.
+    #: ``None`` stands for the repeatable-group class, derived rather than named
+    #: because the generator renumbers it (see
+    #: :func:`restore_format_asset_numbered_aliases`).
+    carrier: str | None
+    #: The field on that class.
+    carried_field: str
+    #: Whether the repeatable-group class is itself an arm of this union.
+    carries_group_arm: bool
+    doc: str
+
+
+#: The open asset unions, in emission order. Each is written into
+#: ``core/format.py`` ahead of the class that carries it, so the alias exists
+#: before pydantic builds that class.
+_OPEN_ASSET_UNIONS: tuple[OpenAssetUnion, ...] = (
+    # The group slots come first: the repeatable group carries them, and the
+    # individual union below has that same group class as one of its arms.
+    OpenAssetUnion(
+        alias="GroupFormatAssetUnion",
+        base="BaseGroupAsset",
+        fallback="UnknownGroupAsset",
+        discriminator="_group_asset_discriminator",
+        carrier=None,
+        carried_field="assets",
+        carries_group_arm=False,
+        doc=(
+            "Open discriminated union for the slots inside a repeatable asset group.\n\n"
+            "The generated union closes over the group asset classes; this adds the\n"
+            "fallback arm an unrecognised ``asset_type`` needs."
+        ),
+    ),
+    OpenAssetUnion(
+        alias="FormatAssetUnion",
+        base="BaseIndividualAsset",
+        fallback="UnknownFormatAsset",
+        discriminator="_format_asset_discriminator",
+        carrier="Format",
+        carried_field="assets",
+        carries_group_arm=True,
+        doc=(
+            "Open discriminated union for ``Format.assets``.\n\n"
+            "The generated union closes over the individual asset classes plus the\n"
+            "repeatable group; this adds the fallback arm an unrecognised\n"
+            "``asset_type`` needs."
+        ),
+    ),
+)
+
+
+def _repeatable_group_class(tree: ast.Module) -> str:
+    """The generated class whose ``item_type`` discriminator is the group.
+
+    Derived for the same reason :func:`restore_format_asset_numbered_aliases`
+    derives it: the generator renumbers this class (``Assets94`` once, now
+    ``Assets29``), so naming it here would go stale on a schema refresh.
+    """
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for statement in node.body:
+            if not isinstance(statement, ast.AnnAssign):
+                continue
+            if not isinstance(statement.target, ast.Name) or statement.target.id != "item_type":
+                continue
+            default_is_group = (
+                isinstance(statement.value, ast.Constant)
+                and statement.value.value == "repeatable_group"
+            )
+            annotation_is_group = (
+                _extract_single_literal_value(statement.annotation) == "repeatable_group"
+            )
+            if default_is_group or annotation_is_group:
+                return node.name
+    raise RuntimeError(
+        "core/format.py: no class declares item_type='repeatable_group', so the "
+        "asset unions have no group arm and no group container"
+    )
+
+
+def _asset_union_arms(tree: ast.Module, base: str) -> list[tuple[str, str]]:
+    """``(class name, asset_type literal)`` for every direct subclass of ``base``.
+
+    Read off the generated source in declaration order. A ``Tag`` must be unique
+    within a union, so a duplicate literal is refused rather than silently
+    dropping whichever arm came second.
+    """
+    arms: list[tuple[str, str]] = []
+    seen: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if base not in {ast.unparse(parent) for parent in node.bases}:
+            continue
+        for statement in node.body:
+            if not isinstance(statement, ast.AnnAssign):
+                continue
+            if not isinstance(statement.target, ast.Name) or statement.target.id != "asset_type":
+                continue
+            literal = _extract_single_literal_value(statement.annotation)
+            if not isinstance(literal, str):
+                continue
+            if literal in seen:
+                raise RuntimeError(
+                    f"core/format.py: asset_type {literal!r} is declared by both "
+                    f"{seen[literal]} and {node.name}; a discriminated union cannot "
+                    "tag two arms the same"
+                )
+            seen[literal] = node.name
+            arms.append((node.name, literal))
+    if not arms:
+        raise RuntimeError(f"core/format.py: no subclass of {base} declares an asset_type")
+    return arms
+
+
+def _screaming_snake(class_name: str) -> str:
+    """``BaseIndividualAsset`` -> ``BASE_INDIVIDUAL_ASSET``."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).upper()
+
+
+def _render_open_asset_union(
+    union: OpenAssetUnion, arms: list[tuple[str, str]], group_class: str
+) -> str:
+    """The fallback class, its vocabulary, its discriminator and the union."""
+    known = "".join(f"        {literal!r},\n" for _name, literal in arms)
+    tagged = [f"Annotated[{name}, Tag({literal!r})]" for name, literal in arms]
+    if union.carries_group_arm:
+        tagged.append(f"Annotated[{group_class}, Tag('repeatable_group')]")
+    tagged.append(f"Annotated[{union.fallback}, Tag('_unknown')]")
+    # The first arm carries no leading ``|``, matching the generated layout, and
+    # the last carries the comma that closes the Annotated argument list.
+    body = f"    {tagged[0]}\n" + "".join(f"    | {arm}\n" for arm in tagged[1:-1])
+    body += f"    | {tagged[-1]},\n"
+    read_item_type = group_route = ""
+    if union.carries_group_arm:
+        read_item_type = (
+            "    item_type = (\n"
+            "        value.get('item_type', 'individual')\n"
+            "        if isinstance(value, dict)\n"
+            "        else getattr(value, 'item_type', 'individual')\n"
+            "    )\n"
+        )
+        group_route = "    if item_type == 'repeatable_group':\n        return 'repeatable_group'\n"
+    vocabulary = f"_KNOWN_{_screaming_snake(union.base)}_TYPES"
+    return f'''class {union.fallback}({union.base}):
+    """Fallback arm for an ``asset_type`` outside this pin's vocabulary.
+
+    A response carrying an asset type defined after this SDK's pin parses as
+    this class instead of failing, which would zero out every format in the
+    response. The structural fields are still validated; the type-specific ones
+    are kept in ``__pydantic_extra__``. Read them via
+    ``asset.__pydantic_extra__ or {{}}``.
+
+    ``extra='allow'`` is deliberate and not inherited from the strict-validation
+    policy on ``AdCPBaseModel``: dropping or refusing the unknown fields defeats
+    the whole purpose of the arm. Read path only -- a request keeps its closed
+    ``Literal`` arms.
+    """
+
+    model_config = ConfigDict(extra='allow')
+    asset_type: str
+
+
+#: The ``asset_type`` values this pin has a class for. Derived from the arms
+#: above, so a schema that adds a type adds its class AND its tag together.
+{vocabulary}: frozenset[str] = frozenset(
+    {{
+{known}    }}
+)
+
+
+def {union.discriminator}(value: Any) -> str:
+    """Route a wire asset to its ``Tag``, or to the fallback."""
+{read_item_type}{group_route}    asset_type = (
+        value.get('asset_type', '')
+        if isinstance(value, dict)
+        else getattr(value, 'asset_type', '')
+    )
+    return asset_type if asset_type in {vocabulary} else '_unknown'
+
+
+{union.alias} = Annotated[
+{body}    Discriminator({union.discriminator}),
+]
+"""{union.doc}
+"""'''
+
+
+def _module_union_aliases(tree: ast.Module) -> dict[str, ast.AST]:
+    """Top-level ``Name = <annotation>`` bindings, so a union alias can be followed."""
+    return {
+        node.targets[0].id: node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+    }
+
+
+def _union_class_names(node: ast.AST, aliases: dict[str, ast.AST]) -> set[str]:
+    """Every class name a possibly-aliased union annotation resolves to.
+
+    ``Format.assets`` spells its union inline; the repeatable group reaches one
+    through a generated ``Assets30 = Annotated[A | B, Field(discriminator=...)]``
+    alias, so the alias is followed rather than counted as an arm.
+    """
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _union_class_names(node.left, aliases) | _union_class_names(node.right, aliases)
+    if isinstance(node, ast.Subscript) and _subscript_base_name(node) == "Annotated":
+        inner = _first_subscript_arg(node)
+        return _union_class_names(inner, aliases) if inner is not None else set()
+    if isinstance(node, ast.Name):
+        if node.id in aliases:
+            return _union_class_names(aliases[node.id], aliases)
+        return {node.id}
+    return {ast.unparse(node)}
+
+
+def _carry_open_asset_union(
+    content: str, union: OpenAssetUnion, class_name: str, expected: set[str]
+) -> str:
+    """Point the carrying field at the alias, after checking what it carries now.
+
+    The membership check is the guard, and it is derived rather than declared:
+    the field's current element union must resolve to exactly the arm set the
+    alias was just built from. A schema refresh that adds an asset type changes
+    both sides together and passes; one that reshapes the field, or that adds an
+    arm the base does not own, fails here rather than leaving the field closed.
+    """
+    field_name = union.carried_field
+    block = _find_class_field_block(content, class_name, field_name)
+    if block is None:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} is not declared, so "
+            f"{union.alias} has nothing to open"
+        )
+    start, end = block
+    annotation = content[start:end]
+    element = re.search(r"list\[(.*?)\]\s*(?:\|\s*None)?,", annotation, re.DOTALL)
+    if element is None:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} is not a list annotation "
+            f"({annotation.strip()[:80]!r}); {union.alias} assumes it is"
+        )
+    aliases = _module_union_aliases(ast.parse(content))
+    # Parenthesized: a generated union spans lines, and the continuation lines
+    # are indented, which bare ``ast.parse`` reads as an IndentationError.
+    carried = _union_class_names(
+        ast.parse(f"({element.group(1).strip()})", mode="eval").body, aliases
+    )
+    if carried != expected:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} and {union.alias} disagree, so "
+            "the field would not be opened over the classes the union covers. "
+            f"Carried but not an arm of the union: {sorted(carried - expected)}. "
+            f"An arm of the union but not carried: {sorted(expected - carried)}. "
+            f"({len(carried)} carried, {len(expected)} derived.)"
+        )
+    opened = annotation[: element.start(1)] + union.alias + annotation[element.end(1) :]
+    return content[:start] + opened + content[end:]
+
+
+def _ensure_module_import(content: str, statement: str) -> str:
+    """Write ``statement`` ahead of the module's first class, once.
+
+    The generated modules carry several import blocks, written by codegen and by
+    the passes above, so there is no single block to extend. Ahead of the first
+    class is after all of them and before any use.
+    """
+    if statement in content:
+        return content
+    source, replaced = re.subn(
+        r"^class ", f"{statement}\n\n\nclass ", content, count=1, flags=re.MULTILINE
+    )
+    if replaced != 1:
+        raise RuntimeError(f"no class to place {statement!r} ahead of")
+    return source
+
+
+def emit_open_asset_unions() -> None:
+    """Write each :data:`_OPEN_ASSET_UNIONS` definition into ``core/format.py``.
+
+    Raises when the module, a base, or an anchor class is missing: an asset union
+    that silently failed to open would turn every unrecognised asset type into a
+    whole-response validation failure, which is the thing it exists to prevent.
+    """
+    print("Emitting the open asset unions into core/format.py...")
+
+    path = OUTPUT_DIR / "core" / "format.py"
+    if not path.exists():
+        raise RuntimeError("core/format.py does not exist; the asset unions have no home")
+    content = path.read_text()
+    for union in _OPEN_ASSET_UNIONS:
+        tree = ast.parse(content)
+        group_class = _repeatable_group_class(tree)
+        arms = _asset_union_arms(tree, union.base)
+        # The carrying class is also where the alias is emitted: the name has to
+        # exist before pydantic builds that class.
+        class_name = union.carrier or group_class
+        anchor = re.compile(rf"^class {re.escape(class_name)}\b", re.MULTILINE)
+        match = anchor.search(content)
+        if match is None:
+            raise RuntimeError(
+                f"core/format.py: no 'class {class_name}' to emit {union.alias} ahead of"
+            )
+        content = (
+            content[: match.start()]
+            + _render_open_asset_union(union, arms, group_class)
+            + "\n\n\n"
+            + content[match.start() :]
+        )
+        expected = {name for name, _literal in arms}
+        if union.carries_group_arm:
+            expected.add(group_class)
+        content = _carry_open_asset_union(content, union, class_name, expected)
+        print(
+            f"  ✓ {union.alias}: {len(arms)} arm(s) plus the fallback, carried by "
+            f"{class_name}.{union.carried_field}"
+        )
+    content = _ensure_module_import(content, "from pydantic import Discriminator, Tag")
+    path.write_text(content)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -7701,6 +8061,10 @@ def main(argv: list[str] | None = None) -> int:
         point_integer_fields_at_the_schema_integer_type,
         remove_imports_shadowed_by_a_local_class,
         remove_unused_pydantic_field_imports,
+        # After the import-cleanup passes, which would otherwise read the
+        # import this one adds as unused -- nothing references the name at the
+        # moment they run.
+        emit_open_asset_unions,
         # After every pass that can add, rename or remove a class: the
         # ``__all__`` it writes has to name the final set.
         declare_root_schema_module_exports,

@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import Annotated as _Annotated
 from typing import Any, Literal, TypeAlias
 
-from pydantic import BeforeValidator, ConfigDict, Discriminator, Tag
+from pydantic import BeforeValidator, Discriminator
 
 from adcp.types import _generated as _g
 from adcp.types._generated import (
@@ -1902,149 +1902,27 @@ WebhookFormatGroupAsset = _WebhookFormatGroupAssetInternal
 #     via UnknownFormatAsset / UnknownGroupAsset fallback arms.
 #
 # The callable Discriminator + Tag pattern is the Pydantic v2 ≥2.5 canonical
-# approach for open discriminated unions. _apply_forward_compat() in
-# _forward_compat.py patches Format.assets and Assets94.assets with these
-# types at import time using model_rebuild(force=True).
+# approach for open discriminated unions. Both unions are GENERATED into
+# core/format.py by _OPEN_ASSET_UNIONS in scripts/post_generate_fixes.py, and
+# Format.assets and the repeatable group's assets carry them by generation, so
+# the four names below are re-exports rather than definitions.
+#
+# The vocabulary is why that matters. It used to be two hand-written frozensets
+# here — 14 individual and 12 group members — beside a generated union of 21 and
+# 21, and the callable discriminator reads the frozenset BEFORE pydantic reaches
+# the arms. So seven individual asset types the pinned schema declares (zip,
+# display_tag, published_post, card, pixel_tracker, vast_tracker, daast_tracker)
+# and nine group types parsed as the unknown arm, with their generated classes
+# sitting unused. The generator knows every arm's asset_type literal because it
+# emitted that literal, so there is nothing left here to declare and nothing to
+# go stale.
 
-_KNOWN_INDIVIDUAL_ASSET_TYPES: frozenset[str] = frozenset(
-    {
-        "image",
-        "video",
-        "audio",
-        "text",
-        "markdown",
-        "html",
-        "css",
-        "javascript",
-        "vast",
-        "daast",
-        "url",
-        "webhook",
-        "brief",
-        "catalog",
-    }
+from adcp.types.domains.core.format import (
+    FormatAssetUnion,
+    GroupFormatAssetUnion,
+    UnknownFormatAsset,
+    UnknownGroupAsset,
 )
-
-_KNOWN_GROUP_ASSET_TYPES: frozenset[str] = frozenset(
-    {
-        "image",
-        "video",
-        "audio",
-        "text",
-        "markdown",
-        "html",
-        "css",
-        "javascript",
-        "vast",
-        "daast",
-        "url",
-        "webhook",
-    }
-)
-
-
-def _format_asset_discriminator(v: Any) -> str:
-    """Route to the correct Tag for Format.assets callable Discriminator."""
-    if isinstance(v, dict):
-        item_type: str = v.get("item_type", "individual")
-        asset_type: str = v.get("asset_type", "")
-    else:
-        item_type = getattr(v, "item_type", "individual")
-        asset_type = getattr(v, "asset_type", "")
-    if item_type == "repeatable_group":
-        return "repeatable_group"
-    return asset_type if asset_type in _KNOWN_INDIVIDUAL_ASSET_TYPES else "_unknown"
-
-
-def _group_asset_discriminator(v: Any) -> str:
-    """Route to the correct Tag for Assets94.assets callable Discriminator."""
-    if isinstance(v, dict):
-        asset_type: str = v.get("asset_type", "")
-    else:
-        asset_type = getattr(v, "asset_type", "")
-    return asset_type if asset_type in _KNOWN_GROUP_ASSET_TYPES else "_unknown"
-
-
-class UnknownFormatAsset(_BaseIndividualAsset):
-    """Fallback arm for individual asset_type values not in the SDK's known set.
-
-    When the AdCP protocol adds a new asset_type before the SDK is updated,
-    responses containing that type parse successfully as UnknownFormatAsset
-    instead of raising ValidationError for the entire list_creative_formats
-    response. Structural fields (asset_id, required) are still validated;
-    type-specific fields are preserved in __pydantic_extra__.
-
-    Access extra wire fields via ``asset.__pydantic_extra__ or {}``.
-
-    This type is read-path only. Do not use it in creative manifests or
-    emit-side requests — the request path keeps strict Literal validation.
-    """
-
-    # extra='allow' is intentionally hardcoded, not inherited from the
-    # ADCP_STRICT_VALIDATION env-var policy on AdCPBaseModel. The whole
-    # purpose of this fallback arm is to preserve unknown fields from the wire
-    # rather than drop or reject them — both behaviors defeat the goal.
-    model_config = ConfigDict(extra="allow")
-    asset_type: str
-
-
-class UnknownGroupAsset(_BaseGroupAsset):
-    """Fallback arm for group asset_type values not in the SDK's known set.
-
-    Same forward-compat guarantee as UnknownFormatAsset but for assets nested
-    inside a RepeatableAssetGroup (Assets94.assets). Access extra wire fields
-    via ``asset.__pydantic_extra__ or {}``.
-    """
-
-    model_config = ConfigDict(extra="allow")
-    asset_type: str
-
-
-FormatAssetUnion = _Annotated[
-    _Annotated[_ImageFormatAssetInternal, Tag("image")]
-    | _Annotated[_VideoFormatAssetInternal, Tag("video")]
-    | _Annotated[_AudioFormatAssetInternal, Tag("audio")]
-    | _Annotated[_TextFormatAssetInternal, Tag("text")]
-    | _Annotated[_MarkdownFormatAssetInternal, Tag("markdown")]
-    | _Annotated[_HtmlFormatAssetInternal, Tag("html")]
-    | _Annotated[_CssFormatAssetInternal, Tag("css")]
-    | _Annotated[_JavascriptFormatAssetInternal, Tag("javascript")]
-    | _Annotated[_VastFormatAssetInternal, Tag("vast")]
-    | _Annotated[_DaastFormatAssetInternal, Tag("daast")]
-    | _Annotated[_UrlFormatAssetInternal, Tag("url")]
-    | _Annotated[_WebhookFormatAssetInternal, Tag("webhook")]
-    | _Annotated[_BriefFormatAssetInternal, Tag("brief")]
-    | _Annotated[_CatalogFormatAssetInternal, Tag("catalog")]
-    | _Annotated[_RepeatableAssetGroupInternal, Tag("repeatable_group")]
-    | _Annotated[UnknownFormatAsset, Tag("_unknown")],
-    Discriminator(_format_asset_discriminator),
-]
-"""Open discriminated union for Format.assets.
-
-Replaces the generated closed union to add UnknownFormatAsset as a fallback
-arm. Applied to Format.assets via _forward_compat._apply_forward_compat().
-"""
-
-GroupFormatAssetUnion = _Annotated[
-    _Annotated[_ImageFormatGroupAssetInternal, Tag("image")]
-    | _Annotated[_VideoFormatGroupAssetInternal, Tag("video")]
-    | _Annotated[_AudioFormatGroupAssetInternal, Tag("audio")]
-    | _Annotated[_TextFormatGroupAssetInternal, Tag("text")]
-    | _Annotated[_MarkdownFormatGroupAssetInternal, Tag("markdown")]
-    | _Annotated[_HtmlFormatGroupAssetInternal, Tag("html")]
-    | _Annotated[_CssFormatGroupAssetInternal, Tag("css")]
-    | _Annotated[_JavascriptFormatGroupAssetInternal, Tag("javascript")]
-    | _Annotated[_VastFormatGroupAssetInternal, Tag("vast")]
-    | _Annotated[_DaastFormatGroupAssetInternal, Tag("daast")]
-    | _Annotated[_UrlFormatGroupAssetInternal, Tag("url")]
-    | _Annotated[_WebhookFormatGroupAssetInternal, Tag("webhook")]
-    | _Annotated[UnknownGroupAsset, Tag("_unknown")],
-    Discriminator(_group_asset_discriminator),
-]
-"""Open discriminated union for Assets94.assets (RepeatableAssetGroup slots).
-
-Applied to Assets94.assets via _forward_compat._apply_forward_compat().
-"""
 
 # ============================================================================
 # CROSS-MODULE NAME COLLISION ALIASES (#911, Step 2)
@@ -2698,7 +2576,9 @@ __all__ = [
     # Forward-compat fallback arms (novel asset_type values parse as these)
     "UnknownFormatAsset",
     "UnknownGroupAsset",
-    # Open union types (Format.assets / Assets94.assets after _forward_compat patch)
+    # Open union types, generated into core/format.py and carried by
+    # Format.assets / the repeatable group's assets by generation
+    # (_OPEN_ASSET_UNIONS in scripts/post_generate_fixes.py)
     "FormatAssetUnion",
     "GroupFormatAssetUnion",
     "ImageFormatAsset",
