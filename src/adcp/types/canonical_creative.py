@@ -76,16 +76,20 @@ import copy
 import json
 import re
 from collections.abc import Callable, Iterable, Sequence
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Protocol, TypeVar, cast
+from functools import lru_cache
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Protocol, TypeVar, cast, get_args
 
 from pydantic import (
     AfterValidator,
+    AnyUrl,
     ConfigDict,
     Field,
     GetJsonSchemaHandler,
+    PlainSerializer,
     PrivateAttr,
     SerializerFunctionWrapHandler,
     WithJsonSchema,
+    WrapSerializer,
     field_validator,
     model_serializer,
     model_validator,
@@ -290,13 +294,15 @@ if TYPE_CHECKING:
 def _walk_for_credential_keys(value: Any, *, path: str = "") -> str | None:
     """Return the first credential-shaped key path under ``value``."""
 
+    if isinstance(value, AdCPBaseModel):
+        value = _model_boundary_values(value)
     if isinstance(value, dict):
         for key, nested in value.items():
+            if isinstance(key, str) and key.lower().endswith(_CREDENTIAL_SHAPED_KEY_SUFFIXES):
+                return f"{path}.{key}" if path else str(key)
+            if not isinstance(nested, (dict, list, tuple, AdCPBaseModel)):
+                continue
             nested_path = f"{path}.{key}" if path else str(key)
-            if isinstance(key, str) and any(
-                key.lower().endswith(suffix) for suffix in _CREDENTIAL_SHAPED_KEY_SUFFIXES
-            ):
-                return nested_path
             found = _walk_for_credential_keys(nested, path=nested_path)
             if found is not None:
                 return found
@@ -305,9 +311,100 @@ def _walk_for_credential_keys(value: Any, *, path: str = "") -> str | None:
             found = _walk_for_credential_keys(nested, path=f"{path}[{index}]")
             if found is not None:
                 return found
-    elif isinstance(value, AdCPBaseModel):
-        return _walk_for_credential_keys(value.model_dump(mode="python"), path=path)
     return None
+
+
+def _has_boundary_serialization_metadata(annotation: Any) -> bool:
+    """Find functional serializers, including ones inside container annotations."""
+    if isinstance(annotation, (PlainSerializer, WrapSerializer)):
+        return True
+    if hasattr(annotation, "__get_pydantic_core_schema__"):
+        is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
+        if not is_adcp_model and getattr(annotation, "__module__", "").split(".")[0] != "pydantic":
+            return True
+    return any(_has_boundary_serialization_metadata(item) for item in get_args(annotation))
+
+
+@lru_cache(maxsize=1024)
+def _direct_boundary_fields(cls: type[AdCPBaseModel]) -> frozenset[str] | None:
+    """Cache the fields of models whose stored values match their default dump."""
+    if cls.model_dump not in (AdCPBaseModel.model_dump, CanonicalBoundaryModel.model_dump):
+        return None
+    if getattr(cls.__get_pydantic_core_schema__, "__func__", None) is not getattr(
+        AdCPBaseModel.__get_pydantic_core_schema__, "__func__", None
+    ):
+        return None
+    decorators = cls.__pydantic_decorators__
+    if decorators.computed_fields or decorators.field_serializers:
+        return None
+    stock_serializers = (
+        AdCPBaseModel._notification_config_wire_defaults,
+        _serialize_canonical_model,
+    )
+    if any(item.func not in stock_serializers for item in decorators.model_serializers.values()):
+        return None
+    if cls.model_config.get("serialize_by_alias"):
+        return None
+    # This stock serializer conditionally drops a field based on sibling values.
+    if {"subscriber_id", "url", "event_types", "product_payload_view"} <= cls.model_fields.keys():
+        return None
+    fields = set()
+    for name, field in cls.model_fields.items():
+        if field.exclude:
+            continue
+        if field.exclude_if is not None or _has_boundary_serialization_metadata(field.annotation):
+            return None
+        if any(_has_boundary_serialization_metadata(item) for item in field.metadata):
+            return None
+        fields.add(name)
+    return frozenset(fields)
+
+
+def _is_direct_boundary_value(value: Any, active: set[int] | None = None) -> bool:
+    """Other models and Python objects need Pydantic's conversion before scanning."""
+    if value is None or isinstance(value, (str, int, float, bool, AnyUrl, AdCPBaseModel)):
+        return True
+    if not isinstance(value, (dict, list, tuple)):
+        return False
+    active = set() if active is None else active
+    identity = id(value)
+    if identity in active:
+        return False
+    active.add(identity)
+    try:
+        items = value.values() if isinstance(value, dict) else value
+        return all(_is_direct_boundary_value(item, active) for item in items)
+    finally:
+        active.remove(identity)
+
+
+def _model_boundary_values(value: AdCPBaseModel) -> Any:
+    """Read ordinary fields directly and preserve custom serialization behavior.
+
+    Canonical instances can be constructed or mutated without validation, so
+    they still need scanning. Private compatibility state is deliberately not
+    part of the public boundary.
+    """
+    fields = _direct_boundary_fields(type(value))
+    if fields is None:
+        return value.model_dump(mode="python")
+    # Match AdCPBaseModel.model_dump's default omission of null model fields;
+    # null values inside open dictionaries still retain their keys and checks.
+    values = {
+        **{
+            name: item
+            for name, item in value.__dict__.items()
+            if name in fields and item is not None
+        },
+        **{
+            name: item
+            for name, item in (value.__pydantic_extra__ or {}).items()
+            if item is not None
+        },
+    }
+    if not all(_is_direct_boundary_value(item) for item in values.values()):
+        return value.model_dump(mode="python")
+    return values
 
 
 class _JsonSchemaHandlerWithGenerator(Protocol):
@@ -324,14 +421,18 @@ class _JsonSchemaHandlerWithGenerator(Protocol):
 def is_legacy_creative_identity_key(key: object) -> bool:
     """Return whether *key* names legacy creative routing identity."""
 
-    return isinstance(key, str) and bool(_LEGACY_IDENTITY_KEY.search(key))
+    return isinstance(key, str) and _is_legacy_creative_identity_string(key)
+
+
+@lru_cache(maxsize=1024)
+def _is_legacy_creative_identity_string(key: str) -> bool:
+    return bool(_LEGACY_IDENTITY_KEY.search(key))
 
 
 def _is_format_scoped_agent_tuple(value: dict[Any, Any], *, path: str) -> bool:
     """Recognize legacy format owners, including tuples with extension keys."""
 
-    keys = set(value)
-    if not {"agent_url", "id"} <= keys:
+    if "agent_url" not in value or "id" not in value:
         return False
     # Several protocol surfaces intentionally carry ordinary agent, signal,
     # and list descriptors with the same structural pair. Match RC3's explicit
@@ -371,10 +472,10 @@ def strip_legacy_creative_identity(
             path=_path,
         )
         return {
-            key: strip_legacy_creative_identity(
-                item,
-                _path=f"{_path}.{key}",
-                _format_scope=_format_scope or (isinstance(key, str) and "format" in key.lower()),
+            key: (
+                strip_legacy_creative_identity(item, _path=f"{_path}.{key}")
+                if isinstance(item, (dict, list, tuple))
+                else item
             )
             for key, item in value.items()
             if not is_legacy_creative_identity_key(key)
@@ -382,19 +483,19 @@ def strip_legacy_creative_identity(
         }
     if isinstance(value, list):
         return [
-            strip_legacy_creative_identity(
-                item,
-                _path=f"{_path}[{index}]",
-                _format_scope=_format_scope,
+            (
+                strip_legacy_creative_identity(item, _path=f"{_path}[{index}]")
+                if isinstance(item, (dict, list, tuple))
+                else item
             )
             for index, item in enumerate(value)
         ]
     if isinstance(value, tuple):
         return tuple(
-            strip_legacy_creative_identity(
-                item,
-                _path=f"{_path}[{index}]",
-                _format_scope=_format_scope,
+            (
+                strip_legacy_creative_identity(item, _path=f"{_path}[{index}]")
+                if isinstance(item, (dict, list, tuple))
+                else item
             )
             for index, item in enumerate(value)
         )
@@ -411,7 +512,7 @@ def _legacy_creative_identity_path(
     """Locate legacy creative identity in model input without mutating it."""
 
     if isinstance(value, AdCPBaseModel):
-        value = value.model_dump(mode="python")
+        value = _model_boundary_values(value)
     if isinstance(value, dict):
         if _is_format_scoped_agent_tuple(value, path=path):
             return f"{path}.agent_url"
@@ -420,6 +521,8 @@ def _legacy_creative_identity_path(
                 if allow_root_v1_ref and path == "$" and key == "v1_format_ref":
                     continue
                 return f"{path}.{key}"
+            if not isinstance(nested, (dict, list, tuple, AdCPBaseModel)):
+                continue
             found = _legacy_creative_identity_path(
                 nested,
                 path=f"{path}.{key}",
@@ -489,13 +592,23 @@ def _serialize_canonical_model(
 ) -> Any:
     """Enforce the boundary for nested and TypeAdapter serialization too."""
 
-    # ``self`` is whatever pydantic is serializing at this position, which is not
-    # always a model: a field annotated with a canonical model can hold a plain
-    # dict (a mismatched value pydantic serializes with a warning). Read the
-    # capability off the type defensively, because ``dict`` does not carry it.
-    return strip_legacy_creative_identity(
-        handler(self),
-        _format_scope=getattr(type(self), "__adcp_format_declaration_scope__", False),
+    # Each serializer remains its own boundary: a custom serializer can start
+    # an independent TypeAdapter dump and embed that result as a JSON string,
+    # which an enclosing cleanup pass cannot inspect.
+    return strip_legacy_creative_identity(handler(self))
+
+
+@lru_cache(maxsize=128)
+def _uses_canonical_serializer(model: type[AdCPBaseModel]) -> bool:
+    """Whether Pydantic selected our inherited canonical wrap serializer."""
+    if getattr(model.__get_pydantic_core_schema__, "__func__", None) is not getattr(
+        AdCPBaseModel.__get_pydantic_core_schema__, "__func__", None
+    ):
+        return False
+    serializers = model.__pydantic_decorators__.model_serializers
+    return (
+        bool(serializers)
+        and next(reversed(serializers.values())).func is _serialize_canonical_model
     )
 
 
@@ -581,23 +694,24 @@ class CanonicalBoundaryModel(AdCPBaseModel):
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("serialize_as_any", False)
-        stripped: dict[str, Any] = strip_legacy_creative_identity(
-            super().model_dump(**kwargs),
-            _format_scope=type(self).__adcp_format_declaration_scope__,
-        )
-        return stripped
+        value = super().model_dump(**kwargs)
+        if _uses_canonical_serializer(type(self)):
+            return value
+        # A subclass can replace the inherited serializer. Keep the public
+        # method's boundary for its output without rescanning ordinary dumps.
+        cleaned: dict[str, Any] = strip_legacy_creative_identity(value)
+        return cleaned
 
     def model_dump_json(self, **kwargs: Any) -> str:
         kwargs.setdefault("serialize_as_any", False)
         raw = super().model_dump_json(**kwargs)
-        clean = strip_legacy_creative_identity(
-            json.loads(raw),
-            _format_scope=type(self).__adcp_format_declaration_scope__,
-        )
+        if _uses_canonical_serializer(type(self)):
+            return raw
+        clean = strip_legacy_creative_identity(json.loads(raw))
         indent = kwargs.get("indent")
         return json.dumps(
             clean,
-            ensure_ascii=False,
+            ensure_ascii=kwargs.get("ensure_ascii", False),
             indent=indent,
             separators=None if indent is not None else (",", ":"),
         )
