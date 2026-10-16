@@ -28,6 +28,27 @@ _DISPLAY_SIZE_RE = re.compile(
     r"^display_(?P<width>[1-9][0-9]*)x(?P<height>[1-9][0-9]*)(?:_image)?$"
 )
 
+#: The parameters a format reference carries beyond its ``(agent_url, id)``
+#: identity, derived from the model instead of listed.
+#:
+#: A hand-written list here is the defect that dropped ``pixel_ratio``: three
+#: of the four parameters were copied by name, so a creative that claimed no
+#: pixel density compared equal to a product format that requires 2x, two
+#: references declaring *conflicting* densities compared equal, and the
+#: legacy-size upgrade discarded the density it was handed. Deriving the set
+#: means a parameter added to ``core/format-id.json`` — and so to the
+#: generated model — is compared without being named here.
+_PARAMETER_FIELDS: tuple[str, ...] = tuple(sorted(set(FormatId.model_fields) - {"agent_url", "id"}))
+
+#: Parameters the schema gives a value to when they are absent.
+#:
+#: ``core/format-id.json`` describes omitting ``pixel_ratio`` as selecting
+#: "the backward-compatible 1x variant", which is a value, not silence. An
+#: omitted width or duration means "template, unparameterized"; an omitted
+#: density means 1x. So a product fixed at 2x refuses a request that says
+#: nothing, while one fixed at 1x still serves it.
+_IMPLIED_WHEN_ABSENT: dict[str, float] = {"pixel_ratio": 1.0}
+
 
 def _coerce_format_id(
     value: FormatIdInput,
@@ -74,11 +95,14 @@ def _upgrade_legacy_format_id(
 
     return FormatId.model_validate(
         {
+            # Every parameter the reference carried, then the two the legacy
+            # size ID itself states. Reparameterizing the ID must not drop a
+            # parameter the caller supplied alongside it.
+            **{field: getattr(fid, field) for field in _PARAMETER_FIELDS},
             "agent_url": str(fid.agent_url),
             "id": "display_image",
             "width": int(match.group("width")),
             "height": int(match.group("height")),
-            "duration_ms": fid.duration_ms,
         }
     )
 
@@ -110,8 +134,9 @@ def formats_are_equivalent(
     Both inputs are first passed through :func:`upgrade_legacy_format_id`.
     Declared parameters must not conflict, but an omitted parameter on either
     side is treated as unspecified rather than a mismatch. Use
-    :func:`format_is_supported` for product/capability gating where a
-    supported fixed size or duration requires the request to state that value.
+    :func:`format_is_supported` for product/capability gating, where a
+    supported fixed size, duration or pixel density requires the request to
+    state that value.
     """
     left = _upgrade_legacy_format_id(a, default_agent_url=default_agent_url, param="a")
     right = _upgrade_legacy_format_id(b, default_agent_url=default_agent_url, param="b")
@@ -120,7 +145,7 @@ def formats_are_equivalent(
     if left.id != right.id:
         return False
 
-    for field in ("width", "height", "duration_ms"):
+    for field in _PARAMETER_FIELDS:
         left_value = getattr(left, field)
         right_value = getattr(right, field)
         if left_value is not None and right_value is not None and left_value != right_value:
@@ -139,8 +164,14 @@ def format_is_supported(
     This is intentionally stricter than :func:`formats_are_equivalent`.
     A broad supported format such as ``display_image`` accepts a specific
     request such as ``display_image`` 300x250, but a fixed supported product
-    format requires the request to provide and match every fixed parameter
-    (``width``, ``height``, and ``duration_ms``).
+    format requires the request to provide and match every parameter the
+    supported side fixes — every parameter ``core/format-id.json`` declares,
+    not a chosen few.
+
+    ``pixel_ratio`` is the one parameter whose absence carries a value rather
+    than meaning "unspecified": the schema describes omitting it as selecting
+    the backward-compatible 1x variant. A product fixed at 2x therefore
+    refuses a request that omits the field, and one fixed at 1x accepts it.
     """
     req = _upgrade_legacy_format_id(
         requested, default_agent_url=default_agent_url, param="requested"
@@ -151,11 +182,14 @@ def format_is_supported(
     if not formats_are_equivalent(req, sup, default_agent_url=default_agent_url):
         return False
 
-    for field in ("width", "height", "duration_ms"):
+    for field in _PARAMETER_FIELDS:
         supported_value = getattr(sup, field)
         if supported_value is None:
             continue
-        if getattr(req, field) != supported_value:
+        requested_value = getattr(req, field)
+        if requested_value is None:
+            requested_value = _IMPLIED_WHEN_ABSENT.get(field)
+        if requested_value != supported_value:
             return False
     return True
 

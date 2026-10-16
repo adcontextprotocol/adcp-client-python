@@ -16,6 +16,7 @@ from adcp.canonical_formats.projection import (
 )
 from adcp.types import FormatCard
 from adcp.types.legacy import LegacyFormatId as FormatId
+from adcp.validation.schema_loader import get_named_schema_document
 
 
 def test_upgrade_legacy_display_size_to_parameterized_canonical_format_id() -> None:
@@ -186,3 +187,98 @@ def test_projection_accepts_a_reference_taken_off_a_model_field() -> None:
 
     assert projected.diagnostic is None
     assert projected.declaration is not None
+
+
+def _schema_parameters() -> frozenset[str]:
+    """The parameters ``core/format-id.json`` declares beyond the identity pair.
+
+    Read from the bundled schema rather than from the generated model, so the
+    guard below fails when a helper stops comparing a parameter the *spec*
+    declares — not merely when it disagrees with the model it was written
+    against.
+    """
+    document = get_named_schema_document("core/format-id.json")
+    assert document is not None, "core/format-id.json is absent from the bundled schema tree"
+    return frozenset(document["properties"]) - frozenset(document["required"])
+
+
+#: One pair of conflicting, dependency-legal values per declared parameter.
+#: ``pixel_ratio`` needs ``width``/``height`` present, which ``_BASE`` supplies.
+_CONFLICTING_VALUES: dict[str, tuple[object, object]] = {
+    "width": (300, 728),
+    "height": (250, 90),
+    "duration_ms": (15000, 30000),
+    "pixel_ratio": (2, 3),
+}
+
+_BASE = {
+    "agent_url": CANONICAL_CREATIVE_AGENT_URL,
+    "id": "display_image",
+    "width": 300,
+    "height": 250,
+}
+
+
+def test_the_conflict_table_covers_every_parameter_the_schema_declares() -> None:
+    """Keeps the parametrized guard below honest as the schema grows.
+
+    A new parameter in ``core/format-id.json`` fails here until it is given a
+    conflicting pair, which then puts it under the comparison guard.
+    """
+    assert set(_CONFLICTING_VALUES) == set(_schema_parameters())
+
+
+@pytest.mark.parametrize("parameter", sorted(_CONFLICTING_VALUES))
+def test_the_helpers_refuse_a_conflict_in_every_declared_parameter(parameter: str) -> None:
+    """Two references that disagree about any declared parameter differ.
+
+    The comparison walks the parameters the model declares, so a parameter
+    added to the schema is compared without being named here.
+    """
+    supported_value, requested_value = _CONFLICTING_VALUES[parameter]
+    supported = {**_BASE, parameter: supported_value}
+    requested = {**_BASE, parameter: requested_value}
+
+    assert not formats_are_equivalent(requested, supported)
+    assert not format_is_supported(requested, supported)
+
+
+def test_format_is_supported_refuses_a_request_that_omits_a_required_pixel_ratio() -> None:
+    """A 2x product is not served by a creative that never claims a density.
+
+    ``core/format-id.json`` makes the omitted form the 1x variant ("Omit for
+    the backward-compatible 1x variant"), so silence here is a 1x asset being
+    delivered into a 2x slot, not an unspecified parameter.
+    """
+    supported = {**_BASE, "pixel_ratio": 2}
+
+    assert formats_are_equivalent(_BASE, supported)
+    assert not format_is_supported(_BASE, supported)
+
+
+def test_format_is_supported_accepts_the_omitted_form_of_a_1x_product() -> None:
+    """The mirror of the case above, and the reason it is not a plain equality.
+
+    A seller that spells ``pixel_ratio: 1`` publishes the same render as one
+    that omits it, so a request omitting the field must still be served.
+    """
+    assert format_is_supported(_BASE, {**_BASE, "pixel_ratio": 1})
+
+
+def test_upgrade_legacy_format_id_keeps_every_parameter_it_was_given() -> None:
+    """The legacy-size upgrade reparameterizes the ID; it drops no parameter."""
+    legacy = FormatId(
+        agent_url=CANONICAL_CREATIVE_AGENT_URL,
+        id="display_300x250",
+        width=300,
+        height=250,
+        duration_ms=15000,
+        pixel_ratio=2,
+    )
+
+    upgraded = upgrade_legacy_format_id(legacy)
+
+    assert upgraded.id == "display_image"
+    assert (upgraded.width, upgraded.height) == (300, 250)
+    assert upgraded.duration_ms == 15000
+    assert upgraded.pixel_ratio == 2
