@@ -44,6 +44,13 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.3...v8.2.0) (2026-10-16)
+
+
+### Features
+
+* **server:** backport compact output schemas to 8.x so discovery is servable ([#1512](https://github.com/adcontextprotocol/adcp-client-python/issues/1512)) ([3f770b0](https://github.com/adcontextprotocol/adcp-client-python/commit/3f770b0119e1d75dd787ebe22bb64358d36f9496)), closes [#1507](https://github.com/adcontextprotocol/adcp-client-python/issues/1507)
+
 ## [8.1.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.2...v8.1.3) (2026-10-15)
 
 
