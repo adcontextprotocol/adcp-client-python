@@ -50,7 +50,8 @@ from pydantic import (
 )
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
-from pydantic_core import CoreSchema, InitErrorDetails, core_schema
+from pydantic_core import CoreSchema, InitErrorDetails, PydanticCustomError, core_schema
+from pydantic_core.core_schema import ErrorType
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.base import AdCPBaseModel
@@ -339,6 +340,11 @@ def _validate_targeting_overlay(value: Any, handler: ValidatorFunctionWrapHandle
                 "loc": error["loc"][1:],
                 "input": error["input"],
             }
+            # Built-in codes can be reconstructed from their name and context.
+            # Schema keyword errors (for example anyOf) need their custom type
+            # and message; core cannot look them up in its built-in registry.
+            if error["type"] not in get_args(ErrorType):
+                detail["type"] = PydanticCustomError(error["type"], error["msg"], error.get("ctx"))
             if "ctx" in error:
                 detail["ctx"] = error["ctx"]
             input_errors.append(detail)

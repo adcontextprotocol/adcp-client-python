@@ -125,6 +125,8 @@ def test_direct_validation_error_uses_request_document_path(
 @pytest.mark.parametrize(
     "overlay",
     [
+        {"frequency_cap": {}},
+        {"frequency_cap": {}, "geo_countries": [{"secret": _SECRET}]},
         {"geo_countries": [_SECRET]},
         {"geo_countries": []},
         {"keyword_targets": [{"keyword": "", "match_type": _SECRET, "bid_price": -1}]},
@@ -134,6 +136,8 @@ def test_direct_validation_error_uses_request_document_path(
         _SECRET,
     ],
     ids=[
+        "custom-keyword",
+        "custom-and-built-in",
         "pattern-context",
         "length-context",
         "multiple-errors",
@@ -165,6 +169,44 @@ def test_errors_match_input_schema_including_nested_unions_and_context(
     assert actual.value.errors() == [
         {**error, "loc": (*prefix, *error["loc"])} for error in expected.value.errors()
     ]
+
+
+@pytest.mark.parametrize("task,collection,model", _PATHS)
+@pytest.mark.parametrize("mode", ["python", "json"])
+def test_valid_frequency_cap_still_validates(
+    task: str, collection: str, model: type[BaseModel], mode: str
+) -> None:
+    params = _payload(task, collection)
+    params[collection][0]["targeting_overlay"] = {"frequency_cap": {"suppress_minutes": 60}}
+    result = (
+        model.model_validate_json(json.dumps(params))
+        if mode == "json"
+        else model.model_validate(params)
+    )
+    assert (
+        result.model_dump(mode="json")[collection][0]["targeting_overlay"]["frequency_cap"][
+            "suppress_minutes"
+        ]
+        == 60
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task,collection,model", _PATHS)
+async def test_custom_targeting_error_becomes_invalid_request(
+    task: str, collection: str, model: type[BaseModel]
+) -> None:
+    params = _payload(task, collection)
+    params[collection][0]["targeting_overlay"] = {"frequency_cap": {}}
+    caller = create_tool_caller(_TargetingErrorHandler(), task)
+    with pytest.raises(ADCPTaskError) as raised:
+        await caller(params)
+    error = raised.value.errors[0].model_dump(mode="json", exclude_none=True)
+    assert error["code"] == "INVALID_REQUEST"
+    assert error["field"] == f"{collection}.0.targeting_overlay.frequency_cap"
+    assert error["details"]["validation_errors"][0]["type"] == "anyOf"
+    assert "FrequencyCap requires" in error["message"]
+    assert "TargetingOverlay" not in json.dumps(error)
 
 
 @pytest.mark.parametrize("task,collection,model", _PATHS)
