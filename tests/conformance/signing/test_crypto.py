@@ -134,7 +134,7 @@ def test_extract_signature_rejects_base64url_for_3_2_profile() -> None:
     )
     header = vector["request"]["headers"]["Signature"]
 
-    with pytest.raises(ValueError, match="RFC 8941 standard Base64"):
+    with pytest.raises(ValueError, match="malformed Structured Field"):
         extract_signature_bytes(header, allow_legacy_base64url=False)
 
 

@@ -50,6 +50,35 @@
   streaming budget, so this is its only response-size bound. Refs #1503,
   adcontextprotocol/adcp#8190, adcontextprotocol/adcp#8200.
 
+* **signing:** RFC 9421 comes from maintained libraries for every profile.
+  `http-message-signatures` builds the signature base, assembles
+  `Signature-Input`, and signs and verifies for the AdCP RFC 9421 request and
+  webhook profiles and for Web Bot Auth, through an SDK component resolver
+  that adds the `;key` and `;req` parameters and the AdCP `@target-uri` /
+  `@authority` canonicalization. `http-sf` parses Structured Fields and
+  refuses duplicate keys and parameters; governance tokens and publisher-pin
+  thumbprints use `joserfc`. **Dependencies:** the archived `http-sfv` is
+  replaced by `http-message-signatures>=2.0.1,<3` and `http-sf>=1.4.0,<2`.
+  Every request-signing and webhook conformance vector passes with the same
+  error codes. Wire notes: the signer now emits signature parameters in the
+  library's order (`created`, `keyid`, `alg`, `expires`, `nonce`, `tag`),
+  which verifiers read from the header; `@signature-params` is the RFC 8941
+  serialization of the received member; `Signature-Input`, `Signature` and
+  `Content-Digest` must parse as a whole; and `parse_compact_jws` requires a
+  JSON protected header with `alg`. Refs #1511.
+
+* **identity:** The experimental Web Bot Auth profile follows the final
+  adcontextprotocol/adcp#7894 (`e24eeb09`): one `web-bot-auth` signature
+  and one `Signature-Agent` member per request (relays are refused), signed
+  key directories only, `ed25519` and `rsa-pss-sha512` only (ES256 stays on
+  the RFC 9421 profile), a 64-byte nonce on every request, and a reused nonce
+  answered 429 with `Accept-Signature` carrying a fresh nonce.
+  `verify_wba_governance_issuer` runs the profile's governance-token key and
+  issuer checks. The removed options and other changes to this experimental
+  surface are listed in
+  [the migration guide](docs/agent-identity-3-3-migration.md#breaking-changes-to-the-experimental-api).
+  Refs #1511.
+
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
   principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.
   Supplied credential headers always select bearer auth; invalid credentials

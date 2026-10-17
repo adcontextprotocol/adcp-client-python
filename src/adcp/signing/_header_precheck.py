@@ -34,13 +34,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from adcp.signing._structured_fields import reject_dictionary_duplicates
+from adcp.signing._rfc9421 import DuplicateFieldError, parse_dictionary, translate_legacy_binary
 from adcp.signing.canonical import (
     TargetUriMalformedError,
     _split_or_reject,
     host_has_raw_non_ascii,
     malformed_authority_reason,
-    split_structured_field,
 )
 
 #: Headers that must arrive exactly once. Each is either a singleton by RFC
@@ -89,6 +88,16 @@ def strict_header_precheck(
     """
     pairs = _header_pairs(headers=headers, raw_headers=raw_headers)
 
+    names = [name for name, _ in _header_pairs(headers=headers, raw_headers=None)]
+    for name in _SINGLE_LINE_SIGNED_HEADERS | {"signature-agent"}:
+        if names.count(name) > 1:
+            # A mapping can hold two spellings of one name (``Content-Digest``
+            # and ``content-digest``); which one a reader takes is arbitrary.
+            return (
+                f"{name!r} appears under more than one spelling; a repeated signed "
+                "field is ambiguous and MUST be rejected rather than folded"
+            )
+
     if raw_headers is not None:
         seen: set[str] = set()
         for name, _ in pairs:
@@ -100,20 +109,16 @@ def strict_header_precheck(
             seen.add(name)
 
     for name, value in pairs:
-        if name in _SINGLE_VALUE_HEADERS and len(split_structured_field(value, ",")) > 1:
+        if name in _SINGLE_VALUE_HEADERS and _has_top_level_comma(value):
             return (
                 f"{name!r} carries more than one value; it is a singleton field "
                 "and a comma-joined value means two were folded together"
             )
         header_name = _DICTIONARY_HEADERS.get(name)
         if header_name is not None:
-            reason = _duplicate_dictionary_key_reason(value, header_name)
+            reason = _dictionary_reason(value, header_name)
             if reason is not None:
                 return reason
-            try:
-                reject_dictionary_duplicates(value)
-            except ValueError as exc:
-                return f"{header_name} is malformed: {exc}"
 
     return _authority_reason(pairs=pairs, url=url)
 
@@ -141,7 +146,27 @@ def _header_pairs(
     return pairs
 
 
-def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None:
+def _has_top_level_comma(value: str) -> bool:
+    """Whether a media type carries a comma outside an RFC 9110 quoted-string.
+
+    ``Content-Type`` is not a Structured Field, so this is HTTP field syntax,
+    not RFC 8941: a ``boundary="a,b"`` parameter is one value, a bare comma is
+    two values folded together.
+    """
+    quoted = escaped = False
+    for character in value:
+        if escaped:
+            escaped = False
+        elif quoted and character == "\\":
+            escaped = True
+        elif character == '"':
+            quoted = not quoted
+        elif character == "," and not quoted:
+            return True
+    return False
+
+
+def _dictionary_reason(value: str, header_name: str) -> str | None:
     """RFC 8941 §3.2: a duplicate dictionary key MUST be rejected, not resolved.
 
     "Retaining only the last value" is the other option the RFC allows, and it
@@ -149,30 +174,31 @@ def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None
     is the smuggling vector: a proxy appends a second entry with the same label
     and a weaker covered-component set, the parser keeps the last, and the
     signature verifies over fewer components than the producer signed.
+    ``http-sf`` reports every duplicate key and parameter through its
+    ``on_duplicate_key`` hook, which :func:`parse_dictionary` turns into an
+    error.
 
-    Keys are compared case-folded. RFC 8941 §3.2's `key` production admits
-    lowercase only, so two keys differing only in case are never two distinct
-    keys -- one of them is a key spelled illegally. Folding is what makes the
-    rule hold for `Content-Digest`, whose RFC 9530 §2 algorithm names are
-    lowercase tokens: comparing `SHA-256` and `sha-256` as written lets the
-    same algorithm appear twice and the parser-differential this rejects stays
-    open behind a change of case.
+    Keys differing only in case (``SHA-256`` beside ``sha-256``) never reach
+    the duplicate check: RFC 8941 §3.2's ``key`` production is lowercase only,
+    so the uppercase spelling fails the parse and the field is malformed.
     """
-    keys: set[str] = set()
-    for entry in split_structured_field(value, ","):
-        entry = entry.strip()
-        if not entry:
-            continue
-        key = entry.split("=", 1)[0].strip().lower()
-        if not key:
-            continue
-        if key in keys:
+    try:
+        try:
+            parse_dictionary(value)
+        except DuplicateFieldError:
+            raise
+        except ValueError:
+            # The AdCP 3.0/3.1 Base64URL byte-sequence spelling is the
+            # decoder's call (3.2 refuses it there, still at step 1), not an
+            # ambiguity: judge the field with those tokens translated.
+            parse_dictionary(translate_legacy_binary(value))
+    except ValueError as exc:
+        if isinstance(exc, DuplicateFieldError):
             return (
-                f"{header_name} carries duplicate dictionary key {key!r}; RFC 8941 §3.2 "
-                "requires rejecting rather than resolving, since resolving lets a "
-                "repeated key downgrade what was signed"
+                f"{header_name} carries a {exc}; RFC 8941 §3.2 requires rejecting rather "
+                "than resolving, since resolving lets a repeated key downgrade what was signed"
             )
-        keys.add(key)
+        return f"{header_name} is malformed: {exc}"
     return None
 
 

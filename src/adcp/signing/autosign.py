@@ -18,6 +18,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from cryptography.hazmat.primitives.asymmetric import ed25519
 from pydantic import RootModel
 
 from adcp.signing.constants import DEFAULT_TAG
@@ -135,6 +136,11 @@ class SigningConfig:
             from adcp.signing.wba import WBA_TAG, _https_origin, public_directory_key
 
             object.__setattr__(self, "agent_origin", _https_origin(self.agent_origin))
+            if not isinstance(self.private_key, ed25519.Ed25519PrivateKey):
+                raise ValueError(
+                    "Web Bot Auth here takes an Ed25519 key (sign RSA keys with "
+                    "sign_wba_request); ES256 is an AdCP RFC 9421 profile algorithm only"
+                )
             if self.key_id != public_directory_key(self.private_key)["kid"]:
                 raise ValueError("Web Bot Auth key_id must be the public key's thumbprint")
             object.__setattr__(self, "tag", WBA_TAG)

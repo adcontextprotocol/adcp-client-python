@@ -1,9 +1,12 @@
-# Experimental Web Bot Auth vectors
+# Web Bot Auth profile vectors
 
 Copied without modification from adcontextprotocol/adcp PR #7894, commit
-`656bd080f01cc2fca4a1e623af44e96cfd827ba5`,
-`static/compliance/source/test-vectors/wba-profile/` on 2026-10-13.
+`e24eeb090c4365707641099cbbb45f9945c6d6e0`,
+`static/compliance/source/test-vectors/wba-profile/`, on 2026-10-16. The
+upstream `README.md` is vendored as `UPSTREAM-README.md`. `UPSTREAM.json`
+records each file's SHA-256, and
+`tests/conformance/signing/test_wba_profile.py` checks them.
 
-These are draft transport vectors, not released AdCP 3.3 compliance inputs.
-Governance JWS remains on the RFC 9421 chain and is outside this preview.
-The public private seeds in keys.json are test inputs only.
+The specification is `docs/building/by-layer/L1/wba-profile.mdx` at the same
+commit (proposed for AdCP 3.3). The public private seeds in `keys.json` are
+test inputs only.

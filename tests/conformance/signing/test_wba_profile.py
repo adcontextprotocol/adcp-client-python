@@ -1,7 +1,8 @@
-"""Draft WBA vectors and the security boundaries of the experimental profile."""
+"""WBA profile vectors (adcp#7894) and the security boundaries of the experimental profile."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -42,6 +43,32 @@ from adcp.signing.signer_keys import ResolvedSignerKey
 ROOT = Path(__file__).parents[1] / "vectors" / "wba-profile"
 KEYS = {key["kid"]: key for key in json.loads((ROOT / "keys.json").read_text())["keys"]}
 VECTORS = sorted((ROOT / "positive").glob("*.json")) + sorted((ROOT / "negative").glob("*.json"))
+GOVERNANCE_VECTORS = sorted((ROOT / "governance").glob("*.json"))
+
+
+def _public(kid):
+    return {k: v for k, v in KEYS[kid].items() if not k.startswith("_")}
+
+
+def _vector_resolver(vector):
+    async def resolve(keyid, *, signer_origin=None):
+        ids = vector["directories"].get(signer_origin, {}).get("keys_ref", [])
+        return ResolvedSignerKey(signer_origin, _public(keyid)) if keyid in ids else None
+
+    return resolve
+
+
+def test_vendored_vectors_match_recorded_provenance():
+    upstream = json.loads((ROOT / "UPSTREAM.json").read_text())
+    assert upstream["commit"] == "e24eeb090c4365707641099cbbb45f9945c6d6e0"
+    vendored = {
+        str(path.relative_to(ROOT))
+        for path in ROOT.rglob("*")
+        if path.is_file() and path.name not in {"README.md", "UPSTREAM.json"}
+    }
+    assert vendored == set(upstream["sha256"])
+    for name, digest in upstream["sha256"].items():
+        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
 
 
 async def _not_revoked(origin, keyid):
@@ -111,23 +138,20 @@ def _trust_records(origin):
 
 
 @pytest.mark.parametrize("path", VECTORS, ids=lambda p: f"{p.parent.name}/{p.name}")
-async def test_draft_vectors(path):
+async def test_profile_vectors(path):
     vector = json.loads(path.read_text())
     request = vector["request"]
     if "response" in vector:
         response = vector["response"]
+        origin = request["url"].split("/.well-known/")[0]
         result = verify_directory_response(
-            request["url"],
+            origin,
             DirectoryResponse(response["body"].encode(), response["headers"]),
             now=vector["reference_now"],
         )
         assert set(result) <= set(KEYS)
+        assert set(vector["expected_outcome"]["identities"].values()) == {origin}
         return
-
-    async def resolve(keyid, *, signer_origin=None):
-        ids = vector["directories"].get(signer_origin, {}).get("keys_ref", [])
-        public = {k: v for k, v in KEYS[keyid].items() if not k.startswith("_")}
-        return ResolvedSignerKey(signer_origin, public) if keyid in ids else None
 
     replay = InMemoryReplayStore()
     for entry in vector.get("test_harness_state", {}).get("replay_cache_entries", []):
@@ -139,42 +163,118 @@ async def test_draft_vectors(path):
             url=request["url"],
             headers=request["headers"],
             body=request["body"].encode(),
-            signer_keys=resolve,
+            signer_keys=_vector_resolver(vector),
             replay_store=replay,
             revocation_checker=_not_revoked,
             now=vector["reference_now"],
-            # The spec answers a reused nonce 429; #7894's older replay vector
-            # predates that and expects 403, reproduced by the compat switch.
-            replay_status=403 if "replayed-nonce" in path.name else 429,
         )
 
     expected = vector["expected_outcome"]
     if expected["success"]:
         signers = await verify()
         assert {s.label: s.agent_url for s in signers} == expected["identities"]
+        return
+    with pytest.raises(WbaVerificationError) as caught:
+        await verify()
+    assert caught.value.status == expected["status"]
+    challenge = expected.get("accept_signature")
+    if challenge is None:
+        assert "Accept-Signature" not in caught.value.headers
+        return
+    # The Accept-Signature member names the label, components and parameters.
+    from adcp.signing.wba import _dictionary
+
+    member = _dictionary(caught.value.headers["Accept-Signature"])[challenge["label"]]
+    components, params = member
+    assert "(" + " ".join(_identifier(item) for item in components) + ")" == challenge["components"]
+    assert list(params) == challenge["parameters"]
+    assert params["tag"] == challenge["tag"]
+    if challenge.get("nonce") == "verifier-chosen":
+        assert isinstance(params["nonce"], str) and len(params["nonce"]) == 86
     else:
-        with pytest.raises(WbaVerificationError) as caught:
-            await verify()
-        assert caught.value.status == expected["status"]
-        if expected["status"] == 403:
-            assert "Accept-Signature" in caught.value.headers
+        assert params["nonce"] is True
+
+
+def _identifier(item):
+    from adcp.signing._rfc9421 import component_identifier
+
+    return component_identifier(item)
+
+
+@pytest.mark.parametrize("path", VECTORS, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_profile_vector_signature_bases(path):
+    """Our signature base matches every vector's, built by http-message-signatures."""
+    from adcp.signing.wba import _signature_base
+
+    vector = json.loads(path.read_text())
+    message = vector.get("response", vector["request"])
+    for label, expected in vector.get("expected_signature_base", {}).items():
+        base = _signature_base(
+            label,
+            vector["request"]["method"],
+            vector["request"]["url"],
+            message["headers"],
+            response="response" in vector,
+        )
+        assert base.decode() == expected
+
+
+@pytest.mark.parametrize("path", GOVERNANCE_VECTORS, ids=lambda p: p.name)
+async def test_governance_vectors(path):
+    from adcp.signing.wba import WbaGovernanceError, verify_wba_governance_issuer
+
+    vector = json.loads(path.read_text())
+
+    async def verify():
+        return await verify_wba_governance_issuer(
+            vector["jws"],
+            signer_keys=_vector_resolver(vector),
+            governance_agents=vector["role_listing"]["adcp:governance"],
+            now=vector["reference_now"],
+        )
+
+    expected = vector["expected_outcome"]
+    if expected["success"]:
+        assert await verify() == expected["issuer"]
+        return
+    with pytest.raises(WbaGovernanceError) as caught:
+        await verify()
+    assert caught.value.code == expected["error_code"]
 
 
 def test_signer_reproduces_independent_vector():
+    """Signing the committed base with the committed seed gives the committed signature."""
+    from adcp.signing._rfc9421 import parse_dictionary
+    from adcp.signing.crypto import sign_signature_base
+
     vector = json.loads((ROOT / "positive/001-single-signer-request.json").read_text())
     request = vector["request"]
-    key = next(iter(KEYS.values()))
+    key = KEYS["6WsKMCObba49V3uN0vIENnk1BKAk7c9zjBJcWKyQ9_I"]
+    private = private_key_from_jwk(key, d_field="_private_d_for_test_only")
+    signature = sign_signature_base(
+        alg="ed25519",
+        private_key=private,
+        signature_base=vector["expected_signature_base"]["sig1"].encode(),
+    )
+    assert parse_dictionary(request["headers"]["Signature"])["sig1"][0] == signature
+    # sign_wba_request produces the same covered components, Signature-Agent
+    # and Content-Digest; the library orders the parameters its own way, so
+    # its base differs from the vector's only in @signature-params.
     result = sign_wba_request(
         method=request["method"],
         url=request["url"],
         headers={"Content-Type": "application/json"},
         body=request["body"].encode(),
-        private_key=private_key_from_jwk(key, d_field="_private_d_for_test_only"),
+        private_key=private,
         agent_origin=key["identity"],
         created=1790841600,
         nonce="Mn-ZM8SnGESx0-rmyYMuTkJFerfbwEii2C0qNkDP8ugpcuv0pcrt6Da2ifr-6MTmfVeZhnFymLeAofeXJbFaxA",
     )
-    assert all(request["headers"][name] == value for name, value in result.items())
+    for name in ("Signature-Agent", "Content-Digest"):
+        assert result[name] == request["headers"][name]
+    ours = parse_dictionary(result["Signature-Input"])["sig1"]
+    theirs = parse_dictionary(request["headers"]["Signature-Input"])["sig1"]
+    assert ours[0] == theirs[0] and ours[1] == theirs[1]
 
 
 @pytest.mark.parametrize(
@@ -314,9 +414,10 @@ async def test_replay_is_per_origin_across_key_rotation():
                     revocation_checker=_not_revoked,
                     now=1001,
                 )
-            # A reused nonce is 429 with no re-sign challenge.
+            # A reused nonce is 429 with Accept-Signature carrying a fresh
+            # nonce (wba-profile.mdx, Error responses).
             assert replayed.value.status == 429
-            assert "Accept-Signature" not in replayed.value.headers
+            assert 'nonce="' in replayed.value.headers["Accept-Signature"]
 
 
 async def test_framework_requires_explicit_binding_before_dispatch():
@@ -527,53 +628,65 @@ async def test_wba_discovery_never_falls_back_to_legacy_keys():
         await resolver(jwk["kid"], signer_origin="https://legacy.com")
 
 
-async def test_p256_wba_derives_optional_algorithm_and_signs_multikey_directory():
+async def test_es256_is_not_a_web_bot_auth_algorithm():
+    """The profile allows ed25519 and rsa-pss-sha512; ES256 stays on RFC 9421."""
     from cryptography.hazmat.primitives.asymmetric import ec
 
-    from adcp.signing.crypto import format_signature_header, sign_signature_base
-    from adcp.signing.wba import _base, _dictionary
+    from adcp.signing.crypto import b64url_encode
 
     ed_key, ec_key = ed25519.Ed25519PrivateKey.generate(), ec.generate_private_key(ec.SECP256R1())
-    response = sign_key_directory(
-        agent_origin="https://buyer.com", private_keys=[ed_key, ec_key], created=1000
-    )
-    keys = verify_directory_response("https://buyer.com", response, now=1001)
-    assert len(keys) == 2
-    headers = {"Content-Type": "application/json"}
-    headers.update(
+    with pytest.raises(ValueError, match="Ed25519 and RSA"):
+        sign_key_directory(agent_origin="https://buyer.com", private_keys=[ec_key], created=1000)
+    with pytest.raises(ValueError, match="Ed25519 and RSA"):
         sign_wba_request(
             method="POST",
             url="https://seller.com/mcp",
-            headers=headers,
+            headers={"Content-Type": "application/json"},
             body=b"{}",
             private_key=ec_key,
             agent_origin="https://buyer.com",
             created=1000,
         )
+    # A directory may list a P-256 key for another use; it is skipped, and the
+    # signed Ed25519 key is the only one returned.
+    response = sign_key_directory(
+        agent_origin="https://buyer.com", private_keys=[ed_key], created=1000
     )
-    inputs = _dictionary(headers["Signature-Input"])
-    member = inputs["sig1"]
-    del member.params["alg"]
-    headers["Signature-Input"] = str(inputs)
-    signature = sign_signature_base(
-        alg="ecdsa-p256-sha256",
-        private_key=ec_key,
-        signature_base=_base("POST", "https://seller.com/mcp", headers, member),
+    numbers = ec_key.public_key().public_numbers()
+    p256 = {
+        "kty": "EC",
+        "crv": "P-256",
+        "x": b64url_encode(numbers.x.to_bytes(32, "big")),
+        "y": b64url_encode(numbers.y.to_bytes(32, "big")),
+    }
+    with pytest.raises(WbaVerificationError, match="unsupported directory key"):
+        from adcp.signing.wba import _algorithm
+
+        _algorithm(p256)
+    keys = verify_directory_response("https://buyer.com", response, now=1001)
+    assert list(keys) == [public_directory_key(ed_key)["kid"]]
+
+
+async def test_unsigned_directory_is_refused():
+    """Signed directory responses are required (WBA Appendix B.1)."""
+    key = ed25519.Ed25519PrivateKey.generate()
+    signed = sign_key_directory(agent_origin="https://buyer.com", private_keys=[key], created=1000)
+    unsigned = DirectoryResponse(
+        signed.body,
+        {k: v for k, v in signed.headers.items() if k not in {"Signature", "Signature-Input"}},
     )
-    headers["Signature"] = format_signature_header(
-        signature, label="sig1", use_legacy_base64url=False
-    )
-    result = await verify_wba_request(
-        method="POST",
-        url="https://seller.com/mcp",
-        headers=headers,
-        body=b"{}",
-        signer_keys=StaticSignerKeys({"https://buyer.com": {"keys": list(keys.values())}}),
-        replay_store=InMemoryReplayStore(),
-        revocation_checker=_not_revoked,
-        now=1001,
-    )
-    assert result[0].alg == "ecdsa-p256-sha256"
+    with pytest.raises(WbaVerificationError, match="not signed"):
+        verify_directory_response("https://buyer.com", unsigned, now=1001)
+
+    async def fetch(url, *, allow_private=False):
+        return unsigned
+
+    with pytest.raises(WbaVerificationError):
+        await DiscoveredSignerKeys(fetcher=fetch, clock=lambda: 1001)(
+            public_directory_key(key)["kid"], signer_origin="https://buyer.com"
+        )
+    with pytest.raises(TypeError):
+        DiscoveredSignerKeys(require_signed_directories=True)  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(
@@ -607,56 +720,115 @@ def test_legacy_verifier_never_attributes_or_emits_legacy_codes_for_wba(headers)
     resolver.assert_not_called()
 
 
-@pytest.mark.parametrize("cover_extra", [False, True])
-async def test_relay_covers_every_component_of_earlier_signature(cover_extra):
-    from http_sfv.item import Item
+@pytest.mark.parametrize("change", ["second_agent_member", "short_nonce", "padded_nonce"])
+async def test_one_signer_and_64_byte_nonce(change):
+    """One Signature-Agent member per request, and a nonce of exactly 64 bytes."""
+    import base64
 
-    from adcp.signing.crypto import sign_signature_base
-    from adcp.signing.wba import _base, _dictionary
-
-    vector = json.loads((ROOT / "positive/002-relay-request-two-signatures.json").read_text())
+    vector = json.loads((ROOT / "positive/001-single-signer-request.json").read_text())
     request = vector["request"]
-    headers = request["headers"]
-    headers["X-Buyer-Reference"] = "campaign-123"
-    inputs = _dictionary(headers["Signature-Input"])
-    signatures = _dictionary(headers["Signature"])
-    labels = list(inputs)
-    inputs[labels[0]].append(Item("x-buyer-reference"))
-    if cover_extra:
-        inputs[labels[1]].append(Item("x-buyer-reference"))
-    headers["Signature-Input"] = str(inputs)
-    for label, member in inputs.items():
-        key = KEYS[member.params["keyid"]]
-        signatures[label] = Item(
-            sign_signature_base(
-                alg="ed25519",
-                private_key=private_key_from_jwk(key, d_field="_private_d_for_test_only"),
-                signature_base=_base(request["method"], request["url"], headers, member),
+    key = KEYS["6WsKMCObba49V3uN0vIENnk1BKAk7c9zjBJcWKyQ9_I"]
+    private = private_key_from_jwk(key, d_field="_private_d_for_test_only")
+    if change == "short_nonce":
+        with pytest.raises(ValueError, match="64 bytes"):
+            sign_wba_request(
+                method="POST",
+                url=request["url"],
+                headers={"Content-Type": "application/json"},
+                body=request["body"].encode(),
+                private_key=private,
+                agent_origin=key["identity"],
+                created=1790841600,
+                nonce="A" * 22,
             )
+        return
+    nonce = (
+        base64.b64encode(bytes(range(64))).decode()
+        if change == "padded_nonce"
+        else base64.urlsafe_b64encode(b"\x07" * 64).decode().rstrip("=")
+    )
+    headers = {"Content-Type": "application/json"}
+    headers.update(
+        sign_wba_request(
+            method="POST",
+            url=request["url"],
+            headers=headers,
+            body=request["body"].encode(),
+            private_key=private,
+            agent_origin=key["identity"],
+            created=1790841600,
+            nonce=nonce,
         )
-        headers["Signature"] = str(signatures)
-
-    async def resolve(keyid, *, signer_origin=None):
-        key = KEYS[keyid]
-        return ResolvedSignerKey(signer_origin, key) if key["identity"] == signer_origin else None
+    )
+    if change == "second_agent_member":
+        headers["Signature-Agent"] += ', sig2="https://agent.brand-7k3q.com"'
 
     async def verify():
         return await verify_wba_request(
+            method="POST",
+            url=request["url"],
+            headers=headers,
+            body=request["body"].encode(),
+            signer_keys=_vector_resolver(vector),
+            replay_store=InMemoryReplayStore(),
+            now=vector["reference_now"],
+        )
+
+    if change == "padded_nonce":
+        # Cloudflare's signer sends padded standard base64 of 64 bytes.
+        (signer,) = await verify()
+        assert signer.agent_url == key["identity"]
+        return
+    with pytest.raises(WbaVerificationError, match="one web-bot-auth signature") as caught:
+        await verify()
+    assert caught.value.status == 403
+    assert "Accept-Signature" in caught.value.headers
+
+
+async def test_short_received_nonce_is_a_challenge():
+    """A nonce shorter than 64 bytes fails the profile: 403 with Accept-Signature."""
+    from adcp.signing import _rfc9421
+    from adcp.signing.wba import _WbaComponentResolver
+
+    key = KEYS["6WsKMCObba49V3uN0vIENnk1BKAk7c9zjBJcWKyQ9_I"]
+    private = private_key_from_jwk(key, d_field="_private_d_for_test_only")
+    vector = json.loads((ROOT / "positive/001-single-signer-request.json").read_text())
+    request = vector["request"]
+    headers = {k: v for k, v in request["headers"].items() if not k.startswith("Signature-I")}
+    headers = {k: v for k, v in headers.items() if k != "Signature"}
+    signature_input, signature = _rfc9421.sign(
+        _rfc9421.Request(request["method"], request["url"], dict(headers)),
+        alg="ed25519",
+        private_key=private,
+        key_id=key["kid"],
+        label="sig1",
+        created=1790841600,
+        expires=1790841900,
+        nonce="A" * 22,
+        tag="web-bot-auth",
+        covered_component_ids=[
+            '"@method"',
+            '"@target-uri"',
+            '"@authority"',
+            '"content-type"',
+            '"content-digest"',
+            '"signature-agent";key="sig1"',
+        ],
+        resolver=_WbaComponentResolver,
+    )
+    headers.update({"Signature-Input": signature_input, "Signature": signature})
+    with pytest.raises(WbaVerificationError, match="nonce") as caught:
+        await verify_wba_request(
             method=request["method"],
             url=request["url"],
             headers=headers,
             body=request["body"].encode(),
-            signer_keys=resolve,
+            signer_keys=_vector_resolver(vector),
             replay_store=InMemoryReplayStore(),
-            revocation_checker=_not_revoked,
             now=vector["reference_now"],
         )
-
-    if cover_extra:
-        assert len(await verify()) == 2
-    else:
-        with pytest.raises(WbaVerificationError, match="covered component"):
-            await verify()
+    assert caught.value.status == 403
+    assert "Accept-Signature" in caught.value.headers
 
 
 @pytest.mark.parametrize(
@@ -773,3 +945,80 @@ async def test_framework_checks_origin_revocations_by_default(
         # A current list, or a stale one for a non-spend call, proceeds.
         assert response.status_code == 200, response.text
         assert dispatched == [True]
+
+
+def _governance_token(key, header_extra=None, claims_extra=None, *, iss=None):
+    from joserfc import jws as jose_jws
+    from joserfc.jwk import OKPKey
+
+    from adcp.signing.wba import _governance_registry
+
+    identity = iss or KEYS["1XlJ3EIte7bPOEqKQtKrKNTNy5hywTyrwFXWrMbXKqE"]["identity"]
+    header = {
+        "alg": "EdDSA",
+        "typ": "adcp-gov+jws",
+        "jku": identity + "/.well-known/http-message-signatures-directory",
+        "kid": "1XlJ3EIte7bPOEqKQtKrKNTNy5hywTyrwFXWrMbXKqE",
+        **(header_extra or {}),
+    }
+    claims = {"iss": identity, "aud": "https://seller-7k3q.com/mcp/", "iat": 1000, "exp": 1600}
+    claims.update(claims_extra or {})
+    private = private_key_from_jwk(
+        KEYS["1XlJ3EIte7bPOEqKQtKrKNTNy5hywTyrwFXWrMbXKqE"], d_field="_private_d_for_test_only"
+    )
+    return jose_jws.serialize_compact(
+        header,
+        json.dumps(claims).encode(),
+        OKPKey.import_key(private),
+        registry=_governance_registry("EdDSA"),
+    )
+
+
+@pytest.mark.parametrize("markers", ["matched", "claim_without_marker", "task_without_hash"])
+async def test_governance_action_binding_markers(markers):
+    """Action-authorizing tokens carry crit markers (security.mdx checklist step 4)."""
+    from adcp.signing.wba import WbaGovernanceError, verify_wba_governance_issuer
+
+    vector = json.loads((ROOT / "governance/001-governance-token.json").read_text())
+    binding = {"authorized_task": "create_media_buy", "authorized_payload_hash": "h"}
+    header = {"crit": list(binding), **{name: True for name in binding}}
+    if markers == "claim_without_marker":
+        header = {}
+    claims = dict(binding)
+    if markers == "task_without_hash":
+        header = {"crit": ["authorized_task"], "authorized_task": True}
+        claims = {"authorized_task": "create_media_buy"}
+    token = _governance_token(None, header, claims)
+
+    async def verify():
+        return await verify_wba_governance_issuer(
+            token,
+            signer_keys=_vector_resolver(vector),
+            governance_agents=vector["role_listing"]["adcp:governance"],
+            now=1100,
+        )
+
+    if markers == "matched":
+        assert await verify() == "https://governance-7k3q.com"
+        return
+    with pytest.raises(WbaGovernanceError) as caught:
+        await verify()
+    assert caught.value.code == "governance_token_invalid"
+
+
+async def test_governance_issuer_is_checked_before_key_discovery():
+    from adcp.signing.wba import WbaGovernanceError, verify_wba_governance_issuer
+
+    token = _governance_token(None, iss="https://buyer-7k3q.com")
+
+    async def resolve(keyid, *, signer_origin=None):
+        pytest.fail("an unlisted issuer must not trigger key discovery")
+
+    with pytest.raises(WbaGovernanceError) as caught:
+        await verify_wba_governance_issuer(
+            token,
+            signer_keys=resolve,
+            governance_agents=["https://governance-7k3q.com"],
+            now=1100,
+        )
+    assert caught.value.code == "governance_issuer_not_authorized"

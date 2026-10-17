@@ -19,7 +19,7 @@ from adcp.signing import (
     verify_request_signature,
     verify_wba_request,
 )
-from adcp.signing._structured_fields import reject_dictionary_duplicates
+from adcp.signing._rfc9421 import parse_dictionary as reject_dictionary_duplicates
 from adcp.signing.canonical import parse_signature_input_header
 from adcp.signing.crypto import extract_signature_bytes
 from adcp.signing.wba import WbaVerificationError, _dictionary, uses_web_bot_auth
@@ -318,3 +318,117 @@ async def test_framework_rejects_ambiguity_before_business_dispatch(wba):
     if not wba:
         assert response.json()["error"] == REQUEST_SIGNATURE_HEADER_MALFORMED
     assert not calls and not dispatched and not replay.claims
+
+
+def _signed_32(body=b"{}"):
+    key = Ed25519PrivateKey.generate()
+    headers = {"Content-Type": "application/json"}
+    headers.update(
+        sign_request(
+            method="POST",
+            url="https://seller.com/mcp",
+            headers=headers,
+            body=body,
+            private_key=key,
+            key_id="kid",
+            alg="ed25519",
+            created=1000,
+            signing_profile_version="3.2",
+        ).as_dict()
+    )
+    return key, headers
+
+
+def _options_32(key, replay=None):
+    from cryptography.hazmat.primitives import serialization
+
+    from adcp.signing.crypto import b64url_encode
+
+    raw = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    jwk = {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": b64url_encode(raw),
+        "kid": "kid",
+        "use": "sig",
+        "key_ops": ["verify"],
+        "adcp_use": "request-signing",
+    }
+    return VerifyOptions(
+        now=1000,
+        jwks_resolver=lambda keyid: jwk,
+        capability=VerifierCapability(covers_content_digest="required"),
+        operation="create_media_buy",
+        replay_store=replay or InMemoryReplayStore(),
+        signing_profile_version="3.2",
+    )
+
+
+def test_two_spellings_of_a_signed_header_are_malformed_not_split():
+    """A mapping with Content-Digest and content-digest must not let the digest
+    check and the signature base read different values."""
+    import hashlib
+
+    key, headers = _signed_32()
+    swapped = b'{"amount":999999}'
+    forged = (
+        "sha-256=:"
+        + __import__("base64").b64encode(hashlib.sha256(swapped).digest()).decode()
+        + ":"
+    )
+    attack_headers = {"content-digest": forged, **headers}
+    with pytest.raises(SignatureVerificationError) as rejected:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.com/mcp",
+            headers=attack_headers,
+            body=swapped,
+            options=_options_32(key),
+        )
+    assert rejected.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
+
+
+async def test_two_spellings_of_a_signed_header_are_400_for_wba():
+    key = Ed25519PrivateKey.generate()
+    headers = {"Content-Type": "application/json"}
+    headers.update(
+        sign_wba_request(
+            method="POST",
+            url="https://seller.com/mcp",
+            headers=headers,
+            body=b"{}",
+            private_key=key,
+            agent_origin="https://buyer.com",
+            created=1000,
+        )
+    )
+
+    async def resolve(keyid, *, signer_origin):
+        pytest.fail("Ambiguous headers must not reach discovery")
+
+    with pytest.raises(WbaVerificationError) as rejected:
+        await verify_wba_request(
+            method="POST",
+            url="https://seller.com/mcp",
+            headers={"content-digest": "sha-256=:AAAA:", **headers},
+            body=b"{}",
+            signer_keys=resolve,
+            replay_store=InMemoryReplayStore(),
+            now=1000,
+        )
+    assert rejected.value.status == 400
+
+
+def test_signature_member_parameters_are_malformed():
+    key, headers = _signed_32()
+    headers["Signature"] += ";foo=1"
+    with pytest.raises(SignatureVerificationError) as rejected:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.com/mcp",
+            headers=headers,
+            body=b"{}",
+            options=_options_32(key),
+        )
+    assert rejected.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
+    assert rejected.value.step == 1

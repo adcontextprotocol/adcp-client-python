@@ -11,7 +11,6 @@ import pytest
 from adcp.signing.canonical import (
     canonicalize_target_uri,
     parse_signature_input_header,
-    split_structured_field,
 )
 
 
@@ -27,10 +26,10 @@ def test_sfv_splitter_handles_escaped_backslash_before_closing_quote() -> None:
     assert labels["sig1"].params["keyid"] == "kid1"
 
 
-def test_sfv_splitter_escape_preserved_quote_inside_string() -> None:
+def test_escaped_quote_inside_string_does_not_terminate_the_value() -> None:
     # Escaped double-quote inside a quoted value must not terminate the span.
-    out = split_structured_field('a="quoted \\"inner\\" text";b=1', ";")
-    assert out == ['a="quoted \\"inner\\" text"', "b=1"]
+    labels = parse_signature_input_header('sig1=("@method");nonce="quoted \\"inner\\" text";b=1')
+    assert labels["sig1"].params == {"nonce": 'quoted "inner" text', "b": 1}
 
 
 def test_parse_rejects_unterminated_quoted_string() -> None:

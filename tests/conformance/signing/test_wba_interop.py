@@ -15,16 +15,16 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from http_sfv.dictionary import Dictionary
 
 from adcp.signing import InMemoryReplayStore
+from adcp.signing._rfc9421 import Request, parse_dictionary
 from adcp.signing.wba import (
     ALG_RSA_PSS_SHA512,
     DirectoryResponse,
     DiscoveredSignerKeys,
     WbaVerificationError,
     _algorithm,
-    _base,
+    _signature_base,
     _verify_crypto,
     is_64_byte_nonce,
     public_directory_key,
@@ -80,32 +80,23 @@ async def test_python_verifies_foreign_signed_requests(path):
     assert signer.agent_url == expected["identity"]
     assert signer.key_id == expected["keyid"]
     # @target-uri is the URI as received: %7E stays encoded.
-    label = next(iter(_parse_dictionary(request["headers"]["signature-input"])))
-    member = _parse_dictionary(request["headers"]["signature-input"])[label]
-    base = _base(request["method"], request["url"], request["headers"], member).decode()
+    label = next(iter(parse_dictionary(request["headers"]["signature-input"])))
+    base = _signature_base(label, request["method"], request["url"], request["headers"]).decode()
     assert base == expected["signature_base"]
-
-
-def _parse_dictionary(value: str) -> Dictionary:
-    parsed = Dictionary()
-    parsed.parse(value.encode("ascii"))
-    return parsed
 
 
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda path: path.stem)
 def test_foreign_signed_directories_verify(path):
     fixture = json.loads(path.read_text())
     origin = fixture["directory"]["url"].split("/.well-known/")[0]
-    keys = verify_directory_response(
-        origin, _directory(fixture), now=fixture["reference_now"], require_signed=True
-    )
+    keys = verify_directory_response(origin, _directory(fixture), now=fixture["reference_now"])
     assert fixture["expected"]["keyid"] in keys
 
 
 def test_cloudflare_padded_base64_nonce_is_64_bytes():
     fixture = json.loads((ROOT / "cloudflare-signed-body-request.json").read_text())
-    member = _parse_dictionary(fixture["request"]["headers"]["signature-input"])["sig1"]
-    nonce = member.params["nonce"]
+    _components, params = parse_dictionary(fixture["request"]["headers"]["signature-input"])["sig1"]
+    nonce = params["nonce"]
     assert nonce.endswith("==") and is_64_byte_nonce(nonce) and valid_wba_nonce(nonce)
 
 
@@ -131,10 +122,10 @@ async def test_python_signed_requests_verify_with_the_target_uri_as_sent(path):
             created=1790841610,
         )
     )
-    member = _parse_dictionary(headers["Signature-Input"])["sig1"]
+    _components, params = parse_dictionary(headers["Signature-Input"])["sig1"]
     # Default nonce: 64 random bytes, unpadded base64url.
-    assert len(member.params["nonce"]) == 86 and is_64_byte_nonce(member.params["nonce"])
-    base = _base("POST", url, {k.lower(): v for k, v in headers.items()}, member).decode()
+    assert len(params["nonce"]) == 86 and is_64_byte_nonce(params["nonce"])
+    base = _signature_base("sig1", "POST", url, headers).decode()
     assert f'"@target-uri": {url}\n' in base
     assert '"@authority": seller.example.com\n' in base
     directory = sign_key_directory(agent_origin=origin, private_keys=[private], created=1790841550)
@@ -211,19 +202,27 @@ def test_rsa_pss_appendix_e_vector():
     assert thumbprint_key_id(jwk) == "oD0HwocPBSfpNy5W3bpJeyFGY_IQ_YpqxSjQ3Yd-CLA"
     assert _algorithm(jwk) == ALG_RSA_PSS_SHA512
     assert is_64_byte_nonce(APPENDIX_E_NONCE), "padded standard base64 of 64 bytes"
-    member = _parse_dictionary(APPENDIX_E_INPUT)["sig2"]
-    signature = _parse_dictionary(APPENDIX_E_SIGNATURE)["sig2"]
-    headers = {"signature-agent": 'agent2="https://signature-agent.test"'}
-    base = _base("GET", "https://example.com/", headers, member)
+    headers = {
+        "signature-agent": 'agent2="https://signature-agent.test"',
+        "signature-input": APPENDIX_E_INPUT,
+        "signature": APPENDIX_E_SIGNATURE,
+    }
+    base = _signature_base("sig2", "GET", "https://example.com/", headers)
     assert base.decode() == (
         '"@authority": example.com\n'
         '"signature-agent";key="agent2": "https://signature-agent.test"\n'
         f'"@signature-params": {APPENDIX_E_INPUT.removeprefix("sig2=")}'
     )
-    assert _verify_crypto(member, signature, jwk, base) == ALG_RSA_PSS_SHA512
-    tampered = base.replace(b"example.com", b"example.net", 1)
+    _components, params = parse_dictionary(APPENDIX_E_INPUT)["sig2"]
+    signature = parse_dictionary(APPENDIX_E_SIGNATURE)["sig2"]
+    message = Request("GET", "https://example.com/", headers)
+    assert (
+        _verify_crypto(message, label="sig2", params=params, signature=signature, jwk=jwk)
+        == ALG_RSA_PSS_SHA512
+    )
+    tampered = Request("GET", "https://example.net/", headers)
     with pytest.raises(WbaVerificationError, match="did not verify"):
-        _verify_crypto(member, signature, jwk, tampered)
+        _verify_crypto(tampered, label="sig2", params=params, signature=signature, jwk=jwk)
 
 
 async def test_rsa_pss_identity_round_trip_and_key_bounds():

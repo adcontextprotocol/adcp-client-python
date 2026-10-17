@@ -109,15 +109,16 @@ def _signed_call(route, checker, resolver, replay, private, kid):
 
 
 def _observe_crypto_and_replay(monkeypatch, replay, events):
-    from adcp.signing import verifier
+    from adcp.signing import _rfc9421
 
-    original = verifier.verify_signature
+    original = _rfc9421.verify
 
-    def verify(**kwargs):
+    def verify(*args, **kwargs):
         events.append("callback_crypto")
-        return original(**kwargs)
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(verifier, "verify_signature", verify)
+    # The verifier's step 10 is http-message-signatures, reached through here.
+    monkeypatch.setattr(_rfc9421, "verify", verify)
     for name in ("seen", "remember", "claim", "at_capacity"):
         method = getattr(replay, name)
 

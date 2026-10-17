@@ -321,8 +321,6 @@ class RequestSignatureVerification:
         with ``Accept-Signature``; ``"anonymous"`` serves it exactly as an
         unsigned request, except operations in ``required_for`` /
         ``protocol_methods_required_for``, which are still refused.
-    :param wba_replay_status: Status for a reused Web Bot Auth nonce: 429, as
-        the spec requires; 403 only reproduces #7894's older replay vector.
     :param authorities: The ``host[:port]`` values this endpoint serves. A Web
         Bot Auth request whose ``@authority`` is not among them is refused
         before key discovery, so a signature captured at another seller
@@ -359,15 +357,12 @@ class RequestSignatureVerification:
         default=None, init=False, repr=False, compare=False
     )
     wba_discovery_failure: Literal["reject", "anonymous"] = "reject"
-    wba_replay_status: Literal[403, 429] = 429
     authorities: frozenset[str] | None = None
     rfc9421_profile: bool = True
 
     def __post_init__(self) -> None:
         if self.wba_discovery_failure not in {"reject", "anonymous"}:
             raise ValueError("wba_discovery_failure must be 'reject' or 'anonymous'")
-        if self.wba_replay_status not in {403, 429}:
-            raise ValueError("wba_replay_status must be 403 or 429")
         if not self.rfc9421_profile and not self.enable_web_bot_auth:
             raise ValueError("a verifier needs at least one signing profile")
         if self.enable_web_bot_auth and self.replay_store is None:
@@ -827,7 +822,6 @@ class SignedRequestVerificationMiddleware:
                 signer_keys=cast(WbaSignerKeyResolver, config.signer_keys),
                 replay_store=config.replay_store,
                 raw_headers=scope.get("headers"),
-                replay_status=config.wba_replay_status,
                 authorities=config.authorities,
             )
         except WbaUnavailableError as exc:
@@ -873,9 +867,8 @@ class SignedRequestVerificationMiddleware:
             except WbaRevokedKeyError as exc:
                 await self._reject_wba(scope, receive, send, exc)
                 return
-        # The originating signer owns the AdCP caller; relays are verified
-        # independently and do not acquire the originator's account access.
-        signer = signers[0]
+        # The profile verifies exactly one signer per request.
+        (signer,) = signers
         principal, authorization_error = await self._authorize_wba_binding(signer, operation)
         if authorization_error is not None:
             await self._call_with_signer(

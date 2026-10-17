@@ -120,7 +120,8 @@ def _resolver_for(jwk: dict[str, object]) -> object:
 def test_parse_compact_jws_splits_segments() -> None:
     # Build a fake compact-shaped string inline so the test literal isn't
     # a plausible-looking JWT (high-entropy-secret scanners flag otherwise).
-    header_b64 = b64url_encode(b"FAKE-HEADER")
+    # joserfc's extract_compact decodes the header, so it must be JSON with alg.
+    header_b64 = b64url_encode(b'{"alg":"FAKE"}')
     payload_b64 = b64url_encode(b"FAKE-PAYLOAD")
     sig_b64 = b64url_encode(b"FAKE-SIG")
     token = f"{header_b64}.{payload_b64}.{sig_b64}"

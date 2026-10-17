@@ -27,7 +27,8 @@ from typing import Any, Literal
 
 import httpx
 
-from adcp.signing.canonical import _lookup, parse_signature_input_header, split_structured_field
+from adcp.signing._rfc9421 import legacy_binary_tokens, mixes_base64_alphabets
+from adcp.signing.canonical import _lookup, parse_signature_input_header
 from adcp.signing.constants import (
     DEFAULT_SKEW_SECONDS,
     MAX_WINDOW_SECONDS,
@@ -232,20 +233,13 @@ def _precheck_webhook_signature_alphabet(headers: Mapping[str, str], label: str)
     raw = _lookup(headers, "signature")
     if raw is None:
         return
-    for entry in split_structured_field(raw, ","):
-        name, separator, value = entry.strip().partition("=")
-        if not separator or name.strip() != label:
-            continue
-        value = value.strip()
-        if value.startswith(":") and value.endswith(":"):
-            token = value[1:-1]
-            if any(char in token for char in "+/") and any(char in token for char in "-_"):
-                raise SignatureVerificationError(
-                    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
-                    step=1,
-                    message="webhook Signature must not mix Base64 alphabets",
-                )
-        return
+    for owner, token in legacy_binary_tokens(raw):
+        if owner == label and mixes_base64_alphabets(token):
+            raise SignatureVerificationError(
+                WEBHOOK_SIGNATURE_HEADER_MALFORMED,
+                step=1,
+                message="webhook Signature must not mix Base64 alphabets",
+            )
 
 
 def _precheck_webhook_has_required_components(headers: Mapping[str, str]) -> None:

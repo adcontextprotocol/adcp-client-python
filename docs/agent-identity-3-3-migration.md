@@ -1,8 +1,10 @@
 # Experimental AdCP 3.3 agent identity
 
-This SDK supports an opt-in preview of issue [#1500](https://github.com/adcontextprotocol/adcp-client-python/issues/1500). The Web Bot Auth wire profile and identity schemas are pinned to the draft commits recorded in `tests/conformance/vectors/wba-profile/README.md` and `src/adcp/signing/_identity_schemas/UPSTREAM.json`. They may change before the protocol release. The stable wire pin and `COMPATIBLE_ADCP_VERSIONS` do not advertise 3.3 yet.
+This SDK supports an opt-in preview of issue [#1500](https://github.com/adcontextprotocol/adcp-client-python/issues/1500). The Web Bot Auth wire profile follows `wba-profile.mdx` in adcontextprotocol/adcp#7894 at `e24eeb09` (vectors in `tests/conformance/vectors/wba-profile/`, provenance in its `UPSTREAM.json`); the identity schemas are pinned to the commits in `src/adcp/signing/_identity_schemas/UPSTREAM.json`. Both may change before the protocol release. The stable wire pin and `COMPATIBLE_ADCP_VERSIONS` do not advertise 3.3 yet.
 
 The behavior below follows the final spec decisions (adcontextprotocol/adcp#8162, #8168, #8169, #8170) and matches the Go (`adcp-go`) and TypeScript (`@adcp/sdk/identity-3.3`) SDKs, except where [Differences from the other SDKs](#differences-from-the-other-sdks) says otherwise.
+
+RFC 9421 comes from `http-message-signatures` (signature bases, `Signature-Input`, signing and verification, for this profile and for the AdCP RFC 9421 profile alike), Structured Fields from `http-sf`, and JOSE from `joserfc`. The SDK keeps the profile rules on top.
 
 ## Buyer signing and publishing
 
@@ -23,13 +25,13 @@ signing = SigningConfig(
 # Pass signing=signing to ADCPClient or install_signing_event_hook.
 ```
 
-`agent_origin` explicitly selects Web Bot Auth, sets and covers the structured `Signature-Agent` member, uses `tag="web-bot-auth"`, and uses standard Base64 signatures regardless of the legacy wire encoding. The signer derives the algorithm from the public key, generates a 64-byte random nonce (unpadded base64url; RECOMMENDED by the architecture draft §4.2.2 and required by Cloudflare's `web-bot-auth` verifier). A caller-supplied `nonce` may be any 22 to 256 characters, the range verifiers accept, and binds every nonempty body with its digest. `@target-uri` covers the URI the request is sent to, unchanged: percent-encoding such as `/a%7Eb/mcp/` is signed as sent (RFC 9421 §2.2.2). The canonical origin is used only for the `Signature-Agent` identity. A request that already carries signature fields is refused rather than stripped; the signer never drops another party's signature.
+`agent_origin` explicitly selects Web Bot Auth, sets and covers the structured `Signature-Agent` member, uses `tag="web-bot-auth"`, and uses standard Base64 signatures regardless of the legacy wire encoding. The signer derives the algorithm from the public key, generates a 64-byte random nonce (unpadded base64url), as the profile requires on every signed request, and binds every nonempty body with its digest. A caller-supplied `nonce` must also encode exactly 64 bytes. `@target-uri` covers the URI the request is sent to, unchanged: percent-encoding such as `/a%7Eb/mcp/` is signed as sent (RFC 9421 §2.2.2). The canonical origin is used only for the `Signature-Agent` identity. A request that already carries signature fields is refused rather than stripped; the signer never drops another party's signature.
 
 Automatic signing also requires `web-bot-auth` in the seller's `request_signing.profiles`; omission advertises legacy support only. An unsupported configured profile raises before sending and never silently downgrades. Keep header emission opt-in until all counterparties tolerate the additional covered component.
 
-Ed25519 and P-256 keys work everywhere. `sign_wba_request`, `public_directory_key` and `sign_key_directory` also accept RSA keys of 2048 to 8192 bits, which sign with `rsa-pss-sha512` as in the draft's Appendix E vectors.
+Web Bot Auth signs with `ed25519` or `rsa-pss-sha512`, the profile's two algorithms. `sign_wba_request`, `public_directory_key` and `sign_key_directory` accept Ed25519 keys and RSA keys of 2048 to 8192 bits (signed with `rsa-pss-sha512`, as in the draft's Appendix E vectors). ES256 (P-256) stays on the AdCP RFC 9421 profile: a P-256 key is refused for Web Bot Auth, and a P-256 key in someone's directory is skipped.
 
-Serve the key directory at `/.well-known/http-message-signatures-directory` on that origin. Signing it is RECOMMENDED (WBA Appendix B.1):
+Serve the key directory at `/.well-known/http-message-signatures-directory` on that origin. The profile requires it signed (WBA Appendix B.1); verifiers refuse an unsigned directory:
 
 ```python
 response = sign_key_directory(
@@ -81,7 +83,7 @@ Verification and authorization are separate layers, as in the other SDKs.
 
 ### Errors are split by layer
 
-- **The signature path** answers only with Web Bot Auth statuses and headers, never 503 (DR-0023): 400 when a signature field does not parse, 403 with `Accept-Signature` for a missing or failed signature or an unresolvable key directory, 403 without `Accept-Signature` for a revoked key, and 429 for a reused nonce and for replay-store or discovery capacity. `RequestSignatureVerification(wba_replay_status=403)` (or `verify_wba_request(replay_status=403)`) only reproduces #7894's older replay vector. Any body is the one generic authentication error, the same for every cause: `{"errors":[{"code":"AUTH_INVALID","message":"Request authentication failed","recovery":"correctable"}]}`. The specific reason is logged, never sent.
+- **The signature path** answers only with Web Bot Auth statuses and headers, never 503 (DR-0023): 400 when a signature field does not parse; 403 with `Accept-Signature` for a missing or failed signature, a second signature or `Signature-Agent` member, a nonce that is not 64 bytes, or an unresolvable key directory; 403 without `Accept-Signature` for a revoked key; 429 with `Accept-Signature` carrying a fresh nonce for a reused nonce; and 429 without it for replay-store or discovery capacity. `Accept-Signature` names the profile's components and the parameters `created`, `expires`, `nonce`, `keyid`, `alg` and `tag="web-bot-auth"`. Any body is the one generic authentication error, the same for every cause: `{"errors":[{"code":"AUTH_INVALID","message":"Request authentication failed","recovery":"correctable"}]}`. The specific reason is logged, never sent.
 - **Authorization outcomes** after verification use the standard AdCP error envelope (the MCP and A2A error bindings for skills; otherwise JSON with HTTP 403 or 503 and `Retry-After`) with existing codes:
   - an operation outside what an unbound caller may do gets what an anonymous caller would get;
   - an operation in `required_for` from an unbound or delisted origin, or a failed binding, gets `PERMISSION_DENIED` with no `details`;
@@ -89,7 +91,7 @@ Verification and authorization are separate layers, as in the other SDKs.
   - a trust-record or revocation-list outage on a spend-committing call gets the retryable `SERVICE_UNAVAILABLE`.
 - **Infrastructure outages** (the replay store or revocation store failing) are application-layer `SERVICE_UNAVAILABLE`, never a signature outcome.
 
-A correctly signed request whose key the verifier can resolve never gets 403 with `Accept-Signature` (an unresolvable key directory leaves the request unverified under the default policy). Clients act on the status and `Accept-Signature`, not the generic body: sign again on 403 with `Accept-Signature`, stop using the key on 403 without it, back off on 429 or 503.
+A correctly signed request whose key the verifier can resolve never gets 403 with `Accept-Signature` (an unresolvable key directory leaves the request unverified under the default policy). Clients act on the status and `Accept-Signature`, not the generic body: sign again on 403 with `Accept-Signature`, sign again with the offered nonce on 429 with `Accept-Signature`, stop using the key on 403 without it, back off on 429 without it or 503.
 
 **Unsigned requests.** With Web Bot Auth enabled, an unsigned request to an operation in `required_for` is answered as the RFC 9421 profile does (401 with `WWW-Authenticate: Signature error="request_signature_required"`) plus an `Accept-Signature` header for Web Bot Auth, so a client of either profile learns how to sign. Set `rfc9421_profile=False` when the endpoint advertises only `web-bot-auth`: such a request, and any RFC 9421 signature, then gets 403 with `Accept-Signature`. `RequestSignatureVerification.from_capability` sets both from `request_signing.profiles` when it lists `web-bot-auth`. With `allow_bearer_fallback`, an unsigned request is passed to bearer authentication as before.
 
@@ -97,7 +99,8 @@ Duplicate structured-field parameters, dictionary labels, and `Signature-Agent` 
 
 ### Interop
 
-- The verifier accepts any nonce of 22 to 256 printable characters (at least 128 bits in base64): 64 bytes is RECOMMENDED for signers, and httpsig-02 adds no nonce requirement, so a compliant signer may send fewer. This SDK's signer always sends 64 bytes, which Cloudflare's verifier requires.
+- **One signature.** A request carries exactly one `web-bot-auth` signature and exactly one `Signature-Agent` member, keyed to that signature's label. Relays are gone: an intermediary that signs is the signer, and whether it may act for another party is an authorization question, not a second signature. `verify_wba_request` still returns a tuple, now always of one signer. `Signature-Agent` is read as a Structured Fields Dictionary only; the older bare sf-string form is not part of the final profile.
+- **Nonce.** The nonce encodes exactly 64 bytes. The profile spells it as unpadded base64url; padded standard base64 of 64 bytes is also accepted, because Cloudflare's `web-bot-auth` signer and the draft's Appendix E vectors send it. The page has no shorter-nonce exception for `required_for` operations or reads.
 - `@target-uri` is the target URI as received, built from the request line (`raw_path` and query string), so percent-encoding is preserved. `@authority` is that URI's authority, lowercased with any default port removed (RFC 9421 §2.2.3).
 - RSA keys verify with `rsa-pss-sha512` (2048 to 8192 bits, odd exponent).
 - `tests/conformance/vectors/wba-interop/` vendors adcp-client's Cloudflare interop fixtures with provenance; the SDK verifies both the Cloudflare-signed and the adcp-client-signed requests and directories.
@@ -106,8 +109,8 @@ Duplicate structured-field parameters, dictionary labels, and `Signature-Agent` 
 
 `DiscoveredSignerKeys` resolves `(covered origin, thumbprint)`. It never calls capabilities or reads brand.json or trust.json.
 
-- A plain, unsigned JWK Set is accepted by default (`application/http-message-signatures-directory+json`, `application/jwk-set+json` or `application/json`). Keys are found by their RFC 7638 thumbprint; a `kid` is optional and does not affect lookup. Keys the profile cannot use are skipped; private key material fails the directory. `DiscoveredSignerKeys(require_signed_directories=True)` refuses unsigned directories.
-- When a directory carries signatures, every one must verify, cover at least the exact identifiers `"@authority";req` and `"content-digest"` (a keyed member or a bare `"@authority"` does not count), and fall inside its window (60 seconds of skew on `created`, none on `expires`). The digest covers the exact bytes served, a UTF-8 BOM included. Only keys with a verified signature are usable; an unsigned key beside them is ignored.
+- A directory must be signed (WBA Appendix B.1); an unsigned one is a discovery failure. The media type may be `application/http-message-signatures-directory+json`, `application/jwk-set+json` or `application/json`. Keys are found by their RFC 7638 thumbprint; a `kid` is optional and does not affect lookup. Keys the profile cannot use (P-256 included) are skipped; private key material fails the directory.
+- Every directory signature must verify, cover at least the exact identifiers `"@authority";req` and `"content-digest"` (a keyed member or a bare `"@authority"` does not count), and fall inside its window (60 seconds of skew on `created`, none on `expires`). The digest covers the exact bytes served, a UTF-8 BOM included. Only keys with a verified signature are usable; an unsigned key beside them is ignored.
 - **Discovery failures** (WBA §6.10) cover a directory that does not resolve: a network or TLS error, a timeout, any status other than 200 (404, 410, 429 and 5xx included), or an invalid directory. A discovery failure never evicts a cached directory: its keys keep verifying for up to `max_stale_seconds` (24 hours by default) after the last successful fetch, never past the directory signatures' expiry. A key missing from such a stale copy is a discovery failure too. Failures are retried after a 60-second cooldown.
 - With no usable cached copy, the request is unverified, and what happens is local policy: `RequestSignatureVerification(wba_discovery_failure=...)`. The default `"reject"` answers 403 with `Accept-Signature`. `"anonymous"` serves the request exactly as an unsigned one, except operations in `required_for` or `protocol_methods_required_for`.
 - A directory that resolves without the key is evidence that the key was removed: a signature failure.
@@ -231,11 +234,13 @@ Use `ADCPClient(..., experimental_agent_identity=True)` or the equivalent multi-
 
 Onboarding posture is advisory. Sellers still implement requirements, applications and billing policy. Evaluate the verified origin's trust record and required role with `records.check_listing(...)` when applying an `open` policy, before provisioning access.
 
-AdCP 3.3 deprecates the RFC 9421 profile; it keeps working through 3.x. `SigningConfig` and `RequestSignatureVerification` emit a `DeprecationWarning` for it only once the SDK advertises 3.3 (`COMPATIBLE_ADCP_VERSIONS`), so legacy constructions stay quiet while 3.3 is not served. `async_resolve_agent`, `verify_from_agent_url`, BrandJsonJwksResolver and governance/rights/document JWS verification retain their existing chain until AdCP 3.4. Roll back opt-in signing only for origins that have not been bound; rolling a bound origin back to RFC 9421 requires explicit seller migration.
+AdCP 3.3 deprecates the RFC 9421 profile; it keeps working through 3.x. `SigningConfig` and `RequestSignatureVerification` emit a `DeprecationWarning` for it only once the SDK advertises 3.3 (`COMPATIBLE_ADCP_VERSIONS`), so legacy constructions stay quiet while 3.3 is not served. `async_resolve_agent`, `verify_from_agent_url`, BrandJsonJwksResolver and governance/rights/document JWS verification retain their existing chain until AdCP 3.4.
+
+**Governance tokens under Web Bot Auth.** `adcp.signing.wba.verify_wba_governance_issuer(token, signer_keys=..., governance_agents=...)` runs the profile's two governance checks (One agent per purpose): the token's `kid` is in the key directory of the `iss` origin and `jku` is that directory's URL (`governance_key_unknown`), and `iss` is the buyer's governance agent (`governance_issuer_not_authorized`), with the JWS, signature and time checks around them. It returns the issuer origin. The rest of the governance checklist (`aud`, `phase`, `sub`, the action binding, revocation, replay) stays with the caller. The `governance/` vectors grade it. Roll back opt-in signing only for origins that have not been bound; rolling a bound origin back to RFC 9421 requires explicit seller migration.
 
 ## Differences from the other SDKs
 
-- **Nonce acceptance.** The verifier accepts 22 to 256 characters (a 128-bit floor). TypeScript keeps a 16-byte floor; Go currently requires exactly 64 bytes and is being changed to accept a range.
+- **Nonce encodings.** Exactly 64 bytes, as #7894 requires; Python also accepts the padded standard-base64 spelling Cloudflare's signer emits. Go and TypeScript are aligning to #7894 at the same commit.
 - **Signed directories with an unsigned key.** Only keys with a verified signature are usable (draft directory-05). Go accepts every key in a signed directory; TypeScript refuses the directory.
 - **Discovery capacity.** A local discovery-limit refusal is a 429, as in TypeScript. Go treats it as a discovery failure.
 - **Directory created skew.** Directory signatures tolerate 60 seconds of `created` skew, as in TypeScript; Go allows none. All SDKs backdate `created` when publishing.
@@ -246,7 +251,17 @@ AdCP 3.3 deprecates the RFC 9421 profile; it keeps working through 3.x. `Signing
 
 ## Breaking changes to the experimental API
 
-The experimental identity surface changed incompatibly with the previous preview:
+The experimental identity surface changed incompatibly with the previous preview. Aligning with the final #7894 profile:
+
+- `verify_wba_request(replay_status=)` and `RequestSignatureVerification(wba_replay_status=)` are gone: a reused nonce is always 429 with `Accept-Signature` carrying a fresh nonce.
+- `DiscoveredSignerKeys(require_signed_directories=)` and `verify_directory_response(require_signed=)` are gone: directories must always be signed.
+- Relay signatures are refused (403); a request carries one `web-bot-auth` signature and one `Signature-Agent` member.
+- The verifier requires a 64-byte nonce (it accepted 22 to 256 characters), and `sign_wba_request(nonce=)` refuses anything else.
+- P-256 keys are refused for Web Bot Auth (`public_directory_key`, `sign_wba_request`, `sign_key_directory`, and `SigningConfig`/`sign_request` with `agent_origin`); `ecdsa-p256-sha256` stays on the RFC 9421 profile.
+- `accept_signature_value()` names `alg` and, on a 403, a bare `nonce` parameter; a replay 429 passes a fresh `nonce`. `WbaVerificationError.headers` is computed from its status and label, and the `fresh_nonce=` argument marks a replay answer.
+- `adcp.signing.wba` adds `verify_wba_governance_issuer`, `WbaGovernanceError`, `WBA_ALGORITHMS` and `WBA_GOVERNANCE_TYP`.
+
+From the earlier alignment:
 
 - `WbaUnavailableError` is an application-layer infrastructure error (`RuntimeError`), no longer a `WbaVerificationError` with `status`/`headers`. Discovery failures are `WbaDiscoveryError`; a revoked key is `WbaRevokedKeyError` (`WbaAuthorizationError` remains as an alias).
 - `verify_wba_request(revocation_checker=...)` is optional; `OriginRevocationChecker.status()` replaces the boolean call, which now raises for undecidable states.
@@ -262,6 +277,5 @@ The experimental identity surface changed incompatibly with the previous preview
 ## Not covered yet
 
 - The final 3.3 schema bundle and the P7 trust-record and grant-chain conformance vectors are upstream release dependencies; re-pin and rerun conformance when they land.
-- Konstantin Mirin's follow-ups in #1511 that remain open: building the profile on the `http-message-signatures` library (and moving from `http-sfv` to `http-sf`), which would also retire the WBA signature-base builder and the strict structured-field pre-scan, and accepting the legacy sf-string `Signature-Agent`.
 - Durable stores: bindings and replay state are pluggable; authority history and revocation history are in memory with no pluggable store yet (Go and TypeScript have one). Public deployments need durable versions of all four.
 - The directory cache is evictable by unauthenticated traffic naming many origins (as in Go); eviction only forces a refetch, but a signer whose directory is down at that moment loses its stale-copy continuation.

@@ -141,12 +141,18 @@ def _decode_json_object(raw: bytes, what: str) -> dict[str, Any]:
     return value
 
 
+def _split_registry() -> _AdcpJwsRegistry:
+    # Splitting decodes the protected header and checks segment sizes only;
+    # the profile's alg allow-list is applied by _validate_header afterwards.
+    return _AdcpJwsRegistry(strict_check_header=False)
+
+
 def parse_compact_jws(token: str) -> tuple[str, str, bytes]:
     """Split a compact JWS into ``(b64_header, b64_payload, signature bytes)``.
 
-    Returns the header and payload as the ORIGINAL base64url substrings, not
-    decoded and re-encoded, so the verifier checks the exact bytes the signer
-    signed.
+    ``joserfc.jws.extract_compact`` does the split. The header and payload
+    come back as the ORIGINAL base64url substrings, not decoded and
+    re-encoded, so the verifier checks the exact bytes the signer signed.
     """
     if not isinstance(token, str):
         raise JwsMalformedError("compact JWS must be a string")
@@ -155,21 +161,31 @@ def parse_compact_jws(token: str) -> tuple[str, str, bytes]:
         raise JwsMalformedError(
             f"compact JWS must have exactly 3 dot-separated segments, got {len(parts)}"
         )
-    b64_header, b64_payload, b64_signature = parts
-    if not b64_header or not b64_payload or not b64_signature:
+    if "" in parts:
         raise JwsMalformedError("compact JWS has an empty segment")
     try:
-        signature = _b64url_decode(b64_signature)
+        compact = jws.extract_compact(token.encode("ascii"), registry=_split_registry())
+    except (JoseError, UnicodeError, ValueError) as exc:
+        raise JwsMalformedError(
+            f"compact JWS protected header is not valid base64url JSON: {exc}"
+        ) from exc
+    try:
+        signature = _b64url_decode(compact.segments["signature"].decode("ascii"))
     except ValueError as exc:
         raise JwsMalformedError(f"compact JWS signature is not valid base64url: {exc}") from exc
-    return b64_header, b64_payload, signature
+    return (
+        compact.segments["header"].decode("ascii"),
+        compact.segments["payload"].decode("ascii"),
+        signature,
+    )
 
 
 def parse_general_json_jws(doc: dict[str, Any]) -> tuple[str, str, bytes]:
     """Extract the single signature from a JWS general JSON serialization.
 
-    Returns ``(b64_header, b64_payload, signature_bytes)``. A single operator
-    key signs an AdCP revocation list, so this profile treats a list with more
+    ``joserfc.jws.extract_compact`` does the parse (see below). Returns
+    ``(b64_header, b64_payload, signature_bytes)``. A single operator key
+    signs an AdCP revocation list, so this profile treats a list with more
     than one signature as malformed. An unprotected ``header`` member is
     ignored: every parameter the profile reads must be integrity-protected.
     """
@@ -188,18 +204,14 @@ def parse_general_json_jws(doc: dict[str, Any]) -> tuple[str, str, bytes]:
     entry = signatures[0]
     if not isinstance(entry, dict):
         raise JwsMalformedError("JWS signature entry must be an object")
-    b64_header = entry.get("protected")
-    b64_signature = entry.get("signature")
-    b64_payload = doc["payload"]
-    if not isinstance(b64_header, str) or not isinstance(b64_signature, str):
+    if not isinstance(entry.get("protected"), str) or not isinstance(entry.get("signature"), str):
         raise JwsMalformedError("JWS signature entry missing 'protected' or 'signature'")
-    if not isinstance(b64_payload, str):
+    if not isinstance(doc["payload"], str):
         raise JwsMalformedError("JWS 'payload' must be a base64url string")
-    try:
-        signature = _b64url_decode(b64_signature)
-    except ValueError as exc:
-        raise JwsMalformedError(f"JWS signature is not valid base64url: {exc}") from exc
-    return b64_header, b64_payload, signature
+    # One signature with a protected header is the compact serialization in
+    # another shape (RFC 7515 section 7.2.1), so joserfc's compact extractor
+    # splits it with the same checks.
+    return parse_compact_jws(f"{entry['protected']}.{doc['payload']}.{entry['signature']}")
 
 
 def _validate_header(

@@ -123,7 +123,7 @@ def test_mixed_alphabet_stops_before_lookup_crypto_or_replay(signature, monkeypa
     def forbidden(*args, **kwargs):
         pytest.fail("malformed signature reached key lookup, crypto or replay state")
 
-    monkeypatch.setattr("adcp.signing.verifier.verify_signature", forbidden)
+    monkeypatch.setattr("adcp.signing._rfc9421.verify", forbidden)
     for method in ("seen", "remember", "claim", "at_capacity"):
         monkeypatch.setattr(options.replay_store, method, forbidden)
     options = replace(options, jwks_resolver=forbidden)

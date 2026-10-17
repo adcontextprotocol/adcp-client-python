@@ -138,7 +138,20 @@ dependencies = [
     # httpx2 2.5.0 requires idna>=3.18. Upper bound at <4 because IDNA
     # semantics across a major are not contracted.
     "idna>=3.18,<4",
-    "http-sfv>=0.9.9,<1.0",
+    # RFC 9421 HTTP Message Signatures for every signing profile
+    # (``adcp.signing._rfc9421``): signature bases, ``Signature-Input``
+    # assembly, and the ed25519 / ecdsa-p256-sha256 / rsa-pss-sha512
+    # algorithms. The SDK supplies a ``component_resolver_class`` and reaches
+    # two protected subclass hooks (``_build_signature_base``,
+    # ``_parse_covered_component_ids``); the upper bound and
+    # tests/conformance/signing/test_rfc9421_library_contract.py guard them.
+    # Apache-2.0, depends only on cryptography.
+    "http-message-signatures>=2.0.1,<3",
+    # RFC 8941 / RFC 9651 Structured Fields (successor to the archived
+    # http-sfv). 1.4.0 is the tested floor; ``on_duplicate_key`` lets the SDK
+    # refuse a duplicate dictionary key or parameter instead of keeping the
+    # last. MIT.
+    "http-sf>=1.4.0,<2",
 ]
 
 [project.scripts]
@@ -376,6 +389,17 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = ["psycopg", "psycopg.*", "psycopg_pool", "psycopg_pool.*"]
 ignore_missing_imports = true
+
+# http-message-signatures ships py.typed but re-exports its public classes
+# implicitly and leaves some helpers unannotated. adcp.signing._rfc9421 is the
+# one module that calls it.
+[[tool.mypy.overrides]]
+module = ["http_message_signatures", "http_message_signatures.*"]
+implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = "adcp.signing._rfc9421"
+disallow_untyped_calls = false
 
 # jsonschema doesn't ship PEP 561 stubs in the default package; the
 # ``types-jsonschema`` stub package is optional and we use

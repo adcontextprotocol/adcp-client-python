@@ -4,6 +4,11 @@ Implements the pipeline (pre-check 0 + checklist steps 1-14, including 9a)
 defined in `security.mdx`. Each step either passes or raises
 `SignatureVerificationError` with the exact code from the transport error
 taxonomy — conformance requires byte-for-byte match on the code string.
+
+RFC 9421 comes from libraries: ``http-sf`` parses the fields at step 1, and
+``http-message-signatures`` builds the signature base and verifies it at
+step 10. The checklist order, the profile checks between those steps, and
+the mapping of every failure onto an AdCP code stay here.
 """
 
 from __future__ import annotations
@@ -15,12 +20,12 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from adcp.signing import _rfc9421
 from adcp.signing._header_precheck import strict_header_precheck
 from adcp.signing._strict_json import StrictJsonError, body_is_empty, parse_strict_json
 from adcp.signing.canonical import (
     TargetUriMalformedError,
     _lookup,
-    build_signature_base,
     parse_signature_input_header,
 )
 from adcp.signing.constants import (
@@ -36,8 +41,8 @@ from adcp.signing.crypto import (
     ALLOWED_ALGS,
     alg_for_jwk,
     extract_signature_bytes,
+    format_signature_header,
     public_key_from_jwk,
-    verify_signature,
 )
 from adcp.signing.digest import content_digest_matches
 from adcp.signing.errors import (
@@ -82,6 +87,7 @@ SigningProfileVersion = Literal["3.0", "3.1", "3.2"]
 REQUIRED_COMPONENTS = ("@method", "@target-uri", "@authority")
 REQUIRED_PARAMS = ("created", "expires", "nonce", "keyid", "alg", "tag")
 _INT_PARAMS = frozenset({"created", "expires"})
+_SIGNATURE_FIELDS = frozenset({"signature", "signature-input"})
 _STR_PARAMS = frozenset({"nonce", "keyid", "alg", "tag"})
 
 # Defensive upper bound against log/dict-key poisoning. RFC 7517 has no hard kid
@@ -432,27 +438,6 @@ def verify_request_signature(
         )
 
     try:
-        base = build_signature_base(method=method, url=url, headers=headers, parsed=parsed).encode(
-            "utf-8"
-        )
-    except TargetUriMalformedError as exc:
-        # MUST precede the (ValueError, KeyError) clause below: TargetUriMalformedError
-        # IS a ValueError, so reordering these two silently downgrades every
-        # malformed-authority rejection to request_signature_header_malformed
-        # with the suite still green. test_target_uri_malformed_boundary.py
-        # guards the ordering.
-        raise SignatureVerificationError(
-            exc.code,
-            step=6,
-            message=f"signature base construction failed: {exc}",
-        ) from exc
-    except (ValueError, KeyError) as exc:
-        raise SignatureVerificationError(
-            REQUEST_SIGNATURE_HEADER_MALFORMED,
-            step=6,
-            message=f"signature base construction failed: {exc}",
-        ) from exc
-    try:
         public_key = public_key_from_jwk(jwk)
     except (ValueError, KeyError) as exc:
         raise SignatureVerificationError(
@@ -460,14 +445,51 @@ def verify_request_signature(
             step=8,
             message=f"JWK decode failed: {exc}",
         ) from exc
-    if not verify_signature(
-        alg=alg, public_key=public_key, signature_base=base, signature=sig_bytes
-    ):
+    # Step 10: http-message-signatures builds the base and verifies. The
+    # selected label is handed over alone, re-serialized, with its signature
+    # in RFC 8941 form, so the other labels the profile ignores (and the
+    # 3.0/3.1 Base64URL spelling) never reach the library.
+    message = _rfc9421.Request(
+        method=method,
+        url=url,
+        headers={
+            **{k: v for k, v in headers.items() if k.lower() not in _SIGNATURE_FIELDS},
+            "Signature-Input": f"{options.label}={parsed.raw_value}",
+            "Signature": format_signature_header(sig_bytes, label=options.label),
+        },
+    )
+    try:
+        _rfc9421.verify(
+            message,
+            label=options.label,
+            tag=str(parsed.params["tag"]),
+            alg=alg,
+            public_key=public_key,
+            resolver=_rfc9421.AdcpComponentResolver,
+            window_checked=True,  # step 5
+            parameters=tuple(parsed.params),
+        )
+    except _rfc9421.SignatureBaseError as exc:
+        if isinstance(exc.cause, TargetUriMalformedError):
+            # A malformed authority keeps its own code (step 6 of the
+            # canonicalization rules), not request_signature_header_malformed.
+            # test_target_uri_malformed_boundary.py guards the distinction.
+            raise SignatureVerificationError(
+                exc.cause.code,
+                step=6,
+                message=f"signature base construction failed: {exc.cause}",
+            ) from exc
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=6,
+            message=f"signature base construction failed: {exc}",
+        ) from exc
+    except _rfc9421.SignatureMismatchError as exc:
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_INVALID,
             step=10,
             message="signature did not verify over the computed base",
-        )
+        ) from exc
 
     body_authenticated = False
     if "content-digest" in parsed.components:

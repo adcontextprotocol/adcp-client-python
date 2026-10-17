@@ -1,12 +1,14 @@
-"""Crypto primitives for the AdCP request-signing profile.
+"""Key handling and signature primitives for the AdCP request-signing profile.
 
 Supported algorithms per RFC 9421 profile:
 - `ed25519` (EdDSA over Curve25519)
 - `ecdsa-p256-sha256` (ES256)
 
-ES256 signatures use IEEE P1363 (r||s, 64 bytes) per RFC 9421 §3.3.2. The
-`cryptography` library emits/accepts DER by default, so sign() and verify()
-convert at the boundary.
+Signing and verification are ``http-message-signatures``' algorithm classes,
+which also convert ES256 to and from the IEEE P1363 ``r || s`` form RFC 9421
+§3.3.2 requires. The ``Signature`` field is parsed and serialized by
+``http-sf``. What stays here is AdCP key policy: the JWK shapes the profile
+accepts and the PEM loader.
 
 Encrypted PEM support (passphrase-protected private keys) is tracked in #191.
 """
@@ -14,19 +16,14 @@ Encrypted PEM support (passphrase-protected private keys) is tracked in #191.
 from __future__ import annotations
 
 import base64
-import binascii
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
-from cryptography.hazmat.primitives.asymmetric.utils import (
-    decode_dss_signature,
-    encode_dss_signature,
-)
+from http_message_signatures.exceptions import HTTPMessageSignaturesException
 
-from adcp.signing._structured_fields import reject_dictionary_duplicates
-from adcp.signing.canonical import split_structured_field
+from adcp.signing._rfc9421 import ALGORITHMS, parse_dictionary, serialize, translate_legacy_binary
 
 PublicKey = ed25519.Ed25519PublicKey | ec.EllipticCurvePublicKey
 PrivateKey = ed25519.Ed25519PrivateKey | ec.EllipticCurvePrivateKey
@@ -171,28 +168,19 @@ def verify_signature(
     signature_base: bytes,
     signature: bytes,
 ) -> bool:
-    """Return True iff `signature` is valid over `signature_base` for `alg`."""
+    """Return True iff `signature` is valid over `signature_base` for `alg`.
+
+    The check is ``http-message-signatures``' algorithm class for ``alg``
+    (ES256 takes the RFC 9421 §3.3.2 ``r || s`` form). A key of the wrong
+    type for ``alg`` cannot verify, so it returns False.
+    """
     if alg not in ALLOWED_ALGS:
         raise ValueError(f"unsupported alg: {alg}")
     try:
-        if alg == ALG_ED25519:
-            if not isinstance(public_key, ed25519.Ed25519PublicKey):
-                return False
-            public_key.verify(signature, signature_base)
-            return True
-        if alg == ALG_ES256:
-            if not isinstance(public_key, ec.EllipticCurvePublicKey):
-                return False
-            if len(signature) != 64:
-                return False
-            r = int.from_bytes(signature[:32], "big")
-            s = int.from_bytes(signature[32:], "big")
-            der = encode_dss_signature(r, s)
-            public_key.verify(der, signature_base, ec.ECDSA(hashes.SHA256()))
-            return True
-    except InvalidSignature:
+        ALGORITHMS[alg](public_key=public_key).verify(signature=signature, message=signature_base)
+    except (InvalidSignature, HTTPMessageSignaturesException):
         return False
-    return False
+    return True
 
 
 def sign_signature_base(
@@ -202,17 +190,15 @@ def sign_signature_base(
     signature_base: bytes,
 ) -> bytes:
     """Produce a signature over the base. ES256 returns r||s (64 bytes)."""
-    if alg == ALG_ED25519:
-        if not isinstance(private_key, ed25519.Ed25519PrivateKey):
-            raise ValueError("alg/private_key mismatch: expected Ed25519 key")
-        return private_key.sign(signature_base)
-    if alg == ALG_ES256:
-        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
-            raise ValueError("alg/private_key mismatch: expected EC P-256 key")
-        der = private_key.sign(signature_base, ec.ECDSA(hashes.SHA256()))
-        r, s = decode_dss_signature(der)
-        return r.to_bytes(32, "big") + s.to_bytes(32, "big")
-    raise ValueError(f"unsupported alg: {alg}")
+    if alg not in ALLOWED_ALGS:
+        raise ValueError(f"unsupported alg: {alg}")
+    try:
+        signer = ALGORITHMS[alg](private_key=private_key)
+    except HTTPMessageSignaturesException as exc:
+        expected = "Ed25519 key" if alg == ALG_ED25519 else "EC P-256 key"
+        raise ValueError(f"alg/private_key mismatch: expected {expected}") from exc
+    signature: bytes = signer.sign(signature_base)
+    return signature
 
 
 def extract_signature_bytes(
@@ -223,35 +209,28 @@ def extract_signature_bytes(
 ) -> bytes:
     """Parse a Signature header value and return the raw signature bytes for `label`.
 
-    The value is an sf-dictionary: `sig1=:<base64>:[, sig2=:<base64>:]`.
-    RFC 8941 specifies standard padded Base64. AdCP 3.0/3.1 compatibility
-    permits the historical Base64URL spelling; 3.2 callers disable that
-    fallback so malformed Structured Fields fail at verifier step 1.
+    The value is an RFC 8941 Dictionary parsed by ``http-sf``, with duplicate
+    labels and parameters refused. RFC 8941 byte sequences are standard
+    padded Base64. AdCP 3.0/3.1 compatibility permits the historical
+    Base64URL spelling, which is translated before the strict parse; 3.2
+    callers disable that so a malformed field fails at verifier step 1.
     """
-    reject_dictionary_duplicates(signature_header)
-    for entry in split_structured_field(signature_header, ","):
-        entry = entry.strip()
-        if not entry:
-            continue
-        eq = entry.find("=")
-        if eq < 0:
-            continue
-        name = entry[:eq].strip()
-        value = entry[eq + 1 :].strip()
-        if name != label:
-            continue
-        if not (value.startswith(":") and value.endswith(":")):
-            raise ValueError(f"Signature value for {label!r} is not an sf-binary: {value!r}")
-        inner = value[1:-1]
-        try:
-            return base64.b64decode(inner, validate=True)
-        except (ValueError, binascii.Error) as exc:
-            if not allow_legacy_base64url:
-                raise ValueError(
-                    f"Signature value for {label!r} is not RFC 8941 standard Base64"
-                ) from exc
-            return b64url_decode(inner)
-    raise KeyError(f"label not found in Signature header: {label}")
+    try:
+        members = parse_dictionary(signature_header)
+    except ValueError:
+        if not allow_legacy_base64url:
+            raise
+        members = parse_dictionary(translate_legacy_binary(signature_header))
+    if label not in members:
+        raise KeyError(f"label not found in Signature header: {label}")
+    value, params = members[label]
+    if not isinstance(value, bytes):
+        raise ValueError(f"Signature value for {label!r} is not an sf-binary")
+    if params:
+        # RFC 9421 §4.2 defines no Signature member parameters; unsigned
+        # extras are refused rather than ignored.
+        raise ValueError(f"Signature value for {label!r} carries parameters")
+    return value
 
 
 def format_signature_header(
@@ -260,10 +239,12 @@ def format_signature_header(
     *,
     use_legacy_base64url: bool = False,
 ) -> str:
-    """Produce a Signature header value for a single-label signature."""
-    encoded = (
-        b64url_encode(signature)
-        if use_legacy_base64url
-        else base64.b64encode(signature).decode("ascii")
-    )
-    return f"{label}=:{encoded}:"
+    """Produce a Signature header value for a single-label signature.
+
+    RFC 8941 serialization comes from ``http-sf``. The AdCP 3.0/3.1 legacy
+    spelling (unpadded Base64URL) is not RFC 8941 and is formatted here.
+    """
+    if use_legacy_base64url:
+        serialize({label: (True, {})})  # validates the label as an RFC 8941 key
+        return f"{label}=:{b64url_encode(signature)}:"
+    return serialize({label: (signature, {})})

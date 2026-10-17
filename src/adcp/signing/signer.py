@@ -2,6 +2,9 @@
 
 Produces the `Signature-Input`, `Signature`, and (optionally) `Content-Digest`
 headers for a request, per the verifier checklist the other side will run.
+``http-message-signatures`` builds the signature base and serializes
+``Signature-Input``; this module applies the profile's choices (covered
+components, window, nonce, tag, and the 3.0/3.1 Base64URL ``Signature``).
 
 Two entry points share the same canonicalization spine:
 
@@ -21,11 +24,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-from adcp.signing.canonical import (
-    SignatureInputLabel,
-    _lookup,
-    build_signature_base,
-)
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from http_message_signatures.exceptions import HTTPMessageSignaturesException
+
+from adcp.signing import _rfc9421
+from adcp.signing.canonical import _lookup
 from adcp.signing.constants import (
     DEFAULT_EXPIRES_IN_SECONDS,
     DEFAULT_TAG,
@@ -39,8 +42,8 @@ from adcp.signing.crypto import (
     ALLOWED_ALGS,
     PrivateKey,
     b64url_encode,
+    extract_signature_bytes,
     format_signature_header,
-    sign_signature_base,
 )
 from adcp.signing.digest import compute_content_digest_sha256
 from adcp.signing.provider import SigningProvider
@@ -67,72 +70,19 @@ class SignedHeaders:
         return headers
 
 
-_SF_STRING_ALLOWED: frozenset[str] = frozenset(chr(c) for c in range(0x20, 0x7F))
-
-# RFC 8941 §3.1.2 key grammar: ( lcalpha / "*" ) *( lcalpha / DIGIT / "_" / "-" / "." / "*" )
-_SF_KEY_HEAD_ALLOWED: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyz*")
-_SF_KEY_TAIL_ALLOWED: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_-.*")
-
-
-def _validate_sf_key(value: str, *, field: str) -> str:
-    """Validate ``value`` as an RFC 8941 §3.1.2 sf-key (token).
-
-    Sig-labels are emitted unquoted in both ``Signature-Input`` and
-    ``Signature`` headers, so they cannot use sf-string escaping —
-    they must be valid tokens. Anything outside the §3.1.2 grammar
-    would either inject extra header bytes (CRLF) or produce a
-    label conformant verifiers parse differently.
-    """
-    if not value:
-        raise ValueError(f"{field} must be a non-empty RFC 8941 sf-key")
-    if value[0] not in _SF_KEY_HEAD_ALLOWED:
-        raise ValueError(
-            f"{field}={value!r} is not a valid RFC 8941 sf-key — must start with "
-            "a lowercase letter or '*'"
-        )
-    bad = next((c for c in value[1:] if c not in _SF_KEY_TAIL_ALLOWED), None)
-    if bad is not None:
-        raise ValueError(
-            f"{field}={value!r} is not a valid RFC 8941 sf-key — character "
-            f"{bad!r} (codepoint {ord(bad):#06x}) is not allowed; "
-            "only [a-z0-9_-.*] permitted after the first character"
-        )
-    return value
-
-
-def _escape_sf_string(value: str, *, field: str) -> str:
-    """Escape ``value`` for embedding in an RFC 8941 §3.3.3 sf-string.
-
-    The §3.3.3 grammar permits only printable ASCII 0x20-0x7E; ``"``
-    and ``\\`` require escaping (and are the only escapes). Control
-    bytes and non-ASCII have no representation at all and are rejected
-    here — passing one through would emit a header line that conformant
-    verifiers parse differently from this serializer (a parser-divergence
-    bug class) and, in the CRLF case, can also turn into HTTP header
-    injection at non-httpx integrators that don't sanitize embedded
-    line terminators.
-    """
-    bad = next((c for c in value if c not in _SF_STRING_ALLOWED), None)
-    if bad is not None:
-        raise ValueError(
-            f"{field} contains character {bad!r} (codepoint {ord(bad):#06x}) "
-            "not allowed in RFC 8941 sf-string — only printable ASCII 0x20-0x7E "
-            "may appear in keyid, nonce, or tag values"
-        )
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
 @dataclass(frozen=True)
-class _PreparedSignature:
-    """Result of canonicalizing a request — everything except the raw signature."""
+class _PreparedRequest:
+    """Everything about a request to sign except the signature itself."""
 
-    base: bytes
-    raw_value: str
-    label: str
+    message: _rfc9421.Request
+    covered_component_ids: tuple[str, ...]
+    created: int
+    expires: int
+    nonce: str
     content_digest_value: str | None
 
 
-def _prepare_signature(
+def _prepare_request(
     *,
     method: str,
     url: str,
@@ -146,13 +96,15 @@ def _prepare_signature(
     nonce: str | None,
     tag: str,
     label: str,
-) -> _PreparedSignature:
-    """Canonicalize a request into a signable RFC 9421 base.
+) -> _PreparedRequest:
+    """Apply the AdCP profile's signer rules; the library does the RFC 9421 work.
 
     Pure: takes only the request shape and the key metadata that lands in
-    ``Signature-Input``. The actual key material (private key OR
-    SigningProvider) is applied separately so the sync and async signers
-    produce byte-identical bases.
+    ``Signature-Input``. The key material (private key or SigningProvider) is
+    applied separately, and the sync and async signers produce byte-identical
+    headers. Values that RFC 8941 cannot carry (a control character in
+    ``key_id``, a label outside the key grammar) are refused by the
+    ``http-sf`` and ``http-message-signatures`` serializers.
     """
     if alg not in ALLOWED_ALGS:
         raise ValueError(f"alg must be one of {sorted(ALLOWED_ALGS)}, got {alg!r}")
@@ -160,13 +112,20 @@ def _prepare_signature(
         raise ValueError(
             f"expires_in_seconds must be in (0, {MAX_WINDOW_SECONDS}], got {expires_in_seconds}"
         )
-    if not key_id:
-        raise ValueError("key_id must be a non-empty string")
-    _validate_sf_key(label, field="label")
+    for name, value in (("key_id", key_id), ("label", label), ("tag", tag)):
+        if not value:
+            raise ValueError(f"{name} must be a non-empty string")
+    if nonce is not None and not nonce:
+        raise ValueError("nonce must be a non-empty string")
+    try:
+        # A label is an RFC 8941 key in both fields; refuse a bad one before
+        # anything is signed.
+        _rfc9421.serialize({label: (True, {})})
+    except ValueError as exc:
+        raise ValueError(f"label {label!r} is not a valid RFC 8941 key: {exc}") from exc
 
     if created is None:
         created = int(time.time())
-    expires = created + expires_in_seconds
     if nonce is None:
         nonce = b64url_encode(secrets.token_bytes(NONCE_BYTES))
 
@@ -177,54 +136,36 @@ def _prepare_signature(
         components.append("content-type")
     if cover_content_digest:
         content_digest_value = compute_content_digest_sha256(body)
+        outgoing_headers = {
+            k: v for k, v in outgoing_headers.items() if k.lower() != "content-digest"
+        }
         outgoing_headers["Content-Digest"] = content_digest_value
         components.append("content-digest")
-
-    comp_serialized = "(" + " ".join(f'"{c}"' for c in components) + ")"
-    nonce_escaped = _escape_sf_string(nonce, field="nonce")
-    key_id_escaped = _escape_sf_string(key_id, field="key_id")
-    tag_escaped = _escape_sf_string(tag, field="tag")
-    params_serialized = (
-        f';created={created};expires={expires};nonce="{nonce_escaped}"'
-        f';keyid="{key_id_escaped}";alg="{alg}";tag="{tag_escaped}"'
-    )
-    raw_value = comp_serialized + params_serialized
-
-    parsed = SignatureInputLabel(
-        label=label,
-        components=tuple(components),
-        params={
-            "created": created,
-            "expires": expires,
-            "nonce": nonce,
-            "keyid": key_id,
-            "alg": alg,
-            "tag": tag,
-        },
-        raw_value=raw_value,
-    )
-    base = build_signature_base(
-        method=method, url=url, headers=outgoing_headers, parsed=parsed
-    ).encode("utf-8")
-    return _PreparedSignature(
-        base=base,
-        raw_value=raw_value,
-        label=label,
+    return _PreparedRequest(
+        message=_rfc9421.Request(method=method, url=url, headers=outgoing_headers),
+        covered_component_ids=tuple(
+            _rfc9421.component_identifier((name, {})) for name in components
+        ),
+        created=created,
+        expires=created + expires_in_seconds,
+        nonce=nonce,
         content_digest_value=content_digest_value,
     )
 
 
-def _assemble_headers(
-    prepared: _PreparedSignature,
-    sig_bytes: bytes,
+def _signed_headers(
+    prepared: _PreparedRequest,
     *,
+    signature_input: str,
+    signature: bytes,
+    label: str,
     signing_profile_version: Literal["3.0", "3.1", "3.2"],
 ) -> SignedHeaders:
     return SignedHeaders(
-        signature_input=f"{prepared.label}={prepared.raw_value}",
+        signature_input=signature_input,
         signature=format_signature_header(
-            sig_bytes,
-            label=prepared.label,
+            signature,
+            label=label,
             use_legacy_base64url=signing_profile_version != "3.2",
         ),
         content_digest=prepared.content_digest_value,
@@ -276,6 +217,11 @@ def sign_request(
     if agent_origin is not None:
         from adcp.signing.wba import public_directory_key, sign_wba_request
 
+        if not isinstance(private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError(
+                "Web Bot Auth here takes an Ed25519 key (sign RSA keys with "
+                "sign_wba_request); ES256 is an AdCP RFC 9421 profile algorithm only"
+            )
         if key_id != public_directory_key(private_key)["kid"]:
             raise ValueError("Web Bot Auth key_id must be the public key's RFC 7638 thumbprint")
         result = sign_wba_request(
@@ -301,7 +247,7 @@ def sign_request(
         body=body,
         cover_content_digest=cover_content_digest,
     )
-    prepared = _prepare_signature(
+    prepared = _prepare_request(
         method=method,
         url=url,
         headers=headers,
@@ -315,10 +261,30 @@ def sign_request(
         tag=tag,
         label=label,
     )
-    sig_bytes = sign_signature_base(alg=alg, private_key=private_key, signature_base=prepared.base)
-    return _assemble_headers(
+    try:
+        # Fails before signing when the key does not fit ``alg``.
+        _rfc9421.ALGORITHMS[alg](private_key=private_key)
+    except HTTPMessageSignaturesException as exc:
+        expected = "Ed25519 key" if alg == ALG_ED25519 else "EC P-256 key"
+        raise ValueError(f"alg/private_key mismatch: expected {expected}") from exc
+    signature_input, signature = _rfc9421.sign(
+        prepared.message,
+        alg=alg,
+        private_key=private_key,
+        key_id=key_id,
+        label=label,
+        created=prepared.created,
+        expires=prepared.expires,
+        nonce=prepared.nonce,
+        tag=tag,
+        covered_component_ids=prepared.covered_component_ids,
+        resolver=_rfc9421.AdcpComponentResolver,
+    )
+    return _signed_headers(
         prepared,
-        sig_bytes,
+        signature_input=signature_input,
+        signature=extract_signature_bytes(signature, label, allow_legacy_base64url=False),
+        label=label,
         signing_profile_version=signing_profile_version,
     )
 
@@ -359,13 +325,15 @@ async def async_sign_request(
         body=body,
         cover_content_digest=cover_content_digest,
     )
-    prepared = _prepare_signature(
+    key_id = provider.key_id()
+    alg = provider.algorithm()
+    prepared = _prepare_request(
         method=method,
         url=url,
         headers=headers,
         body=body,
-        key_id=provider.key_id(),
-        alg=provider.algorithm(),
+        key_id=key_id,
+        alg=alg,
         cover_content_digest=resolved_cover_content_digest,
         created=created,
         expires_in_seconds=expires_in_seconds,
@@ -373,10 +341,25 @@ async def async_sign_request(
         tag=tag,
         label=label,
     )
-    sig_bytes = await provider.sign(prepared.base)
-    return _assemble_headers(
+    # The same base and parameters HTTPMessageSigner.sign produces, so the
+    # headers match sign_request byte for byte.
+    base, member = _rfc9421.signature_base(
+        prepared.message,
+        alg=alg,
+        key_id=key_id,
+        created=prepared.created,
+        expires=prepared.expires,
+        nonce=prepared.nonce,
+        tag=tag,
+        covered_component_ids=prepared.covered_component_ids,
+        resolver=_rfc9421.AdcpComponentResolver,
+    )
+    signature = await provider.sign(base)
+    return _signed_headers(
         prepared,
-        sig_bytes,
+        signature_input=f"{label}={member}",
+        signature=signature,
+        label=label,
         signing_profile_version=signing_profile_version,
     )
 

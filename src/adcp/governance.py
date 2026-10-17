@@ -25,22 +25,20 @@ from typing import Any, Literal, Protocol, TypeAlias, cast
 from urllib.parse import urlsplit
 
 import rfc8785
+from joserfc import jws
+from joserfc.errors import JoseError
+from joserfc.jwk import ECKey, OKPKey
+from joserfc.jws import JWSRegistry
+from joserfc.registry import HeaderParameter, is_bool
 from pydantic import BaseModel
 
 from adcp._version import resolve_adcp_version
 from adcp.signing.brand_jwks import BrandJsonResolverError, _pick_agent
 from adcp.signing.canonical import canonicalize_target_uri
-from adcp.signing.crypto import (
-    ALG_ED25519,
-    ALG_ES256,
-    b64url_decode,
-    b64url_encode,
-    public_key_from_jwk,
-    sign_signature_base,
-    verify_signature,
-)
+from adcp.signing.crypto import b64url_decode, b64url_encode
 from adcp.signing.etld import host_from
 from adcp.signing.jwks import AsyncCachingJwksResolver, AsyncJwksResolver, JwksResolver
+from adcp.signing.jws import _AdcpJwsRegistry, _import_jwk
 from adcp.signing.replay import ReplayStore, supports_atomic_claim
 from adcp.types import CheckGovernanceRequest, ReportPlanOutcomeRequest
 
@@ -943,8 +941,8 @@ def read_governance_authorization_issuer(token: object) -> str | None:
     """
     if not isinstance(token, str) or not token or len(token) > GOVERNANCE_MAX_TOKEN_BYTES:
         return None
-    parts = token.split(".")
-    if len(parts) != 3 or any(_COMPACT_SEGMENT_RE.fullmatch(part) is None for part in parts):
+    parts = _compact_segments(token)
+    if parts is None:
         return None
     try:
         claims = _decode_json_segment(parts[1])
@@ -1088,14 +1086,18 @@ def issue_governance_authorization(
         "crit": list(GOVERNANCE_AUTHORIZATION_CRITICAL_CLAIMS),
         **{name: True for name in GOVERNANCE_AUTHORIZATION_CRITICAL_CLAIMS},
     }
-    encoded_header = b64url_encode(_compact_json(header))
-    encoded_claims = b64url_encode(_compact_json(claims))
-    signing_input = f"{encoded_header}.{encoded_claims}".encode("ascii")
-    internal_alg = ALG_ED25519 if alg == "EdDSA" else ALG_ES256
-    signature = sign_signature_base(
-        alg=internal_alg, private_key=private_key, signature_base=signing_input
-    )
-    return f"{encoded_header}.{encoded_claims}.{b64url_encode(signature)}"
+    try:
+        key = _jose_key(alg, private_key)
+        # Sorted header members and the canonical claims bytes keep the token
+        # as before for an ASCII kid (joserfc escapes non-ASCII in the header).
+        return jws.serialize_compact(
+            dict(sorted(header.items())),
+            _compact_json(claims),
+            key,
+            registry=_governance_jws_registry(alg),
+        )
+    except (JoseError, TypeError, ValueError) as exc:
+        raise ValueError(f"governance signing key cannot sign {alg}: {exc}") from exc
 
 
 async def verify_governance_authorization(
@@ -1133,8 +1135,8 @@ async def verify_governance_authorization(
         return reject("governance_token_invalid", str(exc))
     if not isinstance(token, str) or not token or len(token) > GOVERNANCE_MAX_TOKEN_BYTES:
         return reject("governance_token_invalid", "governance_context is missing or too large")
-    parts = token.split(".")
-    if len(parts) != 3 or any(_COMPACT_SEGMENT_RE.fullmatch(part) is None for part in parts):
+    parts = _compact_segments(token)
+    if parts is None:
         return reject("governance_token_invalid", "governance_context is not a compact JWS")
     try:
         header = _decode_json_segment(parts[0])
@@ -1197,13 +1199,13 @@ async def verify_governance_authorization(
     ):
         return reject("governance_key_unknown", "governance signing key is not authorized")
     try:
-        verified = verify_signature(
-            alg=ALG_ED25519 if alg == "EdDSA" else ALG_ES256,
-            public_key=public_key_from_jwk(dict(jwk)),
-            signature_base=f"{parts[0]}.{parts[1]}".encode("ascii"),
-            signature=signature,
+        jws.deserialize_compact(
+            token,
+            _import_jwk(_public_jwk(jwk)),
+            registry=_governance_jws_registry(alg),
         )
-    except (TypeError, ValueError):
+        verified = True
+    except (JoseError, TypeError, ValueError):
         verified = False
     if not verified:
         return reject("governance_token_invalid", "governance token signature verification failed")
@@ -1438,6 +1440,60 @@ def _finite_number(value: object) -> bool:
         not isinstance(value, bool)
         and isinstance(value, (int, float))
         and math.isfinite(float(value))
+    )
+
+
+def _governance_jws_registry(alg: str) -> JWSRegistry:
+    """The AdCP JWS registry (``jws._AdcpJwsRegistry``) for one governance ``alg``.
+
+    The critical claim markers are registered as boolean protected-header
+    parameters, so joserfc's ``crit`` check accepts exactly those.
+    """
+    return _AdcpJwsRegistry(
+        header_registry={
+            name: HeaderParameter(f"AdCP critical claim marker: {name}", is_bool)
+            for name in GOVERNANCE_AUTHORIZATION_CRITICAL_CLAIMS
+        },
+        algorithms=[alg],
+        strict_check_header=False,
+    )
+
+
+def _jose_key(alg: str, key: Any) -> OKPKey | ECKey:
+    """Import a cryptography private key object for ``alg`` into joserfc.
+
+    Public keys go through ``jws._import_jwk``, which also enforces the
+    RFC 7518 P-256 coordinate length joserfc leaves open.
+    """
+    if alg == "EdDSA":
+        return OKPKey.import_key(key)
+    if alg == "ES256":
+        return ECKey.import_key(key)
+    raise ValueError(f"unsupported governance alg {alg!r}")
+
+
+def _public_jwk(jwk: Mapping[str, Any]) -> dict[str, Any]:
+    """The key members of a resolved JWK; its policy members were checked already."""
+    return {name: jwk[name] for name in ("kty", "crv", "x", "y") if name in jwk}
+
+
+def _compact_segments(token: str) -> tuple[str, str, str] | None:
+    """Split a compact JWS with ``joserfc.jws.extract_compact``, or ``None``."""
+    if token.count(".") != 2 or any(
+        _COMPACT_SEGMENT_RE.fullmatch(part) is None for part in token.split(".")
+    ):
+        return None
+    try:
+        compact = jws.extract_compact(
+            token.encode("ascii"), registry=_AdcpJwsRegistry(strict_check_header=False)
+        )
+    except (JoseError, ValueError):
+        return None
+    segments = compact.segments
+    return (
+        segments["header"].decode("ascii"),
+        segments["payload"].decode("ascii"),
+        segments["signature"].decode("ascii"),
     )
 
 

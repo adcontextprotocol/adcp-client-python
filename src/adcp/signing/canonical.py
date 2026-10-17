@@ -1,11 +1,18 @@
-"""RFC 9421 canonicalization for the AdCP request-signing profile.
+"""AdCP URL canonicalization for the RFC 9421 request-signing profile.
 
-Implements the canonical signature base per RFC 9421 §2.5 with the covered
-components mandated by the AdCP profile (@method, @target-uri, @authority,
-content-type, content-digest). URI canonicalization follows RFC 3986 §6.2
-scheme-based normalization plus AdCP-specific rules: query preserved
-byte-for-byte, percent-encoding hex uppercased, unreserved chars decoded,
-default ports stripped, dot-segments collapsed.
+This module is the AdCP-specific part of the profile: the ``@target-uri``
+and ``@authority`` values the spec defines. URI canonicalization follows
+RFC 3986 §6.2 scheme-based normalization plus AdCP-specific rules: query
+preserved byte-for-byte, percent-encoding hex uppercased, unreserved chars
+decoded, default ports stripped, dot-segments collapsed, hosts converted to
+A-labels, and the malformed-authority rejections.
+
+RFC 9421 itself (the ``Signature-Input`` grammar and the signature base)
+comes from ``http-message-signatures`` and ``http-sf``;
+:func:`parse_signature_input_header` and :func:`build_signature_base` are
+the public entry points onto them, and
+:class:`adcp.signing._rfc9421.AdcpComponentResolver` plugs the
+canonicalization below into the library.
 """
 
 from __future__ import annotations
@@ -17,7 +24,12 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 import idna
 
 from adcp.signing._idna_canonicalize import canonicalize_host
-from adcp.signing._structured_fields import reject_dictionary_duplicates
+from adcp.signing._rfc9421 import (
+    component_identifier,
+    is_inner_list,
+    parse_dictionary,
+    ser_item_or_inner_list,
+)
 
 #: Spec code for an authority the AdCP profile requires be rejected rather than
 #: canonicalized. Declared here rather than imported from ``errors`` so this
@@ -56,7 +68,11 @@ def host_has_raw_non_ascii(host: str) -> bool:
 
 @dataclass(frozen=True)
 class SignatureInputLabel:
-    """A single label in a Signature-Input header (e.g. the `sig1=...` entry)."""
+    """A single label in a Signature-Input header (e.g. the `sig1=...` entry).
+
+    ``raw_value`` is the member's RFC 8941 serialization, which is the
+    ``@signature-params`` value the signature base carries.
+    """
 
     label: str
     components: tuple[str, ...]
@@ -67,33 +83,37 @@ class SignatureInputLabel:
 def parse_signature_input_header(header_value: str) -> dict[str, SignatureInputLabel]:
     """Parse a Signature-Input header value into a dict keyed by label.
 
-    A Signature-Input header may contain multiple labels separated by commas:
-    `sig1=(...);..., sig2=(...);...`. The AdCP profile mandates that verifiers
-    process exactly one label (conventionally `sig1`) and ignore others.
+    The field is an RFC 8941 Dictionary, parsed by ``http-sf`` with duplicate
+    keys and parameters refused. The AdCP profile then narrows its shape:
+    every member is an inner list of component names (sf-strings without
+    component parameters), and every signature parameter is an sf-string or
+    an integer. A Signature-Input header may contain several labels; the
+    profile verifies exactly one (conventionally ``sig1``) and ignores others.
     """
-    reject_dictionary_duplicates(header_value)
     labels: dict[str, SignatureInputLabel] = {}
-    for entry in split_structured_field(header_value, ","):
-        entry = entry.strip()
-        if not entry:
-            continue
-        eq_paren = entry.find("=(")
-        if eq_paren < 0:
-            raise ValueError(f"malformed Signature-Input entry: {entry!r}")
-        label = entry[:eq_paren].strip()
-        remainder = entry[eq_paren + 1 :]
-        close = remainder.find(")")
-        if close < 0:
-            raise ValueError(f"unterminated component list in label {label!r}")
-        components_str = remainder[1:close]
-        params_str = remainder[close + 1 :]
-        components = tuple(_unquote_component(tok) for tok in components_str.split())
-        params = _parse_params(params_str)
+    for label, member in parse_dictionary(header_value).items():
+        if not is_inner_list(member):
+            raise ValueError(f"malformed Signature-Input entry: {label!r} is not an inner list")
+        items, member_params = member
+        components: list[str] = []
+        for name, component_params in items:
+            if type(name) is not str:
+                raise ValueError(f"component name not quoted: {name!r}")
+            if component_params:
+                raise ValueError(f"component {name!r} carries parameters the profile does not use")
+            components.append(name)
+        params: dict[str, str | int] = {}
+        for key, value in member_params.items():
+            if type(value) is not str and type(value) is not int:
+                raise ValueError(
+                    f"signature param {key!r} must be a quoted string or integer, got {value!r}"
+                )
+            params[key] = value
         labels[label] = SignatureInputLabel(
             label=label,
-            components=components,
+            components=tuple(components),
             params=params,
-            raw_value=remainder,
+            raw_value=ser_item_or_inner_list(member),
         )
     return labels
 
@@ -106,16 +126,22 @@ def build_signature_base(
 ) -> str:
     """Build the RFC 9421 signature base string for the AdCP profile.
 
-    Lines are joined with a single `\\n` (LF, not CRLF). No trailing newline.
-    Components appear in the exact order listed in `Signature-Input`, followed
-    by `@signature-params` as the last line.
+    ``http-message-signatures`` builds the base: lines joined with a single
+    LF, no trailing newline, components in ``Signature-Input`` order, then
+    ``@signature-params``. :class:`AdcpComponentResolver` supplies the AdCP
+    ``@target-uri`` and ``@authority`` canonicalization. The base comes from
+    ``parsed.components`` and ``parsed.params`` (in order); ``raw_value`` is
+    not consulted, so ``@signature-params`` is the RFC 8941 serialization.
     """
-    lines: list[str] = []
-    for comp in parsed.components:
-        value = _resolve_component(comp, method, url, headers)
-        lines.append(f'"{comp}": {value}')
-    lines.append(f'"@signature-params": {parsed.raw_value}')
-    return "\n".join(lines)
+    from adcp.signing._rfc9421 import AdcpComponentResolver, Request, build_base
+
+    base = build_base(
+        Request(method=method, url=url, headers=dict(headers)),
+        covered_component_ids=[component_identifier((name, {})) for name in parsed.components],
+        params=parsed.params,
+        resolver=AdcpComponentResolver,
+    )
+    return base.decode("utf-8")
 
 
 def canonicalize_target_uri(url: str) -> str:
@@ -184,21 +210,6 @@ _DEFAULT_PORTS = {"http": 80, "https": 443}
 
 # RFC 3986 §2.3 unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"
 _UNRESERVED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-
-
-def _resolve_component(comp: str, method: str, url: str, headers: Mapping[str, str]) -> str:
-    if comp == "@method":
-        return method.upper()
-    if comp == "@target-uri":
-        return canonicalize_target_uri(url)
-    if comp == "@authority":
-        return canonicalize_authority(url)
-    if comp.startswith("@"):
-        raise ValueError(f"unsupported derived component for AdCP profile: {comp}")
-    value = _lookup(headers, comp.lower())
-    if value is None:
-        raise ValueError(f"missing header for covered component: {comp}")
-    return value.strip()
 
 
 def _lookup(headers: Mapping[str, str], name_lower: str) -> str | None:
@@ -413,94 +424,6 @@ def _normalize_pct(s: str) -> str:
             else:
                 out.append("%" + hex2.upper())
             i += 3
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
-
-
-def split_structured_field(s: str, sep: str) -> list[str]:
-    """Split on `sep` occurrences that are outside RFC 8941 sf-string quotes and parens.
-
-    sf-string escapes per RFC 8941 §3.3.3 are `\\\\` and `\\"` only; the state
-    machine tracks an `esc` flag so that `\\\\"` closes the quoted span (the
-    backslash escapes itself, the following quote is unescaped).
-    """
-    out: list[str] = []
-    depth = 0
-    in_q = False
-    esc = False
-    start = 0
-    for i, c in enumerate(s):
-        if in_q:
-            if esc:
-                esc = False
-            elif c == "\\":
-                esc = True
-            elif c == '"':
-                in_q = False
-        elif c == '"':
-            in_q = True
-        elif c == "(":
-            depth += 1
-        elif c == ")":
-            depth -= 1
-        elif c == sep and depth == 0:
-            out.append(s[start:i])
-            start = i + 1
-    out.append(s[start:])
-    return out
-
-
-def _unquote_component(token: str) -> str:
-    t = token.strip()
-    if len(t) >= 2 and t[0] == '"' and t[-1] == '"':
-        return t[1:-1]
-    raise ValueError(f"component name not quoted: {token!r}")
-
-
-def _parse_params(params_str: str) -> dict[str, str | int]:
-    out: dict[str, str | int] = {}
-    s = params_str.strip()
-    if not s:
-        return out
-    if s.startswith(";"):
-        s = s[1:]
-    for part in split_structured_field(s, ";"):
-        part = part.strip()
-        if not part:
-            continue
-        k, eq, v = part.partition("=")
-        k = k.strip()
-        v = v.strip()
-        if not k:
-            raise ValueError(f"signature param with empty name: {part!r}")
-        if not eq or not v:
-            raise ValueError(f"signature param {k!r} has empty value")
-        if v.startswith('"'):
-            if not (v.endswith('"') and len(v) >= 2):
-                raise ValueError(f"signature param {k!r} has unterminated quoted value")
-            out[k] = _unescape_sf_string(v[1:-1])
-        else:
-            try:
-                out[k] = int(v)
-            except ValueError as exc:
-                raise ValueError(
-                    f"signature param {k!r} must be a quoted string or integer, got {v!r}"
-                ) from exc
-    return out
-
-
-def _unescape_sf_string(s: str) -> str:
-    """Unescape RFC 8941 §3.3.3 sf-string contents (only `\\\\` and `\\"`)."""
-    out: list[str] = []
-    i = 0
-    n = len(s)
-    while i < n:
-        c = s[i]
-        if c == "\\" and i + 1 < n and s[i + 1] in ("\\", '"'):
-            out.append(s[i + 1])
-            i += 2
         else:
             out.append(c)
             i += 1

@@ -17,8 +17,6 @@ import httpx
 import pytest
 from asgi_lifespan import LifespanManager
 from cryptography.hazmat.primitives.asymmetric import ed25519
-from http_sfv.dictionary import Dictionary
-from http_sfv.item import InnerList, Item
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -69,8 +67,7 @@ from adcp.signing.wba import (
     OriginRevocationChecker,
     WbaDiscoveryError,
     WbaVerificationError,
-    _base,
-    _sign,
+    _WbaComponentResolver,
     sign_key_directory,
     verify_directory_response,
     verify_wba_request,
@@ -111,10 +108,10 @@ def _signed(private: Any, body: bytes, *, origin: str = ORIGIN, url: str = TARGE
     return headers
 
 
-def _member(value: str, label: str = "sig1") -> Any:
-    parsed = Dictionary()
-    parsed.parse(value.encode("ascii"))
-    return parsed[label]
+def _params(value: str, label: str = "sig1") -> dict[str, Any]:
+    from adcp.signing._rfc9421 import parse_dictionary
+
+    return parse_dictionary(value)[label][1]
 
 
 def _recording_app(config: RequestSignatureVerification, *, transport: str = "mcp"):
@@ -388,28 +385,23 @@ async def test_binding_gate_reads_the_revocation_state(revocation, operation):
     assert signer.principal_id == (None if revocation == "no_list" else "principal-1")
 
 
-async def test_revoked_relay_key_is_refused_like_the_originator():
+async def test_revoked_key_is_refused_without_a_challenge():
     from adcp.signing.wba import WbaRevokedKeyError, check_wba_revocation
 
-    originator, relay = (
-        VerifiedSigner(
-            kid * 43, "ed25519", label, time.time(), agent_url=origin, profile="web-bot-auth"
-        )
-        for kid, label, origin in (
-            ("o", "sig1", ORIGIN),
-            ("r", "sig2", "https://relay.example.com"),
-        )
-    )
+    signer = VerifiedSigner("o" * 43, "ed25519", "sig1", time.time(), agent_url=ORIGIN)
 
     class Checker:
-        async def status(self, origin, keyid):
-            return "revoked" if keyid == relay.key_id else "current"
+        def __init__(self, status):
+            self._status = status
 
-    assert (await check_wba_revocation(Checker(), (originator,)))[0].revocation == "current"
+        async def status(self, origin, keyid):
+            return self._status
+
+    assert (await check_wba_revocation(Checker("current"), (signer,)))[0].revocation == "current"
     with pytest.raises(WbaRevokedKeyError) as revoked:
-        await check_wba_revocation(Checker(), (originator, relay))
+        await check_wba_revocation(Checker("revoked"), (signer,))
     assert revoked.value.status == 403
-    assert revoked.value.label == "sig2"
+    assert revoked.value.label == "sig1"
     assert not revoked.value.headers
 
 
@@ -594,24 +586,24 @@ async def test_grant_domains_compare_as_registrable_domains():
 @pytest.mark.parametrize(
     "nonce,accepted",
     [
-        (b64url_encode(b"\x07" * 15), False),  # 20 characters
-        (b64url_encode(b"\x07" * 16), True),  # 22 characters, the 128-bit floor
-        (b64url_encode(b"\x07" * 32), True),
-        (b64url_encode(b"\x07" * 64), True),
-        ("A" * 256, True),
-        ("A" * 257, False),
-        ("A" * 21, False),
+        (b64url_encode(b"\x07" * 16), False),  # 22 characters, 128 bits: too short
+        (b64url_encode(b"\x07" * 32), False),
+        (b64url_encode(b"\x07" * 63), False),
+        (b64url_encode(b"\x07" * 65), False),
+        (b64url_encode(b"\x07" * 64) + "=", False),  # padded base64url is not canonical
+        (b64url_encode(b"\x07" * 64), True),  # the profile's spelling
+        (__import__("base64").b64encode(b"\xfb" * 64).decode(), True),  # Cloudflare's
     ],
 )
-async def test_verifier_accepts_22_to_256_character_nonces(nonce, accepted):
-    """64 bytes is RECOMMENDED for signers; a compliant signer may send fewer."""
+async def test_verifier_requires_a_64_byte_nonce(nonce, accepted):
+    """The profile requires a 64-byte nonce on every signed request (adcp#7894)."""
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
     body = _tool("get_products")
     if not accepted:
-        with pytest.raises(ValueError, match="128 bits"):
+        with pytest.raises(ValueError, match="64 bytes"):
             _signed(private, body, created=1000, nonce=nonce)
-        valid = "B" * 86
+        valid = b64url_encode(b"\x05" * 64)
         headers = _signed(private, body, created=1000, nonce=valid)
         headers["Signature-Input"] = headers["Signature-Input"].replace(valid, nonce)
     else:
@@ -629,15 +621,17 @@ async def test_verifier_accepts_22_to_256_character_nonces(nonce, accepted):
         (signer,) = await verify_wba_request(**options)
         assert signer.agent_url == ORIGIN
     else:
-        with pytest.raises(WbaVerificationError, match="nonce"):
+        with pytest.raises(WbaVerificationError, match="nonce") as caught:
             await verify_wba_request(**options)
+        assert caught.value.status == 403
+        assert "Accept-Signature" in caught.value.headers
 
 
 def test_signer_defaults_to_a_64_byte_nonce():
     from adcp.signing.wba import is_64_byte_nonce
 
     headers = _signed(ed25519.Ed25519PrivateKey.generate(), _tool("get_products"))
-    assert is_64_byte_nonce(_member(headers["Signature-Input"]).params["nonce"])
+    assert is_64_byte_nonce(_params(headers["Signature-Input"])["nonce"])
 
 
 def test_received_target_uri_keeps_percent_encoding_and_query():
@@ -673,49 +667,54 @@ def _unsigned_directory(*jwks: dict[str, Any], media_type: str = "application/js
     return DirectoryResponse(body, {"Content-Type": media_type})
 
 
-def test_plain_jwks_directory_is_accepted_by_thumbprint_unless_signatures_are_required():
+def test_unsigned_directories_are_refused_and_keys_are_found_by_thumbprint():
+    """Signed directories are required (adcp#7894, WBA Appendix B.1)."""
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
     without_kid = {k: v for k, v in jwk.items() if k != "kid"}
-    other_use = {"kty": "oct", "k": "c2VjcmV0"}  # not a key the profile can use
-    keys = verify_directory_response(
-        ORIGIN, _unsigned_directory(without_kid, {**jwk, "use": "enc"}), now=1000
-    )
-    assert list(keys) == [jwk["kid"]]
-    for media_type in ("application/jwk-set+json", DIRECTORY_MEDIA_TYPE):
-        assert verify_directory_response(
-            ORIGIN, _unsigned_directory(without_kid, media_type=media_type), now=1000
-        )
+    for media_type in ("application/json", "application/jwk-set+json", DIRECTORY_MEDIA_TYPE):
+        with pytest.raises(WbaVerificationError, match="not signed"):
+            verify_directory_response(
+                ORIGIN, _unsigned_directory(without_kid, media_type=media_type), now=1000
+            )
+    # A signed directory finds the key by its thumbprint; a kid is optional.
+    signed = sign_key_directory(agent_origin=ORIGIN, private_keys=[private], created=1000)
+    body = json.loads(signed.body)
+    body["keys"] = [without_kid, {"kty": "oct", "k": "c2VjcmV0"}]
+    raw = json.dumps(body).encode()
     with pytest.raises(WbaVerificationError, match="private key material"):
-        verify_directory_response(ORIGIN, _unsigned_directory(without_kid, other_use), now=1000)
-    with pytest.raises(WbaVerificationError, match="not signed"):
         verify_directory_response(
-            ORIGIN, _unsigned_directory(without_kid), now=1000, require_signed=True
+            ORIGIN,
+            DirectoryResponse(
+                raw, {**signed.headers, "Content-Digest": compute_content_digest_sha256(raw)}
+            ),
+            now=1001,
         )
 
 
 def _partly_signed_directory(signed_key, unsigned_key, *, components=None, created=1000):
+    from adcp.signing import _rfc9421
+
     jwks = [public_directory_key(signed_key), public_directory_key(unsigned_key)]
     body = json.dumps({"keys": jwks}).encode()
     headers = {
         "Content-Type": DIRECTORY_MEDIA_TYPE,
         "Content-Digest": compute_content_digest_sha256(body),
     }
-    authority = Item("@authority")
-    authority.params["req"] = True
-    member = InnerList(components or [authority, Item("content-digest")])
-    member.params.update(
-        {
-            "created": created,
-            "expires": created + 3600,
-            "keyid": jwks[0]["kid"],
-            "alg": "ed25519",
-            "tag": "http-message-signatures-directory",
-        }
+    signature_input, signature = _rfc9421.sign(
+        _rfc9421.Response(200, _rfc9421.Request("GET", ORIGIN + DIRECTORY_PATH), dict(headers)),
+        alg="ed25519",
+        private_key=signed_key,
+        key_id=jwks[0]["kid"],
+        label="key1",
+        created=created,
+        expires=created + 3600,
+        nonce=None,
+        tag="http-message-signatures-directory",
+        covered_component_ids=components or ['"@authority";req', '"content-digest"'],
+        resolver=_WbaComponentResolver,
     )
-    base = _base("GET", ORIGIN + DIRECTORY_PATH, headers, member, directory_response=True)
-    headers["Signature-Input"] = str(Dictionary({"key1": member}))
-    headers["Signature"] = str(Dictionary({"key1": Item(_sign("ed25519", signed_key, base))}))
+    headers.update({"Signature-Input": signature_input, "Signature": signature})
     return DirectoryResponse(body, headers), jwks
 
 
@@ -728,24 +727,17 @@ def test_signed_directory_indexes_only_keys_with_a_verified_signature():
 
 def test_directory_signatures_require_the_exact_component_identifiers():
     signed, unsigned = (ed25519.Ed25519PrivateKey.generate() for _ in range(2))
-    keyed_digest = Item("content-digest")
-    keyed_digest.params["key"] = "sha-256"
-    bare_authority = Item("@authority")
-    for components in ([Item("@authority"), Item("content-digest")], [bare_authority]):
+    for components in (
+        ['"@authority"', '"content-digest"'],
+        ['"@authority"'],
+        ['"@authority";req', '"content-digest";key="sha-256"'],
+    ):
         with pytest.raises(WbaVerificationError):
             verify_directory_response(
                 ORIGIN,
                 _partly_signed_directory(signed, unsigned, components=components)[0],
                 now=1001,
             )
-    authority = Item("@authority")
-    authority.params["req"] = True
-    with pytest.raises(WbaVerificationError):
-        verify_directory_response(
-            ORIGIN,
-            _partly_signed_directory(signed, unsigned, components=[authority, keyed_digest])[0],
-            now=1001,
-        )
 
 
 def test_directory_digest_covers_the_exact_bytes_including_a_bom():
@@ -765,9 +757,9 @@ def test_directory_created_is_backdated_and_tolerates_a_verifier_behind():
     response = sign_key_directory(
         agent_origin=ORIGIN, private_keys=[ed25519.Ed25519PrivateKey.generate()]
     )
-    member = _member(response.headers["Signature-Input"], "key1")
-    assert member.params["created"] <= before - DIRECTORY_SKEW_ALLOWANCE_SECONDS + 1
-    assert member.params["expires"] >= before + 86400
+    params = _params(response.headers["Signature-Input"], "key1")
+    assert params["created"] <= before - DIRECTORY_SKEW_ALLOWANCE_SECONDS + 1
+    assert params["expires"] >= before + 86400
     assert verify_directory_response(ORIGIN, response, now=time.time() - 30)
 
 
@@ -1435,7 +1427,10 @@ def test_wba_without_authorities_warns_at_boot(caplog):
     assert "authorities" in caplog.text
 
 
-async def test_replayed_wba_nonce_is_429_without_a_challenge():
+async def test_replayed_wba_nonce_is_429_with_a_fresh_nonce():
+    """A reused nonce is 429 with Accept-Signature carrying a fresh nonce (adcp#7894)."""
+    from adcp.signing.wba import is_64_byte_nonce
+
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
     body = _tool("get_products")
@@ -1453,7 +1448,11 @@ async def test_replayed_wba_nonce_is_429_without_a_challenge():
     with pytest.raises(WbaVerificationError, match="replayed") as replayed:
         await verify_wba_request(**options)
     assert replayed.value.status == 429
-    assert not replayed.value.headers
+    challenge = _params(replayed.value.headers["Accept-Signature"])
+    sent = _params(headers["Signature-Input"])["nonce"]
+    assert is_64_byte_nonce(challenge["nonce"]) and challenge["nonce"] != sent
+    # The fresh nonce is stable for this answer.
+    assert replayed.value.headers == replayed.value.headers
 
 
 def test_rfc9421_deprecation_warns_only_once_33_is_advertised(monkeypatch):

@@ -1,0 +1,25 @@
+{
+  "repository": "adcontextprotocol/adcp",
+  "pull_request": 7894,
+  "commit": "e24eeb090c4365707641099cbbb45f9945c6d6e0",
+  "path": "static/compliance/source/test-vectors/wba-profile/",
+  "vendored_on": "2026-10-16",
+  "renamed": {
+    "README.md": "UPSTREAM-README.md"
+  },
+  "sha256": {
+    "governance/001-governance-token.json": "8e3a53bb9fa52b376d242ba67e0a86246af2fb97b44a9407212f65e506ed213b",
+    "governance/002-governance-token-key-not-in-issuer-directory.json": "8559d3aab6a1db4f2e8afe6d81f36a6e2e54b262464d6179ee04d6846ec9d557",
+    "governance/003-governance-token-from-non-governance-agent.json": "cbf328b7b7fe63df938da84ab86a94310f3ea9c232da99323cc32fbcee29e65b",
+    "keys.json": "08637bc288547315e6ce72e895d18ff5f3ab20a5f24375a15d0ebda43a993b3c",
+    "negative/001-missing-nonce.json": "12a60d6067c347976f2ec1769c2078c07f049f490a17c3da602898b4fdc8c3ad",
+    "negative/002-replayed-nonce.json": "7471d84d3aca75a196439b80c9a605230601c5495464daf6da6d7f9baeed1971",
+    "negative/003-signature-agent-not-covered.json": "fd2203fe8e445344c4fa27331d119216f6fd8383e8cfd0cb0c85b1dcd29019fc",
+    "negative/004-key-not-in-named-directory.json": "366094bc9af941dd20127402c8ebf03ab6eff1094dc54363fabec759b75ceb67",
+    "negative/005-malformed-signature-agent.json": "c0bf6e2d95be5f47d18a26abbcf0c38b2fb8a229a77d4acc4cad76fecad61f59",
+    "negative/006-two-signatures.json": "6dc88d4db2205ba7f0611fd9d4e2e6d7106ed45ea9c8238c5a801abb660901a1",
+    "positive/001-single-signer-request.json": "213b69f5f029c6da37abbc4dafff0f89e7604c5a6a4acca59b8c9df4a3d88e25",
+    "positive/002-signed-directory-response.json": "b07b0a947d943225c29fcb819008d080ca83f209d56be785a1a7b15f15e82dbe",
+    "UPSTREAM-README.md": "0dca00383bd0907bbf0fadfe09fb9787fd7cdfeabbcdc23b52c17038e1976bfd"
+  }
+}

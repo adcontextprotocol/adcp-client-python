@@ -368,7 +368,7 @@ def test_sign_request_rejects_key_id_with_control_characters() -> None:
     key_id would otherwise produce a Signature-Input header with a literal
     line break — a header-injection vector at non-httpx integrators."""
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
-    with pytest.raises(ValueError, match="key_id contains character"):
+    with pytest.raises(ValueError, match="disallowed characters"):
         sign_request(
             method="POST",
             url="https://seller.example.com/x",
@@ -383,7 +383,7 @@ def test_sign_request_rejects_key_id_with_control_characters() -> None:
 
 def test_sign_request_rejects_key_id_with_non_ascii() -> None:
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
-    with pytest.raises(ValueError, match="key_id contains character"):
+    with pytest.raises(ValueError, match="disallowed characters"):
         sign_request(
             method="POST",
             url="https://seller.example.com/x",
@@ -401,7 +401,7 @@ def test_sign_request_rejects_label_with_crlf() -> None:
     headers; a CRLF here would inject extra header bytes. RFC 8941
     §3.1.2 sf-keys are restricted to a token grammar."""
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
-    with pytest.raises(ValueError, match="not a valid RFC 8941 sf-key"):
+    with pytest.raises(ValueError, match="not a valid RFC 8941 key"):
         sign_request(
             method="POST",
             url="https://seller.example.com/x",
@@ -418,7 +418,7 @@ def test_sign_request_rejects_label_with_crlf() -> None:
 def test_sign_request_rejects_label_starting_with_uppercase() -> None:
     """RFC 8941 §3.1.2 sf-keys must start with lowercase letter or '*'."""
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
-    with pytest.raises(ValueError, match="must start with a lowercase letter"):
+    with pytest.raises(ValueError, match="not a valid RFC 8941 key"):
         sign_request(
             method="POST",
             url="https://seller.example.com/x",
@@ -462,7 +462,7 @@ def test_pem_to_adcp_jwk_rejects_rsa_public_pem() -> None:
 
 def test_sign_request_rejects_tag_with_control_characters() -> None:
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
-    with pytest.raises(ValueError, match="tag contains character"):
+    with pytest.raises(ValueError, match="disallowed characters"):
         sign_request(
             method="POST",
             url="https://seller.example.com/x",
