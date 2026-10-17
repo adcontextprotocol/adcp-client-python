@@ -267,6 +267,27 @@ async def test_authoritative_task_is_callable_through_mcp_and_a2a_with_authentic
         assert auditor["issues"] == []
 
 
+#: What the managed and reconciled tiers oblige, stated once.
+_MANAGED_TIER = {"resource_retention_days": 90, "authorization_revocation_seconds": 3600}
+_METHOD = {
+    "method": {
+        "pattern": "file_transfer",
+        "transport": "s3",
+        "orchestration": "producer_managed",
+        "destination_modes": ["existing"],
+        "provider": {"domain": "aws.amazon.com"},
+        "format": "jsonl",
+    }
+}
+_CANONICALIZATION = {
+    "canonicalization_id": "rows-v1",
+    "canonicalization_contract_version": "1.0",
+    "canonicalization_media_type": "application/vnd.adcp.reporting-canonicalization+json",
+    "canonicalization_uri": "https://seller.example/canonicalization/rows-v1.json",
+    "canonicalization_sha256": "c" * 64,
+}
+
+
 @pytest.mark.parametrize("tier", ["core", "managed", "reconciled"])
 def test_raw_generated_capability_dumps_omit_unset_task_notification_and_false_flags(tier):
     model = ReportingDeliveryCapabilities.model_validate(
@@ -284,8 +305,11 @@ def test_raw_generated_capability_dumps_omit_unset_task_notification_and_false_f
                         "version": "1",
                         "schema_uri": "https://seller.example/schema",
                         "schema_sha256": "b" * 64,
+                        "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+                        "schema_ref_policy": "local_fragment_only",
                         "grain": "media_buy",
                         "primary_keys": ["media_buy_id"],
+                        **(_CANONICALIZATION if tier == "reconciled" else {}),
                     },
                     "schedule": {
                         "period_duration": "PT1H",
@@ -293,19 +317,32 @@ def test_raw_generated_capability_dumps_omit_unset_task_notification_and_false_f
                         "delivery_sla": "PT1H",
                     },
                     "supported_finality": ["snapshot"],
-                    "reconciliation_mode": "delivery_only",
+                    "reconciliation_mode": (
+                        "consumer_receipt" if tier == "reconciled" else "delivery_only"
+                    ),
+                    **(_METHOD if tier in {"managed", "reconciled"} else {}),
                 }
             ],
             "automated_recovery_window_seconds": 0,
             "status_retention_days": 7,
+            # allOf member 3 ties the two retention windows and a method-bearing
+            # offering to the managed tier, and member 4 ties a receipt_task and a
+            # consumer_receipt offering to the reconciled one.
+            **(_MANAGED_TIER if tier in {"managed", "reconciled"} else {}),
             **({"managed_delivery": True} if tier in {"managed", "reconciled"} else {}),
-            **({"reconciled_billing": True} if tier == "reconciled" else {}),
+            **(
+                {"reconciled_billing": True, "receipt_task": "sync_reporting_receipts"}
+                if tier == "reconciled"
+                else {}
+            ),
         }
     )
     fields = set(model.model_fields_set)
     before = model.status_notification
+    # Only the tasks the tier itself requires are set, so only those may appear.
+    required_tasks = {"receipt_task"} if tier == "reconciled" else set()
     for raw in (model.model_dump(mode="json"), json.loads(model.model_dump_json())):
-        assert not any(k.endswith(("_task", "_notification")) for k in raw)
+        assert {k for k in raw if k.endswith(("_task", "_notification"))} == required_tasks
         assert "supports_webhook_activity" not in raw and "reliable_reporting_version" not in raw
         assert ("managed_delivery" in raw) is (tier != "core")
         assert ("reconciled_billing" in raw) is (tier == "reconciled")

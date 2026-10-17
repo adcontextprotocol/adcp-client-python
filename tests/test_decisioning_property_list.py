@@ -448,7 +448,12 @@ class TestMaybeApplyPropertyListFilter:
                 }
             ],
         }
-        payload = {"products": [p_pass, p_fail], "seller_extra": {"retained": True}}
+        payload = {
+            "products": [p_pass, p_fail],
+            "seller_extra": {"retained": True},
+            # Required on every 3.1+ get_products response.
+            "cache_scope": "public",
+        }
         response = (
             GetProductsResponse.model_validate(payload) if response_shape == "model" else payload
         )
@@ -545,7 +550,12 @@ async def test_platform_filter_mode_leaves_response_and_fetcher_untouched(
 ) -> None:
     from adcp.types import GetProductsResponse
 
-    payload = {"products": [], "property_list_applied": applied, "seller_extra": "keep"}
+    payload = {
+        "products": [],
+        "property_list_applied": applied,
+        "seller_extra": "keep",
+        "cache_scope": "public",
+    }
     response = GetProductsResponse.model_validate(payload) if response_shape == "model" else payload
     fetcher = AsyncMock(spec=PropertyListFetcher)
     result = await maybe_apply_property_list_filter(

@@ -61,7 +61,16 @@ def test_nested_canonical_models_are_cleaned_once_per_model(
     elif method == "adapter_json":
         result = json.loads(TypeAdapter(Catalog).dump_json(catalog, exclude_none=True))
     else:
-        result = Envelope(catalog=catalog).model_dump(exclude_none=True)["catalog"]
+        # ``model_construct`` on the parent too, for the same reason the fixture
+        # uses it: this test's subject is how many times the strip runs at a
+        # root, and the fixture is a document validation REFUSES by design.
+        # ``Envelope(catalog=catalog)`` would validate it and be refused by the
+        # wrap validator on the boundary base -- correctly, since the refusal
+        # fires on this document at top level as well as nested. Routing the
+        # fixture through validation to reach a serializer assertion asks the
+        # model to accept what it was built to smuggle past.
+        envelope = Envelope.model_construct(catalog=catalog)
+        result = envelope.model_dump(exclude_none=True)["catalog"]
 
     # Two declarations and their catalog each enforce their own boundary.
     # The public dump methods must not add a fourth pass over the full tree.

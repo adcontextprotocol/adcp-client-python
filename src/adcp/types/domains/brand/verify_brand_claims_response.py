@@ -63,7 +63,7 @@ class ResultEntry(RootModel[ResultEntry1 | ResultEntry2]):
     root: Annotated[
         ResultEntry1 | ResultEntry2,
         Field(
-            description='One entry in `results[]`. Either a per-claim success (claim_type + status + optional details/context_note) or a per-claim error (error field only). Mirrors the single-target `verify_brand_claim` response success arm shape.'
+            description='One entry in `results[]`. Either a per-claim success (claim_type + status + optional details/context_note) or a per-claim error (error field only). Mirrors the single-target `verify_brand_claim` response success branch shape.'
         ),
     ]
 

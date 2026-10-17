@@ -106,7 +106,6 @@ def assert_discovery_push_consistent(req: Any, *, mode_field: str) -> None:
                 "which supports the async (submitted) arm."
             ),
             field="push_notification_config",
-            recovery="correctable",
         )
 
 
@@ -124,7 +123,6 @@ def _wholesale_handoff_error(mode_field: str) -> AdcpError:
             "background task. The 'brief' mode is the async-capable path."
         ),
         field=mode_field,
-        recovery="correctable",
     )
 
 
@@ -218,7 +216,6 @@ def assert_account_resolved_for_async(
             "synchronous discovery call."
         ),
         field="account",
-        recovery="correctable",
     )
 
 
@@ -267,7 +264,6 @@ def reject_hand_rolled_submitted(result: Any, *, operation: str = "Discovery") -
             "the task_id, persists the submitted state, and emits the wire "
             "envelope for you."
         ),
-        recovery="correctable",
     )
 
 

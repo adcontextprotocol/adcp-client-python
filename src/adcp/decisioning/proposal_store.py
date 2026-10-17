@@ -556,7 +556,6 @@ class InMemoryProposalStore:
                 raise AdcpError(
                     "PROPOSAL_NOT_FOUND",
                     message=(f"Proposal {proposal_id!r} not found."),
-                    recovery="correctable",
                     field="proposal_id",
                 )
             if record.state != ProposalState.COMMITTED:
@@ -568,7 +567,6 @@ class InMemoryProposalStore:
                         "requires a committed proposal that hasn't "
                         "been accepted or reserved by another request."
                     ),
-                    recovery="correctable",
                     field="proposal_id",
                 )
             reserved = replace(record, state=ProposalState.CONSUMING)

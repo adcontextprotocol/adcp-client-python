@@ -381,7 +381,6 @@ class IdempotencyStore:
                                     "the outcome may be unknown. Retry with the same key only "
                                     "when downstream effects are independently deduplicated."
                                 ),
-                                recovery="transient",
                             ) from exc
                     return response
 

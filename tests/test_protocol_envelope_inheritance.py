@@ -1,12 +1,12 @@
-"""Every response arm carries the root ``allOf`` protocol envelope (#1136).
+"""Every response branch carries the root ``allOf`` protocol envelope (#1136).
 
 Each AdCP response schema composes ``core/protocol-envelope.json`` at its root
 via ``allOf``, so ``status``, ``task_id``, ``message``, ``context_id``,
 ``replayed``, ``timestamp``, ``push_notification_config``,
 ``governance_context``, ``context``, ``payload`` and ``adcp_error`` are part of
-every response's contract — on the success arm, the error arm and the submitted
-arm alike. The code generator used to attach :class:`ProtocolEnvelope` only to
-the ``status: submitted`` arm, leaving those fields untyped on the rest: a
+every response's contract — on the success branch, the error branch and the submitted
+branch alike. The code generator used to attach :class:`ProtocolEnvelope` only to
+the ``status: submitted`` branch, leaving those fields untyped on the rest: a
 seller that set one wrote a pydantic extra and a buyer that read one got an
 ``AttributeError``.
 """
@@ -93,8 +93,8 @@ def test_public_response_aliases_declare_every_envelope_field() -> None:
         "signals/activate_signal_response.py",
     ],
 )
-def test_generated_arms_match_their_root_schema_composition(relative: str) -> None:
-    """Every emitted arm mirrors whether its ROOT schema composes the envelope."""
+def test_generated_branches_match_their_root_schema_composition(relative: str) -> None:
+    """Every emitted branch mirrors whether its ROOT schema composes the envelope."""
     import importlib
     import re
 
@@ -107,20 +107,22 @@ def test_generated_arms_match_their_root_schema_composition(relative: str) -> No
     root_composes_envelope = any(ref.endswith("core/protocol-envelope.json") for ref in root_refs)
     assert root_composes_envelope, f"{relative}: fixture assumes a root protocol envelope"
 
-    # ``__all__`` is emitted as ``[union_alias, *numbered_arms, *nested]``; the
-    # arms are exactly the ``<Base><n>`` names, never the nested helper models.
+    # ``__all__`` is emitted as ``[union_alias, *numbered_branches, *nested]``; the
+    # branches are exactly the ``<Base><n>`` names, never the nested helper models.
     base_name = module.__all__[0]
-    arm_pattern = re.compile(rf"{re.escape(base_name)}\d+$")
-    arms = [
-        getattr(module, name) for name in module.__all__ if arm_pattern.fullmatch(name) is not None
+    branch_pattern = re.compile(rf"{re.escape(base_name)}\d+$")
+    branches = [
+        getattr(module, name)
+        for name in module.__all__
+        if branch_pattern.fullmatch(name) is not None
     ]
-    assert len(arms) == len(schema["oneOf"]), f"{relative}: arm count drifted from the schema"
-    for arm in arms:
-        assert issubclass(arm, ProtocolEnvelope), f"{relative}: {arm.__name__}"
+    assert len(branches) == len(schema["oneOf"]), f"{relative}: arm count drifted from the schema"
+    for branch in branches:
+        assert issubclass(branch, ProtocolEnvelope), f"{relative}: {branch.__name__}"
 
 
-def test_error_arm_can_carry_envelope_state() -> None:
-    """The error arm of a ``oneOf`` is an envelope too, not a bare payload."""
+def test_error_branch_can_carry_envelope_state() -> None:
+    """The error branch of a ``oneOf`` is an envelope too, not a bare payload."""
     from adcp.types.aliases import CreateMediaBuyErrorResponse
 
     error = CreateMediaBuyErrorResponse.model_validate(
@@ -229,7 +231,7 @@ def test_canonical_model_still_round_trips_extension_keys() -> None:
 
 
 def test_canonical_response_keeps_its_schema_pinned_status() -> None:
-    """Adding the envelope base must not relax an arm's pinned ``status``."""
+    """Adding the envelope base must not relax an branch's pinned ``status``."""
     response = canonical_creative.UpdateMediaBuyResponse1.model_validate(
         {"media_buy_id": "mb_1", "revision": 2}
     )
@@ -266,13 +268,13 @@ def test_canonical_response_status_is_the_generated_one() -> None:
     This replaces ``test_canonical_response_stub_status_matches_runtime``, whose
     subject was ``canonical_creative.pyi``: the stub declared a private
     ``_CanonicalResponseEnvelope`` bridge relaxing ``status`` to ``Any`` so the
-    arms' ``Literal`` pins would not trip mypy's Liskov check, and this test
+    branches' ``Literal`` pins would not trip mypy's Liskov check, and this test
     pinned every concrete response's hand-written re-declaration against the
     runtime so the bridge could not leak ``Any`` to adopters.
 
     The stub is deleted and the canonical responses are real subclasses of the
     generated wire models, so there is no second declaration of ``status`` to
-    drift from the first — the arm's pinned ``Literal`` is inherited. The
+    drift from the first — the branch's pinned ``Literal`` is inherited. The
     property worth grading is therefore the one that now carries the contract:
     a canonical response's ``status`` annotation must be IDENTICAL to the
     annotation of the generated class it refines. A redeclaration that widened

@@ -168,6 +168,132 @@ def _normalize_schema_ref_target(
 #: with their schema.
 OPEN_VOCABULARY_SCHEMAS = {Path("core/canonical-format-kind.json")}
 
+#: Fields the implementation needs that the PINNED schema does not declare.
+#:
+#: A pin gap is not a defect in the generated tree and not a strictness
+#: decision: it is a field a cooperating seller and buyer have agreed on, whose
+#: schema change is still upstream. The SDK has to carry it, and WHERE it
+#: carries it decides whether it works.
+#:
+#: Declared here, as a SCHEMA transform, for the same reason
+#: ``OPEN_VOCABULARY_SCHEMAS`` is: the generator then emits the field like any
+#: other, with its constraints and its description, and every generated class
+#: that nests the owning schema gets it by generation rather than by a patch.
+#: That is the whole difference. Patching the class after generation reaches
+#: only the class, and ``core/reporting-webhook.json`` is nested by five
+#: request schemas that each name the generated type -- so a parsed request
+#: produced a webhook without the field, and a hand-written subclass carrying
+#: it was reachable only by a caller who named it.
+#:
+#: The upstream issue is cited in the field's own ``description``, so the
+#: citation reaches the GENERATED OUTPUT and a reader of the model sees why the
+#: field is there.
+#:
+#: The sunset is :func:`add_pin_gap_fields`'s own refusal below: it raises when
+#: the property already exists, so the first regeneration after upstream
+#: declares the field fails here. It is NOT a ``DECLARED`` entry in
+#: ``tests/conformance/_schema_parity.py``, which an earlier version of this
+#: comment claimed. That suite mutates the leaves of a synthesized payload, so
+#: it never observes a property the model declares and the schema does not --
+#: and a ``DECLARED`` predicate matching nothing is exactly what
+#: ``test_schema_model_parity.py`` fails on, so adding one would break the
+#: suite rather than guard the gap.
+PIN_GAP_FIELDS: dict[Path, tuple[dict[str, Any], ...]] = {
+    # The bundled tree is an independently generated view of the same wire
+    # schema: it INLINES what the canonical tree reaches by ``$ref``, so the
+    # same gap has to be declared at the inlined position too. Both entries name
+    # the same field for the same reason, and the DECLARED entry covers both.
+    Path("bundled/protocol/get-adcp-capabilities-response.json"): (
+        {
+            "pointer": "properties/media_buy/properties/features",
+            "name": "canonical_creatives",
+            "schema": {
+                "type": "boolean",
+                "description": (
+                    "Advertises canonical creative identity on AdCP 3.1. AdCP 3.2+ is "
+                    "canonical by contract. Published after the bundled capabilities "
+                    "schema; negotiation must not silently discard this evidence."
+                ),
+            },
+        },
+    ),
+    Path("core/media-buy-features.json"): (
+        {
+            "pointer": "",
+            "name": "canonical_creatives",
+            "schema": {
+                "type": "boolean",
+                "description": (
+                    "Advertises canonical creative identity on AdCP 3.1. AdCP 3.2+ is "
+                    "canonical by contract. Published after the bundled capabilities "
+                    "schema; negotiation must not silently discard this evidence."
+                ),
+            },
+        },
+    ),
+    Path("core/reporting-webhook.json"): (
+        {
+            "pointer": "",
+            "name": "operation_id",
+            "schema": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[A-Za-z0-9_.:-]{1,255}$",
+                "description": (
+                    "Opt-in AdCP 3.2 reporting-stream correlation extension pending "
+                    "adcp#7885. Cooperating sellers store and echo the buyer-supplied "
+                    "value verbatim in media_buy_delivery webhook payloads. Confirm "
+                    "seller support before use; registrations without a value cannot "
+                    "enable this interim delivery path."
+                ),
+            },
+        },
+    ),
+}
+
+
+def add_pin_gap_fields(schema: Any, current_schema_rel_path: Path) -> Any:
+    """Declare each :data:`PIN_GAP_FIELDS` entry on the schema that owns it.
+
+    Additive and position-addressed: the field is written into the ``properties``
+    of the node the entry's pointer names, and never into ``required`` -- a gap
+    field is opt-in by construction, because a seller that has not adopted it
+    cannot be sent one.
+
+    Raises if the pointer does not resolve or the property already exists. The
+    second is the loud half: when upstream declares the field, this entry stops
+    being a gap and the run fails here rather than silently shadowing a schema
+    that now disagrees with it.
+    """
+    entries = PIN_GAP_FIELDS.get(current_schema_rel_path)
+    if not entries:
+        return schema
+    for entry in entries:
+        node = schema
+        for segment in [part for part in entry["pointer"].split("/") if part]:
+            if not isinstance(node, dict) or segment not in node:
+                raise RuntimeError(
+                    f"{current_schema_rel_path}: pin-gap pointer {entry['pointer']!r} "
+                    f"does not resolve (stopped at {segment!r})"
+                )
+            node = node[segment]
+        if not isinstance(node, dict):
+            raise RuntimeError(
+                f"{current_schema_rel_path}: pin-gap pointer {entry['pointer']!r} "
+                "names a non-object node"
+            )
+        properties = node.setdefault("properties", {})
+        if entry["name"] in properties:
+            raise RuntimeError(
+                f"{current_schema_rel_path}: {entry['name']!r} is declared by the schema "
+                "now, so it is no longer a pin gap. Delete its PIN_GAP_FIELDS entry and "
+                "its DECLARED entry in tests/conformance/_schema_parity.py."
+            )
+        properties[entry["name"]] = copy.deepcopy(entry["schema"])
+    return schema
+
+
 #: Keys worth keeping when a reference is opened: they document the field and
 #: carry no validation, so keeping them leaves the generated annotation's
 #: description intact.
@@ -252,7 +378,7 @@ def normalize_enum_descriptions(obj):
 # subschema, and datamodel-code-generator emits one class for it and shares it.
 # Every other pointer addresses a structural position — ``/properties/<name>``,
 # ``/items``, ``/oneOf/<n>`` — which has no name to emit, so the generator mints
-# a single-arm ``RootModel`` wrapper per referencing site instead of the type the
+# a single-branch ``RootModel`` wrapper per referencing site instead of the type the
 # pointer selects.
 _DEFINITION_POINTER_ROOTS = frozenset({"$defs", "definitions"})
 
@@ -321,7 +447,7 @@ def _names_a_class(selected: dict) -> bool:
 
     The structural-pointer defect is specific to a selection that has *no*
     class of its own — an array, a constrained scalar, a bare ``$ref`` — where
-    the generator mints a single-arm ``RootModel`` wrapper per referencing site.
+    the generator mints a single-branch ``RootModel`` wrapper per referencing site.
     A selection that is an object, an enumeration or a composition generates a
     named class in the module that owns it, and the generator resolves a
     pointer to it as that shared class: ``targeting.json#/properties/age_restriction``
@@ -391,7 +517,7 @@ def inline_structural_pointer_refs(obj, current_schema_rel_path: Path, _seen=fro
     itself, which with ``collapse_nullable_unions`` becomes ``list[str] | None`` —
     the type the pointed-to property gets in its own module.
 
-    A pointer that is the only arm of an ``allOf`` merges into the enclosing
+    A pointer that is the only branch of an ``allOf`` merges into the enclosing
     schema. ``core/catalog-selection.json`` adds ``uniqueItems`` that way and
     ``compliance/comply-test-controller-request.json`` adds a ``description``;
     leaving the selection inside the ``allOf`` loses the ``additionalProperties``
@@ -406,11 +532,13 @@ def inline_structural_pointer_refs(obj, current_schema_rel_path: Path, _seen=fro
                 # fresh ``_seen`` would re-enter a cyclic pointer.
                 return _merge_selection(obj, selected, "$ref")
 
-        arms = obj.get("allOf")
-        if isinstance(arms, list) and len(arms) == 1 and isinstance(arms[0], dict):
-            only_arm_ref = arms[0].get("$ref")
-            if isinstance(only_arm_ref, str) and len(arms[0]) == 1:
-                selected = _select_structural_pointer(only_arm_ref, current_schema_rel_path, _seen)
+        branches = obj.get("allOf")
+        if isinstance(branches, list) and len(branches) == 1 and isinstance(branches[0], dict):
+            only_branch_ref = branches[0].get("$ref")
+            if isinstance(only_branch_ref, str) and len(branches[0]) == 1:
+                selected = _select_structural_pointer(
+                    only_branch_ref, current_schema_rel_path, _seen
+                )
                 if selected is not None:
                     return _merge_selection(obj, selected, "allOf")
 
@@ -426,16 +554,16 @@ def inline_structural_pointer_refs(obj, current_schema_rel_path: Path, _seen=fro
 _NULL_ARM = {"type": "null"}
 
 
-def _as_nullable_arm(arms: list) -> dict | None:
-    """Return the non-null arm of a two-arm "S or null" union, when typed.
+def _as_nullable_branch(branches: list) -> dict | None:
+    """Return the non-null branch of a two-branch "S or null" union, when typed.
 
-    Only an arm that carries a ``type`` keyword qualifies. An arm that is a
-    ``$ref`` already produces ``T | None``, and an arm with no ``type`` has
+    Only an branch that carries a ``type`` keyword qualifies. An branch that is a
+    ``$ref`` already produces ``T | None``, and an branch with no ``type`` has
     nothing to make nullable.
     """
-    if len(arms) != 2 or arms.count(_NULL_ARM) != 1:
+    if len(branches) != 2 or branches.count(_NULL_ARM) != 1:
         return None
-    other = arms[0] if arms[1] == _NULL_ARM else arms[1]
+    other = branches[0] if branches[1] == _NULL_ARM else branches[1]
     if not isinstance(other, dict) or "$ref" in other:
         return None
     declared = other.get("type")
@@ -447,9 +575,9 @@ def _as_nullable_arm(arms: list) -> dict | None:
 
 
 def collapse_nullable_unions(obj):
-    """Spell "S or null" as a nullable ``S`` rather than a two-arm union.
+    """Spell "S or null" as a nullable ``S`` rather than a two-branch union.
 
-    datamodel-code-generator emits a named ``RootModel`` for an ``anyOf`` arm
+    datamodel-code-generator emits a named ``RootModel`` for an ``anyOf`` branch
     that declares a container or scalar ``type``, then types the field with the
     wrapper::
 
@@ -484,7 +612,7 @@ def collapse_nullable_unions(obj):
                 if not isinstance(schema, dict):
                     continue
                 for keyword in ("anyOf", "oneOf"):
-                    collapsed = _as_nullable_arm(schema.get(keyword) or [])
+                    collapsed = _as_nullable_branch(schema.get(keyword) or [])
                     if collapsed is not None:
                         siblings = {k: v for k, v in schema.items() if k != keyword}
                         schema.clear()
@@ -565,7 +693,7 @@ _DOCUMENTATION_KEYS = frozenset({"$comment", "deprecated", "description", "examp
 # the problem is a build failure rather than a silent behavior change. Measured at pin
 # 3.2.1: 8 pointer-ref task requests and 4 wire-equivalent inline declarers (1 task
 # request, 3 para-protocol). The 2 pointer-ref task RESPONSES are refused by
-# ``_has_bare_ref_root_arm`` -- rewriting them deletes a field from their submitted arm.
+# ``_has_bare_ref_root_branch`` -- rewriting them deletes a field from their submitted branch.
 _VERSION_ENVELOPE_NORMALIZED_CEILING = 12
 
 
@@ -598,13 +726,13 @@ def _without_documentation(node: Any) -> Any:
 
 def _composes_version_envelope(schema: dict) -> bool:
     """True when the schema already pulls the envelope in through a root ``allOf``."""
-    arms = schema.get("allOf")
-    if not isinstance(arms, list):
+    branches = schema.get("allOf")
+    if not isinstance(branches, list):
         return False
-    for arm in arms:
-        if not isinstance(arm, dict):
+    for branch in branches:
+        if not isinstance(branch, dict):
             continue
-        ref = arm.get("$ref")
+        ref = branch.get("$ref")
         if (
             isinstance(ref, str)
             and "#" not in ref
@@ -614,27 +742,27 @@ def _composes_version_envelope(schema: dict) -> bool:
     return False
 
 
-def _has_bare_ref_root_arm(schema: dict) -> bool:
-    """True when a root ``anyOf``/``oneOf`` arm is a bare ``$ref`` to another schema.
+def _has_bare_ref_root_branch(schema: dict) -> bool:
+    """True when a root ``anyOf``/``oneOf`` branch is a bare ``$ref`` to another schema.
 
     This is the one case where the rewrite would REMOVE a field instead of relocating it.
-    datamodel-code-generator merges the root ``properties`` into every arm it builds, but a
-    root ``allOf`` ``$ref`` becomes a base only of the arm it builds FROM the root object --
-    an arm that is a ``$ref`` elsewhere is generated from the referenced schema and the
-    root's bases never reach it. So dropping the stubs strips the field from that arm and
+    datamodel-code-generator merges the root ``properties`` into every branch it builds, but a
+    root ``allOf`` ``$ref`` becomes a base only of the branch it builds FROM the root object --
+    an branch that is a ``$ref`` elsewhere is generated from the referenced schema and the
+    root's bases never reach it. So dropping the stubs strips the field from that branch and
     the composition does not give it back.
 
     Measured: applying the rewrite anyway cost ``RefineProposalsResponse2`` and
     ``RequestProposalsResponse4`` their ``adcp_version`` outright (10 fields to 9, 16 to 15),
-    and both carry ``extra: forbid``, so a buyer echoing the version on the submitted arm
-    would have been REJECTED where it previously validated. Those two arms are
+    and both carry ``extra: forbid``, so a buyer echoing the version on the submitted branch
+    would have been REJECTED where it previously validated. Those two branches are
     ``core/compact-task-submitted.json``, which composes no envelope of its own.
     """
     for key in ("anyOf", "oneOf"):
-        arms = schema.get(key)
-        if not isinstance(arms, list):
+        branches = schema.get(key)
+        if not isinstance(branches, list):
             continue
-        if any(isinstance(arm, dict) and "$ref" in arm for arm in arms):
+        if any(isinstance(branch, dict) and "$ref" in branch for branch in branches):
             return True
     return False
 
@@ -707,8 +835,8 @@ def normalize_version_envelope_composition(schema: dict, schema_rel_path: Path) 
     }
     if not declared or _composes_version_envelope(schema):
         return schema
-    if _has_bare_ref_root_arm(schema):
-        # Relocating the stubs here would DELETE the field from the ``$ref`` arm. Refuse,
+    if _has_bare_ref_root_branch(schema):
+        # Relocating the stubs here would DELETE the field from the ``$ref`` branch. Refuse,
         # and let the schema surface in the hierarchy ratchet's residue by name.
         return schema
 
@@ -730,10 +858,10 @@ def normalize_version_envelope_composition(schema: dict, schema_rel_path: Path) 
         del properties[name]
     if not properties:
         del schema["properties"]
-    arms = schema.setdefault("allOf", [])
-    if not isinstance(arms, list):
+    branches = schema.setdefault("allOf", [])
+    if not isinstance(branches, list):
         raise ValueError(f"{schema_rel_path.as_posix()}: root allOf is not a list")
-    arms.append({"$ref": _version_envelope_ref()})
+    branches.append({"$ref": _version_envelope_ref()})
 
     global _VERSION_ENVELOPE_NORMALIZED
     _VERSION_ENVELOPE_NORMALIZED += 1
@@ -1033,6 +1161,7 @@ def flatten_schemas(temp_dir: Path):
         # ``_normalize_schema_ref_target`` resolves. See OPEN_VOCABULARY_SCHEMAS
         # for why one enum is deliberately not reproduced.
         schema = open_vocabulary_refs(schema, rel_path)
+        schema = add_pin_gap_fields(schema, rel_path)
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
         schema = stabilize_nested_discriminators(schema, rel_path)
@@ -1411,14 +1540,6 @@ def _staged_source_tree(staging_root: Path) -> Path:
     if staged_generated.exists():
         shutil.rmtree(staged_generated)
 
-    # The committed ergonomic module can import generated names that no longer
-    # exist. The isolated import graph uses this inert stub until a fresh module
-    # is generated from the staged models.
-    (staged_package / "types" / "_ergonomic.py").write_text(
-        '"""Temporary ergonomic stub used during type generation."""\n\n'
-        "def apply_ergonomic_coercion() -> None:\n"
-        "    pass\n"
-    )
     return staged_source
 
 
@@ -1511,7 +1632,6 @@ def main(argv: list[str] | None = None):
             staged_types = staged_source / "adcp" / "types"
             staged_output = staged_types / OUTPUT_DIR.name
             staged_consolidated = staged_types / "_generated.py"
-            staged_ergonomic = staged_types / "_ergonomic.py"
             staged_error_details = staged_types / "error_details.py"
             staged_report = staging_root / "shared-type-names.md"
 
@@ -1549,32 +1669,8 @@ def main(argv: list[str] | None = None):
             if result.stdout:
                 print(result.stdout, end="")
 
-            ergonomic_script = REPO_ROOT / "scripts" / "generate_ergonomic_coercion.py"
-            if ergonomic_script.exists():
-                print("\nGenerating ergonomic coercion module...")
-                result = subprocess.run(
-                    [
-                        sys.executable,
-                        str(ergonomic_script),
-                        "--source-root",
-                        str(staged_source),
-                        "--output-file",
-                        str(staged_ergonomic),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    cwd=staging_root,
-                )
-                if result.returncode != 0:
-                    print("\n✗ Ergonomic coercion generation failed:", file=sys.stderr)
-                    print(result.stderr, file=sys.stderr)
-                    return 1
-                if result.stdout:
-                    print(result.stdout, end="")
-
             current_types = REPO_ROOT / "src" / "adcp" / "types"
             restore_unchanged_file(staged_consolidated, current_types / "_generated.py")
-            restore_unchanged_file(staged_ergonomic, current_types / "_ergonomic.py")
             restore_unchanged_file(staged_error_details, current_types / "error_details.py")
             restore_unchanged_file(staged_report, SHARED_TYPE_NAMES_FILE)
             restore_unchanged_files(staged_output)
@@ -1582,7 +1678,6 @@ def main(argv: list[str] | None = None):
             artifacts = [
                 (staged_output, OUTPUT_DIR),
                 (staged_consolidated, current_types / "_generated.py"),
-                (staged_ergonomic, current_types / "_ergonomic.py"),
                 (staged_error_details, current_types / "error_details.py"),
                 (staged_report, SHARED_TYPE_NAMES_FILE),
             ]

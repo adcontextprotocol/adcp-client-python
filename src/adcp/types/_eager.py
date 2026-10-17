@@ -1,10 +1,13 @@
 """Eager realization of the AdCP type surface.
 
-This module binds every public name exported by :mod:`adcp.types` and runs
-the import-time Pydantic patching (``_ergonomic`` coercion +
-``_forward_compat`` open-union ``Format.assets``). It is imported on demand
-by :mod:`adcp.types`'s lazy ``__getattr__`` the first time any type symbol is
-accessed, so ``import adcp.types`` itself stays cheap.
+This module binds every public name exported by :mod:`adcp.types`. It is
+imported on demand by :mod:`adcp.types`'s lazy ``__getattr__`` the first time
+any type symbol is accessed, so ``import adcp.types`` itself stays cheap.
+
+It used to also run the import-time Pydantic patching -- ``_ergonomic``
+coercion and ``_forward_compat``'s open ``Format.assets``. Both are now
+declared where the field is declared, by the generator, so there is nothing
+to run here.
 
 Do not import this module directly — import from :mod:`adcp.types` (or
 :mod:`adcp`). The name set here is mirrored by ``adcp.types.__all__``; the
@@ -13,20 +16,12 @@ Do not import this module directly — import from :mod:`adcp.types` (or
 
 from __future__ import annotations
 
-import importlib
-
-# Run the import-time patchers as a side effect, before binding the generated
-# types below (must come first — see the original "must be imported before
-# other types" note): ``_ergonomic`` applies BeforeValidator coercion and
-# ``_forward_compat`` opens ``Format.assets`` / ``RepeatableAssetGroup.assets``.
-# Imported via ``import_module`` — a call, not a name binding — so they read as
-# the intentional side-effect imports they are rather than tripping
-# unused-import analysers. (The removed ``format_category`` submodule has a real
-# shim at ``domains/enums/format_category.py``, restored after codegen by
+# ``_forward_compat`` is now six name bindings, imported below for them. The
+# ``import_module`` call that ran it for its side effects is gone with the side
+# effects: the coercion and the open unions are generated into the fields.
+# (The removed ``format_category`` submodule has a real shim at
+# ``domains/enums/format_category.py``, restored after codegen by
 # ``scripts/post_generate_fixes.py``.)
-importlib.import_module("adcp.types._ergonomic")
-importlib.import_module("adcp.types._forward_compat")
-
 # Re-exported submodules (part of the public surface via ``__all__`` below).
 from adcp.types import _generated as generated  # noqa: F401
 from adcp.types import aliases  # noqa: F401
@@ -927,6 +922,35 @@ Creative = _canonical_creative.Creative
 CreativeAsset = _canonical_creative.CreativeAsset
 CreativeFilters = _canonical_creative.CreativeFilters
 CreativeManifest = _canonical_creative.CreativeManifest
+# The named-format arm has no canonical counterpart: the canonical layer models
+# the canonical-format arm only, so the deprecated format_id path reaches the
+# other arm through the generated class.
+CreativeManifestNamedFormatManifest = generated.CreativeManifestNamedFormatManifest
+
+# The shared shape of each root whose arms partition AND whose union is public.
+# PUBLIC because the arms are one type only if that type can be named: a method
+# behaving per arm has to take something, and an isinstance check has to test
+# something. The union keeps the root's own name and means "one of these"; the
+# shape means "any of them". Spelled Shape rather than Base because
+# versioned_bases already exports 197 public <Tool><Direction>Base names meaning
+# something else -- the extension base for a tool's request at a pinned version.
+#
+# A union's visibility FOLLOWS its root's. The BASE takes the root's own name
+# and is already exported under it, so only the union needs a name here -- for
+# a caller that wants a type checker to force exhaustive narrowing rather than
+# the runtime strictness the base already gives.
+# The CANONICAL union, because adcp.types.CreateMediaBuyRequest is the canonical
+# base. Exporting the generated union beside a canonical base would pair a name
+# with a union whose members do not subclass it.
+CreateMediaBuyRequestBranches = _canonical_creative.CreateMediaBuyRequestBranches
+VerifyBrandClaimRequestBranches = generated.VerifyBrandClaimRequestBranches
+# CreativeAssetBranches is deliberately NOT exported. adcp.types.CreativeAsset is
+# the canonical model refining ONE branch, not a base over both, so pairing the
+# union with that name would promise a supertype it is not. The generated union
+# is already public as LegacyCreativeAsset.
+ListAccountChangesResponseBranches = generated.ListAccountChangesResponseBranches
+RequestProposalsRequestBranches = generated.RequestProposalsRequestBranches
+WebhookChallengeResponseBranches = generated.WebhookChallengeResponseBranches
 CreativeVariant = _canonical_creative.CreativeVariant
 Format = _canonical_creative.Format
 GetCreativeDeliveryResponse = _canonical_creative.GetCreativeDeliveryResponse

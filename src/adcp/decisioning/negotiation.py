@@ -79,7 +79,6 @@ def _wire_refinements(request: BaseModel | Mapping[str, Any]) -> list[dict[str, 
         raise AdcpError(
             "VALIDATION_ERROR",
             message="refinements must be an ordered non-empty array",
-            recovery="correctable",
             field="refinements",
         )
     return refinements
@@ -114,7 +113,6 @@ def validate_finalize_source_states_or_raise(
             raise AdcpError(
                 "INVALID_STATE",
                 message="source proposal payload does not match the requested proposal_id",
-                recovery="correctable",
                 field=f"refinements.{index}.proposal_id",
                 details={"proposal_id": source_id},
             )
@@ -122,7 +120,6 @@ def validate_finalize_source_states_or_raise(
             raise AdcpError(
                 "INVALID_STATE",
                 message="finalize requires a draft source proposal",
-                recovery="correctable",
                 field=f"refinements.{index}.proposal_id",
                 details={"proposal_id": source_id},
             )
@@ -156,7 +153,6 @@ def preflight_refinement_batch_or_raise(
         raise AdcpError(
             "VALIDATION_ERROR",
             message="proposal refinement request is schema-invalid",
-            recovery="correctable",
             field="refinements",
             details={"schema_errors": exc.errors(include_url=False)},
         ) from exc
@@ -174,7 +170,6 @@ def preflight_refinement_batch_or_raise(
         raise AdcpError(
             "UNSUPPORTED_FEATURE",
             message=f"refinement dimension {dimension!r} is not supported",
-            recovery="correctable",
             field=unsupported.pointer,
             details={
                 "unsupported_dimension": dimension,
@@ -185,7 +180,6 @@ def preflight_refinement_batch_or_raise(
     raise AdcpError(
         "VALIDATION_ERROR",
         message="proposal refinement batch failed preflight",
-        recovery="correctable",
         field=first.pointer,
         details=_issues_details(result.issues),
     )

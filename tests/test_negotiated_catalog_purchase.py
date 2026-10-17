@@ -27,7 +27,9 @@ from adcp.types import (
     ListProductsRequest,
 )
 from adcp.types.core import TaskResult, TaskStatus
-from adcp.types.legacy import LegacyGetProductsResponse
+from adcp.types.versioned_bases.v30 import (
+    GetProductsResponseBase as GetProductsResponseBaseV30,
+)
 
 _VECTORS = (
     Path(__file__).parent
@@ -410,7 +412,13 @@ def test_completed_payload_does_not_invent_newer_response_defaults() -> None:
     tools = ["get_products", "create_media_buy"]
     coordinator = MediaBuyLifecycleCoordinator(client, _caps(["3.0"], tools=tools), tools)
     wire = copy.deepcopy(_CASES[1]["legacy_response"])
-    typed = LegacyGetProductsResponse.model_validate(wire)
+    # Validated through the 3.0 surface, because that is the version this
+    # coordinator negotiated and therefore the schema that governs the
+    # response. ``LegacyGetProductsResponse`` is an alias for the CURRENT
+    # generated class, so it carries 3.2's root conditional -- which requires
+    # ``cache_scope`` on every 3.1+ response and so refuses the very shape this
+    # test is about: a seller that sent none of the newer fields.
+    typed = GetProductsResponseBaseV30.model_validate(wire)
 
     payload = coordinator._completed_payload(
         "list_products",

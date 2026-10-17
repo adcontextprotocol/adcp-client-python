@@ -52,6 +52,7 @@ from adcp.canonical_formats import (
     resolve_creative_dialect,
     resolve_legacy_format_refs,
 )
+from adcp.canonical_formats.identity import declared_v1_format_refs
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import (
@@ -1830,7 +1831,7 @@ class ADCPClient:
                 option_id = getattr(declaration, "format_option_id", None)
                 if not option_id:
                     continue
-                refs = getattr(declaration, "legacy_format_refs", ())
+                refs = declared_v1_format_refs(declaration)
                 if not refs:
                     continue
                 route = [ref.model_dump(mode="json") for ref in refs]

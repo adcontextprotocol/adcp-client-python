@@ -69,7 +69,7 @@ async def test_client_task_creates_one_bounded_span(
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
-            data={"products": []},
+            data={"products": [], "cache_scope": "public"},
         )
 
     with patch.object(client.adapter, "get_products", new=completed):
@@ -130,7 +130,7 @@ async def test_nested_execute_task_does_not_duplicate_spans(
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
-            data={"products": []},
+            data={"products": [], "cache_scope": "public"},
         )
 
     with patch.object(client.adapter, "get_products", new=completed):

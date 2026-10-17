@@ -592,7 +592,7 @@ def generate_consolidated_exports() -> str:
     # the pre-rebind declaration, so a whole shifted window of names typed one
     # variant off what they held.
     aliases: dict[str, str] = {}
-    # AdCP renumbered the adagents authorization variants when it added an arm at
+    # AdCP renumbered the adagents authorization variants when it added an branch at
     # the front. Each historical public name keeps the shape it has always had,
     # and the root union gets its own name.
     if {"AuthorizedAgents", "AuthorizedAgents6"}.issubset(all_exports):
@@ -630,7 +630,7 @@ def generate_consolidated_exports() -> str:
     # FooResponse model. Keep the old numbered names as aliases when the
     # upstream generator no longer emits them so legacy imports continue to
     # work while resolving to the beta 3 shape.
-    response_arm_aliases = {
+    response_branch_aliases = {
         "AcquireRightsResponse1": "AcquireRightsResponse",
         "AcquireRightsResponse2": "AcquireRightsResponse",
         "AcquireRightsResponse3": "AcquireRightsResponse",
@@ -689,7 +689,7 @@ def generate_consolidated_exports() -> str:
         "ValidateContentDeliveryResponse1": "ValidateContentDeliveryResponse",
         "ValidateContentDeliveryResponse2": "ValidateContentDeliveryResponse",
     }
-    for alias, target in response_arm_aliases.items():
+    for alias, target in response_branch_aliases.items():
         if alias not in all_exports and target in all_exports:
             aliases[alias] = target
     # The beta 3 product schema is a oneOf over two concrete product shapes.
@@ -807,10 +807,14 @@ def generate_consolidated_exports() -> str:
         "from adcp.types import domains  # noqa: F401",
         "",
         "# Rebuild models that reference other models via forward refs",
-        "# Note: only call model_rebuild() on actual classes, not Union type aliases",
+        "# A name here can be a union alias over a split root's branches, which has",
+        "# no model_rebuild of its own. classes_behind is the one derivation of",
+        "# what a name stands for: the shared base and each branch, or the model.",
+        "from adcp.types._split_root import classes_behind",
     ]
     for t in rebuild_types:
-        rebuild_lines.append(f"{t}.model_rebuild()")
+        rebuild_lines.append(f"for _rebuilt in classes_behind({t}):")
+        rebuild_lines.append("    _rebuilt.model_rebuild()")
     rebuild_lines.append("")
     lines.extend(rebuild_lines)
 
@@ -910,6 +914,33 @@ def _schema_module_paths() -> list[Path]:
     return paths
 
 
+#: The runtime half of a lazy domain facade, emitted verbatim into each one.
+#:
+#: Under ``not TYPE_CHECKING`` so a type checker never sees a module-level
+#: ``__getattr__``: one would type every unknown name as ``object`` and silence
+#: the missing-attribute error the ``TYPE_CHECKING`` block above exists to keep.
+_LAZY_FACADE_RESOLVER = '''
+if not TYPE_CHECKING:
+    import importlib
+
+    _DECLARING_MODULE = {
+        name: module for module, names in _DECLARED_BY.items() for name in names
+    }
+
+    def __getattr__(name: str) -> object:
+        """Resolve a re-exported name by importing the ONE module declaring it."""
+        module = _DECLARING_MODULE.get(name)
+        if module is None:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        value = getattr(importlib.import_module(f"adcp.types.domains.{module}"), name)
+        globals()[name] = value  # cache: __getattr__ fires once per name
+        return value
+
+    def __dir__() -> list[str]:
+        return sorted(set(__all__) | set(globals()))
+'''
+
+
 def generate_domain_exports(
     bindings: dict[str, dict[str, str]],
     name_to_modules: dict[str, set[str]],
@@ -953,6 +984,14 @@ def generate_domain_exports(
             "A type this domain declares in more than one schema is not here: import",
             "    it from its own schema's module," f" ``adcp.types.domains.{domain}.<schema>``.",
             "Nothing here is renamed.",
+            "",
+            "This facade is LAZY (PEP 562). It binds no name at import time, because an",
+            "eager one makes every leaf of this domain depend on every other leaf: a",
+            "submodule import runs this ``__init__``, so one leaf's dependencies become",
+            "the whole domain's. That turned a benign submodule-level cycle between",
+            "``core`` and ``formats.canonical`` -- two domains whose schemas reference",
+            "each other, which Python handles -- into a package-level one that made all",
+            "16 modules under ``formats/canonical/`` unimportable on their own.",
         ]
         lines.extend(
             [
@@ -963,13 +1002,38 @@ def generate_domain_exports(
                 "# ruff: noqa: E501, I001",
                 "from __future__ import annotations",
                 "",
+                "from typing import TYPE_CHECKING",
+                "",
+                "if TYPE_CHECKING:",
+                "    # The whole importable surface, so type checkers and IDEs see it. Runtime",
+                "    # resolution is ``__getattr__`` below; mypy never sees that, so a typo'd",
+                "    # import is still an error rather than ``object``.",
             ]
         )
         for module_name in sorted(by_module):
             lines.append(
-                f"from adcp.types.domains.{module_name} import "
+                f"    from adcp.types.domains.{module_name} import "
                 f"{', '.join(sorted(by_module[module_name]))}"
             )
+        lines.extend(
+            [
+                "",
+                "#: Which schema module declares each re-exported name.",
+                "#:",
+                "#: Resolution is PER NAME, a deliberate divergence from",
+                "#: ``adcp.types.__init__``, which routes every name through one ``_eager``",
+                "#: module. Importing a whole domain graph on first access can re-enter the",
+                "#: cycle this laziness exists to break, when that first access happens while",
+                "#: a canonical format module is still initializing. Importing only the one",
+                "#: declaring module cannot.",
+                "_DECLARED_BY = {",
+            ]
+        )
+        for module_name in sorted(by_module):
+            declared = ", ".join(f'"{name}"' for name in sorted(by_module[module_name]))
+            lines.append(f'    "{module_name}": ({declared},),')
+        lines.append("}")
+        lines.extend(_LAZY_FACADE_RESOLVER.splitlines())
         lines.extend(_format_all_block(sorted(rows)))
         modules[domain] = "\n".join(lines)
 

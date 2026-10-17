@@ -44,8 +44,12 @@ def placement_format_options(placement: Placement) -> list[str]:
 
 
 def product_format_options(product: Product) -> list[str]:
-    assert_type(product.format_options, list[Format])
-    return [str(option.format_kind) for option in product.format_options]
+    # Optional, like ``placement.format_options`` above: core/product.json
+    # requires format_options in no branch unconditionally, so the public model
+    # stopped requiring it (salesagent-8qela.69). The old assertion encoded the
+    # over-requirement, not the pin.
+    assert_type(product.format_options, list[Format] | None)
+    return [str(option.format_kind) for option in product.format_options or []]
 
 
 def product_placements(product: Product) -> list[str]:
@@ -79,8 +83,12 @@ def create_media_buy_response1_packages(response: CreateMediaBuyResponse1) -> li
 
 
 def sync_creatives_request_creatives(request: SyncCreativesRequest) -> list[str]:
-    assert_type(request.creatives, list[CreativeAsset])
-    return [asset.creative_id for asset in request.creatives]
+    # Optional: creative/sync-creatives-request.json requires only
+    # [idempotency_key, account] at its root and offers creatives | assignments |
+    # assignment_operations as anyOf branches, so a legal request may carry
+    # another one (salesagent-8qela.69).
+    assert_type(request.creatives, list[CreativeAsset] | None)
+    return [asset.creative_id for asset in request.creatives or []]
 
 
 def list_creatives_response_creatives(response: ListCreativesResponse) -> list[str]:

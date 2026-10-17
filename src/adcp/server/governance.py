@@ -17,7 +17,7 @@ from adcp.governance import (
     validate_governance_request,
     validate_governance_verdict,
 )
-from adcp.server.base import ADCPHandler, NotImplementedResponse, TContext
+from adcp.server.base import ADCPHandler, NotImplementedResponse, TContext, invalid_request
 from adcp.types import (
     CheckGovernanceRequest,
     CheckGovernanceResponse,
@@ -25,7 +25,6 @@ from adcp.types import (
     CreatePropertyListResponse,
     DeletePropertyListRequest,
     DeletePropertyListResponse,
-    Error,
     GetCreativeFeaturesRequest,
     GetCreativeFeaturesResponse,
     GetPlanAuditLogsRequest,
@@ -84,11 +83,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = GetCreativeFeaturesRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_get_creative_features(request, context)
 
     async def sync_plans(
@@ -100,11 +95,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = SyncPlansRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_sync_plans(request, context)
 
     async def check_governance(
@@ -122,11 +113,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
             if expected_check_type is not None:
                 validate_governance_request(request)
         except (ValidationError, ValueError) as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params, request_model=CheckGovernanceRequest)
         response = await self.handle_check_governance(request, context)
         if not isinstance(response, NotImplementedResponse) and expected_check_type is not None:
             validate_governance_verdict(
@@ -149,11 +136,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
                 resolved_version=getattr(context, "resolved_adcp_version", None),
             )
         except (ValidationError, ValueError) as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params, request_model=ReportPlanOutcomeRequest)
         return await self.handle_report_plan_outcome(request, context)
 
     async def get_plan_audit_logs(
@@ -165,11 +148,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = GetPlanAuditLogsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_get_plan_audit_logs(request, context)
 
     async def create_property_list(
@@ -184,11 +163,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = CreatePropertyListRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_create_property_list(request, context)
 
     async def get_property_list(
@@ -203,11 +178,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = GetPropertyListRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_get_property_list(request, context)
 
     async def list_property_lists(
@@ -222,11 +193,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = ListPropertyListsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_list_property_lists(request, context)
 
     async def update_property_list(
@@ -241,11 +208,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = UpdatePropertyListRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_update_property_list(request, context)
 
     async def delete_property_list(
@@ -260,11 +223,7 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = DeletePropertyListRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_delete_property_list(request, context)
 
     # ========================================================================

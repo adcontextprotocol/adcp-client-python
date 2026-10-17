@@ -177,7 +177,13 @@ def complete_inputs() -> dict:
     value["execution"].update(
         {
             "postgresql_version": "16.14",
-            "os_release_sha256": hashlib.sha256(Path("/etc/os-release").read_bytes()).hexdigest(),
+            # The gate checks this digest's SHAPE and never its value
+            # (``_digest(..., HEX_64)`` in reporting_interop_matrix.py), so the
+            # fixture needs *a* digest rather than the host's OS identity.
+            # Hashing /etc/os-release made a pure fixture builder fail on every
+            # machine without that file, which is every non-Linux box: the
+            # obligation graded here is the gate's, not the runner's.
+            "os_release_sha256": hashlib.sha256(b"os-release fixture").hexdigest(),
             "seller_entrypoint": str(seller_entrypoint),
             "seller_entrypoint_sha256": hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
             "buyer_entrypoint": str(buyer_entrypoint),

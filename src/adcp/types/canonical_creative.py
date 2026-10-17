@@ -77,7 +77,17 @@ import json
 import re
 from collections.abc import Callable, Iterable, Sequence
 from functools import lru_cache
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Protocol, TypeVar, cast, get_args
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ClassVar,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    cast,
+    get_args,
+)
 
 from pydantic import (
     AfterValidator,
@@ -85,11 +95,13 @@ from pydantic import (
     ConfigDict,
     Field,
     GetJsonSchemaHandler,
+    ModelWrapValidatorHandler,
     PlainSerializer,
     PrivateAttr,
     SerializerFunctionWrapHandler,
     WithJsonSchema,
     WrapSerializer,
+    WrapValidator,
     field_validator,
     model_serializer,
     model_validator,
@@ -97,16 +109,42 @@ from pydantic import (
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic_core import CoreSchema
 
+from adcp.types import _conditions
 from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
+from adcp.types._targeting_compat import (
+    TargetingOverlayMutationInMaterializedJson,
+    mutation_overlay_field,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
-from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
+from adcp.types.domains.core.creative_asset import (
+    # The canonical asset IS the root's canonical-format-kind branch: that branch
+    # requires ``format_kind`` and types the deprecated ``format_id`` as
+    # ``None``, which is precisely what this layer used to add by hand.
+    CreativeAssetV2CreativeCanonicalFormatKind as _CanonicalCreativeWire,
+)
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
 from adcp.types.domains.core.creative_manifest import (
-    CreativeManifest as _CanonicalCreativeManifestWire,
+    # The ROOT, not its canonical branch. core/creative-manifest.json requires
+    # only ['assets'] and then states a true XOR -- oneOf[0] 'Named-format
+    # manifest' requires format_id with not:{required:[format_kind]}, oneOf[1]
+    # 'Canonical-format manifest' requires format_kind with
+    # not:{required:[format_id]} -- so the root requires NEITHER key. Binding the
+    # canonical branch imported that branch's required ``format_kind`` onto the
+    # public name, which is the requiredness regression on this branch
+    # (salesagent-8qela.69): optional upstream, required here.
+    #
+    # BOTH manifest refinements below bind this: the public input manifest and the
+    # readback manifest on a delivery row. The pin reaches both through the same
+    # ``$ref`` to this root -- core/creative-variant.json for the input manifest,
+    # core/get-creative-delivery-response.json for the readback one -- so neither
+    # may narrow to one arm. The readback name carried the canonical arm until
+    # ``_DeliveryCreativeManifest`` below, and that is the SAME requiredness
+    # regression, one name over.
+    CreativeManifest as _CreativeManifestRoot,
 )
 from adcp.types.domains.core.creative_variant import CreativeVariant as _LegacyCreativeVariant
 from adcp.types.domains.core.macro_resolution_capability import MacroProcessingCapability
@@ -137,7 +175,19 @@ from adcp.types.domains.creative.sync_creatives_request import (
 )
 from adcp.types.domains.enums.channels import MediaChannel
 from adcp.types.domains.media_buy.create_media_buy_request import (
-    CreateMediaBuyRequest as _LegacyCreateMediaBuyRequest,
+    # The generated base and one class per branch. The root's branches partition
+    # by requiredness, so there is no single wire class to refine: two branches
+    # require ``packages`` and the third forbids it.
+    CreateMediaBuyRequest as _LegacyCreateMediaBuyBase,
+)
+from adcp.types.domains.media_buy.create_media_buy_request import (
+    CreateMediaBuyRequestCommittedProposalExecution as _LegacyCreateMediaBuyProposal,
+)
+from adcp.types.domains.media_buy.create_media_buy_request import (
+    CreateMediaBuyRequestExplicitPackagesWithFixedAllocation as _LegacyCreateMediaBuyFixed,
+)
+from adcp.types.domains.media_buy.create_media_buy_request import (
+    CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation as _LegacyCMBSellerOptimized,
 )
 from adcp.types.domains.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1 as _LegacyCreateMediaBuyResponse1,
@@ -542,6 +592,26 @@ def _legacy_creative_identity_path(
     return None
 
 
+def _shape_forbids_top_level_key(cls: type, found: str) -> bool:
+    """Does *cls*'s own shape already forbid the top-level key *found* names?
+
+    ``found`` is a path from :func:`_legacy_creative_identity_path`, so a
+    top-level key is exactly ``$.<key>`` -- anything deeper carries a further
+    ``.`` or a ``[``, and only the path-reading refusal answers for those.
+
+    ``_ABSENT`` is the generated declaration of the keys a shape forbids,
+    compiled from the schema's branch and inherited by a canonical model that
+    binds that branch. It is read rather than re-derived from field types: the
+    canonical layer DELETES a removed field from its own ``model_fields``, so the
+    resolved-annotation route cannot see it on this class at all.
+    """
+
+    key = found[2:] if found.startswith("$.") else ""
+    if not key or "." in key or "[" in key:
+        return False
+    return key in getattr(cls, "_ABSENT", frozenset())
+
+
 def _looks_like_legacy_format_tuple(schema: dict[str, Any], properties: dict[str, Any]) -> bool:
     keys = set(properties)
     title = str(schema.get("title", "")).lower()
@@ -678,19 +748,78 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         if removed:
             cls.model_rebuild(force=True)
 
-    @model_validator(mode="before")
+    @model_validator(mode="wrap")
     @classmethod
-    def _reject_legacy_creative_identity(cls, value: Any) -> Any:
+    def _reject_legacy_creative_identity(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Any]
+    ) -> Any:
+        """Refuse a removed creative-identity key, naming the migration.
+
+        WRAP rather than BEFORE, and the kind is what makes this reachable. A
+        generated branch that FORBIDS the same key refuses it too, through
+        ``_c.absent``, with the generic sentence every forbidden key gets:
+        "format_id is not accepted by this request shape". That sentence states
+        the refusal and not the remedy, and a buyer told a field is unusable
+        needs to be told what to use instead.
+
+        Both were ``mode="before"``, and the generated one won. Measured: a
+        same-named override keeps the slot where the name was FIRST collected
+        walking the MRO, so declaring this on the most derived class does not
+        move it -- the generated validator still ran first and this one never
+        saw the key. A wrap validator wraps the whole inner validation,
+        including every before-validator a subclass declares, so precedence
+        here comes from the validator's KIND and not from a collection order
+        nobody controls. Measured on both: wrap-on-the-base wins, and keeps
+        winning through a further refinement.
+
+        The two refusals are not redundant and neither is deleted. This one
+        reads a PATH, so it catches a legacy identity nested anywhere in the
+        document; ``_ABSENT`` is top-level keys only. The generic refusal still
+        answers for every other key a shape forbids.
+
+        BUT IT DOES NOT ANSWER FOR A TOP-LEVEL KEY THIS SHAPE ITSELF FORBIDS,
+        and the paragraph above is why that had to change. Where both apply the
+        two refusals ARE redundant, and preempting the shape's own one costs the
+        buyer the only thing either refusal delivers on the wire:
+
+            canonical CreativeAsset, this validator winning
+                issues[0].keyword  'validation'   -- NOT a JSON Schema keyword
+                issues[0].message  'a declared constraint on this field rejected
+                                    the value'
+            the shape's own refusal
+                issues[0].keyword  'not'          -- a Draft-7 keyword
+                issues[0].message  'not composition failed'
+
+        The remedy sentence below reaches NEITHER envelope. It is stripped on
+        purpose: ``_OPAQUE_TYPES`` in ``adcp.validation.pydantic_errors`` replaces
+        the message of any validator-raised ``ValueError``, because this SDK's
+        validators interpolate caller values into those sentences. So the
+        justification in the first paragraph -- "a buyer told a field is unusable
+        needs to be told what to use instead" -- is unsatisfied by construction
+        (salesagent-8qela.34), and what the preemption actually trades is a
+        vocabulary keyword for an invented one, against
+        ``schemas/cache/3.2/core/error.json``, which requires ``issues[].keyword``
+        and says it is "drawn from the JSON Schema vocabulary ... do not invent
+        custom values here".
+
+        So the shape's refusal OWNS a top-level key the shape forbids. Measured
+        over all fifteen (canonical model, removed name) pairs: exactly one --
+        ``CreativeAsset.format_id`` -- has a shape that also forbids the name, so
+        the other fourteen are unaffected and still get the path-reading refusal
+        below. Keeping the remedy AND the keyword needs this validator to raise a
+        structured error instead of a bare ``ValueError``; that is
+        salesagent-8qela.106 and is deliberately not done here.
+        """
         found = _legacy_creative_identity_path(
             value,
             allow_root_v1_ref=cls.__adcp_format_declaration_scope__,
             format_scope=cls.__adcp_format_declaration_scope__,
         )
-        if found is not None:
+        if found is not None and not _shape_forbids_top_level_key(cls, found):
             raise ValueError(
                 f"{found} contains legacy creative identity; use an explicit Legacy* model"
             )
-        return value
+        return handler(value)
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("serialize_as_any", False)
@@ -918,8 +1047,18 @@ class Product(_LegacyProduct, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
-    format_options: list[Format] = Field(  # type: ignore[assignment]
-        min_length=1, description="Canonical creative formats accepted by this product."
+    # Optional, because core/product.json requires it in no branch unconditionally:
+    # the root's ``required`` is [product_id, name, description, publisher_properties,
+    # delivery_type, pricing_options, reporting_capabilities], and ``format_options``
+    # is required only inside the ``anyOf`` branch "Canonical-format product". An
+    # anyOf branch's requirement is not the root's, so narrowing the ITEM type here
+    # is right and dropping ``| None`` was not -- it made the other branch
+    # unconstructible. ``placements`` two lines down is the same narrowing done
+    # correctly, and ``pricing_options`` is required because the ROOT requires it.
+    format_options: list[Format] | None = Field(  # type: ignore[assignment]
+        default=None,
+        min_length=1,
+        description="Canonical creative formats accepted by this product.",
     )
     placements: list[Placement] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
     pricing_options: list[CanonicalPricingOption] = Field(min_length=1)
@@ -936,9 +1075,31 @@ class CreativeAsset(_CanonicalCreativeWire, CanonicalBoundaryModel):
     """
 
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
-        format_id: _RemovedFormatId = Field(default=None, init=False)
+        # Annotated ``None``, not ``_RemovedFormatId``. This class binds the
+        # canonical-format BRANCH, which types ``format_id`` as ``None``;
+        # ``_RemovedFormatId`` is ``FormatReferenceStructuredObject | None`` and so
+        # would WIDEN the parent, which mypy refuses and which pyright names as an
+        # override error. A redeclaration restates the parent's annotation -- here
+        # that is ``None`` -- and ``init=False`` is what removes the keyword from the
+        # ``__init__`` both checkers synthesize through ``dataclass_transform``.
+        #
+        # ``None`` is the only spelling available here and it is the right one. mypy
+        # refuses the alternative outright -- 'NoneType should not be used as a type,
+        # please use None instead [nonetype-type]' -- so a gate that wanted
+        # ``NoneType`` written in the source would have demanded a different spelling
+        # of the same annotation than the type checker allows.
+        # test_the_removed_field_is_hidden_from_the_type_checker therefore compares the
+        # two sides as pydantic RESOLVES them rather than as they are written: both go
+        # through a throwaway field, which is where ``None`` becomes ``NoneType``.
+        # See salesagent-8qela.70.
+        format_id: None = Field(default=None, init=False)
 
-    format_kind: str
+    # Nothing is declared here. The branch this subclasses requires ``format_kind``
+    # and types ``format_id`` as ``None``, so the narrowing and the removal this
+    # class used to spell by hand are the branch's own shape -- and the ``None``
+    # annotation is stronger than the hidden-from-the-constructor trick it
+    # replaces, because it is a type error at every call rather than only the
+    # ones a type checker sees through ``init=False``.
 
 
 class Creative(_CanonicalListedCreative, CanonicalBoundaryModel):
@@ -955,8 +1116,24 @@ class Creative(_CanonicalListedCreative, CanonicalBoundaryModel):
     format_kind: str
 
 
-class CreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
+class CreativeManifest(_CreativeManifestRoot, CanonicalBoundaryModel):
     """Canonical manifest accepting the SDK's public standalone asset models.
+
+    Bound to the generated ROOT, which is what the public name means: the root
+    admits either branch and requires neither key. The branch classes stay
+    reachable as branches and nothing about them changes.
+
+    Safe only because salesagent-8qela.76 landed first. The root's XOR lives in
+    its core schema, which a subclass does not inherit, so rebinding alone used
+    to make this class ACCEPT a manifest carrying neither key -- a document the
+    pin refuses. With the compiled check now on the shared base the subclass
+    inherits it, and the measured table is: canonical ACCEPTS, neither REFUSES,
+    both REFUSES.
+
+    ``format_id`` is still removed at runtime by
+    ``CanonicalBoundaryModel.__pydantic_init_subclass__``, so the deprecated
+    named-format branch remains unconstructible here. That is INHERITED, true at
+    upstream too, and tracked as salesagent-8qela.70 -- deliberately not bundled.
 
     The 3.2 aggregate asset-union schema currently generates structurally
     duplicate Pydantic classes. Convert public ``ImageContent``/``UrlContent``
@@ -967,6 +1144,8 @@ class CreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
 
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_id: _RemovedFormatId = Field(default=None, init=False)
+
+    # ``format_id`` is typed ``None`` by the branch; see :class:`CreativeAsset`.
 
     @model_validator(mode="before")
     @classmethod
@@ -993,13 +1172,54 @@ class CreativeVariant(_LegacyCreativeVariant, CanonicalBoundaryModel):
     manifest: CreativeManifest | None = None
 
 
-class _DeliveryCreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
+class _DeliveryCreativeManifest(_CreativeManifestRoot, CanonicalBoundaryModel):
     """The buyer's manifest, read back off a delivery row.
 
+    **It binds the ROOT, the same node :class:`CreativeManifest` binds.**
+    ``core/get-creative-delivery-response.json`` reaches this field through
+    ``$ref .../core/creative-manifest.json``, and ``core/creative-variant.json``
+    reaches the INPUT manifest through the same ``$ref``. One schema node refined
+    twice, so the two refinements owe a document the same verdict.
+
+    They did not give it. This class used to bind
+    ``CreativeManifestCanonicalFormatManifest`` — oneOf[1] — where ``format_kind``
+    is ``required``, while :class:`CreativeManifest` binds the root, whose
+    ``required`` is ``['assets']``. Measured, the disagreement was in two places
+    and neither was the vocabulary:
+
+    * STATICALLY, ``format_kind`` read ``str`` here and ``str | None`` there.
+      That is the ``mypy --strict`` error ``creative_asset_binding.py:82``
+      carried, and the ratchet in ``tests/test_type_check_fixtures.py`` that
+      held it is retired with this change.
+    * IN THE REFUSAL, on ``{"assets": {}}``: the root-bound class names the
+      root's combinator (``type='oneOf'``), the arm-bound one reported a
+      ``missing`` field and never reached the combinator.
+      ``core/error.json`` requires an issue to carry a JSON Schema keyword and
+      ``missing`` is not one.
+
+    Binding the root RELAXES NOTHING at runtime. The root's ``oneOf`` is enforced
+    by the root's own conjunct validator, not by
+    :class:`~adcp.types._branch_dispatch.BranchDispatchMixin`'s branch union —
+    the mixin hands the union only to the class that DECLARES ``_branch_models``,
+    and a refinement declared here does not. Measured against the input manifest
+    on all three documents: canonical arm accepted by both, neither-arm refused
+    ``oneOf`` by both, both-arms refused ``value_error`` by both
+    (``test_readback_manifest_grades_a_document_exactly_as_the_input_manifest``).
+
+    The one behavior it does move is on
+    ``test_delivery_manifest_cannot_bypass_strict_input``: an instance of this
+    class is an instance of the root and of NEITHER arm, so revalidating the
+    INSTANCE through the generated root's union is refused as ``model_type``
+    where it used to be taken. That refusal is the obligation #1241 asked for,
+    and it now holds uniformly on all four (response model x input class) pairs
+    instead of three — a strengthening, which is why the test's conditional
+    collapsed rather than being relaxed.
+
     It redeclares nothing about the format-kind vocabulary. ``format_kind`` is
-    ``str`` here and on :class:`CreativeManifest`, neither refuses a value, and
-    the ``_StrictFormatKind`` mixin that used to be the only difference between
-    the two is deleted. **This class is not a tolerant variant of anything.**
+    ``str | None`` here and on :class:`CreativeManifest`, inherited from the root
+    in both cases, neither refuses a value, and the ``_StrictFormatKind`` mixin
+    that used to be the only difference between the two is deleted. **This class
+    is not a tolerant variant of anything.**
 
     **The one reason it survives** is ``_normalize_readback`` below, and
     specifically its first line: the canonical models are real SUBCLASSES of
@@ -1062,9 +1282,7 @@ class DeliveryCreative(_LegacyDeliveryCreative, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_id: _RemovedFormatId = Field(default=None, init=False)
 
-    variants: list[_DeliveryCreativeVariant] = _inherit(  # type: ignore[assignment]
-        _LegacyDeliveryCreative, "variants"
-    )
+    variants: list[_DeliveryCreativeVariant] = _inherit(_LegacyDeliveryCreative, "variants")
 
 
 class CreativeFilters(_LegacyCreativeFilters, CanonicalBoundaryModel):
@@ -1088,6 +1306,13 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
     creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)
+    # The generated parent carries ``TargetingOverlayMutation``. A canonical model
+    # materializes JSON in its before validator, so this subtree re-enters core JSON
+    # validation to keep native error codes and extra/missing order -- which is the
+    # only difference between the two aliases.
+    targeting_overlay: TargetingOverlayMutationInMaterializedJson = mutation_overlay_field(
+        _LegacyPackageRequest
+    )
 
     @model_validator(mode="after")
     def _validate_format_params(self) -> PackageRequest:
@@ -1103,6 +1328,10 @@ class PackageUpdate(_LegacyPackageUpdate, CanonicalBoundaryModel):
     """Canonical package update; creatives are canonical assets."""
 
     creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
+    # See PackageRequest.targeting_overlay above.
+    targeting_overlay: TargetingOverlayMutationInMaterializedJson = mutation_overlay_field(
+        _LegacyPackageUpdate
+    )
 
 
 class Package(_LegacyPackage, CanonicalBoundaryModel):
@@ -1137,10 +1366,101 @@ class GetProductsResponse(_LegacyGetProductsResponse, CanonicalBoundaryModel):
     products: list[Product] | None = None  # type: ignore[assignment]
 
 
-class CreateMediaBuyRequest(_LegacyCreateMediaBuyRequest, CanonicalBoundaryModel):
-    """Canonical create request; packages are canonical package requests."""
+class CreateMediaBuyRequest(_LegacyCreateMediaBuyBase, CanonicalBoundaryModel):
+    """Canonical create request; packages are canonical package requests.
 
-    packages: list[PackageRequest] | None = None
+    This class carries the branches' core schema, so parsing it -- by name,
+    nested in another model, or through a ``TypeAdapter`` -- returns the
+    canonical branch the document satisfies.
+
+    ``packages`` is narrowed at the BASE's requiredness, not at a branch's. A
+    base cannot carry one requiredness for a field whose requiredness is what
+    distinguishes the branches, so each branch re-declares the narrowing at its
+    own. The generated branch is listed FIRST in each branch's bases, so the
+    branch's requiredness wins by MRO position, and ``CanonicalBoundaryModel``
+    is listed LAST so ``model_config`` resolves from the canonical side.
+    """
+
+    packages: Sequence[PackageRequest] | None = None
+
+    @classmethod
+    def _branch_models(cls) -> tuple[type, ...]:
+        # Re-declared, which is what moves the dispatch from the GENERATED
+        # branches to the canonical ones: the shared hook asks whether a class
+        # declares this method, so the generated base of the same name keeps its
+        # own branches and this one gets these. Inheriting it instead left the
+        # method reporting the generated branches while the schema was built
+        # from the canonical ones -- two answers to one question.
+        return (
+            CreateMediaBuyRequestExplicitPackagesWithFixedAllocation,
+            CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation,
+            CreateMediaBuyRequestCommittedProposalExecution,
+        )
+
+    @classmethod
+    def _branch_combinator(cls) -> str:
+        return "anyOf"
+
+
+class CreateMediaBuyRequestExplicitPackagesWithFixedAllocation(
+    _LegacyCreateMediaBuyFixed, CreateMediaBuyRequest
+):
+    """Canonical fixed-allocation create request; packages are canonical.
+
+    ``packages`` is re-declared to carry the CANONICAL item type. Its
+    requiredness comes from the generated branch by MRO position, not from this
+    line -- dropping the line keeps the field required and loses the narrowing.
+    """
+
+    packages: Sequence[PackageRequest]
+
+
+class CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation(
+    _LegacyCMBSellerOptimized, CreateMediaBuyRequest
+):
+    """Canonical seller-optimized create request; packages are canonical."""
+
+    packages: Sequence[PackageRequest]
+
+
+class CreateMediaBuyRequestCommittedProposalExecution(
+    _LegacyCreateMediaBuyProposal, CreateMediaBuyRequest
+):
+    """Canonical proposal-execution create request.
+
+    ``packages`` is re-declared as ``None`` because this branch FORBIDS it. The
+    canonical base narrows the field for the branches that permit it, and that
+    narrowing and this ban are incompatible declarations inherited from two
+    bases -- so the ban is restated here, where it is true, rather than silenced.
+    Re-declaring it as a canonical list would re-widen what the branch bans.
+    """
+
+    packages: None = None
+
+
+#: The canonical create request's branches. Annotate this to make a type checker
+#: force exhaustive narrowing; annotate CreateMediaBuyRequest for the same
+#: strictness at runtime under one name.
+CreateMediaBuyRequestBranches: TypeAlias = Annotated[
+    CreateMediaBuyRequestExplicitPackagesWithFixedAllocation
+    | CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation
+    | CreateMediaBuyRequestCommittedProposalExecution,
+    WrapValidator(_conditions.name_the_combinator("anyOf", CreateMediaBuyRequest._branch_models())),
+]
+
+# No module-level ``CreateMediaBuyRequestBranchesAdapter``: a ``TypeAdapter``
+# builds its validator AT IMPORT, so it captures schema state once and shares it
+# with every test in the process, which is what
+# ``test_sdk_has_no_module_level_type_adapter_construction`` forbids. This file
+# is hand-written and carried the same declaration the generator emitted; both
+# are gone. ``CreateMediaBuyRequestBranches`` above is the public name and stays
+# reachable, and a caller who wants an adapter writes
+# ``TypeAdapter(CreateMediaBuyRequestBranches)``.
+
+# CreateMediaBuyRequest is declared above its branches, so _branch_models
+# cannot resolve them while the class body is compiled. The rebuild installs
+# the branches' schema -- the same two-step every other root with branches uses.
+CreateMediaBuyRequest.model_rebuild(force=True)
 
 
 class UpdateMediaBuyRequest(_LegacyUpdateMediaBuyRequest, CanonicalBoundaryModel):
@@ -1174,11 +1494,11 @@ class CreateMediaBuyResponse1(_LegacyCreateMediaBuyResponse1, CanonicalBoundaryM
 
 
 class CreateMediaBuyResponse2(_LegacyCreateMediaBuyResponse2, CanonicalBoundaryModel):
-    """Canonical create-media-buy error arm."""
+    """Canonical create-media-buy error branch."""
 
 
 class CreateMediaBuyResponse3(_LegacyCreateMediaBuyResponse3, CanonicalBoundaryModel):
-    """Canonical create-media-buy submitted arm."""
+    """Canonical create-media-buy submitted branch."""
 
 
 CreateMediaBuyResponse = CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3
@@ -1206,11 +1526,11 @@ class UpdateMediaBuyResponse1(_LegacyUpdateMediaBuyResponse1, CanonicalBoundaryM
 
 
 class UpdateMediaBuyResponse2(_LegacyUpdateMediaBuyResponse2, CanonicalBoundaryModel):
-    """Canonical update-media-buy error arm."""
+    """Canonical update-media-buy error branch."""
 
 
 class UpdateMediaBuyResponse3(_LegacyUpdateMediaBuyResponse3, CanonicalBoundaryModel):
-    """Canonical update-media-buy submitted arm."""
+    """Canonical update-media-buy submitted branch."""
 
 
 UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | UpdateMediaBuyResponse3
@@ -1219,7 +1539,16 @@ UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | Upd
 class SyncCreativesRequest(_LegacySyncCreativesRequest, CanonicalBoundaryModel):
     """Canonical creative sync request; creatives are canonical assets."""
 
-    creatives: list[CreativeAsset] = Field(min_length=1)  # type: ignore[assignment]
+    # Optional, matching ``PackageRequest.creatives`` above and the generated parent:
+    # creative/sync-creatives-request.json requires only [idempotency_key, account] at
+    # the root and ``creatives`` only inside an untitled ``anyOf`` branch. Requiring it
+    # here made the SDK refuse a schema-valid sync_creatives request that takes the
+    # other branch -- a request model, so this was a refusal and not a typing
+    # inconvenience. Narrowing the item type to the canonical asset is the part that
+    # was correct.
+    creatives: list[CreativeAsset] | None = Field(  # type: ignore[assignment]
+        default=None, min_length=1
+    )
 
 
 class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):
@@ -1292,7 +1621,12 @@ PRIMARY_CANONICAL_MODELS: tuple[type[CanonicalBoundaryModel], ...] = (
     Package,
     GetProductsRequest,
     GetProductsResponse,
-    CreateMediaBuyRequest,
+    # One entry per branch: the create request is a union now, and each branch is a
+    # canonical model in its own right -- every property this tuple is graded
+    # for has to hold of each of them, not of the alias over them.
+    CreateMediaBuyRequestExplicitPackagesWithFixedAllocation,
+    CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation,
+    CreateMediaBuyRequestCommittedProposalExecution,
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
     CreateMediaBuyResponse3,
@@ -1314,6 +1648,10 @@ PRIMARY_CANONICAL_MODELS: tuple[type[CanonicalBoundaryModel], ...] = (
 __all__ = [
     "CanonicalBoundaryModel",
     "CreateMediaBuyRequest",
+    "CreateMediaBuyRequestBranches",
+    "CreateMediaBuyRequestCommittedProposalExecution",
+    "CreateMediaBuyRequestExplicitPackagesWithFixedAllocation",
+    "CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation",
     "CreateMediaBuyResponse",
     "CreateMediaBuyResponse1",
     "CreateMediaBuyResponse2",

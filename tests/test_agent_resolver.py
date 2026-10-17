@@ -14,6 +14,7 @@ resolver-orchestrator behavior on top of those tested primitives.
 from __future__ import annotations
 
 import asyncio
+import builtins
 import json
 from typing import Any
 
@@ -23,7 +24,7 @@ import pytest
 # Capture the real iterator-draining implementation before conftest's autouse
 # fixture substitutes the legacy mock shim. These tests exercise the wire.
 from adcp.protocols.a2a import A2AAdapter
-from adcp.signing import agent_resolver
+from adcp.signing import _resolver_protocol, agent_resolver
 from adcp.signing.agent_resolver import (
     AgentResolution,
     AgentResolverError,
@@ -728,3 +729,143 @@ def test_extract_brand_json_url_raises_when_field_empty_string() -> None:
     with pytest.raises(AgentResolverError) as exc:
         agent_resolver._extract_brand_json_url({"identity": {"brand_json_url": ""}})
     assert exc.value.code == "brand_json_url_missing"
+
+
+# ---------------------------------------------------------------------------
+# A task-group-wrapped failure must name its sub-exception.
+#
+# The MCP and A2A client stacks run the capabilities fetch inside an anyio task
+# group, so a connect error, a TLS failure or a strict-parse rejection reaches
+# ``async_resolve_agent`` wrapped in a ``BaseExceptionGroup`` whose own ``str()``
+# is "unhandled errors in a TaskGroup (1 sub-exception)" -- a sentence that names
+# neither the failure nor the agent.
+#
+# THIS IS A CONFORMANCE GAP, not a diagnostic inconvenience. AdCP 3.2.1
+# (dist/docs/3.2.1/building/by-layer/L1/security.mdx, the discovery-chain
+# rejection table, line 1326) assigns `request_signature_capabilities_unreachable`
+# the detail fields `agent_url`, `http_status`, `dns_error`, `last_attempt_at`.
+# `http_status` and `dns_error` live in the sub-exception, so a seller that only
+# receives the group CANNOT populate the envelope the pin describes.
+#
+# The classification already walks the group -- ``protocol_validation_failed``
+# does, and has since 3.10 support landed -- so these tests are about the two
+# things that do not: the message, and the cause a consumer reads the facts off.
+
+
+# Looked up rather than referenced, and rather than suppressed: the name is a
+# builtin only on 3.11+, and ruff's F821 does not honour a sys.version_info
+# guard for builtins, so a direct reference needs a noqa this repo ratchets.
+_BaseExceptionGroup = getattr(builtins, "BaseExceptionGroup", None)
+if _BaseExceptionGroup is None:  # 3.10 — anyio depends on the backport there.
+    from exceptiongroup import BaseExceptionGroup as _BaseExceptionGroup
+
+
+def _task_group_wrapping(leaf: BaseException) -> BaseException:
+    """The shape anyio raises when the body of its task group fails.
+
+    Built through a version guard rather than skipped below 3.11: the defect
+    exists on 3.10 too, where anyio raises the backported group, so skipping
+    there would leave the oldest supported interpreter ungraded.
+    """
+    return _BaseExceptionGroup("unhandled errors in a TaskGroup", [leaf])
+
+
+@pytest.fixture
+def capabilities_raising(monkeypatch: pytest.MonkeyPatch):
+    """Make the capabilities fetch raise ``error``.
+
+    Patched on ``_resolver_protocol``, which is where ``agent_resolver`` imports
+    the name from at call time -- patching the resolver's own namespace would
+    rename something nothing consults.
+    """
+
+    def _patch(error: BaseException):
+        async def raising(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+            raise error
+
+        monkeypatch.setattr(_resolver_protocol, "fetch_protocol_capabilities", raising)
+
+    return _patch
+
+
+async def _resolve(factory: Any) -> AgentResolverError:
+    with pytest.raises(AgentResolverError) as raised:
+        await async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            _capabilities_client_factory=factory,
+        )
+    return raised.value
+
+
+@pytest.mark.asyncio
+async def test_a_wrapped_connect_failure_names_the_sub_exception(
+    patch_resolver, capabilities_raising
+) -> None:
+    """The message carries the leaf's text, and the group's sentence is gone."""
+    leaf = httpx.ConnectError("[Errno 61] Connection refused")
+    capabilities_raising(_task_group_wrapping(leaf))
+    _, factory = patch_resolver({})
+
+    error = await _resolve(factory)
+
+    assert error.code == "capabilities_unreachable"
+    assert "Connection refused" in error.message, (
+        "the sub-exception's text reached neither the message nor the log: " + error.message
+    )
+    assert "unhandled errors in a TaskGroup" not in error.message
+
+
+@pytest.mark.asyncio
+async def test_a_wrapped_failure_exposes_the_sub_exception_as_its_cause(
+    patch_resolver, capabilities_raising
+) -> None:
+    """``__cause__`` is the LEAF, so a seller reads the pin's detail fields off it.
+
+    Chaining the group instead would leave every consumer to walk
+    ``.exceptions`` itself, which is the duplication the SDK owns rather than
+    its adopters.
+    """
+    leaf = httpx.ConnectError("[Errno 61] Connection refused")
+    group = _task_group_wrapping(leaf)
+    capabilities_raising(group)
+    _, factory = patch_resolver({})
+
+    error = await _resolve(factory)
+
+    assert error.__cause__ is leaf, f"cause is {error.__cause__!r}, not the sub-exception"
+    assert error.__context__ is group, "the group itself must stay reachable"
+
+
+@pytest.mark.asyncio
+async def test_a_wrapped_parse_failure_is_named_as_well_as_classified(
+    patch_resolver, capabilities_raising
+) -> None:
+    """The two failures a buyer confuses must differ in the MESSAGE, not only the code.
+
+    'unreachable' and 'reachable but not an AdCP agent' rendered identically
+    before this, which is what made them indistinguishable in a log.
+    """
+    leaf = ValueError("duplicate object key 'identity'")
+    capabilities_raising(_task_group_wrapping(leaf))
+    _, factory = patch_resolver({})
+
+    error = await _resolve(factory)
+
+    assert error.code == "capabilities_invalid"
+    assert "duplicate object key" in error.message
+    assert "unhandled errors in a TaskGroup" not in error.message
+
+
+@pytest.mark.asyncio
+async def test_an_unwrapped_failure_is_unchanged(patch_resolver, capabilities_raising) -> None:
+    """The ordinary path keeps its behaviour: no group, so nothing to unwrap."""
+    leaf = httpx.ConnectError("[Errno 61] Connection refused")
+    capabilities_raising(leaf)
+    _, factory = patch_resolver({})
+
+    error = await _resolve(factory)
+
+    assert error.code == "capabilities_unreachable"
+    assert "Connection refused" in error.message
+    assert error.__cause__ is leaf

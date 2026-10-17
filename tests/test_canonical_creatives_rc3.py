@@ -135,7 +135,14 @@ def test_primary_dump_cannot_emit_legacy_identity_from_private_state_or_extras()
         declaration: adcp.Format
 
     assert _legacy_value_paths(TypeAdapter(adcp.Format).dump_python(declaration)) == []
-    assert _legacy_value_paths(Container(declaration=declaration).model_dump()) == []
+    # ``model_construct`` on the container, matching the fixture above: the
+    # first assertion in this test is that validation REFUSES this very shape,
+    # so ``Container(declaration=declaration)`` would validate the smuggled
+    # declaration and be refused by that same rule. The subject here is what a
+    # dump can emit, not what validation accepts.
+    assert (
+        _legacy_value_paths(Container.model_construct(declaration=declaration).model_dump()) == []
+    )
 
 
 def test_primary_dump_strips_extension_bearing_tuple_under_neutral_extra_name() -> None:

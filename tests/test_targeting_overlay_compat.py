@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated, Any, get_args, get_origin
+from typing import Any, get_args
 
 import pytest
 from pydantic import (
@@ -13,7 +13,6 @@ from pydantic import (
     PrivateAttr,
     TypeAdapter,
     ValidationError,
-    create_model,
 )
 from pydantic.json_schema import SkipJsonSchema
 
@@ -246,10 +245,17 @@ def test_raw_dict_keeps_input_materialization_in_enclosing_request(
 def test_compatibility_union_is_explicitly_input_first_and_left_to_right(
     container: type[BaseModel], required: dict[str, Any]
 ) -> None:
-    annotation = container.model_fields["targeting_overlay"].annotation
-    assert get_origin(annotation) is Annotated
-    union, field, _validator = get_args(annotation)
-    assert get_args(union) == (GeneratedInput, SkipJsonSchema[TargetingOverlay], type(None))
+    field = container.model_fields["targeting_overlay"]
+    assert get_args(field.annotation) == (
+        GeneratedInput,
+        SkipJsonSchema[TargetingOverlay],
+        type(None),
+    )
+    # ``union_mode`` is read off the FieldInfo's metadata, so that is what is graded.
+    # Unpacking the Annotated positionally and expecting a FieldInfo in slot 1 passed
+    # only while the field was built by hand: pydantic normalizes
+    # ``Field(union_mode=...)`` to ``_PydanticGeneralMetadata`` when it builds the field
+    # from a declaration.
     assert any(
         getattr(metadata, "union_mode", None) == "left_to_right" for metadata in field.metadata
     )
@@ -339,42 +345,24 @@ def test_field_serialization_schema_keeps_only_mutation_input_and_null(
     ]
 
 
-@pytest.mark.parametrize(
-    "annotation",
-    [
-        None,  # Field removed entirely.
-        TargetingOverlay | None,  # Reverted to the resolved-state schema.
-        GeneratedInput,  # Optional shape changed.
-        list[GeneratedInput] | None,  # Contains Input, but at the wrong level.
-        GeneratedInput | str | None,  # Unexpected additional arm.
-        GeneratedInput | TargetingOverlay | None,  # Already widened upstream.
-    ],
-)
-def test_targeting_patch_fails_closed_on_generated_shape_drift(annotation: Any) -> None:
-    from adcp.types._forward_compat import _patch_targeting_overlay
+@pytest.mark.parametrize("container,required", _CONTAINERS)
+def test_mutation_field_keeps_its_generated_field_metadata(
+    container: type[BaseModel], required: dict[str, Any]
+) -> None:
+    """Swapping the type must not take the generated ``Field(...)`` with it.
 
-    fields = {} if annotation is None else {"targeting_overlay": (annotation, None)}
-    model = create_model("DriftedPackage", **fields)
-    original = dict(model.model_fields)
-    with pytest.raises(RuntimeError, match=r"DriftedPackage.targeting_overlay lost its"):
-        _patch_targeting_overlay(model)
-    assert model.model_fields == original
-
-
-def test_targeting_patch_preserves_generated_field_metadata() -> None:
-    from adcp.types._forward_compat import _patch_targeting_overlay
-
-    model = create_model(
-        "InputPackage",
-        targeting_overlay=(
-            GeneratedInput | None,
-            Field(default=None, alias="targeting", title="Targeting", description="Mutation input"),
-        ),
-    )
-    _patch_targeting_overlay(model)
-    field = model.model_fields["targeting_overlay"]
+    ``Annotated`` flattens, so the compatibility alias sits beside the field's own
+    ``Field(description=...)`` rather than replacing it. This is graded on the six
+    production containers rather than on a ``create_model`` stand-in: the stand-in
+    version of this test could not have caught the canonical facades losing the
+    description, which is a thing that happens only on a redeclaration.
+    """
+    field = container.model_fields["targeting_overlay"]
     assert field.default is None
-    assert field.alias == "targeting"
-    assert field.title == "Targeting"
-    assert field.description == "Mutation input"
-    assert type(model.model_validate({"targeting": {}}).targeting_overlay) is GeneratedInput
+    assert not field.is_required()
+    assert field.description, "the generated description did not survive the type swap"
+    # And the bridge still works on the model the description came from.
+    assert (
+        type(container.model_validate({**required, "targeting_overlay": {}}).targeting_overlay)
+        is GeneratedInput
+    )

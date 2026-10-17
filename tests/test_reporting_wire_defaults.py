@@ -23,15 +23,23 @@ def test_reporting_defaults_are_explicit_in_actual_bundled_and_canonical_models(
         "status_retention_days": 30,
     }
     if explicit:
-        supplied.update(reliable_reporting_version="1.0", managed_delivery=False)
+        # core/reporting-delivery-capabilities.json member 2: declaring the
+        # Reliable Reporting version names the exact-content read task, so that
+        # task is set here and every other one stays unset.
+        supplied.update(
+            reliable_reporting_version="1.0",
+            managed_delivery=False,
+            revision_content_task="get_media_buy_delivery",
+        )
     model = model_type.model_validate({"reporting_delivery": supplied})
     before = set(model.reporting_delivery.model_fields_set)
     default_status_task = model.reporting_delivery.status_task
+    declared_tasks = {"revision_content_task"} if explicit else set()
     for wire in (model.model_dump(mode="json"), json.loads(model.model_dump_json())):
         value = wire["reporting_delivery"]
         assert ("reliable_reporting_version" in value) is explicit
         assert ("managed_delivery" in value) is explicit
-        assert not any(key.endswith(("_task", "_notification")) for key in value)
+        assert {key for key in value if key.endswith(("_task", "_notification"))} == declared_tasks
         assert "supports_webhook_activity" not in value
         if explicit:
             assert value["reliable_reporting_version"] == "1.0"
@@ -40,7 +48,10 @@ def test_reporting_defaults_are_explicit_in_actual_bundled_and_canonical_models(
     assert model.reporting_delivery.status_task == default_status_task
 
 
-@pytest.mark.parametrize("product_event,explicit", [(False, False), (False, True), (True, False)])
+# core/notification-config.json member 0 ties the view to the event: a product.*
+# subscription carries one and a non-product subscription may not, so a
+# non-product event with an explicit view is not a document at all.
+@pytest.mark.parametrize("product_event,explicit", [(False, False), (True, False), (True, True)])
 def test_nested_notification_defaults_follow_event_and_field_provenance(product_event, explicit):
     class Envelope(BaseModel):
         config: NotificationConfig

@@ -55,7 +55,7 @@ def resolution_key(obj: object) -> str:
 
     A class or function is its defining module and qualname — the pair that
     changes when a name repoints. A submodule is its own path. A union is the
-    sorted keys of its members, so a union gaining, losing or repointing an arm
+    sorted keys of its members, so a union gaining, losing or repointing an branch
     shows up too. Anything else falls back to its type, which tracks presence
     without inventing a value that churns between runs.
     """

@@ -52,6 +52,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
+from adcp.canonical_formats.identity import declared_v1_format_refs
 from adcp.canonical_formats.registry import (
     glob_match,
     load_default_registry,
@@ -489,7 +490,7 @@ def group_declarations_by_product(
 
     out: dict[str, list[Format]] = {}
     for declaration in declarations:
-        refs = declaration.legacy_format_refs
+        refs = declared_v1_format_refs(declaration)
         if not refs:
             continue
         # A declaration may carry multiple v1 refs (multi-size fan-out

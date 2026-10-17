@@ -12,7 +12,7 @@ name with unrelated wire types already exported from :mod:`adcp.types`.
 
 This module sits in the import-architecture whitelist for direct
 generated-tree imports, alongside the other re-export layers
-(``aliases.py``, ``_ergonomic.py``, ``_forward_compat.py``, ``_generated.py``,
+(``aliases.py``, ``_forward_compat.py``, ``_generated.py``,
 ``error_details.py`` and the ``domains/`` modules); see
 ``ALLOWED_FILES`` in ``tests/test_import_layering.py`` for the current set. It pulls the capabilities sub-models out
 under disambiguated names, so the colliding three don't shadow the
@@ -150,7 +150,17 @@ from adcp.types.domains.core.reporting_delivery_capabilities import (
 
 
 class MediaBuy(_MediaBuy):
-    """Media-buy capabilities using the canonical reporting model identity."""
+    """Media-buy capabilities using the canonical reporting model identity.
+
+    This subclass is why ``acceptance_policy_discovery`` has to be declared on
+    the generated field rather than patched onto the generated class. A
+    subclass fixes its field set at class creation, so a later patch to
+    ``_MediaBuy.model_fields`` plus ``_MediaBuy.model_rebuild(force=True)``
+    never reached here: ``tests/test_composability_invariant.py`` measured this
+    class still demanding the bundled clone while the parent had the canonical
+    one. ``COMPATIBILITY_ANNOTATIONS`` in ``scripts/post_generate_fixes.py``
+    writes it at the parent's declaration, which a subclass inherits.
+    """
 
     reporting_delivery: ReportingDeliveryCapabilities | None = None  # type: ignore[assignment]
 

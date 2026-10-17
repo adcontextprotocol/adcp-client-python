@@ -109,7 +109,6 @@ def derive_packages_from_proposal(
                 "budgets by applying the proposal's allocation_percentage "
                 "values to total_budget.amount."
             ),
-            recovery="correctable",
             field="total_budget",
         )
 
@@ -118,7 +117,6 @@ def derive_packages_from_proposal(
         raise AdcpError(
             "INVALID_REQUEST",
             message="total_budget.amount is required for package derivation.",
-            recovery="correctable",
             field="total_budget.amount",
         )
 

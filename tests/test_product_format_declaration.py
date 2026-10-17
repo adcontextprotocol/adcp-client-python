@@ -280,7 +280,9 @@ def test_the_wrap_serializer_tolerates_a_dict_at_a_canonical_position() -> None:
 def test_open_consumer_format_and_params_helper_remain_available() -> None:
     future = Format(format_kind="future_kind", params={})
     assert future.model_dump()["format_kind"] == "future_kind"
-    image = Format(format_kind="image", params={"width": 300})
+    # formats/canonical/image.json states a size-mode mutex outside its properties:
+    # the fixed mode is width AND height, so width alone declares no mode at all.
+    image = Format(format_kind="image", params={"width": 300, "height": 250})
     assert image.params_as(CanonicalFormatImage).width == 300
 
 

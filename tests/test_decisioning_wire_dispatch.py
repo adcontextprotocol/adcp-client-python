@@ -88,15 +88,14 @@ def test_resolver_returns_typed_request_class_not_none(tool_name: str) -> None:
         "dispatcher will fall back to dict path and shim will crash on "
         "params.account"
     )
-    assert issubclass(resolved, BaseModel), (
-        f"{tool_name}: resolver returned {resolved!r} which is not a " "Pydantic BaseModel subclass"
-    )
+    assert issubclass(
+        resolved, BaseModel
+    ), f"{tool_name}: resolver returned {resolved!r} which is not a Pydantic BaseModel subclass"
     # Generated union arms may carry a numeric suffix (for example
     # ``CheckGovernanceRequest3``); they are still the typed request arm.
-    assert "Request" in resolved.__name__, (
-        f"{tool_name}: resolved class {resolved.__name__!r} doesn't look "
-        "like a wire Request type"
-    )
+    assert (
+        "Request" in resolved.__name__
+    ), f"{tool_name}: resolved class {resolved.__name__!r} doesn't look like a wire Request type"
 
 
 # ---- End-to-end wire path ----
@@ -202,7 +201,16 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
     handler._platform.build_creative_legacy = _capture  # type: ignore[method-assign]
 
     result = await caller(
-        {"brief": "synthesize a 30s spot", "idempotency_key": "emma-test-build-creative-001"}
+        {
+            "brief": "synthesize a 30s spot",
+            "idempotency_key": "emma-test-build-creative-001",
+            # media-buy/build-creative-request.json: every non-refinement build
+            # selects exactly one output route, so a brief alone is not a request.
+            "target_format_id": {
+                "agent_url": "https://creative.adcontextprotocol.org",
+                "id": "display_static",
+            },
+        }
     )
     assert "creative_manifest" in result
     # Same regression guard as get_products — the platform must see a

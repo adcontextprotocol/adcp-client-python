@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from adcp import (
     FeedMirror,
@@ -70,10 +70,13 @@ def make_product_dict(
 
 def make_signal_dict(segment_id: str, *, cpm: float = 2.5) -> dict[str, Any]:
     return {
-        # core/signal-listing.json requires signal_ref or signal_id.
+        # core/signal-listing.json requires signal_ref or signal_id, and its
+        # root ``allOf`` adds: a product-scoped ref defines the signal inline,
+        # so ``name`` and ``value_type`` are required alongside it.
         "signal_ref": {"scope": "product", "signal_id": segment_id},
         "signal_agent_segment_id": segment_id,
         "name": f"Signal {segment_id}",
+        "value_type": "binary",
         "description": f"Description for {segment_id}",
         "signal_type": "marketplace",
         "data_provider": "Acme Data",
@@ -121,12 +124,40 @@ def make_webhook(
     }
     if previous is not None:
         body["previous_wholesale_feed_version"] = previous
+    # core/wholesale-feed-webhook.json allOf[0]: a product.* fire echoes the
+    # representation the subscriber negotiated, and a non-product fire must not
+    # carry one at all. These payloads use ``product``/``pricing_options``, which
+    # is the legacy view.
+    if body["notification_type"].startswith("product."):
+        body["product_payload_view"] = "legacy"
     return WholesaleFeedWebhook.model_validate(body)
 
 
 # ---------------------------------------------------------------------------
 # In-memory seller stub satisfying FeedMirrorClient
 # ---------------------------------------------------------------------------
+
+
+def _omit_scope_if_requested(model: Any, body: dict[str, Any]) -> Any:
+    """Build the response, honouring ``cache_scope: None`` as "the seller omitted it".
+
+    ``FeedMirror``'s 8.x compatibility path exists for a seller that returns no
+    ``cache_scope`` -- it warns and inherits the cached scope. Such a response is
+    one the 3.2 schema refuses twice over: ``cache_scope`` is
+    ``enum: ["public", "account"]``, so a null is a type error, and the standard
+    response branch requires the key. So the document cannot be produced by
+    validating it, and a fixture that wrote ``cache_scope: None`` was only
+    accepted while the compiled check read membership rather than presence on
+    the document SENT.
+
+    Everything else is validated; the scope is cleared afterwards, which is what
+    the mirror sees from a seller that never sent it. The subject under test is
+    the mirror's tolerance, not the model's acceptance.
+    """
+    if body.get("cache_scope") is not None:
+        return model.model_validate(body)
+    validated = model.model_validate({**body, "cache_scope": "public"})
+    return validated.model_copy(update={"cache_scope": None})
 
 
 class StubClient:
@@ -156,7 +187,7 @@ class StubClient:
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
-            data=GetProductsResponse.model_validate(body),
+            data=_omit_scope_if_requested(GetProductsResponse, body),
         )
 
     async def get_signals(self, request: GetSignalsRequest) -> TaskResult[GetSignalsResponse]:
@@ -167,7 +198,7 @@ class StubClient:
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
-            data=GetSignalsResponse.model_validate(body),
+            data=_omit_scope_if_requested(GetSignalsResponse, body),
         )
 
 
@@ -895,19 +926,36 @@ async def test_webhook_scope_mismatch_keeps_all_layers_unchanged(envelope_scope,
     overlay = public.for_account(
         TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
     )
-    event = make_event(
-        "018f0000-0000-7000-8000-000000000051",
-        "product.created",
-        "product",
-        "private",
-        {
-            "product_id": "private",
-            "product": make_product_dict("private"),
-            "applies_to": {"scope": payload_scope},
-        },
-    )
+
+    # core/wholesale-feed-webhook.json allOf members 10 and 11 tie cache_scope to
+    # the payload's applies_to.scope in both directions, so a mismatching document
+    # never validates. There are TWO layers here and each one is graded, because
+    # neither implies the other: the model refuses the mismatched document where
+    # the webhook is built, and the mirror keeps its own check for an
+    # already-typed webhook. That second check cannot be reached by a document
+    # the model would refuse, so it is reached the way the notification_type one
+    # is -- by corrupting a webhook the model accepted (see the
+    # ``object.__setattr__`` on notification_type below).
+    def _event(scope: str) -> dict[str, Any]:
+        return make_event(
+            "018f0000-0000-7000-8000-000000000051",
+            "product.created",
+            "product",
+            "private",
+            {
+                "product_id": "private",
+                "product": make_product_dict("private"),
+                "applies_to": {"scope": scope},
+            },
+        )
+
+    with pytest.raises(ValidationError, match="applies_to"):
+        make_webhook(_event(payload_scope), cache_scope=envelope_scope)
+
+    webhook = make_webhook(_event(envelope_scope), cache_scope=envelope_scope)
+    object.__setattr__(webhook.event.payload.applies_to, "scope", payload_scope)
     with pytest.raises(FeedMirrorError, match="applies_to.scope"):
-        await overlay.apply_webhook(make_webhook(event, cache_scope=envelope_scope))
+        await overlay.apply_webhook(webhook)
     assert set(public.products) == {"p1"}
     assert overlay.get_product("private") is None
     assert overlay.product_state.wholesale_feed_version is None

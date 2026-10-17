@@ -374,7 +374,6 @@ def validate_billing_for_agent(
             "durable store."
         ),
         field="billing",
-        recovery="correctable",
         details=details,
     )
 

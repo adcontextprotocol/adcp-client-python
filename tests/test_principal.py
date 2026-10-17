@@ -177,7 +177,11 @@ async def test_wait_for_destinations_rejects_missing_readback() -> None:
                 "principal_id": "principal-1",
                 "principal_kind": "buyer_agent",
                 "configuration_version": "version-7",
-                "configuration": {},
+                # core/principal-state.json states minProperties 1, so ``{}`` is
+                # a document the spec refuses -- it was accepted only while that
+                # keyword was uncompiled. The member has to be one that is NOT
+                # reporting_destinations, which is the absence this test asserts.
+                "configuration": {"notification_configs": []},
             }
         }
     )
@@ -210,12 +214,23 @@ async def test_wait_for_destinations_rejects_a_replaced_generation() -> None:
 
 @pytest.mark.asyncio
 async def test_payload_failure_is_not_treated_as_success() -> None:
+    # ``status`` is supplied because the document would otherwise be one no
+    # conformant server sends. ``protocol/sync-principal-response.json``'s root
+    # states ``if result.kind == "failed" then status in ["failed","rejected"]``,
+    # and ``core/protocol-envelope.json`` makes ``status`` REQUIRED with no
+    # default -- so a failed result cannot omit it and cannot carry
+    # ``completed``. The generated envelope defaults it to ``completed`` for
+    # ergonomic construction, which is why omitting it here built an invalid
+    # document; ``rejected`` is what the SDK itself sends for a failed result
+    # (``server/principal.py`` lines 187 and 403, measured: every failed
+    # response it emits supplies one of the two legal values).
     failed = SyncPrincipalResponse.model_validate(
         {
+            "status": "rejected",
             "result": {
                 "kind": "failed",
                 "errors": [{"code": "CONFLICT", "message": "stale configuration"}],
-            }
+            },
         }
     )
 

@@ -26,7 +26,12 @@ async def test_get_products_simple_api():
         name="Test Product",
         description="A test product",
     )
-    mock_response = GetProductsResponse.model_construct(products=[mock_product])
+    # ``model_construct`` skips field validation but the TaskResult below
+    # revalidates, so the response still has to be one its schema accepts:
+    # ``cache_scope`` is required on every 3.1+ get_products response.
+    mock_response = GetProductsResponse.model_construct(
+        products=[mock_product], cache_scope="public"
+    )
     mock_result = TaskResult[GetProductsResponse](
         status=TaskStatus.COMPLETED, data=mock_response, success=True
     )
@@ -214,7 +219,21 @@ async def test_preview_creative_simple_api():
         from adcp.types.legacy import LegacyFormatId as FormatId
 
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
-        creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})
+        # CONSTRUCTED, not model_construct'd. ``CreativeManifest`` is the base over
+        # core/creative-manifest.json's two branches, and
+        # ``PreviewCreativeRequest.creative_manifest`` is annotated with it: the
+        # field accepts a document either way round and a BRANCH instance, and
+        # refuses an instance of the LOOSE BASE -- which
+        # test_dispatch_instance_identity.py::
+        # test_an_instance_of_the_loose_base_is_refused_by_its_own_name grades as
+        # refused over every dispatching root.
+        #
+        # ``model_construct`` is a classmethod that allocates without calling the
+        # class, so ``BranchDispatchMixin.__new__`` never runs and it produced
+        # exactly that refused object. Calling the class dispatches on the document
+        # and returns ``CreativeManifestNamedFormatManifest``, which is the branch
+        # ``format_id`` selects and the one a legacy preview means.
+        creative_manifest = CreativeManifest(format_id=format_id, assets={})
 
         result = await creative_agent.simple.preview_creative_legacy(
             request_type="single",

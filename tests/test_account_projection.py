@@ -13,8 +13,6 @@ projection helpers here do, by returning a copy of the model with
 
 from __future__ import annotations
 
-import pytest
-
 from adcp.decisioning import (
     project_account_for_response,
     project_business_entity_for_response,
@@ -192,4 +190,3 @@ def test_unprojected_account_leaks_bank_via_model_dump() -> None:
     account = _account_fixture()
     payload = account.model_dump(mode="json", exclude_none=True)
     assert "bank" in payload["billing_entity"]
-    pytest.skip("regression guard — see docstring")

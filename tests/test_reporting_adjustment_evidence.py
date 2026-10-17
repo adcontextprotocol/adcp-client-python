@@ -29,6 +29,7 @@ from adcp.types import (
     ReportingRevision,
 )
 from adcp.validation.schema_loader import get_named_validator
+from tests.test_reporting_reconciliation import _issue
 
 SECRET = "private-body-marker"
 SCOPE = ReportingAdjustmentScope(
@@ -484,19 +485,24 @@ def selected() -> tuple[ReportingObligation, ReportingRevision]:
                 "period_duration": "P1M",
                 "alignment": "billing_cycle",
                 "delivery_sla": "P1D",
+                "period_anchor": "2026-01-01T00:00:00Z",
+                "period_timezone": "UTC",
             },
             "destination_ref": "destination-1",
             "required_finality": "official",
             "reconciliation_mode": "consumer_receipt",
             "reconciliation_status": "pending",
-            "health": "waiting",
+            # Published, consumer_receipt and pending: members 2 and 8 of
+            # core/reporting-obligation.json require action_required with a
+            # RECEIPT_REQUIRED issue, not "waiting" with none.
+            "health": "action_required",
             "production_status": "published",
             "revision_count": 1,
             "materialization_count": 1,
             "successful_materialization_count": 1,
             "receipt_count": 0,
             "accepted_receipt_count": 0,
-            "issues": [],
+            "issues": [_issue("RECEIPT_REQUIRED")],
             "resource_retained_until": "2026-12-01T00:00:00Z",
         }
     )

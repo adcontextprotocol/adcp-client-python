@@ -11,6 +11,17 @@ Examples:
     # Dict coercion for context:
     ListCreativeFormatsRequest(context={"key": "value"})
     ListCreativeFormatsRequest(context=ContextObject(key="value"))
+
+What the generated tree actually wires, as of salesagent-1jj5e: only
+``coerce_to_unique_enum_list``, on the four disclosure-filter fields, declared on
+the field by ``COMPATIBILITY_ANNOTATIONS`` in ``scripts/post_generate_fixes.py``.
+Both examples above hold WITHOUT a validator -- a generated enum is a
+``StrEnum``, so pydantic accepts the string, and it builds a model field from a
+dict on its own. ``_ergonomic.py`` applied the other four helpers to 70 fields
+and every one of those patches was inert; measured, the validation surface of all
+14 models it named was identical with and without it. The other helpers are kept
+as a public utility for an adopter's own ``Annotated``, not because the SDK's own
+models need them. See salesagent-5beb4.
 """
 
 from __future__ import annotations

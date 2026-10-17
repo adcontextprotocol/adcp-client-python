@@ -278,7 +278,9 @@ async def _fetch_capabilities(
     """
     from adcp.signing._resolver_protocol import (
         DiscoveryTransport,
+        describe_failure,
         fetch_protocol_capabilities,
+        primary_cause,
         protocol_validation_failed,
     )
 
@@ -329,10 +331,19 @@ async def _fetch_capabilities(
                 if protocol_validation_failed(exc)
                 else "capabilities_unreachable"
             )
+            # The MCP and A2A stacks fetch inside an anyio task group, so `exc`
+            # is often a BaseExceptionGroup whose str() is "unhandled errors in
+            # a TaskGroup (1 sub-exception)" -- naming neither the failure nor
+            # the agent. AdCP 3.2.1's discovery-chain rejection table assigns
+            # request_signature_capabilities_unreachable the detail fields
+            # agent_url, http_status, dns_error and last_attempt_at, and
+            # http_status/dns_error live in the member; a caller handed only the
+            # group cannot populate them. So the message names the member and
+            # __cause__ IS the member, while the group stays in __context__.
             raise AgentResolverError(
                 code,
-                f"get_adcp_capabilities failed: {exc}",
-            ) from exc
+                f"get_adcp_capabilities failed: {describe_failure(exc)}",
+            ) from primary_cause(exc)
         return _CapabilitiesPayload(body=body, final_url=discovery.final_url)
 
 

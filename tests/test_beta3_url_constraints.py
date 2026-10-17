@@ -80,7 +80,12 @@ def test_beta3_secure_urls_accept_valid_https_origins() -> None:
 
 @pytest.mark.parametrize("params", [{"width": 300}, {"height": 250}])
 def test_image_package_dimensions_must_cooccur(params: dict[str, int]) -> None:
-    with pytest.raises(ValidationError, match="width and height must co-occur"):
+    # ``package-request.json``'s third root conjunct: when ``format_kind`` is
+    # ``image`` and ``params`` is present, ``params`` carries width and height
+    # together or neither. It was hand-written here while the generator dropped
+    # the conjunct; it is now compiled from the schema, so the refusal names the
+    # schema node rather than a sentence this repo authored.
+    with pytest.raises(ValidationError, match=r"package-request\.json, root conjunct 3"):
         PackageRequest(
             product_id="product-1",
             pricing_option_id="price-1",
@@ -90,7 +95,9 @@ def test_image_package_dimensions_must_cooccur(params: dict[str, int]) -> None:
 
 
 def test_package_params_require_format_kind() -> None:
-    with pytest.raises(ValidationError, match="params requires format_kind"):
+    # ``package-request.json``'s root ``dependencies``: ``params`` selects a
+    # vocabulary, so it implies the ``format_kind`` that names which one.
+    with pytest.raises(ValidationError, match=r"package-request\.json, root conjunct 0"):
         PackageRequest(
             product_id="product-1",
             pricing_option_id="price-1",

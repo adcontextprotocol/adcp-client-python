@@ -725,7 +725,6 @@ class GrantAuthorization:
                 raise AdcpError(
                     "SERVICE_UNAVAILABLE",
                     message="Trust record is temporarily unavailable",
-                    recovery="transient",
                 )
             raise AdcpError(
                 "PERMISSION_DENIED",
@@ -735,7 +734,6 @@ class GrantAuthorization:
                     if self.include_grant_absent_details
                     else None
                 ),
-                recovery="correctable",
             )
 
 

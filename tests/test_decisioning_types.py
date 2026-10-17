@@ -106,12 +106,36 @@ def test_adcp_error_wire_projection() -> None:
 
 
 def test_adcp_error_minimum_fields() -> None:
-    """Code-only error projects to the minimum envelope. ``recovery``
-    defaults to ``'terminal'`` (do-not-retry)."""
+    """Code-only error projects to the minimum envelope, with ``recovery`` DERIVED.
+
+    An unstated ``recovery`` is the classification ``enums/error-code.json``
+    registers for the code, so ``INVALID_REQUEST`` projects ``correctable``.
+    This test previously asserted ``terminal`` and its docstring said
+    ``recovery`` "defaults to 'terminal' (do-not-retry)" — that was the defect,
+    not the contract: the constructor hardcoded ``terminal`` while 101 of the
+    120 registered codes are ``correctable``, so every site that stated nothing
+    told a buyer to stop retrying something it could fix (salesagent-8qela.47).
+    """
     err = AdcpError("INVALID_REQUEST")
     assert err.to_wire() == {
         "code": "INVALID_REQUEST",
         "message": "INVALID_REQUEST",
+        "recovery": "correctable",
+    }
+
+
+def test_adcp_error_minimum_fields_for_an_unregistered_code() -> None:
+    """An unregistered code has no classification to derive, so it stays terminal.
+
+    The companion to the test above: ``terminal`` is still the answer where the
+    schema registers nothing, which is what keeps ``INTERNAL_ERROR`` — raised at
+    55 sites and absent from both the spec enum and the SDK extensions —
+    projecting exactly what it did before.
+    """
+    err = AdcpError("INTERNAL_ERROR")
+    assert err.to_wire() == {
+        "code": "INTERNAL_ERROR",
+        "message": "INTERNAL_ERROR",
         "recovery": "terminal",
     }
 

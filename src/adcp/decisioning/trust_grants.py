@@ -140,9 +140,7 @@ class TrustGrantGate:
             return
         operator = registrable_domain(agent.agent_url)
         if operator is None:
-            raise AdcpError(
-                "PERMISSION_DENIED", message="Buyer agent is not authorized", recovery="correctable"
-            )
+            raise AdcpError("PERMISSION_DENIED", message="Buyer agent is not authorized")
         key: _ClaimKey = (
             canonical_origin(agent.agent_url),
             registrable_domain(claim.brand_domain),
@@ -161,7 +159,6 @@ class TrustGrantGate:
                     raise AdcpError(
                         "SERVICE_UNAVAILABLE",
                         message="Claim history admission capacity exceeded",
-                        recovery="transient",
                     )
                 self._history.claims[key] = 0
                 self._history.operator_counts[operator] = (
@@ -198,9 +195,7 @@ class TrustGrantGate:
     ) -> None:
         if agent is None:
             # No established commercial identity: omit details under the oracle clamp.
-            raise AdcpError(
-                "PERMISSION_DENIED", message="Buyer agent is not authorized", recovery="correctable"
-            )
+            raise AdcpError("PERMISSION_DENIED", message="Buyer agent is not authorized")
         key: _ClaimKey = (
             canonical_origin(agent.agent_url),
             registrable_domain(claim.brand_domain),
@@ -314,7 +309,6 @@ class TrustGrantGate:
                 "PERMISSION_DENIED",
                 message="Operation requires an explicit grant scope",
                 details={"scope": "agent", "reason": "grant_absent"},
-                recovery="correctable",
             )
         await self.require_claim(
             claim,
@@ -346,7 +340,6 @@ class TrustGrantGate:
                 "PERMISSION_DENIED",
                 message="Account declaration has no grant authority",
                 details={"scope": "agent", "reason": "grant_absent"},
-                recovery="correctable",
             )
         await self.require_claim(
             TrustGrantClaim(

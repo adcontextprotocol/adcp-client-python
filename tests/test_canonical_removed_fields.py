@@ -22,7 +22,8 @@ adopter can observe —
 field disagrees with a runtime that refuses it:
 
 * the ``TYPE_CHECKING`` redeclaration exists, says ``init=False``, and restates
-  the generated parent's annotation EXACTLY;
+  the generated parent's field type — compared as pydantic RESOLVES both sides,
+  since the written spelling and the ``FieldInfo.annotation`` differ for ``None``;
 * mypy and pyright both refuse the constructor keyword.
 
 Nothing here is a hand-written table. The model list is
@@ -47,7 +48,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, create_model
 
 from adcp.types import canonical_creative
 from adcp.types.canonical_creative import (
@@ -59,9 +60,18 @@ from adcp.types.domains.core.format_id import FormatReferenceStructuredObject
 _GENERATED_PREFIX = "adcp.types.domains."
 _SOURCE = Path(canonical_creative.__file__)
 
-#: The boundary validator's refusal text. Asserting on it keeps the
-#: ``model_validate`` test from passing because of a missing required field.
-_REFUSAL = "contains legacy creative identity"
+#: The two owned refusals. Asserting on the text keeps the ``model_validate``
+#: test from passing because of a missing required field — and asserting on the
+#: text of the mechanism that OWNS the name on that class keeps it from passing
+#: because the other mechanism happened to catch it.
+#:
+#: ``_REFUSAL_BOUNDARY`` is ``CanonicalBoundaryModel._reject_legacy_creative_identity``.
+#: ``_REFUSAL_BRANCH`` is ``adcp.types._conditions``' forbidden-names check, which
+#: runs first on a class bound to a branch that forbids the name — ``CreativeAsset``
+#: is bound to the canonical-format branch of ``core/creative-asset.json`` and that
+#: branch bans ``format_id`` outright.
+_REFUSAL_BOUNDARY = "contains legacy creative identity"
+_REFUSAL_BRANCH = "is not accepted by this request shape"
 
 
 def _generated_ancestors(model: type[BaseModel]) -> list[type[BaseModel]]:
@@ -174,20 +184,43 @@ def test_the_removed_field_is_absent_from_model_dump(model: type[BaseModel], nam
     assert name not in model.model_construct().model_dump()
 
 
+def _expected_refusal(model: type[BaseModel], name: str) -> str:
+    """Which mechanism owns *name* on *model* — DERIVED, not listed.
+
+    A branch that forbids a name types it ``None``, so the generated ancestor's
+    resolved field type is the whole rule. Measured over all fifteen pairs:
+    exactly one, ``CreativeAsset.format_id``, resolves to ``NoneType`` and is
+    refused by the branch; the other fourteen inherit a real type and reach the
+    boundary validator.
+    """
+
+    inherited = _declaring_ancestor(model, name).model_fields[name].annotation
+    if _as_pydantic_resolves_it(inherited) is type(None):
+        return _REFUSAL_BRANCH
+    return _REFUSAL_BOUNDARY
+
+
 @pytest.mark.parametrize(("model", "name"), REMOVED, ids=REMOVED_IDS)
 def test_model_validate_rejects_a_document_carrying_the_removed_field(
     model: type[BaseModel], name: str
 ) -> None:
-    """Refused, and refused for the boundary's reason.
+    """Refused, and refused by the mechanism that owns the name on this class.
 
     A document holding only the removed name would also fail for missing
     required fields on most of these models, so the refusal text is asserted:
-    without it this test would stay green if the boundary validator were
+    without it this test would stay green if the refusing validator were
     deleted outright.
+
+    Naming the EXPECTED mechanism rather than accepting either text is what
+    keeps both deletions red. Delete the branch's forbidden-names check and
+    ``CreativeAsset`` falls through to the boundary's text, which is not the one
+    expected; delete the boundary validator and the fourteen root-bound models
+    fall through to ``missing``.
     """
+    expected = _expected_refusal(model, name)
     with pytest.raises(ValidationError) as caught:
         model.model_validate({name: "legacy-value"})
-    assert _REFUSAL in str(caught.value), str(caught.value)
+    assert expected in str(caught.value), str(caught.value)
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +277,30 @@ def _alias_namespace() -> dict[str, Any]:
     return namespace
 
 
+def _as_pydantic_resolves_it(annotation: Any) -> Any:
+    """*annotation* as pydantic records it on a ``FieldInfo``.
+
+    The declared side is read out of the source and evaluated, so a field
+    annotated ``None`` arrives as the VALUE ``None`` while the ancestor's
+    ``FieldInfo.annotation`` holds the TYPE ``NoneType`` — pydantic normalises
+    one to the other while building the field. Comparing the two spellings
+    directly reports ``CreativeAsset.format_id`` as disagreeing with its parent
+    at the moment it restates the parent exactly, and NO spelling in the source
+    can settle it: ``NoneType`` is the spelling the comparison wants and mypy
+    refuses that outright (*NoneType should not be used as a type, please use
+    None instead*). So both sides go through pydantic's own normalisation and
+    the comparison is between RESOLVED types rather than between annotation
+    text.
+
+    Measured idempotent on every other annotation this module compares —
+    ``FormatReferenceStructuredObject``, its optional, ``list[...]``,
+    ``Sequence[...]`` and that optional all come back unchanged — so the
+    normalisation collapses the one representation difference and nothing else.
+    """
+
+    return create_model("_Resolved", field=(annotation, None)).model_fields["field"].annotation
+
+
 @pytest.mark.parametrize(("model", "name"), REMOVED, ids=REMOVED_IDS)
 def test_the_removed_field_is_hidden_from_the_type_checker(
     model: type[BaseModel], name: str
@@ -252,9 +309,12 @@ def test_the_removed_field_is_hidden_from_the_type_checker(
 
     ``init=False`` is what removes the keyword from the ``__init__`` mypy and
     pyright synthesize through ``dataclass_transform``. The annotation must be
-    the generated parent's exact field type: a narrowed one is an incompatible
+    the generated parent's field type: a narrowed one is an incompatible
     override (pyright says so by name), and a widened one hands the caller a
-    read type the runtime never produces.
+    read type the runtime never produces. ``_as_pydantic_resolves_it`` is what
+    makes "the same type" mean the resolved type rather than the written one —
+    a branch-bound class annotates ``None`` where its parent's ``FieldInfo``
+    reads ``NoneType``, and mypy refuses the second spelling.
     """
     declaration = _type_checking_redeclarations().get((model.__name__, name))
     assert declaration is not None, (
@@ -270,7 +330,12 @@ def test_the_removed_field_is_hidden_from_the_type_checker(
     assert keywords.get("init") is False, ast.unparse(declaration)
 
     declared = eval(ast.unparse(declaration.annotation), _alias_namespace())
-    assert declared == _declaring_ancestor(model, name).model_fields[name].annotation
+    inherited = _declaring_ancestor(model, name).model_fields[name].annotation
+    assert _as_pydantic_resolves_it(declared) == _as_pydantic_resolves_it(inherited), (
+        f"{model.__name__}.{name} is annotated {declared!r}, which resolves to "
+        f"{_as_pydantic_resolves_it(declared)!r}, where its generated parent's field "
+        f"resolves to {_as_pydantic_resolves_it(inherited)!r}"
+    )
 
 
 def _construction(model: type[BaseModel], names: list[str]) -> str:

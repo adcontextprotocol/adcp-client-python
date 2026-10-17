@@ -633,7 +633,6 @@ class MockProposalManager:
                     "``mock_upstream_url`` pointing at a running "
                     "``bin/adcp.js mock-server <specialism>`` instance."
                 ),
-                recovery="terminal",
                 field="mock_upstream_url",
             )
 
@@ -698,7 +697,6 @@ class MockProposalManager:
                     f"a non-dict payload from /get_products: "
                     f"{type(result).__name__}"
                 ),
-                recovery="transient",
             )
         return result
 

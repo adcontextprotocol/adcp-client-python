@@ -42,26 +42,32 @@ def executor():
 def _make_request(product_ids: list[str] | None):
     """Build a minimal CreateMediaBuyRequest with the given product ids.
 
-    Passing None simulates a proposal_id-driven request (no packages).
+    Passing None builds the committed-proposal request instead of the explicit-
+    packages one. Those are two of the three arms of
+    ``create-media-buy-request.json``, and the arm chosen decides which keys the
+    document may carry at all: the proposal arm forbids ``packages`` and the
+    packages arms forbid ``proposal_id``. So each is built by naming only its
+    own keys -- passing both with one set to ``None`` sends BOTH keys, which the
+    bundled schema refuses whichever value either carries.
     """
     from adcp.types import CreateMediaBuyRequest
 
-    packages = None
-    if product_ids is not None:
-        packages = [
+    payload: dict[str, Any] = {
+        "idempotency_key": "test-key-12345678",
+        "account": {"account_id": "acct_test"},
+        "brand": {"domain": "example.com"},
+        "start_time": "2026-06-01T00:00:00Z",
+        "end_time": "2026-07-01T00:00:00Z",
+    }
+    if product_ids is None:
+        payload["proposal_id"] = "prop-123"
+        payload["total_budget"] = {"amount": 1000.0, "currency": "USD"}
+    else:
+        payload["packages"] = [
             {"product_id": pid, "budget": 1000.0, "pricing_option_id": "cpm_flat"}
             for pid in product_ids
         ]
-
-    return CreateMediaBuyRequest(
-        idempotency_key="test-key-12345678",
-        account={"account_id": "acct_test"},
-        brand={"domain": "example.com"},
-        start_time="2026-06-01T00:00:00Z",
-        end_time="2026-07-01T00:00:00Z",
-        packages=packages,
-        proposal_id=None if product_ids is not None else "prop-123",
-    )
+    return CreateMediaBuyRequest(**payload)
 
 
 def _make_handler(

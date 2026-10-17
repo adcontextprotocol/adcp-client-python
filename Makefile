@@ -88,8 +88,6 @@ regenerate-schemas: ## Download latest schemas and skills from bundle, then rege
 	$(PYTHON) scripts/generate_types.py
 	@echo "Consolidating exports..."
 	$(PYTHON) scripts/consolidate_exports.py
-	@echo "Generating ergonomic coercion..."
-	$(PYTHON) scripts/generate_ergonomic_coercion.py
 	@echo "✓ Schemas regenerated successfully"
 
 validate-generated: ## Validate generated code (syntax, imports, and equality with a regeneration)

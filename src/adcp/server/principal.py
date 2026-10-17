@@ -19,7 +19,7 @@ from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.server.idempotency import canonical_json_sha256
@@ -156,6 +156,31 @@ def _json(value: object) -> str:
     if isinstance(value, BaseModel):
         value = value.model_dump(mode="json", exclude_none=True)
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _first_message(error: ValidationError, payload: Any) -> str:
+    """The first refusal a pydantic error carries, with the path it sits on.
+
+    Goes through the same projection the handler lane uses
+    (:func:`adcp.validation.pydantic_errors.issues_from_validation_error`), so
+    the message is built from schema-side facts and the path is resolved
+    against ``payload``. Passing pydantic's own ``msg`` and ``loc`` through
+    instead put producer-internal names on the wire: ``msg`` for a type
+    mismatch reads "instance of Configuration", and ``loc`` carries the
+    selected union branch's class name, e.g. ``AgentReportingDestination1``.
+
+    ``field`` uses JSONPath-lite, so the location is written that way here too
+    rather than as the RFC 6901 pointer ``issues[].pointer`` carries.
+    """
+    from adcp.validation.pydantic_errors import issues_from_validation_error
+    from adcp.validation.schema_validator import pointer_to_field
+
+    issues = issues_from_validation_error(error, payload)
+    if not issues:
+        return "the request could not be validated"
+    first = issues[0]
+    location = pointer_to_field(first.pointer)
+    return f"{location}: {first.message}" if location else first.message
 
 
 def _failed(code: str, message: str, *, context: object | None = None) -> SyncPrincipalResponse:
@@ -434,7 +459,24 @@ class PrincipalService:
         identity: PrincipalIdentity,
         request: SyncPrincipalRequest | Mapping[str, Any],
     ) -> SyncPrincipalResponse:
-        request = SyncPrincipalRequest.model_validate(request)
+        try:
+            request = SyncPrincipalRequest.model_validate(request)
+        except ValidationError as error:
+            # A request this service cannot parse is an INVALID_REQUEST, which
+            # is already how it answers every rule it checks itself: the
+            # ``ValueError`` its own normalizers raise becomes ``_failed``
+            # below. The parse was outside that conversion because nothing
+            # about a document's CONTENT used to refuse here -- the generated
+            # models dropped their schemas' conditionals, so only a shape error
+            # could fail, and a shape error never reached this method.
+            #
+            # Now it can: ``agent-notification-config.json`` states that a
+            # config subscribing to account events carries
+            # ``all_authorized_accounts: true``, which the model enforces, so a
+            # buyer sending one without it parses no further. Raising a pydantic
+            # error out of a protocol handler would answer that with a transport
+            # failure instead of the rejected response the tool declares.
+            return _failed("INVALID_REQUEST", _first_message(error, request), context=None)
         if not request.configuration.model_fields_set:
             return _failed(
                 "INVALID_REQUEST",

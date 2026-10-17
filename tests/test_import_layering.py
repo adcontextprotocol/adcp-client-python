@@ -73,11 +73,10 @@ ALLOWED_FILES = {
 # Add a file here only as a temporary measure; prefer fixing the import.
 # Remove a file here when its violation is fixed (the test will fail-closed
 # if you forget to update the list, which is the desired behavior).
-_KNOWN_VIOLATIONS = frozenset(
-    {
-        "src/adcp/utils/preview_cache.py",
-    }
-)
+#: Empty: the last entry (``src/adcp/utils/preview_cache.py``) no longer imports
+#: ``adcp.types._generated``, and the stale-entry half of the assertion below had
+#: been failing for it. A baseline only shrinks.
+_KNOWN_VIOLATIONS: frozenset[str] = frozenset()
 
 _FORBIDDEN_PREFIXES = ("adcp.types._generated",)
 

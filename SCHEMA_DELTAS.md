@@ -2,27 +2,120 @@
 
 ## Field changes
 
-- `account/list_account_changes_request.py`
-  - `ListAccountChangesRequest`: `-adcp_major_version`, `-adcp_version`
-- `brand/search_brands_request.py`
-  - `SearchBrandsRequest`: `-adcp_major_version`
-- `media_buy/accept_proposal_request.py`
-  - `AcceptProposalRequest`: `-adcp_major_version`, `-adcp_version`
+- `account/list_account_changes_response.py`
+  - **classes added**: ListAccountChangesResponseCompleted, ListAccountChangesResponseFailed
+  - `ListAccountChangesResponse`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `account/sync_governance_response.py`
+  - **classes added**: SyncGovernanceResponse
+- `brand/search_brands_response.py`
+  - **classes added**: SearchBrandsError, SearchBrandsSuccess
+  - `SearchBrandsResponse`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `brand/verify_brand_claim_request.py`
+  - **classes added**: VerifyBrandClaimRequestVerifyParentClaim, VerifyBrandClaimRequestVerifyPropertyClaim, VerifyBrandClaimRequestVerifySubsidiaryClaim, VerifyBrandClaimRequestVerifyTrademarkClaim
+  - `VerifyBrandClaimRequest`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - `Features1`: `+canonical_creatives`
+- `compliance/comply_test_controller_response.py`
+  - **classes added**: ComplyTestControllerResponse
+- `content_standards/create_content_standards_request.py`
+  - `CreateContentStandardsRequest`: `+_COMBINATOR_FIELDS`
+- `content_standards/create_content_standards_response.py`
+  - **classes added**: CreateContentStandardsResponse
+- `content_standards/list_content_standards_response.py`
+  - **classes added**: ListContentStandardsResponse
+- `content_standards/update_content_standards_response.py`
+  - **classes added**: UpdateContentStandardsResponse
+- `core/assets/published_post_asset.py`
+  - `PublishedPostAsset`: `+_COMBINATOR_FIELDS`
+- `core/attestation_reference.py`
+  - `AttestationReference`: `+_COMBINATOR_FIELDS`
+- `core/audience_characteristic.py`
+  - **classes added**: AudienceCharacteristicRange, AudienceCharacteristicValue
+  - `AudienceCharacteristic`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/audience_member.py`
+  - `AudienceMember`: `+_COMBINATOR_FIELDS`
+- `core/budget_range.py`
+  - `BudgetRange`: `+_COMBINATOR_FIELDS`
+- `core/catchment.py`
+  - **classes added**: CatchmentGeometry, CatchmentRadius, CatchmentTransportModeTravelTime
+  - `Catchment`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/collection_distribution.py`
+  - `CollectionDistribution`: `+_COMBINATOR_FIELDS`
+- `core/creative_asset.py`
+  - **classes added**: CreativeAssetV1CreativeNamedFormatReference, CreativeAssetV2CreativeCanonicalFormatKind
+  - `CreativeAsset`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/creative_manifest.py`
+  - **classes added**: CreativeManifestCanonicalFormatManifest, CreativeManifestNamedFormatManifest
+  - `CreativeManifest`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/demographic_age_range.py`
+  - `DemographicAgeRange`: `+_COMBINATOR_FIELDS`
+- `core/demographic_reporting_capability.py`
+  - `DemographicReportingCapability`: `+_COMBINATOR_FIELDS`
+- `core/forecast_dimension_signal.py`
+  - `SignalForecastDimension`: `+_COMBINATOR_FIELDS`
+- `core/forecast_range.py`
+  - `ForecastRange`: `+_COMBINATOR_FIELDS`
+- `core/format.py`
+  - **classes added**: UnknownFormatAsset, UnknownGroupAsset
+- `core/frequency_cap.py`
+  - `FrequencyCap`: `+_COMBINATOR_FIELDS`
+- `core/frequency_cap_constraints.py`
+  - `FrequencyCapConstraints`: `+_COMBINATOR_FIELDS`
+- `core/frequency_cap_impression_constraints.py`
+  - **classes added**: FrequencyCapImpressionConstraintsAllowedValues, FrequencyCapImpressionConstraintsMaximumMinimum
+  - `FrequencyCapImpressionConstraints`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/frequency_cap_interval_constraints.py`
+  - **classes added**: FrequencyCapIntervalConstraintsAllowedIntervals, FrequencyCapIntervalConstraintsMaximumIntervalMinimumInterval
+  - `FrequencyCapIntervalConstraints`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/get_geo_place_resolution_request.py`
+  - **classes added**: GetGeographicPlaceResolutionRequestQ, GetGeographicPlaceResolutionRequestValue
+  - `GetGeographicPlaceResolutionRequest`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `core/media_buy_features.py`
+  - `MediaBuyFeatures`: `+canonical_creatives`
+- `core/placement.py`
+  - `Placement`: `+_COMBINATOR_FIELDS`
+- `core/placement_definition.py`
+  - `PlacementDefinition`: `+_COMBINATOR_FIELDS`
+- `core/product.py`
+  - `Product`: `+_COMBINATOR_FIELDS`
+- `core/reporting_webhook.py`
+  - `ReportingWebhook`: `+operation_id`
+- `core/signal_listing.py`
+  - `SignalListing`: `+_COMBINATOR_FIELDS`
+- `core/transformer.py`
+  - `Transformer`: `+_COMBINATOR_FIELDS`
+- `core/user_match.py`
+  - `UserMatch`: `+_COMBINATOR_FIELDS`
+- `core/webhook_challenge_response.py`
+  - **classes added**: WebhookChallengeResponseChallenge, WebhookChallengeResponseToken
+  - `WebhookChallengeResponse`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `creative/get_creative_delivery_request.py`
+  - `GetCreativeDeliveryRequest`: `+_COMBINATOR_FIELDS`
+- `creative/sync_creatives_request.py`
+  - `SyncCreativesRequest`: `+_COMBINATOR_FIELDS`
+- `governance/get_plan_audit_logs_request.py`
+  - `GetPlanAuditLogsRequest`: `+_COMBINATOR_FIELDS`
+- `media_buy/acceptance_policy_catalog.py`
+  - `AcceptancePolicyCatalog`: `+_COMBINATOR_FIELDS`
 - `media_buy/buy_products_request.py`
-  - `BuyProductsRequest`: `-adcp_major_version`, `-adcp_version`
+  - `BuyProductsRequest`: `+_COMBINATOR_FIELDS`
 - `media_buy/control_media_buy_request.py`
-  - `ControlMediaBuyRequest`: `-adcp_major_version`, `-adcp_version`
-- `media_buy/decline_proposals_request.py`
-  - `DeclineProposalsRequest`: `-adcp_major_version`, `-adcp_version`
-- `media_buy/list_products_request.py`
-  - `ListProductsRequest`: `-adcp_major_version`, `-adcp_version`
-- `media_buy/refine_proposals_request.py`
-  - `RefineProposalsRequest`: `-adcp_major_version`, `-adcp_version`
+  - `ControlMediaBuyRequest`: `+_COMBINATOR_FIELDS`
+- `media_buy/create_media_buy_request.py`
+  - **classes added**: CreateMediaBuyRequestCommittedProposalExecution, CreateMediaBuyRequestExplicitPackagesWithFixedAllocation, CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation
+  - `CreateMediaBuyRequest`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `media_buy/get_reporting_status_response.py`
+  - `GetReportingStatusResponse`: `+_COMBINATOR_FIELDS`
+- `media_buy/outcome_target.py`
+  - `OutcomeTarget`: `+_COMBINATOR_FIELDS`
+- `media_buy/package_control.py`
+  - `PackageControl`: `+_COMBINATOR_FIELDS`
+- `media_buy/proposal_budget_constraint.py`
+  - `ProposalBudgetConstraint`: `+_COMBINATOR_FIELDS`
 - `media_buy/request_proposals_request.py`
-  - `RequestProposalsRequest`: `-adcp_major_version`, `-adcp_version`
-- `media_buy/sync_reporting_status_request.py`
-  - `SyncReportingStatusRequest`: `-adcp_major_version`, `-adcp_version`
-- `trusted_match/context_match_request.py`
-  - `ContextMatchRequest`: `-adcp_major_version`, `-adcp_version`
-- `trusted_match/identity_match_request.py`
-  - `IdentityMatchRequest`: `-adcp_major_version`, `-adcp_version`
+  - **classes added**: RequestProposalsRequestAccount, RequestProposalsRequestBrand
+  - `RequestProposalsRequest`: `+_COMBINATOR_FIELDS`, `+_ROOT_REQUIRED`
+- `media_buy/sync_reporting_receipts_request.py`
+  - `SyncReportingReceiptsRequest`: `+_COMBINATOR_FIELDS`
+- `sponsored_intelligence/si_send_message_request.py`
+  - `SiSendMessageRequest`: `+_COMBINATOR_FIELDS`

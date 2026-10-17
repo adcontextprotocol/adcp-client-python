@@ -540,7 +540,6 @@ class SignedRequestVerificationMiddleware:
                         authorization_error=AdcpError(
                             "PERMISSION_DENIED",
                             message="Bound origin requires Web Bot Auth",
-                            recovery="correctable",
                         ),
                     )
                     return
@@ -707,7 +706,6 @@ class SignedRequestVerificationMiddleware:
                 return replace(signer, agent_url=key.agent_url), AdcpError(
                     "PERMISSION_DENIED",
                     message="Bound origin requires Web Bot Auth",
-                    recovery="correctable",
                 )
         return replace(signer, agent_url=key.agent_url if key is not None else None), None
 
@@ -742,7 +740,6 @@ class SignedRequestVerificationMiddleware:
             return replace(signer, principal_id=principal), AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message="Origin binding evaluation unavailable",
-                recovery="transient",
             )
         try:
             record = await config.trust_records.evaluate(
@@ -770,7 +767,6 @@ class SignedRequestVerificationMiddleware:
             return replace(signer, principal_id=principal), AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message="Operator trust record is temporarily unavailable",
-                recovery="transient",
             )
         except TrustRecordError as exc:
             self._binding_membership[signer.agent_url or ""] = False
@@ -779,7 +775,6 @@ class SignedRequestVerificationMiddleware:
             return replace(signer, principal_id=None), AdcpError(
                 "PERMISSION_DENIED",
                 message="Signer origin is not authorized by its operator",
-                recovery="correctable",
             )
         self._binding_membership[signer.agent_url or ""] = True
         config._delisted_task_origins.discard(signer.agent_url or "")
@@ -809,7 +804,6 @@ class SignedRequestVerificationMiddleware:
             else AdcpError(
                 "PERMISSION_DENIED",
                 message="Caller is not authorized for this operation",
-                recovery="correctable",
             )
         )
         return replace(signer, principal_id=None), error
@@ -884,12 +878,9 @@ class SignedRequestVerificationMiddleware:
             AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message="Signer identity is temporarily unavailable",
-                recovery="transient",
             )
             if isinstance(failure, WbaUnavailableError)
-            else AdcpError(
-                "PERMISSION_DENIED", message="Authentication failed", recovery="correctable"
-            )
+            else AdcpError("PERMISSION_DENIED", message="Authentication failed")
         )
         scope.pop(VERIFIED_SIGNER_SCOPE_KEY, None)
         scope.pop(_FRAMEWORK_VERIFIED_SCOPE_KEY, None)

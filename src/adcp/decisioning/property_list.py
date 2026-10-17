@@ -117,7 +117,6 @@ async def resolve_property_list(
         raise AdcpError(
             "INVALID_REQUEST",
             message="Property list_id must be a single URL-safe path segment",
-            recovery="correctable",
             details={"list_id": list_id},
         )
 
@@ -131,7 +130,6 @@ async def resolve_property_list(
         raise AdcpError(
             "INVALID_REQUEST",
             message="Property list agent_url failed destination policy",
-            recovery="correctable",
             details={"reason": exc.reason},
         ) from None
 
@@ -158,7 +156,6 @@ async def resolve_property_list(
                 f"Property list fetch failed for list_id={list_id!r} "
                 f"from agent_origin={safe_origin!r}"
             ),
-            recovery="transient",
             details={"list_id": list_id, "agent_origin": safe_origin},
         ) from None
 

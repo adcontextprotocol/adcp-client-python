@@ -38,7 +38,8 @@ from pydantic import BaseModel, RootModel
 
 from adcp.validation.version import resolve_bundle_key
 from scripts import generate_types as codegen
-from scripts.post_generate_fixes import _resolve_schema_ref, _schema_title_to_class_name
+from scripts.generated_names import generated_root_class_name
+from scripts.post_generate_fixes import _resolve_schema_ref
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _GENERATED_DIR = _REPO_ROOT / "src" / "adcp" / "types" / "domains"
@@ -119,7 +120,7 @@ def _compositions() -> tuple[_Composition, ...]:
                 continue
             ref = entry.get("$ref")
             if not isinstance(ref, str):
-                continue  # an inline constraint arm, not a composition
+                continue  # an inline constraint branch, not a composition
             fragment = ref.split("#", 1)[1] if "#" in ref else ""
             if ref.startswith("#") or fragment not in ("", "/"):
                 # A JSON pointer names a sub-schema, which has no generated
@@ -167,7 +168,7 @@ def _root_names(rel: Path) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
     class, as an alias assignment, or both.
 
     A root with ``oneOf`` beside its ``allOf`` also emits a ``NameN`` branch
-    class per arm, and those are collected **in addition to** the bare name,
+    class per branch, and those are collected **in addition to** the bare name,
     not instead of it. That is the whole of #1136: the composition was lost on
     19 of 24 response branches while the top-level name was fine, so a resolver
     that stops at the name matching the schema file grades none of the classes
@@ -178,10 +179,10 @@ def _root_names(rel: Path) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
     those it picks must not decide whether the branch is graded.
 
     ``N`` is the whole numeric run after the candidate, not one digit: a root
-    that fans out into ten or more arms emits ``Name10`` upward, and this tree
+    that fans out into ten or more branches emits ``Name10`` upward, and this tree
     carries 341 classes with a multi-digit suffix (``AcceptancePolicyRequirement17``,
     ``AdcpAgentsAuthorization213``). Matching a single trailing character would
-    drop those arms from the grading silently, which is the under-grading
+    drop those branches from the grading silently, which is the under-grading
     #1136 is about.
 
     Returning ``None`` rather than guessing at the last class in the file is
@@ -210,8 +211,8 @@ def _root_names(rel: Path) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
     title = schema.get("title")
     candidates = []
     if isinstance(title, str) and title.strip():
-        candidates.append(_schema_title_to_class_name(title))
-    candidates.append(_schema_title_to_class_name(rel.stem.replace("-", " ")))
+        candidates.append(generated_root_class_name(title))
+    candidates.append(generated_root_class_name(rel.stem.replace("-", " ")))
 
     for candidate in candidates:
         root = tuple(name for name in (*classes, *bound) if name.lower() == candidate.lower())
@@ -229,7 +230,7 @@ def _root_names(rel: Path) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 
 
 def _resolve(rel: Path, names: tuple[str, ...]) -> tuple[type, ...]:
-    """The classes behind module-level names, with unions flattened to arms.
+    """The classes behind module-level names, with unions flattened to branches.
 
     Deduplicated: a root that fans out is reachable both as its union alias and
     as the branch classes the alias is built from, and counting a class twice
@@ -246,11 +247,13 @@ def _resolve(rel: Path, names: tuple[str, ...]) -> tuple[type, ...]:
         # carries the schema's discriminator, and the union is its first arg.
         if typing.get_origin(obj) is typing.Annotated:
             obj = typing.get_args(obj)[0]
-        arms = typing.get_args(obj)
-        assert arms, f"{_module_name(rel)}.{name} is neither a class nor a union: {obj!r}"
-        for arm in arms:
-            assert isinstance(arm, type), f"{_module_name(rel)}.{name} arm is not a class: {arm!r}"
-            found[arm] = None
+        branches = typing.get_args(obj)
+        assert branches, f"{_module_name(rel)}.{name} is neither a class nor a union: {obj!r}"
+        for branch in branches:
+            assert isinstance(
+                branch, type
+            ), f"{_module_name(rel)}.{name} arm is not a class: {branch!r}"
+            found[branch] = None
     return tuple(found)
 
 
@@ -457,7 +460,7 @@ def test_public_surface_keeps_the_composed_ancestry() -> None:
     assert checked, "no graded class is exported from adcp.types; the lookup is broken"
 
 
-def test_response_arm_aliases_keep_the_protocol_envelope() -> None:
+def test_response_branch_aliases_keep_the_protocol_envelope() -> None:
     """Every ``*SuccessResponse`` / ``*ErrorResponse`` alias is a ProtocolEnvelope.
 
     This is #1136 stated as its own assertion: ``oneOf`` response branches lost
@@ -471,27 +474,97 @@ def test_response_arm_aliases_keep_the_protocol_envelope() -> None:
     ``ProtocolEnvelope`` is named here rather than derived. Deriving it would
     mean mapping an alias name back to a schema file by convention, which is
     the guesswork the rest of this module avoids; the obligation is the same
-    for every arm of every task response, so naming it once is auditable.
+    for every branch of every task response, so naming it once is auditable.
     """
     from adcp.types import aliases
     from adcp.types.domains.core.protocol_envelope import ProtocolEnvelope
 
-    arms = sorted(
+    branches = sorted(
         name for name in aliases.__all__ if name.endswith(("SuccessResponse", "ErrorResponse"))
     )
-    assert len(arms) >= _MIN_RESPONSE_ARM_ALIASES, (
-        f"found only {len(arms)} response arm aliases, expected at least "
+    assert len(branches) >= _MIN_RESPONSE_ARM_ALIASES, (
+        f"found only {len(branches)} response arm aliases, expected at least "
         f"{_MIN_RESPONSE_ARM_ALIASES} — the alias surface has moved and this test no "
         "longer grades it"
     )
 
     lost = [
         f"adcp.types.aliases.{name} ({cls.__module__}.{cls.__name__})"
-        for name in arms
+        for name in branches
         if not issubclass(cls := getattr(aliases, name), ProtocolEnvelope)
     ]
     assert lost == [], (
-        "These response arm aliases are not ProtocolEnvelope subclasses, so the "
+        "These response branch aliases are not ProtocolEnvelope subclasses, so the "
         "root allOf composition is lost on the surface a consumer binds to — the "
         "#1136 regression:\n" + "\n".join(f"  {line}" for line in lost)
+    )
+
+
+# Measured at the 3.2.1 pin: of the 1056 titled roots in the generated population,
+# 5 generate no module and 105 generate no single class the title identifies, so
+# 946 are graded. A floor, for the reason the floors above are floors — and it is
+# the population assertion the test below needs, because a derivation that
+# resolves nothing compares an empty list and passes.
+_MIN_NAMED_ROOTS = 900
+
+
+def test_the_root_class_name_derived_from_a_title_is_the_name_the_module_declares() -> None:
+    """A root's derived class name is the generated class's name, casing included.
+
+    ``_schema_root_class_name`` is the root's identity: branch class names are
+    built from it, and a consumer that cannot read the generated module — a
+    capture index keyed by root, a name resolved before the branches exist —
+    has only it. So it is not enough that the name identify the class up to
+    case; it has to BE the name, or every such consumer is keying on a string
+    the module never declares.
+
+    It was not. The helper kept the title's acronym casing while
+    ``datamodel-code-generator`` title-cases the root, so
+    ``"Get AdCP Capabilities Response"`` derived ``GetAdCPCapabilitiesResponse``
+    against a module declaring ``GetAdcpCapabilitiesResponse`` — 94 of the 946
+    roots graded here. Generation never noticed: ``_root_generated_class``
+    resolves case-insensitively and returns the module's spelling. The capture
+    classifier, which keys an index on the derived name with no module to
+    resolve against, matched nothing for those roots and counted 48 documents
+    as "root not identified" (salesagent-5pe83).
+
+    Case-insensitive on the way IN, exact on the way OUT: a root whose title
+    identifies no class generated no flat model and is not this test's subject,
+    so membership is decided up to case and the assertion is on the spelling.
+    """
+    from scripts.post_generate_fixes import _schema_root_class_name, generated_module_for
+
+    graded = 0
+    mismatched: list[str] = []
+    for rel in _generated_schemas():
+        schema = json.loads((_SCHEMA_DIR / rel).read_text())
+        if not isinstance(schema, dict):
+            continue
+        derived = _schema_root_class_name(schema)
+        if derived is None:
+            continue
+        module = generated_module_for(rel)
+        if not module.exists():
+            continue
+        declared = {
+            node.name
+            for node in ast.parse(module.read_text()).body
+            if isinstance(node, ast.ClassDef)
+        }
+        matching = {name for name in declared if name.lower() == derived.lower()}
+        if len(matching) != 1:
+            continue
+        graded += 1
+        if derived not in matching:
+            mismatched.append(f"{rel}: derived {derived}, module declares {matching.pop()}")
+
+    assert graded >= _MIN_NAMED_ROOTS, (
+        f"only {graded} roots name a generated class, expected at least "
+        f"{_MIN_NAMED_ROOTS} — the derivation has stopped resolving and this test "
+        "no longer grades anything"
+    )
+    assert mismatched == [], (
+        "These roots derive a class name the generated module does not declare, so "
+        "anything keying on the derived name misses the class:\n"
+        + "\n".join(f"  {line}" for line in sorted(mismatched))
     )
