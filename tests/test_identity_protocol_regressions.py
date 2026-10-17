@@ -80,8 +80,12 @@ async def test_wba_missing_operator_record_never_reaches_legacy_authority():
     result = await evaluator.check(
         agent_origin=ORIGIN, brand_domain="brand.com", account_operator="platform.com"
     )
+    # The signer's operator never published a record: it is not listed,
+    # which is a denial without details, not an outage.
     assert not result.authorized
-    assert result.reason == "signer_trust_record_unavailable"
+    assert result.reason == "signer_not_listed"
+    assert result.error_code == "PERMISSION_DENIED"
+    assert not result.include_grant_absent_details
     assert not legacy_calls
     assert fetch_calls == [trust_record_url(ORIGIN)]
 
@@ -198,8 +202,11 @@ async def test_non_buying_operation_cannot_inherit_default_media_buying_scope():
         lambda account, agent: TrustGrantClaim("brand.com", "platform.com"),
     )
     buyer = BuyerAgent(agent_url=ORIGIN, display_name="Buyer", status="active")
-    with pytest.raises(AdcpError, match="explicit grant scope"):
+    with pytest.raises(AdcpError) as error:
         await gate.require_account(Account(id="existing"), buyer, operation="build_creative")
+    # The seller chose no scope: a seller-side refusal, never grant_absent.
+    assert error.value.code == "PERMISSION_DENIED"
+    assert not error.value.details
     assert not fetch_calls and not legacy_calls
 
 
@@ -389,7 +396,8 @@ async def test_self_operated_brand_can_grant_hosted_signer_directly(
         (trust_record_url(ORIGIN), RuntimeError("offline"), "SERVICE_UNAVAILABLE", {}),
         (trust_record_url(ORIGIN), TrustResponse(b"", 503), "SERVICE_UNAVAILABLE", {}),
         (trust_record_url("brand.com"), RuntimeError("offline"), "SERVICE_UNAVAILABLE", {}),
-        (trust_record_url("brand.com"), {"unexpected": True}, "PERMISSION_DENIED", {}),
+        # An invalid record is unreadable: an outage, never grant_absent.
+        (trust_record_url("brand.com"), {"unexpected": True}, "SERVICE_UNAVAILABLE", {}),
         (
             trust_record_url("brand.com"),
             {"grants": []},
@@ -488,7 +496,8 @@ async def test_public_record_outage_grace_is_bounded_and_never_fresh(when, allow
     if allowed:
         cached = await records.evaluate(ORIGIN, role="adcp:buying", allow_stale_on_outage=True)
         assert cached.stale_on_outage
-        assert cached.expires_at == 1060
+        # A stale record expires at the end of the outage-continuation bound.
+        assert cached.expires_at == 1300
         assert cached.revision == initial.revision
         await records.validate_snapshots((cached,), origin_or_domain=ORIGIN, role="adcp:buying")
     else:
@@ -542,7 +551,7 @@ async def test_other_origin_negative_read_survives_global_capacity_and_age():
 
 @pytest.mark.parametrize("grantor", ["brand.com", "agency.com"])
 @pytest.mark.parametrize("status", [404, 410])
-async def test_removed_grantor_stays_grant_absent_during_later_outage(grantor, status):
+async def test_grantor_404_after_a_read_is_an_outage_never_grant_absent(grantor, status):
     now, mode, legacy_calls = [1000.0], ["published"], []
 
     async def fetch(url, *, allow_private=False):
@@ -577,11 +586,15 @@ async def test_removed_grantor_stays_grant_absent_during_later_outage(grantor, s
     assert (await evaluator.check(**claim)).authorized
     for phase, when in (("removed", 1061), ("offline", 1122)):
         mode[0], now[0] = phase, when
-        result = await evaluator.check(**claim, allow_stale_on_outage=True)
-        assert not result.authorized
-        assert result.error_code == "PERMISSION_DENIED"
-        assert result.include_grant_absent_details
-        assert result.reason == "grant_absent"
+        # Spend: the retryable outage, never grant_absent.
+        spend = await evaluator.check(**claim)
+        assert not spend.authorized
+        assert spend.error_code == "SERVICE_UNAVAILABLE"
+        assert not spend.include_grant_absent_details
+        # Non-spend: the last grants read still stand within the bound.
+        nonspend = await evaluator.check(**claim, allow_stale_on_outage=True)
+        assert nonspend.authorized and nonspend.stale_on_outage
+    # A grantor that served 200 never falls back to authorized_operators.
     assert not legacy_calls
 
 
@@ -810,14 +823,11 @@ async def test_custom_fetcher_error_page_preserves_removal_or_outage_grace(statu
     fresh = await evaluator.check(**claim)
     assert not fresh.authorized
     grace = await evaluator.check(**claim, allow_stale_on_outage=True)
-    if status in {404, 410}:
-        assert fresh.error_code == grace.error_code == "PERMISSION_DENIED"
-        assert fresh.reason == grace.reason == "grant_absent"
-        assert fresh.include_grant_absent_details and grace.include_grant_absent_details
-    else:
-        assert fresh.error_code == "SERVICE_UNAVAILABLE"
-        assert grace.authorized and grace.stale_on_outage
-        assert grace.outage_expires_at == 1300
+    # Every status other than 200, a 404/410 after a read included, is an
+    # outage: the error page never masks it as a removal.
+    assert fresh.error_code == "SERVICE_UNAVAILABLE"
+    assert grace.authorized and grace.stale_on_outage
+    assert grace.outage_expires_at == 1300
 
 
 @pytest.mark.parametrize(
@@ -883,14 +893,15 @@ async def test_rejected_production_200_still_supersedes_legacy_fallback(
     }
     rejected = await evaluator.check(**claim)
     assert not rejected.authorized
-    assert rejected.error_code == (
-        "SERVICE_UNAVAILABLE" if read_timeout or total_deadline else "PERMISSION_DENIED"
-    )
+    # A rejected or unreadable 200 body is unreadable: an outage.
+    assert rejected.error_code == "SERVICE_UNAVAILABLE"
     assert bool(cancelled) == total_deadline
     assert not rejected.include_grant_absent_details
     removed[0], now[0] = True, 1061
+    # The observed 200 still supersedes legacy fallback: a later 404 is an
+    # outage, not absence.
     removal = await evaluator.check(**claim)
     assert not removal.authorized
-    assert removal.reason == "grant_absent"
+    assert removal.error_code == "SERVICE_UNAVAILABLE"
     assert not removal.legacy_fallback_allowed
     assert not legacy_calls

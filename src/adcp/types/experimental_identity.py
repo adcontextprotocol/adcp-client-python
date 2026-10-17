@@ -1,5 +1,12 @@
 """Opt-in types for pinned AdCP 3.3 identity drafts, independent of the wire pin.
 
+The schemas are pinned to open spec branches (see
+adcp/signing/_identity_schemas/UPSTREAM.json). Seller and buyer onboarding
+postures share one mode enum, AgentOnboardingMode (open, application,
+invite_only). The buyer posture is published only in trust.json, at
+profiles.adcp.onboarding on the record or on an agent entry. relationship on
+get_principal is 3.3-only; its status is PrincipalRelationshipStatus.
+
 Regenerate the private models with scripts/generate_identity_preview.py.
 Validate trust records with adcp.signing.validate_trust_record: origin ownership
 and one-agent-per-origin are behavioral constraints, beyond generated types.
@@ -36,7 +43,7 @@ from adcp.types._identity_preview import (
     EnumsAgentOnboardingRequirementKind as AgentOnboardingRequirementKind,
 )
 from adcp.types._identity_preview import (
-    EnumsBuyerOnboardingMode as BuyerOnboardingMode,
+    EnumsPrincipalRelationshipStatus as PrincipalRelationshipStatus,
 )
 from adcp.types._identity_preview import (
     Grant as TrustGrant,
@@ -134,7 +141,6 @@ __all__ = [
     "AgentOnboardingRequirement",
     "AgentOnboardingRequirementKind",
     "AgentOnboardingTier",
-    "BuyerOnboardingMode",
     "BuyerOnboardingPosture",
     "GetAdcpCapabilitiesResponse",
     "GetPrincipalResponse",
@@ -143,6 +149,7 @@ __all__ = [
     "PrincipalCurrentResult",
     "PrincipalRecognizedResult",
     "PrincipalRelationship",
+    "PrincipalRelationshipStatus",
     "PrincipalUnconfiguredResult",
     "RequestSigning",
     "TrustAgent",

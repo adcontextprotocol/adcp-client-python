@@ -124,6 +124,11 @@ class VerifiedSigner:
     operator_brand_json: dict[str, Any] | None = field(default=None, compare=False, repr=False)
     profile: str = DEFAULT_TAG
     principal_id: str | None = None
+    #: Web Bot Auth only: the key's state in its origin's revocation list,
+    #: set by the authorization layer after verification (``"current"``,
+    #: ``"revoked"``, ``"no_list"``, ``"stale"`` or ``"unavailable"``).
+    #: ``None`` means no revocation check ran, which never permits binding.
+    revocation: str | None = field(default=None, compare=False)
 
 
 class RequestBodyMalformedError(SignatureVerificationError):
@@ -476,9 +481,11 @@ def verify_request_signature(
         body_authenticated = True
 
     if options.replay_store is not None:
+        # One extra second keeps the nonce through the last second of the
+        # accepted window, including a replay at exactly expires + skew.
         ttl = max(
-            float(parsed.params["expires"]) - options.now + options.max_skew_seconds,
-            0.0,
+            float(parsed.params["expires"]) - options.now + options.max_skew_seconds + 1,
+            1.0,
         )
         claim = _claim_replay_nonce(options.replay_store, keyid, nonce, ttl)
         if claim == "replayed":

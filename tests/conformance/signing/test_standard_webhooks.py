@@ -207,3 +207,156 @@ def test_svix_python_signer_interop() -> None:
     }
 
     verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts_int))
+
+
+# ---------- Delegation to the ``standardwebhooks`` reference package ----------
+
+
+def _library_webhook() -> Any:
+    from standardwebhooks import Webhook
+
+    return Webhook(_SECRET_WHSEC)
+
+
+def test_library_signature_verifies_with_sdk_wrapper() -> None:
+    """Reference ``standardwebhooks.Webhook.sign`` → SDK verify."""
+    body = '{"hello":"wörld","emoji":"\U0001f680"}'.encode()
+    now_dt = datetime.now(timezone.utc).replace(microsecond=0)
+    ts_int = int(now_dt.timestamp())
+    headers = {
+        HEADER_ID: "msg_lib_1",
+        HEADER_TIMESTAMP: str(ts_int),
+        HEADER_SIGNATURE: _library_webhook().sign("msg_lib_1", now_dt, body.decode("utf-8")),
+    }
+    verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts_int))
+
+
+def test_sdk_signature_verifies_with_library() -> None:
+    """SDK sign → reference ``standardwebhooks.Webhook.verify`` (wall clock)."""
+    body = '﻿{"hello":"wörld"}'.encode()
+    headers = sign_standard_webhook(
+        secret=_SECRET_BYTES, msg_id="msg_lib_2", timestamp=int(time.time()), body=body
+    )
+    assert _library_webhook().verify(body, headers, json_parse=False) is None
+
+
+def test_signature_matches_spec_formula() -> None:
+    """Pin the wire value to the spec's HMAC formula, independent of the library."""
+    import hashlib
+    import hmac
+
+    body = b'{"n":1}'
+    headers = sign_standard_webhook(
+        secret=_SECRET_BYTES, msg_id="msg_1", timestamp=1_700_000_000, body=body
+    )
+    digest = hmac.new(_SECRET_BYTES, b"msg_1.1700000000." + body, hashlib.sha256).digest()
+    assert headers[HEADER_SIGNATURE] == "v1," + base64.b64encode(digest).decode("ascii")
+
+
+def test_injected_clock_is_authoritative() -> None:
+    """``now`` and ``tolerance_seconds`` decide; the library's fixed wall-clock window does not."""
+    ts = 1_000_000_000  # 2001, far outside any wall-clock window
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts + 10))
+    verify_standard_webhook(
+        headers=headers,
+        body=body,
+        secret=_SECRET_BYTES,
+        now=float(ts + 3600),
+        tolerance_seconds=3600,
+    )
+
+
+def test_skew_at_tolerance_boundary_accepted() -> None:
+    ts = 1_700_000_000
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    for now in (ts - 300, ts + 300):
+        verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(now))
+
+
+@pytest.mark.parametrize(
+    "transform", [lambda t: f"+{t}", lambda t: f"{t}.0", lambda t: f" {t}", lambda t: f"0{t}"]
+)
+def test_non_canonical_timestamp_rejected(transform: Any) -> None:
+    """The library would sign the floored integer, not the header bytes."""
+    ts = int(time.time())
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    headers[HEADER_TIMESTAMP] = transform(ts)
+    with pytest.raises(StandardWebhookError, match="invalid webhook-timestamp"):
+        verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts))
+
+
+def test_header_names_case_insensitive() -> None:
+    ts = int(time.time())
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    mixed = {k.title(): v for k, v in headers.items()}
+    assert HEADER_SIGNATURE not in mixed
+    verify_standard_webhook(headers=mixed, body=body, secret=_SECRET_BYTES, now=float(ts))
+
+
+def test_asymmetric_v1a_tokens_ignored() -> None:
+    ts = int(time.time())
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    headers[HEADER_SIGNATURE] = f"v1a,AAAA {headers[HEADER_SIGNATURE]}"
+    verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts))
+
+
+@pytest.mark.parametrize("bad_token", ["garbage", "v1,abc", "v2,a,b"])
+def test_malformed_signature_tokens_are_skipped_like_unknown_versions(bad_token: str) -> None:
+    """A malformed token never matches, and never hides a valid one beside it."""
+    ts = int(time.time())
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    valid = headers[HEADER_SIGNATURE]
+    headers[HEADER_SIGNATURE] = f"{bad_token} {valid}"
+    verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts))
+    headers[HEADER_SIGNATURE] = bad_token
+    with pytest.raises(StandardWebhookError, match="no matching v1 signature"):
+        verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts))
+
+
+def test_signature_value_must_match_exactly() -> None:
+    """Junk inside a correct signature is not lenient-decoded into a match."""
+    ts = int(time.time())
+    body = b"body"
+    headers = sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=ts, body=body)
+    version, _, value = headers[HEADER_SIGNATURE].partition(",")
+    headers[HEADER_SIGNATURE] = f"{version},{value[:4]}*{value[4:]}"
+    with pytest.raises(StandardWebhookError, match="no matching v1 signature"):
+        verify_standard_webhook(headers=headers, body=body, secret=_SECRET_BYTES, now=float(ts))
+
+
+def test_non_utf8_body_rejected() -> None:
+    with pytest.raises(StandardWebhookError, match="UTF-8"):
+        sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=1, body=b"\xff")
+    headers = {HEADER_ID: "msg_1", HEADER_TIMESTAMP: "1", HEADER_SIGNATURE: "v1,AAAA"}
+    with pytest.raises(StandardWebhookError, match="UTF-8"):
+        verify_standard_webhook(headers=headers, body=b"\xff", secret=_SECRET_BYTES, now=1.0)
+
+
+def test_empty_key_rejected() -> None:
+    with pytest.raises(StandardWebhookError, match="non-empty"):
+        decode_secret(SECRET_PREFIX)
+    with pytest.raises(StandardWebhookError, match="non-empty"):
+        sign_standard_webhook(secret=b"", msg_id="msg_1", timestamp=1, body=b"")
+
+
+def test_string_secret_rejected() -> None:
+    """The library would base64-decode a ``str``; the SDK requires raw bytes."""
+    with pytest.raises(TypeError, match="raw key bytes"):
+        sign_standard_webhook(
+            secret=_SECRET_WHSEC,  # type: ignore[arg-type]
+            msg_id="msg_1",
+            timestamp=1,
+            body=b"",
+        )
+
+
+def test_bool_timestamp_rejected() -> None:
+    with pytest.raises(StandardWebhookError, match="timestamp must be an int"):
+        sign_standard_webhook(secret=_SECRET_BYTES, msg_id="msg_1", timestamp=True, body=b"")

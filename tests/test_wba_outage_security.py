@@ -1,4 +1,4 @@
-"""Signer evidence outages never become anonymous or stale identity approval."""
+"""Signer evidence outages are discovery failures, never a 503 on the signature path."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from adcp.signing.wba import (
     DirectoryResponse,
     DiscoveredSignerKeys,
     OriginRevocationChecker,
-    WbaUnavailableError,
+    WbaDiscoveryError,
     WbaVerificationError,
     fetch_key_directory,
     public_directory_key,
@@ -92,21 +92,21 @@ async def test_directory_failure_classification_survives_cooldown(outcome):
         return DirectoryResponse(b"invalid", {}, status=outcome)
 
     resolver = DiscoveredSignerKeys(fetcher=fetch, clock=lambda: 1000)
-    unavailable = outcome not in (200, 404, 410)
     exceptions = []
     for _ in range(5):
         with pytest.raises(WbaVerificationError) as caught:
             await resolver("missing", signer_origin=ORIGIN)
-        assert isinstance(caught.value, WbaUnavailableError) == unavailable
-        assert caught.value.status == (503 if unavailable else 403)
-        assert bool(caught.value.headers.get("Accept-Signature")) == (not unavailable)
+        # WBA §6.10: every outcome is a discovery failure, the request is
+        # unverified, and the signature path never answers 503.
+        assert isinstance(caught.value, WbaDiscoveryError)
+        assert caught.value.discovery_failure
+        assert caught.value.status == 403
+        assert caught.value.headers.get("Accept-Signature")
         exceptions.append(caught.value)
     assert len(calls) == 1
     assert len({id(error) for error in exceptions}) == len(exceptions)
-    metadata = resolver._failed_discoveries[ORIGIN].failure
-    assert metadata is not None
-    assert not isinstance(metadata, BaseException)
-    assert all(not isinstance(value, BaseException) for value in vars(metadata).values())
+    # The cooldown keeps only a deadline, never a raised exception object.
+    assert all(isinstance(value, float | int) for value in resolver._failures.values())
 
 
 async def test_fetched_directory_without_requested_key_is_absence_not_outage():
@@ -213,10 +213,13 @@ async def test_stale_authenticated_revocations_survive_failed_initial_origin_dis
         clock=lambda: now[0],
         wall_clock=lambda: start + timedelta(seconds=now[0]),
     )
-    with pytest.raises(WbaUnavailableError):
-        await checker(ORIGIN, jwk["kid"])
+    # A stale first list is refused as current, but still revokes what it revoked.
+    assert await checker.status(ORIGIN, jwk["kid"]) == "revoked"
+    assert await checker(ORIGIN, jwk["kid"])
     assert ORIGIN in checker._checkers
     assert checker._checkers[ORIGIN].has_verified_list
     now[0] = 361
-    assert await checker(ORIGIN, jwk["kid"])
+    # A later list that omits the revocation cannot withdraw it.
+    assert await checker.status(ORIGIN, "unrevoked-kid-" + "x" * 29) == "current"
     assert len(calls) == 2
+    assert await checker(ORIGIN, jwk["kid"])

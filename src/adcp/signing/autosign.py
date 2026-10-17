@@ -79,6 +79,12 @@ def signing_profile_for_adcp_version(adcp_version: str) -> SigningProfileVersion
     return profile  # type: ignore[return-value]
 
 
+def _rfc9421_deprecation_active() -> bool:
+    from adcp.signing._profile_deprecation import rfc9421_deprecation_active
+
+    return rfc9421_deprecation_active()
+
+
 @dataclass(frozen=True)
 class SigningConfig:
     """Client-side signing credentials for RFC 9421 request signing.
@@ -132,7 +138,7 @@ class SigningConfig:
             if self.key_id != public_directory_key(self.private_key)["kid"]:
                 raise ValueError("Web Bot Auth key_id must be the public key's thumbprint")
             object.__setattr__(self, "tag", WBA_TAG)
-        else:
+        elif _rfc9421_deprecation_active():
             warnings.warn(
                 "RFC 9421-profile signing is deprecated in AdCP 3.3 and remains supported "
                 "through 3.x; opt into Web Bot Auth with agent_origin when peers support it.",

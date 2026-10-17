@@ -60,17 +60,43 @@ def _mcp_adcp_error(response):
     return content["adcp_error"]
 
 
-async def test_standalone_verification_requires_origin_revocation_checker():
-    with pytest.raises(ValueError, match="origin revocation checker"):
+async def test_standalone_verification_needs_only_directory_and_replay_store():
+    """Verification is usable on its own; revocation is the authorization layer."""
+    with pytest.raises(ValueError, match="replay store"):
         await verify_wba_request(
             method="POST",
             url="https://seller.com/mcp",
             headers={},
             body=b"",
             signer_keys=StaticSignerKeys({}),
-            replay_store=InMemoryReplayStore(),
-            revocation_checker=None,
+            replay_store=None,
         )
+    origin = "https://buyer.example.com"
+    private = ed25519.Ed25519PrivateKey.generate()
+    jwk = public_directory_key(private)
+    headers = {"Content-Type": "application/json"}
+    headers.update(
+        sign_wba_request(
+            method="POST",
+            url="https://seller.example.com/mcp",
+            headers=headers,
+            body=b"{}",
+            private_key=private,
+            agent_origin=origin,
+            created=1000,
+        )
+    )
+    (signer,) = await verify_wba_request(
+        method="POST",
+        url="https://seller.example.com/mcp",
+        headers=headers,
+        body=b"{}",
+        signer_keys=StaticSignerKeys({origin: {"keys": [jwk]}}),
+        replay_store=InMemoryReplayStore(),
+        now=1001,
+    )
+    assert signer.agent_url == origin
+    assert signer.revocation is None
 
 
 def _trust_records(origin):
@@ -117,6 +143,9 @@ async def test_draft_vectors(path):
             replay_store=replay,
             revocation_checker=_not_revoked,
             now=vector["reference_now"],
+            # The spec answers a reused nonce 429; #7894's older replay vector
+            # predates that and expects 403, reproduced by the compat switch.
+            replay_status=403 if "replayed-nonce" in path.name else 429,
         )
 
     expected = vector["expected_outcome"]
@@ -226,7 +255,8 @@ def test_signed_directory_rejects_tampering(tamper):
     elif tamper == "authority":
         origin = "https://attacker.example.com"
     elif tamper == "future":
-        now = 999
+        # Directory signatures tolerate 60 s of publisher clock skew only.
+        now = 939
     else:
         data = json.loads(response.body)
         if tamper == "kid":
@@ -258,7 +288,7 @@ async def test_replay_is_per_origin_across_key_rotation():
                 private_key=key,
                 agent_origin=origin,
                 created=1000,
-                nonce="a" * 43,
+                nonce="A" * 86,
             )
         )
         if index == 0:
@@ -273,7 +303,7 @@ async def test_replay_is_per_origin_across_key_rotation():
                 now=1001,
             )
         else:
-            with pytest.raises(WbaVerificationError, match="replayed"):
+            with pytest.raises(WbaVerificationError, match="replayed") as replayed:
                 await verify_wba_request(
                     method="POST",
                     url="https://seller.example.com/mcp",
@@ -284,6 +314,9 @@ async def test_replay_is_per_origin_across_key_rotation():
                     revocation_checker=_not_revoked,
                     now=1001,
                 )
+            # A reused nonce is 429 with no re-sign challenge.
+            assert replayed.value.status == 429
+            assert "Accept-Signature" not in replayed.value.headers
 
 
 async def test_framework_requires_explicit_binding_before_dispatch():
@@ -315,6 +348,7 @@ async def test_framework_requires_explicit_binding_before_dispatch():
         wba_revocation_checker=_not_revoked,
         trust_records=_trust_records(origin),
         signing_profile_version="3.2",
+        required_for=frozenset({"sync_accounts"}),
     )
     app = SignedRequestVerificationMiddleware(
         app, config, transport="mcp", defer_authorization_errors=True
@@ -625,8 +659,18 @@ async def test_relay_covers_every_component_of_earlier_signature(cover_extra):
             await verify()
 
 
-@pytest.mark.parametrize("revocation_state", ["clear", "revoked", "unavailable"])
-async def test_framework_checks_origin_revocations_by_default(monkeypatch, revocation_state):
+@pytest.mark.parametrize(
+    ("revocation_state", "operation"),
+    [
+        ("clear", "sync_accounts"),
+        ("revoked", "sync_accounts"),
+        ("unavailable", "create_media_buy"),
+        ("unavailable", "get_media_buys"),
+    ],
+)
+async def test_framework_checks_origin_revocations_by_default(
+    monkeypatch, revocation_state, operation
+):
     from datetime import datetime, timedelta, timezone
 
     from adcp.signing import OriginRevocationChecker
@@ -686,10 +730,14 @@ async def test_framework_checks_origin_revocations_by_default(monkeypatch, revoc
     app = SignedRequestVerificationMiddleware(
         dispatch, config, transport="mcp", defer_authorization_errors=True
     )
-    body = (
-        b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
-        b'"params":{"name":"sync_accounts","arguments":{}}}'
-    )
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": operation, "arguments": {}},
+        }
+    ).encode()
     headers = {"Content-Type": "application/json"}
     headers.update(
         sign_wba_request(
@@ -706,15 +754,22 @@ async def test_framework_checks_origin_revocations_by_default(monkeypatch, revoc
     ) as client:
         response = await client.post("/mcp", content=body, headers=headers)
     assert calls == [origin + "/.well-known/governance-revocations.json"]
-    assert bool(dispatched) == (revocation_state == "clear")
-    assert response.status_code == 200, response.text
     if revocation_state == "revoked":
-        error = _mcp_adcp_error(response)
-        assert error["code"] == "PERMISSION_DENIED"
-        assert error["message"] == "Authentication failed"
+        # A revoked key: 403, the generic authentication error, and no
+        # Accept-Signature, since signing again with the same key is wrong.
+        assert response.status_code == 403, response.text
+        assert response.json()["errors"][0]["code"] == "AUTH_INVALID"
         assert "Accept-Signature" not in response.headers
-    elif revocation_state == "unavailable":
+        assert not dispatched
+    elif revocation_state == "unavailable" and operation == "create_media_buy":
+        # A stale list fails spend closed in the authorization layer.
+        assert response.status_code == 200, response.text
         error = _mcp_adcp_error(response)
         assert error["code"] == "SERVICE_UNAVAILABLE"
         assert error["recovery"] == "transient"
         assert "Accept-Signature" not in response.headers
+        assert not dispatched
+    else:
+        # A current list, or a stale one for a non-spend call, proceeds.
+        assert response.status_code == 200, response.text
+        assert dispatched == [True]

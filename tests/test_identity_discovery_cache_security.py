@@ -18,11 +18,11 @@ from adcp.signing.trust import (
     TrustRecordAbsentError,
     TrustRecordError,
     TrustRecordEvaluator,
+    TrustRecordUnavailableError,
     TrustResponse,
 )
 from adcp.signing.wba import (
     OriginRevocationChecker,
-    WbaVerificationError,
     public_directory_key,
 )
 
@@ -171,10 +171,13 @@ async def test_shared_hop_fetch_coalesces_without_sharing_operator_authority():
     await asyncio.sleep(0)
     release.set()
     assert (await asyncio.wait_for(first, timeout=5)).operator_domain == "one.com"
-    with pytest.raises(TrustRecordError, match="owner"):
+    # The shared bytes list another owner's agent: invalid for this owner,
+    # which is unreadable rather than a removal.
+    with pytest.raises(TrustRecordUnavailableError, match="invalid"):
         await asyncio.wait_for(second, timeout=5)
     assert calls == 1
     assert not records._hosts_inflight
+    assert not records._foreign_inflight
 
 
 async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host():
@@ -194,7 +197,9 @@ async def test_shared_hop_host_limits_other_paths_without_blocking_distinct_host
             json.dumps({"authoritative_location": f"https://hosting.com/{path}.json"}).encode()
         )
 
-    records = TrustRecordEvaluator(fetcher=fetch, max_fetches_per_host=1)
+    # hosting.com is outside both owners' registrable domains: their hops
+    # share the separate foreign-host budget.
+    records = TrustRecordEvaluator(fetcher=fetch, max_foreign_fetches_per_host=1)
     first = asyncio.create_task(records.evaluate("https://buyer.one.com"))
     try:
         assert await asyncio.wait_for(started.wait(), timeout=5)
@@ -309,7 +314,7 @@ async def test_fifth_shared_host_owner_retries_immediately_after_backpressure():
             json.dumps({"authoritative_location": f"https://hosting.com/{host}.json"}).encode()
         )
 
-    records = TrustRecordEvaluator(fetcher=fetch, max_fetches_per_host=4)
+    records = TrustRecordEvaluator(fetcher=fetch, max_foreign_fetches_per_host=4)
     existing = [
         asyncio.create_task(records.evaluate(f"https://owner-{index}.com")) for index in range(4)
     ]
@@ -329,7 +334,7 @@ async def test_fifth_shared_host_owner_retries_immediately_after_backpressure():
     recovered = await records.evaluate("https://owner-4.com")
     assert recovered.operator_domain == "owner-4.com"
     assert len(host_calls) == 5
-    assert not records._host_totals
+    assert not records._foreign_inflight
     assert not records._hosts_inflight
 
 
@@ -393,11 +398,10 @@ async def test_failed_initial_revocations_do_not_consume_permanent_admission():
 
     checker = OriginRevocationChecker(resolve, fetcher=fetch, max_origins=1)
     for index in range(5):
-        with pytest.raises(WbaVerificationError, match="unavailable"):
-            await checker(f"https://failed-{index}.agency.com", jwk["kid"])
+        assert await checker.status(f"https://failed-{index}.agency.com", jwk["kid"]) == "stale"
     assert not checker._checkers
     assert len(checker._failures) == 1
-    assert not await checker("https://buyer.legitimate.com", jwk["kid"])
+    assert await checker.status("https://buyer.legitimate.com", jwk["kid"]) == "current"
     assert len(checker._checkers) == 1
 
 
@@ -418,10 +422,9 @@ async def test_revocation_discovery_negative_cache_expires_and_preserves_revoked
         return signed_revocations(private, origin, revoked=True)
 
     checker = OriginRevocationChecker(resolve, fetcher=fetch, clock=lambda: now[0])
-    with pytest.raises(WbaVerificationError, match="unavailable"):
-        await checker(origin, jwk["kid"])
-    with pytest.raises(WbaVerificationError, match="cooling"):
-        await checker(origin, jwk["kid"])
+    assert await checker.status(origin, jwk["kid"]) == "stale"
+    # Cooling down: still stale, with no second fetch.
+    assert await checker.status(origin, jwk["kid"]) == "stale"
     assert calls == 1
     now[0] += 60
     assert await checker(origin, jwk["kid"])
@@ -431,7 +434,7 @@ async def test_revocation_discovery_negative_cache_expires_and_preserves_revoked
     assert origin not in checker._failures
 
 
-async def test_operator_revocation_admission_quota_leaves_room_for_other_operators():
+async def test_operator_revocation_quota_evicts_only_that_operators_state():
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
 
@@ -446,11 +449,16 @@ async def test_operator_revocation_admission_quota_leaves_room_for_other_operato
     )
     for index in range(2):
         assert not await checker(f"https://buyer-{index}.agency.com", jwk["kid"])
-    with pytest.raises(WbaVerificationError, match="operator") as exc:
-        await checker("https://buyer-3.agency.com", jwk["kid"])
-    assert exc.value.status == 503
-    assert not await checker("https://buyer.other.com", jwk["kid"])
-    assert len(checker._checkers) == 3
+    assert await checker.status("https://buyer.other.com", jwk["kid"]) == "current"
+    # Over its operator's quota: the operator's own least recently used list
+    # state is evicted (revoked facts are kept elsewhere), never another
+    # operator's, and the new origin is never locked out.
+    assert await checker.status("https://buyer-3.agency.com", jwk["kid"]) == "current"
+    assert list(checker._checkers) == [
+        "https://buyer-1.agency.com",
+        "https://buyer.other.com",
+        "https://buyer-3.agency.com",
+    ]
 
 
 async def test_revocation_first_discovery_is_shared_and_not_cancelled_by_one_waiter():

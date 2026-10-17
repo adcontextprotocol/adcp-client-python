@@ -264,6 +264,36 @@ def registrable_domain(host_or_url: str) -> str | None:
     return f"{result.domain}.{result.suffix}".lower()
 
 
+@lru_cache(maxsize=1)
+def _icann_extractor() -> tldextract.TLDExtract:
+    """ICANN-section-only extractor, used to group hosted tenants for quotas."""
+    return tldextract.TLDExtract(
+        suffix_list_urls=(),
+        fallback_to_snapshot=True,
+        include_psl_private_domains=False,
+    )
+
+
+def quota_key(host_or_url: str) -> str | None:
+    """Return the key that per-operator quotas count ``host_or_url`` under.
+
+    This is the registrable domain, except that every tenant of a PSL
+    PRIVATE-section suffix (a hosting platform such as ``vercel.app`` or
+    ``github.io``, where anyone can get a free registrable domain) counts
+    under the platform's ICANN registrable domain. One party with many free
+    subdomains therefore shares one quota, while
+    :func:`registrable_domain` still treats each tenant as its own operator
+    for authority. Returns ``None`` when the host has no registrable domain.
+    """
+    domain = registrable_domain(host_or_url)
+    if domain is None:
+        return None
+    result = _icann_extractor()(domain)
+    if result.domain and result.suffix:
+        return f"{result.domain}.{result.suffix}".lower()
+    return domain
+
+
 def same_registrable_domain(a: str, b: str) -> bool:
     """Return True iff ``a`` and ``b`` share an eTLD+1.
 
@@ -282,6 +312,7 @@ __all__ = [
     "BrandDomainValidationError",
     "host_from",
     "is_development_brand_domain",
+    "quota_key",
     "registrable_domain",
     "same_development_brand_domain",
     "same_registrable_domain",

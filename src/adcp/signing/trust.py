@@ -32,13 +32,25 @@ from adcp.signing.verifier import VerifiedSigner
 
 
 class TrustRecordError(ValueError):
-    """A missing, invalid or unavailable trust record provides no authority."""
+    """A trust record that provides no authority.
+
+    Two kinds matter for a bound origin. *Not listed*
+    (:class:`TrustRecordMatchError`, :class:`TrustRecordAbsentError`): the
+    operator's last record read does not list the origin with the role, or
+    the operator has never published one. *Unavailable*
+    (:class:`TrustRecordUnavailableError`): the record cannot be read now,
+    including a 404/410 after the operator published one. A fetch failure is
+    never absence and never a removal: the last record read stays
+    authoritative.
+    """
 
 
 class TrustRecordNotFoundError(TrustRecordError):
-    """A definitive 404/410 provides no current operator membership."""
+    """Base of :class:`TrustRecordAbsentError`: a 404/410 before any 200.
 
-    operator_domain: str | None = None
+    A 404/410 from an operator that has served a record is a discovery
+    failure (:class:`TrustRecordUnavailableError`), never a removal.
+    """
 
 
 class TrustRecordAbsentError(TrustRecordNotFoundError):
@@ -46,11 +58,11 @@ class TrustRecordAbsentError(TrustRecordNotFoundError):
 
 
 class TrustRecordUnavailableError(TrustRecordError):
-    """A temporary outage cannot establish delisting or new spend authority."""
+    """A record that cannot be read: an outage, never absence or a removal."""
 
 
 class TrustRecordMatchError(TrustRecordError):
-    """A fetched record no longer lists the origin with its required role."""
+    """The last record read does not list the origin with its required role."""
 
 
 class _TrustRecordCapacityError(TrustRecordUnavailableError):
@@ -194,9 +206,12 @@ def _validate_trust_record(
         if origin in seen:
             raise TrustRecordError("a trust record must list one agent per origin")
         seen.add(origin)
-    for grant in document.get("grants", []):
-        if registrable_domain(grant["grantee"]) != grant["grantee"]:
-            raise TrustRecordError("grant grantee must be an exact registrable domain")
+    if not reader:
+        # Authoring: publish grantees as registrable domains. Readers compare
+        # any grantee as its registrable domain instead of rejecting it.
+        for grant in document.get("grants", []):
+            if registrable_domain(grant["grantee"]) != grant["grantee"]:
+                raise TrustRecordError("grant grantee must be an exact registrable domain")
     return dict(document)
 
 
@@ -240,6 +255,13 @@ def _trust_reader_schema_document(document: Mapping[str, Any]) -> Mapping[str, A
 
 @dataclass(frozen=True)
 class EvaluatedTrustRecord:
+    """A validated trust record for ``operator_domain``.
+
+    ``stale_on_outage`` marks the last record read, returned during an outage
+    within the evaluator's outage-continuation bound; ``expires_at`` is then
+    the end of that bound.
+    """
+
     operator_domain: str
     source_url: str
     document: Mapping[str, Any]
@@ -262,18 +284,78 @@ class EvaluatedTrustRecord:
 
 
 @dataclass(frozen=True)
+class TrustListing:
+    """The outcome of :meth:`TrustRecordEvaluator.check_listing`.
+
+    ``status`` is ``"listed"``, ``"unlisted"`` (the last record read does not
+    list the origin with the role, including an empty ``agents[]``; the
+    operator never published a record; or the origin has no registrable
+    domain) or ``"unavailable"`` (the record cannot be read now, and the last
+    record read listed the origin, or there is none). ``within_grace`` marks
+    an outage within the seller's outage-continuation bound, when ``record``
+    is the last record read, marked ``stale_on_outage``: non-spend calls may
+    continue under a binding; spend never does.
+    """
+
+    status: Literal["listed", "unlisted", "unavailable"]
+    record: EvaluatedTrustRecord | None = None
+    within_grace: bool = False
+    error: TrustRecordError | None = None
+
+
+@dataclass(frozen=True)
 class _TrustRecordFailure:
     error_type: type[TrustRecordError]
     message: str
     retry_after: float
 
 
-class TrustRecordEvaluator:
-    """Fetch one authoritative-location hop and cache no longer than revocation polling.
+def _quota_group(domain: str) -> str:
+    from adcp.signing.etld import quota_key
 
-    A non-200 fetch is unavailable except for definitive 404/410 absence or
-    removal. Invalid 200 documents reject policy; outages preserve the last
-    policy for explicit bounded grace. Custom fetchers enforce SSRF policy.
+    return quota_key(domain) or domain
+
+
+class TrustRecordEvaluator:
+    """Evaluate operator trust records at binding, grants and open onboarding.
+
+    Never on the signature path. Derives ``https://{eTLD+1}/.well-known/trust.json``,
+    follows at most one ``authoritative_location`` hop with no HTTP redirects,
+    and caches a result no longer than the polling interval.
+
+    Outage rules (security.mdx, Web Bot Auth identities):
+
+    * A fetch failure is not absence. Any status other than 200 (a 404/410
+      after the operator has served a record included), a transport error, an
+      invalid record, or a local capacity refusal is *unavailable*. Only a
+      404/410 from an operator that has never served a 200 is absence
+      (:class:`TrustRecordAbsentError`).
+    * The last record read stays authoritative. If it does not list an origin
+      (operators retire agents by publishing an empty ``agents[]``), the
+      origin stays delisted through any later failure.
+    * Spend never continues on a stale record. Non-spend callers may opt in
+      (``allow_stale_on_outage``) to the last record read within
+      ``outage_continuation_seconds`` past its freshness: seller policy,
+      default four polling intervals, ``0`` disables.
+
+    Which operators have served a record, and the last record read from each,
+    is authority history. It is kept in memory, bounded without eviction:
+    ``max_history_records`` operators overall and
+    ``max_history_records_per_operator`` per quota group (a registrable
+    domain; every tenant of a PSL PRIVATE hosting suffix counts together).
+    A new operator over quota is refused as unavailable before fetching, and
+    no other operator's history is lost. Losing this history (a restart,
+    another replica) turns a later 404 into absence and a known delisting into
+    an outage; public deployments must persist it durably.
+
+    Fetches to an operator's own hosts are budgeted per ``(operator, host)``
+    (``max_fetches_per_host``). ``authoritative_location`` hops to hosts
+    outside the operator's registrable domain share a separate, global
+    per-host budget (``max_foreign_fetches_per_host``), so a hop never spends
+    the target operator's own budget. Host cool-downs are scoped to
+    ``(operator, host)`` and never follow content errors. A budget refusal is
+    a retryable outage that is never cached as a failure. Custom fetchers
+    enforce SSRF policy.
     """
 
     def __init__(
@@ -283,113 +365,116 @@ class TrustRecordEvaluator:
         allow_private: bool = False,
         polling_interval_seconds: float = 60,
         max_records: int = 256,
-        max_history_records: int = 256,
+        max_history_records: int = 65536,
+        max_history_records_per_operator: int = 64,
         max_fetches_per_host: int = 4,
+        max_foreign_fetches_per_host: int = 16,
+        outage_continuation_seconds: float | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
-        if (
-            not 0 < polling_interval_seconds <= 1800
-            or type(max_records) is not int
-            or max_records <= 0
-            or type(max_history_records) is not int
-            or max_history_records <= 0
-            or type(max_fetches_per_host) is not int
-            or max_fetches_per_host <= 0
+        limits = (
+            max_records,
+            max_history_records,
+            max_history_records_per_operator,
+            max_fetches_per_host,
+            max_foreign_fetches_per_host,
+        )
+        if not 0 < polling_interval_seconds <= 1800 or any(
+            type(limit) is not int or limit <= 0 for limit in limits
         ):
             raise ValueError("invalid trust cache bounds")
+        if outage_continuation_seconds is None:
+            outage_continuation_seconds = 4 * polling_interval_seconds
+        if outage_continuation_seconds < 0:
+            raise ValueError("outage_continuation_seconds must not be negative")
         self._fetcher, self._allow_private, self._interval = (
             fetcher,
             allow_private,
             polling_interval_seconds,
         )
+        self._outage_continuation = float(outage_continuation_seconds)
         self._max_records, self._clock = max_records, clock
         self._max_history_records = max_history_records
-        # One authoritative record per eTLD+1. Pending owners reserve their
-        # slot before any response can establish irreversible publication.
+        self._max_history_per_operator = max_history_records_per_operator
+        # Authority history admission: one slot per eTLD+1. Pending owners
+        # reserve their slot before any response can establish publication.
         self._history_owners: set[str] = set()
-        # A previously used non-publisher also keeps its admission, so a
-        # hosted-tenant flood cannot disable its configured legacy policy.
-        # This is not reusable absence evidence during an outage.
+        self._history_groups: dict[str, int] = {}
+        # A previously absent operator keeps its admission, so a hosted-tenant
+        # flood cannot disable its configured legacy policy.
         self._known_absent_owners: set[str] = set()
         self._cache: OrderedDict[str, EvaluatedTrustRecord] = OrderedDict()
         self._failures: OrderedDict[str, _TrustRecordFailure] = OrderedDict()
         self._pending: dict[str, asyncio.Task[EvaluatedTrustRecord]] = {}
         self._max_fetches_per_host = max_fetches_per_host
+        self._max_foreign_fetches_per_host = max_foreign_fetches_per_host
         self._responses: OrderedDict[str, tuple[float, TrustResponse]] = OrderedDict()
         self._response_pending: dict[str, asyncio.Task[tuple[float, TrustResponse]]] = {}
         self._hosts_inflight: dict[tuple[str, str], int] = {}
-        self._host_totals: dict[str, int] = {}
+        self._foreign_inflight: dict[str, int] = {}
         self._host_failures: OrderedDict[tuple[str, str], float] = OrderedDict()
+        # Authority history: operators that served a 200, and the last valid
+        # record read from each. Never evicted.
         self._seen_200: set[str] = set()
-        # Authoritative history is never evicted. New operators are refused
-        # before fetching when the permanent admission budget is full.
-        self._last_policy: OrderedDict[str, EvaluatedTrustRecord | _TrustRecordFailure] = (
-            OrderedDict()
-        )
+        self._last_record: dict[str, EvaluatedTrustRecord] = {}
         self._policy_revision = 0
         self._lock = asyncio.Lock()
 
     @property
     def polling_interval_seconds(self) -> float:
-        """The freshness cadence and basis for the four-interval outage grace."""
+        """The freshness cadence (the revocation polling interval)."""
         return self._interval
+
+    @property
+    def outage_continuation_seconds(self) -> float:
+        """Seller policy: how long past freshness a stale record serves non-spend calls."""
+        return self._outage_continuation
 
     def current_time(self) -> float:
         """Read the evaluator's clock for a final authority deadline check."""
         return self._clock()
 
-    def _remember_policy(
-        self, domain: str, policy: EvaluatedTrustRecord | _TrustRecordFailure
-    ) -> None:
-        self._last_policy[domain] = policy
-        self._last_policy.move_to_end(domain)
+    def _stale_within_bound(self, last: EvaluatedTrustRecord) -> EvaluatedTrustRecord | None:
+        until = last.expires_at + self._outage_continuation
+        if self._outage_continuation <= 0 or self._clock() >= until:
+            return None
+        return EvaluatedTrustRecord(
+            last.operator_domain,
+            last.source_url,
+            copy.deepcopy(last.document),
+            until,
+            stale_on_outage=True,
+            revision=last.revision,
+        )
 
     async def cached_record(
         self, origin_or_domain: str, *, role: str | None = None
     ) -> EvaluatedTrustRecord:
-        """Inspect latest policy during an outage, never fresh spend authority.
+        """The last record read, during an outage; never fresh spend authority.
 
-        A positive snapshot is usable only through freshness plus four polling
-        intervals. Negative reads remain negative even beyond that window.
-        Unknown history fails closed. No fetch is performed.
+        With ``role``, a last record that does not list the origin raises
+        :class:`TrustRecordMatchError` (a known delisting survives an outage).
+        Without a last record, or past the outage-continuation bound, raises
+        :class:`TrustRecordUnavailableError`. No fetch is performed.
         """
         domain = urlsplit(trust_record_url(origin_or_domain)).hostname or ""
         async with self._lock:
-            policy = self._last_policy.get(domain)
-            if policy is None:
+            last = self._last_record.get(domain)
+            if last is None:
                 raise TrustRecordUnavailableError("no prior trust record is available")
-            if isinstance(policy, _TrustRecordFailure):
-                error = policy.error_type(policy.message)
-                if isinstance(error, TrustRecordNotFoundError):
-                    error.operator_domain = domain
-                raise error
             if role is not None:
-                # Consult the latest document before its grace deadline: an
-                # origin delisted by another request cannot regain authority.
-                policy.agent(origin_or_domain, role=role)
-            if self._clock() >= policy.expires_at + 4 * self._interval:
-                raise TrustRecordUnavailableError("trust record outage grace has expired")
-            return EvaluatedTrustRecord(
-                policy.operator_domain,
-                policy.source_url,
-                copy.deepcopy(policy.document),
-                policy.expires_at,
-                stale_on_outage=True,
-                revision=policy.revision,
-            )
+                last.agent(origin_or_domain, role=role)
+            stale = self._stale_within_bound(last)
+        if stale is None:
+            raise TrustRecordUnavailableError("trust record outage grace has passed")
+        return stale
 
     async def snapshots_current(self, records: Sequence[EvaluatedTrustRecord]) -> bool:
-        """Compare captured authority with every latest owner policy atomically.
-
-        A newer read, removal, invalid document, or evicted history invalidates
-        the captured decision. Re-evaluate before approving an older snapshot.
-        """
+        """Whether every captured record is still the latest one read for its owner."""
         async with self._lock:
             return all(
-                isinstance(
-                    policy := self._last_policy.get(record.operator_domain), EvaluatedTrustRecord
-                )
-                and policy.revision == record.revision
+                (latest := self._last_record.get(record.operator_domain)) is not None
+                and latest.revision == record.revision
                 for record in records
             )
 
@@ -401,11 +486,12 @@ class TrustRecordEvaluator:
         role: str | None = None,
         legacy_unpublished_domain: str | None = None,
     ) -> None:
-        """Recheck latest policy, revision and deadline before assigning authority.
+        """Recheck the latest record, revision and deadline before assigning authority.
 
-        ``origin_or_domain``/``role`` match the first record's latest agent entry,
-        even when another origin refreshed that owner's policy. This final
-        guard never upgrades an older captured snapshot to a newer approval.
+        ``origin_or_domain``/``role`` match the first record's latest agent
+        entry, even when another origin refreshed that owner's record. This
+        final guard never upgrades an older captured snapshot to a newer
+        approval.
         """
         async with self._lock:
             if (
@@ -414,21 +500,15 @@ class TrustRecordEvaluator:
             ):
                 raise TrustRecordUnavailableError("trust publication superseded legacy authority")
             for index, record in enumerate(records):
-                policy = self._last_policy.get(record.operator_domain)
-                if policy is None:
-                    raise TrustRecordUnavailableError("trust policy history was evicted")
-                if isinstance(policy, _TrustRecordFailure):
-                    error = policy.error_type(policy.message)
-                    if isinstance(error, TrustRecordNotFoundError):
-                        error.operator_domain = record.operator_domain
-                    raise error
+                latest = self._last_record.get(record.operator_domain)
+                if latest is None:
+                    raise TrustRecordUnavailableError("trust record history is unavailable")
                 if index == 0 and origin_or_domain is not None and role is not None:
-                    policy.agent(origin_or_domain, role=role)
-                if policy.revision != record.revision:
-                    raise TrustRecordUnavailableError("trust policy changed during evaluation")
-                deadline = record.expires_at + (4 * self._interval if record.stale_on_outage else 0)
-                if self._clock() >= deadline:
-                    raise TrustRecordUnavailableError("trust policy expired during evaluation")
+                    latest.agent(origin_or_domain, role=role)
+                if latest.revision != record.revision:
+                    raise TrustRecordUnavailableError("trust record changed during evaluation")
+                if self._clock() >= record.expires_at:
+                    raise TrustRecordUnavailableError("trust record expired during evaluation")
 
     async def evaluate(
         self,
@@ -437,34 +517,80 @@ class TrustRecordEvaluator:
         role: str | None = None,
         allow_stale_on_outage: bool = False,
     ) -> EvaluatedTrustRecord:
-        """Require fresh policy unless an existing non-spend caller opts into grace."""
+        """Return the operator's record; with ``role``, it must list the origin.
+
+        Fresh unless the record cannot be read and ``allow_stale_on_outage``
+        (a non-spend caller) opts into the last record read within the outage
+        bound. Whatever the caller, a last record that does not list the
+        origin raises :class:`TrustRecordMatchError`: a cap, an outage or a
+        404 never turns a known delisting into an outage.
+        """
         try:
-            return await self._evaluate_fresh(origin_or_domain, role=role)
+            record = await self._evaluate_fresh(origin_or_domain)
         except TrustRecordUnavailableError as outage:
             try:
-                cached = await self.cached_record(origin_or_domain, role=role)
+                stale = await self.cached_record(origin_or_domain, role=role)
             except TrustRecordUnavailableError as history_error:
-                raise history_error if allow_stale_on_outage else outage
-            # Retained delisting/removal/content errors are checked above even
-            # for spend. A cap must not disguise a known denial as an outage.
+                if allow_stale_on_outage:
+                    raise history_error from outage
+                raise outage from None
             if not allow_stale_on_outage:
-                raise outage
-            return cached
+                raise outage from None
+            return stale
+        if role is not None:
+            record.agent(origin_or_domain, role=role)
+        return record
 
-    async def _evaluate_fresh(
-        self, origin_or_domain: str, *, role: str | None = None
-    ) -> EvaluatedTrustRecord:
+    async def check_listing(self, origin: str, *, role: str) -> TrustListing:
+        """Whether the origin's operator lists it with ``role``, under the outage rules."""
+        try:
+            record = await self.evaluate(origin, role=role, allow_stale_on_outage=True)
+        except TrustRecordUnavailableError as exc:
+            return TrustListing("unavailable", error=exc)
+        except TrustRecordError as exc:
+            # Not listed, never published, or no registrable domain.
+            return TrustListing("unlisted", error=exc)
+        if record.stale_on_outage:
+            return TrustListing("unavailable", record=record, within_grace=True)
+        return TrustListing("listed", record=record)
+
+    def _admit_history(self, domain: str) -> None:
+        """Reserve an authority-history slot for ``domain`` (lock held)."""
+        if domain in self._history_owners:
+            return
+        group = _quota_group(domain)
+        if (
+            len(self._history_owners) >= self._max_history_records
+            or self._history_groups.get(group, 0) >= self._max_history_per_operator
+        ):
+            raise _TrustRecordCapacityError("trust history admission capacity exceeded")
+        self._history_owners.add(domain)
+        self._history_groups[group] = self._history_groups.get(group, 0) + 1
+
+    def _release_history(self, domain: str) -> None:
+        """Release a reservation that established no history (lock held)."""
+        if (
+            domain in self._seen_200
+            or domain in self._last_record
+            or domain in self._known_absent_owners
+            or domain not in self._history_owners
+        ):
+            return
+        self._history_owners.discard(domain)
+        group = _quota_group(domain)
+        remaining = self._history_groups.get(group, 1) - 1
+        if remaining > 0:
+            self._history_groups[group] = remaining
+        else:
+            self._history_groups.pop(group, None)
+
+    async def _evaluate_fresh(self, origin_or_domain: str) -> EvaluatedTrustRecord:
         url = trust_record_url(origin_or_domain)
         domain = urlsplit(url).hostname or ""
         async with self._lock:
             now = self._clock()
             record = self._cache.get(domain)
             if record is None or record.expires_at <= now:
-                if (
-                    domain not in self._history_owners
-                    and len(self._history_owners) >= self._max_history_records
-                ):
-                    raise _TrustRecordCapacityError("trust history admission capacity exceeded")
                 failure = self._failures.get(domain)
                 if failure is not None and failure.retry_after > now:
                     self._failures.move_to_end(domain)
@@ -473,7 +599,7 @@ class TrustRecordEvaluator:
                 if task is None:
                     if len(self._pending) >= self._max_records:
                         raise _TrustRecordCapacityError("trust discovery capacity exceeded")
-                    self._history_owners.add(domain)
+                    self._admit_history(domain)
                     task = asyncio.create_task(self._refresh(domain, url, now))
                     # One disconnected caller cannot cancel the shared fetch or
                     # leave a background task's exception unobserved.
@@ -489,18 +615,8 @@ class TrustRecordEvaluator:
         assert record is not None
         if record.expires_at <= self._clock():
             raise TrustRecordUnavailableError("trust record expired while being evaluated")
-        if role is not None:
-            record.agent(origin_or_domain, role=role)
         # Callers cannot mutate cached authority through a returned mapping.
-        import copy
-
-        return EvaluatedTrustRecord(
-            record.operator_domain,
-            record.source_url,
-            copy.deepcopy(record.document),
-            record.expires_at,
-            revision=record.revision,
-        )
+        return replace(record, document=copy.deepcopy(record.document))
 
     async def _refresh(self, domain: str, url: str, now: float) -> EvaluatedTrustRecord:
         try:
@@ -509,7 +625,7 @@ class TrustRecordEvaluator:
                 self._policy_revision += 1
                 record = replace(record, revision=self._policy_revision)
                 self._cache[domain] = record
-                self._remember_policy(domain, record)
+                self._last_record[domain] = record
                 self._cache.move_to_end(domain)
                 self._failures.pop(domain, None)
                 while len(self._cache) > self._max_records:
@@ -522,19 +638,15 @@ class TrustRecordEvaluator:
         except Exception as exc:
             error = (
                 exc
-                if isinstance(exc, TrustRecordError)
+                if isinstance(exc, (TrustRecordUnavailableError, TrustRecordAbsentError))
                 else TrustRecordUnavailableError("trust record fetch failed")
             )
             async with self._lock:
-                failure = _TrustRecordFailure(type(error), str(error), self._clock() + 60)
-                self._failures[domain] = failure
+                self._failures[domain] = _TrustRecordFailure(
+                    type(error), str(error), self._clock() + 60
+                )
                 if isinstance(error, TrustRecordAbsentError):
                     self._known_absent_owners.add(domain)
-                if not isinstance(error, (TrustRecordUnavailableError, TrustRecordAbsentError)):
-                    # Removal and malformed policy supersede older authority;
-                    # subsequent network/rate/capacity failures never undo it.
-                    self._cache.pop(domain, None)
-                    self._remember_policy(domain, failure)
                 self._failures.move_to_end(domain)
                 while len(self._failures) > self._max_records:
                     self._failures.popitem(last=False)
@@ -544,60 +656,67 @@ class TrustRecordEvaluator:
         finally:
             async with self._lock:
                 self._pending.pop(domain, None)
-                if (
-                    domain not in self._seen_200
-                    and domain not in self._last_policy
-                    and domain not in self._known_absent_owners
-                ):
-                    self._history_owners.discard(domain)
+                self._release_history(domain)
 
     async def _fetch(self, domain: str, url: str, now: float) -> EvaluatedTrustRecord:
         source = url
         expires_at = now + self._interval
         for hop in range(2):
-            _validate_fetch_target(source)
+            try:
+                _validate_fetch_target(source)
+            except TrustRecordError as exc:
+                raise TrustRecordUnavailableError("invalid trust fetch target") from exc
             try:
                 response_expires, response = await self._fetch_response(source, owner_domain=domain)
                 expires_at = min(expires_at, response_expires)
             except _TrustRecordCapacityError:
                 raise
-            except (_TrustRecordBodyError, _TrustRecordReadError):
+            except (_TrustRecordBodyError, _TrustRecordReadError) as exc:
                 # Publication is established by status even if its body fails.
                 # A later 404 cannot reopen authorized_operators fallback.
                 self._seen_200.add(domain)
-                raise
-            except TrustRecordError:
+                raise TrustRecordUnavailableError("trust record body could not be read") from exc
+            except TrustRecordUnavailableError:
                 raise
             except Exception as exc:
                 raise TrustRecordUnavailableError("trust record fetch failed") from exc
             if response.status in {404, 410} and hop == 0 and domain not in self._seen_200:
                 raise TrustRecordAbsentError("no trust record is published")
-            if response.status in {404, 410}:
-                raise TrustRecordNotFoundError("operator trust record was removed")
             if response.status != 200:
-                raise TrustRecordUnavailableError("trust record is temporarily unavailable")
+                # Including a 404/410 after the operator published a record:
+                # a discovery failure, never a removal.
+                raise TrustRecordUnavailableError(
+                    f"trust record unavailable (HTTP {response.status})"
+                )
             self._seen_200.add(domain)
-            if len(response.body) > 2 * 1024 * 1024:
-                raise TrustRecordError("trust record is unavailable or oversized")
             try:
-                document = parse_strict_json(response.body)
-            except StrictJsonError as exc:
-                raise TrustRecordError("trust record is not strict JSON") from exc
-            if not isinstance(document, dict):
-                raise TrustRecordError("trust record must be an object")
-            document = _validate_trust_record(document, operator_domain=domain, reader=True)
+                if len(response.body) > 2 * 1024 * 1024:
+                    raise TrustRecordError("trust record is oversized")
+                try:
+                    document = parse_strict_json(response.body)
+                except StrictJsonError as exc:
+                    raise TrustRecordError("trust record is not strict JSON") from exc
+                if not isinstance(document, dict):
+                    raise TrustRecordError("trust record must be an object")
+                document = _validate_trust_record(document, operator_domain=domain, reader=True)
+            except TrustRecordError as exc:
+                # An invalid record is unreadable: the last record read stands.
+                raise TrustRecordUnavailableError("trust record is invalid") from exc
             pointer = document.get("authoritative_location")
             if pointer is None:
                 return EvaluatedTrustRecord(domain, source, document, expires_at)
             if hop == 1:
-                raise TrustRecordError("a second authoritative-location hop is forbidden")
+                raise TrustRecordUnavailableError(
+                    "a second authoritative-location hop is forbidden"
+                )
             source = pointer
-        raise TrustRecordError("trust record resolution failed")
+        raise TrustRecordUnavailableError("trust record resolution failed")
 
     async def _fetch_response(self, url: str, *, owner_domain: str) -> tuple[float, TrustResponse]:
-        """Share transport bytes while preserving each original owner's validation."""
+        """Share transport bytes per URL while each owner validates them separately."""
         host = urlsplit(url).hostname or ""
         owner_host = (owner_domain, host)
+        foreign = registrable_domain(host) != owner_domain
         async with self._lock:
             now = self._clock()
             cached = self._responses.get(url)
@@ -609,24 +728,28 @@ class TrustRecordEvaluator:
                 raise TrustRecordUnavailableError("trust fetch host is cooling down")
             task = self._response_pending.get(url)
             if task is None:
-                if (
-                    len(self._response_pending) >= self._max_records
-                    or self._host_totals.get(host, 0) >= self._max_fetches_per_host
-                ):
+                if len(self._response_pending) >= self._max_records:
+                    raise _TrustRecordCapacityError("trust discovery capacity exceeded")
+                if foreign:
+                    # Hops to another operator's host share one global budget
+                    # per host, never the target operator's own budget.
+                    if self._foreign_inflight.get(host, 0) >= self._max_foreign_fetches_per_host:
+                        raise _TrustRecordCapacityError("trust fetch host capacity exceeded")
+                elif self._hosts_inflight.get(owner_host, 0) >= self._max_fetches_per_host:
                     raise _TrustRecordCapacityError("trust fetch host capacity exceeded")
-                task = asyncio.create_task(self._refresh_response(url, owner_host, now))
+                task = asyncio.create_task(self._refresh_response(url, owner_host, now, foreign))
                 task.add_done_callback(
                     lambda done: done.exception() if not done.cancelled() else None
                 )
                 self._response_pending[url] = task
-                self._hosts_inflight[owner_host] = self._hosts_inflight.get(owner_host, 0) + 1
-                # Bound actual outbound pressure across owners, but do not
-                # turn this temporary resource limit into cached denial.
-                self._host_totals[host] = self._host_totals.get(host, 0) + 1
+                if foreign:
+                    self._foreign_inflight[host] = self._foreign_inflight.get(host, 0) + 1
+                else:
+                    self._hosts_inflight[owner_host] = self._hosts_inflight.get(owner_host, 0) + 1
         return await asyncio.shield(task)
 
     async def _refresh_response(
-        self, url: str, owner_host: tuple[str, str], now: float
+        self, url: str, owner_host: tuple[str, str], now: float, foreign: bool
     ) -> tuple[float, TrustResponse]:
         try:
             response = await self._fetcher(url, allow_private=self._allow_private)
@@ -659,21 +782,23 @@ class TrustRecordEvaluator:
                 raise TrustRecordUnavailableError("trust record fetch failed") from exc
             if isinstance(exc, TrustRecordError):
                 raise
-            raise TrustRecordError("trust record content is invalid") from exc
+            raise _TrustRecordBodyError("trust record content is invalid") from exc
         finally:
             async with self._lock:
                 self._response_pending.pop(url, None)
-                remaining = self._hosts_inflight[owner_host] - 1
-                if remaining:
-                    self._hosts_inflight[owner_host] = remaining
+                if foreign:
+                    host = owner_host[1]
+                    remaining = self._foreign_inflight.get(host, 1) - 1
+                    if remaining > 0:
+                        self._foreign_inflight[host] = remaining
+                    else:
+                        self._foreign_inflight.pop(host, None)
                 else:
-                    self._hosts_inflight.pop(owner_host, None)
-                host = owner_host[1]
-                host_remaining = self._host_totals[host] - 1
-                if host_remaining:
-                    self._host_totals[host] = host_remaining
-                else:
-                    self._host_totals.pop(host, None)
+                    remaining = self._hosts_inflight.get(owner_host, 1) - 1
+                    if remaining > 0:
+                        self._hosts_inflight[owner_host] = remaining
+                    else:
+                        self._hosts_inflight.pop(owner_host, None)
 
     def _cool_down_host(self, owner_host: tuple[str, str]) -> None:
         """A pointer selected by one owner cannot suppress another owner's fetches."""
@@ -692,9 +817,19 @@ class TrustRecordEvaluator:
         migration_approved: bool = False,
         role: str = "adcp:buying",
     ) -> EvaluatedTrustRecord:
-        """Explicitly bind a verified origin after evaluating its operator record."""
+        """Explicitly bind a verified origin after evaluating its operator record.
+
+        The signer must carry a current revocation state
+        (:attr:`VerifiedSigner.revocation` ``== "current"``): an identity that
+        serves no revocation list, or whose list is stale or unchecked, stays
+        identity-established and cannot be bound. The record must currently
+        list the origin with ``role``, so an unlisted origin cannot be bound
+        again, whatever the onboarding mode.
+        """
         if signer.profile != "web-bot-auth" or signer.agent_url is None:
             raise TrustRecordError("binding requires a verified Web Bot Auth identity")
+        if signer.revocation != "current":
+            raise TrustRecordError("binding requires the origin to serve a current revocation list")
         record = await self.evaluate(signer.agent_url, role=role)
         bindings.bind(
             signer.agent_url,
@@ -751,31 +886,32 @@ class GrantRequest:
     countries: tuple[str, ...]
 
 
+def _registrable(value: str) -> str | None:
+    """The registrable domain, or ``None`` for any value without one."""
+    try:
+        return registrable_domain(value)
+    except ValueError:
+        return None
+
+
 def _scope_covers(scopes: Sequence[str], scope: str) -> bool:
     return scope in scopes or "*" in scopes or (scope.startswith("adcp:") and "adcp:all" in scopes)
 
 
-def _trust_grant_failure(error: TrustRecordError, reason: str) -> GrantAuthorization:
-    """Keep an outage distinct from an uncovered grant after identity establishment."""
+def _unavailable(reason: str) -> GrantAuthorization:
+    """An outage: retryable SERVICE_UNAVAILABLE, never grant_absent."""
     return GrantAuthorization(
-        False,
-        reason,
-        error_code=(
-            "SERVICE_UNAVAILABLE"
-            if isinstance(error, TrustRecordUnavailableError)
-            else "PERMISSION_DENIED"
-        ),
-        include_grant_absent_details=False,
+        False, reason, error_code="SERVICE_UNAVAILABLE", include_grant_absent_details=False
     )
 
 
-def _expired_grant_evaluation(reason: str) -> GrantAuthorization:
-    return GrantAuthorization(
-        False,
-        reason,
-        error_code="SERVICE_UNAVAILABLE",
-        include_grant_absent_details=False,
-    )
+def _unlisted(reason: str) -> GrantAuthorization:
+    """No standing for the signer: PERMISSION_DENIED with no details."""
+    return GrantAuthorization(False, reason, include_grant_absent_details=False)
+
+
+def _instant(value: str) -> float:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
 def _grant_matches(
@@ -788,8 +924,11 @@ def _grant_matches(
     countries: frozenset[str],
     now: float,
 ) -> bool:
-    if grant["grantee"] != grantee or not _scope_covers(grant["scopes"], scope):
+    # Grantees compare as registrable domains under the pinned PSL snapshot.
+    if _registrable(grant["grantee"]) != grantee or not _scope_covers(grant["scopes"], scope):
         return False
+    # agents[] narrows the link that reaches the signer: the signer's
+    # canonical origin must be listed, or the chain ends at this link.
     agents = grant.get("agents")
     if agents is not None and not any(canonical_origin(agent["url"]) == origin for agent in agents):
         return False
@@ -798,20 +937,59 @@ def _grant_matches(
     brands = grant.get("profiles", {}).get("adcp", {}).get("brands", ["*"])
     if "*" not in brands and (brand_id is None or brand_id not in brands):
         return False
-    for field, before in (("valid_from", True), ("valid_until", False)):
-        if field in grant:
-            instant = datetime.fromisoformat(grant[field].replace("Z", "+00:00")).timestamp()
-            if (before and now < instant) or (not before and now >= instant):
-                return False
+    if "valid_from" in grant and now < _instant(grant["valid_from"]):
+        return False
+    if "valid_until" in grant and now >= _instant(grant["valid_until"]):
+        return False
     return True
 
 
-class TrustGrantEvaluator:
-    """Evaluate direct or one-intermediary demand grants against the brand's record.
+@dataclass(frozen=True)
+class BrandHouse:
+    """The house a brand's verified brand.json names, and the brand's id there.
 
-    Checking every requested dimension at every link implements intersection
-    without allowing a grantee to expand authority. Seller discretion is a
-    separate explicit hook, never a brand.json fallback after HTTP 200.
+    ``brand_id`` is the brand's child-brand id in the house's portfolio; grant
+    ``profiles.adcp.brands`` are checked against it. ``None`` keeps the
+    claim's own ``brand_id``.
+    """
+
+    domain: str
+    brand_id: str | None = None
+
+
+HouseResolver = Callable[[str, "str | None"], Awaitable["BrandHouse | str | None"]]
+
+
+class TrustGrantEvaluator:
+    """Evaluate demand-side grants (L2 §Grants in trust.json, DR-0025).
+
+    * One record authorizes: the house's. ``resolve_house(brand_domain,
+      brand_id)`` returns the verified :class:`BrandHouse` the brand's
+      brand.json names (a house redirect, or a ``house_domain`` the house
+      reciprocates), with the brand's id in the house's portfolio, or just
+      the house domain. Without the hook, or when it returns ``None``, the
+      brand's own domain is the house. Grants in any other record are never
+      consulted.
+    * Domains compare as registrable domains under the pinned PSL snapshot.
+      Authority is implicit when ``account.operator``, the brand's domain and
+      the signer's operator share one.
+    * Otherwise a chain must reach the signer's operator with
+      ``account.operator`` on it: the house grants the signer's operator,
+      which is ``account.operator``; the brand is ``account.operator`` (a
+      self-operated brand) and its house grants the signer's operator; or the
+      house grants ``account.operator``, whose own record grants the signer's
+      operator. There is no third link.
+    * Every link must cover the scope, brand, countries and agent narrowing
+      (a narrowed link that does not list the signer ends the chain), and the
+      check time must fall inside every link's ``valid_from``/``valid_until``
+      window, so effective authority is the intersection along the chain.
+    * A 200 from the house's trust.json makes it the only source of grants:
+      ``legacy_authorization`` (brand.json ``authorized_operators``) runs only
+      while the house has never published one. A record that cannot be read,
+      including a 404/410 after it was read, is never absence and never
+      ``grant_absent``: a non-spend claim (``allow_stale_on_outage``) is
+      evaluated on the last records read within the evaluator's outage bound,
+      and anything else gets the retryable ``SERVICE_UNAVAILABLE``.
     """
 
     def __init__(
@@ -821,20 +999,17 @@ class TrustGrantEvaluator:
         clock: Callable[[], float] | None = None,
         seller_authorization: Callable[[GrantRequest], Awaitable[bool]] | None = None,
         legacy_authorization: Callable[[GrantRequest], Awaitable[bool]] | None = None,
+        resolve_house: HouseResolver | None = None,
     ) -> None:
         self.records = records
         self._clock = clock if clock is not None else records._clock
         self._seller_authorization = seller_authorization
         self._legacy_authorization = legacy_authorization
+        self._resolve_house = resolve_house
 
     def current_time(self) -> float:
         """Read the evaluation clock before using a retained claim deadline."""
         return self._clock()
-
-    def _record_deadline(self, record: EvaluatedTrustRecord) -> float:
-        return record.expires_at + (
-            4 * self.records.polling_interval_seconds if record.stale_on_outage else 0
-        )
 
     async def _authorization(
         self,
@@ -854,14 +1029,12 @@ class TrustGrantEvaluator:
                     role="adcp:buying" if agent_origin is not None else None,
                     legacy_unpublished_domain=legacy_unpublished_domain,
                 )
-            except TrustRecordNotFoundError as exc:
-                if any(record.operator_domain == exc.operator_domain for record in records[1:]):
-                    return GrantAuthorization(False, "grant_absent")
-                return _trust_grant_failure(exc, "signer_trust_record_unavailable")
-            except TrustRecordError as exc:
-                return _trust_grant_failure(exc, "trust_record_changed_during_evaluation")
-            if any(self._record_deadline(record) <= self._clock() for record in records):
-                return _expired_grant_evaluation("trust_record_unavailable")
+            except TrustRecordUnavailableError:
+                return _unavailable("trust_record_changed_during_evaluation")
+            except TrustRecordError:
+                return _unlisted("signer_not_listed")
+            if any(record.expires_at <= self._clock() for record in records):
+                return _unavailable("trust_record_unavailable")
             if grant_expiry <= self._clock():
                 return GrantAuthorization(False, "grant_absent")
         return GrantAuthorization(
@@ -871,18 +1044,30 @@ class TrustGrantEvaluator:
                 min([record.expires_at for record in records] + [grant_expiry]) if records else None
             ),
             outage_expires_at=(
-                min(
-                    [
-                        record.expires_at + 4 * self.records.polling_interval_seconds
-                        for record in records
-                    ]
-                    + [grant_expiry]
-                )
+                min([self._outage_deadline(record) for record in records] + [grant_expiry])
                 if authorized and records
                 else None
             ),
             stale_on_outage=any(record.stale_on_outage for record in records),
         )
+
+    def _outage_deadline(self, record: EvaluatedTrustRecord) -> float:
+        if record.stale_on_outage:
+            return record.expires_at
+        return record.expires_at + self.records.outage_continuation_seconds
+
+    async def _signer_listing(
+        self, origin: str, *, non_spend: bool
+    ) -> EvaluatedTrustRecord | GrantAuthorization:
+        listing = await self.records.check_listing(origin, role="adcp:buying")
+        if listing.status == "listed" or (
+            listing.status == "unavailable" and listing.within_grace and non_spend
+        ):
+            assert listing.record is not None
+            return listing.record
+        if listing.status == "unlisted":
+            return _unlisted("signer_not_listed")
+        return _unavailable("signer_trust_record_unavailable")
 
     async def check(
         self,
@@ -896,69 +1081,86 @@ class TrustGrantEvaluator:
         signing_profile: Literal["web-bot-auth", "adcp/request-signing/v1"] = "web-bot-auth",
         allow_stale_on_outage: bool = False,
     ) -> GrantAuthorization:
-        origin = canonical_origin(agent_origin)
-        signer_operator = registrable_domain(origin)
-        brand_operator = registrable_domain(brand_domain)
-        operator = registrable_domain(account_operator)
+        """Evaluate one acts-for claim.
+
+        ``allow_stale_on_outage`` marks a claim for an operation that commits
+        no spend: only such a claim continues on the last records read while
+        a record on the chain cannot be read.
+        """
+        if signing_profile not in {"web-bot-auth", "adcp/request-signing/v1"}:
+            raise ValueError("unsupported authenticated signing profile")
+        non_spend = allow_stale_on_outage
+        try:
+            origin = canonical_origin(agent_origin)
+        except ValueError:
+            return _unlisted("grant_absent")
+        signer_operator = _registrable(origin)
+        brand_operator = _registrable(brand_domain)
+        operator = _registrable(account_operator)
         if signer_operator is None or brand_operator is None or operator is None:
-            return GrantAuthorization(False, "grant_absent", include_grant_absent_details=False)
+            return _unlisted("grant_absent")
         request = GrantRequest(
             origin, brand_domain, account_operator, scope, brand_id, tuple(countries)
         )
-        if signing_profile not in {"web-bot-auth", "adcp/request-signing/v1"}:
-            raise ValueError("unsupported authenticated signing profile")
         signer_record: EvaluatedTrustRecord | None = None
         if signing_profile == "web-bot-auth":
-            try:
-                # WBA authority always requires a current operator role entry.
-                signer_record = await self.records.evaluate(
-                    origin, role="adcp:buying", allow_stale_on_outage=allow_stale_on_outage
-                )
-            except TrustRecordError as exc:
-                return _trust_grant_failure(exc, "signer_trust_record_unavailable")
+            # WBA authority always requires a current operator role entry.
+            listing = await self._signer_listing(origin, non_spend=non_spend)
+            if isinstance(listing, GrantAuthorization):
+                return listing
+            signer_record = listing
             if signer_operator == brand_operator == operator:
                 return await self._authorization(True, [signer_record], agent_origin=origin)
+        house = brand_domain
+        if self._resolve_house is not None:
+            try:
+                resolved = await self._resolve_house(brand_domain, brand_id)
+            except Exception:
+                return _unavailable("brand_house_unavailable")
+            if isinstance(resolved, BrandHouse):
+                house = resolved.domain
+                if resolved.brand_id is not None:
+                    # Grants name the house's child-brand ids.
+                    brand_id = resolved.brand_id
+            elif isinstance(resolved, str):
+                house = resolved
+        if _registrable(house) is None:
+            return _unlisted("grant_absent")
         try:
-            brand_record = await self.records.evaluate(
-                brand_domain, allow_stale_on_outage=allow_stale_on_outage
-            )
+            brand_record = await self.records.evaluate(house, allow_stale_on_outage=non_spend)
         except TrustRecordAbsentError:
             if self._legacy_authorization is not None:
                 authorized = bool(await self._legacy_authorization(request))
-                if (
-                    signer_record is not None
-                    and self._record_deadline(signer_record) <= self._clock()
-                ):
-                    return _expired_grant_evaluation("signer_trust_record_unavailable")
+                if signer_record is not None and signer_record.expires_at <= self._clock():
+                    # The callback cannot outlive the required operator listing.
+                    return _unavailable("signer_trust_record_unavailable")
                 if signer_record is not None:
                     return await self._authorization(
                         authorized,
                         [signer_record],
                         legacy_fallback_allowed=True,
                         agent_origin=origin,
-                        legacy_unpublished_domain=brand_domain,
+                        legacy_unpublished_domain=house,
                     )
                 return await self._authorization(
                     authorized,
                     [],
                     legacy_fallback_allowed=True,
-                    legacy_unpublished_domain=brand_domain,
+                    legacy_unpublished_domain=house,
                 )
             return GrantAuthorization(False, "trust_record_absent", legacy_fallback_allowed=True)
-        except TrustRecordNotFoundError:
-            return GrantAuthorization(False, "grant_absent")
-        except TrustRecordError as exc:
-            return _trust_grant_failure(exc, "trust_record_unavailable")
+        except TrustRecordError:
+            # Including a 404/410 after the house published: an outage, never
+            # grant_absent and never a fallback to authorized_operators.
+            return _unavailable("trust_record_unavailable")
         if signer_record is None:
             # Legacy credentials retain their established onboarding path when
-            # the brand has no trust record. Once the brand serves HTTP 200,
+            # the house has no trust record. Once the house serves HTTP 200,
             # grants have one source and require the new operator role entry.
-            try:
-                signer_record = await self.records.evaluate(
-                    origin, role="adcp:buying", allow_stale_on_outage=allow_stale_on_outage
-                )
-            except TrustRecordError as exc:
-                return _trust_grant_failure(exc, "signer_trust_record_unavailable")
+            listing = await self._signer_listing(origin, non_spend=non_spend)
+            if isinstance(listing, GrantAuthorization):
+                return listing
+            signer_record = listing
             if signer_operator == brand_operator == operator:
                 return await self._authorization(True, [signer_record], agent_origin=origin)
         args: dict[str, Any] = {
@@ -968,84 +1170,77 @@ class TrustGrantEvaluator:
             "countries": frozenset(countries),
             "now": self._clock(),
         }
-        direct = operator in {signer_operator, brand_operator}
-        grantee = signer_operator if direct else operator
-        first = [
-            g
-            for g in brand_record.document.get("grants", [])
-            if _grant_matches(g, grantee=grantee, **args)
-        ]
+        grants = brand_record.document.get("grants", [])
         links: list[list[Mapping[str, Any]]] = []
         used_records = [signer_record, brand_record]
-        if direct:
-            links = [first]
-        elif first:
-            try:
-                intermediary = await self.records.evaluate(
-                    operator, allow_stale_on_outage=allow_stale_on_outage
-                )
-            except TrustRecordNotFoundError:
-                return GrantAuthorization(False, "grant_absent")
-            except TrustRecordError as exc:
-                return _trust_grant_failure(exc, "trust_record_unavailable")
-            used_records.append(intermediary)
-            # Fetching the intermediary may outlive an earlier grant. Evaluate
-            # both links at the decision time, not at request receipt.
-            args["now"] = self._clock()
-            first = [g for g in first if _grant_matches(g, grantee=operator, **args)]
-            second = [
-                g
-                for g in intermediary.document.get("grants", [])
-                if _grant_matches(g, grantee=signer_operator, **args)
-            ]
-            links = [first, second]
-        if any(self._record_deadline(record) <= self._clock() for record in used_records):
-            return _expired_grant_evaluation("trust_record_unavailable")
+        if operator in {signer_operator, brand_operator}:
+            # The house grants the signer's operator, which is account.operator;
+            # or a self-operated brand (it is account.operator) whose house
+            # grants the signer's operator directly.
+            links = [[g for g in grants if _grant_matches(g, grantee=signer_operator, **args)]]
+        else:
+            first = [g for g in grants if _grant_matches(g, grantee=operator, **args)]
+            if first:
+                try:
+                    intermediary: EvaluatedTrustRecord | None = await self.records.evaluate(
+                        operator, allow_stale_on_outage=non_spend
+                    )
+                except TrustRecordAbsentError:
+                    # The intermediary publishes no record: no second link.
+                    intermediary = None
+                except TrustRecordError:
+                    return _unavailable("trust_record_unavailable")
+                second: list[Mapping[str, Any]] = []
+                if intermediary is not None:
+                    used_records.append(intermediary)
+                    # Fetching the intermediary may outlive an earlier grant.
+                    # Evaluate both links at the decision time.
+                    args["now"] = self._clock()
+                    first = [g for g in first if _grant_matches(g, grantee=operator, **args)]
+                    second = [
+                        g
+                        for g in intermediary.document.get("grants", [])
+                        if _grant_matches(g, grantee=signer_operator, **args)
+                    ]
+                links = [first, second]
+        if any(record.expires_at <= self._clock() for record in used_records):
+            return _unavailable("trust_record_unavailable")
         if not links or any(not link for link in links):
             exhaustive = brand_record.document.get("exclusive_grants", False) and any(
-                _scope_covers(grant["scopes"], scope)
-                for grant in brand_record.document.get("grants", [])
+                _scope_covers(grant["scopes"], scope) for grant in grants
             )
             if not exhaustive and self._seller_authorization is not None:
                 authorized = bool(await self._seller_authorization(request))
-                expiry = min(self._record_deadline(record) for record in used_records)
-                # Seller discretion cannot outlive the required operator role
-                # evaluation while its application-owned policy lookup awaits.
-                if expiry <= self._clock():
-                    return _expired_grant_evaluation("trust_record_unavailable")
+                # Seller discretion cannot outlive the records it relied on.
+                if any(record.expires_at <= self._clock() for record in used_records):
+                    return _unavailable("trust_record_unavailable")
                 return await self._authorization(authorized, used_records, agent_origin=origin)
             return GrantAuthorization(False, "grant_absent")
-        # Every surviving grant covers the same requested dimensions. The
-        # best path's expiry is the minimum of each link's best expiry. Avoid
-        # materializing the cartesian product of untrusted grant arrays.
+        # Every surviving grant covers the requested dimensions. The best path
+        # expires at the minimum over links of each link's latest valid_until.
+        # Avoid materializing the cartesian product of untrusted grant arrays.
         grant_expiry = min(
-            [
-                max(
-                    (
-                        datetime.fromisoformat(g["valid_until"].replace("Z", "+00:00")).timestamp()
-                        if "valid_until" in g
-                        else float("inf")
-                    )
-                    for g in link
-                )
-                for link in links
-            ]
+            max(_instant(g["valid_until"]) if "valid_until" in g else float("inf") for g in link)
+            for link in links
         )
         if grant_expiry <= self._clock():
             return GrantAuthorization(False, "grant_absent")
-        if any(self._record_deadline(record) <= self._clock() for record in used_records):
-            return _expired_grant_evaluation("trust_record_unavailable")
+        if any(record.expires_at <= self._clock() for record in used_records):
+            return _unavailable("trust_record_unavailable")
         return await self._authorization(
             True, used_records, grant_expiry=grant_expiry, agent_origin=origin
         )
 
 
 __all__ = [
+    "BrandHouse",
     "GrantRequest",
     "EvaluatedTrustRecord",
     "GrantAuthorization",
+    "HouseResolver",
     "TrustFetcher",
     "TrustGrantEvaluator",
+    "TrustListing",
     "TrustRecordAbsentError",
     "TrustRecordError",
     "TrustRecordMatchError",

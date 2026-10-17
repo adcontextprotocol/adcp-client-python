@@ -95,7 +95,15 @@ class RevocationListFetchError(Exception):
     Mapped to ``request_signature_revocation_stale`` at the verifier
     edge when it occurs past the grace window; within the grace window
     the cached list is served and the error is logged at debug level.
+
+    ``status_code`` is the HTTP status when the origin answered with one
+    other than 200 or 304. A Web Bot Auth identity that answers 404 or 410
+    serves no revocation list.
     """
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class RevocationListParseError(Exception):
@@ -217,7 +225,9 @@ def _fetch_result_from_response(
             not_modified=True,
         )
     if status_code != 200:
-        raise RevocationListFetchError(f"revocation list {uri!r} returned HTTP {status_code}")
+        raise RevocationListFetchError(
+            f"revocation list {uri!r} returned HTTP {status_code}", status_code=status_code
+        )
 
     etag = response_headers.get("ETag")
     last_modified = _sanitize_last_modified(response_headers.get("Last-Modified"))
@@ -513,6 +523,13 @@ class _CheckerState:
     def has_verified_list(self) -> bool:
         """Whether authenticated revocation evidence must be retained, even if stale."""
         return self._current_list is not None or self._history_overflowed
+
+    def retains_revoked_key(self, keyid: str) -> bool:
+        """Whether the last verified list revoked ``keyid``, however stale it is.
+
+        A stale or unreadable list never un-revokes a key it revoked.
+        """
+        return self._current_list is not None and self._current_list.is_revoked(keyid)
 
     def _handle_not_modified(self, *, now_mono: float) -> None:
         """Record a successful conditional request without changing signed freshness.

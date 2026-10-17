@@ -48,85 +48,66 @@ import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
+from joserfc.jwk import ECKey, OKPKey
 
-from adcp.signing.crypto import ALG_ED25519, ALG_ES256, b64url_encode, load_private_key_pem
+from adcp.signing.crypto import ALG_ED25519, ALG_ES256, load_private_key_pem
 
-
-def _encryption_algorithm(
-    passphrase: bytes | None,
-) -> serialization.KeySerializationEncryption:
-    if passphrase is None:
-        return serialization.NoEncryption()
-    return serialization.BestAvailableEncryption(passphrase)
-
+# Key generation, PKCS#8 PEM export and RFC 7517 / 8037 public JWK export are
+# delegated to joserfc. What stays here is AdCP policy: the curve allow-list,
+# the JWS ``alg`` each curve is published under, and the AdCP-specific JWK
+# members (``use``, ``key_ops``, ``adcp_use``, ``kid``).
 
 _ADCP_USE_VALUES = ("request-signing", "webhook-signing")
 
+# JWS ``alg`` (RFC 7518 / RFC 8037) published for each AdCP-allowed curve. Not
+# the RFC 9421 ``alg`` used in ``Signature-Input``.
+_JWS_ALG_BY_CURVE = {"Ed25519": "EdDSA", "P-256": "ES256"}
 
-def _public_jwk_ed25519(
-    public_key: ed25519.Ed25519PublicKey, *, kid: str, adcp_use: str
-) -> dict[str, Any]:
-    x = public_key.public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
+
+def _adcp_public_jwk(key: OKPKey | ECKey, *, kid: str, adcp_use: str) -> dict[str, Any]:
+    """Public JWK for ``key`` with the AdCP members added.
+
+    joserfc exports the public members only (``as_dict(private=False)``
+    drops ``d``); member order is kept stable for the CLI's printed JWKS.
+    """
+    public: dict[str, Any] = dict(key.as_dict(private=False))
+    crv = public.pop("crv")
     return {
-        "kty": "OKP",
-        "crv": "Ed25519",
-        "alg": "EdDSA",
+        "kty": public.pop("kty"),
+        "crv": crv,
+        "alg": _JWS_ALG_BY_CURVE[crv],
         "use": "sig",
         "key_ops": ["verify"],
         "adcp_use": adcp_use,
         "kid": kid,
-        "x": b64url_encode(x),
+        **public,
     }
 
 
-def _public_jwk_es256(
-    public_key: ec.EllipticCurvePublicKey, *, kid: str, adcp_use: str
-) -> dict[str, Any]:
-    numbers = public_key.public_numbers()
-    return {
-        "kty": "EC",
-        "crv": "P-256",
-        "alg": "ES256",
-        "use": "sig",
-        "key_ops": ["verify"],
-        "adcp_use": adcp_use,
-        "kid": kid,
-        "x": b64url_encode(numbers.x.to_bytes(32, "big")),
-        "y": b64url_encode(numbers.y.to_bytes(32, "big")),
-    }
+def _private_pem(key: OKPKey | ECKey, passphrase: bytes | None) -> bytes:
+    # joserfc serializes as PKCS#8, using BestAvailableEncryption when a
+    # password is given. Its ``password`` is annotated ``str``, but the value
+    # goes through ``joserfc.util.to_bytes``, which returns ``bytes`` unchanged,
+    # so a non-UTF-8 passphrase stays byte-exact.
+    return key.as_pem(private=True, password=cast("str | None", passphrase))
 
 
 def generate_ed25519(
     kid: str, passphrase: bytes | None = None, adcp_use: str = "request-signing"
 ) -> tuple[bytes, dict[str, Any]]:
-    private = ed25519.Ed25519PrivateKey.generate()
-    pem = private.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=_encryption_algorithm(passphrase),
-    )
-    jwk = _public_jwk_ed25519(private.public_key(), kid=kid, adcp_use=adcp_use)
-    return pem, jwk
+    key = OKPKey.generate_key("Ed25519", private=True)
+    return _private_pem(key, passphrase), _adcp_public_jwk(key, kid=kid, adcp_use=adcp_use)
 
 
 def generate_es256(
     kid: str, passphrase: bytes | None = None, adcp_use: str = "request-signing"
 ) -> tuple[bytes, dict[str, Any]]:
-    private = ec.generate_private_key(ec.SECP256R1())
-    pem = private.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=_encryption_algorithm(passphrase),
-    )
-    jwk = _public_jwk_es256(private.public_key(), kid=kid, adcp_use=adcp_use)
-    return pem, jwk
+    key = ECKey.generate_key("P-256", private=True)
+    return _private_pem(key, passphrase), _adcp_public_jwk(key, kid=kid, adcp_use=adcp_use)
 
 
 def pem_to_adcp_jwk(
@@ -208,8 +189,8 @@ def pem_to_adcp_jwk(
         public_key = load_private_key_pem(pem, password=password).public_key()
 
     if isinstance(public_key, ed25519.Ed25519PublicKey):
-        return _public_jwk_ed25519(public_key, kid=kid, adcp_use=purpose)
-    return _public_jwk_es256(public_key, kid=kid, adcp_use=purpose)
+        return _adcp_public_jwk(OKPKey.import_key(public_key), kid=kid, adcp_use=purpose)
+    return _adcp_public_jwk(ECKey.import_key(public_key), kid=kid, adcp_use=purpose)
 
 
 def _default_kid(alg: str) -> str:
@@ -264,8 +245,8 @@ def generate_signing_keypair(
         rely on filesystem perms (the CLI writes mode 0600).
 
         **Passphrase lifecycle.** CPython cannot zero ``bytes``. Once
-        passed here, the buffer is consumed by ``cryptography`` and
-        then released to GC; there's no ``zeroize`` step. Callers
+        passed here, the buffer is handed to joserfc (which encrypts via
+        ``cryptography``) and then released to GC; there's no ``zeroize`` step. Callers
         handling long-lived credentials should source the passphrase
         from a secret manager per call rather than hold a Python
         literal in process memory.

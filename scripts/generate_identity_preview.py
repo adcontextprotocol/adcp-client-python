@@ -1,7 +1,9 @@
 """Generate experimental identity types from pinned draft schemas, offline.
 
 The stable AdCP wire pin and generated domain tree are intentionally unchanged.
-The two onboarding slots are an explicit composition of independent P5/P6 drafts.
+Each source schema is copied verbatim from the open spec branch recorded in
+_identity_schemas/UPSTREAM.json; trust/v1/trust.json is composed there (spec main
+plus the onboarding and grants branch diffs), so this script composes nothing.
 """
 
 from __future__ import annotations
@@ -38,18 +40,6 @@ def build_bundle() -> dict:
         if not source.exists():
             source = STABLE / path
         schema = json.loads(source.read_text())
-        # Compose the independently proposed buyer posture slots without editing
-        # the immutable source schemas or claiming the composition is a release.
-        if path == "trust/v1/trust.json":
-            for name in ("agent", "record_profiles"):
-                profiles = (
-                    schema["definitions"][name]["properties"]["profiles"]
-                    if name == "agent"
-                    else schema["definitions"][name]
-                )
-                profiles["allOf"][1]["properties"]["adcp"]["properties"]["onboarding"] = {
-                    "$ref": "/schemas/core/buyer-onboarding-posture.json"
-                }
 
         def walk(value):
             if isinstance(value, dict):

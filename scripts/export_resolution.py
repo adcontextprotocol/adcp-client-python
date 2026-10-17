@@ -39,6 +39,8 @@ def snapshot_modules() -> tuple[tuple[str, str], ...]:
         ("adcp", "adcp"),
         ("adcp.types", "adcp.types"),
         ("adcp.types._generated", "adcp.types._generated"),
+        ("adcp.signing", "adcp.signing"),
+        ("adcp.types.experimental_identity", "adcp.types.experimental_identity"),
         *(
             (f"adcp.types.domains.{domain}", f"adcp.types.domains.{domain}")
             for domain in adcp.types.domains.DOMAINS

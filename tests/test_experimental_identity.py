@@ -280,15 +280,17 @@ async def test_unestablished_grant_gate_omits_oracle_details():
 
 
 def test_preview_round_trips():
+    from adcp.types.experimental_identity import AgentOnboardingMode, PrincipalRelationshipStatus
+
     response = GetPrincipalResponse.model_validate(
         {
             "result": {
                 "kind": "unconfigured",
-                "relationship": {"status": "pending", "setup": {"message": "Apply"}},
+                "relationship": {"status": "pending_approval", "setup": {"message": "Apply"}},
             }
         }
     )
-    assert response.result.relationship.status == "pending"
+    assert response.result.relationship.status is PrincipalRelationshipStatus.pending_approval
     assert (
         response.model_dump(mode="json", exclude_none=True)["result"]["relationship"]["setup"][
             "message"
@@ -299,7 +301,7 @@ def test_preview_round_trips():
         supported_billing=["operator"], sandbox=True, agent_onboarding={"sandbox": {"mode": "open"}}
     )
     assert account.agent_onboarding.sandbox.mode == "open"
-    assert BuyerOnboardingPosture(mode="application").mode == "application"
+    assert BuyerOnboardingPosture(mode="open").mode is AgentOnboardingMode.open
     assert GrantAbsentDetails().model_dump() == {"scope": "agent", "reason": "grant_absent"}
     validate_trust_record(
         TrustRecord.model_validate(SIGNER_RECORD).model_dump(mode="json", exclude_none=True),
@@ -313,7 +315,8 @@ def test_preview_round_trips():
                     "roles": ["adcp:buying"],
                     "profiles": {"adcp": {"onboarding": {"mode": "application"}}},
                 }
-            ]
+            ],
+            "profiles": {"adcp": {"onboarding": {"mode": "invite_only"}}},
         },
         operator_domain="platform.com",
     )
@@ -454,8 +457,9 @@ async def test_client_opt_in_preserves_relationship_response(monkeypatch):
     from adcp import ADCPClient, AgentConfig
     from adcp.types import GetPrincipalRequest
     from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.experimental_identity import PrincipalRelationshipStatus
 
-    payload = {"result": {"kind": "unconfigured", "relationship": {"status": "pending"}}}
+    payload = {"result": {"kind": "unconfigured", "relationship": {"status": "pending_approval"}}}
     client = ADCPClient(
         AgentConfig(id="seller", agent_uri="https://seller.com/mcp", protocol="mcp"),
         experimental_agent_identity=True,
@@ -468,7 +472,7 @@ async def test_client_opt_in_preserves_relationship_response(monkeypatch):
     result = await client.get_principal(GetPrincipalRequest())
     assert result.success
     assert isinstance(result.data, GetPrincipalResponse)
-    assert result.data.result.relationship.status == "pending"
+    assert result.data.result.relationship.status is PrincipalRelationshipStatus.pending_approval
 
 
 async def test_client_preserves_unknown_onboarding_requirements_and_signing_profiles(monkeypatch):
@@ -485,7 +489,7 @@ async def test_client_preserves_unknown_onboarding_requirements_and_signing_prof
         "url": "https://seller.com/apply",
         "sandbox": {
             "mode": "application",
-            "requirements": [{"kind": "agent_identity"}, {"kind": "future_identity_badge"}],
+            "requirements": [{"kind": "grant"}, {"kind": "future_identity_badge"}],
         },
     }
     payload = {
@@ -514,7 +518,7 @@ async def test_client_preserves_unknown_onboarding_requirements_and_signing_prof
     result = await client.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
     assert result.success
     onboarding = result.data.account.agent_onboarding
-    assert onboarding.sandbox.requirements[0].kind is AgentOnboardingRequirementKind.agent_identity
+    assert onboarding.sandbox.requirements[0].kind is AgentOnboardingRequirementKind.grant
     assert onboarding.sandbox.requirements[1].kind == "future_identity_badge"
     assert onboarding.message == posture["message"]
     assert str(onboarding.url) == posture["url"]
@@ -554,6 +558,7 @@ async def test_trust_reader_retains_unknown_onboarding_requirements(record_level
 
 
 async def test_relationship_hook_does_not_create_principal():
+    from adcp.server.base import ToolContext
     from adcp.server.principal import (
         InMemoryPrincipalRecordStore,
         PrincipalIdentity,
@@ -564,15 +569,18 @@ async def test_relationship_hook_does_not_create_principal():
 
     async def relationship(identity):
         calls.append(identity.subject)
-        return {"status": "pending", "setup": {"message": "Apply"}}
+        return {"status": "pending_approval", "setup": {"message": "Apply"}}
 
     store = InMemoryPrincipalRecordStore()
     service = PrincipalService(store, relationship_resolver=relationship)
     response = await service.get_principal(
-        PrincipalIdentity("https://buyer.platform.com", "buyer_agent")
+        PrincipalIdentity("https://buyer.platform.com", "buyer_agent"),
+        context=ToolContext(resolved_adcp_version="3.3"),
     )
     assert response.result.kind == "unconfigured"
-    assert response.model_dump(mode="json")["result"]["relationship"]["status"] == "pending"
+    assert (
+        response.model_dump(mode="json")["result"]["relationship"]["status"] == "pending_approval"
+    )
     assert calls == [ORIGIN]
     assert await store.get(ORIGIN) is None
 

@@ -267,13 +267,13 @@ def test_live_signed_issuer_grace_stale_rejection_and_recovery(monkeypatch):
     operational = []
     replay = InMemoryReplayStore()
     _observe_crypto_and_replay(monkeypatch, replay, events)
-    original_jws_verify = jws.verify_signature
+    original_jws_verify = jws._verify_signature_and_decode_payload
 
     def verify_list(**kwargs):
         events.append("list_jws_crypto")
         return original_jws_verify(**kwargs)
 
-    monkeypatch.setattr(jws, "verify_signature", verify_list)
+    monkeypatch.setattr(jws, "_verify_signature_and_decode_payload", verify_list)
 
     class Issuer(BaseHTTPRequestHandler):
         def log_message(self, *args):

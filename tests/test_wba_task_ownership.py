@@ -1,4 +1,4 @@
-"""Delisting preserves only the verified origin's previously owned A2A work."""
+"""A2A task ownership follows the verified origin; a delisted origin gets no exception."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from asgi_lifespan import LifespanManager
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from adcp.server import ADCPHandler, RequestSignatureVerification, a2a_server
-from adcp.server.auth import BearerTokenAuth, _A2AAuthenticatedUser
+from adcp.server.auth import BearerTokenAuth, Principal, _A2AAuthenticatedUser
 from adcp.server.serve import _build_mcp_and_a2a_app
 from adcp.server.signed_requests import current_verified_signer, current_wba_authorization_error
 from adcp.signing import (
@@ -71,7 +71,7 @@ async def task_env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureReque
 
     async def validate_token(token: str):
         bearer_lookups.append(token)
-        return "bearer-principal"
+        return Principal(caller_identity="bearer-principal")
 
     class Store(InMemoryTaskStore):
         signer_unavailable = False
@@ -325,47 +325,32 @@ def assert_not_found(response: httpx.Response) -> None:
     assert "accept-signature" not in response.headers
 
 
-@pytest.mark.parametrize("get,cancel", [("tasks/get", "tasks/cancel"), ("GetTask", "CancelTask")])
-async def test_delisted_origin_can_poll_cancel_its_active_task_without_new_authority(
-    task_env, get, cancel
-):
+@pytest.mark.parametrize(
+    "method", ["tasks/get", "tasks/cancel", "GetTask", "CancelTask", "SubscribeToTask"]
+)
+async def test_delisted_origin_gets_no_task_control_exception(task_env, method):
     post, start, store, now, mode, started, bearer, controlled = task_env
     task_id = await start()
     mode[0], now[0] = "delisted", 1061
-    polled = await post(get, {"id": task_id}, origin="https://BUYER.platform.com:443", bearer=True)
-    assert polled.status_code == 200, polled.text
-    assert polled.json()["result"]["id"] == task_id
-    assert controlled[-1] == (task_id, ORIGIN)
-    assert bearer == []
-    canceled = await post(cancel, {"id": task_id})
-    assert canceled.status_code == 200, canceled.text
-    assert "canceled" in canceled.json()["result"]["status"]["state"].lower()
-    assert len(started) == 1
-    # Cancellation must persist under the old origin rather than migrating the row.
-    assert await store.get(task_id, ServerCallContext()) is None
-    denied = await post(
-        "message/send",
-        {
-            "message": {
-                "messageId": "new",
-                "role": "user",
-                "parts": [{"kind": "data", "data": {"skill": "get_products", "parameters": {}}}],
-            }
-        },
-    )
-    assert denied.json()["result"]["status"]["state"] == "failed", denied.text
+    controlled.clear()
+    # Identity-established for every request, polling and cancelling the
+    # tasks it created while listed included: what an anonymous caller gets.
+    anonymous = await post(method, {"id": task_id})
+    assert anonymous.status_code == 401, anonymous.text
+    assert "accept-signature" not in anonymous.headers
+    # An independent bearer credential is its own owner, never the origin's.
+    with_bearer = await post(method, {"id": task_id}, bearer=True)
+    assert_not_found(with_bearer)
+    assert (task_id, ORIGIN) not in controlled
     assert len(started) == 1
 
 
 @pytest.mark.parametrize(
     "method", ["CancelTask", "SubscribeToTask", "tasks/cancel", "tasks/resubscribe"]
 )
-@pytest.mark.parametrize("delisted", [False, True])
-async def test_active_tasks_cannot_be_controlled_by_another_origin(task_env, method, delisted):
+async def test_active_tasks_cannot_be_controlled_by_another_origin(task_env, method):
     post, start, store, now, mode, started, bearer, controlled = task_env
     task_id = await start(OTHER)
-    if delisted:
-        mode[0], now[0] = "delisted", 1061
     # Even duplicate IDs in two owner-scoped partitions must not let the
     # globally indexed ActiveTask of OTHER be canceled/subscribed by ORIGIN.
     await store.save(
@@ -381,66 +366,12 @@ async def test_active_tasks_cannot_be_controlled_by_another_origin(task_env, met
     assert own.json()["result"]["status"]["state"] == "TASK_STATE_WORKING", own.text
 
 
-@pytest.mark.parametrize("method", ["GetTask", "CancelTask", "SubscribeToTask"])
-async def test_delisted_task_control_never_promotes_anonymous_tasks(task_env, method):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    await start()
-    await store.save(
-        pb.Task(
-            id="anonymous",
-            context_id="anonymous",
-            status=pb.TaskStatus(state=pb.TaskState.TASK_STATE_WORKING),
-        ),
-        ServerCallContext(),
-    )
-    mode[0], now[0] = "delisted", 1061
-    assert_not_found(await post(method, {"id": "anonymous"}))
-
-
 async def test_delisted_task_listing_is_not_admitted(task_env):
     post, start, store, now, mode, started, bearer, controlled = task_env
     await start()
     mode[0], now[0] = "delisted", 1061
     response = await post("ListTasks", {})
     assert response.status_code == 401
-
-
-@pytest.mark.parametrize("method", ["tasks/get", "tasks/cancel"])
-async def test_mcp_prior_task_controls_retain_normal_unsupported_method_response(task_env, method):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    await start()
-    mode[0], now[0] = "delisted", 1061
-    response = await post(method, {"taskId": "existing"}, path="/mcp")
-    assert response.status_code == 200, response.text
-    assert response.json()["error"]["code"] == -32601, response.text
-    assert len(started) == 1
-
-
-@pytest.mark.parametrize("method", ["SubscribeToTask", "tasks/resubscribe"])
-async def test_delisted_origin_can_subscribe_to_its_existing_active_task(task_env, method):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    task_id = await start()
-    mode[0], now[0] = "delisted", 1061
-    subscription = asyncio.create_task(post(method, {"id": task_id}))
-    try:
-        # The store lookup proves subscription reached the owner guard before
-        # ending the active task. Waits are bounded to expose deadlocks clearly.
-        async def subscribed() -> None:
-            while (task_id, ORIGIN) not in controlled:
-                await asyncio.sleep(0)
-
-        controlled.clear()
-        await asyncio.wait_for(subscribed(), 2)
-        canceled = await post("CancelTask", {"id": task_id})
-        assert canceled.status_code == 200, canceled.text
-        response = await asyncio.wait_for(subscription, 5)
-        assert response.status_code == 200, response.text
-        assert task_id in response.text
-        assert "canceled" in response.text.lower()
-    finally:
-        if not subscription.done():
-            subscription.cancel()
-        await asyncio.gather(subscription, return_exceptions=True)
 
 
 @pytest.mark.parametrize("method", ["CancelTask", "SubscribeToTask"])
@@ -466,30 +397,12 @@ async def test_registry_replacement_is_checked_on_the_exact_task_used(
     assert foreign.json()["result"]["status"]["state"] == "TASK_STATE_WORKING"
 
 
-@pytest.mark.parametrize("method", ["GetTask", "CancelTask", "SubscribeToTask"])
-async def test_signer_outage_never_inherits_the_delisted_task_owner(task_env, method):
+async def test_delisted_principal_introspection_stays_demoted_during_later_outage(task_env):
     post, start, store, now, mode, started, bearer, controlled = task_env
-    task_id = await start()
+    await start()
     mode[0], now[0] = "delisted", 1061
-    assert (await post("GetTask", {"id": task_id})).status_code == 200
-    store.signer_unavailable = True
-    controlled.clear()
-    response = await post(method, {"id": task_id}, bearer=True)
-    assert response.status_code == 503, response.text
-    assert response.json()["errors"][0]["code"] == "SERVICE_UNAVAILABLE"
-    assert "accept-signature" not in response.headers
-    assert controlled == []
-    assert bearer == []
-    assert len(started) == 1
-
-
-async def test_task_exception_keeps_principal_introspection_demoted_during_later_outage(task_env):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    task_id = await start()
-    mode[0], now[0] = "delisted", 1061
-    assert (await post("GetTask", {"id": task_id})).status_code == 200
+    assert (await post("GetTask", {"id": "any"})).status_code == 401
     mode[0], now[0] = "offline", 1122
-    assert (await post("GetTask", {"id": task_id})).json()["result"]["id"] == task_id
     response = await post(
         "message/send",
         {
@@ -536,33 +449,12 @@ async def test_new_message_cannot_retarget_a_foreign_active_task(task_env):
 async def test_real_client_disconnect_ends_only_the_owned_subscription(task_env, method):
     post, start, store, now, mode, started, bearer, controlled = task_env
     task_id = await start()
-    mode[0], now[0] = "delisted", 1061
     response = await post(method, {"id": task_id}, disconnect_after_first_event=True)
     assert response.status_code == 200, response.text
     assert task_id in response.text
     assert "working" in response.text.lower()
     still_working = await post("GetTask", {"id": task_id})
     assert still_working.json()["result"]["status"]["state"] == "TASK_STATE_WORKING"
-
-
-async def test_delisted_task_owner_supersedes_an_outer_authenticated_user(task_env):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    own_id, foreign_id = await start(), await start(OTHER)
-    mode[0], now[0] = "delisted", 1061
-    own = await post("GetTask", {"id": own_id}, preauthenticated_origin=OTHER)
-    assert own.json()["result"]["id"] == own_id
-    assert_not_found(await post("GetTask", {"id": foreign_id}, preauthenticated_origin=OTHER))
-    assert bearer == []
-
-
-async def test_prior_task_control_uses_the_single_evaluated_binding_decision(task_env):
-    post, start, store, now, mode, started, bearer, controlled = task_env
-    task_id = await start()
-    mode[0], now[0] = "delisted", 1061
-    store.max_binding_reads = len(store.binding_reads) + 1
-    response = await post("GetTask", {"id": task_id})
-    assert response.json()["result"]["id"] == task_id
-    assert len(store.binding_reads) == store.max_binding_reads
 
 
 @pytest.mark.parametrize("task_env", [True], indirect=True)

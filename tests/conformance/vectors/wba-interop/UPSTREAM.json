@@ -1,0 +1,14 @@
+{
+  "repository": "adcontextprotocol/adcp-client",
+  "path": "test/fixtures/wba-interop/",
+  "commit": "577f21e82a7c9f640e69d073f0856700f3601fe7",
+  "pull_request": 3250,
+  "retrieved": "2026-10-15",
+  "sha256": {
+    "adcp-client-signed-body-request.json": "1cddbc211fb3544f7b5266af8b61ad33969c8112bf2551b906f11d39ad437e69",
+    "adcp-client-signed-percent-encoded-path.json": "20f2751e832ff20c8bfe8893efa87602f5453acfe30ba862e8ad9afb6c5616ab",
+    "cloudflare-signed-body-request.json": "d7ed4ee6548b6f5e87b3cfa1ef5881a5e357ec3888aaf31edd831e3e73ce57b1",
+    "cloudflare-signed-percent-encoded-path.json": "3fc3bcef09e9b3539fc9e4ffcad9e558335e6571c177cc11d0036dbaa6c12b0f",
+    "keys.json": "df42015a43758bc577f46e491d20d274195ede7dcbce2f950a7547b853652c51"
+  }
+}

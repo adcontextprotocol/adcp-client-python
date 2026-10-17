@@ -91,7 +91,15 @@ dependencies = [
     # streamable-HTTP session manager's explicit configuration arguments.
     "mcp>=2.0.0,<3.0",
     "email-validator>=2.0.0",
-    "cryptography>=41.0.0",
+    # Floor at 45.0.1 because joserfc (below) requires it.
+    "cryptography>=45.0.1",
+    # JOSE (RFC 7515 JWS, RFC 7517 JWK, RFC 7638 thumbprints) for
+    # ``adcp.signing.jws`` and ``adcp.signing.keygen``: the SDK keeps only the
+    # AdCP profile rules (typ, alg allow-list, strict JSON) on top. BSD-3.
+    "joserfc>=1.7.5,<2",
+    # Standard Webhooks v1, the specification's own reference package, for
+    # ``adcp.signing.standard_webhooks``. MIT, no dependencies.
+    "standardwebhooks>=1.1.0,<2",
     # RFC 8785 JSON Canonicalization Scheme — used by the server-side
     # idempotency middleware to compute the spec-mandated payload hash for
     # replay detection. Tiny pure-Python dep, no transitive weight.

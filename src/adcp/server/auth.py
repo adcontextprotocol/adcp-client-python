@@ -92,7 +92,6 @@ from adcp.server.mcp_tools import DISCOVERY_METHODS, DISCOVERY_TOOLS
 from adcp.server.signed_requests import (
     scope_has_verified_signer,
     scope_has_wba_error_projection,
-    scope_has_wba_prior_task_control,
     signature_fallback_code,
 )
 from adcp.signing.errors import signature_challenge
@@ -641,9 +640,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         tenant_token = None
         metadata_token = None
         try:
-            if scope_has_wba_error_projection(request.scope) or scope_has_wba_prior_task_control(
-                request.scope
-            ):
+            if scope_has_wba_error_projection(request.scope):
                 principal_token = current_principal.set(None)
                 tenant_token = current_tenant.set(None)
                 metadata_token = current_principal_metadata.set(None)
@@ -1745,11 +1742,11 @@ class A2ABearerAuthMiddleware:
             await self._app(scope, receive, send)
             return
 
-        if scope_has_wba_error_projection(scope) or scope_has_wba_prior_task_control(scope):
+        if scope_has_wba_error_projection(scope):
             from starlette.requests import Request
 
-            # Error-only dispatch or the delisted origin's old task owner
-            # cannot establish a commercial principal or use bearer fallback.
+            # Error-only dispatch cannot establish a commercial principal or
+            # use bearer fallback.
             principal_token = current_principal.set(None)
             tenant_token = current_tenant.set(None)
             metadata_token = current_principal_metadata.set(None)

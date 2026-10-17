@@ -34,7 +34,8 @@ from adcp.signing import (
     sign_wba_request,
 )
 from adcp.signing.middleware import VERIFIED_SIGNER_SCOPE_KEY
-from adcp.signing.trust import TrustRecordMatchError, TrustRecordNotFoundError
+from adcp.signing.trust import TrustRecordMatchError, TrustRecordUnavailableError
+from adcp.signing.wba import GENERIC_AUTHENTICATION_ERROR
 
 ORIGIN = "https://buyer.platform.com"
 TARGET = "https://seller.com/mcp"
@@ -52,28 +53,27 @@ def test_a2a_list_tasks_alias_is_nonspend_and_unknown_operations_fail_closed():
     assert is_wba_spend_committing("")
 
 
-@pytest.mark.parametrize("revoked", [False, True, "unavailable"])
+@pytest.mark.parametrize("state", ["revoked", "required", "anonymous", "revocation_unreadable"])
 @pytest.mark.parametrize("transport", ["mcp", "a2a"])
-async def test_standalone_middleware_never_calls_app_that_ignores_pending_denial(
-    revoked, transport
-):
+async def test_standalone_middleware_renders_layered_outcomes(state, transport):
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
     invoked = []
 
     async def check_key(origin, keyid):
-        if revoked == "unavailable":
+        if state == "revocation_unreadable":
             raise OSError("private outage details")
-        return revoked
+        return state == "revoked"
 
     async def unsafe_dispatch(scope, receive, send):
-        invoked.append(True)
+        invoked.append(scope.get(VERIFIED_SIGNER_SCOPE_KEY))
         await JSONResponse({"side_effect": True})(scope, receive, send)
 
     config = RequestSignatureVerification(
         signer_keys=StaticSignerKeys({ORIGIN: {"keys": [jwk]}}),
         enable_web_bot_auth=True,
         wba_revocation_checker=check_key,
+        required_for=frozenset({"create_media_buy"}) if state == "required" else frozenset(),
     )
     app = SignedRequestVerificationMiddleware(unsafe_dispatch, config, transport=transport)
     payload = {
@@ -111,26 +111,34 @@ async def test_standalone_middleware_never_calls_app_that_ignores_pending_denial
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app)) as client:
         response = await client.post(TARGET, content=body, headers=headers)
-    assert response.status_code == (503 if revoked == "unavailable" else 401)
-    if revoked == "unavailable":
-        assert response.json() == {
-            "errors": [
-                {
-                    "code": "SERVICE_UNAVAILABLE",
-                    "message": "Signer identity is temporarily unavailable",
-                    "recovery": "transient",
-                }
-            ]
-        }
-    else:
-        assert response.json() == {"error": "unauthenticated"}
     assert "Accept-Signature" not in response.headers
-    assert not invoked
+    if state == "revoked":
+        # Signature path: 403, the generic authentication error.
+        assert response.status_code == 403
+        assert response.json() == GENERIC_AUTHENTICATION_ERROR
+        assert not invoked
+    elif state == "required":
+        # Authorization layer: the AdCP envelope, no details.
+        assert response.status_code == 403
+        (error,) = response.json()["errors"]
+        assert error["code"] == "PERMISSION_DENIED"
+        assert not error.get("details")
+        assert not invoked
+    else:
+        # An unbound, identity-established signer outside unbound_for is
+        # served exactly as an anonymous request: no verified signer.
+        assert response.status_code == 200
+        assert invoked == [None]
 
 
 @asynccontextmanager
 async def bound_client(
-    *, transport="mcp", unbound_for=(), spend_classifier=None, defer_authorization_errors=True
+    *,
+    transport="mcp",
+    unbound_for=(),
+    spend_classifier=None,
+    defer_authorization_errors=True,
+    required_for=(),
 ):
     private = ed25519.Ed25519PrivateKey.generate()
     jwk = public_directory_key(private)
@@ -154,7 +162,13 @@ async def bound_client(
     bindings = OriginBindings()
     approved = await records.bind(
         VerifiedSigner(
-            jwk["kid"], "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            jwk["kid"],
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         ),
         principal_id="principal-1",
         bindings=bindings,
@@ -168,6 +182,7 @@ async def bound_client(
         trust_records=records,
         wba_revocation_checker=not_revoked,
         unbound_for=frozenset(unbound_for),
+        required_for=frozenset(required_for),
         **options,
     )
     observed = []
@@ -181,7 +196,13 @@ async def bound_client(
                 scope, receive, send
             )
             return
-        principal = context.metadata["adcp.auth_info"].extra["principal_id"]
+        auth_info = context.metadata.get("adcp.auth_info") if context is not None else None
+        if auth_info is None:
+            # Served exactly as an anonymous request: no verified signer.
+            observed.append(("anonymous", None))
+            await JSONResponse({"principal": None, "anonymous": True})(scope, receive, send)
+            return
+        principal = auth_info.extra["principal_id"]
         user = scope.get("user")
         observed.append((principal, getattr(user, "display_name", None)))
         await JSONResponse({"principal": principal})(scope, receive, send)
@@ -219,9 +240,9 @@ async def bound_client(
         yield post, now, mode, bindings, records, observed, config, dispatch
 
 
-@pytest.mark.parametrize("mode_name", ["delisted", "removed", "role_changed"])
-async def test_delisted_binding_retains_anonymous_reads_principal_and_prevents_rebinding(mode_name):
-    async with bound_client(unbound_for={"get_products"}) as (
+@pytest.mark.parametrize("mode_name", ["delisted", "role_changed"])
+async def test_delisted_binding_falls_back_to_identity_established_without_rebinding(mode_name):
+    async with bound_client(unbound_for={"get_products"}, required_for={"create_media_buy"}) as (
         post,
         now,
         mode,
@@ -236,17 +257,55 @@ async def test_delisted_binding_retains_anonymous_reads_principal_and_prevents_r
         response = await post("get_products")
         assert response.json()["principal"] is None
         assert (await post("get_principal")).json()["principal"] is None
+        # Anything else is what an anonymous caller gets.
+        assert (await post("get_media_buys")).json() == {"principal": None, "anonymous": True}
+        # The binding is kept, so no RFC 9421 downgrade; it cannot be bound again.
         assert await bindings(ORIGIN) == "principal-1"
         signer = VerifiedSigner(
-            "kid", "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            "kid",
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         )
-        with pytest.raises((TrustRecordMatchError, ValueError)):
+        with pytest.raises(TrustRecordMatchError):
             await records.bind(signer, principal_id="principal-1", bindings=bindings)
+        # A known delisting survives a later outage.
         mode[0], now[0] = "offline", 1122
         assert (await post("get_products")).json()["principal"] is None
         response = await post("create_media_buy")
-        assert response.json()["structuredContent"]["adcp_error"]["code"] == "PERMISSION_DENIED"
+        error = response.json()["structuredContent"]["adcp_error"]
+        assert error["code"] == "PERMISSION_DENIED"
+        assert not error.get("details")
         assert "Accept-Signature" not in response.headers
+
+
+@pytest.mark.parametrize("failure", ["removed", "invalid", "offline"])
+async def test_operator_404_or_invalid_record_after_a_read_is_an_outage_not_a_delisting(failure):
+    async with bound_client(unbound_for={"get_products"}) as (
+        post,
+        now,
+        mode,
+        bindings,
+        records,
+        observed,
+        config,
+        dispatch,
+    ):
+        assert (await post("get_products")).json()["principal"] == "principal-1"
+        mode[0], now[0] = failure, 1061
+        # Non-spend continues under the binding within the outage bound.
+        assert (await post("get_products")).json()["principal"] == "principal-1"
+        spend = (await post("create_media_buy")).json()["structuredContent"]["adcp_error"]
+        assert spend["code"] == "SERVICE_UNAVAILABLE"
+        assert spend["recovery"] == "transient"
+        now[0] = 1300
+        late = (await post("get_products")).json()["structuredContent"]["adcp_error"]
+        assert late["code"] == "SERVICE_UNAVAILABLE"
+        mode[0], now[0] = "valid", 1361
+        assert (await post("get_products")).json()["principal"] == "principal-1"
 
 
 @pytest.mark.parametrize(
@@ -275,18 +334,24 @@ async def test_binding_outage_grace_boundary_is_shared_across_transport_ports():
             dispatch, config, transport="a2a", defer_authorization_errors=True
         )
         signer = VerifiedSigner(
-            "kid", "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            "kid",
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         )
-        established, error = await a2a._authorize_wba_signer(signer, "get_media_buys")
+        principal, error = await a2a._authorize_wba_binding(signer, "get_media_buys")
         assert error is None
-        assert established.principal_id == "principal-1"
+        assert principal == "principal-1"
         now[0] = 1300
         response = await post("get_media_buys")
         error = response.json()["structuredContent"]["adcp_error"]
         assert error["code"] == "SERVICE_UNAVAILABLE"
         assert error["recovery"] == "transient"
         assert "Accept-Signature" not in response.headers
-        _, error = await a2a._authorize_wba_signer(signer, "get_media_buys")
+        _, error = await a2a._authorize_wba_binding(signer, "get_media_buys")
         assert error.code == "SERVICE_UNAVAILABLE"
         assert len(observed) == 2
 
@@ -342,20 +407,23 @@ async def test_binding_final_check_rejects_newer_policy_or_time_after_evaluation
                 mode[0], now[0] = newer_policy, 1061
                 try:
                     await evaluate("https://other.platform.com")
-                except TrustRecordNotFoundError:
-                    # Retain the removal, then return the older in-flight listing
-                    # so the framework's final guard must reject that snapshot.
+                except TrustRecordUnavailableError:
+                    # A 404 after a read is an outage: it supersedes nothing.
                     assert newer_policy == "removed"
             return captured
 
         monkeypatch.setattr(records, "evaluate", delayed_evaluate)
         response = await post("get_media_buys")
-        if newer_policy == "expired":
+        if newer_policy in {"expired", "removed"}:
+            # The captured record expired while it was evaluated; a 404 is an
+            # outage, so nothing newer replaces it, and spend-free calls only
+            # continue on a record that is still inside its bound.
             assert (
                 response.json()["structuredContent"]["adcp_error"]["code"] == "SERVICE_UNAVAILABLE"
             )
             assert not observed
         else:
+            # A newer delisting read by another origin wins over the captured listing.
             assert response.json()["principal"] is None
             assert observed == [(None, None)]
 
@@ -371,9 +439,15 @@ async def test_historical_binding_without_prior_listing_cannot_continue_through_
             dispatch, replace(config, trust_records=restarted), transport="mcp"
         )
         signer = VerifiedSigner(
-            "kid", "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            "kid",
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         )
-        _, error = await middleware._authorize_wba_signer(signer, "get_media_buys")
+        _, error = await middleware._authorize_wba_binding(signer, "get_media_buys")
         assert error.code == "SERVICE_UNAVAILABLE"
         assert error.recovery == "transient"
 
@@ -407,17 +481,24 @@ async def test_other_origins_delisting_read_survives_cache_eviction_and_local_ca
             # A spend request made through a second middleware has never
             # observed the origin's membership itself; latest owner policy
             # still takes precedence over a local discovery-capacity outage.
-            fresh_config = replace(config)
-            fresh_config._binding_membership.clear()
             other_port = SignedRequestVerificationMiddleware(
-                dispatch, fresh_config, transport="a2a", defer_authorization_errors=True
+                dispatch, replace(config), transport="a2a", defer_authorization_errors=True
             )
             signer = VerifiedSigner(
-                "kid", "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+                "kid",
+                "ed25519",
+                "sig1",
+                time.time(),
+                agent_url=ORIGIN,
+                profile="web-bot-auth",
+                revocation="current",
             )
-            established, error = await other_port._authorize_wba_signer(signer, "create_media_buy")
-            assert established.principal_id is None
-            assert error.code == "PERMISSION_DENIED"
+            # Delisted: identity-established (no principal, no error), even
+            # for spend, never an outage.
+            assert await other_port._authorize_wba_binding(signer, "create_media_buy") == (
+                None,
+                None,
+            )
         finally:
             records._pending.pop("unrelated.com")
             release.set()
@@ -466,32 +547,6 @@ async def test_seller_can_classify_known_budget_reductions_using_local_state():
         ] == "principal-1"
 
 
-async def test_invalid_operator_record_then_outage_cannot_restore_commercial_binding():
-    async with bound_client(unbound_for={"get_products"}) as (
-        post,
-        now,
-        mode,
-        bindings,
-        records,
-        observed,
-        config,
-        dispatch,
-    ):
-        assert (await post("get_products")).json()["principal"] == "principal-1"
-        mode[0], now[0] = "invalid", 1061
-        invalid = await post("get_products")
-        assert invalid.json()["structuredContent"]["adcp_error"]["code"] == "PERMISSION_DENIED"
-        mode[0], now[0] = "offline", 1122
-        assert (await post("get_products")).json()["structuredContent"]["adcp_error"][
-            "code"
-        ] == "PERMISSION_DENIED"
-        assert (await post("create_media_buy")).json()["structuredContent"]["adcp_error"][
-            "code"
-        ] == "PERMISSION_DENIED"
-        mode[0], now[0] = "valid", 1183
-        assert (await post("get_products")).json()["principal"] == "principal-1"
-
-
 async def test_delisted_membership_is_shared_across_mcp_and_a2a_middleware():
     async with bound_client(unbound_for={"get_products"}) as (
         post,
@@ -510,15 +565,19 @@ async def test_delisted_membership_is_shared_across_mcp_and_a2a_middleware():
             dispatch, config, transport="a2a", defer_authorization_errors=True
         )
         signer = VerifiedSigner(
-            "kid", "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            "kid",
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         )
-        established, error = await a2a._authorize_wba_signer(signer, "create_media_buy")
-        assert established.principal_id is None
-        assert error.code == "PERMISSION_DENIED"
+        assert await a2a._authorize_wba_binding(signer, "create_media_buy") == (None, None)
 
 
 @pytest.mark.parametrize("method", ["tasks/get", "tasks/cancel"])
-async def test_delisted_a2a_origin_keeps_only_historical_task_owner(method):
+async def test_delisted_a2a_origin_gets_no_task_control_exception(method):
     async with bound_client(transport="a2a") as (
         post,
         now,
@@ -534,7 +593,9 @@ async def test_delisted_a2a_origin_keeps_only_historical_task_owner(method):
         mode[0], now[0] = "delisted", 1061
         response = await post("unused", method=method)
         assert response.status_code == 200
-        assert observed == [("principal-1", ORIGIN), (None, ORIGIN)]
+        # Identity-established for every request, task polling included:
+        # served exactly as an anonymous caller, with no historical owner.
+        assert observed == [("principal-1", ORIGIN), ("anonymous", None)]
         assert "Accept-Signature" not in response.headers
 
 
@@ -563,7 +624,13 @@ async def test_bound_identity_loses_authority_on_refresh_without_legacy_downgrad
     bindings = OriginBindings()
     await records.bind(
         VerifiedSigner(
-            jwk["kid"], "ed25519", "sig1", time.time(), agent_url=ORIGIN, profile="web-bot-auth"
+            jwk["kid"],
+            "ed25519",
+            "sig1",
+            time.time(),
+            agent_url=ORIGIN,
+            profile="web-bot-auth",
+            revocation="current",
         ),
         principal_id="principal-1",
         bindings=bindings,
@@ -575,6 +642,7 @@ async def test_bound_identity_loses_authority_on_refresh_without_legacy_downgrad
         trust_records=records,
         wba_revocation_checker=not_revoked,
         signing_profile_version="3.2",
+        required_for=frozenset({"create_media_buy"}),
     )
 
     async def dispatch(scope, receive, send):
@@ -705,6 +773,7 @@ async def test_unbound_policy_can_expose_anonymous_reads_and_explicit_open_onboa
         enable_web_bot_auth=True,
         wba_revocation_checker=not_revoked,
         unbound_for=frozenset({operation}),
+        required_for=frozenset({"create_media_buy"}),
     )
     app = SignedRequestVerificationMiddleware(
         dispatch, config, transport="mcp", defer_authorization_errors=True

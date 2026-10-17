@@ -1714,13 +1714,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
                 signing_profile=self._grant_signing_profile(ctx),
                 operation=tool_name,
-                bound_wba_identity=self._has_bound_wba_identity(ctx),
                 operation_params=(
                     request_params.model_dump(mode="json", exclude_unset=True)
                     if hasattr(request_params, "model_dump")
                     else request_params
                 ),
                 spend_committing=self._wba_spend_decision(ctx),
+                wba_revocation=self._wba_revocation(ctx),
             )
         elif self._brand_authorization_gate is not None:
             buyer_agent_for_gate = cast(
@@ -1741,15 +1741,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         return value if isinstance(value, bool) else None
 
     @classmethod
-    def _has_bound_wba_identity(cls, ctx: ToolContext) -> bool:
-        """Only trusted transport state can preserve an established binding."""
+    def _wba_revocation(cls, ctx: ToolContext) -> str | None:
+        """The verified signer's revocation state, from trusted transport metadata."""
         auth_info = cls._extract_auth_info(ctx)
-        return bool(
-            auth_info is not None
-            and auth_info.extra.get("signing_profile") == "web-bot-auth"
-            and isinstance(auth_info.extra.get("principal_id"), str)
-            and auth_info.extra["principal_id"]
-        )
+        if auth_info is None or auth_info.extra.get("signing_profile") != "web-bot-auth":
+            return None
+        value = auth_info.extra.get("wba_revocation")
+        return value if isinstance(value, str) else None
 
     @classmethod
     def _grant_signing_profile(
@@ -3177,14 +3175,20 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                     if hasattr(declaration, "model_dump")
                     else declaration
                 )
-                if isinstance(row, dict) and row.get("account_id") and "brand" not in row:
-                    await self._resolve_account(row, tool_ctx, tool_name="sync_accounts")
-                else:
-                    await self._trust_grant_gate.require_declaration(
-                        row,
-                        tool_ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
-                        signing_profile=self._grant_signing_profile(tool_ctx),
+                if isinstance(row, dict) and row.get("account_id"):
+                    # An existing account's authority comes from seller-owned
+                    # state, never from brand/operator fields beside its id.
+                    await self._resolve_account(
+                        {"account_id": row["account_id"]}, tool_ctx, tool_name="sync_accounts"
                     )
+                    if "brand" not in row and "operator" not in row:
+                        continue
+                await self._trust_grant_gate.require_declaration(
+                    row if isinstance(row, Mapping) else {},
+                    tool_ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
+                    signing_profile=self._grant_signing_profile(tool_ctx),
+                    wba_revocation=self._wba_revocation(tool_ctx),
+                )
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
         if callable(upsert_request):
             result = _call_with_optional_ctx(upsert_request, params, ctx=resolve_ctx)

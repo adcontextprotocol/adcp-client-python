@@ -309,3 +309,77 @@ def test_signature_produced_with_pem_verifies_against_jwk(alg: str) -> None:
         jwks_resolver=StaticJwksResolver({"keys": [jwk]}),
     )
     verify_request_signature(method="POST", url=url, headers=headers, body=body, options=options)
+
+
+# ---------------------------------------------------------------------------
+# Library delegation — key generation and JWK export run through joserfc.
+# These pin the behavior that used to be hand-written so a joserfc upgrade
+# that changes it fails here rather than at a verifier.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("alg", "expected_members"),
+    [
+        ("ed25519", ["kty", "crv", "alg", "use", "key_ops", "adcp_use", "kid", "x"]),
+        ("es256", ["kty", "crv", "alg", "use", "key_ops", "adcp_use", "kid", "x", "y"]),
+    ],
+)
+def test_public_jwk_has_exactly_the_public_members_in_order(
+    alg: str, expected_members: list[str]
+) -> None:
+    """Only public members, in the order the CLI prints them. No ``d`` and
+    no other private RFC 7518 member can leak from the library export."""
+    _, jwk = generate_signing_keypair(alg=alg, kid="k")
+    assert list(jwk) == expected_members
+
+
+@pytest.mark.parametrize("alg", ["ed25519", "es256"])
+def test_jwk_thumbprint_matches_pem_key_and_wba_helper(alg: str) -> None:
+    """The RFC 7638 thumbprint of the published JWK equals the thumbprint of
+    the PEM's key, and the AdCP members (``adcp_use``, ``key_ops`` ...) do
+    not perturb it. Cross-checks joserfc against ``thumbprint_key_id``."""
+    from joserfc.jwk import ECKey, OKPKey
+
+    from adcp.signing.wba import thumbprint_key_id
+
+    pem, jwk = generate_signing_keypair(alg=alg, kid="k")
+    key_cls = OKPKey if alg == "ed25519" else ECKey
+    from_pem = key_cls.import_key(pem)
+    assert thumbprint_key_id(jwk) == from_pem.thumbprint()
+
+
+@pytest.mark.parametrize("alg", ["ed25519", "es256"])
+def test_pem_is_pkcs8(alg: str) -> None:
+    """Plain PEM is unencrypted PKCS#8; encrypted PEM is encrypted PKCS#8."""
+    pem, _ = generate_signing_keypair(alg=alg, kid="k")
+    assert pem.startswith(b"-----BEGIN " + b"PRIVATE KEY-----")
+    enc, _ = generate_signing_keypair(alg=alg, kid="k", passphrase=b"pw")
+    assert enc.startswith(b"-----BEGIN ENCRYPTED " + b"PRIVATE KEY-----")
+
+
+def test_non_utf8_passphrase_is_used_byte_exact() -> None:
+    """``passphrase`` is ``bytes``; joserfc annotates its password as ``str``
+    but must pass bytes through unchanged. A non-UTF-8 passphrase has to
+    round-trip with the same bytes."""
+    passphrase = b"\xff\xfe\x00not-utf8"
+    pem, _ = generate_signing_keypair(alg="ed25519", kid="k", passphrase=passphrase)
+    key = serialization.load_pem_private_key(pem, password=passphrase)
+    assert isinstance(key, ed25519.Ed25519PrivateKey)
+
+
+def test_pem_to_adcp_jwk_rejects_non_p256_public_pem() -> None:
+    """The curve allow-list is AdCP policy and stays in the SDK: joserfc
+    would happily export a P-384 JWK."""
+    from adcp.signing import pem_to_adcp_jwk
+
+    spki = (
+        ec.generate_private_key(ec.SECP384R1())
+        .public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+    with pytest.raises(ValueError, match="is not supported"):
+        pem_to_adcp_jwk(spki, kid="k", purpose="request-signing")

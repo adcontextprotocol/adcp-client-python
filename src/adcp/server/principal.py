@@ -15,13 +15,14 @@ import unicodedata
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 from pydantic import BaseModel, TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
+from adcp._version import normalize_to_release_precision
 from adcp.server.idempotency import canonical_json_sha256
 from adcp.types import (
     AgentDeclarations,
@@ -37,6 +38,31 @@ from adcp.types import (
     SyncPrincipalRequest,
     SyncPrincipalResponse,
 )
+
+if TYPE_CHECKING:
+    from adcp.server.base import ToolContext
+
+# get_principal relationship is added in AdCP 3.3 (DR-0024): result arms served
+# below 3.3 are closed, so the field is emitted only at 3.3 or later.
+_RELATIONSHIP_MIN_RELEASE = (3, 3)
+
+
+def _serves_relationship(context: ToolContext | None) -> bool:
+    """Whether the response is served at release 3.3 or later.
+
+    Compares release precision (major.minor), so a 3.3 prerelease counts as 3.3.
+    An absent, unversioned or unparseable version is treated as pre-3.3.
+    """
+    version = getattr(context, "resolved_adcp_version", None)
+    if not isinstance(version, str):
+        return False
+    try:
+        release = normalize_to_release_precision(version)
+    except ValueError:
+        return False
+    major, minor = release.split("-", 1)[0].split(".")[:2]
+    return (int(major), int(minor)) >= _RELATIONSHIP_MIN_RELEASE
+
 
 # AgentReportingDestination is a union, so validation goes through an adapter.
 
@@ -371,10 +397,23 @@ class PrincipalService:
         self,
         identity: PrincipalIdentity,
         request: GetPrincipalRequest | Mapping[str, Any] | None = None,
+        *,
+        context: ToolContext | None = None,
     ) -> GetPrincipalResponse:
-        """Read state and optional experimental relationship for this authenticated caller."""
+        """Read state and optional experimental relationship for this authenticated caller.
+
+        ``relationship`` is a 3.3-only field: the resolver is consulted, and the
+        field emitted, only when ``context.resolved_adcp_version`` is 3.3 or
+        later. Without a context, or for an unversioned or older release, the
+        response keeps the closed pre-3.3 result shape. Pass the handler's
+        ``ToolContext`` so the served release is known.
+        """
         response = await self._get_principal_state(identity, request)
-        if self._relationship_resolver is None or response.result.kind == "failed":
+        if (
+            self._relationship_resolver is None
+            or response.result.kind == "failed"
+            or not _serves_relationship(context)
+        ):
             return response
         relationship = await self._relationship_resolver(identity)
         if relationship is None:

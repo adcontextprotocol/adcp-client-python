@@ -25,6 +25,7 @@ from adcp.types.experimental_identity import (
     PrincipalCurrentResult,
     PrincipalRecognizedResult,
     PrincipalRelationship,
+    PrincipalRelationshipStatus,
     PrincipalUnconfiguredResult,
     RequestSigning,
 )
@@ -42,6 +43,11 @@ def principal_relationship(response: GetPrincipalResponse) -> PrincipalRelations
         return None
     assert_type(response.result.relationship, PrincipalRelationship | None)
     return response.result.relationship
+
+
+def relationship_pending(relationship: PrincipalRelationship) -> bool:
+    assert_type(relationship.status, PrincipalRelationshipStatus)
+    return relationship.status is PrincipalRelationshipStatus.pending_approval
 
 
 def onboarding_message(response: GetAdcpCapabilitiesResponse) -> str | None:

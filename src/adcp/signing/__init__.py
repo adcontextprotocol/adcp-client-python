@@ -336,6 +336,7 @@ from adcp.signing.trust import (
     GrantAuthorization,
     GrantRequest,
     TrustGrantEvaluator,
+    TrustListing,
     TrustRecordAbsentError,
     TrustRecordError,
     TrustRecordEvaluator,
@@ -360,8 +361,11 @@ from adcp.signing.wba import (
     DiscoveredSignerKeys,
     OriginRevocationChecker,
     WbaAuthorizationError,
+    WbaDiscoveryError,
+    WbaRevokedKeyError,
     WbaUnavailableError,
     WbaVerificationError,
+    check_wba_revocation,
     public_directory_key,
     sign_key_directory,
     sign_wba_request,
@@ -394,11 +398,19 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
                 "`poetry add 'adcp[pg]'`)."
             )
 
+    # Resolve like the real class, so the public-API snapshot does not depend
+    # on whether the optional extra is installed.
+    PgReplayStore.__module__ = "adcp.signing.pg.replay_store"
+
 
 __all__ = [
     "GrantRequest",
     "WbaAuthorizationError",
+    "WbaDiscoveryError",
+    "WbaRevokedKeyError",
     "WbaUnavailableError",
+    "check_wba_revocation",
+    "TrustListing",
     "RevocationDetails",
     "OriginRevocationChecker",
     "EvaluatedTrustRecord",

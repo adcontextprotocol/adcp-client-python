@@ -1,12 +1,12 @@
 """Standard Webhooks v1 signing + verifying.
 
-Pure-Python implementation of the standardwebhooks.com v1 spec
-(https://www.standardwebhooks.com/) so adopters can deliver webhooks to
-buyers running Svix, Resend, or any other Standard-Webhooks verifier
-without custom code, and verify Standard-Webhooks-signed inbound
-webhooks too.
+Thin AdCP wrappers over the specification's own reference package,
+:mod:`standardwebhooks` (https://www.standardwebhooks.com/), so adopters
+can deliver webhooks to buyers running Svix, Resend, or any other
+Standard-Webhooks verifier without custom code, and verify
+Standard-Webhooks-signed inbound webhooks too.
 
-Wire format (per spec):
+Wire format (per spec, implemented by :class:`standardwebhooks.Webhook`):
 
 * ``webhook-id`` — a unique identifier for this delivery (UUID is fine).
 * ``webhook-timestamp`` — Unix epoch seconds, string.
@@ -14,22 +14,29 @@ Wire format (per spec):
   ``v1,<base64>`` where the base64 value is
   ``HMAC-SHA256(secret, f"{webhook_id}.{webhook_timestamp}.{body}")``.
 
-Secrets are typically distributed in the canonical ``whsec_<base64>`` form;
-:func:`decode_secret` strips the prefix and base64-decodes to raw bytes.
-The signing/verifying functions take raw bytes — pass the decoded form.
+The library computes the signature (:meth:`standardwebhooks.Webhook.sign`).
+This module keeps only what the SDK's API promises on top of it:
 
-Why standalone (not depending on the ``standardwebhooks`` PyPI package):
-~80 LOC. The package's dependency footprint is not worth carrying for an
-algorithm this size, and a pure-Python implementation removes one
-moving part from our supply chain.
+* an injectable clock and tolerance. ``Webhook.verify`` reads the wall
+  clock with a fixed five-minute window and offers no public way to change
+  it, so verification calls ``Webhook.sign`` and matches the ``v1`` tokens
+  itself, in constant time, until the library exposes one;
+* strict secret decoding (:func:`decode_secret`) that fails fast on a
+  corrupted ``whsec_`` value instead of deriving a different key;
+* a canonical-integer ``webhook-timestamp`` (the library accepts floats
+  and signs the floored value, not the bytes on the wire);
+* raw-bytes bodies and :class:`StandardWebhookError` for every failure.
 """
 
 from __future__ import annotations
 
 import base64
-import hashlib
 import hmac
 from collections.abc import Mapping
+from datetime import datetime, timezone
+
+from standardwebhooks import Webhook
+from standardwebhooks.webhooks import EmptyWebhookSecretError
 
 # Header names per spec — case-insensitive on the wire; we match
 # case-folded.
@@ -42,14 +49,44 @@ HEADER_SIGNATURE = "webhook-signature"
 # generic-high-entropy detector pattern-matches ``whsec_<long-base64>``
 # even in obvious test files; importing the constant keeps the literal
 # in this single source-of-truth module).
-SECRET_PREFIX = "whsec_"
+SECRET_PREFIX = "whsec_"  # nosec B105 - the public secret prefix, not a secret
 _SECRET_PREFIX = SECRET_PREFIX  # backward-compat alias for in-module use
-_SIGNATURE_VERSION = "v1"
 _DEFAULT_TOLERANCE_SECONDS = 300
 
 
 class StandardWebhookError(Exception):
     """Raised when Standard Webhooks signing or verification fails."""
+
+
+def _to_datetime(timestamp: int, *, header: str | None = None) -> datetime:
+    try:
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError) as exc:
+        if header is not None:
+            raise StandardWebhookError(f"invalid webhook-timestamp {header!r}") from exc
+        raise StandardWebhookError("timestamp is out of range") from exc
+
+
+def _webhook(secret: bytes) -> Webhook:
+    # The library base64-decodes ``str`` secrets leniently; the SDK's
+    # contract is raw key bytes (decode ``whsec_`` values with
+    # :func:`decode_secret`), so refuse strings rather than reinterpret.
+    if not isinstance(secret, (bytes, bytearray)):
+        raise TypeError("secret must be raw key bytes; decode whsec_ secrets with decode_secret()")
+    try:
+        return Webhook(bytes(secret))
+    except EmptyWebhookSecretError as exc:
+        raise StandardWebhookError("secret must be non-empty") from exc
+
+
+def _body_text(body: bytes) -> str:
+    # The library signs ``str`` and re-encodes it as UTF-8. For valid
+    # UTF-8 that round trip is byte-exact; anything else cannot be
+    # represented, so reject it rather than sign different bytes.
+    try:
+        return bytes(body).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise StandardWebhookError("body must be UTF-8") from exc
 
 
 def decode_secret(secret: str) -> bytes:
@@ -63,6 +100,12 @@ def decode_secret(secret: str) -> bytes:
     Accepts both with-prefix (``whsec_AAAA...``) and without — pass-through
     for already-decoded callers. Padding is permissive (Svix-issued secrets
     sometimes lack ``=`` padding).
+
+    Kept rather than delegated: ``standardwebhooks.Webhook`` decodes with
+    non-validating base64, which silently drops stray characters and
+    yields a different key, so a corrupted secret would only surface as
+    every delivery failing verification at the buyer. This decoder
+    rejects it at configuration time.
     """
     if not isinstance(secret, str) or not secret:
         raise StandardWebhookError("secret must be a non-empty string")
@@ -72,7 +115,7 @@ def decode_secret(secret: str) -> bytes:
     padding = "=" * (-len(payload) % 4)
     try:
         # binascii.Error subclasses ValueError; one catch covers both.
-        return base64.b64decode(payload + padding, validate=True)
+        key = base64.b64decode(payload + padding, validate=True)
     except ValueError as exc:
         # Do NOT include the underlying exception message in the
         # StandardWebhookError text — the binascii error string echoes
@@ -82,6 +125,11 @@ def decode_secret(secret: str) -> bytes:
         # for the operator to diagnose (chained via ``from exc`` for
         # debug-mode introspection).
         raise StandardWebhookError("secret is not valid base64") from exc
+    if not key:
+        # A bare ``whsec_`` decodes to zero bytes, which the library
+        # refuses as a key; fail here, at configuration time.
+        raise StandardWebhookError("secret must be non-empty")
+    return key
 
 
 def sign_standard_webhook(
@@ -98,19 +146,19 @@ def sign_standard_webhook(
 
     The signature header value is ``v1,<base64>`` — multiple versions can
     coexist space-separated, but senders only emit ``v1`` (the only
-    version the spec defines).
+    symmetric version the spec defines).
     """
     if not msg_id:
         raise StandardWebhookError("msg_id must be non-empty")
-    if not isinstance(timestamp, int):
+    # ``bool`` is an ``int`` subclass; ``str(True)`` would put "True" on
+    # the wire while the library signs "1".
+    if not isinstance(timestamp, int) or isinstance(timestamp, bool):
         raise StandardWebhookError("timestamp must be an int (epoch seconds)")
-    message = f"{msg_id}.{timestamp}.".encode() + body
-    digest = hmac.new(secret, message, hashlib.sha256).digest()
-    encoded = base64.b64encode(digest).decode("ascii")
+    signature = _webhook(secret).sign(msg_id, _to_datetime(timestamp), _body_text(body))
     return {
         HEADER_ID: msg_id,
         HEADER_TIMESTAMP: str(timestamp),
-        HEADER_SIGNATURE: f"{_SIGNATURE_VERSION},{encoded}",
+        HEADER_SIGNATURE: signature,
     }
 
 
@@ -131,7 +179,8 @@ def verify_standard_webhook(
 
     ``headers`` may be any case-insensitive mapping. Multiple v1
     signatures in ``webhook-signature`` are accepted (per spec, for key
-    rotation) — verification succeeds if any one of them matches.
+    rotation) — verification succeeds if any one of them matches. Tokens
+    with other versions (``v1a``, future schemes) are ignored.
     """
     header_map = {str(k).lower(): str(v) for k, v in headers.items()}
     msg_id = header_map.get(HEADER_ID)
@@ -142,10 +191,18 @@ def verify_standard_webhook(
             "missing webhook-id, webhook-timestamp, or webhook-signature header"
         )
 
+    # Pre-checks the library cannot express: the caller's clock and
+    # tolerance, and a canonical integer timestamp. The library parses
+    # the header as a float and signs ``floor(value)``, so "+1700000000"
+    # or "1700000000.9" would be verified against bytes that differ from
+    # the header on the wire.
     try:
         ts_int = int(ts_value)
     except ValueError as exc:
         raise StandardWebhookError(f"invalid webhook-timestamp {ts_value!r}") from exc
+    if str(ts_int) != ts_value:
+        raise StandardWebhookError(f"invalid webhook-timestamp {ts_value!r}")
+    _to_datetime(ts_int, header=ts_value)
 
     skew = abs(now - ts_int)
     if skew > tolerance_seconds:
@@ -153,19 +210,21 @@ def verify_standard_webhook(
             f"timestamp skew {skew:.0f}s exceeds tolerance {tolerance_seconds}s"
         )
 
-    message = f"{msg_id}.{ts_value}.".encode() + body
-    expected = base64.b64encode(hmac.new(secret, message, hashlib.sha256).digest()).decode("ascii")
-
-    # Spec allows multiple space-separated tokens for key rotation:
-    # "v1,sig1 v1,sig2". Accept a match against any v1 token; ignore
-    # unknown versions (forward-compat with future signature schemes).
+    # The signature itself comes from the library (Webhook.sign). Matching is
+    # done here with public API only: Webhook.verify reads the wall clock with
+    # a fixed five-minute window that cannot be configured, so it cannot honor
+    # the caller's ``now`` and ``tolerance_seconds`` (tracked upstream; see the
+    # migration notes). The comparison is the spec's: any ``v1`` token,
+    # exact base64, constant time; other versions and malformed tokens are
+    # skipped.
+    expected = _webhook(secret).sign(msg_id, _to_datetime(ts_int), _body_text(body))
+    expected_value = expected.partition(",")[2]
     for token in sig_header.split(" "):
         version, _, value = token.partition(",")
-        if version != _SIGNATURE_VERSION or not value:
+        if version != "v1" or not value:
             continue
-        if hmac.compare_digest(expected, value):
+        if hmac.compare_digest(expected_value.encode("ascii"), value.encode("utf-8")):
             return
-
     raise StandardWebhookError("no matching v1 signature")
 
 

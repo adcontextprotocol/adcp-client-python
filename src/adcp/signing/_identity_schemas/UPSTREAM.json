@@ -3,43 +3,65 @@
   "sources": {
     "core/agent-onboarding.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "core/agent-onboarding-tier.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "core/agent-onboarding-requirement.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "core/buyer-onboarding-posture.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "enums/agent-onboarding-mode.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "enums/agent-onboarding-requirement-kind.json": {
       "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
-    },
-    "enums/buyer-onboarding-mode.json": {
-      "pr": 8170,
-      "commit": "8d3591e70e9a717c7fdfb513360a796fba24ca9a"
+      "branch": "bokelley/agent-onboarding-posture",
+      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
     },
     "core/principal-relationship.json": {
       "pr": 8168,
-      "commit": "45540941dfd61e80ab8a463f780cb147c82a32f0"
+      "branch": "bokelley/agent-identity-p4-principal",
+      "commit": "478f94edbd27b942235e0601652b1ae8cd3fbdd4"
     },
-    "trust/v1/trust.json": {
-      "pr": 8169,
-      "commit": "3ce6a14d7afaa71fa78ddf2223ed0421e01205ae"
+    "enums/principal-relationship-status.json": {
+      "pr": 8168,
+      "branch": "bokelley/agent-identity-p4-principal",
+      "commit": "478f94edbd27b942235e0601652b1ae8cd3fbdd4"
     },
     "core/identity-relying-party.json": {
-      "pr": 8169,
-      "commit": "3ce6a14d7afaa71fa78ddf2223ed0421e01205ae"
+      "pr": null,
+      "branch": "main",
+      "commit": "d5f56dbea17ed190fe9b499764be1b697dd33418"
+    },
+    "trust/v1/trust.json": {
+      "pr": null,
+      "branch": "main",
+      "commit": "d5f56dbea17ed190fe9b499764be1b697dd33418",
+      "composed_from": [
+        {
+          "pr": 8170,
+          "branch": "bokelley/agent-onboarding-posture",
+          "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+        },
+        {
+          "pr": 8169,
+          "branch": "bokelley/agent-identity-p5-grants",
+          "commit": "41615bda07eba8ade1e937134dc71d5d37683487"
+        }
+      ]
     }
   },
   "baseline_dependencies": {
@@ -48,8 +70,11 @@
   },
   "composition": {
     "trust/v1/trust.json": [
-      "agent.profiles.adcp.onboarding from PR #8170",
-      "record_profiles.adcp.onboarding from PR #8170"
+      "Base: origin/main trust/v1/trust.json at d5f56dbea17ed190fe9b499764be1b697dd33418 (unchanged on main since #8121, the merge base of both branches below).",
+      "Applied the PR #8170 diff (git diff origin/main...bokelley/agent-onboarding-posture): native profiles.adcp.onboarding on the record_profiles definition and on agents[].profiles.",
+      "Applied the PR #8169 diff (git diff origin/main...bokelley/agent-identity-p5-grants, which contains PR #8168): top-level description and the grant, brands, valid_until and exclusive_grants descriptions.",
+      "PR #8162 (bokelley/agent-identity-p3-security at f009439908f40dac971ffecfd3ff36ae32ba620e) changes only the top-level description, identically to PR #8168; the newer PR #8169 description supersedes it.",
+      "The two diffs touch disjoint regions apart from the top-level description; the file is otherwise byte-for-byte the patched upstream text."
     ]
   }
 }
