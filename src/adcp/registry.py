@@ -10,7 +10,7 @@ import zlib
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, TypeVar, cast
+from typing import Any, Literal, TypeVar, cast
 from urllib.parse import quote as url_quote
 from urllib.parse import urlsplit
 
@@ -18,6 +18,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from adcp.exceptions import RegistryError, RegistryErrorDetails, RegistryValidationIssue
+from adcp.identifiers import normalize_identifier, validate_publisher_domain
 
 _T = TypeVar("_T", bound=BaseModel)
 from adcp.types.core import (
@@ -47,6 +48,8 @@ from adcp.types.registry import (
 
 DEFAULT_REGISTRY_URL = "https://agenticadvertising.org"
 MAX_BULK_DOMAINS = 100
+MAX_BULK_IDENTIFIERS = 10_000
+DEFAULT_MAX_IDENTIFIER_REQUEST_BYTES = 1024 * 1024
 MAX_BULK_POLICIES = 100
 MAX_REGISTRY_ERROR_DETAILS_BYTES = 64 * 1024
 MAX_PROJECTED_REGISTRY_ERROR_DETAILS_BYTES = 4 * 1024
@@ -75,6 +78,7 @@ _LARGE_REGISTRY_RESPONSE_PATHS = frozenset(
         "/api/brands/resolve/bulk",
         "/api/properties/registry",
         "/api/properties/resolve/bulk",
+        "/api/registry/resolve",
         "/api/registry/agents",
         "/api/registry/publishers",
         "/api/registry/feed",
@@ -386,6 +390,43 @@ def _normalize_community_mirror_platform(platform: str) -> str:
     return normalized
 
 
+def _validate_identifier_resolution_response(page: Any) -> dict[str, Any]:
+    """Validate a resolve page without including remote values in errors."""
+    error = "Resolve identifiers failed: invalid response"
+    if not isinstance(page, dict):
+        raise RegistryError(error)
+    rows, counts = page.get("resolved"), page.get("summary")
+    if (
+        not isinstance(rows, list)
+        or not isinstance(counts, dict)
+        or not isinstance(page.get("server_timestamp"), str)
+    ):
+        raise RegistryError(error)
+    required_counts = {"total", "resolved", "created", "excluded", "not_found"}
+    if not required_counts.issubset(counts) or any(
+        not isinstance(count, int) or isinstance(count, bool) or count < 0
+        for count in counts.values()
+    ):
+        raise RegistryError("Resolve identifiers failed: invalid summary")
+    required_fields = {"identifier", "property_rid", "classification", "status", "source"}
+    for row in rows:
+        if not isinstance(row, dict) or not required_fields.issubset(row):
+            raise RegistryError(error)
+        identifier = row["identifier"]
+        if (
+            not isinstance(identifier, dict)
+            or not isinstance(identifier.get("type"), str)
+            or not isinstance(identifier.get("value"), str)
+            or not isinstance(row["classification"], str)
+            or not isinstance(row["status"], str)
+            or row["status"] not in {"existing", "created", "excluded"}
+            or (row["property_rid"] is not None and not isinstance(row["property_rid"], str))
+            or (row["source"] is not None and not isinstance(row["source"], str))
+        ):
+            raise RegistryError(error)
+    return cast(dict[str, Any], page)
+
+
 def build_community_mirror_adagents(config: dict[str, Any]) -> dict[str, Any]:
     """Build a catalog-only community mirror adagents.json publish body.
 
@@ -468,6 +509,7 @@ class RegistryClient:
             return self._external_client
         if self._owned_client is None:
             self._owned_client = httpx.AsyncClient(
+                timeout=self._timeout,
                 limits=httpx.Limits(
                     max_keepalive_connections=10,
                     max_connections=20,
@@ -920,6 +962,7 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
+        domain = validate_publisher_domain(domain)
         try:
             response = await self._send_bounded(
                 "GET",
@@ -963,6 +1006,8 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
+        requested_domains = list(domains)
+        domains = [validate_publisher_domain(domain) for domain in requested_domains]
         if not domains:
             return {}
 
@@ -977,7 +1022,10 @@ class RegistryClient:
         merged: dict[str, ResolvedProperty | None] = {}
         for result in chunk_results:
             merged.update(result)
-        return merged
+        return {
+            requested: merged.get(canonical)
+            for requested, canonical in zip(requested_domains, domains)
+        }
 
     async def _lookup_properties_chunk(
         self, domains: list[str]
@@ -1012,6 +1060,124 @@ class RegistryClient:
             raise RegistryError(f"Bulk property lookup failed: {e}") from e
         except (ValidationError, ValueError) as e:
             raise RegistryError(f"Bulk property lookup failed: invalid response: {e}") from e
+
+    async def resolve_identifiers(
+        self,
+        identifiers: list[Any],
+        *,
+        provenance: dict[str, str],
+        mode: Literal["resolve", "lookup"] = "resolve",
+        auth_token: str | None = None,
+        concurrency: int = 4,
+        max_request_bytes: int = DEFAULT_MAX_IDENTIFIER_REQUEST_BYTES,
+        max_retries: int = 3,
+    ) -> dict[str, Any]:
+        """Resolve typed identifiers, automatically splitting large requests.
+
+        POST /api/registry/resolve is the bulk *contribution* path in resolve
+        mode (requires auth). Lookup mode is read-only. Provenance is required
+        in both modes. Splits at 10,000 identifiers and the configured encoded
+        JSON byte limit, preserves input order, and retries 429/503 responses
+        using Retry-After. Exhausted retries retain structured RegistryError.
+        """
+        if mode not in {"resolve", "lookup"}:
+            raise ValueError("mode must be 'resolve' or 'lookup'")
+        if mode == "resolve" and not auth_token:
+            raise ValueError("auth_token is required in resolve mode")
+        if concurrency < 1 or max_request_bytes < 1 or max_retries < 0:
+            raise ValueError("concurrency/size must be positive and retries non-negative")
+        provenance_types = {
+            "agency_allowlist",
+            "publisher_declaration",
+            "impression_log",
+            "ssp_inventory",
+            "deal_history",
+            "data_partner",
+            "member_assertion",
+        }
+        if provenance.get("type") not in provenance_types:
+            raise ValueError("provenance.type must name a supported caller provenance")
+        normalized = [
+            normalize_identifier(
+                item["type"] if isinstance(item, dict) else item.type,
+                item["value"] if isinstance(item, dict) else item.value,
+            ).as_dict()
+            for item in identifiers
+        ]
+        if not normalized:
+            return {
+                "resolved": [],
+                "summary": {
+                    "total": 0,
+                    "resolved": 0,
+                    "created": 0,
+                    "excluded": 0,
+                    "not_found": 0,
+                },
+                "server_timestamp": None,
+            }
+        envelope: dict[str, Any] = {"identifiers": [], "mode": mode, "provenance": provenance}
+        # httpx's JSON encoder uses compact separators and ensure_ascii=False.
+        overhead = len(json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode())
+        chunks: list[list[dict[str, str]]] = []
+        chunk: list[dict[str, str]] = []
+        size = overhead
+        for item in normalized:
+            item_size = len(json.dumps(item, ensure_ascii=False, separators=(",", ":")).encode())
+            if overhead + item_size > max_request_bytes:
+                raise ValueError("one identifier exceeds max_request_bytes")
+            if chunk and (
+                len(chunk) == MAX_BULK_IDENTIFIERS or size + item_size + 1 > max_request_bytes
+            ):
+                chunks.append(chunk)
+                chunk = []
+                size = overhead
+            size += item_size + bool(chunk)
+            chunk.append(item)
+        if chunk:
+            chunks.append(chunk)
+
+        async def resolve_chunk(batch: list[dict[str, str]]) -> dict[str, Any]:
+            for attempt in range(max_retries + 1):
+                try:
+                    page = await self._request_json(
+                        "POST",
+                        "/api/registry/resolve",
+                        json_body={**envelope, "identifiers": batch},
+                        auth_token=auth_token,
+                        operation="Resolve identifiers",
+                    )
+                    return _validate_identifier_resolution_response(page)
+                except ValueError:
+                    raise RegistryError(
+                        "Resolve identifiers failed: invalid JSON response"
+                    ) from None
+                except RegistryError as exc:
+                    if exc.status_code not in {429, 503} or attempt == max_retries:
+                        raise
+                    delay = exc.retry_after_seconds
+                    await asyncio.sleep(delay if delay is not None else min(2**attempt, 30))
+            raise AssertionError("unreachable")
+
+        # Bound both active requests and the number of scheduled tasks.
+        pages: list[dict[str, Any]] = []
+        for offset in range(0, len(chunks), concurrency):
+            pages.extend(
+                await asyncio.gather(
+                    *(resolve_chunk(batch) for batch in chunks[offset : offset + concurrency])
+                )
+            )
+        summary: dict[str, int] = {}
+        resolved: list[Any] = []
+        for page in pages:
+            resolved.extend(page["resolved"])
+            for name, count in page["summary"].items():
+                summary[name] = summary.get(name, 0) + count
+        return {
+            "resolved": resolved,
+            "summary": summary,
+            "server_timestamp": pages[-1].get("server_timestamp"),
+        }
 
     async def list_members(self, limit: int = 100) -> list[Member]:
         """List organizations registered in the AAO member directory.
@@ -1560,6 +1726,7 @@ class RegistryClient:
 
     async def validate_property(self, domain: str) -> ValidationResult:
         """Validate a domain's adagents.json configuration."""
+        domain = validate_publisher_domain(domain)
         resp = await self._request_ok(
             "GET",
             "/api/properties/validate",
@@ -1579,6 +1746,7 @@ class RegistryClient:
         contact: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Save or update a hosted property (auth required)."""
+        publisher_domain = validate_publisher_domain(publisher_domain)
         body: dict[str, Any] = {
             "publisher_domain": publisher_domain,
             "authorized_agents": authorized_agents,
@@ -1824,6 +1992,7 @@ class RegistryClient:
 
     async def lookup_domain(self, domain: str) -> DomainLookupResult:
         """Find all agents authorized for a publisher domain."""
+        domain = validate_publisher_domain(domain)
         resp = await self._request_ok(
             "GET",
             f"/api/registry/lookup/domain/{url_quote(domain, safe='')}",
@@ -1834,6 +2003,8 @@ class RegistryClient:
 
     async def lookup_property_identifier(self, type: str, value: str) -> dict[str, Any]:
         """Find agents holding a specific property identifier."""
+        if type in {"domain", "subdomain"}:
+            value = validate_publisher_domain(value)
         resp = await self._request_ok(
             "GET",
             "/api/registry/lookup/property",
@@ -1905,6 +2076,7 @@ class RegistryClient:
 
     async def lookup_publisher(self, domain: str) -> dict[str, Any]:
         """Resolve registry publisher metadata for a domain."""
+        domain = validate_publisher_domain(domain)
         return await self._request_json(
             "GET",
             "/api/registry/publisher",
@@ -1918,6 +2090,7 @@ class RegistryClient:
         agent: str,
     ) -> dict[str, Any]:
         """Resolve whether a publisher authorizes an agent."""
+        domain = validate_publisher_domain(domain)
         return await self._request_json(
             "GET",
             "/api/registry/publisher/authorization",

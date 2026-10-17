@@ -1324,7 +1324,7 @@ class WebhookSender:
         url: str,
         list_id: str,
         resolved_at: str,
-        signature: str,
+        signature: str = "rfc9421",
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
@@ -1346,18 +1346,23 @@ class WebhookSender:
         url: str,
         list_id: str,
         resolved_at: str,
-        signature: str,
+        signature: str = "rfc9421",
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> PreparedWebhook:
-        """Prepare a validated governance property-list-changed webhook."""
+        """Prepare a property-list notification with the 3.2 compatibility marker.
+
+        The sender computes RFC 9421 HTTP signatures during delivery. The
+        legacy ``signature`` argument is accepted for source compatibility;
+        the payload always uses the normative ``rfc9421`` marker.
+        """
         key = idempotency_key or generate_webhook_idempotency_key()
         payload: dict[str, Any] = {
             "idempotency_key": key,
             "event": "property_list_changed",
             "list_id": list_id,
             "resolved_at": resolved_at,
-            "signature": signature,
+            "signature": "rfc9421",
         }
         return WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers

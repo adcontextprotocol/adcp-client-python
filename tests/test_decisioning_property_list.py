@@ -374,15 +374,8 @@ class TestValidatePropertyListConfig:
         fetcher = MagicMock(spec=PropertyListFetcher)
         validate_property_list_config(capability_enabled=True, fetcher=fetcher)
 
-    def test_capability_without_fetcher_raises(self) -> None:
-        """Capability declared but no fetcher → AdcpError(recovery='terminal')."""
-        with pytest.raises(AdcpError) as exc_info:
-            validate_property_list_config(capability_enabled=True, fetcher=None)
-
-        err = exc_info.value
-        assert err.recovery == "terminal"
-        assert "property_list_filtering" in str(err)
-        assert "property_list_fetcher" in str(err)
+    def test_capability_without_custom_fetcher_uses_default(self) -> None:
+        validate_property_list_config(capability_enabled=True, fetcher=None)
 
     def test_no_capability_with_fetcher_ok(self) -> None:
         """Fetcher provided but capability disabled → no error (defensive wiring)."""
@@ -473,24 +466,19 @@ class TestMaybeApplyPropertyListFilter:
         assert len(response.products if response_shape == "model" else response["products"]) == 2
 
     @pytest.mark.asyncio
-    async def test_no_fetcher_returns_response_unmodified(self, caplog: Any) -> None:
-        """When fetcher is None despite capability, log warning + return unmodified."""
-        import logging
+    async def test_no_custom_fetcher_uses_mcp_default(self, monkeypatch: Any) -> None:
+        from adcp.property_lists import MCPPropertyListFetcher, ResolvedPropertyList
 
-        params = MagicMock()
-        params.property_list = _make_property_list_ref()
-        response = _make_response([])
-
-        with caplog.at_level(logging.WARNING, logger="adcp.decisioning.property_list"):
-            result = await maybe_apply_property_list_filter(
-                params=params,
-                response=response,
-                fetcher=None,
-                capability_enabled=True,
-            )
-
-        assert result is response
-        assert any("property_list_fetcher" in r.message for r in caplog.records)
+        resolve = AsyncMock(return_value=ResolvedPropertyList(()))
+        monkeypatch.setattr(MCPPropertyListFetcher, "resolve", resolve)
+        result = await maybe_apply_property_list_filter(
+            params={"property_list": {"agent_url": "https://agent.example.com", "list_id": "a"}},
+            response={"products": []},
+            fetcher=None,
+            capability_enabled=True,
+        )
+        assert result == {"products": [], "property_list_applied": True}
+        resolve.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_fetch_failure_propagates_as_adcp_error(self) -> None:
@@ -591,3 +579,23 @@ def test_wire_dict_products_follow_same_filter_rules(
     model = Product.model_validate(product)
     assert bool(filter_products_by_property_list([product], set(allowed))) is expected
     assert bool(filter_products_by_property_list([model], set(allowed))) is expected
+
+
+@pytest.mark.parametrize("model_product", [False, True])
+def test_custom_fetcher_filter_recognizes_canonical_property_list_support(model_product):
+    from adcp.types.domains.core.canonical_product import CanonicalProduct
+
+    product = {
+        "product_id": "targetable",
+        "name": "Targetable bundle",
+        "publisher_properties": [
+            {
+                "selection_type": "by_id",
+                "publisher_domain": "example.com",
+                "property_ids": ["allowed", "outside"],
+            }
+        ],
+        "overlay_support": {"property_list": True},
+    }
+    product = CanonicalProduct.model_validate(product) if model_product else product
+    assert filter_products_by_property_list([product], {"allowed"}) == [product]

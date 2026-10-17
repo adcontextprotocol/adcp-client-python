@@ -432,7 +432,7 @@ def create_adcp_server_from_platform(
         reporting_status=reporting_status,
     )
 
-    # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
+    # Validate ownership; SDK filtering supplies an MCP fetcher by default.
     from adcp.decisioning.property_list import (
         property_list_capability_enabled,
         validate_property_list_config,

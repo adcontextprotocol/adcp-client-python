@@ -307,12 +307,13 @@ class TestRegistryResponseLimits:
         assert exc_info.value.retry_after_seconds == 10
         assert exc_info.value.details is None
 
-    def test_large_response_allowlist_matches_javascript_sdk(self):
+    def test_large_response_allowlist_includes_bulk_endpoints(self):
         assert _LARGE_REGISTRY_RESPONSE_PATHS == {
             "/api/brands/registry",
             "/api/brands/resolve/bulk",
             "/api/properties/registry",
             "/api/properties/resolve/bulk",
+            "/api/registry/resolve",
             "/api/registry/agents",
             "/api/registry/publishers",
             "/api/registry/feed",

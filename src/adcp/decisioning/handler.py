@@ -71,6 +71,8 @@ from adcp.decisioning.negotiation import (
 from adcp.decisioning.pagination import _query_hash, apply_framework_pagination
 from adcp.decisioning.platform import DecisioningCapabilities
 from adcp.decisioning.property_list import (
+    _prepare_compact_property_list_fields,
+    _restore_compact_property_list_fields,
     maybe_apply_property_list_filter,
     property_list_capability_enabled,
 )
@@ -1517,7 +1519,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._brand_authorization_gate = brand_authorization_gate
         self._trust_grant_gate = trust_grant_gate
         self._config_store = config_store
-        self._property_list_fetcher = property_list_fetcher
+        from adcp.property_lists import MCPPropertyListFetcher
+
+        self._property_list_fetcher = (
+            property_list_fetcher if property_list_fetcher is not None else MCPPropertyListFetcher()
+        )
         self._property_list_filter_mode = property_list_filter_mode
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
@@ -2283,17 +2289,38 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     async def list_products(  # type: ignore[override]
         self, params: ListProductsRequest, context: ToolContext | None = None
     ) -> ListProductsResponse:
+        capability_enabled = property_list_capability_enabled(self._platform)
+        platform_params, added = _prepare_compact_property_list_fields(
+            params,
+            capability_enabled=capability_enabled,
+            filter_mode=self._property_list_filter_mode,
+        )
+        result = await self._invoke_compact_lifecycle("list_products", platform_params, context)
+        result = await maybe_apply_property_list_filter(
+            params=params,
+            response=result,
+            fetcher=self._property_list_fetcher,
+            capability_enabled=capability_enabled,
+            filter_mode=self._property_list_filter_mode,
+        )
         return cast(
             "ListProductsResponse",
-            await self._invoke_compact_lifecycle("list_products", params, context),
+            _restore_compact_property_list_fields(result, added),
         )
 
     async def request_proposals(  # type: ignore[override]
         self, params: RequestProposalsRequest, context: ToolContext | None = None
     ) -> RequestProposalsResponse:
+        result = await self._invoke_compact_lifecycle("request_proposals", params, context)
         return cast(
             "RequestProposalsResponse",
-            await self._invoke_compact_lifecycle("request_proposals", params, context),
+            await maybe_apply_property_list_filter(
+                params=params,
+                response=result,
+                fetcher=self._property_list_fetcher,
+                capability_enabled=property_list_capability_enabled(self._platform),
+                filter_mode=self._property_list_filter_mode,
+            ),
         )
 
     async def refine_proposals(  # type: ignore[override]

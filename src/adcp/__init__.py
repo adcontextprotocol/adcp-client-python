@@ -92,6 +92,21 @@ _REMOVED_IN_V4: dict[str, tuple[str, str]] = {
 # names and caches the result. Grouped by module (and mirrored verbatim in the
 # ``TYPE_CHECKING`` block at the bottom) so it stays readable and auditable.
 _LAZY_MODULES: dict[str, tuple[str, ...]] = {
+    "adcp.identifiers": (
+        "IdentifierValidationError",
+        "NormalizedIdentifier",
+        "normalize_domain",
+        "normalize_identifier",
+        "validate_identifier",
+        "validate_publisher_domain",
+    ),
+    "adcp.property_lists": (
+        "MCPPropertyListFetcher",
+        "ResolvedPropertyList",
+        "ProductPropertyPolicy",
+        "ProductPropertyAssessment",
+        "check_property_list_reference",
+    ),
     "adcp.accounts": (
         "AccountPolicy",
         "AccountRecord",
@@ -998,6 +1013,17 @@ def get_adcp_version() -> str:
 
 
 __all__ = [
+    "IdentifierValidationError",
+    "NormalizedIdentifier",
+    "normalize_domain",
+    "normalize_identifier",
+    "validate_identifier",
+    "validate_publisher_domain",
+    "MCPPropertyListFetcher",
+    "ProductPropertyAssessment",
+    "ProductPropertyPolicy",
+    "ResolvedPropertyList",
+    "check_property_list_reference",
     # Version functions
     "get_adcp_version",
     # Client classes
@@ -1886,6 +1912,14 @@ if TYPE_CHECKING:
         FeedStateStore,
         RefreshResult,
     )
+    from adcp.identifiers import (
+        IdentifierValidationError,
+        NormalizedIdentifier,
+        normalize_domain,
+        normalize_identifier,
+        validate_identifier,
+        validate_publisher_domain,
+    )
     from adcp.media_buy_actions import (  # noqa: F401
         ActionAvailabilityStatus,
         ActionDiagnostic,
@@ -1936,6 +1970,13 @@ if TYPE_CHECKING:
         PrincipalManager,
         PrincipalSyncOutcome,
         sync_principal_configuration,
+    )
+    from adcp.property_lists import (
+        MCPPropertyListFetcher,
+        ProductPropertyAssessment,
+        ProductPropertyPolicy,
+        ResolvedPropertyList,
+        check_property_list_reference,
     )
     from adcp.property_registry import PropertyRegistry
     from adcp.registry import RegistryClient

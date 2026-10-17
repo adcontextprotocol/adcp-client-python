@@ -264,3 +264,40 @@ from adcp.testing import build_asgi_app, build_test_client, make_request_context
 #   async with build_test_client(my_platform, auth=BearerTokenAuth(...)) as client:
 #       resp = await client.post("/mcp/", json={"jsonrpc": "2.0", ...})
 ```
+
+## Property Lists and Identifier Resolution
+
+Import `MCPPropertyListFetcher`, `ProductPropertyPolicy`, and
+`check_property_list_reference` from `adcp`. The default seller fetcher resolves
+lists with MCP `get_property_list`, follows pagination, and caches complete
+results until the earliest `cache_valid_until`. Resolution and cache budgets
+bound identifier counts and estimated bytes.
+
+Seller filtering reads `criteria.offer_filters.property_list` on compact tasks
+and the legacy top-level `get_products.property_list`. Compact acknowledgements
+use `ext.property_list_applied`; legacy discovery uses `property_list_applied`.
+Select `property_list_filter_mode="platform"` when the platform owns filtering.
+
+Pass `product_property_policy=ProductPropertyPolicy(mode="filter" | "flag")` to
+`ADCPClient` or `ADCPMultiAgentClient` to check seller products. Assessments in
+`TaskResult.metadata["product_property_policy"]` distinguish `match`, `mismatch`,
+and `unjudgeable`; buyer checks retain unjudgeable inventory.
+
+Public `normalize_domain`, `normalize_identifier`, and `validate_identifier`
+return `NormalizedIdentifier` with canonical `value`, `original_value`, and
+`rewritten`. Invalid values raise `IdentifierValidationError`. Use
+`validate_publisher_domain` for a canonical bare hostname without wildcards.
+
+`RegistryClient.resolve_identifiers(..., mode="resolve" | "lookup", provenance=...)`
+batches typed identifiers. Resolve mode is the bulk catalog contribution path
+and requires `auth_token`; lookup mode is read-only. Both honor the registry's
+10,000-identifier limit, byte limits, concurrency, and retry hints.
+
+`GovernanceHandler(property_list_token_verifier=...)` accepts a sync or async
+`(list_id, context) -> bool` access hook. Transport authentication must accept
+and scope shared-list credentials. `WebhookSender.send_property_list_changed`
+supplies the deprecated payload marker automatically; the JWK sender computes
+the actual RFC 9421 HTTP signature.
+
+See `docs/property-list-filtering.md` and `docs/identifier-resolution.md` for
+configuration and reference-resolution compliance probes.

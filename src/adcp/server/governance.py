@@ -6,7 +6,9 @@ property lists for brand safety, compliance, and quality filtering.
 
 from __future__ import annotations
 
+import inspect
 from abc import abstractmethod
+from collections.abc import Awaitable, Callable
 from typing import Any, Generic
 
 from pydantic import ValidationError
@@ -70,6 +72,24 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
     """
 
     _agent_type: str = "Governance agents"
+
+    def __init__(
+        self,
+        *,
+        property_list_token_verifier: (
+            Callable[[str, TContext | None], bool | Awaitable[bool]] | None
+        ) = None,
+    ) -> None:
+        """Configure optional list-scoped access verification.
+
+        The verifier receives the requested list ID and transport context,
+        and must return True to permit access. It may inspect a token in a
+        custom context or authenticated principal metadata. Wire transport
+        authentication to accept scoped list credentials in place of normal
+        credentials; keep their principal restricted to get_property_list.
+        No token is added to request params or error messages by this hook.
+        """
+        self._property_list_token_verifier = property_list_token_verifier
 
     # ========================================================================
     # Governance Operations - Override base class with validation
@@ -208,6 +228,22 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
                 reason=f"Invalid request: {e}",
                 error=Error(code="VALIDATION_ERROR", message=str(e)),
             )
+        verifier = getattr(self, "_property_list_token_verifier", None)
+        if verifier is not None:
+            # Fail closed, without exposing verifier exceptions or credentials.
+            try:
+                permitted = verifier(request.list_id, context)
+                if inspect.isawaitable(permitted):
+                    permitted = await permitted
+            except Exception:
+                permitted = False
+            if permitted is not True:
+                from adcp.exceptions import ADCPTaskError
+
+                raise ADCPTaskError(
+                    operation="get_property_list",
+                    errors=[Error(code="UNAUTHORIZED", message="Property list access denied")],
+                )
         return await self.handle_get_property_list(request, context)
 
     async def list_property_lists(

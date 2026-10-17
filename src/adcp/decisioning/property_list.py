@@ -3,10 +3,10 @@
 Capability-gated framework support for the ``property_list`` buyer-side filter
 on ``get_products``.  When an adopter declares
 ``Features(property_list_filtering=True)`` on their
-:class:`~adcp.decisioning.platform.DecisioningCapabilities` and supplies a
-:class:`PropertyListFetcher`, the framework automatically:
+:class:`~adcp.decisioning.platform.DecisioningCapabilities`, the framework
+automatically (using MCP by default):
 
-1. Fetches the buyer's authorized property IDs from ``request.property_list.agent_url``.
+1. Resolves the buyer's typed property list over MCP, including all pages.
 2. Applies :func:`filter_products_by_property_list` to the platform's response.
 3. Sets ``response.property_list_applied = True`` on the returned envelope.
 
@@ -36,37 +36,14 @@ logger = logging.getLogger(__name__)
 class PropertyListFetcher(Protocol):
     """Adopter-supplied protocol for fetching a buyer's authorized property IDs.
 
-    The framework calls :meth:`fetch` when ``property_list_filtering`` is
-    declared in capabilities and the request carries a ``PropertyList``
-    reference.  Adopters plug in their own HTTP client — the framework ships
-    no hidden HTTP dependency.
+    Custom fetchers may return publisher property IDs for existing integrations.
+    The default :class:`adcp.property_lists.MCPPropertyListFetcher` resolves
+    typed identifiers using the MCP ``get_property_list`` tool at ``agent_url``
+    with the reference's bearer token, follows pagination, and caches until
+    ``cache_valid_until``. No REST path convention is assumed.
 
-    Implementations MUST pin delivery to the validated IP, disable redirects
-    and environment proxies, and URL-encode ``list_id``. A safe httpx pattern::
-
-        class MyFetcher:
-            async def fetch(
-                self,
-                agent_url: str,
-                list_id: str,
-                *,
-                auth_token: str | None = None,
-            ) -> list[str]:
-                url = f"{agent_url.rstrip('/')}/property-lists/{quote(list_id, safe='')}"
-                transport = build_async_ip_pinned_transport(url)
-                headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
-                async with httpx.AsyncClient(
-                    transport=transport,
-                    follow_redirects=False,
-                    trust_env=False,
-                ) as client:
-                    resp = await client.get(url, headers=headers)
-                    resp.raise_for_status()
-                    return resp.json()["property_ids"]
-
-    Wire the fetcher via::
-
-        create_adcp_server_from_platform(platform, property_list_fetcher=MyFetcher(client))
+    Custom network implementations MUST pin delivery to a validated public IP,
+    disable redirects and environment proxies, and never log bearer tokens.
     """
 
     async def fetch(
@@ -91,27 +68,33 @@ class PropertyListFetcher(Protocol):
 async def resolve_property_list(
     ref: Any,
     *,
-    fetcher: PropertyListFetcher,
+    fetcher: PropertyListFetcher | None = None,
 ) -> set[str]:
-    """Fetch the buyer's authorized property IDs from the agent at ``ref.agent_url``.
+    """Resolve canonical identifier values (or legacy custom-fetcher property IDs).
 
     :param ref: ``PropertyList`` wire object (has ``agent_url``, ``list_id``,
         ``auth_token``).
-    :param fetcher: Adopter-supplied :class:`PropertyListFetcher`.
-    :returns: Set of allowed property_id strings.
+    :param fetcher: Optional custom fetcher; defaults to a cached MCP resolver.
+    :returns: Set of allowed canonical values. Use MCPPropertyListFetcher.resolve
+        when identifier types are needed for matching.
     :raises AdcpError: ``recovery='transient'`` on any fetch failure.
         ``auth_token`` is never included in the error details.
     """
     from adcp.decisioning.types import AdcpError
+    from adcp.property_lists import MCPPropertyListFetcher, _default_property_list_fetcher
     from adcp.webhooks import (
         WebhookDestinationPolicy,
         WebhookDestinationValidationError,
         validate_webhook_destination_url,
     )
 
-    list_id: str = ref.list_id
-    agent_url: str = str(ref.agent_url)
-    auth_token: str | None = getattr(ref, "auth_token", None)
+    fetcher = fetcher if fetcher is not None else _default_property_list_fetcher()
+    if isinstance(fetcher, MCPPropertyListFetcher):
+        resolved = await fetcher.resolve(ref)
+        return {identifier.value for identifier in resolved.identifiers}
+    list_id: str = _field(ref, "list_id")
+    agent_url: str = str(_field(ref, "agent_url"))
+    auth_token: str | None = _field(ref, "auth_token")
 
     if not re.fullmatch(r"[A-Za-z0-9._~-]+", list_id):
         raise AdcpError(
@@ -201,9 +184,52 @@ def _field(value: Any, name: str, default: Any = None) -> Any:
     return value.get(name, default) if isinstance(value, dict) else getattr(value, name, default)
 
 
+def _prepare_compact_property_list_fields(
+    params: Any, *, capability_enabled: bool, filter_mode: str
+) -> tuple[Any, frozenset[str]]:
+    """Ask the platform for inventory needed by SDK filtering before projection."""
+    from adcp.property_lists import request_property_list
+
+    fields = _field(params, "fields")
+    if (
+        filter_mode != "sdk"
+        or not capability_enabled
+        or request_property_list(params) is None
+        or fields is None
+    ):
+        return params, frozenset()
+    selected = list(fields.root)
+    added = frozenset({"publisher_properties", "overlay_support"} - set(selected))
+    if not added:
+        return params, added
+    enriched = type(fields).model_validate([*selected, *sorted(added)])
+    return params.model_copy(update={"fields": enriched}), added
+
+
+def _restore_compact_property_list_fields(response: Any, added: frozenset[str]) -> Any:
+    """Hide fields requested internally while retaining platform safety receipts."""
+    products = _field(response, "products")
+    if not added or products is None:
+        return response
+    projected = [
+        (
+            {name: value for name, value in product.items() if name not in added}
+            if isinstance(product, dict)
+            else product.model_copy(update=dict.fromkeys(added))
+        )
+        for product in products
+    ]
+    if isinstance(response, dict):
+        return {**response, "products": projected}
+    return response.model_copy(update={"products": projected})
+
+
 def _product_matches(product: Any, allowed: set[str]) -> bool:
     """Return True if the product should be included after property-list filtering."""
-    permissive: bool = bool(_field(product, "property_targeting_allowed", False))
+    overlay = _field(_field(product, "overlay_support"), "property_list")
+    if isinstance(overlay, RootModel):
+        overlay = overlay.root
+    permissive: bool = bool(_field(product, "property_targeting_allowed", False)) or overlay is True
     pub_props: list[Any] = list(_field(product, "publisher_properties") or [])
     product_id: str = str(_field(product, "product_id", "?"))
 
@@ -279,9 +305,7 @@ async def maybe_apply_property_list_filter(
     * ``capability_enabled`` is False (adopter hasn't declared the feature).
     * ``params.property_list`` is absent (buyer didn't send a list reference).
 
-    When ``fetcher`` is None but the gate would otherwise fire, a WARNING is
-    emitted and the response is returned unmodified (defense-in-depth;
-    :func:`validate_property_list_config` should have caught this at boot).
+    When ``fetcher`` is None, use the built-in MCP resolver.
 
     Platform mode returns the seller's response untouched, including its
     ``property_list_applied`` flag. SDK mode copies dict/model responses to
@@ -293,25 +317,102 @@ async def maybe_apply_property_list_filter(
     if filter_mode == "platform" or not capability_enabled:
         return response
 
-    property_list_ref = getattr(params, "property_list", None)
+    from adcp.property_lists import (
+        MCPPropertyListFetcher,
+        ProductPropertyPolicy,
+        _default_property_list_fetcher,
+        request_property_list,
+    )
+
+    property_list_ref = request_property_list(params)
     if property_list_ref is None:
         return response
 
-    if fetcher is None:
-        logger.warning(
-            "[adcp.property_list] property_list_filtering capability is declared "
-            "and the request carries a property_list reference, but no "
-            "PropertyListFetcher was wired — filter skipped. Pass "
-            "property_list_fetcher= to "
-            "adcp.decisioning.serve.create_adcp_server_from_platform."
-        )
+    # Submitted/unchanged/error envelopes must keep their original semantics.
+    if _field(response, "status") in {"submitted", "working", "input-required"}:
         return response
-
-    allowed = await resolve_property_list(property_list_ref, fetcher=fetcher)
+    outcome = _field(response, "outcome")
+    if outcome in {"unchanged", "rejected"} or _field(response, "products") is None:
+        return response
+    fetcher = fetcher if fetcher is not None else _default_property_list_fetcher()
     products: list[Any] = list(_field(response, "products") or [])
-    filtered = filter_products_by_property_list(products, allowed)
+    applied = True
+    if isinstance(fetcher, MCPPropertyListFetcher):
+        allowed_list = await fetcher.resolve(property_list_ref)
+        policy = ProductPropertyPolicy(fetcher=fetcher)
+        assessments = await policy.assess(products, allowed_list, seller_url="")
+        # Seller-side filtering fails closed when the catalog cannot be resolved.
+        if any(item.status == "unjudgeable" for item in assessments):
+            from adcp.decisioning.types import AdcpError
 
-    update = {"products": filtered, "property_list_applied": True}
+            raise AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Product property expansion failed",
+                recovery="transient",
+            )
+        filtered = [
+            product for product, item in zip(products, assessments) if item.status == "match"
+        ]
+    else:
+        allowed = await resolve_property_list(property_list_ref, fetcher=fetcher)
+        filtered = filter_products_by_property_list(products, allowed)
+
+    update: dict[str, Any] = {"products": filtered}
+    # Compact response schemas forbid arbitrary top-level fields. Report the
+    # acknowledgement through ext; legacy discovery has a dedicated field.
+    if outcome in {"listed", "products_available", "proposed"}:
+        ext = _field(response, "ext") or {}
+        if hasattr(ext, "model_dump"):
+            ext = ext.model_dump(mode="json")
+        update["ext"] = {**ext, "property_list_applied": applied}
+        if not isinstance(response, dict):
+            from adcp.types.domains.core.ext import ExtensionObject
+
+            update["ext"] = ExtensionObject.model_validate(update["ext"])
+    else:
+        update["property_list_applied"] = applied
+
+    if outcome in {"products_available", "proposed"} and len(filtered) != len(products):
+        continuation = _field(response, "purchase_continuation")
+        if (
+            not filtered
+            or outcome == "proposed"
+            or _field(continuation, "kind") != "listed_purchase"
+        ):
+            # Proposals have immutable commercial terms and a bound digest;
+            # legacy continuations bind an opaque observed payload. Neither
+            # can be rewritten safely after removing one of its products.
+            rejected = (
+                dict(response)
+                if isinstance(response, dict)
+                else response.model_dump(mode="json", exclude_none=True)
+            )
+            rejected.update(
+                outcome="rejected",
+                reason="The available products do not satisfy the requested property list.",
+                ext=(
+                    update["ext"]
+                    if isinstance(update["ext"], dict)
+                    else update["ext"].model_dump(mode="json")
+                ),
+            )
+            for name in ("products", "proposals", "purchase_continuation", "incomplete", "task_id"):
+                rejected.pop(name, None)
+            if isinstance(response, dict):
+                return rejected
+            from pydantic import TypeAdapter
+
+            from adcp.types.domains.media_buy.request_proposals_response import (
+                RequestProposalsResponse,
+            )
+
+            return TypeAdapter(RequestProposalsResponse).validate_python(rejected)
+        product_ids = [str(_field(product, "product_id")) for product in filtered]
+        update["purchase_continuation"] = (
+            {**continuation, "product_ids": product_ids}
+            if isinstance(continuation, dict)
+            else continuation.model_copy(update={"product_ids": product_ids})
+        )
     if isinstance(response, dict):
         return {**response, **update}
     return response.model_copy(update=update)
@@ -323,39 +424,11 @@ def validate_property_list_config(
     fetcher: PropertyListFetcher | None,
     filter_mode: Literal["sdk", "platform"] = "sdk",
 ) -> None:
-    """Require a fetcher for SDK-owned filtering; platform mode needs none.
-
-    Mirrors :func:`~adcp.decisioning.webhook_emit.validate_webhook_sender_for_platform`:
-    a declared capability without the required runtime dependency would silently
-    skip filtering at request time — a buyer who sends ``property_list`` would
-    receive unfiltered products with ``property_list_applied`` absent or False,
-    mismatching what the seller's ``get_adcp_capabilities`` advertised.
-
-    :raises AdcpError: ``recovery='terminal'`` when misconfigured.
-    """
+    """Validate ownership mode; SDK mode has a built-in MCP fetcher."""
     if filter_mode not in {"sdk", "platform"}:
         raise ValueError("property_list_filter_mode must be 'sdk' or 'platform'")
-    if filter_mode == "platform" or not capability_enabled:
-        return
-    if fetcher is not None:
-        return
-
-    from adcp.decisioning.types import AdcpError
-
-    raise AdcpError(
-        "INVALID_REQUEST",
-        message=(
-            "Features.property_list_filtering=True is declared in capabilities "
-            "but no PropertyListFetcher was wired. Buyers who send "
-            "property_list on get_products requests would have their list "
-            "filter silently skipped. Pass property_list_fetcher= to "
-            "adcp.decisioning.serve.create_adcp_server_from_platform, "
-            'or pass property_list_filter_mode="platform" to own filtering '
-            "and the property_list_applied flag in your platform."
-        ),
-        recovery="terminal",
-        details={"missing": "property_list_fetcher"},
-    )
+    # A built-in MCP fetcher is available when no custom dependency is supplied.
+    return
 
 
 def property_list_capability_enabled(platform: Any) -> bool:

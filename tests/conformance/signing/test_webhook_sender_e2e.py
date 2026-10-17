@@ -269,14 +269,15 @@ async def test_sends_collection_list_changed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sends_property_list_changed() -> None:
+@pytest.mark.parametrize("legacy_signature", [None, "old-compatibility-marker"])
+async def test_sends_property_list_changed(legacy_signature: str | None) -> None:
     app, _ = _build_receiver_app(kind="property_list_changed")
     async with _build_sender(app) as sender:
         result = await sender.send_property_list_changed(
             url="http://test/webhooks/adcp",
             list_id="pl_1",
             resolved_at="2026-04-19T00:00:00Z",
-            signature="sig",
+            **({"signature": legacy_signature} if legacy_signature is not None else {}),
         )
     assert result.ok, result.response_body
 

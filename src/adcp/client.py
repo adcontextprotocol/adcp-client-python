@@ -80,6 +80,7 @@ from adcp.observability import (
     set_request_trace_headers,
     set_task_result_attributes,
 )
+from adcp.property_lists import ProductPropertyPolicy
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
@@ -526,6 +527,20 @@ def _task_options_method(
                 else:
                     call_kwargs["request"] = prepared
             result = await method(*cast(Any, positional), **cast(Any, call_kwargs))
+            if (
+                isinstance(result, TaskResult)
+                and client.product_property_policy is not None
+                and task_name in {"get_products", "list_products"}
+                and method_name not in {"execute_task", "execute_task_legacy"}
+            ):
+                result = cast(
+                    R,
+                    await client.product_property_policy.apply(
+                        request,
+                        result,
+                        seller_url=client.agent_config.agent_uri,
+                    ),
+                )
             if isinstance(result, TaskResult):
                 if method_name not in {"execute_task", "execute_task_legacy"}:
                     await _account_bookkeeping(
@@ -706,12 +721,16 @@ class ADCPClient:
         account_storage: AccountStorage | None = None,
         raise_account_errors: bool | None = None,
         experimental_agent_identity: bool = False,
+        product_property_policy: ProductPropertyPolicy | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
 
         Args:
             agent_config: Agent configuration
+            product_property_policy: Optional buyer-side property-list check;
+                filters or flags seller products and reports unjudgeable inventory
+                in TaskResult.metadata. Disabled by default.
             experimental_agent_identity: Parse the pinned AdCP 3.3 relationship and
                 onboarding response types. WBA signing enables this automatically.
             webhook_url_template: Template for webhook URLs with {agent_id},
@@ -904,6 +923,7 @@ class ADCPClient:
         self.experimental_agent_identity = experimental_agent_identity or (
             signing is not None and signing.agent_origin is not None
         )
+        self.product_property_policy = product_property_policy
         if httpx_client_factory is not None and not callable(httpx_client_factory):
             raise TypeError("httpx_client_factory must be callable")
         if httpx_client_factory is not None and agent_config.protocol != Protocol.MCP:
@@ -6727,12 +6747,15 @@ class ADCPMultiAgentClient:
         allow_unauthenticated_webhooks: bool | Mapping[str, bool] = False,
         httpx_client_factory: MCPHttpxClientFactory | None = None,
         experimental_agent_identity: bool = False,
+        product_property_policy: ProductPropertyPolicy | None = None,
     ):
         """
         Initialize multi-agent client.
 
         Args:
             agents: List of agent configurations
+            product_property_policy: Optional property-list policy forwarded to
+                each per-agent client.
             experimental_agent_identity: Enable draft identity response types for
                 every per-agent client; WBA signing also enables them.
             webhook_url_template: Template for webhook URLs
@@ -6813,6 +6836,7 @@ class ADCPMultiAgentClient:
                     on_activity=on_activity,
                     signing=signing,
                     experimental_agent_identity=experimental_agent_identity,
+                    product_property_policy=product_property_policy,
                     httpx_client_factory=(
                         httpx_client_factory if agent.protocol == Protocol.MCP else None
                     ),
@@ -6834,6 +6858,7 @@ class ADCPMultiAgentClient:
                     on_activity=on_activity,
                     signing=signing,
                     experimental_agent_identity=experimental_agent_identity,
+                    product_property_policy=product_property_policy,
                     httpx_client_factory=(
                         httpx_client_factory if agent.protocol == Protocol.MCP else None
                     ),
