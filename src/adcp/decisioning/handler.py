@@ -271,7 +271,6 @@ if TYPE_CHECKING:
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
-    from adcp.decisioning.trust_grants import TrustGrantGate
     from adcp.decisioning.types import Account
     from adcp.reporting.outbox.activity import ReportingActivityProjector
     from adcp.reporting.outbox.status_support import ReportingStatusSupport
@@ -673,16 +672,6 @@ async def _resolve_buyer_agent(
 
     budget = PermissionDeniedBudget()
     credential = auth_info.credential if auth_info is not None else None
-    if (
-        isinstance(credential, HttpSigCredential)
-        and auth_info is not None
-        and auth_info.extra.get("signing_profile") == "web-bot-auth"
-        and auth_info.extra.get("principal_id") is None
-    ):
-        # An established origin cannot inherit a legacy registry row before
-        # explicit binding, even if both identities use exactly the same URL.
-        # Use the ordinary missing-credential denial and its oracle clamp.
-        credential = None
     agent: BuyerAgent | None = None
     if credential is not None:
         if isinstance(credential, HttpSigCredential):
@@ -1472,7 +1461,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         auto_emit_task_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         brand_authorization_gate: BrandAuthorizationGate | None = None,
-        trust_grant_gate: TrustGrantGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
         property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
@@ -1517,7 +1505,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._auto_emit_task_webhooks = auto_emit_task_webhooks
         self._buyer_agent_registry = buyer_agent_registry
         self._brand_authorization_gate = brand_authorization_gate
-        self._trust_grant_gate = trust_grant_gate
         self._config_store = config_store
         from adcp.property_lists import MCPPropertyListFetcher
 
@@ -1599,7 +1586,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ctx: ToolContext,
         *,
         tool_name: str | None = None,
-        request_params: Any = None,
     ) -> Account[Any]:
         """Resolve a wire :class:`AccountReference` to a typed
         :class:`Account` via the platform's :class:`AccountStore`.
@@ -1711,24 +1697,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # an internal mapping, etc.). The gate is a no-op when no buyer
         # agent has been resolved (Tier 2 not wired) — see
         # :func:`_enforce_brand_authorization` for the rationale.
-        if self._trust_grant_gate is not None:
-            # The trust gate owns source selection, including any explicit
-            # legacy callback. A second brand.json gate would violate the
-            # successful-trust-record precedence rule.
-            await self._trust_grant_gate.require_account(
-                resolved,
-                ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
-                signing_profile=self._grant_signing_profile(ctx),
-                operation=tool_name,
-                bound_wba_identity=self._has_bound_wba_identity(ctx),
-                operation_params=(
-                    request_params.model_dump(mode="json", exclude_unset=True)
-                    if hasattr(request_params, "model_dump")
-                    else request_params
-                ),
-                spend_committing=self._wba_spend_decision(ctx),
-            )
-        elif self._brand_authorization_gate is not None:
+        if self._brand_authorization_gate is not None:
             buyer_agent_for_gate = cast(
                 "BuyerAgent | None",
                 ctx.metadata.get(_BUYER_AGENT_METADATA_KEY) if ctx.metadata else None,
@@ -1739,33 +1708,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 buyer_agent_for_gate,
             )
         return resolved
-
-    @classmethod
-    def _wba_spend_decision(cls, ctx: ToolContext) -> bool | None:
-        auth_info = cls._extract_auth_info(ctx)
-        value = auth_info.extra.get("wba_spend_committing") if auth_info is not None else None
-        return value if isinstance(value, bool) else None
-
-    @classmethod
-    def _has_bound_wba_identity(cls, ctx: ToolContext) -> bool:
-        """Only trusted transport state can preserve an established binding."""
-        auth_info = cls._extract_auth_info(ctx)
-        return bool(
-            auth_info is not None
-            and auth_info.extra.get("signing_profile") == "web-bot-auth"
-            and isinstance(auth_info.extra.get("principal_id"), str)
-            and auth_info.extra["principal_id"]
-        )
-
-    @classmethod
-    def _grant_signing_profile(
-        cls, ctx: ToolContext
-    ) -> Literal["web-bot-auth", "adcp/request-signing/v1"]:
-        """Read trusted transport metadata, never an account declaration field."""
-        auth_info = cls._extract_auth_info(ctx)
-        if auth_info is not None and auth_info.extra.get("signing_profile") == "web-bot-auth":
-            return "web-bot-auth"
-        return "adcp/request-signing/v1"
 
     @staticmethod
     def _extract_auth_info(ctx: ToolContext) -> AuthInfo | None:
@@ -2269,7 +2211,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Resolve account context and dispatch one compact 3.2 lifecycle task."""
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
-            getattr(params, "account", None), tool_ctx, tool_name=method_name, request_params=params
+            getattr(params, "account", None), tool_ctx, tool_name=method_name
         )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
@@ -2887,7 +2829,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
-            params.account, tool_ctx, tool_name="update_media_buy", request_params=params
+            params.account, tool_ctx, tool_name="update_media_buy"
         )
         ctx = self._build_ctx(tool_ctx, account)
         # v1.5: hydrate ctx.recipes from the consumed proposal via the
@@ -3197,21 +3139,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # (``ACCOUNT_NOT_FOUND`` until the account exists, but the
         # account exists only after this call succeeds).
         await self._prime_auth_context(tool_ctx)
-        if self._trust_grant_gate is not None:
-            for declaration in getattr(params, "accounts", []) or []:
-                row = (
-                    declaration.model_dump(mode="json", exclude_none=True)
-                    if hasattr(declaration, "model_dump")
-                    else declaration
-                )
-                if isinstance(row, dict) and row.get("account_id") and "brand" not in row:
-                    await self._resolve_account(row, tool_ctx, tool_name="sync_accounts")
-                else:
-                    await self._trust_grant_gate.require_declaration(
-                        row,
-                        tool_ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
-                        signing_profile=self._grant_signing_profile(tool_ctx),
-                    )
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
         if callable(upsert_request):
             result = _call_with_optional_ctx(upsert_request, params, ctx=resolve_ctx)

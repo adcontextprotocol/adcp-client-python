@@ -62,14 +62,6 @@ class SignerKeyResolver(Protocol):
     async def __call__(self, keyid: str) -> ResolvedSignerKey | None: ...
 
 
-@runtime_checkable
-class WbaSignerKeyResolver(Protocol):
-    """Resolve a WBA thumbprint only in the covered signer's origin directory."""
-
-    async def __call__(self, keyid: str, *, signer_origin: str) -> ResolvedSignerKey | None:
-        raise NotImplementedError("implement origin-scoped Web Bot Auth key resolution")
-
-
 def _jwks_keys(agent_url: str, jwks: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     keys = jwks.get("keys")
     if not isinstance(keys, list):
@@ -107,16 +99,8 @@ class StaticSignerKeys:
                 index[kid] = ResolvedSignerKey(agent_url=agent_url, jwk=dict(key))
         self._index = index
 
-    async def __call__(
-        self, keyid: str, *, signer_origin: str | None = None
-    ) -> ResolvedSignerKey | None:
-        key = self._index.get(keyid)
-        if signer_origin is not None and key is not None:
-            from adcp.signing.canonical import canonical_origin
-
-            if canonical_origin(key.agent_url) != signer_origin:
-                return None
-        return key
+    async def __call__(self, keyid: str) -> ResolvedSignerKey | None:
+        return self._index.get(keyid)
 
 
 class JwksUriSignerKeys:
@@ -174,12 +158,7 @@ class JwksUriSignerKeys:
         self._failures.pop(agent_url, None)
         return ResolvedSignerKey(agent_url=agent_url, jwk=jwk) if jwk is not None else None
 
-    async def __call__(
-        self, keyid: str, *, signer_origin: str | None = None
-    ) -> ResolvedSignerKey | None:
-        if signer_origin is not None:
-            # Legacy endpoints are not signed WBA directories.
-            return None
+    async def __call__(self, keyid: str) -> ResolvedSignerKey | None:
         results = await asyncio.gather(*(self._lookup(agent, keyid) for agent in self._resolvers))
         matches = [result for result in results if isinstance(result, ResolvedSignerKey)]
         if len(matches) == 1:
@@ -205,5 +184,4 @@ __all__ = [
     "ResolvedSignerKey",
     "SignerKeyResolver",
     "StaticSignerKeys",
-    "WbaSignerKeyResolver",
 ]

@@ -1597,10 +1597,6 @@ See `examples/fetch_agent_authorizations.py` for complete examples.
 
 ## Request Signing (AdCP 3.0 optional, 4.0 required)
 
-AdCP 3.3 identity support is available as an opt-in preview: see the
-[Web Bot Auth and trust.json migration guide](docs/agent-identity-3-3-migration.md)
-for signing, directory publishing, origin binding, demand grants, and preview types.
-
 AdCP defines an optional transport-layer request-signing profile based on
 [RFC 9421 HTTP Message Signatures](https://datatracker.ietf.org/doc/rfc9421/).
 A valid signature proves the request came from the agent whose key signed it.

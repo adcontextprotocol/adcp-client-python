@@ -323,15 +323,11 @@ class PrincipalService:
         accepted_async_adcp_versions: tuple[str, ...] = ("3.2",),
         accepted_webhook_signing_algorithms: tuple[str, ...] = (),
         accepted_experimental_features: tuple[str, ...] = (),
-        relationship_resolver: (
-            Callable[[PrincipalIdentity], Awaitable[Mapping[str, Any] | BaseModel | None]] | None
-        ) = None,
     ) -> None:
         self._store = store or InMemoryPrincipalRecordStore()
         self._destination_proof = destination_proof
         self._notification_proof = notification_proof
         self._emit_change = emit_change
-        self._relationship_resolver = relationship_resolver
         self._accepted_declarations = {
             "async_adcp_versions": accepted_async_adcp_versions,
             "webhook_signing_algorithms": accepted_webhook_signing_algorithms,
@@ -368,28 +364,6 @@ class PrincipalService:
                 return record.principal_id
 
     async def get_principal(
-        self,
-        identity: PrincipalIdentity,
-        request: GetPrincipalRequest | Mapping[str, Any] | None = None,
-    ) -> GetPrincipalResponse:
-        """Read state and optional experimental relationship for this authenticated caller."""
-        response = await self._get_principal_state(identity, request)
-        if self._relationship_resolver is None or response.result.kind == "failed":
-            return response
-        relationship = await self._relationship_resolver(identity)
-        if relationship is None:
-            return response
-        from adcp.types.experimental_identity import GetPrincipalResponse as PreviewResponse
-
-        envelope = response.model_dump(mode="json", exclude_none=True)
-        envelope["result"]["relationship"] = (
-            relationship.model_dump(mode="json", exclude_none=True)
-            if isinstance(relationship, BaseModel)
-            else dict(relationship)
-        )
-        return PreviewResponse.model_validate(envelope)
-
-    async def _get_principal_state(
         self,
         identity: PrincipalIdentity,
         request: GetPrincipalRequest | Mapping[str, Any] | None = None,

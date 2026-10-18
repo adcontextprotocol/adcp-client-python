@@ -87,7 +87,6 @@ from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
 from adcp.signing.autosign import (
     SigningConfig,
     operation_needs_signing,
-    require_signing_profile,
     signing_profile_for_adcp_version,
 )
 from adcp.signing.autosign import (
@@ -720,7 +719,6 @@ class ADCPClient:
         account_policy: AccountPolicy | None = None,
         account_storage: AccountStorage | None = None,
         raise_account_errors: bool | None = None,
-        experimental_agent_identity: bool = False,
         product_property_policy: ProductPropertyPolicy | None = None,
     ):
         """
@@ -731,8 +729,6 @@ class ADCPClient:
             product_property_policy: Optional buyer-side property-list check;
                 filters or flags seller products and reports unjudgeable inventory
                 in TaskResult.metadata. Disabled by default.
-            experimental_agent_identity: Parse the pinned AdCP 3.3 relationship and
-                onboarding response types. WBA signing enables this automatically.
             webhook_url_template: Template for webhook URLs with {agent_id},
                 {task_type}, {operation_id}
             webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
@@ -920,9 +916,6 @@ class ADCPClient:
         self.validate_features = validate_features
         self.strict_idempotency = strict_idempotency
         self.signing = signing
-        self.experimental_agent_identity = experimental_agent_identity or (
-            signing is not None and signing.agent_origin is not None
-        )
         self.product_property_policy = product_property_policy
         if httpx_client_factory is not None and not callable(httpx_client_factory):
             raise TypeError("httpx_client_factory must be callable")
@@ -1489,7 +1482,6 @@ class ADCPClient:
         decision = operation_needs_signing(req_signing, operation)
         if decision == "skip":
             return
-        require_signing_profile(req_signing, self.signing)
 
         covers_policy: str | None = None
         if req_signing is not None and req_signing.covers_content_digest is not None:
@@ -1516,7 +1508,6 @@ class ADCPClient:
             alg=self.signing.alg,
             cover_content_digest=cover_digest,
             tag=self.signing.tag,
-            agent_origin=self.signing.agent_origin,
             signing_profile_version=signing_profile_version,
         )
         # pop-then-set ensures our signed values are authoritative even if
@@ -2239,7 +2230,6 @@ class ADCPClient:
         response_type: type[BaseModel] | Any,
     ) -> TaskResult[Any]:
         """Execute and parse one typed AdCP task with activity events."""
-        response_type = self._identity_response_type(response_type)
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
         # AdCP 3.2 mutation inputs are three-state: omitted leaves the stored
@@ -2273,7 +2263,7 @@ class ADCPClient:
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
-        parsed_result: TaskResult[Any] = self.adapter._parse_response(raw_result, response_type)
+        parsed_result = self.adapter._parse_response(raw_result, response_type)
         if task_type == "refine_proposals" and isinstance(raw_result.data, Mapping):
             metadata = dict(parsed_result.metadata or {})
             metadata[WIRE_RESPONSE_METADATA_KEY] = raw_result.data
@@ -3995,20 +3985,7 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(
-            raw_result, self._identity_response_type(GetAdcpCapabilitiesResponse)
-        )
-
-    def _identity_response_type(self, response_type: type[R]) -> type[R]:
-        """Use the pinned draft response wrappers only for opted-in clients."""
-        if self.experimental_agent_identity:
-            from adcp.types import experimental_identity
-
-            if response_type is GetPrincipalResponse:
-                return cast(type[R], experimental_identity.GetPrincipalResponse)
-            if response_type is GetAdcpCapabilitiesResponse:
-                return cast(type[R], experimental_identity.GetAdcpCapabilitiesResponse)
-        return response_type
+        return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
 
     @_task_options_method
     async def sync_agent_notification_configs(
@@ -6179,7 +6156,6 @@ class ADCPClient:
                 return cast(TaskResult[AdcpAsyncResponseData], projected)
             response_type = response_type_map.get(task_type)
             if response_type:
-                response_type = self._identity_response_type(response_type)
                 try:
                     parsed_result: Any = parse_json_or_text(result, response_type)
                     metadata: dict[str, Any] = {
@@ -6746,7 +6722,6 @@ class ADCPMultiAgentClient:
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
         allow_unauthenticated_webhooks: bool | Mapping[str, bool] = False,
         httpx_client_factory: MCPHttpxClientFactory | None = None,
-        experimental_agent_identity: bool = False,
         product_property_policy: ProductPropertyPolicy | None = None,
     ):
         """
@@ -6756,8 +6731,6 @@ class ADCPMultiAgentClient:
             agents: List of agent configurations
             product_property_policy: Optional property-list policy forwarded to
                 each per-agent client.
-            experimental_agent_identity: Enable draft identity response types for
-                every per-agent client; WBA signing also enables them.
             webhook_url_template: Template for webhook URLs
             webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
                 fallback. Configure only for registrations that explicitly
@@ -6835,7 +6808,6 @@ class ADCPMultiAgentClient:
                     webhook_secret=webhook_secret,
                     on_activity=on_activity,
                     signing=signing,
-                    experimental_agent_identity=experimental_agent_identity,
                     product_property_policy=product_property_policy,
                     httpx_client_factory=(
                         httpx_client_factory if agent.protocol == Protocol.MCP else None
@@ -6857,7 +6829,6 @@ class ADCPMultiAgentClient:
                     webhook_secret=webhook_secret,
                     on_activity=on_activity,
                     signing=signing,
-                    experimental_agent_identity=experimental_agent_identity,
                     product_property_policy=product_property_policy,
                     httpx_client_factory=(
                         httpx_client_factory if agent.protocol == Protocol.MCP else None

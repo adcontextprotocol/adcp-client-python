@@ -132,7 +132,6 @@ from adcp.signing.autosign import (
     operation_needs_signing,
     signing_profile_for_adcp_version,
 )
-from adcp.signing.bindings import OriginBindingResolver, OriginBindings
 from adcp.signing.brand_authz import (
     BrandAuthorizationReason,
     BrandAuthorizationResolver,
@@ -149,7 +148,6 @@ from adcp.signing.brand_jwks import (
 from adcp.signing.canonical import (
     SignatureInputLabel,
     build_signature_base,
-    canonical_origin,
     canonicalize_authority,
     canonicalize_target_uri,
     malformed_authority_reason,
@@ -296,7 +294,7 @@ from adcp.signing.replay import (
     ReplayStore,
     supports_atomic_claim,
 )
-from adcp.signing.revocation import RevocationChecker, RevocationDetails, RevocationList
+from adcp.signing.revocation import RevocationChecker, RevocationList
 from adcp.signing.revocation_fetcher import (
     DEFAULT_GRACE_MULTIPLIER,
     REVOCATION_LIST_TYP,
@@ -321,7 +319,6 @@ from adcp.signing.signer_keys import (
     ResolvedSignerKey,
     SignerKeyResolver,
     StaticSignerKeys,
-    WbaSignerKeyResolver,
 )
 from adcp.signing.standard_webhooks import (
     StandardWebhookError,
@@ -331,21 +328,6 @@ from adcp.signing.standard_webhooks import (
 from adcp.signing.standard_webhooks import (
     decode_secret as decode_standard_webhook_secret,
 )
-from adcp.signing.trust import (
-    EvaluatedTrustRecord,
-    GrantAuthorization,
-    GrantRequest,
-    TrustGrantEvaluator,
-    TrustRecordAbsentError,
-    TrustRecordError,
-    TrustRecordEvaluator,
-    TrustRecordMatchError,
-    TrustRecordNotFoundError,
-    TrustRecordUnavailableError,
-    TrustResponse,
-    trust_record_url,
-    validate_trust_record,
-)
 from adcp.signing.verifier import (
     RequestBodyMalformedError,
     SigningProfileVersion,
@@ -354,20 +336,6 @@ from adcp.signing.verifier import (
     VerifyOptions,
     strict_header_precheck,
     verify_request_signature,
-)
-from adcp.signing.wba import (
-    DirectoryResponse,
-    DiscoveredSignerKeys,
-    OriginRevocationChecker,
-    WbaAuthorizationError,
-    WbaUnavailableError,
-    WbaVerificationError,
-    public_directory_key,
-    sign_key_directory,
-    sign_wba_request,
-    thumbprint_key_id,
-    verify_directory_response,
-    verify_wba_request,
 )
 
 # Conditional import: PgReplayStore needs the [pg] extra. Always expose
@@ -396,39 +364,9 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
 
 __all__ = [
-    "GrantRequest",
-    "WbaAuthorizationError",
-    "WbaUnavailableError",
-    "RevocationDetails",
-    "OriginRevocationChecker",
-    "EvaluatedTrustRecord",
-    "GrantAuthorization",
-    "TrustGrantEvaluator",
-    "TrustRecordAbsentError",
-    "TrustRecordError",
-    "TrustRecordEvaluator",
-    "TrustRecordMatchError",
-    "TrustRecordNotFoundError",
-    "TrustRecordUnavailableError",
-    "TrustResponse",
-    "trust_record_url",
-    "validate_trust_record",
-    "canonical_origin",
-    "OriginBindingResolver",
-    "OriginBindings",
-    "DirectoryResponse",
-    "DiscoveredSignerKeys",
-    "WbaVerificationError",
-    "public_directory_key",
-    "sign_key_directory",
-    "sign_wba_request",
-    "thumbprint_key_id",
-    "verify_directory_response",
-    "verify_wba_request",
     "JwksUriSignerKeys",
     "ResolvedSignerKey",
     "SignerKeyResolver",
-    "WbaSignerKeyResolver",
     "StaticSignerKeys",
     "ALG_ED25519",
     "ALG_ES256",

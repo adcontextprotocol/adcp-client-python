@@ -32,8 +32,7 @@ from a2a.server.agent_execution.agent_executor import AgentExecutor
 from a2a.server.agent_execution.context import RequestContext
 from a2a.server.context import ServerCallContext
 from a2a.server.events.event_queue import EventQueue
-from a2a.server.request_handlers import DefaultRequestHandler, validate_request_params
-from a2a.server.request_handlers.request_handler import validate
+from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
 from google.protobuf.json_format import MessageToDict, ParseDict
@@ -49,8 +48,6 @@ from adcp.server.helpers import ResponseEnhancer, _apply_response_enhancer
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from a2a.server.agent_execution.active_task import ActiveTask
-    from a2a.server.events.event_queue import Event
     from a2a.server.request_handlers import RequestHandler
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
@@ -62,7 +59,7 @@ if TYPE_CHECKING:
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.serve import ContextFactory, SkillMiddleware
 
-from collections.abc import AsyncGenerator, Awaitable, Callable  # noqa: E402
+from collections.abc import Awaitable, Callable  # noqa: E402
 
 from adcp.validation.client_hooks import (  # noqa: E402
     SERVER_DEFAULT_VALIDATION,
@@ -158,67 +155,6 @@ def _get_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
 
 _A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
 _A2A_PARSED_REQUEST_SCOPE_KEY = "adcp.a2a_parsed_request"
-
-
-class _OwnerCheckedRequestHandler(DefaultRequestHandler):
-    """Check persisted ownership before the SDK's globally indexed active tasks."""
-
-    async def _owned_active_task(self, task_id: str, context: ServerCallContext) -> ActiveTask:
-        from a2a.utils.errors import TaskNotFoundError
-
-        if await self.task_store.get(task_id, context) is None:
-            raise TaskNotFoundError
-        active: ActiveTask = await self._active_task_registry.get_or_create(
-            task_id, call_context=context, create_task_if_missing=False
-        )
-        # Check the exact object used below, after its last registry lookup.
-        # Cleanup can replace a global ID between awaits, and cancel replaces
-        # the active task's save context. Neither may transfer foreign work.
-        if not self._task_owner_matches(active, context):
-            raise TaskNotFoundError
-        return active
-
-    @staticmethod
-    def _task_owner_matches(active: ActiveTask, context: ServerCallContext) -> bool:
-        owner = active._task_manager._call_context
-        return owner.user.user_name == context.user.user_name and owner.tenant == context.tenant
-
-    async def _setup_active_task(
-        self, params: pb.SendMessageRequest, call_context: ServerCallContext
-    ) -> tuple[ActiveTask, RequestContext]:
-        from a2a.utils.errors import TaskNotFoundError
-
-        active, request = await super()._setup_active_task(params, call_context)
-        # An existing same-ID row in the caller's partition cannot retarget
-        # the foreign active task, including its persistence/owner context.
-        if not self._task_owner_matches(active, call_context):
-            raise TaskNotFoundError
-        return active, request
-
-    @validate_request_params
-    async def on_cancel_task(
-        self, params: pb.CancelTaskRequest, context: ServerCallContext
-    ) -> pb.Task | None:
-        from a2a.utils.errors import InvalidParamsError, TaskNotCancelableError
-
-        try:
-            active = await self._owned_active_task(params.id, context)
-            result = await active.cancel(context)
-        except InvalidParamsError as exc:
-            raise TaskNotCancelableError from exc
-        return result
-
-    @validate_request_params
-    @validate(
-        lambda self: self._agent_card.capabilities.streaming,
-        "Streaming is not supported by the agent",
-    )
-    async def on_subscribe_to_task(
-        self, params: pb.SubscribeToTaskRequest, context: ServerCallContext
-    ) -> AsyncGenerator[Event, None]:
-        active = await self._owned_active_task(params.id, context)
-        async for event in active.subscribe(include_initial_task=True):
-            yield event
 
 
 class _A2ARequestContextMiddleware:
@@ -691,10 +627,10 @@ class ADCPAgentExecutor(AgentExecutor):
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         """ADCP operations are synchronous; cancellation sets state to canceled."""
-        event = pb.TaskStatusUpdateEvent(
-            task_id=context.task_id or str(uuid4()),
-            context_id=context.context_id or str(uuid4()),
-            status=pb.TaskStatus(state=pb.TaskState.TASK_STATE_CANCELED),
+        event = _make_task(
+            context,
+            state=pb.TaskState.TASK_STATE_CANCELED,
+            message="Task canceled",
         )
         await event_queue.enqueue_event(event)
 
@@ -1566,7 +1502,7 @@ def create_a2a_server(
             # DefaultRequestHandler stores push_config_store verbatim and
             # treats None as "push-notif unsupported". Passing None is the
             # correct default; sellers opt in by wiring a store.
-            _rpc_handler: RequestHandler = _OwnerCheckedRequestHandler(
+            _rpc_handler: RequestHandler = DefaultRequestHandler(
                 agent_executor=executor,
                 task_store=task_store,
                 agent_card=fallback_card,
@@ -1616,7 +1552,7 @@ def create_a2a_server(
             # None as "push-notif endpoints unsupported" (UnsupportedOperationError
             # on tasks/pushNotificationConfig/*). Passing None is the correct
             # default; sellers opt in by wiring a store.
-            _rpc_handler = _OwnerCheckedRequestHandler(
+            _rpc_handler = DefaultRequestHandler(
                 agent_executor=executor,
                 task_store=task_store,
                 agent_card=agent_card,

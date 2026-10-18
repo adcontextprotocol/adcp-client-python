@@ -210,50 +210,6 @@ def test_pydantic_payload_is_supported() -> None:
     assert json.loads(prepared.body)["notification_type"] == "principal.changed"
 
 
-@pytest.mark.parametrize("reason", ["relationship_changed", "relationship_expiring"])
-async def test_experimental_principal_webhook_preparation_delivery_and_replay(reason: str) -> None:
-    from adcp.types.experimental_identity import PrincipalChangedWebhook
-
-    payload = PrincipalChangedWebhook.model_validate(
-        {**notification_payload("principal_changed"), "reason": reason, "idempotency_key": KEY}
-    )
-    with pytest.raises(ValueError, match="schema validation"):
-        WebhookSender.prepare_principal_changed(url=URL, payload=payload)
-    prepared = WebhookSender.prepare_principal_changed(
-        url=URL, payload=payload, experimental_agent_identity=True
-    )
-    requests: list[httpx.Request] = []
-
-    def receive(request: httpx.Request) -> httpx.Response:
-        requests.append(request)
-        return httpx.Response(202)
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(receive)) as client:
-        sender = WebhookSender.from_bearer_token("test", client=client)
-        with pytest.raises(ValueError, match="schema validation"):
-            await sender.send_prepared(prepared)
-        result = await sender.send_prepared(prepared, experimental_agent_identity=True)
-        with pytest.raises(ValueError, match="schema validation"):
-            await sender.resend(result)
-        retry = await sender.resend(result, experimental_agent_identity=True)
-        direct = await sender.send_principal_changed(
-            url=URL, payload=payload, experimental_agent_identity=True
-        )
-    assert result.ok and retry.ok and direct.ok
-    assert len(requests) == 3
-    assert requests[0].content == requests[1].content == prepared.body
-    assert json.loads(prepared.body)["reason"] == reason
-
-
-def test_experimental_principal_webhook_still_validates_stable_fields() -> None:
-    payload = {**notification_payload("principal_changed"), "reason": "relationship_changed"}
-    payload["changed_at"] = "not-a-timestamp"
-    with pytest.raises(ValueError, match="schema validation"):
-        WebhookSender.prepare_principal_changed(
-            url=URL, payload=payload, experimental_agent_identity=True
-        )
-
-
 @pytest.mark.parametrize(
     "kind,args",
     [

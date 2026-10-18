@@ -786,7 +786,6 @@ class WebhookSender:
         prepared: PreparedWebhook,
         *,
         before_attempt: Callable[[], Awaitable[bool]] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> WebhookDeliveryResult:
         """Sign and post a previously prepared immutable webhook request.
 
@@ -812,13 +811,6 @@ class WebhookSender:
             raise ValueError(
                 "prepared webhook body idempotency_key does not match its immutable binding"
             )
-        from adcp._notification_envelope import validate_notification_body
-
-        validate_notification_body(
-            prepared.body,
-            idempotency_key=prepared.idempotency_key,
-            experimental_agent_identity=experimental_agent_identity,
-        )
         return await self._send_bytes(
             url=prepared.url,
             body=prepared.body,
@@ -835,7 +827,6 @@ class WebhookSender:
         payload: Mapping[str, Any] | BaseModel,
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> PreparedWebhook:
         value = (
             payload.model_dump(mode="json", exclude_none=True)
@@ -848,11 +839,7 @@ class WebhookSender:
         value.setdefault("fired_at", datetime.now(timezone.utc).isoformat())
         key = idempotency_key or value.get("idempotency_key") or generate_webhook_idempotency_key()
         return WebhookSender.prepare_raw(
-            url=url,
-            payload=value,
-            idempotency_key=key,
-            extra_headers=extra_headers,
-            experimental_agent_identity=experimental_agent_identity,
+            url=url, payload=value, idempotency_key=key, extra_headers=extra_headers
         )
 
     @staticmethod
@@ -979,7 +966,6 @@ class WebhookSender:
         payload: Mapping[str, Any] | BaseModel,
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> PreparedWebhook:
         """Prepare a schema-validated ``principal.changed`` notification.
 
@@ -992,7 +978,6 @@ class WebhookSender:
             payload=payload,
             idempotency_key=idempotency_key,
             extra_headers=extra_headers,
-            experimental_agent_identity=experimental_agent_identity,
         )
 
     async def send_principal_changed(
@@ -1002,7 +987,6 @@ class WebhookSender:
         payload: Mapping[str, Any] | BaseModel,
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> WebhookDeliveryResult:
         """Prepare and send a ``principal.changed`` notification in one attempt."""
         return await self.send_prepared(
@@ -1011,9 +995,7 @@ class WebhookSender:
                 payload=payload,
                 idempotency_key=idempotency_key,
                 extra_headers=extra_headers,
-                experimental_agent_identity=experimental_agent_identity,
-            ),
-            experimental_agent_identity=experimental_agent_identity,
+            )
         )
 
     @staticmethod
@@ -1619,7 +1601,6 @@ class WebhookSender:
         idempotency_key: str,
         payload: dict[str, Any],
         extra_headers: Mapping[str, str] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> WebhookDeliveryResult:
         """Prepare and send a notification in one attempt."""
         return await self.send_prepared(
@@ -1628,9 +1609,7 @@ class WebhookSender:
                 idempotency_key=idempotency_key,
                 payload=payload,
                 extra_headers=extra_headers,
-                experimental_agent_identity=experimental_agent_identity,
-            ),
-            experimental_agent_identity=experimental_agent_identity,
+            )
         )
 
     @staticmethod
@@ -1640,7 +1619,6 @@ class WebhookSender:
         idempotency_key: str | None = None,
         payload: Mapping[str, Any],
         extra_headers: Mapping[str, str] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> PreparedWebhook:
         """Serialize and validate a raw notification without network I/O.
 
@@ -1665,7 +1643,7 @@ class WebhookSender:
             )
         from adcp._notification_envelope import validate_notification_body
 
-        validate_notification_body(body, experimental_agent_identity=experimental_agent_identity)
+        validate_notification_body(body)
         return PreparedWebhook(
             url=url,
             body=body,
@@ -1673,9 +1651,7 @@ class WebhookSender:
             extra_headers=dict(extra_headers) if extra_headers else {},
         )
 
-    async def resend(
-        self, result: WebhookDeliveryResult, *, experimental_agent_identity: bool = False
-    ) -> WebhookDeliveryResult:
+    async def resend(self, result: WebhookDeliveryResult) -> WebhookDeliveryResult:
         """Replay an earlier delivery under a fresh signature.
 
         The bytes are identical (same ``idempotency_key``, same payload
@@ -1688,15 +1664,6 @@ class WebhookSender:
             raise ValueError(
                 "cannot resend: result has no captured sent_body (likely constructed "
                 "externally). Call a send_* method on this sender first."
-            )
-        from adcp._notification_envelope import validate_notification_body
-
-        payload = json.loads(result.sent_body)
-        if isinstance(payload, dict) and payload.get("notification_type") == "principal.changed":
-            validate_notification_body(
-                result.sent_body,
-                idempotency_key=result.idempotency_key,
-                experimental_agent_identity=experimental_agent_identity,
             )
         return await self._send_bytes(
             url=result.url,

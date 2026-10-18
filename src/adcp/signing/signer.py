@@ -53,7 +53,6 @@ class SignedHeaders:
     signature_input: str
     signature: str
     content_digest: str | None = None
-    signature_agent: str | None = None
 
     def as_dict(self) -> dict[str, str]:
         headers: dict[str, str] = {
@@ -62,8 +61,6 @@ class SignedHeaders:
         }
         if self.content_digest is not None:
             headers["Content-Digest"] = self.content_digest
-        if self.signature_agent is not None:
-            headers["Signature-Agent"] = self.signature_agent
         return headers
 
 
@@ -264,7 +261,6 @@ def sign_request(
     tag: str = DEFAULT_TAG,
     label: str = SIG_LABEL_DEFAULT,
     signing_profile_version: Literal["3.0", "3.1", "3.2"],
-    agent_origin: str | None = None,
 ) -> SignedHeaders:
     """Sign a request and return the headers to add to it.
 
@@ -273,29 +269,6 @@ def sign_request(
     intentionally required: this low-level primitive has no negotiated AdCP
     version from which it could safely infer the wire encoding.
     """
-    if agent_origin is not None:
-        from adcp.signing.wba import public_directory_key, sign_wba_request
-
-        if key_id != public_directory_key(private_key)["kid"]:
-            raise ValueError("Web Bot Auth key_id must be the public key's RFC 7638 thumbprint")
-        result = sign_wba_request(
-            method=method,
-            url=url,
-            headers=headers,
-            body=body,
-            private_key=private_key,
-            agent_origin=agent_origin,
-            created=created,
-            expires_in_seconds=expires_in_seconds,
-            nonce=nonce,
-            label=label,
-        )
-        return SignedHeaders(
-            signature_input=result["Signature-Input"],
-            signature=result["Signature"],
-            content_digest=result.get("Content-Digest"),
-            signature_agent=result["Signature-Agent"],
-        )
     resolved_cover_content_digest = _resolve_content_digest_coverage(
         signing_profile_version=signing_profile_version,
         body=body,

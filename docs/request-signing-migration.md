@@ -1,9 +1,5 @@
 # Migrating to signed AdCP requests
 
-For the experimental AdCP 3.3 origin identity profile, see
-[Web Bot Auth and trust.json migration](agent-identity-3-3-migration.md).
-The guide below continues to cover the RFC 9421 profile supported through 3.x.
-
 Rolling out RFC 9421 request signing against an existing AdCP integration is a two-track exercise: **bootstrap** once, then **enforce** in stages per operation. Key **rotation** follows the same pattern and is meant to be routine.
 
 This guide covers the operator-facing mechanics. Spec reference: [Signed Requests (Transport Layer)](https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer).

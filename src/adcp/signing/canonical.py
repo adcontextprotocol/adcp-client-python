@@ -17,7 +17,6 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 import idna
 
 from adcp.signing._idna_canonicalize import canonicalize_host
-from adcp.signing._structured_fields import reject_dictionary_duplicates
 
 #: Spec code for an authority the AdCP profile requires be rejected rather than
 #: canonicalized. Declared here rather than imported from ``errors`` so this
@@ -71,7 +70,6 @@ def parse_signature_input_header(header_value: str) -> dict[str, SignatureInputL
     `sig1=(...);..., sig2=(...);...`. The AdCP profile mandates that verifiers
     process exactly one label (conventionally `sig1`) and ignore others.
     """
-    reject_dictionary_duplicates(header_value)
     labels: dict[str, SignatureInputLabel] = {}
     for entry in split_structured_field(header_value, ","):
         entry = entry.strip()
@@ -150,19 +148,6 @@ def canonicalize_authority(url: str) -> str:
     """Produce the `@authority` derived-component value per AdCP profile."""
     parts = _split_or_reject(url)
     return _canon_authority(parts.netloc, parts.scheme.lower())
-
-
-def canonical_origin(url: str) -> str:
-    """Return scheme and authority after AdCP URL canonicalization steps 1–4.
-
-    Paths, queries and fragments do not participate in an origin identity.
-    Only absolute HTTP(S) URLs have an origin in this SDK.
-    """
-    parts = _split_or_reject(url)
-    scheme = parts.scheme.lower()
-    if scheme not in {"http", "https"} or not parts.netloc:
-        raise ValueError("an origin requires an absolute HTTP(S) URL")
-    return f"{scheme}://{_canon_authority(parts.netloc, scheme)}"
 
 
 def _split_or_reject(url: str) -> SplitResult:

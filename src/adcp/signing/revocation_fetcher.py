@@ -497,8 +497,6 @@ class _CheckerState:
     _last_polling_interval_seconds: float | None
     _last_refresh_attempt: float | None
     _grace_multiplier: float
-    _history_admission: Callable[[RevocationList], bool] | None
-    _history_overflowed: bool
 
     def _init_state(self) -> None:
         self._current_list = None
@@ -507,12 +505,6 @@ class _CheckerState:
         self._last_successful_refresh = None
         self._last_polling_interval_seconds = None
         self._last_refresh_attempt = None
-        self._history_overflowed = False
-
-    @property
-    def has_verified_list(self) -> bool:
-        """Whether authenticated revocation evidence must be retained, even if stale."""
-        return self._current_list is not None or self._history_overflowed
 
     def _handle_not_modified(self, *, now_mono: float) -> None:
         """Record a successful conditional request without changing signed freshness.
@@ -530,19 +522,6 @@ class _CheckerState:
         now_mono: float,
     ) -> None:
         """Commit a validated list to the cache."""
-        self._check_history()
-        if self._current_list is not None:
-            revocation_list.retain(self._current_list)
-        try:
-            admitted = self._history_admission is None or self._history_admission(revocation_list)
-        except Exception as exc:
-            self._history_overflowed = True
-            raise RevocationListFreshnessError("revocation history admission failed") from exc
-        if not admitted:
-            # Forgetting refused revocations would allow a later list to omit
-            # them. Permanently close this checker rather than weakening facts.
-            self._history_overflowed = True
-            raise RevocationListFreshnessError("revocation history admission capacity exceeded")
         self._current_list = revocation_list
         self._current_etag = result.etag
         # Sanitize again at write-side: custom fetcher impls may not have
@@ -551,20 +530,9 @@ class _CheckerState:
         self._last_successful_refresh = now_mono
         self._last_polling_interval_seconds = _polling_interval_seconds(revocation_list)
 
-    def _check_history(self) -> None:
-        if self._history_overflowed:
-            raise RevocationListFreshnessError("revocation history admission capacity exceeded")
-
     def _grace_seconds(self) -> float:
         interval = self._last_polling_interval_seconds or MAX_POLLING_INTERVAL_SECONDS
         return interval * self._grace_multiplier
-
-    def _check_fetched_freshness(self, revocation_list: RevocationList, now: datetime) -> None:
-        deadline = _parse_iso8601(revocation_list.next_update).timestamp() + (
-            _polling_interval_seconds(revocation_list) * self._grace_multiplier
-        )
-        if now.timestamp() >= deadline:
-            raise RevocationListFreshnessError("fetched revocation list is past its grace window")
 
 
 def _build_list_from_payload(payload: dict[str, Any], expected_issuer: str) -> RevocationList:
@@ -618,10 +586,7 @@ def _build_list_from_payload(payload: dict[str, Any], expected_issuer: str) -> R
             f"spec floor ({MIN_POLLING_INTERVAL_SECONDS}s)"
         )
 
-    try:
-        return RevocationList.from_dict(payload)
-    except (ValueError, TypeError) as exc:
-        raise RevocationListParseError("invalid revocation identifiers or details") from exc
+    return RevocationList.from_dict(payload)
 
 
 class CachingRevocationChecker(_CheckerState):
@@ -692,7 +657,6 @@ class CachingRevocationChecker(_CheckerState):
         grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        history_admission: Callable[[RevocationList], bool] | None = None,
     ) -> None:
         # Reject the common footgun of passing time.time (wall-clock
         # seconds) as the `clock` kwarg — `_ensure_fresh` assumes
@@ -721,7 +685,6 @@ class CachingRevocationChecker(_CheckerState):
         self._grace_multiplier = grace_multiplier
         self._clock = clock
         self._wall_clock = wall_clock
-        self._history_admission = history_admission
 
         self._init_state()
 
@@ -735,7 +698,6 @@ class CachingRevocationChecker(_CheckerState):
         grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        history_admission: Callable[[RevocationList], bool] | None = None,
     ) -> CachingRevocationChecker:
         """Build a checker from the issuer origin alone.
 
@@ -759,7 +721,6 @@ class CachingRevocationChecker(_CheckerState):
             grace_multiplier=grace_multiplier,
             clock=clock,
             wall_clock=wall_clock,
-            history_admission=history_admission,
         )
 
     def prime(self) -> None:
@@ -810,7 +771,6 @@ class CachingRevocationChecker(_CheckerState):
         return self._current_list.is_revoked(keyid)
 
     def _ensure_fresh(self) -> None:
-        self._check_history()
         now_wall = self._wall_clock()
         now_mono = self._clock()
 
@@ -854,8 +814,7 @@ class CachingRevocationChecker(_CheckerState):
             )
 
         grace_seconds = self._grace_seconds()
-        self._check_history()
-        if self._wall_clock().timestamp() >= next_update.timestamp() + grace_seconds:
+        if now_wall.timestamp() >= next_update.timestamp() + grace_seconds:
             raise RevocationListFreshnessError(
                 f"revocation list {self._revocation_uri!r} past next_update "
                 f"({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); "
@@ -890,11 +849,10 @@ class CachingRevocationChecker(_CheckerState):
         revocation_list = _post_jws_validation(
             payload,
             expected_issuer=self._issuer,
-            now_wall=self._wall_clock(),
+            now_wall=now_wall,
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
-        self._check_fetched_freshness(revocation_list, self._wall_clock())
         return True
 
 
@@ -930,7 +888,6 @@ class AsyncCachingRevocationChecker(_CheckerState):
         grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        history_admission: Callable[[RevocationList], bool] | None = None,
     ) -> None:
         if clock is time.time:
             raise ValueError(
@@ -951,7 +908,6 @@ class AsyncCachingRevocationChecker(_CheckerState):
         self._grace_multiplier = grace_multiplier
         self._clock = clock
         self._wall_clock = wall_clock
-        self._history_admission = history_admission
         self._init_state()
         # Eager lock construction: lazy-init was racy (two tasks both
         # seeing self._lock is None construct separate Locks and skip
@@ -970,7 +926,6 @@ class AsyncCachingRevocationChecker(_CheckerState):
         grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        history_admission: Callable[[RevocationList], bool] | None = None,
     ) -> AsyncCachingRevocationChecker:
         """Async variant of :meth:`CachingRevocationChecker.from_issuer_origin`."""
         normalized = _normalize_issuer(origin)
@@ -983,7 +938,6 @@ class AsyncCachingRevocationChecker(_CheckerState):
             grace_multiplier=grace_multiplier,
             clock=clock,
             wall_clock=wall_clock,
-            history_admission=history_admission,
         )
 
     async def aprime(self) -> None:
@@ -1012,10 +966,8 @@ class AsyncCachingRevocationChecker(_CheckerState):
         return jti in self._current_list.revoked_jtis
 
     async def _ensure_fresh(self) -> None:
-        self._check_history()
         if self._current_list is None:
             async with self._lock:
-                self._check_history()
                 if self._current_list is None:
                     # Recompute clocks inside the lock: the awaiting task
                     # may have been queued behind a slow refresh, so the
@@ -1042,7 +994,6 @@ class AsyncCachingRevocationChecker(_CheckerState):
             )
             try:
                 async with self._lock:
-                    self._check_history()
                     # Re-check under the lock with fresh clock reads.
                     now_mono_inside = self._clock()
                     if self._last_refresh_attempt is None or (
@@ -1068,8 +1019,7 @@ class AsyncCachingRevocationChecker(_CheckerState):
             )
 
         grace_seconds = self._grace_seconds()
-        self._check_history()
-        if self._wall_clock().timestamp() >= next_update.timestamp() + grace_seconds:
+        if now_wall.timestamp() >= next_update.timestamp() + grace_seconds:
             raise RevocationListFreshnessError(
                 f"revocation list {self._revocation_uri!r} past next_update "
                 f"({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); "
@@ -1117,11 +1067,10 @@ class AsyncCachingRevocationChecker(_CheckerState):
         revocation_list = _post_jws_validation(
             payload,
             expected_issuer=self._issuer,
-            now_wall=self._wall_clock(),
+            now_wall=now_wall,
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
-        self._check_fetched_freshness(revocation_list, self._wall_clock())
         return True
 
 

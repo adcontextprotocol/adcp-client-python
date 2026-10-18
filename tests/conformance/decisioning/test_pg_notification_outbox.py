@@ -115,12 +115,7 @@ def sender_mock() -> MagicMock:
     sender.signs_with_rfc9421 = True
     sender._auth.alg = "ed25519"
 
-    async def send(
-        value: PreparedWebhook,
-        *,
-        before_attempt: Any = None,
-        experimental_agent_identity: bool = False,
-    ) -> WebhookDeliveryResult:
+    async def send(value: PreparedWebhook, *, before_attempt: Any = None) -> WebhookDeliveryResult:
         assert before_attempt is None or await before_attempt()
         return WebhookDeliveryResult(
             status_code=200,
@@ -178,40 +173,6 @@ async def enqueue(
                 account_id=account,
                 signing_scope_id=scope,
             )
-
-
-async def test_experimental_principal_notification_is_opt_in_through_durable_replay(
-    stack: tuple[Any, PgNotificationOutbox, MagicMock],
-) -> None:
-    pool, stable_outbox, sender = stack
-    value = WebhookSender.prepare_principal_changed(
-        url=URL,
-        idempotency_key=KEY,
-        payload={
-            "notification_id": "transition_1",
-            "subscriber_id": "buyer",
-            "fired_at": AT,
-            "agent_url": "https://seller.example",
-            "changed_at": AT,
-            "reason": "relationship_changed",
-        },
-        experimental_agent_identity=True,
-    )
-    with pytest.raises(ValueError, match="schema validation"):
-        await enqueue(pool, stable_outbox, value)
-    preview_outbox = PgNotificationOutbox(
-        pool=pool,
-        sender=sender,
-        encryption_key=b"x" * 32,
-        delivery_retry_horizon_seconds=86400,
-        table=stable_outbox._table,
-        experimental_agent_identity=True,
-    )
-    await enqueue(pool, preview_outbox, value)
-    assert await preview_outbox.process_one()
-    sent = sender.send_prepared.await_args
-    assert sent.kwargs["experimental_agent_identity"] is True
-    assert sent.args[0].body == value.body
 
 
 async def row(pool: Any, outbox: PgNotificationOutbox, row_id: int) -> dict[str, Any]:

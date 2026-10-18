@@ -131,7 +131,6 @@ class ProtocolAdapter(ABC):
                 message=raw_result.message,
                 success=raw_result.success,  # Preserve original success state
                 error=raw_result.error,  # Only use error if one was set
-                adcp_error=raw_result.adcp_error,
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
                 idempotency_key=raw_result.idempotency_key,

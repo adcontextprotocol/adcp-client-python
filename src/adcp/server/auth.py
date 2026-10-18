@@ -89,12 +89,7 @@ from starlette.responses import JSONResponse
 
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import DISCOVERY_METHODS, DISCOVERY_TOOLS
-from adcp.server.signed_requests import (
-    scope_has_verified_signer,
-    scope_has_wba_error_projection,
-    scope_has_wba_prior_task_control,
-    signature_fallback_code,
-)
+from adcp.server.signed_requests import scope_has_verified_signer, signature_fallback_code
 from adcp.signing.errors import signature_challenge
 
 logger = logging.getLogger("adcp.server.auth")
@@ -641,14 +636,6 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         tenant_token = None
         metadata_token = None
         try:
-            if scope_has_wba_error_projection(request.scope) or scope_has_wba_prior_task_control(
-                request.scope
-            ):
-                principal_token = current_principal.set(None)
-                tenant_token = current_tenant.set(None)
-                metadata_token = current_principal_metadata.set(None)
-                _set_request_state(request, None, None, None)
-                return await call_next(request)
             credential = _resolve_bearer_headers(
                 request.scope.get("headers", ()),
                 self._alias_header_names,
@@ -1743,23 +1730,6 @@ class A2ABearerAuthMiddleware:
         path = scope.get("path", "")
         if path in _A2A_DISCOVERY_PATHS:
             await self._app(scope, receive, send)
-            return
-
-        if scope_has_wba_error_projection(scope) or scope_has_wba_prior_task_control(scope):
-            from starlette.requests import Request
-
-            # Error-only dispatch or the delisted origin's old task owner
-            # cannot establish a commercial principal or use bearer fallback.
-            principal_token = current_principal.set(None)
-            tenant_token = current_tenant.set(None)
-            metadata_token = current_principal_metadata.set(None)
-            _set_request_state(Request(scope), None, None, None)
-            try:
-                await self._app(scope, receive, send)
-            finally:
-                current_principal.reset(principal_token)
-                current_tenant.reset(tenant_token)
-                current_principal_metadata.reset(metadata_token)
             return
 
         signature_error = signature_fallback_code(scope)

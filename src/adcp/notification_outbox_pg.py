@@ -114,7 +114,6 @@ class PgNotificationOutbox:
         table: str = DEFAULT_TABLE,
         encryption_key_id: str = "default",
         decryption_keys: Mapping[str, bytes] | None = None,
-        experimental_agent_identity: bool = False,
     ) -> None:
         try:
             import psycopg_pool  # noqa: F401
@@ -153,7 +152,6 @@ class PgNotificationOutbox:
         self._pool = pool
         self._sender = sender
         self._sender_resolver = sender_resolver
-        self._experimental_agent_identity = experimental_agent_identity
         self.delivery_retry_horizon_seconds = delivery_retry_horizon_seconds
         self._lease_seconds = lease_seconds
         if sender is not None:
@@ -361,7 +359,6 @@ class PgNotificationOutbox:
             idempotency_key=prepared.idempotency_key,
             notification_type=notification_type,
             account_id=account_id,
-            experimental_agent_identity=self._experimental_agent_identity,
         )
         if payload.get("account_id") is not None and account_id is None:
             raise ValueError("account-anchored notifications require account_id")
@@ -449,11 +446,7 @@ class PgNotificationOutbox:
         ):
             raise ValueError("invalid stored notification headers")
         validate_notification_body(
-            body,
-            idempotency_key=key,
-            notification_type=kind,
-            account_id=account,
-            experimental_agent_identity=self._experimental_agent_identity,
+            body, idempotency_key=key, notification_type=kind, account_id=account
         )
         return PreparedWebhook(url=url, idempotency_key=key, body=body, extra_headers=headers)
 
@@ -534,12 +527,6 @@ class PgNotificationOutbox:
 
             async def attempt() -> WebhookDeliveryResult:
                 sender = await self._resolve_sender(row[6])
-                if self._experimental_agent_identity:
-                    return await sender.send_prepared(
-                        prepared,
-                        before_attempt=lambda: self._lease_active(row_id, token),
-                        experimental_agent_identity=True,
-                    )
                 return await sender.send_prepared(
                     prepared, before_attempt=lambda: self._lease_active(row_id, token)
                 )
