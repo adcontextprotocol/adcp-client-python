@@ -183,7 +183,10 @@ These guards enforce the contract and run in `make ci-local`:
 
 ## Pull Request Process
 
-1. Create a feature branch from `main`
+1. Create a feature branch from the branch that carries your spec line:
+   `main` for the ratified AdCP version (fixes land here first), `next` for
+   draft-spec work, or `release/N.x` only for a fix that applies to that older
+   major alone (see [RELEASING.md](RELEASING.md))
 2. Make your changes
 3. Run tests and type checks
 4. Update documentation
