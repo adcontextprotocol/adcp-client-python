@@ -597,3 +597,56 @@ async def test_large_opaque_cursors_still_detect_cycles(monkeypatch):
         await resolver.resolve(REF)
     assert client.get_property_list.await_count == 2
     assert not resolver._cache
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("selectors", [None, []])
+async def test_seller_excludes_products_without_selectors_in_mixed_catalog(monkeypatch, selectors):
+    from adcp.decisioning.property_list import maybe_apply_property_list_filter
+
+    allowed = ResolvedPropertyList((normalize_identifier("domain", "allowed.com"),))
+    monkeypatch.setattr(MCPPropertyListFetcher, "resolve", AsyncMock(return_value=allowed))
+    monkeypatch.setattr(
+        "adcp.adagents.fetch_adagents",
+        AsyncMock(
+            return_value={
+                "properties": [
+                    {
+                        "property_id": "web",
+                        "identifiers": [{"type": "domain", "value": "allowed.com"}],
+                    }
+                ]
+            }
+        ),
+    )
+    declared = product("declared")
+    undeclared = {"product_id": "undeclared", "publisher_properties": selectors}
+    response = {"products": [undeclared, declared]}
+    filtered = await maybe_apply_property_list_filter(
+        params={"property_list": REF}, response=response, fetcher=None, capability_enabled=True
+    )
+    assert filtered["products"] == [declared]
+    assert filtered["property_list_applied"] is True
+    assert len(response["products"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_seller_catalog_fetch_failure_remains_transient(monkeypatch):
+    from adcp.decisioning.property_list import maybe_apply_property_list_filter
+
+    monkeypatch.setattr(
+        MCPPropertyListFetcher,
+        "resolve",
+        AsyncMock(
+            return_value=ResolvedPropertyList((normalize_identifier("domain", "allowed.com"),))
+        ),
+    )
+    monkeypatch.setattr("adcp.adagents.fetch_adagents", AsyncMock(side_effect=OSError("timeout")))
+    with pytest.raises(AdcpError) as error:
+        await maybe_apply_property_list_filter(
+            params={"property_list": REF},
+            response={"products": [product("p")]},
+            fetcher=None,
+            capability_enabled=True,
+        )
+    assert error.value.recovery == "transient"

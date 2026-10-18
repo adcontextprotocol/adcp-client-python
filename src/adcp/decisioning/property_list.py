@@ -340,8 +340,11 @@ async def maybe_apply_property_list_filter(
     if isinstance(fetcher, MCPPropertyListFetcher):
         allowed_list = await fetcher.resolve(property_list_ref)
         policy = ProductPropertyPolicy(fetcher=fetcher)
-        assessments = await policy.assess(products, allowed_list, seller_url="")
-        # Seller-side filtering fails closed when the catalog cannot be resolved.
+        # Products with no declared property inventory cannot match a property
+        # list. Exclude them, as the custom property-ID path already does.
+        candidates = [product for product in products if _field(product, "publisher_properties")]
+        assessments = await policy.assess(candidates, allowed_list, seller_url="")
+        # Declared inventory that cannot be resolved remains a transient error.
         if any(item.status == "unjudgeable" for item in assessments):
             from adcp.decisioning.types import AdcpError
 
@@ -351,7 +354,7 @@ async def maybe_apply_property_list_filter(
                 recovery="transient",
             )
         filtered = [
-            product for product, item in zip(products, assessments) if item.status == "match"
+            product for product, item in zip(candidates, assessments) if item.status == "match"
         ]
     else:
         allowed = await resolve_property_list(property_list_ref, fetcher=fetcher)

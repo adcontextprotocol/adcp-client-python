@@ -49,8 +49,9 @@ for identifier in resolved.identifiers:
 SDK-owned seller filtering expands publisher selectors against public
 `adagents.json` catalogs before matching typed identifiers. Strict products
 require every property to match; products with canonical `overlay_support.property_list=True` (or legacy
-`property_targeting_allowed=True`) need at least one matching property. Failed catalog expansion returns a
-transient error instead of claiming that filtering succeeded.
+`property_targeting_allowed=True`) need at least one matching property. Products without declared property selectors are excluded. Failed catalog
+expansion for declared inventory returns a transient error instead of claiming
+that filtering succeeded.
 
 When a platform filters in its own database before pagination, select platform
 mode. The seller then owns resolution, filtering, and acknowledgement; the SDK
