@@ -1224,23 +1224,19 @@ def test_import_path_rename_is_idempotent(tmp_path: Path) -> None:
     assert [f for f in report.applied if f.kind == "rename_import"] == []
 
 
-def test_renamed_deep_imports_resolve_to_the_same_objects(tmp_path: Path) -> None:
-    """The rewrite is a rename, not a re-binding: every name the migrated file
-    imports is the object the deprecated path served."""
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        old_brand = importlib.import_module("adcp.types.generated_poc.brand")
-        old_context = importlib.import_module("adcp.types.generated_poc.core.context")
+def test_renamed_deep_imports_resolve_and_the_old_path_is_gone(tmp_path: Path) -> None:
+    """v10 removed the 9.x runtime alias: the old path no longer imports, and
+    every name the codemod rewrites to is bound at its new address."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("adcp.types.generated_poc.core.context")
     new_discovery = importlib.import_module("adcp.types.domains.brand_discovery")
     new_brand = importlib.import_module("adcp.types.domains.brand")
     new_context = importlib.import_module("adcp.types.domains.core.context")
 
-    assert old_brand.Brand is new_discovery.Brand
-    assert old_brand.Asset is new_discovery.Asset  # a name both halves bind: discovery wins
-    assert old_brand.AcquireRightsRequest is new_brand.AcquireRightsRequest
-    assert old_context.ContextObject is new_context.ContextObject
+    assert new_discovery.Brand.__module__ == "adcp.types.domains.brand_discovery"
+    assert hasattr(new_discovery, "Asset")  # a name both halves bind: discovery wins
+    assert hasattr(new_brand, "AcquireRightsRequest")
+    assert hasattr(new_context, "ContextObject")
 
 
 def test_dry_run_reports_import_path_renames_without_writing(tmp_path: Path) -> None:
@@ -1339,22 +1335,10 @@ def test_cli_exits_zero_when_only_import_paths_need_renaming(tmp_path: Path) -> 
     assert v3_to_v4.main([str(tmp_path)]) == 0
 
 
-def test_deprecation_warning_names_the_codemod_invocation_that_rewrites(tmp_path: Path) -> None:
-    """The warning, the docs and the codemod agree (#1417): the advice an
-    adopter reads names ``adcp migrate v3-to-v4 --apply``, and that invocation
-    performs the rewrite the advice promises."""
-    import subprocess
-    import sys
-
-    result = subprocess.run(
-        [sys.executable, "-W", "always", "-c", "import adcp.types.generated_poc.core.error"],
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    assert result.returncode == 0, result.stderr
-    assert "`adcp migrate v3-to-v4 --apply` rewrites it" in result.stderr
-
+def test_docs_name_the_codemod_invocation_that_rewrites(tmp_path: Path) -> None:
+    """The docs and the codemod agree (#1417): the advice an adopter reads
+    names ``adcp migrate v3-to-v4 --apply``, and that invocation performs the
+    rewrite the advice promises."""
     docs = Path(__file__).resolve().parents[1] / "docs" / "types-9-migration.md"
     assert "`adcp migrate v3-to-v4 --apply` rewrites those lines" in docs.read_text("utf-8")
 
@@ -1363,15 +1347,12 @@ def test_deprecation_warning_names_the_codemod_invocation_that_rewrites(tmp_path
     assert (tmp_path / "code.py").read_text() == "from adcp.types.domains.core.error import Error\n"
 
 
-def test_split_detection_uses_the_same_suffix_the_runtime_alias_serves() -> None:
-    """The codemod cannot import the private alias module (import layering), so
-    it restates the one suffix the generator gives a root discovery schema; this
-    keeps the two spellings from drifting apart."""
-    from adcp.types import _generated_poc_alias
-
-    assert v3_to_v4.ROOT_DISCOVERY_SUFFIX == _generated_poc_alias.ROOT_DISCOVERY_SUFFIX
-    assert v3_to_v4.CANONICAL_TYPES_ROOT == _generated_poc_alias.CANONICAL_ROOT
-    assert v3_to_v4.DEPRECATED_TYPES_ROOT == _generated_poc_alias.DEPRECATED_ROOT
+def test_split_detection_uses_the_generated_discovery_suffix() -> None:
+    """The codemod restates the one suffix the generator gives a root discovery
+    schema; the split detection below proves it matches the shipped tree."""
+    assert v3_to_v4.ROOT_DISCOVERY_SUFFIX == "_discovery"
+    assert v3_to_v4.CANONICAL_TYPES_ROOT == "adcp.types.domains"
+    assert v3_to_v4.DEPRECATED_TYPES_ROOT == "adcp.types.generated_poc"
     assert v3_to_v4._split_halves("brand") == (
         "adcp.types.domains.brand_discovery",
         "adcp.types.domains.brand",

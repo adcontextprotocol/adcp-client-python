@@ -142,7 +142,8 @@ REMOVED_ENUM_VALUES: dict[str, tuple[str, str]] = {
 # the rewrite is a prefix rename, with one exception: a root discovery schema
 # whose basename collided with a task-schema directory split into
 # ``<stem>_discovery`` (its own classes) and ``<stem>`` (the aggregator).
-# ``adcp.types._generated_poc_alias`` is the runtime half of the same contract.
+# 9.x also served the old path at runtime through a deprecation alias; v10
+# removed it, so this codemod is now the only migration path.
 DEPRECATED_TYPES_ROOT = "adcp.types.generated_poc"
 CANONICAL_TYPES_ROOT = "adcp.types.domains"
 ROOT_DISCOVERY_SUFFIX = "_discovery"
@@ -167,8 +168,7 @@ def _split_halves(stem: str) -> tuple[str, str] | None:
     Answered by what the installed SDK ships rather than a table here, so a
     schema added to ``scripts/generate_types.py``'s ``ROOT_DISCOVERY_SCHEMAS``
     tomorrow is resolved without touching this file. The ``_discovery`` suffix is
-    the generator's own, the same one ``adcp.types._generated_poc_alias`` serves
-    at runtime; ``tests/test_migrate_v3_to_v4.py`` pins the two spellings equal.
+    the generator's own (``scripts/generate_types.py``).
     """
     if not stem or "." in stem:
         return None

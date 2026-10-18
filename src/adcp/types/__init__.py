@@ -55,19 +55,10 @@ import importlib
 import importlib.util
 from typing import TYPE_CHECKING
 
-from adcp.types import _generated_poc_alias
-
-# Serves the pre-9.0 ``adcp.types.generated_poc.*`` paths from the modules they
-# moved to, as the SAME module objects, with a ``DeprecationWarning``. Removed
-# in v10. Installing a finder imports no generated module, so this costs the
-# lazy surface nothing.
-_generated_poc_alias.install()
-
 __pdoc__ = {
     "generated_poc": False,
     "mypy_plugin": False,
     "_eager": False,
-    "_generated_poc_alias": False,
 }
 
 __all__ = [
