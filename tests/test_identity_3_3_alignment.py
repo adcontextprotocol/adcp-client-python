@@ -1579,6 +1579,14 @@ async def test_a_non_registrable_grantee_breaks_a_two_link_chain():
     assert result.authorized
 
 
+async def test_the_brand_domain_compares_as_a_registrable_domain():
+    documents = {trust_record_url(ORIGIN): {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]}}
+    result = await TrustGrantEvaluator(_grant_records(documents)).check(
+        agent_origin=ORIGIN, brand_domain="www.platform.com", account_operator="platform.com"
+    )
+    assert result.authorized
+
+
 @pytest.mark.parametrize(
     "grantee,valid",
     [

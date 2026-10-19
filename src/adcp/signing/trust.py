@@ -207,11 +207,9 @@ def _validate_trust_record(
             raise TrustRecordError("a trust record must list one agent per origin")
         seen.add(origin)
     if not reader:
-        # Authoring: a grantee MUST be a registrable domain (L2 §Grants). A
-        # reader keeps such a grant: it covers no claim, and its scopes still
-        # count for exclusive_grants.
+        # Authoring only: readers keep such a grant (TrustGrantEvaluator).
         for grant in document.get("grants", []):
-            if not _is_registrable_domain(grant["grantee"]):
+            if registrable_domain(grant["grantee"]) != grant["grantee"]:
                 raise TrustRecordError(
                     "grant grantee must be a registrable domain under the pinned PSL snapshot"
                 )
@@ -897,17 +895,6 @@ def _registrable(value: str) -> str | None:
         return None
 
 
-def _is_registrable_domain(value: str) -> bool:
-    """Whether ``value`` is itself a registrable domain under the pinned PSL.
-
-    A host below one (``t1.vendor.example``) is not, and neither is a public
-    suffix (``github.io``); ``alice.github.io`` is, because ``github.io`` is
-    in the PSL's private section. The trust.json schema already requires a
-    lowercase host, so an exact comparison is safe.
-    """
-    return _registrable(value) == value
-
-
 def _scope_covers(scopes: Sequence[str], scope: str) -> bool:
     return scope in scopes or "*" in scopes or (scope.startswith("adcp:") and "adcp:all" in scopes)
 
@@ -938,17 +925,9 @@ def _grant_matches(
     countries: frozenset[str],
     now: float,
 ) -> bool:
-    # A grantee MUST be a registrable domain under the pinned PSL snapshot
-    # (L2 §Grants). One that is not, a host below one or a public suffix,
-    # covers no claim; it is never reduced to its registrable domain, which
-    # would extend the grant to every tenant under that domain. ``grantee``
-    # is already a registrable domain, so the exact comparison enforces the
-    # rule; the second check is defense in depth for a raw ``grantee``.
-    if (
-        grant["grantee"] != grantee
-        or not _is_registrable_domain(grant["grantee"])
-        or not _scope_covers(grant["scopes"], scope)
-    ):
+    # ``grantee`` is a registrable domain; the grant's is compared exactly,
+    # never reduced (see TrustGrantEvaluator).
+    if grant["grantee"] != grantee or not _scope_covers(grant["scopes"], scope):
         return False
     # agents[] narrows the link that reaches the signer: the signer's
     # canonical origin must be listed, or the chain ends at this link.
@@ -1233,9 +1212,6 @@ class TrustGrantEvaluator:
         if any(record.expires_at <= self._clock() for record in used_records):
             return _unavailable("trust_record_unavailable")
         if not links or any(not link for link in links):
-            # Every grant's scopes count here, a grant whose grantee is not a
-            # registrable domain included (it covers no claim, but still
-            # makes grants[] exhaustive for the scopes it names).
             exhaustive = brand_record.document.get("exclusive_grants", False) and any(
                 _scope_covers(grant["scopes"], scope) for grant in grants
             )
