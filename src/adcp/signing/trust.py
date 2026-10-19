@@ -941,7 +941,9 @@ def _grant_matches(
     # A grantee MUST be a registrable domain under the pinned PSL snapshot
     # (L2 §Grants). One that is not, a host below one or a public suffix,
     # covers no claim; it is never reduced to its registrable domain, which
-    # would extend the grant to every tenant under that domain.
+    # would extend the grant to every tenant under that domain. ``grantee``
+    # is already a registrable domain, so the exact comparison enforces the
+    # rule; the second check is defense in depth for a raw ``grantee``.
     if (
         grant["grantee"] != grantee
         or not _is_registrable_domain(grant["grantee"])

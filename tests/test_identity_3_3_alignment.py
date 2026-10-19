@@ -1483,8 +1483,8 @@ async def test_house_brand_id_is_checked_against_the_house_portfolio():
 
 @pytest.mark.parametrize(
     "grantee",
-    ["ads.platform.com", "buyer.platform.com", "co.uk", "github.io"],
-    ids=["host-below", "signer-host", "icann-suffix", "private-suffix"],
+    ["ads.platform.com", "buyer.platform.com"],
+    ids=["host-below", "signer-host"],
 )
 async def test_a_grantee_that_is_not_a_registrable_domain_covers_no_claim(grantee):
     """L2 §Grants: a grantee MUST be a registrable domain under the pinned PSL.
@@ -1522,12 +1522,18 @@ async def test_a_grantee_under_a_private_suffix_is_registrable():
 
 
 @pytest.mark.parametrize("exclusive", [True, False])
-async def test_a_non_registrable_grantee_still_counts_for_exclusive_grants(exclusive):
-    """The grant covers no claim, and its scopes still make grants[] exhaustive."""
+@pytest.mark.parametrize("grantee", ["ads.platform.com", "co.uk", "github.io"])
+async def test_a_non_registrable_grantee_still_counts_for_exclusive_grants(exclusive, grantee):
+    """The grant covers no claim, and its scopes still make grants[] exhaustive.
+
+    A reader keeps the grant (the record stays valid) rather than refusing
+    the record, whether the grantee is a host below a registrable domain or a
+    public suffix from the PSL's ICANN or private section.
+    """
     documents = {
         trust_record_url(ORIGIN): {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]},
         trust_record_url("brand.com"): {
-            "grants": [{"grantee": "ads.platform.com", "scopes": ["adcp:media_buying"]}],
+            "grants": [{"grantee": grantee, "scopes": ["adcp:media_buying"]}],
             "exclusive_grants": exclusive,
         },
     }
