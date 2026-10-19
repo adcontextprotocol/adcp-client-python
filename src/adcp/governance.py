@@ -21,7 +21,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, Protocol, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
 from urllib.parse import urlsplit
 
 import rfc8785
@@ -43,6 +43,9 @@ from adcp.signing.jws import JwsMalformedError, _AdcpJwsRegistry, parse_compact_
 from adcp.signing.replay import ReplayStore, supports_atomic_claim
 from adcp.types import CheckGovernanceRequest, ReportPlanOutcomeRequest
 
+if TYPE_CHECKING:
+    from adcp.signing.jws_artifacts import JwsArtifactError, WbaJwsArtifactVerifier
+
 GOVERNANCE_AUTHORIZATION_TYP = "adcp-gov+jws"
 GOVERNANCE_AUTHORIZATION_CRITICAL_CLAIMS = (
     "authorized_commitment",
@@ -63,6 +66,7 @@ GovernanceAuthorizationErrorCode = Literal[
     "governance_token_not_applicable",
     "governance_token_replayed",
     "governance_token_revoked",
+    "governance_jwks_unavailable",
 ]
 GovernanceReplayResult = Literal["ok", "conflict", "replayed", "rate_abuse"]
 
@@ -284,10 +288,30 @@ class GovernanceAuthorizationFailure:
     ok: Literal[False]
     error: GovernanceAuthorizationErrorCode
     message: str
+    #: ``"3.2"`` when :func:`verify_historical_governance_context` refuses an
+    #: issuer that is on the 3.2 profile (no trust record lists its origin).
+    profile: Literal["3.2"] | None = None
+
+
+@dataclass(frozen=True)
+class HistoricalGovernanceContextSuccess:
+    """A retained governance context verified on the Web Bot Auth path.
+
+    ``key_source`` says whether the key was in the issuer's current key
+    directory or only in its governance key archive.
+    """
+
+    ok: Literal[True]
+    claims: Mapping[str, Any]
+    protected_header: Mapping[str, Any]
+    key_source: Literal["directory", "archive"]
 
 
 GovernanceAuthorizationResult: TypeAlias = (
     GovernanceAuthorizationSuccess | GovernanceAuthorizationFailure
+)
+HistoricalGovernanceContextResult: TypeAlias = (
+    HistoricalGovernanceContextSuccess | GovernanceAuthorizationFailure
 )
 
 
@@ -1117,8 +1141,27 @@ async def verify_governance_authorization(
     revocation_resolver: GovernanceRevocationResolver | None = None,
     now: Callable[[], float] | None = None,
     clock_skew_seconds: float = 60,
+    web_bot_auth: WbaJwsArtifactVerifier | None = None,
 ) -> GovernanceAuthorizationResult:
-    """Verify the published compact-JWS profile and all service bindings."""
+    """Verify the published compact-JWS profile and all service bindings.
+
+    ``web_bot_auth`` (experimental, AdCP 3.3 ``specs/agent-identity-3-3.md``
+    R4) selects the profile from ``expected_issuer``: when the trust record
+    derived from its origin ``O`` lists ``O``, the token is verified with a
+    key from ``O``'s Web Bot Auth key directory (``alg`` ``EdDSA``, ``kid``
+    the key's JWK thumbprint, no ``use``/``key_ops``/``adcp_use`` checks) and
+    the key is checked against ``O``'s revocation list, never under the 3.2
+    profile: ``jwks`` and ``revocation_checker`` are not used. A revoked key
+    is ``governance_token_revoked``, and so is a list that is stale, cannot
+    be checked, or is not served (a governance context authorizes spend). A
+    trust record, directory or list that cannot be read is
+    ``governance_jwks_unavailable`` or ``governance_token_revoked``, never a
+    fallback to 3.2. An issuer whose origin no trust record lists stays on
+    the 3.2 profile (``jwks``). Every other check is unchanged, including the
+    caller's cross-check that ``expected_issuer`` is a governance agent in
+    the authenticated buyer's brand.json (``resolve_governance_jwks``),
+    ``is_jti_revoked`` and ``revocation_resolver``.
+    """
 
     def reject(
         code: GovernanceAuthorizationErrorCode, message: str
@@ -1131,71 +1174,70 @@ async def verify_governance_authorization(
         actual = _commitment_dict(actual_commitment)
     except (TypeError, ValueError) as exc:
         return reject("governance_token_invalid", str(exc))
-    if not isinstance(token, str) or not token or len(token) > GOVERNANCE_MAX_TOKEN_BYTES:
-        return reject("governance_token_invalid", "governance_context is missing or too large")
-    try:
-        b64_header, b64_payload, _signature = parse_compact_jws(token)
-    except JwsMalformedError:
-        return reject("governance_token_invalid", "governance_context is not a compact JWS")
-    try:
-        header = _decode_json_segment(b64_header)
-        claims = _decode_json_segment(b64_payload)
-    except (TypeError, ValueError):
-        return reject("governance_token_invalid", "governance_context contains invalid JSON")
-    alg = header.get("alg")
-    if (
-        type(alg) is not str
-        or alg not in {"EdDSA", "ES256"}
-        or header.get("typ") != GOVERNANCE_AUTHORIZATION_TYP
-    ):
-        return reject("governance_token_invalid", "unsupported governance JWS alg or typ")
-    if "crit" not in header:
-        return reject("governance_token_invalid", "invalid governance JWS crit header")
-    critical_failure = critical_claims_failure(header, claims)
-    if critical_failure is not None:
-        return reject("governance_token_invalid", critical_failure)
-    try:
-        expected_issuer = canonicalize_target_uri(expected_issuer)
-        issuer = claims.get("iss")
-        issuer_matches = (
-            isinstance(issuer, str)
-            and canonicalize_target_uri(issuer) == expected_issuer
-            and expected_issuer.startswith("https://")
-        )
-    except ValueError:
-        issuer_matches = False
-    if not issuer_matches:
-        return reject("governance_token_invalid", "governance token issuer mismatch")
+    parsed = _parse_governance_token(token, expected_issuer)
+    if isinstance(parsed, GovernanceAuthorizationFailure):
+        return parsed
+    header, claims, alg, expected_issuer = parsed
+    token = cast(str, token)
     kid = header.get("kid")
     if not isinstance(kid, str) or not kid:
         return reject("governance_key_unknown", "governance signing kid is missing")
-    try:
-        jwk = await _resolve_jwk(jwks, kid)
-    except Exception:
-        return reject("governance_key_unknown", "governance signing key could not be resolved")
-    if (
-        not isinstance(jwk, Mapping)
-        or jwk.get("kid") != kid
-        or jwk.get("adcp_use") != "governance-signing"
-        or jwk.get("use") != "sig"
-        or not isinstance(jwk.get("key_ops"), list)
-        or "verify" not in jwk["key_ops"]
-        or (jwk.get("alg") is not None and jwk.get("alg") != alg)
-    ):
-        return reject("governance_key_unknown", "governance signing key is not authorized")
-    try:
-        jws.deserialize_compact(
-            token,
-            import_jwk(_public_jwk(jwk)),
-            registry=_governance_jws_registry(alg),
+    # AdCP 3.3 R4: the trust record derived from the expected issuer's origin
+    # selects the profile. It is never read from the unverified token, and a
+    # record that cannot be read never falls back to the 3.2 profile.
+    wba_origin: str | None = None
+    if web_bot_auth is not None:
+        from adcp.signing.jws_artifacts import JwsArtifactError
+
+        try:
+            profile = await web_bot_auth.select(expected_issuer)
+        except JwsArtifactError as exc:
+            return _governance_failure_from_jws_artifact(exc)
+        if profile.profile == "web-bot-auth":
+            wba_origin = profile.origin
+    if wba_origin is not None:
+        assert web_bot_auth is not None
+        wba_failure = await _verify_governance_on_wba(
+            token, wba_origin, web_bot_auth, revocation_absent="reject"
         )
-        verified = True
-    except (JoseError, TypeError, ValueError):
-        verified = False
-    if not verified:
-        return reject("governance_token_invalid", "governance token signature verification failed")
+        if isinstance(wba_failure, GovernanceAuthorizationFailure):
+            return wba_failure
+    else:
+        try:
+            jwk = await _resolve_jwk(jwks, kid)
+        except Exception:
+            return reject("governance_key_unknown", "governance signing key could not be resolved")
+        if (
+            not isinstance(jwk, Mapping)
+            or jwk.get("kid") != kid
+            or jwk.get("adcp_use") != "governance-signing"
+            or jwk.get("use") != "sig"
+            or not isinstance(jwk.get("key_ops"), list)
+            or "verify" not in jwk["key_ops"]
+            or (jwk.get("alg") is not None and jwk.get("alg") != alg)
+        ):
+            return reject("governance_key_unknown", "governance signing key is not authorized")
+        try:
+            jws.deserialize_compact(
+                token,
+                import_jwk(_public_jwk(jwk)),
+                registry=_governance_jws_registry(alg),
+            )
+            verified = True
+        except (JoseError, TypeError, ValueError):
+            verified = False
+        if not verified:
+            return reject(
+                "governance_token_invalid", "governance token signature verification failed"
+            )
     try:
-        if revocation_checker is not None and await _maybe_await(revocation_checker(kid)):
+        # On the Web Bot Auth path, key revocation is the origin's list,
+        # checked above; the 3.2 kid callback does not apply.
+        if (
+            wba_origin is None
+            and revocation_checker is not None
+            and await _maybe_await(revocation_checker(kid))
+        ):
             return reject("governance_token_revoked", "governance signing key is revoked")
         if (
             is_jti_revoked is not None
@@ -1366,6 +1408,159 @@ async def verify_governance_authorization(
     return GovernanceAuthorizationSuccess(True, claims, header, payload_hash)
 
 
+def _parse_governance_token(
+    token: object, expected_issuer: str
+) -> tuple[dict[str, Any], dict[str, Any], str, str] | GovernanceAuthorizationFailure:
+    """Shape, header, ``crit`` and issuer checks shared by online and historical verification.
+
+    Returns ``(header, claims, alg, canonical expected issuer)``.
+    """
+
+    def reject(message: str) -> GovernanceAuthorizationFailure:
+        return GovernanceAuthorizationFailure(False, "governance_token_invalid", message)
+
+    if not isinstance(token, str) or not token or len(token) > GOVERNANCE_MAX_TOKEN_BYTES:
+        return reject("governance_context is missing or too large")
+    try:
+        b64_header, b64_payload, _signature = parse_compact_jws(token)
+    except JwsMalformedError:
+        return reject("governance_context is not a compact JWS")
+    try:
+        header = _decode_json_segment(b64_header)
+        claims = _decode_json_segment(b64_payload)
+    except (TypeError, ValueError):
+        return reject("governance_context contains invalid JSON")
+    alg = header.get("alg")
+    if (
+        type(alg) is not str
+        or alg not in {"EdDSA", "ES256"}
+        or header.get("typ") != GOVERNANCE_AUTHORIZATION_TYP
+    ):
+        return reject("unsupported governance JWS alg or typ")
+    if "crit" not in header:
+        return reject("invalid governance JWS crit header")
+    critical_failure = critical_claims_failure(header, claims)
+    if critical_failure is not None:
+        return reject(critical_failure)
+    try:
+        expected_issuer = canonicalize_target_uri(expected_issuer)
+        issuer = claims.get("iss")
+        issuer_matches = (
+            isinstance(issuer, str)
+            and canonicalize_target_uri(issuer) == expected_issuer
+            and expected_issuer.startswith("https://")
+        )
+    except ValueError:
+        issuer_matches = False
+    if not issuer_matches:
+        return reject("governance token issuer mismatch")
+    return header, claims, alg, expected_issuer
+
+
+def _governance_failure_from_jws_artifact(
+    error: JwsArtifactError,
+) -> GovernanceAuthorizationFailure:
+    """Map a Web Bot Auth JWS artifact refusal to the governance error taxonomy."""
+    code: GovernanceAuthorizationErrorCode
+    message: str
+    if error.code == "jws_key_unavailable":
+        code, message = "governance_jwks_unavailable", "governance issuer keys are unavailable"
+    elif error.code == "jws_key_unknown":
+        code, message = "governance_key_unknown", "governance signing key is not at the issuer"
+    elif error.code == "jws_key_revoked":
+        code, message = "governance_token_revoked", "governance signing key is revoked"
+    elif error.code == "jws_revocation_unavailable":
+        code, message = (
+            "governance_token_revoked",
+            "governance revocation status could not be established",
+        )
+    else:
+        code, message = "governance_token_invalid", f"governance token rejected: {error.reason}"
+    return GovernanceAuthorizationFailure(False, code, message)
+
+
+async def _verify_governance_on_wba(
+    token: str,
+    origin: str,
+    web_bot_auth: WbaJwsArtifactVerifier,
+    *,
+    revocation_absent: Literal["reject", "accept"],
+    archive: bool = False,
+) -> Any:
+    """Key, signature and origin revocation on the issuer's key directory (R4).
+
+    Returns the :class:`~adcp.signing.jws_artifacts.VerifiedJwsArtifact`, or a
+    :class:`GovernanceAuthorizationFailure`.
+    """
+    from adcp.signing.jws_artifacts import JwsArtifactError, verify_wba_jws_artifact
+
+    try:
+        return await verify_wba_jws_artifact(
+            token,
+            origin,
+            signer_keys=web_bot_auth.signer_keys,
+            revocation=web_bot_auth.revocation,
+            typ=GOVERNANCE_AUTHORIZATION_TYP,
+            registry=_governance_jws_registry("EdDSA"),
+            archive=web_bot_auth.archive if archive else None,
+            revocation_absent=revocation_absent,
+        )
+    except JwsArtifactError as exc:
+        return _governance_failure_from_jws_artifact(exc)
+
+
+async def verify_historical_governance_context(
+    *,
+    token: object,
+    expected_issuer: str,
+    web_bot_auth: WbaJwsArtifactVerifier,
+) -> HistoricalGovernanceContextResult:
+    """Historical (audit) verification of a retained governance context (AdCP 3.3 R4).
+
+    For an issuer whose origin ``O`` a trust record lists: the key comes from
+    ``O``'s key directory or, once rotated out of it, from the governance key
+    archive at ``O`` (``web_bot_auth.archive``, ``security.mdx``
+    §Revocation). Checks the token's shape, ``typ``, ``crit``, issuer
+    (``expected_issuer``, from the verifier's own records), ``alg``
+    ``EdDSA``, ``kid`` thumbprint, signature, and ``O``'s revocation list: a
+    revoked ``kid`` invalidates every token it signed, and a list that is
+    stale or cannot be checked is ``governance_token_revoked``. An origin
+    that serves no list has revoked nothing, since no spend rides on an
+    audit. It does not check expiry, audience, replay or the request
+    binding, which only an online verification can.
+
+    Profile selection is the same as online. An issuer that no trust record
+    lists is on the 3.2 profile, which this function does not verify: the
+    failure carries ``profile="3.2"``. A trust record that cannot be read is
+    ``governance_jwks_unavailable``.
+    """
+    from adcp.signing.jws_artifacts import JwsArtifactError, VerifiedJwsArtifact
+
+    if web_bot_auth.archive is None:
+        raise ValueError("historical verification requires web_bot_auth.archive")
+    parsed = _parse_governance_token(token, expected_issuer)
+    if isinstance(parsed, GovernanceAuthorizationFailure):
+        return parsed
+    header, claims, _alg, expected_issuer = parsed
+    try:
+        profile = await web_bot_auth.select(expected_issuer)
+    except JwsArtifactError as exc:
+        return _governance_failure_from_jws_artifact(exc)
+    if profile.profile != "web-bot-auth":
+        return GovernanceAuthorizationFailure(
+            False,
+            "governance_key_unknown",
+            "governance issuer is on the 3.2 profile: no trust record lists its origin",
+            profile="3.2",
+        )
+    verified = await _verify_governance_on_wba(
+        cast(str, token), profile.origin, web_bot_auth, revocation_absent="accept", archive=True
+    )
+    if not isinstance(verified, VerifiedJwsArtifact):
+        return cast(GovernanceAuthorizationFailure, verified)
+    return HistoricalGovernanceContextSuccess(True, claims, header, verified.key_source)
+
+
 async def enforce_governance_authorization(
     *,
     call_next: Callable[[GovernanceAuthorizationSuccess], Awaitable[Any]],
@@ -1534,6 +1729,8 @@ __all__ = [
     "GovernanceAuthorizationFailure",
     "GovernanceAuthorizationResult",
     "GovernanceAuthorizationSuccess",
+    "HistoricalGovernanceContextResult",
+    "HistoricalGovernanceContextSuccess",
     "GovernanceCommitment",
     "GovernanceEnforcementMode",
     "GovernanceEnforcementTask",
@@ -1575,4 +1772,5 @@ __all__ = [
     "validate_governance_request",
     "validate_governance_verdict",
     "verify_governance_authorization",
+    "verify_historical_governance_context",
 ]

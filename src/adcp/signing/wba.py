@@ -16,9 +16,11 @@ directories signed per WBA Appendix B.1. RFC 9421 itself comes from
 ``http-message-signatures`` (signature bases, signing, verification) and
 ``http-sf`` (Structured Fields); this module keeps the profile rules.
 
-Governance tokens under this profile are checked by
-:func:`verify_wba_governance_issuer` (key in the ``iss`` origin's directory,
-``iss`` is the buyer's governance agent).
+JWS artifacts (governance contexts, designated-task responses, rights
+attestations) from an issuer that a trust record lists are verified with that
+origin's key directory under ``specs/agent-identity-3-3.md`` R4
+(:mod:`adcp.signing.jws_artifacts`). :func:`verify_wba_governance_issuer`
+implements the earlier #7894 draft's governance check, which predates R4.
 """
 
 from __future__ import annotations
@@ -1234,6 +1236,12 @@ async def verify_wba_governance_issuer(
 
     The rest of the governance checklist (``aud``, ``phase``, ``sub``, the
     action binding, revocation, replay) is the caller's.
+
+    This is the earlier #7894 draft's check, graded by the vendored
+    ``wba-governance`` vectors (``alg`` ``Ed25519`` accepted, ``jku``
+    required). The R4 erratum (adcontextprotocol/adcp#8299) selects the key
+    directory from the trust record and requires ``alg`` ``EdDSA``: use
+    ``verify_governance_authorization(web_bot_auth=...)``.
     """
     from joserfc import jws as jose_jws
     from joserfc.errors import BadSignatureError, JoseError
