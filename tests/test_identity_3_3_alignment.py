@@ -1481,17 +1481,117 @@ async def test_house_brand_id_is_checked_against_the_house_portfolio():
     assert seen == [("novamotors.com", "own_brand_id")]
 
 
-async def test_grantee_compares_as_a_registrable_domain():
+@pytest.mark.parametrize(
+    "grantee",
+    ["ads.platform.com", "buyer.platform.com", "co.uk", "github.io"],
+    ids=["host-below", "signer-host", "icann-suffix", "private-suffix"],
+)
+async def test_a_grantee_that_is_not_a_registrable_domain_covers_no_claim(grantee):
+    """L2 §Grants: a grantee MUST be a registrable domain under the pinned PSL.
+
+    A grant whose grantee is not one covers no claim. Reducing it to its
+    registrable domain would extend the grant to every tenant under that
+    domain, so ``ads.platform.com`` never matches ``platform.com``.
+    """
     documents = {
         trust_record_url(ORIGIN): {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]},
         trust_record_url("brand.com"): {
-            "grants": [{"grantee": "ads.platform.com", "scopes": ["adcp:media_buying"]}]
+            "grants": [{"grantee": grantee, "scopes": ["adcp:media_buying"]}]
         },
     }
     result = await TrustGrantEvaluator(_grant_records(documents)).check(
         agent_origin=ORIGIN, brand_domain="brand.com", account_operator="platform.com"
     )
+    assert not result.authorized
+    assert result.reason == "grant_absent"
+
+
+async def test_a_grantee_under_a_private_suffix_is_registrable():
+    """``alice.github.io`` is a registrable domain: ``github.io`` is a PSL private suffix."""
+    origin = "https://buyer.alice.github.io"
+    documents = {
+        trust_record_url(origin): {"agents": [{"url": origin, "roles": ["adcp:buying"]}]},
+        trust_record_url("brand.com"): {
+            "grants": [{"grantee": "alice.github.io", "scopes": ["adcp:media_buying"]}]
+        },
+    }
+    result = await TrustGrantEvaluator(_grant_records(documents)).check(
+        agent_origin=origin, brand_domain="brand.com", account_operator="alice.github.io"
+    )
     assert result.authorized
+
+
+@pytest.mark.parametrize("exclusive", [True, False])
+async def test_a_non_registrable_grantee_still_counts_for_exclusive_grants(exclusive):
+    """The grant covers no claim, and its scopes still make grants[] exhaustive."""
+    documents = {
+        trust_record_url(ORIGIN): {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]},
+        trust_record_url("brand.com"): {
+            "grants": [{"grantee": "ads.platform.com", "scopes": ["adcp:media_buying"]}],
+            "exclusive_grants": exclusive,
+        },
+    }
+    consulted: list[str] = []
+
+    async def seller(request) -> bool:
+        consulted.append(request.agent_origin)
+        return True
+
+    result = await TrustGrantEvaluator(
+        _grant_records(documents), seller_authorization=seller
+    ).check(agent_origin=ORIGIN, brand_domain="brand.com", account_operator="platform.com")
+    if exclusive:
+        assert not result.authorized
+        assert result.reason == "grant_absent"
+        assert consulted == []
+    else:
+        # Not exhaustive: the uncovered claim stays at the seller's discretion.
+        assert result.authorized
+        assert consulted == [ORIGIN]
+
+
+async def test_a_non_registrable_grantee_breaks_a_two_link_chain():
+    """The intermediary's own grant must also name a registrable domain."""
+    documents = {
+        trust_record_url(ORIGIN): {"agents": [{"url": ORIGIN, "roles": ["adcp:buying"]}]},
+        trust_record_url("brand.com"): {
+            "grants": [{"grantee": "agency.com", "scopes": ["adcp:media_buying"]}]
+        },
+        trust_record_url("agency.com"): {
+            "grants": [{"grantee": "buyer.platform.com", "scopes": ["adcp:media_buying"]}]
+        },
+    }
+    result = await TrustGrantEvaluator(_grant_records(documents)).check(
+        agent_origin=ORIGIN, brand_domain="brand.com", account_operator="agency.com"
+    )
+    assert not result.authorized
+    assert result.reason == "grant_absent"
+    documents[trust_record_url("agency.com")]["grants"][0]["grantee"] = "platform.com"
+    result = await TrustGrantEvaluator(_grant_records(documents)).check(
+        agent_origin=ORIGIN, brand_domain="brand.com", account_operator="agency.com"
+    )
+    assert result.authorized
+
+
+@pytest.mark.parametrize(
+    "grantee,valid",
+    [
+        ("platform.com", True),
+        ("alice.github.io", True),
+        ("ads.platform.com", False),
+        ("github.io", False),
+        ("co.uk", False),
+    ],
+)
+def test_authoring_refuses_a_grantee_that_is_not_a_registrable_domain(grantee, valid):
+    from adcp.signing.trust import validate_trust_record
+
+    document = {"grants": [{"grantee": grantee, "scopes": ["adcp:media_buying"]}]}
+    if valid:
+        assert validate_trust_record(document, operator_domain="brand.com") == document
+    else:
+        with pytest.raises(TrustRecordError, match="registrable domain"):
+            validate_trust_record(document, operator_domain="brand.com")
 
 
 @pytest.mark.parametrize(
