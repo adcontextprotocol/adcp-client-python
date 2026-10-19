@@ -71,7 +71,6 @@ from adcp.signing.trust import (
 )
 from adcp.signing.wba import (
     WbaRevocationStatus,
-    WbaVerificationError,
     _https_origin,
     thumbprint_key_id,
     wba_revocation_status,
@@ -273,7 +272,8 @@ def _public_ed25519_key(jwk: Mapping[str, Any]) -> dict[str, Any]:
         raise JwsArtifactError("jws_invalid", "key carries private key material")
     if jwk.get("kty") != "OKP" or jwk.get("crv") != "Ed25519" or not isinstance(jwk.get("x"), str):
         raise JwsArtifactError("jws_invalid", "key is not an Ed25519 public key")
-    if jwk.get("alg") not in {None, JWS_ARTIFACT_ALG}:
+    alg = jwk.get("alg")
+    if alg is not None and alg != JWS_ARTIFACT_ALG:
         raise JwsArtifactError("jws_invalid", "key alg is not EdDSA")
     public = {"kty": "OKP", "crv": "Ed25519", "x": jwk["x"]}
     try:
@@ -348,7 +348,11 @@ async def verify_wba_jws_artifact(
     directory_failure: Exception | None = None
     try:
         resolved = await signer_keys(kid, signer_origin=origin)
-    except (WbaVerificationError, ValueError) as exc:
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        # WbaDiscoveryError, local capacity, or a custom resolver's own
+        # failure: an outage, never absence.
         directory_failure = exc
     else:
         if resolved is not None:
@@ -360,7 +364,14 @@ async def verify_wba_jws_artifact(
                 raise JwsArtifactError("jws_key_unknown", "key is not in the issuer's directory")
             key = resolved.jwk
     if key is None and archive is not None:
-        archived = await archive(origin, kid)
+        try:
+            archived = await archive(origin, kid)
+        except (JwsArtifactError, asyncio.CancelledError):
+            raise
+        except Exception as exc:
+            raise JwsArtifactError(
+                "jws_key_unavailable", "governance key archive is unavailable"
+            ) from exc
         if archived is not None:
             key, key_source = archived, "archive"
     if key is None:
@@ -513,6 +524,7 @@ def compact_jws_from_envelope(envelope: Mapping[str, Any]) -> str:
 class _ArchiveEntry:
     keys: dict[str, dict[str, Any]]
     fresh_until: float
+    fetched_at: float
 
 
 class HttpGovernanceKeyArchive:
@@ -531,7 +543,8 @@ class HttpGovernanceKeyArchive:
     with SSRF checks, no redirects, a 2 MiB body cap and a 10-second budget.
     A custom fetcher is a trusted seam and must enforce the same policy.
     Archives are cached per origin for ``cache_seconds`` in a bounded LRU of
-    ``max_origins``; failures are not cached.
+    ``max_origins``; a key the cached archive lacks is refetched at most
+    every ``miss_refetch_seconds``. Failures are not cached.
     """
 
     def __init__(
@@ -540,6 +553,7 @@ class HttpGovernanceKeyArchive:
         fetcher: TrustFetcher = fetch_trust_record,
         allow_private: bool = False,
         cache_seconds: float = 300,
+        miss_refetch_seconds: float = 30,
         max_origins: int = 256,
         clock: Callable[[], float] = time.time,
     ) -> None:
@@ -548,6 +562,7 @@ class HttpGovernanceKeyArchive:
         self._fetcher = fetcher
         self._allow_private = allow_private
         self._cache_seconds = float(cache_seconds)
+        self._miss_refetch_seconds = float(miss_refetch_seconds)
         self._max_origins = max_origins
         self._clock = clock
         self._cache: OrderedDict[str, _ArchiveEntry] = OrderedDict()
@@ -561,7 +576,14 @@ class HttpGovernanceKeyArchive:
             raise JwsArtifactError("jws_key_unknown", "archive origin is not https") from exc
         async with self._lock:
             entry = self._cache.get(origin)
-            if entry is not None and entry.fresh_until > self._clock():
+            now = self._clock()
+            # A miss refetches once the cooldown has passed, so a key rotated
+            # into the archive is not reported unknown for a whole cache period.
+            if (
+                entry is not None
+                and entry.fresh_until > now
+                and (kid in entry.keys or now < entry.fetched_at + self._miss_refetch_seconds)
+            ):
                 self._cache.move_to_end(origin)
                 keys = entry.keys
                 task = None
@@ -582,7 +604,8 @@ class HttpGovernanceKeyArchive:
         try:
             keys = await self._fetch(origin)
             async with self._lock:
-                self._cache[origin] = _ArchiveEntry(keys, self._clock() + self._cache_seconds)
+                now = self._clock()
+                self._cache[origin] = _ArchiveEntry(keys, now + self._cache_seconds, now)
                 self._cache.move_to_end(origin)
                 while len(self._cache) > self._max_origins:
                     self._cache.popitem(last=False)
@@ -629,7 +652,7 @@ class HttpGovernanceKeyArchive:
             try:
                 public = _public_ed25519_key(jwk)
                 thumbprint = thumbprint_key_id(public)
-            except (JwsArtifactError, ValueError):
+            except (JwsArtifactError, TypeError, ValueError):
                 continue
             keys.setdefault(thumbprint, {**public, "kid": thumbprint})
         return keys

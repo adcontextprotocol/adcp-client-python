@@ -942,3 +942,54 @@ async def test_the_archive_skips_unusable_entries_and_bounds_its_cache():
     assert len(calls) == 3
     with pytest.raises(JwsArtifactError):
         await archive("http://gov.example.com", jwk["kid"])
+
+
+async def test_an_archive_or_resolver_that_raises_anything_is_unavailable():
+    private, jwk = _wba_key()
+
+    async def broken_archive(origin: str, kid: str) -> None:
+        raise ConnectionError("archive host down")
+
+    verifier = _verifier(_listing(GOV), Directory({GOV: []}), archive=broken_archive)
+    result = await verify_historical_governance_context(
+        token=_governance_token(private, jwk["kid"]),
+        expected_issuer=GOV_ISSUER,
+        web_bot_auth=verifier,
+    )
+    assert not result.ok and result.error == "governance_jwks_unavailable"
+
+    directory = Directory({GOV: [jwk]})
+    directory.failure = ConnectionError("custom resolver failed")
+    result = await _verify_governance(
+        _governance_token(private, jwk["kid"]), _verifier(_listing(GOV), directory), None
+    )
+    assert not result.ok and result.error == "governance_jwks_unavailable"
+
+
+async def test_the_archive_skips_an_entry_with_a_non_string_alg():
+    _private, jwk = _wba_key()
+    _other_private, other = _wba_key()
+    archive = _archive({"keys": [{**other, "alg": []}, jwk]})
+    assert await archive(GOV, jwk["kid"]) is not None
+    assert await archive(GOV, other["kid"]) is None
+
+
+async def test_an_archive_miss_refetches_after_the_cooldown():
+    _private, jwk = _wba_key()
+    now = [NOW]
+    bodies = [{"keys": []}, {"keys": [jwk]}]
+    calls: list[str] = []
+
+    async def fetch(url, *, allow_private=False):
+        calls.append(url)
+        return TrustResponse(json.dumps(bodies[min(len(calls) - 1, 1)]).encode())
+
+    archive = HttpGovernanceKeyArchive(fetcher=fetch, clock=lambda: now[0])
+    assert await archive(GOV, jwk["kid"]) is None
+    assert await archive(GOV, jwk["kid"]) is None  # within the cooldown: cached
+    assert len(calls) == 1
+    now[0] += 31
+    assert await archive(GOV, jwk["kid"]) is not None
+    assert len(calls) == 2
+    assert await archive(GOV, jwk["kid"]) is not None  # a hit stays cached
+    assert len(calls) == 2
