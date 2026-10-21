@@ -142,10 +142,15 @@ _ReportingOperationId = Annotated[
         max_length=255,
         pattern="^[A-Za-z0-9_.:-]{1,255}$",
         description=(
-            "Opt-in AdCP 3.2 reporting-stream correlation extension pending adcp#7885. "
-            "Cooperating sellers store and echo the buyer-supplied value verbatim in "
-            "media_buy_delivery webhook payloads. Confirm seller support before use; "
-            "registrations without a value cannot enable this interim delivery path."
+            "Buyer-supplied correlation identifier for the reporting registration. "
+            "The seller MUST echo this value verbatim into every webhook payload's "
+            "`operation_id` field on each `media_buy_delivery` report sent to this "
+            "registration, and MUST NOT derive it by parsing the reporting webhook URL. "
+            "Independent of any `push_notification_config.operation_id`. Optional for "
+            "schema compatibility, but a seller MUST NOT emit `media_buy_delivery` "
+            "webhooks to a registration that omits it (fail closed). Standardized in "
+            "AdCP 3.3 (adcp#7895); on 3.2 this is an opt-in SDK extension with the "
+            "identical wire shape, so confirm seller support before relying on it."
         ),
     ),
 ]
@@ -446,9 +451,10 @@ def _apply_forward_compat() -> None:
     # Refresh its cached nested validator as well as the package model itself.
     _GeneratedCreateMediaBuyRequest.model_rebuild(force=True)
 
-    # 3.2.1 permits additional registration fields but does not declare this ID.
+    # 3.2.x permits additional registration fields but does not declare this ID.
     # Keep the extension outside generated code so a schema refresh cannot drop
-    # it again. An eventual upstream core definition takes precedence.
+    # it again. AdCP 3.3 adds the same optional field with the same constraints
+    # (adcp#7895); once a bundle declares it, this guard makes the patch a no-op.
     if "operation_id" not in ReportingWebhook.model_fields:
         # Pydantic accepts annotated unions at runtime; its helper's annotation
         # is narrower than that supported dynamic input.

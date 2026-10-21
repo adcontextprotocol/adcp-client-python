@@ -56,7 +56,10 @@ from adcp.signing.standard_webhooks import decode_secret as _decode_sw_secret
 from adcp.types import (
     AdcpProtocol,
     GeneratedTaskStatus,
+    McpWebhookPayload,
+    MediaBuyDeliveryWebhookResult,
     NotificationConfig,
+    ReportingWebhook,
     TaskType,
     WholesaleFeedEvent,
     WholesaleFeedWebhook,
@@ -763,6 +766,14 @@ class WebhookSender:
             idempotency_key=idempotency_key,
             token=token,
         )
+        return WebhookSender._prepare_mcp_payload(url, payload, extra_headers)
+
+    @staticmethod
+    def _prepare_mcp_payload(
+        url: str,
+        payload: McpWebhookPayload,
+        extra_headers: Mapping[str, str] | None,
+    ) -> PreparedWebhook:
         body_dict = {
             **to_wire_dict(payload),
             "idempotency_key": payload.idempotency_key,
@@ -780,6 +791,73 @@ class WebhookSender:
             body=body,
             extra_headers=dict(extra_headers) if extra_headers else {},
         )
+
+    async def send_media_buy_delivery(
+        self,
+        *,
+        registration: ReportingWebhook | Mapping[str, Any],
+        task_id: str,
+        result: MediaBuyDeliveryWebhookResult | dict[str, Any],
+        status: GeneratedTaskStatus | str = "completed",
+        timestamp: datetime | None = None,
+        message: str | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send one scheduled delivery report to a stored registration.
+
+        Raises :class:`~adcp.webhooks.ReportingWebhookOperationIdMissingError`
+        without network I/O when the registration has no ``operation_id``.
+        """
+        return await self.send_prepared(
+            self.prepare_media_buy_delivery(
+                registration=registration,
+                task_id=task_id,
+                result=result,
+                status=status,
+                timestamp=timestamp,
+                message=message,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_media_buy_delivery(
+        *,
+        registration: ReportingWebhook | Mapping[str, Any],
+        task_id: str,
+        result: MediaBuyDeliveryWebhookResult | dict[str, Any],
+        status: GeneratedTaskStatus | str = "completed",
+        timestamp: datetime | None = None,
+        message: str | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a ``media_buy_delivery`` webhook for a ``reporting_webhook``.
+
+        The URL, ``operation_id`` and ``token`` all come from the same stored
+        registration, so the report echoes exactly what the buyer registered.
+        See :func:`~adcp.webhooks.create_media_buy_delivery_webhook_payload`.
+
+        :raises ReportingWebhookOperationIdMissingError: the registration has
+            no ``operation_id``. Skip the send and flag it for the buyer.
+        """
+        webhook = (
+            registration
+            if isinstance(registration, ReportingWebhook)
+            else ReportingWebhook.model_validate(registration)
+        )
+        payload = create_media_buy_delivery_webhook_payload(
+            webhook,
+            task_id=task_id,
+            result=result,
+            status=status,
+            timestamp=timestamp,
+            message=message,
+            idempotency_key=idempotency_key,
+        )
+        return WebhookSender._prepare_mcp_payload(str(webhook.url), payload, extra_headers)
 
     async def send_prepared(
         self,
@@ -1799,6 +1877,7 @@ class WebhookSender:
 # cycle — see the note next to the removed top-level import.
 from adcp.webhooks import (  # noqa: E402
     create_mcp_webhook_payload,
+    create_media_buy_delivery_webhook_payload,
     create_webhook_challenge_payload,
     generate_webhook_idempotency_key,
     to_wire_dict,

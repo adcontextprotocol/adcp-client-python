@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import time
 import uuid
@@ -61,7 +62,13 @@ from adcp.signing.webhook_verifier import (
     verify_webhook_from_agent_url,
     verify_webhook_signature,
 )
-from adcp.types import AdcpProtocol, GeneratedTaskStatus, McpWebhookPayload, TaskType
+from adcp.types import (
+    AdcpProtocol,
+    GeneratedTaskStatus,
+    McpWebhookPayload,
+    ReportingWebhook,
+    TaskType,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.webhook_receiver import (
     LegacyHmacFallback,
@@ -73,6 +80,8 @@ from adcp.webhook_receiver import (
     WebhookReceiverConfig,
 )
 from adcp.webhook_transport_hooks import TransportHook, apply_hooks
+
+logger = logging.getLogger(__name__)
 
 # `task_type` → `protocol` mapping. Mirrors the JS reference
 # implementation's `TOOL_PROTOCOL_MAP` in
@@ -162,6 +171,8 @@ def create_mcp_webhook_payload(
         notification_id: Stable identity for one logical notification.
             Terminal task webhooks default to ``"{task_id}.terminal"`` so
             re-emissions under different delivery keys still converge.
+            ``media_buy_delivery`` reports get no default: they are
+            point-in-time events deduped by ``idempotency_key``.
         message: Human-readable summary of task state.
         context_id: Session/conversation identifier.
         protocol: AdCP protocol this task belongs to (see :class:`AdcpProtocol`).
@@ -226,12 +237,14 @@ def create_mcp_webhook_payload(
         )
 
     status_value = status.value if hasattr(status, "value") else str(status)
-    if notification_id is None and status_value in {
-        "completed",
-        "failed",
-        "canceled",
-        "rejected",
-    }:
+    task_type_value = task_type.value if hasattr(task_type, "value") else str(task_type)
+    # Delivery reports are point-in-time events, not terminal task outcomes:
+    # the spec omits notification_id and dedupes them by idempotency_key.
+    if (
+        notification_id is None
+        and task_type_value != "media_buy_delivery"
+        and status_value in {"completed", "failed", "canceled", "rejected"}
+    ):
         notification_id = f"{task_id}.terminal"
 
     # Auto-derive `protocol` from `task_type` when caller doesn't override.
@@ -277,6 +290,118 @@ def create_mcp_webhook_payload(
     # bodies before signing.
     payload.result = result_value  # type: ignore[assignment]
     return payload
+
+
+#: Structured ``adcp_event`` value logged when a scheduled delivery report is
+#: suppressed because its ``reporting_webhook`` registration has no
+#: buyer-supplied ``operation_id``.
+REPORTING_WEBHOOK_OPERATION_ID_MISSING = "reporting_webhook.operation_id_missing"
+
+
+class ReportingWebhookOperationIdMissingError(ValueError):
+    """A ``reporting_webhook`` registration carries no buyer-supplied ``operation_id``.
+
+    ``media_buy_delivery`` webhooks require ``operation_id``, and the seller
+    MUST echo the registration's value rather than invent one or parse it from
+    the URL. A registration without it cannot receive scheduled reports: skip
+    the send and ask the buyer to update ``reporting_webhook`` with an
+    ``operation_id``. ``get_media_buy_delivery`` stays available meanwhile.
+
+    The SDK logs one WARNING on the ``adcp.webhooks`` logger before raising,
+    with ``extra`` fields ``adcp_event`` (:data:`REPORTING_WEBHOOK_OPERATION_ID_MISSING`),
+    ``task_type``, ``notification_type`` and ``media_buy_ids``. The URL and
+    credentials are never logged.
+    """
+
+    code = REPORTING_WEBHOOK_OPERATION_ID_MISSING
+
+    def __init__(self, *, media_buy_ids: tuple[str, ...] = ()) -> None:
+        self.media_buy_ids = media_buy_ids
+        super().__init__(
+            "reporting_webhook has no buyer-supplied operation_id; media_buy_delivery "
+            "webhooks to this registration are suppressed. Ask the buyer to update "
+            "reporting_webhook.operation_id; never derive one from the URL or a "
+            "seller resource ID."
+        )
+
+
+def _delivery_report_media_buy_ids(result: Mapping[str, Any]) -> tuple[str, ...]:
+    deliveries = result.get("media_buy_deliveries")
+    if not isinstance(deliveries, list):
+        return ()
+    return tuple(
+        delivery["media_buy_id"]
+        for delivery in deliveries
+        if isinstance(delivery, Mapping) and isinstance(delivery.get("media_buy_id"), str)
+    )
+
+
+def create_media_buy_delivery_webhook_payload(
+    registration: ReportingWebhook | Mapping[str, Any],
+    *,
+    task_id: str,
+    result: PydanticBaseModel | dict[str, Any],
+    status: GeneratedTaskStatus | str = "completed",
+    timestamp: datetime | None = None,
+    message: str | None = None,
+    idempotency_key: str | None = None,
+) -> McpWebhookPayload:
+    """Build a scheduled ``media_buy_delivery`` webhook for a stored registration.
+
+    ``operation_id`` and ``token`` are copied verbatim from ``registration``
+    (a :class:`ReportingWebhook` or its persisted JSON form), so the reporting
+    stream correlates with the value the buyer registered. ``notification_id``
+    is omitted: delivery reports are deduped by ``idempotency_key``.
+
+    Args:
+        registration: The buyer's ``reporting_webhook`` as stored by the seller.
+        task_id: Seller-generated identifier for this report, for example
+            ``"delivery_report_67_2026_04_000031"``.
+        result: The ``MediaBuyDeliveryWebhookResult`` body, kept byte-for-byte.
+        status: Envelope status, normally ``"completed"``. It is distinct from
+            ``media_buy_deliveries[].status``.
+        timestamp: When the report was first generated. Defaults to now (UTC).
+        message: Optional human-readable summary.
+        idempotency_key: The first attempt's key when rebuilding for a retry.
+
+    Raises:
+        ReportingWebhookOperationIdMissingError: ``registration`` has no
+            ``operation_id``. Skip this send; do not fabricate a value.
+        pydantic.ValidationError: ``registration`` is malformed, including a
+            stored ``operation_id`` outside the 1–255 ``[A-Za-z0-9_.:-]`` form.
+    """
+    webhook = (
+        registration
+        if isinstance(registration, ReportingWebhook)
+        else ReportingWebhook.model_validate(registration)
+    )
+    if not webhook.operation_id:
+        result_dict = (
+            result.model_dump(mode="json") if isinstance(result, PydanticBaseModel) else result
+        )
+        media_buy_ids = _delivery_report_media_buy_ids(result_dict)
+        logger.warning(
+            "Suppressed media_buy_delivery webhook: reporting_webhook has no "
+            "buyer-supplied operation_id",
+            extra={
+                "adcp_event": REPORTING_WEBHOOK_OPERATION_ID_MISSING,
+                "task_type": "media_buy_delivery",
+                "notification_type": result_dict.get("notification_type"),
+                "media_buy_ids": media_buy_ids,
+            },
+        )
+        raise ReportingWebhookOperationIdMissingError(media_buy_ids=media_buy_ids)
+    return create_mcp_webhook_payload(
+        task_id=task_id,
+        status=status,
+        task_type=TaskType.media_buy_delivery,
+        result=result,
+        timestamp=timestamp,
+        operation_id=webhook.operation_id,
+        message=message,
+        idempotency_key=idempotency_key,
+        token=webhook.token,
+    )
 
 
 def get_adcp_signed_headers_for_webhook(
@@ -2025,6 +2150,9 @@ __all__ = [
     # Sender — payload builders
     "create_a2a_webhook_payload",
     "create_mcp_webhook_payload",
+    "create_media_buy_delivery_webhook_payload",
+    "REPORTING_WEBHOOK_OPERATION_ID_MISSING",
+    "ReportingWebhookOperationIdMissingError",
     "generate_webhook_idempotency_key",
     "generate_webhook_challenge_value",
     "create_webhook_challenge_payload",
