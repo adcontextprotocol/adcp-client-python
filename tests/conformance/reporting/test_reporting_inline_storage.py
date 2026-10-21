@@ -22,6 +22,7 @@ from pathlib import Path
 
 import anyio
 import pytest
+from adcp_reporting_storage.inline_storage import PgReportingSealStore, PgReportingStagingStore
 
 from adcp.reporting.conformance import validate_reporting_source_execution
 from adcp.reporting.fixtures import redacted_capabilities, redacted_snapshot_request
@@ -29,8 +30,6 @@ from adcp.reporting.inline_source import InlineReportingSource, SealedSlice
 from adcp.reporting.inline_storage import (
     INLINE_STAGING_MAX_BYTES,
     InlineStorageError,
-    PgReportingSealStore,
-    PgReportingStagingStore,
     PreparedBackendObjectV1,
     PreparedBackendSealV1,
 )
@@ -109,12 +108,12 @@ class MissingDriver(importlib.abc.MetaPathFinder):
         if fullname.split('.')[0] in {'psycopg', 'psycopg_pool'}:
             raise ModuleNotFoundError('driver deliberately absent')
 sys.meta_path.insert(0, MissingDriver())
-from adcp.reporting.inline_storage import PgReportingStagingStore, PgReportingSealStore
+from adcp_reporting_storage.inline_storage import PgReportingStagingStore, PgReportingSealStore
 for cls in [PgReportingStagingStore, PgReportingSealStore]:
     try:
         cls(pool=object())
     except ImportError as error:
-        assert str(error) == 'PostgreSQL inline storage requires adcp[pg]'
+        assert str(error) == 'PostgreSQL inline storage requires adcp-reporting-storage[pg]'
         assert error.__context__ is None
     else:
         raise AssertionError('construction requires the optional driver')
@@ -691,7 +690,7 @@ async def test_unmigrated_operations_are_schema_unready(database, operation) -> 
 
 
 async def test_catalog_additive_metadata_does_not_change_readiness(stores, monkeypatch) -> None:
-    import adcp.reporting.inline_storage as module
+    import adcp_reporting_storage.inline_storage as module
 
     staging, _, _ = stores
     original = module.schema_objects
@@ -709,7 +708,7 @@ async def test_catalog_additive_metadata_does_not_change_readiness(stores, monke
 
 @pytest.mark.parametrize("field", ["fingerprint", "enabled"])
 async def test_catalog_required_fields_still_fail_closed(stores, monkeypatch, field) -> None:
-    import adcp.reporting.inline_storage as module
+    import adcp_reporting_storage.inline_storage as module
 
     staging, _, _ = stores
     original = module.schema_objects
@@ -853,7 +852,7 @@ async def test_forged_framework_marker_without_cancelled_scope_stays_argless(
 
 
 async def test_large_payload_hash_yields_and_matches_exact_bytes(stores, monkeypatch) -> None:
-    import adcp.reporting.inline_storage as module
+    import adcp_reporting_storage.inline_storage as module
 
     staging, _, _ = stores
     payload = b"x" * INLINE_STAGING_MAX_BYTES
@@ -893,7 +892,7 @@ async def test_cancellation_during_payload_hashing_settles_without_partial_write
 ) -> None:
     staging, _, pool = stores
     payload = b"x" * INLINE_STAGING_MAX_BYTES
-    import adcp.reporting.inline_storage as module
+    import adcp_reporting_storage.inline_storage as module
 
     original_digest = module._payload_digest
     original_transaction = staging._transaction

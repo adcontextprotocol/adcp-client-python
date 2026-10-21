@@ -346,10 +346,11 @@ async def test_cross_view_positions_fail_before_current_projection_on_every_moun
 
 
 async def test_feed_mount_preserves_closed_tier_and_new_store_notification_admission(feeds):
+    from adcp_reporting_storage import PgReportingOutbox
+
     from adcp.reporting.ledger.notification_models import ReportingNotificationError
     from adcp.reporting.outbox import (
         InMemoryReportingOutbox,
-        PgReportingOutbox,
         ReportingEnvelopeCipher,
         ReportingNotificationWorker,
     )

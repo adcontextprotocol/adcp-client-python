@@ -1,3 +1,5 @@
+from adcp_reporting_storage import postgres_reliable_reporting_service
+
 """Compose PostgreSQL reporting from registered adapters and trusted providers.
 
 See docs/reliable-reporting-service.md for ReportingProductionOptions inputs.
@@ -33,7 +35,7 @@ def compose_service(
     settles; configure owned pools with ReportingServiceResource when needed.
     Reporting admission comes from the typed sync_accounts task, never configure.
     """
-    service = ReliableReportingService.postgres(
+    service = postgres_reliable_reporting_service(
         pool=pool, account_context=account_context, production=production
     )
     for name, adapter in adapters.items():

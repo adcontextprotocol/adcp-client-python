@@ -3,9 +3,9 @@
 import asyncio
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore, PgStatusNotificationStore
 
-from adcp.reporting.ledger import PgReportingLedgerStore, RestatementCheckpoint
-from adcp.reporting.outbox import PgStatusNotificationStore
+from adcp.reporting.ledger import RestatementCheckpoint
 
 from . import test_reporting_status_projection_contract as _contract
 from ._generation_support import configuration, isolated_reporting_pool, obligation_for

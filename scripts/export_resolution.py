@@ -22,9 +22,9 @@ __all__ = ["expand_key", "resolution_key", "snapshot_entry", "snapshot_modules"]
 
 
 #: Namespaces the snapshot covers: the two public surfaces an adopter imports
-#: from, the consolidated generated namespace behind them, and every generated
-#: domain module, plus the reporting and ledger public surfaces. Built on first
-#: use so this module imports nothing from
+#: from, the consolidated generated namespace behind them, every generated
+#: domain module, the reporting and ledger surfaces (#1490), and the storage
+#: distribution's facade. Built on first use so this module imports nothing from
 #: ``adcp`` until asked.
 #:
 #: ``error_details`` is deliberately absent. Every name it carries is a class
@@ -42,6 +42,7 @@ def snapshot_modules() -> tuple[tuple[str, str], ...]:
         ("adcp.types._generated", "adcp.types._generated"),
         ("adcp.reporting", "adcp.reporting"),
         ("adcp.reporting.ledger", "adcp.reporting.ledger"),
+        ("adcp_reporting_storage", "adcp_reporting_storage"),
         *(
             (f"adcp.types.domains.{domain}", f"adcp.types.domains.{domain}")
             for domain in adcp.types.domains.DOMAINS

@@ -26,7 +26,7 @@ after the fact:
 conformance target.  It is genuinely usable in tests and single-process pilots,
 and it is not durable -- Reliable Reporting's whole premise is retained
 evidence, so production wants
-:class:`~adcp.reporting.ledger.pg.PgReportingLedgerStore` or your own.
+:class:`~adcp_reporting_storage.ledger.pg.PgReportingLedgerStore` or your own.
 """
 
 from __future__ import annotations

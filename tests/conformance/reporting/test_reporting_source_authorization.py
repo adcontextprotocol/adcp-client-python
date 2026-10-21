@@ -368,7 +368,7 @@ async def test_revocation_stops_account_for_turn_and_other_accounts_continue(bac
         if backend == "memory":
             store = InMemoryReportingLedgerStore(clock=lambda: END)
         else:
-            from adcp.reporting.ledger.pg import PgReportingLedgerStore
+            from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
             pool = await stack.enter_async_context(isolated_reporting_pool(autocommit=True))
             store = PgReportingLedgerStore(pool=pool, clock=lambda: END)
@@ -417,12 +417,10 @@ async def test_postgres_inline_publication_shares_size_one_pool(
     pools = pytest.importorskip("psycopg_pool")
     psycopg = pytest.importorskip("psycopg")
 
+    from adcp_reporting_storage.inline_storage import PgReportingSealStore, PgReportingStagingStore
+
     from adcp.reporting.inline_source import InlineReportingSource
-    from adcp.reporting.inline_storage import (
-        InlineStorageError,
-        PgReportingSealStore,
-        PgReportingStagingStore,
-    )
+    from adcp.reporting.inline_storage import InlineStorageError
 
     async with isolated_reporting_pool(autocommit=autocommit) as isolated:
         async with pools.AsyncConnectionPool(

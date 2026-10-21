@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pytest
+from adcp_reporting_storage import PgReportingSubmissionIntentStore
 
 from adcp.reporting.ledger.delivery import receipt_to_wire
 from adcp.reporting.submissions import (
     InMemoryReportingSubmissionIntentStore,
-    PgReportingSubmissionIntentStore,
     ReportingReceiptFailureCode,
     ReportingSubmissionScope,
     submit_reporting_receipts,

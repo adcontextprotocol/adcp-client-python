@@ -4,6 +4,18 @@ This file deliberately imports no workspace SDK before choosing the frozen
 source. It is a test driver, not a production migration or recovery service.
 """
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import json
 import sys
@@ -24,13 +36,20 @@ async def main():
     config = await read()
     root = Path(config["source"]).resolve()
     sys.path.insert(0, str(root / "src"))
+    if _storage_split():  # wheels before the storage split (#1510)
+        import adcp.reporting.outbox.status_pg as module
+    else:
+        import adcp_reporting_storage.outbox.status_pg as module
+
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.ledger import PgReportingReconciliationStore
+        from adcp.reporting.outbox import PgStatusNotificationStore
+    else:
+        from adcp_reporting_storage import PgReportingReconciliationStore, PgStatusNotificationStore
     from psycopg import AsyncConnection, Error
     from psycopg_pool import AsyncConnectionPool
 
-    import adcp.reporting.outbox.status_pg as module
-    from adcp.reporting.ledger import PgReportingReconciliationStore
     from adcp.reporting.ledger.notification_models import ReportingNotificationError
-    from adcp.reporting.outbox import PgStatusNotificationStore
 
     assert Path(module.__file__).is_relative_to(root)
     gate = None

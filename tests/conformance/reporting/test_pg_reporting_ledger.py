@@ -42,6 +42,8 @@ if not TEST_URL:
         allow_module_level=True,
     )
 
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore  # noqa: E402
+
 from adcp.reporting.canonical_json import canonical_json_utf8_v1  # noqa: E402
 from adcp.reporting.ledger import (  # noqa: E402
     ConsumerStatusIngest,
@@ -59,7 +61,6 @@ from adcp.reporting.ledger import (  # noqa: E402
     derive_period,
     revision_content_sha256,
 )
-from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
 
 ACCOUNT = "acct_pg"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_pg")

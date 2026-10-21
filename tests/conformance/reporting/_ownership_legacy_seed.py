@@ -4,6 +4,18 @@ Only the seed action imports fixture builders. Upgrade ownership is an explicit
 operator mapping from the test's authoritative registry, never a buyer request.
 """
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -58,16 +70,24 @@ async def main(settings):
     ) as pool:
         if settings["action"] == "seed":
             sys.path.insert(0, settings["fixtures"])
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.feed import PgReportingFeedStore
+                from adcp.reporting.ledger import PgReportingReconciliationStore
+                from adcp.reporting.outbox import PgStatusNotificationStore
+            else:
+                from adcp_reporting_storage import (
+                    PgReportingFeedStore,
+                    PgReportingReconciliationStore,
+                    PgStatusNotificationStore,
+                )
+
             from adcp._version import resolve_adcp_version
-            from adcp.reporting.feed import PgReportingFeedStore
             from adcp.reporting.ledger import (
-                PgReportingReconciliationStore,
                 ReportingAdjustmentRecord,
                 ReportingControlTotalRecord,
                 ReportingRevisionReceiptRecord,
             )
             from adcp.reporting.ledger.delivery import adjustment_to_wire, receipt_to_wire
-            from adcp.reporting.outbox import PgStatusNotificationStore
             from tests.conformance.reporting._durable_materializer_support import durable_case
             from tests.conformance.reporting._generation_support import END
 
@@ -240,17 +260,31 @@ async def main(settings):
                 "pending": pending,
             }
         else:
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.feed import PgReportingFeedStore
+                from adcp.reporting.ledger import PgReportingLedgerStore
+            else:
+                from adcp_reporting_storage import PgReportingFeedStore, PgReportingLedgerStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.migration import (
+                    ReportingOwnershipBackfill,
+                    ReportingOwnershipMigrationError,
+                    backfill_legacy_reporting,
+                    legacy_generation_digest,
+                    migrate_legacy_reporting,
+                )
+            else:
+                from adcp_reporting_storage.migration import (
+                    ReportingOwnershipBackfill,
+                    ReportingOwnershipMigrationError,
+                    backfill_legacy_reporting,
+                    legacy_generation_digest,
+                    migrate_legacy_reporting,
+                )
             from psycopg import sql
 
-            from adcp.reporting.feed import PgReportingFeedStore, ReportingFeedError
-            from adcp.reporting.ledger import PgReportingLedgerStore, ReportingStatusCaller
-            from adcp.reporting.migration import (
-                ReportingOwnershipBackfill,
-                ReportingOwnershipMigrationError,
-                backfill_legacy_reporting,
-                legacy_generation_digest,
-                migrate_legacy_reporting,
-            )
+            from adcp.reporting.feed import ReportingFeedError
+            from adcp.reporting.ledger import ReportingStatusCaller
 
             store = PgReportingFeedStore(pool=pool, notifications=settings["notifications"])
             legacy = settings["legacy"]

@@ -3,12 +3,13 @@
 from datetime import datetime
 from typing import Any
 
+from adcp_reporting_storage import PgReportingOutbox
+
 from adcp.decisioning.accounts import ResolveContext
 from adcp.reporting.outbox import (
     ActivityOutcome,
     ActivityRequest,
     InMemoryReportingOutbox,
-    PgReportingOutbox,
     ReportingActivityProjector,
     ReportingActivityStore,
     WebhookAttempt,

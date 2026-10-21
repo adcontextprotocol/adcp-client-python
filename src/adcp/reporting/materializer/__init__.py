@@ -5,9 +5,8 @@ and verify explicitly with separate authorization sessions. The reference
 writer is exclusively for tests/development. The durable service owns fencing,
 retry allocation, target reselection and atomic finish. Production tier and
 notification activation additionally require the complete seller projection.
+The PostgreSQL materializer store is ``adcp_reporting_storage.materializer.pg``.
 """
-
-from typing import TYPE_CHECKING
 
 from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
@@ -65,13 +64,9 @@ from adcp.reporting.materializer.work import (
     ReportingMaterializerTurn,
 )
 
-if TYPE_CHECKING:
-    from adcp.reporting.materializer.pg import PgReportingMaterializerStore
-
 __all__ = [
     "InMemoryReportingMaterializerStore",
     "MaterializerReason",
-    "PgReportingMaterializerStore",
     "ReferenceReportingDestinationWriter",
     "ReferenceReportingResolver",
     "ReportingCanonicalization",
@@ -114,11 +109,3 @@ __all__ = [
     "strict_reporting_json",
     "validate_materialization_target",
 ]
-
-
-def __getattr__(name: str) -> object:
-    if name == "PgReportingMaterializerStore":
-        from adcp.reporting.materializer.pg import PgReportingMaterializerStore
-
-        return PgReportingMaterializerStore
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

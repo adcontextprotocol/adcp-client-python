@@ -1,13 +1,33 @@
 """Public Python 3.10 wheel checks, executed with -I outside the source tree."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
 import importlib.util
 import json
 import sys
-from importlib.resources import files
 from pathlib import Path
+
+
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
 
 
 async def main():
@@ -23,9 +43,13 @@ async def main():
         origins[name] = str(origin)
     assert not any(Path(entry).resolve().is_relative_to(workspace) for entry in sys.path)
 
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.submissions import PgReportingSubmissionIntentStore
+    else:
+        from adcp_reporting_storage import PgReportingSubmissionIntentStore
+
     from adcp.reporting.submissions import (
         InMemoryReportingSubmissionIntentStore,
-        PgReportingSubmissionIntentStore,
         ReportingSubmissionCode,
         ReportingSubmissionError,
         ReportingSubmissionScope,
@@ -40,7 +64,7 @@ async def main():
     from adcp.types.core import TaskResult, TaskStatus
 
     assert ReportingAdjustment.__name__ == "ReportingAdjustment"
-    sql = files("adcp.reporting.ledger").joinpath("reporting_buyer_submissions.sql").read_bytes()
+    sql = _asset_files(".ledger").joinpath("reporting_buyer_submissions.sql").read_bytes()
     assert hashlib.sha256(sql).hexdigest() == settings["sql_sha256"]
     if not settings["drivers"]:
         assert importlib.util.find_spec("psycopg") is None

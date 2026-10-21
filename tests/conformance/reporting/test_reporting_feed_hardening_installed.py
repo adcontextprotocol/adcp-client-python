@@ -62,6 +62,8 @@ def approved_b23(tmp_path_factory, request):
     with zipfile.ZipFile(wheel) as archive:
         modules = {}
         for name in set(feed_modules()) | (set(MODULES) - {"adcp.reporting.receipts._diagnostics"}):
+            # B23 predates the storage split: its stores live under adcp/reporting.
+            name = name.replace("adcp_reporting_storage.", "adcp.reporting.", 1)
             path = name.replace(".", "/") + ".py"
             if path not in archive.namelist():
                 path = name.replace(".", "/") + "/__init__.py"

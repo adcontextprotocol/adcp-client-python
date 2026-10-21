@@ -10,6 +10,7 @@ from decimal import Decimal, localcontext
 from typing import Any
 
 import pytest
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
 from adcp.reporting import (
     ReportingContentReading,
@@ -55,7 +56,6 @@ from adcp.reporting.ledger import (
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.ledger.producer import recompute_revision_content_sha256
 from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,

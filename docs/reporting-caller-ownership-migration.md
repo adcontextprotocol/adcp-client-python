@@ -76,7 +76,7 @@ If reporting was enabled but no configuration or other reporting state was ever
 admitted, use the explicit operator API without creating a quarantine archive:
 
 ```python
-from adcp.reporting.migration import replace_empty_legacy_reporting
+from adcp_reporting_storage.migration import replace_empty_legacy_reporting
 
 await replace_empty_legacy_reporting(operator_connection)
 await store.create_schema()
@@ -245,7 +245,7 @@ immutable record identifiers it has already consumed.
 ## Operator example
 
 ```python
-from adcp.reporting.migration import (
+from adcp_reporting_storage.migration import (
     ReportingOwnershipBackfill, backfill_legacy_reporting,
     legacy_generation_digest, migrate_legacy_reporting,
 )

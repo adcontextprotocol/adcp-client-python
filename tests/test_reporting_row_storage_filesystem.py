@@ -6,9 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
-
-from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
-from adcp.reporting.ledger.row_storage_object import (
+from adcp_reporting_storage.ledger.row_storage_object import (
     REPORTING_ROW_DEFAULT_KEY_TEMPLATE,
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
@@ -21,6 +19,8 @@ from adcp.reporting.ledger.row_storage_object import (
     reporting_row_account_key_v1,
     run_reporting_row_object_provider_conformance_v1,
 )
+
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 
 CONTEXT = ReportingRowObjectContextV1()
 NAMESPACE = "a" * 64
@@ -226,7 +226,7 @@ NEW_TEMPLATE = "{prefix}/{namespace_key}/{revision_key}/{content_sha256}/{chunk_
 
 
 def object_options(tmp_path: Path, **binding: object):
-    from adcp.reporting.ledger.row_storage import (
+    from adcp_reporting_storage.ledger.row_storage import (
         ReportingObjectRowBindingV1,
         ReportingRowStorageOptionsV1,
     )
@@ -248,7 +248,7 @@ def object_options(tmp_path: Path, **binding: object):
 def test_a_writable_template_without_revision_key_is_refused_at_configuration(
     tmp_path: Path,
 ) -> None:
-    from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
     with pytest.raises(ReportingRowStoreError) as refused:
         ReportingRowStorageV1(object_options(tmp_path, key_template=OLD_TEMPLATE))
@@ -264,7 +264,7 @@ def test_a_writable_template_without_revision_key_is_refused_at_configuration(
 def test_the_default_and_an_explicit_template_with_revision_key_are_accepted(
     tmp_path: Path,
 ) -> None:
-    from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
     ReportingRowStorageV1(object_options(tmp_path))
     ReportingRowStorageV1(object_options(tmp_path, key_template=NEW_TEMPLATE))
@@ -274,7 +274,7 @@ def test_the_default_and_an_explicit_template_with_revision_key_are_accepted(
 def test_a_read_only_binding_is_exempt_but_its_template_is_otherwise_validated(
     tmp_path: Path,
 ) -> None:
-    from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
     ReportingRowStorageV1(object_options(tmp_path, key_template=OLD_TEMPLATE, read_only=True))
     for template in (
@@ -287,7 +287,7 @@ def test_a_read_only_binding_is_exempt_but_its_template_is_otherwise_validated(
 
 
 def test_read_only_is_not_part_of_the_binding_identity(tmp_path: Path) -> None:
-    from adcp.reporting.ledger.row_storage import (
+    from adcp_reporting_storage.ledger.row_storage import (
         ReportingObjectRowBindingV1,
         _binding_identity_sha256,
     )

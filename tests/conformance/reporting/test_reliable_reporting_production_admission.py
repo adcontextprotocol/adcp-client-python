@@ -277,7 +277,7 @@ async def test_failed_context_admission_rolls_back_configuration_and_destination
 async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents(tmp_path):
     raise_exception = pytest.importorskip("psycopg").errors.RaiseException
 
-    from adcp.reporting.production.schema import validate_production_schema
+    from adcp_reporting_storage.production.schema import validate_production_schema
 
     selected = {}
     async with production_harness(

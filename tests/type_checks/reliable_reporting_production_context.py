@@ -1,3 +1,5 @@
+from adcp_reporting_storage import postgres_reliable_reporting_service
+
 """Installed public fixed-profile production bridge typing."""
 
 from typing import Any
@@ -33,7 +35,7 @@ def compose_adapters(
     application: ADCPHandler[Any],
 ) -> ReliableReportingService:
     offering: ReportingServiceOffering = options.offerings[0]
-    service = ReliableReportingService.postgres(
+    service = postgres_reliable_reporting_service(
         pool=pool, account_context=context, production=options
     )
     service.sources.register(offering.adapter, adapter)

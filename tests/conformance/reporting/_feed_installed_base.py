@@ -1,13 +1,33 @@
 """Run outside the checkout on Python 3.10 without the optional PG drivers."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
 import importlib.util
 import json
 import sys
-from importlib.resources import files
 from pathlib import Path
+
+
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
 
 
 async def main(settings):
@@ -21,12 +41,12 @@ async def main(settings):
     from adcp.server.mcp_tools import get_tools_for_handler
     from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse
 
-    assert "adcp.reporting.feed.pg" not in sys.modules
+    assert "adcp_reporting_storage.feed.pg" not in sys.modules
     for name in feed.__all__:
         assert getattr(feed, name) is not None
     assert "psycopg" not in sys.modules and "psycopg_pool" not in sys.modules
     for relative, digest in settings["assets"].items():
-        raw = files("adcp.reporting").joinpath(relative).read_bytes()
+        raw = _asset_files("").joinpath(relative).read_bytes()
         assert hashlib.sha256(raw).hexdigest() == digest
     prefix = "https://buyer.example.test/"
     caller = ReportingDeliveryPrincipal("installed-account", prefix + "a" * (2048 - len(prefix)))

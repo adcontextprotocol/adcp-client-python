@@ -1,10 +1,10 @@
 """The optional durable protocol and public lazy imports remain strict-adopter APIs."""
 
+from adcp_reporting_storage import PgReportingMaterializerStore
 from typing_extensions import assert_type
 
 from adcp.reporting.materializer import (
     InMemoryReportingMaterializerStore,
-    PgReportingMaterializerStore,
     ReportingDestinationIO,
     ReportingDestinationWriter,
     ReportingMaterializerLease,

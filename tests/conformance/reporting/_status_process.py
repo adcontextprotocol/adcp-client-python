@@ -1,14 +1,30 @@
 """Real database-clock roles in the shared process harness. No injected clock."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
+if _storage_split():  # wheels before the storage split (#1510)
+    from adcp.reporting.ledger import PgReportingReconciliationStore
+    from adcp.reporting.outbox import PgStatusNotificationStore
+else:
+    from adcp_reporting_storage import PgReportingReconciliationStore, PgStatusNotificationStore
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
-from adcp.reporting.ledger import PgReportingReconciliationStore, ReportingDeliveryEscalation
+from adcp.reporting.ledger import ReportingDeliveryEscalation
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.outbox import PgStatusNotificationStore
 
 from .test_reporting_notification_outbox import statement
 
@@ -65,7 +81,10 @@ async def run_status_role(role, settings, *, barrier, emit, bounded, receiver, i
         if settings.get("start_paused"):
             await barrier("status_worker_ready", backend_pid=pid)
 
-        import adcp.reporting.outbox.status_pg as module
+        if _storage_split():  # wheels before the storage split (#1510)
+            import adcp.reporting.outbox.status_pg as module
+        else:
+            import adcp_reporting_storage.outbox.status_pg as module
 
         enqueue, apply = module._enqueue_on, status._apply_on
 

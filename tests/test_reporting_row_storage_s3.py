@@ -10,17 +10,18 @@ import pytest
 boto3 = pytest.importorskip("boto3")
 moto = pytest.importorskip("moto")
 
-from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError  # noqa: E402
-from adcp.reporting.ledger.row_storage_object import (  # noqa: E402
+from adcp_reporting_storage.ledger.row_storage_object import (  # noqa: E402
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
     ReportingRowObjectPutInputV1,
     run_reporting_row_object_provider_conformance_v1,
 )
-from adcp.reporting.ledger.row_storage_s3 import (  # noqa: E402
+from adcp_reporting_storage.ledger.row_storage_s3 import (  # noqa: E402
     create_s3_reporting_row_object_provider_v1,
 )
+
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError  # noqa: E402
 
 CONTEXT = ReportingRowObjectContextV1()
 LOCATION = {"bucket": "rows-bucket"}

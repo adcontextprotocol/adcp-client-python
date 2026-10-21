@@ -113,7 +113,9 @@ async def two_feeds(h, *, issue=True):
 async def test_directional_feed_public_private_configuration_obligation_scopes(status_harness):
     h = status_harness
     owners, issues = await two_feeds(h)
-    from adcp.reporting.ledger.status_snapshot import memory_snapshot, read_snapshot_on
+    from adcp_reporting_storage.ledger.status_snapshot import read_snapshot_on
+
+    from adcp.reporting.ledger.status_snapshot import memory_snapshot
 
     if isinstance(h.ledger, InMemoryReportingLedgerStore):
         snapshot = memory_snapshot(h.ledger, "acct_a")
@@ -275,7 +277,9 @@ async def test_checkpoint_event_failure_rolls_back_epoch_turn_and_restart_is_onc
         status_scope=ReportingStatusScope("acct_a"),
     )
     before = await h.status.checkpoints(account_id="acct_a")
-    from adcp.reporting.outbox import status_memory, status_pg
+    from adcp_reporting_storage.outbox import status_pg
+
+    from adcp.reporting.outbox import status_memory
 
     original = status_pg.advance_checkpoint
     called = 0
@@ -355,7 +359,9 @@ async def test_retained_scopes_outside_current_discovery_are_reprojected_without
             await c.execute(
                 "UPDATE reporting_status_scope_checkpoints SET next_due_at=%s", (expired,)
             )
-    from adcp.reporting.outbox import status_memory, status_pg
+    from adcp_reporting_storage.outbox import status_pg
+
+    from adcp.reporting.outbox import status_memory
 
     with monkeypatch.context() as patch:
         patch.setattr(status_memory, "projection_scopes", lambda snapshot: ())

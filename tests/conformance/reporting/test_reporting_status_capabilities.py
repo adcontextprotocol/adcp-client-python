@@ -5,13 +5,13 @@ from dataclasses import replace
 from itertools import product
 
 import pytest
+from adcp_reporting_storage import PgReportingActivityUnionStore
 
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
 from adcp.reporting.ledger.status_server import ReportingStatusNotificationHandler
 from adcp.reporting.outbox import (
-    PgReportingActivityUnionStore,
     ReportingActivityProjector,
     ReportingActivitySupport,
     ReportingNotificationError,

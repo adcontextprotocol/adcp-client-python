@@ -8,9 +8,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingSubmissionIntentStore
 
 from adcp.reporting.ledger.delivery import receipt_to_wire
-from adcp.reporting.submissions import PgReportingSubmissionIntentStore, ReportingSubmissionScope
+from adcp.reporting.submissions import ReportingSubmissionScope
 
 from ._receipt_support import adjustment_for, batch_state, receipt_case, receipt_harness
 from .test_reporting_materializer_process import Child

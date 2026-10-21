@@ -3,12 +3,13 @@
 from dataclasses import replace
 
 import pytest
+from adcp_reporting_storage import PgStatusNotificationStore
+from adcp_reporting_storage.outbox.status_schema import validate_status_schema
 
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
-from adcp.reporting.outbox import PgStatusNotificationStore, ReportingNotificationError
-from adcp.reporting.outbox.status_schema import validate_status_schema
+from adcp.reporting.outbox import ReportingNotificationError
 
 from . import test_reporting_status_projection_contract as _status_contract
 from ._generation_support import configuration, isolated_reporting_pool, revision_for
@@ -178,7 +179,7 @@ async def test_successive_waivers_preserve_each_terminal_record_and_other_caller
 
 @pytest.mark.parametrize("column", ["reporting_status_id", "conflict_sha256"])
 async def test_missing_waiver_binding_column_fails_readiness(column):
-    from adcp.reporting.ledger import PgReportingLedgerStore
+    from adcp_reporting_storage import PgReportingLedgerStore
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         status = PgStatusNotificationStore(PgReportingLedgerStore(pool=pool, notifications=True))

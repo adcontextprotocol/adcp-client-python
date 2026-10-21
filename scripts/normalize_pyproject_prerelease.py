@@ -131,9 +131,7 @@ def normalize_release_prs(prs: list[dict[str, Any]], token: str) -> None:
             raise ValueError("unexpected release PR identity")
         seen.add(branch)
         pyproject = _RELEASE_BRANCHES[branch]
-        original = _github(
-            f"contents/{pyproject}?ref={urllib.parse.quote(branch, safe='')}", token
-        )
+        original = _github(f"contents/{pyproject}?ref={urllib.parse.quote(branch, safe='')}", token)
         contents = base64.b64decode(original["content"], validate=False).decode()
         normalized = normalize_pyproject_text(contents)
         if normalized != contents:

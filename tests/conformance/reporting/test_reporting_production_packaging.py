@@ -10,7 +10,7 @@ from ._generation_support import require_rolling_database
 from ._production_installed import assert_installed_schema_keys
 from ._production_packaging import installed_production, production_schema_hashes
 from .test_reporting_materializer_packaging import b1_wheels, built_distribution
-from .test_reporting_notification_packaging import run_step
+from .test_reporting_notification_packaging import run_step, storage_distribution
 
 __all__ = ["b1_wheels", "built_distribution"]
 
@@ -54,7 +54,11 @@ async def test_floor_installed_production_contract(request, kind, drivers):
     )
     await asyncio.to_thread(
         run_step,
-        [*installer, str(wheels[kind]) + ("[pg]" if drivers else "")],
+        [
+            *installer,
+            str(wheels[kind]) + ("[pg]" if drivers else ""),
+            str(storage_distribution(wheels[kind])),
+        ],
         label=label + "-install",
         cwd=root,
         timeout=180,

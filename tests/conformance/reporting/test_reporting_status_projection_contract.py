@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from datetime import timedelta
 
 import pytest
+from adcp_reporting_storage import PgStatusNotificationStore
 
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
@@ -14,7 +15,6 @@ from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusH
 from adcp.reporting.ledger.status_projection import StatusProjectionInput, project_status_scope
 from adcp.reporting.outbox import (
     InMemoryStatusNotificationStore,
-    PgStatusNotificationStore,
     ReportingStatusScope,
     ReportingStatusSweeper,
     StatusChanged,

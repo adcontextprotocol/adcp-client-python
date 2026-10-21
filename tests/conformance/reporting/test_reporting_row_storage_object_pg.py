@@ -7,19 +7,19 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore, ReportingRowStorageOptionsV1
-from adcp.reporting.ledger.row_storage import (
+from adcp_reporting_storage import PgReportingLedgerStore, ReportingRowStorageOptionsV1
+from adcp_reporting_storage.ledger.row_storage import (
     ReportingObjectRowBindingV1,
     ReportingPostgresRowBindingV1,
 )
-from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
-from adcp.reporting.ledger.row_storage_object import (
+from adcp_reporting_storage.ledger.row_storage_object import (
     ReportingRowObjectContextV1,
     ReportingRowObjectPutInputV1,
     create_filesystem_reporting_row_object_provider_v1,
 )
-from adcp.reporting.ledger.row_write import prepare_revision_row_set
+from adcp_reporting_storage.ledger.row_write import prepare_revision_row_set
+
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 
 from ._generation_support import isolated_reporting_pool
 from .test_reporting_row_storage_pg import fetch_all, many_rows, seeded, typed_revision, walk
@@ -398,7 +398,7 @@ def test_bindings_are_validated_before_any_write(tmp_path: Path) -> None:
     providers = options(tmp_path).providers
 
     def make(**binding: Any) -> None:
-        from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+        from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
         defaults: dict[str, Any] = {
             "provider": "filesystem",
@@ -430,7 +430,7 @@ def test_bindings_are_validated_before_any_write(tmp_path: Path) -> None:
 
 
 def storage_with_bindings(bindings: Any) -> Any:
-    from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
     return ReportingRowStorageV1(ReportingRowStorageOptionsV1(bindings=bindings))
 
@@ -469,7 +469,7 @@ async def test_the_producer_stages_object_uploads_outside_its_publication_transa
 async def test_object_deletes_keep_referenced_objects_and_adopters_fail_closed(
     tmp_path: Path,
 ) -> None:
-    from adcp.reporting.ledger.row_storage import ReportingRowChunkLocatorV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowChunkLocatorV1
 
     async with isolated_reporting_pool() as pool:
         store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path))
@@ -556,7 +556,7 @@ class RecordingProvider:
         await self.inner.probe(*args, **kwargs)
 
     async def put_if_absent(self, put: Any, context: Any) -> Any:
-        from adcp.reporting.ledger.row_storage_object import ReportingRowObjectPutResultV1
+        from adcp_reporting_storage.ledger.row_storage_object import ReportingRowObjectPutResultV1
 
         result = await self.inner.put_if_absent(put, context)
         return ReportingRowObjectPutResultV1(
@@ -571,7 +571,7 @@ class RecordingProvider:
         return await self.inner.delete(delete, context)
 
     async def _stat(self, stat: Any, context: Any) -> Any:
-        from adcp.reporting.ledger.row_storage_object import ReportingRowObjectStatResultV1
+        from adcp_reporting_storage.ledger.row_storage_object import ReportingRowObjectStatResultV1
 
         self.calls.append("stat")
         found = await self.inner.stat(stat, context)
@@ -788,8 +788,10 @@ async def test_rows_written_under_an_older_template_stay_readable_through_a_read
 ) -> None:
     from dataclasses import replace
 
-    from adcp.reporting.ledger import row_storage
-    from adcp.reporting.ledger.row_storage_object import assert_reporting_row_key_template_v1
+    from adcp_reporting_storage.ledger import row_storage
+    from adcp_reporting_storage.ledger.row_storage_object import (
+        assert_reporting_row_key_template_v1,
+    )
 
     from .test_reporting_row_retention_pg import age
 

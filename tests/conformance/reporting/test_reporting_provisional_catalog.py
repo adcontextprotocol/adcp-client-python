@@ -5,11 +5,11 @@ import json
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore, PgReportingReceiptStore
+from adcp_reporting_storage.outbox._schema import REQUIRED_OBJECTS, schema_objects
+from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
-from adcp.reporting.receipts import PgReportingReceiptStore, ReportingReceiptError
+from adcp.reporting.receipts import ReportingReceiptError
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import (
@@ -29,7 +29,7 @@ async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
 ):
     # This is a source-level DDL control, not installed historical-binary proof.
     # All eight pre-observation migration files and old manifests stay unchanged.
-    root = files("adcp.reporting.ledger")
+    root = files("adcp_reporting_storage.ledger")
     chain = (
         "reporting_ledger.sql",
         "reporting_ledger_account_generations.sql",
@@ -51,7 +51,9 @@ async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
     for package in ("materializer", "receipts"):
         expected_parent.update(
             json.loads(
-                files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+                files("adcp_reporting_storage." + package)
+                .joinpath("required_schema.json")
+                .read_text()
             )
         )
     assert len(expected_parent) == 767

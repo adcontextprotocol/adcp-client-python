@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import PgReportingReconciliationStore
 
 from adcp.reporting.ledger import (
     LedgerConflictError,
-    PgReportingReconciliationStore,
     ReportingDeliveryPrincipal,
     ReportingDeliveryRecord,
     ReportingMaterializationCheck,
@@ -26,7 +26,7 @@ from ._reconciliation_support import scenario
 from .test_reporting_currency_migration import retained
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-RESOURCES = files("adcp.reporting.ledger")
+RESOURCES = files("adcp_reporting_storage.ledger")
 MIGRATION = RESOURCES.joinpath("reporting_ledger_reconciliation.sql")
 
 
@@ -43,9 +43,11 @@ async def test_upgrade_preserves_history_and_is_concurrent_idempotent(
     source: str, autocommit: bool
 ) -> None:
     require_rolling_database()
+    from adcp_reporting_storage.migration import (
+        ReportingOwnershipMigrationError,
+        migrate_legacy_reporting,
+    )
     from psycopg import sql
-
-    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
 
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection:
@@ -86,7 +88,7 @@ async def test_upgrade_preserves_history_and_is_concurrent_idempotent(
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_failed_extension_upgrade_rolls_back_prerequisites(autocommit: bool) -> None:
     pytest.importorskip("psycopg")
-    from adcp.reporting.migration import ReportingOwnershipMigrationError
+    from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection:
@@ -336,9 +338,11 @@ async def initial_retained_state(pool, *, kind="revision_receipt", write_change=
 
 async def assert_retained_quarantine(pool, before):
     require_rolling_database()
+    from adcp_reporting_storage.migration import (
+        ReportingOwnershipMigrationError,
+        migrate_legacy_reporting,
+    )
     from psycopg import sql
-
-    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
 
     store = PgReportingReconciliationStore(pool=pool)
     with pytest.raises(ReportingOwnershipMigrationError):

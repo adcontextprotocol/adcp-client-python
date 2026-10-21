@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.ledger.row_storage import ReportingRowStorageV1, ReportingRowStoreError
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1, ReportingRowStoreError
 
 from ._generation_support import isolated_reporting_pool
 

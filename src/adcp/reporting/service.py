@@ -623,48 +623,6 @@ class ReliableReportingService:
             **kwargs,
         )
 
-    @classmethod
-    def postgres(
-        cls,
-        *,
-        pool: Any,
-        account_context: ReportingContextResolver,
-        caller_resolver: ReportingCallerResolver | None = None,
-        clock: Callable[[], datetime] | None = None,
-        production: ReportingProductionOptions | None = None,
-        **kwargs: Any,
-    ) -> ReliableReportingService:
-        """Create durable ledger, staging and seal stores over a borrowed pool.
-
-        ``production`` additionally composes the managed pipeline, receipts and
-        optional signed notifications when ``install`` freezes registered sources.
-        Startup installs all SDK-owned schemas. Explicit source-store overrides
-        remain the adopter's responsibility. No pool is opened or closed here.
-        """
-        from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-        from adcp.reporting.production.pg import PgReportingProductionStore
-
-        store = (
-            PgReportingProductionStore(
-                pool=pool, clock=clock, notifications=production.notifications
-            )
-            if production is not None
-            else PgReportingLedgerStore(pool=pool, clock=clock)
-        )
-        staging = PgReportingStagingStore(pool=pool)
-        return cls(
-            store=store,
-            account_context=account_context,
-            caller_resolver=caller_resolver,
-            clock=clock,
-            production=production,
-            staging=staging,
-            seals=PgReportingSealStore(pool=pool),
-            initialize_source_storage=staging.create_schema,
-            **kwargs,
-        )
-
     def _compose_production(self) -> None:
         if self._production_options is None or self._production is not None:
             return

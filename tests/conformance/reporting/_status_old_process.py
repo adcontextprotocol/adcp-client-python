@@ -6,6 +6,18 @@ SDK module and every worker/store/decoder is loaded from the detached artifact.
 
 from __future__ import annotations
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import json
 import sys
@@ -18,18 +30,24 @@ async def main(settings, release):
     source = Path(settings["old_source"]).resolve()
     sys.path.insert(0, str(source / "src"))
 
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.ledger import PgReportingLedgerStore
+        from adcp.reporting.outbox import PgReportingOutbox
+    else:
+        from adcp_reporting_storage import PgReportingLedgerStore, PgReportingOutbox
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.outbox._schema import validate_schema
+    else:
+        from adcp_reporting_storage.outbox._schema import validate_schema
     from psycopg_pool import AsyncConnectionPool
 
     import adcp.reporting.ledger.notification_models as models
     import adcp.reporting.outbox.worker as worker_module
-    from adcp.reporting.ledger import PgReportingLedgerStore
     from adcp.reporting.outbox import (
-        PgReportingOutbox,
         ReportingEnvelopeCipher,
         ReportingNotificationError,
         ReportingNotificationWorker,
     )
-    from adcp.reporting.outbox._schema import validate_schema
 
     assert not hasattr(models, "StatusChanged")
     assert Path(worker_module.__file__).resolve().is_relative_to(source)

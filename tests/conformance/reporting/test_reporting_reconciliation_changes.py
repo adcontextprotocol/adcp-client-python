@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 from typing import get_args
 
 import pytest
+from adcp_reporting_storage import PgReportingReconciliationStore
 
 from adcp.reporting.ledger import (
     LedgerConflictError,
-    PgReportingReconciliationStore,
     ReportingAdjustmentReceiptRecord,
     ReportingAdjustmentRecord,
     ReportingControlTotalRecord,

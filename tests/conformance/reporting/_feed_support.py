@@ -1,5 +1,17 @@
 """Shared memory/PostgreSQL feed vectors and real mounted reporting reads."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import hashlib
 import json
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -37,7 +49,10 @@ async def feed_harness(backend, *, notifications=False):
             InMemoryReportingFeedStore(clock=clock, notifications=notifications), clock
         )
     else:
-        from adcp.reporting.feed import PgReportingFeedStore
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.feed import PgReportingFeedStore
+        else:
+            from adcp_reporting_storage import PgReportingFeedStore
 
         async with isolated_reporting_pool(autocommit=True) as pool:
             # Autonomous writers use DB time. A historical application clock
@@ -115,7 +130,10 @@ async def restart(h):
             if key not in {"_clock", "_lock"}:
                 vars(store)[key] = deepcopy(value)
     else:
-        from adcp.reporting.feed import PgReportingFeedStore
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.feed import PgReportingFeedStore
+        else:
+            from adcp_reporting_storage import PgReportingFeedStore
 
         store = PgReportingFeedStore(
             pool=h.pool, clock=h.clock, notifications=h.store._notifications_enabled

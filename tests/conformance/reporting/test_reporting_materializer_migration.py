@@ -6,19 +6,19 @@ from dataclasses import replace
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingMaterializerStore, PgReportingReconciliationStore
+from adcp_reporting_storage.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
+from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from adcp.reporting.ledger import LedgerConflictError, PgReportingReconciliationStore, derive_period
-from adcp.reporting.materializer import PgReportingMaterializerStore
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
+from adcp.reporting.ledger import LedgerConflictError, derive_period
 
 from ._durable_materializer_support import durable_case, durable_harness
 from ._generation_support import isolated_reporting_pool, obligation_for
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 
-SQL = files("adcp.reporting.ledger").joinpath("reporting_materializer.sql").read_text()
+SQL = files("adcp_reporting_storage.ledger").joinpath("reporting_materializer.sql").read_text()
 MANIFEST = json.loads(
-    files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
+    files("adcp_reporting_storage.materializer").joinpath("required_schema.json").read_text()
 )
 
 
@@ -251,8 +251,9 @@ async def test_bounded_sampling_walks_past_a_full_page_of_busy_account_locks():
 
 
 async def test_pre_activation_event_never_promotes_and_old_outbox_cannot_claim_it():
+    from adcp_reporting_storage import PgReportingOutbox
+
     from adcp.reporting.ledger.notification_models import decode_event
-    from adcp.reporting.outbox import PgReportingOutbox
 
     async with durable_harness("postgres", notifications=True) as h:
         case = await durable_case(h.store)

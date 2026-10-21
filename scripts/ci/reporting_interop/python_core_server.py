@@ -17,7 +17,6 @@ from typing import Any
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.ledger import (
-    PgReportingLedgerStore,
     ReportingConfiguration,
     ReportingDefinitionBinding,
     ReportingObligationRecord,
@@ -28,6 +27,7 @@ from adcp.reporting.ledger import (
     derive_period,
     revision_content_sha256,
 )
+from adcp_reporting_storage import PgReportingLedgerStore
 from adcp.reporting.ledger.status_server import ReportingStatusNotificationHandler
 from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory

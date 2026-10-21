@@ -31,7 +31,7 @@ Use a request/capability fixture that matches the adapter's declared offering,
 scope, currency, metrics, and source-local period. The SDK's `redacted_*`
 fixtures describe a sample provider, not every provider's contract.
 
-To test source replay through PostgreSQL, install `adcp[pg]`, use an isolated
+To test source replay through PostgreSQL, install `adcp-reporting-storage[pg]`, use an isolated
 test database/schema, and inject the public stores. Initialize the schema before
 wrapping a store; failure wrappers borrow it and do not own DDL or the pool.
 

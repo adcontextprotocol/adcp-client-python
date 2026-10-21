@@ -7,13 +7,11 @@ negotiates AdCP 3.2-rc.6. This composition does not activate production tier cla
 
 from __future__ import annotations
 
+from adcp_reporting_storage import PgReportingReceiptStore
+
 from adcp.decisioning.registry import BuyerAgentRegistry
 from adcp.reporting.feed import ReportingFeedStore
-from adcp.reporting.receipts import (
-    PgReportingReceiptStore,
-    ReceiptAccountResolver,
-    ReportingReceiptHandler,
-)
+from adcp.reporting.receipts import ReceiptAccountResolver, ReportingReceiptHandler
 from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, auth_context_factory
 

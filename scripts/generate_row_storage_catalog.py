@@ -20,14 +20,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "packages/adcp-reporting-storage/src"))
 
-from adcp.reporting.ledger.row_storage import (  # noqa: E402
+from adcp_reporting_storage.ledger.row_storage import (  # noqa: E402
     REPORTING_ROW_STORAGE_DDL_PATH,
     REPORTING_ROW_STORAGE_TABLES,
 )
-from adcp.reporting.outbox._schema import _catalog_objects  # noqa: E402
+from adcp_reporting_storage.outbox._schema import _catalog_objects  # noqa: E402
 
-TARGET = ROOT / "src/adcp/reporting/ledger/required_row_storage_schema.json"
+STORAGE_SRC = ROOT / "packages/adcp-reporting-storage/src/adcp_reporting_storage"
+TARGET = STORAGE_SRC / "ledger/required_row_storage_schema.json"
 
 
 async def generate(url: str) -> dict[str, dict[str, object]]:

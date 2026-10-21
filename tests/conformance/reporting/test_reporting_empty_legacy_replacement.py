@@ -7,9 +7,8 @@ import secrets
 from pathlib import Path
 
 import pytest
-
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
-from adcp.reporting.migration import (
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+from adcp_reporting_storage.migration import (
     ReportingOwnershipMigrationError,
     replace_empty_legacy_reporting,
 )

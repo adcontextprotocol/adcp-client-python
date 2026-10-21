@@ -8,12 +8,12 @@ from dataclasses import replace
 from datetime import timedelta, timezone
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
 from pydantic import ValidationError
 
 from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
-    PgReportingLedgerStore,
     ReportingProducer,
     revision_content_sha256,
 )

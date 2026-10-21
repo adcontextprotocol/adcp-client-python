@@ -8,6 +8,15 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import postgres_reliable_reporting_service
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+from adcp_reporting_storage.migration import (
+    ReportingOwnershipBackfill,
+    ReportingOwnershipMigrationError,
+    backfill_legacy_reporting,
+    legacy_generation_digest,
+    migrate_legacy_reporting,
+)
 
 from adcp.exceptions import ADCPTaskError
 from adcp.reporting.ledger import (
@@ -17,15 +26,7 @@ from adcp.reporting.ledger import (
     ReportingStatusCaller,
     ReportingStatusHandler,
 )
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.ledger.store import encode_cursor
-from adcp.reporting.migration import (
-    ReportingOwnershipBackfill,
-    ReportingOwnershipMigrationError,
-    backfill_legacy_reporting,
-    legacy_generation_digest,
-    migrate_legacy_reporting,
-)
 
 from ._generation_support import (
     NOW,
@@ -173,9 +174,8 @@ async def test_maintenance_archive_backfill_preserves_evidence_and_never_replays
     import json
 
     require_rolling_database()
+    from adcp_reporting_storage.ledger.pg import _configuration_payload, _fingerprint
     from psycopg import sql
-
-    from adcp.reporting.ledger.pg import _configuration_payload, _fingerprint
 
     archive = "adcp_reporting_quarantine_" + secrets.token_hex(6)
     async with isolated_reporting_pool(autocommit=True) as pool:
@@ -370,12 +370,11 @@ async def test_maintenance_archive_backfill_preserves_evidence_and_never_replays
                 assert await store.list_all_configurations() == ()
                 # A new service process starts over retained data without asking
                 # for source authority or constructing workers for the old work.
-                from adcp.reporting.service import ReliableReportingService
 
                 def no_legacy_dispatch(configuration):
                     raise AssertionError("quarantined generation cannot acquire source authority")
 
-                restarted = ReliableReportingService.postgres(
+                restarted = postgres_reliable_reporting_service(
                     pool=pool, account_context=no_legacy_dispatch
                 )
                 await restarted.start()
@@ -493,7 +492,7 @@ async def test_installed_core_composition_uses_transport_owner(backend):
     else:
         async with isolated_reporting_pool() as pool:
             await check(
-                ReliableReportingService.postgres(
+                postgres_reliable_reporting_service(
                     pool=pool, account_context=lambda _: None, caller_resolver=resolve
                 )
             )

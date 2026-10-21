@@ -7,6 +7,18 @@ SQLAlchemy connections over either driver.
 
 from __future__ import annotations
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import os
 import secrets
@@ -169,11 +181,11 @@ def install_legacy(connection: Any) -> None:
 
 
 def install_owned(connection: Any) -> None:
-    root = files("adcp.reporting.ledger")
+    root = files("adcp_reporting_storage.ledger")
     for name in OWNED_SQL:
         connection.execute(root.joinpath(name).read_text())
     connection.execute(
-        files("adcp.reporting.production").joinpath("service_context.sql").read_text()
+        files("adcp_reporting_storage.production").joinpath("service_context.sql").read_text()
     )
 
 
@@ -182,7 +194,10 @@ def create_owned_schema(schema: str, **options: Any) -> None:
     pytest.importorskip("psycopg_pool")
     from psycopg_pool import AsyncConnectionPool
 
-    from adcp.reporting.ledger.pg import PgReportingLedgerStore
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.ledger.pg import PgReportingLedgerStore
+    else:
+        from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
     async def create() -> None:
         async with AsyncConnectionPool(

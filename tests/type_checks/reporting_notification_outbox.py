@@ -3,19 +3,18 @@
 from collections.abc import Callable
 from datetime import datetime
 
+from adcp_reporting_storage import PgReportingOutbox, PgReportingReconciliationStore
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     InMemoryReportingReconciliationStore,
-    PgReportingReconciliationStore,
     ReportingLedgerStore,
     ReportingObligationRecord,
 )
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
-    PgReportingOutbox,
     ReportingEnvelopeCipher,
     ReportingNotificationOutbox,
     ReportingNotificationSubscription,

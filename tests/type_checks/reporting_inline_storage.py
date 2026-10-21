@@ -1,5 +1,6 @@
 """Borrowed pool composition with the existing public source protocols."""
 
+from adcp_reporting_storage.inline_storage import PgReportingSealStore, PgReportingStagingStore
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.inline_source import (
@@ -8,7 +9,6 @@ from adcp.reporting.inline_source import (
     ReportingSealStore,
     ReportingStagingStore,
 )
-from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
 from adcp.reporting.source import ReportingSourceCapabilitiesV1, ReportingSourceExecutor
 
 
