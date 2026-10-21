@@ -76,7 +76,7 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -92,7 +92,25 @@ _BOUND_CONNECTION: ContextVar[tuple[object, object, Any] | None] = ContextVar(
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
-from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
+from adcp.reporting.ledger._record_rows import (
+    _ADJUSTMENT_COLUMNS,
+    _ISSUE_COLUMNS,
+    _OBLIGATION_COLUMNS,
+    _REVISION_COLUMNS,
+    _STATUS_COLUMNS,
+    _STATUS_COLUMNS_BARE,
+    _adjustment_from_row,
+    _configuration_from_row,
+    _configuration_payload,
+    _consumer_status_payload,
+    _definition_payload,
+    _issue_from_row,
+    _obligation_from_row,
+    _revision_from_row,
+    _revision_payload,
+    _schedule_payload,
+    _status_from_row,
+)
 from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.host_reads import ReportingCurrentRevisionsPageV1
 from adcp.reporting.ledger.models import (
@@ -103,12 +121,9 @@ from adcp.reporting.ledger.models import (
     ReportingCaller,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
-    ReportingDefinitionBinding,
     ReportingIssueLifecycle,
     ReportingObligationRecord,
-    ReportingPeriodBoundary,
     ReportingRevisionRecord,
-    ReportingScheduleSpec,
 )
 from adcp.reporting.ledger.notification_models import (
     DirtyReason,
@@ -139,7 +154,6 @@ from adcp.reporting.ledger.store import (
     configuration_lifecycle,
     encode_cursor,
     issue_is_retirable,
-    managed_revision_metadata,
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
     validate_managed_revision_rows,
@@ -282,8 +296,133 @@ class PgReportingLedgerStore:
             finally:
                 _BOUND_CONNECTION.reset(token)
 
+    # -- what the protocol layer may ask of a durable store ------------------
+    #
+    # ``adcp`` composes queues, projections and capability checks over this
+    # store without importing it; see :mod:`adcp.reporting.outbox.durable` and
+    # :mod:`adcp.reporting.production.store`. Exact-class checks live here so
+    # a subclass is refused exactly where it was refused before.
+
+    @property
+    def clock(self) -> Callable[[], datetime] | None:
+        return self._clock
+
+    @property
+    def storage_identity(self) -> object:
+        return self._pool
+
+    @property
+    def storage_open(self) -> bool:
+        return self._pool.closed is False
+
+    @property
+    def notifications_enabled(self) -> bool:
+        return self._notifications_enabled
+
+    @property
+    def durable_reconciliation(self) -> bool:
+        return False
+
+    def _is_core_ledger(self) -> bool:
+        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
+
+        return type(self) in {PgReportingLedgerStore, PgReportingReconciliationStore}
+
+    def _is_own_queue(self, outbox: object) -> bool:
+        from adcp.reporting.outbox.pg import PgReportingOutbox
+
+        return (
+            type(outbox) is PgReportingOutbox
+            and self._is_core_ledger()
+            and outbox._pool is self._pool
+            and self._notifications_enabled
+        )
+
+    async def validate_notification_chain(self, outbox: object) -> None:
+        from adcp.reporting.outbox._schema import validate_schema
+
+        if not self._is_own_queue(outbox):
+            raise ReportingNotificationError("notification_chain_unready")
+        async with self._pool.connection() as connection, connection.transaction():
+            await validate_schema(connection)
+
+    def validate_activity_chain(self, outbox: object) -> None:
+        if not self._is_own_queue(outbox):
+            raise ReportingNotificationError("activity_chain_unready")
+
+    def validate_composite_activity_chain(
+        self, *, outbox: object, status_store: object, reader: object
+    ) -> None:
+        from adcp.reporting.outbox.pg import PgReportingOutbox
+        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
+        from adcp.reporting.outbox.status_pg import (
+            PgReportingStatusOutbox,
+            PgStatusNotificationStore,
+        )
+
+        if (
+            type(status_store) is not PgStatusNotificationStore
+            or not self._is_core_ledger()
+            or type(outbox) is not PgReportingOutbox
+            or type(reader) is not PgReportingActivityUnionStore
+            or reader.b_outbox is not outbox
+            or reader.status_outbox is not status_store.outbox
+            or status_store.ledger is not self
+            or outbox._pool is not self._pool
+            or type(status_store.outbox) is not PgReportingStatusOutbox
+            or status_store.outbox._pool is not self._pool
+            or outbox._clock is not status_store.outbox._clock
+            or not self._notifications_enabled
+        ):
+            raise ReportingNotificationError("activity_chain_unready")
+
+    def activity_schema_contract(self, *, composite: bool) -> str:
+        from adcp.reporting.outbox import _schema
+
+        contract = _schema._digest(_schema.REQUIRED_OBJECTS)
+        if composite:
+            from adcp.reporting.outbox import status_schema
+
+            contract += ":" + _schema._digest(status_schema.REQUIRED_STATUS_OBJECTS)
+        return contract
+
+    async def validate_activity_schema(self, *, composite: bool) -> None:
+        from adcp.reporting.outbox import _schema
+
+        async with self._pool.connection() as connection:
+            try:
+                installed = await _schema.schema_objects(connection)
+            except Exception:
+                raise ReportingNotificationError(
+                    "notification_schema_unready:catalog_unavailable"
+                ) from None
+            # One physical catalog capture, each required contract once.
+            retired = await _schema.legacy_rows_retired(connection, installed)
+            _schema._validate_schema_objects(
+                installed, activity=True, **({"legacy_rows_retired": True} if retired else {})
+            )
+            if composite:
+                from adcp.reporting.outbox import status_schema
+
+                status_schema._validate_status_objects(installed, activity=True, status=False)
+
+    def maintenance_operations(self) -> tuple[tuple[str, Callable[[], Awaitable[Any]]], ...]:
+        """Retention passes for the features this store opted into, in run order."""
+        operations: list[tuple[str, Callable[[], Awaitable[Any]]]] = []
+        if self._row_storage is not None:
+            operations.append(("intent_sweep", lambda: self.sweep_row_write_intents(limit=100)))
+            # Frees row bytes of periods past retention even while their records stay
+            # (protected by append-only guards), so storage is reclaimed whether or not
+            # records can be.
+            operations.append(("row_pruning", lambda: self.prune_expired_row_sets(limit=20)))
+        if self._row_storage is not None or self._change_feed:
+            operations.append(("period_retirement", lambda: self.retire_expired_periods(limit=20)))
+        if self._change_feed:
+            operations.append(("change_pruning", lambda: self.prune_changes()))
+        return tuple(operations)
+
     @asynccontextmanager
-    async def _source_publication(
+    async def source_publication(
         self, account_id: str, *, seals: ReportingSealStore | None = None
     ) -> AsyncIterator[InlineSealPublisher | None]:
         from psycopg import Error
@@ -738,7 +877,7 @@ class PgReportingLedgerStore:
             " FROM pg_settings WHERE name='lock_timeout'"
         )
 
-    def _worker_lock_errors(self) -> tuple[type[Exception], ...]:
+    def worker_lock_errors(self) -> tuple[type[Exception], ...]:
         from psycopg.errors import DeadlockDetected, LockNotAvailable
 
         bound = _BOUND_CONNECTION.get()
@@ -3290,22 +3429,6 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
     return LedgerConflictError("LEDGER_WRITE_FAILED", "the ledger write violated an integrity rule")
 
 
-_OBLIGATION_COLUMNS = (
-    "reporting_obligation_id, account_id, delivery_config_id, delivery_config_version,"
-    " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
-    " period_end, source_timezone, expected_at, scope_resolved_at,"
-    " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at, currency, consumer_id"
-)
-
-_REVISION_COLUMNS = (
-    "reporting_revision_id, account_id, reporting_obligation_id, finality,"
-    " revision_content_sha256, row_count, control_totals, observed_at, data_through,"
-    " created_at, supersedes_reporting_revision_id, finality_basis, finality_policy_id,"
-    " finalized_at, readable, readable_at_commit, source_publication_id, source_manifest_sha256,"
-    " canonical_content_digest, managed_control_totals"
-)
-
 _OUTER_REVISION_COLUMNS = ", ".join(f"r.{name.strip()}" for name in _REVISION_COLUMNS.split(","))
 # The current revision of an obligation is the official one if it exists, otherwise the
 # snapshot nothing supersedes yet. An official revision is terminal, so it is never superseded.
@@ -3316,44 +3439,6 @@ _CURRENT_REVISION_FILTER = (
 _CURRENT_REVISION_ORDER = (
     " ORDER BY (r.finality = 'official') DESC, r.created_at DESC, r.reporting_revision_id DESC"
 )
-
-_ADJUSTMENT_COLUMNS = (
-    "reporting_adjustment_id, account_id, adjusts_reporting_revision_id, reason_code,"
-    " reason_detail, accounting_period_start, accounting_period_end, control_total_deltas,"
-    " correction_observed_at, created_at, managed_control_total_deltas"
-)
-
-_STATUS_COLUMNS = (
-    "s.reporting_status_id, s.account_id, s.consumer_id, s.delivery_config_id,"
-    " s.delivery_config_version, s.report_definition_id, s.period_start, s.period_end,"
-    " s.period_source_timezone, s.consumer_status, s.status_as_of, s.recorded_at,"
-    " s.supersedes_reporting_status_id, s.reporting_obligation_id, s.reporting_revision_id,"
-    " s.observed_revision_content_sha256, s.failure_code, s.mismatch_code,"
-    " s.consumer_commit_ref, s.seller_ledger_snapshot_id, s.seller_ledger_as_of, s.superseded"
-)
-
-_STATUS_COLUMNS_BARE = _STATUS_COLUMNS.replace("s.", "")
-
-_ISSUE_COLUMNS = (
-    "issue_key, account_id, generation, issue_id, consumer_id, opened_at, issue_state,"
-    " external_ref, retired_at"
-)
-
-
-def _issue_from_row(row: Sequence[Any]) -> ReportingIssueLifecycle:
-    return ReportingIssueLifecycle(
-        issue_key=row[0],
-        account_id=row[1],
-        generation=row[2],
-        issue_id=row[3],
-        consumer_id=row[4],
-        opened_at=_utc(row[5]),
-        issue_state=row[6],
-        external_ref=row[7],
-        retired_at=_utc(row[8]) if row[8] else None,
-        waived_reporting_status_id=row[9] if len(row) > 9 else None,
-        waived_conflict_sha256=row[10] if len(row) > 10 else None,
-    )
 
 
 async def _waiver_storage_on(connection: Any) -> bool:
@@ -3408,230 +3493,6 @@ async def _save_waiver_binding(connection: Any, issue: ReportingIssueLifecycle) 
         issue.waived_conflict_sha256,
     ):
         raise LedgerConflictError("WAIVER_BINDING_IMMUTABLE", "a recorded waiver cannot be rebound")
-
-
-def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:
-    return {
-        "period_duration": schedule.period_duration,
-        "delivery_sla": schedule.delivery_sla,
-        "alignment": schedule.alignment,
-        "period_timezone": schedule.period_timezone,
-        "period_anchor": (
-            _utc(schedule.period_anchor).isoformat() if schedule.period_anchor else None
-        ),
-    }
-
-
-def _definition_payload(
-    definition: ReportingDefinitionBinding | None,
-) -> dict[str, Any] | None:
-    return definition.to_storage() if definition is not None else None
-
-
-def _definition_from_payload(payload: dict[str, Any] | None) -> ReportingDefinitionBinding | None:
-    return ReportingDefinitionBinding(**payload) if payload else None
-
-
-def _schedule_from_payload(payload: dict[str, Any]) -> ReportingScheduleSpec:
-    anchor = payload.get("period_anchor")
-    return ReportingScheduleSpec(
-        period_duration=payload["period_duration"],
-        delivery_sla=payload["delivery_sla"],
-        alignment=payload.get("alignment", "utc"),
-        period_timezone=payload.get("period_timezone"),
-        period_anchor=datetime.fromisoformat(anchor) if anchor else None,
-    )
-
-
-def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
-    return {
-        "account_id": configuration.account_id,
-        "report_definition_id": configuration.report_definition_id,
-        "reporting_profile": configuration.reporting_profile,
-        "feed_purpose": configuration.feed_purpose,
-        "required_finality": configuration.required_finality,
-        "account_timezone": configuration.account_timezone,
-        "media_buy_ids": sorted(configuration.media_buy_ids),
-        "schedule": _schedule_payload(configuration.schedule),
-        "definition": _definition_payload(configuration.definition),
-    }
-
-
-def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
-    return ReportingConfiguration(
-        delivery_config_id=row[0],
-        delivery_config_version=row[1],
-        account_id=row[2],
-        report_definition_id=row[3],
-        reporting_profile=row[4],
-        feed_purpose=row[5],
-        required_finality=row[6],
-        account_timezone=row[7],
-        schedule=_schedule_from_payload(row[8]),
-        media_buy_ids=tuple(row[9] or ()),
-        activated_at=_utc(row[10]) if row[10] else None,
-        deactivated_at=_utc(row[11]) if row[11] else None,
-        automated_recovery_window=timedelta(seconds=float(row[12])),
-        status_retention_days=row[13],
-        definition=_definition_from_payload(row[14]),
-        authoritative_party=row[15],
-        consumer_id=row[16],
-        quarantined=row[17],
-    )
-
-
-def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
-    return ReportingObligationRecord(
-        reporting_obligation_id=row[0],
-        account_id=row[1],
-        delivery_config_id=row[2],
-        delivery_config_version=row[3],
-        report_definition_id=row[4],
-        reporting_profile=row[5],
-        feed_purpose=row[6],
-        period=ReportingPeriodBoundary(
-            period_key=row[7],
-            start=_utc(row[8]),
-            end=_utc(row[9]),
-            source_timezone=row[10],
-            expected_at=_utc(row[11]),
-        ),
-        scope_resolved_at=_utc(row[12]),
-        automated_recovery_deadline_at=_utc(row[13]),
-        required_finality=row[14],
-        coverage_status=row[15],
-        media_buy_ids=tuple(row[16] or ()),
-        package_ids=tuple(row[17] or ()),
-        schedule=_schedule_from_payload(row[18]),
-        definition=_definition_from_payload(row[19]),
-        created_at=_utc(row[20]),
-        currency=row[21],
-        consumer_id=row[22],
-    )
-
-
-def _revision_from_row(row: Sequence[Any]) -> ReportingRevisionRecord:
-    return ReportingRevisionRecord(
-        reporting_revision_id=row[0],
-        account_id=row[1],
-        reporting_obligation_id=row[2],
-        finality=row[3],
-        revision_content_sha256=row[4],
-        row_count=int(row[5]),
-        control_totals=tuple((name, value) for name, value in (row[6] or [])),
-        observed_at=_utc(row[7]),
-        data_through=_utc(row[8]) if row[8] else None,
-        created_at=_utc(row[9]),
-        supersedes_reporting_revision_id=row[10],
-        finality_basis=row[11],
-        finality_policy_id=row[12],
-        finalized_at=_utc(row[13]) if row[13] else None,
-        readable=row[14],
-        readable_at_commit=row[15],
-        source_publication_id=row[16],
-        source_manifest_sha256=row[17],
-        canonical_content_digest=(
-            ReportingCanonicalDigest.from_wire(row[18]) if row[18] is not None else None
-        ),
-        managed_control_totals=(
-            tuple(ReportingControlTotalRecord.from_wire(item) for item in row[19])
-            if row[19] is not None
-            else None
-        ),
-    )
-
-
-def _adjustment_from_row(row: Sequence[Any]) -> ReportingAdjustmentRecord:
-    return ReportingAdjustmentRecord(
-        reporting_adjustment_id=row[0],
-        account_id=row[1],
-        adjusts_reporting_revision_id=row[2],
-        reason_code=row[3],
-        reason_detail=row[4],
-        accounting_period_start=_utc(row[5]),
-        accounting_period_end=_utc(row[6]),
-        control_total_deltas=tuple((name, value) for name, value in (row[7] or [])),
-        correction_observed_at=_utc(row[8]),
-        created_at=_utc(row[9]),
-        managed_control_total_deltas=(
-            tuple(ReportingControlTotalRecord.from_wire(item) for item in row[10])
-            if row[10] is not None
-            else None
-        ),
-    )
-
-
-def _status_from_row(row: Sequence[Any]) -> ConsumerStatusRecord:
-    return ConsumerStatusRecord(
-        reporting_status_id=row[0],
-        account_id=row[1],
-        consumer_id=row[2],
-        delivery_config_id=row[3],
-        delivery_config_version=row[4],
-        report_definition_id=row[5],
-        period_start=_utc(row[6]),
-        period_end=_utc(row[7]),
-        period_source_timezone=row[8],
-        consumer_status=row[9],
-        status_as_of=_utc(row[10]),
-        recorded_at=_utc(row[11]),
-        supersedes_reporting_status_id=row[12],
-        reporting_obligation_id=row[13],
-        reporting_revision_id=row[14],
-        observed_revision_content_sha256=row[15],
-        failure_code=row[16],
-        mismatch_code=row[17],
-        consumer_commit_ref=row[18],
-        seller_ledger_snapshot_id=row[19],
-        seller_ledger_as_of=_utc(row[20]) if row[20] else None,
-        superseded=row[21],
-    )
-
-
-def _consumer_status_payload(status: ConsumerStatusRecord) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "chain": list(status.chain_key),
-        "consumer_status": status.consumer_status,
-        "status_as_of": _utc(status.status_as_of).isoformat(),
-        "supersedes": status.supersedes_reporting_status_id,
-        "obligation": status.reporting_obligation_id,
-        "revision": status.reporting_revision_id,
-        "digest": status.observed_revision_content_sha256,
-        "failure_code": status.failure_code,
-    }
-    # Conditional on purpose. ``canonical_json_utf8_v1`` encodes ``None`` as
-    # ``null``, so including the key unconditionally would change the digest of
-    # every statement that has no mismatch_code -- i.e. every row an rc.2 SDK
-    # wrote. After an in-place upgrade a buyer's exact retry would then fail
-    # with STATUS_IDENTITY_CONFLICT instead of replaying as ``unchanged``,
-    # which is the one thing an idempotent append-only surface must never do.
-    # Omitting the key when absent keeps rc.2 digests byte-identical while a
-    # code-only change is still a conflict: "the metric is missing" and "the
-    # currency is wrong" are different claims and must not share one immutable
-    # identity.
-    if status.mismatch_code is not None:
-        payload["mismatch_code"] = status.mismatch_code
-    return payload
-
-
-def _revision_payload(revision: ReportingRevisionRecord) -> dict[str, Any]:
-    payload = {
-        "finality": revision.finality,
-        "revision_content_sha256": revision.revision_content_sha256,
-        "row_count": revision.row_count,
-        "control_totals": [list(item) for item in revision.control_totals],
-        "obligation": revision.reporting_obligation_id,
-        "supersedes": revision.supersedes_reporting_revision_id,
-    }
-    if revision.canonical_content_digest is not None:
-        payload["canonical_content_digest"] = revision.canonical_content_digest.to_wire()
-    if revision.managed_control_totals is not None:
-        payload["managed_control_totals"] = [
-            item.to_wire() for item in revision.managed_control_totals
-        ]
-    if revision.canonical_content_digest is not None or revision.managed_control_totals is not None:
-        payload["managed_metadata"] = managed_revision_metadata(revision)
-    return payload
 
 
 _RESOLVERS: dict[str, tuple[str, str, str, Any]] = {

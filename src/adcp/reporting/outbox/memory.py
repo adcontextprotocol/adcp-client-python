@@ -181,6 +181,18 @@ class InMemoryReportingOutbox:
                 event for (owner, _, _), event in self._state.events.items() if owner == account_id
             )
 
+    async def next_due_account(self, *, delivery: bool, now: datetime) -> str | None:
+        """Sample one due queue row; never enumerate adopter accounts."""
+        now = aware_utc(now)
+        async with self._store._lock:
+            pending = (
+                ((key[0], work) for key, (_, work) in self._state.deliveries.items())
+                if delivery
+                else ((key[0], work) for key, work in self._state.expansions.items())
+            )
+            values = [(work.due_at, account) for account, work in pending if work.available(now)]
+            return min(values)[1] if values else None
+
     async def claim_expansion(
         self, *, account_id: str, now: datetime, lease_seconds: float
     ) -> ExpansionLease | None:

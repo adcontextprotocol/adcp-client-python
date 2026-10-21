@@ -11,12 +11,24 @@ from adcp.reporting.production.service import ReportingProductionSupport
 
 
 class Store:
+    """A store listing the retention passes it opted into, as the shipped stores do."""
+
     def __init__(self, *, rows: bool, feed: bool, fail: str | None = None) -> None:
-        self._row_storage = object() if rows else None
-        self._change_feed = feed
+        self.rows, self.feed = rows, feed
         self.calls: list[str] = []
         self.fail = fail
         self.report: Any = None
+
+    def maintenance_operations(self) -> tuple[tuple[str, Any], ...]:
+        operations: list[tuple[str, Any]] = []
+        if self.rows:
+            operations.append(("intent_sweep", lambda: self.sweep_row_write_intents(limit=100)))
+            operations.append(("row_pruning", lambda: self.prune_expired_row_sets(limit=20)))
+        if self.rows or self.feed:
+            operations.append(("period_retirement", lambda: self.retire_expired_periods(limit=20)))
+        if self.feed:
+            operations.append(("change_pruning", lambda: self.prune_changes()))
+        return tuple(operations)
 
     async def _record(self, name: str) -> None:
         self.calls.append(name)
@@ -46,6 +58,27 @@ def service(store: Any, seconds: float | None = 300.0) -> ReportingProductionSup
     instance._next_maintenance = 0.0
     instance.maintenance_report = {}
     return instance
+
+
+def test_postgres_store_lists_the_passes_for_its_features() -> None:
+    """The selection lives in the store; the worker runs whatever it lists."""
+    from adcp.reporting.ledger.pg import PgReportingLedgerStore
+
+    cases = [
+        (
+            dict(row_storage=True, change_feed=True),
+            ["intent_sweep", "row_pruning", "period_retirement", "change_pruning"],
+        ),
+        (
+            dict(row_storage=True, change_feed=False),
+            ["intent_sweep", "row_pruning", "period_retirement"],
+        ),
+        (dict(row_storage=False, change_feed=True), ["period_retirement", "change_pruning"]),
+        (dict(row_storage=False, change_feed=False), []),
+    ]
+    for options, expected in cases:
+        store = PgReportingLedgerStore(pool=object(), **options)  # type: ignore[arg-type]
+        assert [name for name, _ in store.maintenance_operations()] == expected, options
 
 
 async def test_maintenance_runs_only_what_the_store_opted_into() -> None:

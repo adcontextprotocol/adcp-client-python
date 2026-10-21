@@ -194,6 +194,30 @@ class PgReportingOutbox(_PgReportingActivity):
 
         await PgReportingLedgerStore(pool=self._pool, notifications=True).create_schema()
 
+    async def next_due_account(self, *, delivery: bool, now: datetime) -> str | None:
+        """Sample one indexed due queue row by database time; never enumerate accounts.
+
+        ``now`` is the worker's instant; a durable queue orders by database time
+        (or the explicit conformance clock), so it is not consulted here.
+        """
+        # Both identifiers are closed SDK literals. The concrete queue adapter
+        # selects the matching isolated table on this same actual connection.
+        table = (
+            "reporting_notification_deliveries" if delivery else "reporting_notification_expansions"
+        )
+        async with self._connection() as connection:
+            at = await database_now(connection, self._clock)
+            row = await (
+                await connection.execute(
+                    f"SELECT account_id FROM {table}"  # nosec B608
+                    " WHERE due_at<=%s AND (state='pending' OR"
+                    " (state='leased' AND lease_expires_at<=%s))"
+                    " ORDER BY due_at,account_id LIMIT 1",
+                    (at, at),
+                )
+            ).fetchone()
+            return str(row[0]) if row is not None else None
+
     async def list_events(self, *, account_id: str) -> tuple[ReportingDomainEvent, ...]:
         async with self._connection() as conn:
             rows = await (

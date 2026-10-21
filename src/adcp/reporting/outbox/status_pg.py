@@ -13,7 +13,7 @@ from dataclasses import asdict, replace
 from datetime import timedelta
 from importlib.resources import files
 from secrets import token_hex
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter
 
@@ -62,6 +62,9 @@ _CHECKPOINT = (
     "scope, fingerprint, generation, snapshot, next_due_at, source_sequence, baseline, publishable,"
     " lease_token, lease_expires_at, selector_semantics_version, selector_writer_floor, initialized"
 )
+
+if TYPE_CHECKING:
+    from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
 
 @deferred_adapter
@@ -206,6 +209,38 @@ class PgStatusNotificationStore:
             raise ReportingNotificationError("status_chain_unready")
         self.ledger, self.escalation = ledger, escalation
         self.outbox = PgReportingStatusOutbox(pool=ledger._pool, clock=ledger._clock)
+
+    # -- adcp.reporting.outbox.durable.ReportingDurableStatusStore -------------
+
+    async def status_queue_durable(self, worker: ReportingNotificationWorker) -> bool:
+        from adcp.reporting.outbox.status_schema import validate_status_schema
+
+        if (
+            type(self) is not PgStatusNotificationStore
+            or type(worker.outbox) is not PgReportingStatusOutbox
+            or worker.outbox is not self.outbox
+            or self.ledger._pool is not self.outbox._pool
+            or not self.ledger._notifications_enabled
+            or (worker.activity is not None and worker.activity is not worker.outbox)
+        ):
+            return False
+        try:
+            async with self.ledger._pool.connection() as connection:
+                await validate_status_schema(connection, activity=worker.activity is not None)
+        except ReportingNotificationError:
+            return False
+        return True
+
+    async def managed_delivery_recorded(self, *, account_id: str) -> bool:
+        async with self.ledger._pool.connection() as connection:
+            managed = await (
+                await connection.execute(
+                    "SELECT EXISTS(SELECT 1 FROM reporting_reconciliation_records"
+                    " WHERE account_id=%s AND record_kind='destination_binding')",
+                    (account_id,),
+                )
+            ).fetchone()
+        return bool(managed is not None and managed[0])
 
     async def create_schema(self) -> None:
         from adcp.reporting.outbox.status_schema import validate_status_schema

@@ -151,7 +151,7 @@ async def test_remapping_during_publication_refuses_result_and_allows_retry(
     async with harness(backend, tmp_path / "destination.sqlite") as h:
         await h.production.activate(account_id=h.item.config.account_id)
         source = h.production.offerings[0].producer._source
-        publication = h.store._source_publication
+        publication = h.store.source_publication
         publications = 0
 
         @asynccontextmanager
@@ -163,7 +163,7 @@ async def test_remapping_during_publication_refuses_result_and_allows_retry(
                     source.bind_generation(h.item.config, product_id="catalog-5820")
                 yield publish_seal
 
-        monkeypatch.setattr(h.store, "_source_publication", remap_under_lock)
+        monkeypatch.setattr(h.store, "source_publication", remap_under_lock)
         source.release.clear()
         running = asyncio.create_task(source_turn(h.production))
         try:
@@ -185,7 +185,7 @@ async def test_remapping_during_publication_refuses_result_and_allows_retry(
         )
         assert (seal is not None) == (boundary == "ledger_lock")
 
-        monkeypatch.setattr(h.store, "_source_publication", publication)
+        monkeypatch.setattr(h.store, "source_publication", publication)
         source.bind_generation(h.item.config, product_id="catalog-7391")
         source.rows = reference_rows(2)
         restored = await source_turn(h.production)
@@ -245,7 +245,7 @@ async def test_seal_authorization_checked_after_obtaining_account_lock(
         source.release.clear()
         running = asyncio.create_task(source_turn(h.production))
         waiting = asyncio.Event()
-        publication = h.store._source_publication
+        publication = h.store.source_publication
 
         @asynccontextmanager
         async def observe_publication(account_id, **kwargs):
@@ -255,7 +255,7 @@ async def test_seal_authorization_checked_after_obtaining_account_lock(
 
         try:
             await asyncio.wait_for(source.started.wait(), 10)
-            monkeypatch.setattr(h.store, "_source_publication", observe_publication)
+            monkeypatch.setattr(h.store, "source_publication", observe_publication)
             async with publication(h.item.config.account_id):
                 source.release.set()
                 await asyncio.wait_for(waiting.wait(), 10)

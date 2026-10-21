@@ -7,6 +7,7 @@ from typing import Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.status import ReportingStatusHandler
+from adcp.reporting.outbox.durable import ReportingDurableStatusStore
 from adcp.reporting.outbox.routing import ReportingEnvelopeCipher, ReportingNotificationSubscription
 from adcp.reporting.outbox.status import (
     ReportingStatusProjector,
@@ -55,47 +56,19 @@ class ReportingStatusSupport:
             return False
         if type(self.store) is InMemoryStatusNotificationStore:
             return False
-        from adcp.reporting.outbox.status_pg import (
-            PgReportingStatusOutbox,
-            PgStatusNotificationStore,
-        )
-        from adcp.reporting.outbox.status_schema import validate_status_schema
-
-        if (
-            type(self.store) is not PgStatusNotificationStore
-            or not isinstance(self.store, PgStatusNotificationStore)
-            or type(self.worker.outbox) is not PgReportingStatusOutbox
-            or self.worker.outbox is not self.store.outbox
-            or self.store.ledger._pool is not self.store.outbox._pool
-            or not self.store.ledger._notifications_enabled
-            or (self.worker.activity is not None and self.worker.activity is not self.worker.outbox)
-        ):
+        # A durable store proves its own queue, storage and installed schema.
+        if not isinstance(self.store, ReportingDurableStatusStore):
             return False
-        try:
-            async with self.store.ledger._pool.connection() as connection:
-                await validate_status_schema(connection, activity=self.worker.activity is not None)
-        except ReportingNotificationError:
-            return False
-        return True
+        return await self.store.status_queue_durable(self.worker)
 
     async def account_ready(self, *, account_id: str) -> bool:
         if not await self.queue_durable() or not await self.store.baseline_ready(
             account_id=account_id
         ):
             return False
-        from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
-
-        assert isinstance(self.store, PgStatusNotificationStore)
-        async with self.store.ledger._pool.connection() as connection:
-            managed = await (
-                await connection.execute(
-                    "SELECT EXISTS(SELECT 1 FROM reporting_reconciliation_records"
-                    " WHERE account_id=%s AND record_kind='destination_binding')",
-                    (account_id,),
-                )
-            ).fetchone()
-            if managed is not None and managed[0]:
-                return False  # Managed expiry/reconciliation health ships with D.
+        assert isinstance(self.store, ReportingDurableStatusStore)
+        if await self.store.managed_delivery_recorded(account_id=account_id):
+            return False  # Managed expiry/reconciliation health ships with D.
         subscriptions = await self.worker.subscriptions.list_active(
             account_id=account_id, notification_type="reporting.status_changed"
         )

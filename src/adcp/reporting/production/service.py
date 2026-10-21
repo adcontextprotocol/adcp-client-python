@@ -39,21 +39,21 @@ from adcp.reporting.production.contracts import (
     ReportingProductionMethod,
     ReportingProductionSourceBinding,
 )
-from adcp.reporting.production.memory import InMemoryReportingProductionStore
 from adcp.reporting.production.offerings import ReportingProductionOffering
 from adcp.reporting.production.source_registry import (
     ReportingProductionSourceContext,
     ReportingProductionSourceRegistry,
 )
-from adcp.reporting.projection.memory import InMemoryReportingStatusProjection
+from adcp.reporting.production.store import (
+    ReportingProductionProjection,
+    ReportingProductionStore,
+)
 from adcp.reporting.receipts.handler import ReceiptAccountResolver
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.reporting.ledger.producer import ReportingProducer
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
-    from adcp.reporting.production.pg import PgReportingProductionStore
-    from adcp.reporting.projection.pg import PgReportingStatusProjection
     from adcp.reporting.service_lifecycle import _ServiceLifecycle
     from adcp.server.base import ADCPHandler
 
@@ -98,10 +98,8 @@ def _method_ready(
     )
 
 
-def production_owner(
-    store: InMemoryReportingProductionStore | PgReportingProductionStore,
-) -> ReportingProductionSupport:
-    reference = store._production_support
+def production_owner(store: ReportingProductionStore) -> ReportingProductionSupport:
+    reference = store.production_support
     owner = reference() if reference is not None else None
     if owner is None or owner.store is not store:
         raise ReportingNotificationError("reporting_production_component_unready")
@@ -161,7 +159,7 @@ class ReportingProductionSupport:
     def __init__(
         self,
         materializer: ReportingMaterializerService,
-        projection: InMemoryReportingStatusProjection | PgReportingStatusProjection,
+        projection: ReportingProductionProjection,
         *,
         offerings: tuple[ReportingProductionOffering, ...],
         configuration_task: ReportingProductionConfigurationTask,
@@ -177,16 +175,14 @@ class ReportingProductionSupport:
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
-        from adcp.reporting.production.pg import PgReportingProductionStore
-        from adcp.reporting.projection.pg import PgReportingStatusProjection
 
+        store = materializer.store
         if (
             type(materializer) is not ReportingMaterializerService
-            or type(materializer.store)
-            not in {InMemoryReportingProductionStore, PgReportingProductionStore}
-            or type(projection)
-            not in {InMemoryReportingStatusProjection, PgReportingStatusProjection}
-            or projection.ledger is not materializer.store
+            or not isinstance(store, ReportingProductionStore)
+            or not store.is_sdk_production_store()
+            or not store.is_sdk_status_projection(projection)
+            or projection.ledger is not store
             or type(configuration_task) is not ReportingProductionConfigurationTask
             or type(offerings) is not tuple
             or not offerings
@@ -203,11 +199,9 @@ class ReportingProductionSupport:
             raise ValueError(
                 "production support requires exact SDK components and bounded promises"
             )
-        assert isinstance(
-            materializer.store, (InMemoryReportingProductionStore, PgReportingProductionStore)
-        )
-        self.store = materializer.store
-        previous = self.store._production_support
+        assert isinstance(store, ReportingProductionStore)
+        self.store: ReportingProductionStore = store
+        previous = self.store.production_support
         if previous is not None and previous() is not None:
             raise ReportingNotificationError("reporting_production_owner_conflict")
         self.materializer, self.projection = materializer, projection
@@ -253,7 +247,7 @@ class ReportingProductionSupport:
         self._protocol_version = self.handler.get_adcp_version()
         self._components = self._component_ids()
         self._methods = self._handler_methods()
-        self.store._production_support = weakref.ref(self)
+        self.store.production_support = weakref.ref(self)
         self._assert_components(running=False, mounted=False)
         from adcp.reporting.production._declaration import declared_reporting_delivery
         from adcp.reporting.production.notifications import signing_capabilities, signing_identity
@@ -264,7 +258,7 @@ class ReportingProductionSupport:
             "reporting_delivery": declared_reporting_delivery(
                 offerings=[o.wire() for o in self.offerings],
                 destination=writer,
-                durable=not isinstance(self.store, InMemoryReportingProductionStore),
+                durable=self.store.durable,
                 escalation=self.projection.escalation or ReportingDeliveryEscalation(),
                 consumer_status_enabled=self.projection.consumer_status_enabled,
                 automated_recovery_window=self.automated_recovery_window,
@@ -301,7 +295,7 @@ class ReportingProductionSupport:
             id(v)
             for v in (
                 self.store,
-                getattr(self.store, "_pool", None),
+                self.store.storage_identity,
                 self.materializer,
                 self.materializer.io,
                 self.materializer.io.registry,
@@ -366,18 +360,14 @@ class ReportingProductionSupport:
             or self._methods != self._handler_methods()
             or type(self.handler._adcp_version) is not str
             or self.handler._adcp_version != self._protocol_version
-            or (
-                (running or mounted)
-                and not isinstance(self.store, InMemoryReportingProductionStore)
-                and self.store._pool.closed is not False
-            )
+            or ((running or mounted) and not self.store.storage_open)
             or self.materializer.store is not self.store
             or self.projection.ledger is not self.store
-            or not self._projection_outbox_linked()
+            or not self.store.projection_linked(self.projection)
             or self.handler.receipt_store is not self.store
             or self.handler.reporting_feed_store is not self.store
             or self.handler._feed_consumer_status_enabled != self.projection.consumer_status_enabled
-            or self.store._projection_read_policy != self.projection.policy
+            or self.store.projection_read_policy != self.projection.policy
             or type(self.materializer.io) is not ReportingDestinationIO
             or isinstance(writer, ReferenceReportingDestinationWriter)
             or isinstance(self.materializer.io.resolver, ReferenceReportingResolver)
@@ -391,24 +381,6 @@ class ReportingProductionSupport:
             or (mounted and not self._mounted())
         ):
             raise ReportingNotificationError("reporting_production_component_unready")
-
-    def _projection_outbox_linked(self) -> bool:
-        # The projection queue participates even when optional HTTP delivery
-        # workers are absent. Its connection ownership cannot ride a cached
-        # catalog proof belonging to a different pool or in-memory ledger.
-        if isinstance(self.store, InMemoryReportingProductionStore):
-            from adcp.reporting.projection.memory import InMemoryReportingProjectionOutbox
-
-            return (
-                type(self.projection.outbox) is InMemoryReportingProjectionOutbox
-                and self.projection.outbox._store is self.store
-            )
-        from adcp.reporting.projection.notifications import PgReportingProjectionOutbox
-
-        return (
-            type(self.projection.outbox) is PgReportingProjectionOutbox
-            and self.projection.outbox._pool is self.store._pool
-        )
 
     def _offering_ready(self, offering: ReportingProductionOffering) -> bool:
         try:
@@ -617,14 +589,11 @@ class ReportingProductionSupport:
         self._schema_task = None
 
     async def _schema_ready(self) -> bool:
-        from adcp.reporting.production.pg import PgReportingProductionStore
-        from adcp.reporting.production.schema import validate_production_schema
-
-        if not isinstance(self.store, PgReportingProductionStore):
-            return False
         store = self.store
-        pool, epoch = store._pool, self._schema_epoch
-        identity = (id(pool), epoch)
+        if not store.durable:
+            return False
+        storage, epoch = store.storage_identity, self._schema_epoch
+        identity = (id(storage), epoch)
         if self._schema_positive == identity:
             return True
         task = self._schema_task
@@ -632,13 +601,11 @@ class ReportingProductionSupport:
 
             async def scan() -> bool:
                 try:
-                    async with pool.connection() as connection:
-                        await validate_production_schema(
-                            connection,
-                            notifications=self.notifications_enabled,
-                            service_context=self.source_registry is not None,
-                        )
-                    if epoch == self._schema_epoch and pool is store._pool:
+                    await store.validate_production_schema(
+                        notifications=self.notifications_enabled,
+                        service_context=self.source_registry is not None,
+                    )
+                    if epoch == self._schema_epoch and storage is store.storage_identity:
                         self._schema_positive = identity
                         return True
                     return False
@@ -658,10 +625,7 @@ class ReportingProductionSupport:
             self._assert_components()
             return
         self._assert_components(running=False)
-        if (
-            not isinstance(self.store, InMemoryReportingProductionStore)
-            and not await self._schema_ready()
-        ):
+        if self.store.durable and not await self._schema_ready():
             raise ReportingNotificationError("reporting_production_schema_unready")
         self._assert_components(running=False)
         self._task = asyncio.create_task(self._run(), name="adcp-reporting-production")
@@ -731,20 +695,7 @@ class ReportingProductionSupport:
             _maintenance_stalled,
         )
 
-        store: Any = self.store
-        operations: list[tuple[str, Any]] = []
-        if getattr(store, "_row_storage", None) is not None:
-            operations.append(("intent_sweep", lambda: store.sweep_row_write_intents(limit=100)))
-            # Frees row bytes of periods past retention even while their records stay (protected
-            # by append-only guards), so storage is reclaimed whether or not records can be.
-            operations.append(("row_pruning", lambda: store.prune_expired_row_sets(limit=20)))
-        if getattr(store, "_row_storage", None) is not None or getattr(
-            store, "_change_feed", False
-        ):
-            operations.append(("period_retirement", lambda: store.retire_expired_periods(limit=20)))
-        if getattr(store, "_change_feed", False):
-            operations.append(("change_pruning", lambda: store.prune_changes()))
-        for name, run in operations:
+        for name, run in self.store.maintenance_operations():
             try:
                 result = await run()
             except asyncio.CancelledError:
@@ -810,7 +761,7 @@ class ReportingProductionSupport:
     async def activate(self, *, account_id: str) -> bool:
         await self._check_notifications(account_id)
         await self.projection.activate(account_id=account_id)
-        return await self.store._activate_production(account_id=account_id)
+        return await self.store.activate_production(account_id=account_id)
 
     async def aclose(self) -> None:
         self._stop.set()
@@ -827,8 +778,8 @@ class ReportingProductionSupport:
         proof = self._schema_task
         if proof is not None:
             await asyncio.gather(proof, return_exceptions=True)
-        if self.store._production_support is not None and self.store._production_support() is self:
-            self.store._production_support = None
+        if self.store.production_support is not None and self.store.production_support() is self:
+            self.store.production_support = None
 
     async def reporting_delivery(self, *, extra: Mapping[str, Any] | None = None) -> dict[str, Any]:
         # Validate protected extra even when the concrete surface is unready.

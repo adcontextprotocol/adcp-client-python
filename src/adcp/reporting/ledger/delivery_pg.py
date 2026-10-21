@@ -20,6 +20,15 @@ from adcp.reporting.ledger._delivery_state import (
     unavailable,
     validate_transition,
 )
+from adcp.reporting.ledger._record_rows import (
+    _ADJUSTMENT_COLUMNS,
+    _OBLIGATION_COLUMNS,
+    _REVISION_COLUMNS,
+    _adjustment_from_row,
+    _configuration_from_row,
+    _obligation_from_row,
+    _revision_from_row,
+)
 from adcp.reporting.ledger.delivery import (
     ReportingReconciliationSnapshot,
     _boundary_unavailable,
@@ -44,15 +53,8 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingDestinationBinding,
 )
 from adcp.reporting.ledger.pg import (
-    _ADJUSTMENT_COLUMNS,
-    _OBLIGATION_COLUMNS,
-    _REVISION_COLUMNS,
     PgReportingLedgerStore,
-    _adjustment_from_row,
-    _configuration_from_row,
     _json,
-    _obligation_from_row,
-    _revision_from_row,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
 
@@ -92,6 +94,10 @@ def _filter_params(filters: ReportingReconciliationFilter) -> tuple[Any, ...]:
 
 
 class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOperations):
+    @property
+    def durable_reconciliation(self) -> bool:
+        return True
+
     """Evidence and receipt heads commit with the feed, including autocommit pools.
 
     All state decisions run under the same per-account transaction lock as Core

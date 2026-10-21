@@ -218,8 +218,7 @@ async def read_snapshot_on(
 
 def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
     """Decode the exact SQL boundary input through the ledger's existing mappers."""
-    from adcp.reporting.ledger.notification_models import decode_status_scope
-    from adcp.reporting.ledger.pg import (
+    from adcp.reporting.ledger._record_rows import (
         _ADJUSTMENT_COLUMNS,
         _ISSUE_COLUMNS,
         _OBLIGATION_COLUMNS,
@@ -232,6 +231,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
         _revision_from_row,
         _status_from_row,
     )
+    from adcp.reporting.ledger.notification_models import decode_status_scope
 
     dates = {
         "activated_at",

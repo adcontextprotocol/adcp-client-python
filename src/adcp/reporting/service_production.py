@@ -30,15 +30,13 @@ from adcp.reporting.production import (
     ReportingProductionSupport,
     production_notification_workers,
 )
-from adcp.reporting.production.memory import InMemoryReportingProductionStore
-from adcp.reporting.projection import InMemoryReportingStatusProjection, PgReportingStatusProjection
+from adcp.reporting.production.store import ReportingProductionStore
 from adcp.reporting.receipts import ReceiptAccountResolver
 from adcp.types import ReportingDeliveryOffering
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.reporting.ledger import ReportingLedgerStore
-    from adcp.reporting.production.pg import PgReportingProductionStore
     from adcp.reporting.service import ReportingAdapterRegistry, ReportingContextResolver
 
 __all__ = ["ReportingServiceOffering", "ReportingProductionOptions"]
@@ -108,7 +106,6 @@ class ReportingProductionOptions:
         consumer_status_enabled: bool,
     ) -> dict[str, Any]:
         from adcp.reporting.production._declaration import declared_reporting_delivery
-        from adcp.reporting.production.pg import PgReportingProductionStore
         from adcp.reporting.service import _wire
 
         if set(sources.names) != {item.adapter for item in self.offerings}:
@@ -116,7 +113,9 @@ class ReportingProductionOptions:
         return declared_reporting_delivery(
             offerings=[_wire(item.offering) for item in self.offerings],
             destination=self.destination,
-            durable=type(store) is PgReportingProductionStore,
+            durable=isinstance(store, ReportingProductionStore)
+            and store.is_sdk_production_store()
+            and store.durable,
             escalation=escalation,
             consumer_status_enabled=consumer_status_enabled,
             automated_recovery_window=self.automated_recovery_window,
@@ -127,17 +126,17 @@ class ReportingProductionOptions:
     def _compose(
         self,
         *,
-        store: InMemoryReportingProductionStore | PgReportingProductionStore,
+        store: ReportingProductionStore,
         sources: ReportingAdapterRegistry,
         account_context: ReportingContextResolver,
         clock: Callable[[], datetime],
         escalation: ReportingDeliveryEscalation,
         consumer_status_enabled: bool,
     ) -> ReportingProductionSupport:
-        from adcp.reporting.production.pg import PgReportingProductionStore
-
         if set(sources.names) != {item.adapter for item in self.offerings}:
             raise ValueError("every registered production adapter must have an offering")
+        if not isinstance(store, ReportingProductionStore) or not store.is_sdk_production_store():
+            raise ValueError("production requires the factory's matching production store")
         source_registry = ReportingProductionSourceRegistry(account_context=account_context)
         profiles: dict[str, ReportingServiceOffering] = {}
         producers: dict[str, ReportingProducer] = {}
@@ -173,23 +172,11 @@ class ReportingProductionOptions:
                     item.source_offering_id,
                 )
             )
-        projection: InMemoryReportingStatusProjection | PgReportingStatusProjection
-        if type(store) is PgReportingProductionStore:
-            projection = PgReportingStatusProjection(
-                store,
-                consumer_status_enabled=consumer_status_enabled,
-                escalation=escalation,
-                revision_ownership=True,
-            )
-        elif type(store) is InMemoryReportingProductionStore:
-            projection = InMemoryReportingStatusProjection(
-                store,
-                consumer_status_enabled=consumer_status_enabled,
-                escalation=escalation,
-                revision_ownership=True,
-            )
-        else:
-            raise ValueError("production requires the factory's matching production store")
+        projection = store.status_projection(
+            consumer_status_enabled=consumer_status_enabled,
+            escalation=escalation,
+            revision_ownership=True,
+        )
         workers: tuple[ReportingNotificationWorker, ...] = ()
         if self.subscriptions is not None and self.cipher is not None and self.signing is not None:
             workers = production_notification_workers(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import weakref
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import datetime, timedelta
@@ -13,14 +13,18 @@ from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.ledger._delivery_state import decode_record
+from adcp.reporting.ledger._record_rows import _configuration_from_row
 from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
     ReportingDeliveryScope,
     ReportingDestinationBinding,
 )
-from adcp.reporting.ledger.models import ReportingConfiguration, ReportingObligationRecord
+from adcp.reporting.ledger.models import (
+    ReportingConfiguration,
+    ReportingDeliveryEscalation,
+    ReportingObligationRecord,
+)
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
-from adcp.reporting.ledger.pg import _configuration_from_row
 from adcp.reporting.ledger.producer_progress import acquisition_state, check_next_period
 from adcp.reporting.ledger.store import LeasedConfiguration, LedgerConflictError, _utc
 from adcp.reporting.materializer.capture import ReportingMaterializerBoundary
@@ -36,9 +40,12 @@ from adcp.reporting.materializer.work import (
     ReportingMaterializerTurn,
     key_for,
 )
+from adcp.reporting.outbox.activity import ActivityRequest, ReportingActivityStore, WebhookAttempt
+from adcp.reporting.outbox.models import DeliveryLease
 from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox
 from adcp.reporting.production.source_registry import ReportingProductionSourceContext
-from adcp.reporting.projection.pg import PgReportingProjectionStore
+from adcp.reporting.production.store import ReportingProductionProjection, SavedDeliveryWindow
+from adcp.reporting.projection.pg import PgReportingProjectionStore, PgReportingStatusProjection
 from adcp.reporting.source import ReportingConstituent
 
 if TYPE_CHECKING:
@@ -142,13 +149,167 @@ class PgReportingProductionStore(PgReportingProjectionStore):
     permanently quarantined enqueue. Installation alone admits nothing.
     """
 
-    _production_support: weakref.ReferenceType[ReportingProductionSupport] | None = None
+    production_support: weakref.ReferenceType[ReportingProductionSupport] | None = None
     _production_lease_samples: dict[tuple[str, ...], _ProducerSample] | None = None
 
     def _owner(self) -> ReportingProductionSupport:
         from adcp.reporting.production.service import production_owner
 
         return production_owner(self)
+
+    # -- the production store contract (adcp.reporting.production.store) ------
+
+    @property
+    def durable(self) -> bool:
+        return True
+
+    def is_sdk_production_store(self) -> bool:
+        return type(self) is PgReportingProductionStore
+
+    def status_projection(
+        self,
+        *,
+        consumer_status_enabled: bool,
+        escalation: ReportingDeliveryEscalation | None,
+        revision_ownership: bool,
+    ) -> PgReportingStatusProjection:
+        return PgReportingStatusProjection(
+            self,
+            consumer_status_enabled=consumer_status_enabled,
+            escalation=escalation,
+            revision_ownership=revision_ownership,
+        )
+
+    def is_sdk_status_projection(self, projection: object) -> bool:
+        return type(projection) is PgReportingStatusProjection
+
+    def projection_linked(self, projection: ReportingProductionProjection) -> bool:
+        from adcp.reporting.projection.notifications import PgReportingProjectionOutbox
+
+        return (
+            type(projection.outbox) is PgReportingProjectionOutbox
+            and projection.outbox._pool is self._pool
+        )
+
+    def production_outboxes(
+        self, projection: ReportingProductionProjection
+    ) -> tuple[Any, Any, Any]:
+        from adcp.reporting.outbox.pg import PgReportingOutbox
+
+        if type(self) is not PgReportingProductionStore:
+            raise ReportingNotificationError("notification_chain_unready")
+        return (
+            PgReportingOutbox(pool=self._pool, clock=self._clock),
+            projection.outbox,
+            PgReportingProductionOutbox(pool=self._pool, clock=self._clock),
+        )
+
+    def notification_workers_linked(self, workers: Sequence[Any]) -> bool:
+        from adcp.reporting.outbox.pg import PgReportingOutbox
+        from adcp.reporting.projection.notifications import PgReportingProjectionOutbox
+
+        expected = (PgReportingOutbox, PgReportingProjectionOutbox, PgReportingProductionOutbox)
+        return (
+            all(getattr(w.outbox, "_pool", None) is self._pool for w in workers)
+            and tuple(type(w.outbox) for w in workers) == expected
+        )
+
+    async def validate_production_schema(
+        self, *, notifications: bool, service_context: bool
+    ) -> None:
+        from adcp.reporting.production.schema import validate_production_schema
+
+        async with self._pool.connection() as connection:
+            await validate_production_schema(
+                connection, notifications=notifications, service_context=service_context
+            )
+
+    async def read_delivery_window(
+        self, key: tuple[str, str], *, now: datetime
+    ) -> tuple[SavedDeliveryWindow | None, datetime]:
+        from adcp.reporting.outbox.pg import database_now
+
+        try:
+            async with self._connection() as connection, connection.transaction():
+                saved = await (
+                    await connection.execute(
+                        "SELECT queue,body_sha256,started_at,expires_at"
+                        " FROM reporting_production_delivery_windows"
+                        " WHERE account_id=%s AND idempotency_key=%s",
+                        key,
+                    )
+                ).fetchone()
+                moment = await database_now(connection, self._clock)
+        except ReportingNotificationError:
+            raise
+        except Exception:
+            raise ReportingNotificationError("notification_retry_unready") from None
+        return (tuple(saved) if saved is not None else None), moment
+
+    async def reserve_delivery_attempt(
+        self,
+        activity: ReportingActivityStore,
+        lease: DeliveryLease,
+        *,
+        request: ActivityRequest,
+        now: datetime,
+        queue: str,
+        expected: tuple[str, str],
+        horizon_seconds: int,
+    ) -> tuple[WebhookAttempt | None, datetime | None, bool]:
+        from adcp.reporting.outbox.pg import PgReportingOutbox, database_now
+        from adcp.reporting.production.delivery_window import inspect_window
+
+        binding = lease.delivery.binding
+        key = (binding.account_id, binding.idempotency_key)
+        if not isinstance(activity, PgReportingOutbox) or activity._pool is not self._pool:
+            raise ReportingNotificationError("notification_retry_unready")
+        deadline: datetime | None = None
+        try:
+            # The activity participant supplies its exact queue adapter and
+            # connection. Take the inherited account lock before its row lock.
+            async with activity._activity_transaction() as connection:
+                await self._lock_account(connection, binding.account_id)
+                moment = await database_now(connection, self._clock)
+                saved = await (
+                    await connection.execute(
+                        "SELECT queue,body_sha256,started_at,expires_at"
+                        " FROM reporting_production_delivery_windows"
+                        " WHERE account_id=%s AND idempotency_key=%s",
+                        key,
+                    )
+                ).fetchone()
+                deadline, expired = inspect_window(saved, expected, moment)
+                if expired:
+                    return None, deadline, True
+                attempt = await activity._reserve_attempt_on(connection, lease, request=request)
+                if attempt is None:
+                    return None, deadline, False
+                deadline, expired = inspect_window(saved, expected, attempt.fired_at)
+                if expired:
+                    # Time can cross the deadline while reserving an ordinal.
+                    # Roll back that provisional head and attempt, too.
+                    raise ReportingNotificationError("notification_retry_expired")
+                await connection.execute(
+                    "INSERT INTO reporting_production_delivery_windows"
+                    " (account_id,idempotency_key,queue,body_sha256,started_at,expires_at)"
+                    " VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                    (
+                        *key,
+                        *expected,
+                        attempt.fired_at,
+                        attempt.fired_at + timedelta(seconds=horizon_seconds),
+                    ),
+                )
+                return (
+                    attempt,
+                    deadline or attempt.fired_at + timedelta(seconds=horizon_seconds),
+                    False,
+                )
+        except ReportingNotificationError as error:
+            if error.code == "notification_retry_expired":
+                return None, deadline, True
+            raise
 
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[Any]:
@@ -653,7 +814,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         owner._assert_components()
         return True
 
-    async def _activate_production(self, *, account_id: str) -> bool:
+    async def activate_production(self, *, account_id: str) -> bool:
         owner = self._owner()
         await self.materializer_ready()
         async with self._connection() as connection, connection.transaction():

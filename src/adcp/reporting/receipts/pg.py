@@ -11,6 +11,12 @@ from typing import Any, ParamSpec, TypeVar, cast
 
 from adcp.reporting.canonical_json import canonical_json_sha256_v1
 from adcp.reporting.ledger._delivery_state import RecordT
+from adcp.reporting.ledger._record_rows import (
+    _OBLIGATION_COLUMNS,
+    _REVISION_COLUMNS,
+    _obligation_from_row,
+    _revision_from_row,
+)
 from adcp.reporting.ledger.delivery_models import (
     ReportingAdjustmentReceiptRecord,
     ReportingDeliveryPrincipal,
@@ -18,13 +24,7 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingReceiptRecord,
     ReportingRevisionReceiptRecord,
 )
-from adcp.reporting.ledger.pg import (
-    _OBLIGATION_COLUMNS,
-    _REVISION_COLUMNS,
-    _json,
-    _obligation_from_row,
-    _revision_from_row,
-)
+from adcp.reporting.ledger.pg import _json
 from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.capture import private_snapshot

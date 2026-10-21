@@ -64,8 +64,10 @@ class _ProjectionFeedConnection:
 class PgReportingProjectionStore(PgReportingFeedStore):
     """Optional v2 store. Installation alone neither activates tiers nor sends readiness."""
 
-    _projection_read_policy: dict[str, Any]
-    _projection_read_escalation: ReportingDeliveryEscalation | None
+    # Replaced (never mutated) by the status projection that reads this store;
+    # present from construction so the production store protocol matches.
+    projection_read_policy: dict[str, Any] = {}
+    projection_read_escalation: ReportingDeliveryEscalation | None = None
 
     async def create_schema(self) -> None:
         async with self._connection() as connection, connection.transaction():
@@ -196,8 +198,8 @@ class PgReportingStatusProjection(PgStatusNotificationStore):
             revision_ownership,
         )
         self.outbox = PgReportingProjectionOutbox(pool=ledger._pool, clock=ledger._clock)
-        ledger._projection_read_policy = self.policy
-        ledger._projection_read_escalation = escalation
+        ledger.projection_read_policy = self.policy
+        ledger.projection_read_escalation = escalation
 
     async def _enqueue_status_on(self, connection: Any, event: ReportingDomainEvent) -> None:
         await _enqueue_on(_ProjectionQueueConnection(connection), event)

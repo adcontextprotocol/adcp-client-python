@@ -36,7 +36,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -317,6 +317,38 @@ def revision_row_offset(cursor: str | None, revision_id: str, limit: int) -> int
     ):
         raise LedgerConflictError("INVALID_CURSOR", "the cursor does not bind this revision")
     return offset
+
+
+@runtime_checkable
+class ReportingRowStagingStore(Protocol):
+    """Optional: a store that uploads a revision's rows before the ledger transaction.
+
+    The producer stages rows when the store offers it and discards the staged
+    handle when the commit does not happen. A store that keeps rows inline needs
+    neither method. See adcp-client-python#1489 for the handle-passing variant.
+    """
+
+    async def stage_revision_rows(
+        self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+    ) -> object | None: ...
+
+    def discard_staged_revision_rows(self, revision: ReportingRevisionRecord) -> None: ...
+
+
+@runtime_checkable
+class ReportingSourcePublicationStore(Protocol):
+    """Optional: a store that publishes a production source under its account lock."""
+
+    def source_publication(
+        self, account_id: str, *, seals: ReportingSealStore | None = None
+    ) -> AbstractAsyncContextManager[Any]: ...
+
+
+@runtime_checkable
+class ReportingWorkerRetryPolicy(Protocol):
+    """Optional: lock errors a standalone worker turn retries after a fenced release."""
+
+    def worker_lock_errors(self) -> tuple[type[Exception], ...]: ...
 
 
 @runtime_checkable
@@ -841,8 +873,13 @@ class InMemoryReportingLedgerStore:
         async with self._mutation():
             yield self
 
+    @property
+    def clock(self) -> Callable[[], datetime]:
+        """The instant source for change timestamps and snapshot boundaries."""
+        return self._clock
+
     @asynccontextmanager
-    async def _source_publication(
+    async def source_publication(
         self, account_id: str, *, seals: ReportingSealStore | None = None
     ) -> AsyncIterator[None]:
         # The memory mutation lock serializes all accounts, including seals.

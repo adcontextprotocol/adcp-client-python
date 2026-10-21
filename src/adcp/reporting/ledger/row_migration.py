@@ -127,7 +127,7 @@ async def migrate_inline_rows(
 async def _migrate_one(
     store: PgReportingLedgerStore, revision_id: str, account_id: str, binding_id: str | None
 ) -> Literal["migrated", "skipped"] | ReportingRowQuarantineReason:
-    from adcp.reporting.ledger import pg as pg_module
+    from adcp.reporting.ledger import _record_rows as pg_module
 
     async with store._pool.connection() as connection, connection.transaction():
         await store._lock_account(connection, account_id)
