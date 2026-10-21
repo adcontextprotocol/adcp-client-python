@@ -52,10 +52,39 @@ One-time setup:
   required reviewer and `main` as its deployment branch.
 - In PyPI → adcp → Publishing, add a Trusted Publisher for owner
   `adcontextprotocol`, repository `adcp-client-python`, workflow
-  `release-publish.yml`, and environment `release-publish`.
+  `release-publish.yml`, and environment `release-publish`. The
+  `adcp-reporting-storage` project needs the same (see below).
 - Keep the existing `IPR_APP_ID` and `IPR_APP_PRIVATE_KEY` secrets available to
   `release-please.yml`.
   The App needs repository contents and pull-request write access.
+
+## adcp-reporting-storage
+
+`packages/adcp-reporting-storage` is a second Release Please component
+(`separate-pull-requests` is on, so it gets its own release PR) on the same
+beta channel. Its tags carry the component name
+(`adcp-reporting-storage-v0.1.0-beta.1`); the root keeps bare `vX.Y.Z` tags.
+Only commits that touch `packages/adcp-reporting-storage/` bump it, so a
+protocol fix in `adcp` does not release the storage package and a storage fix
+does not release `adcp`. Conventional-commit scopes are free text, but
+`feat(reporting-storage):` keeps the two changelogs readable.
+
+On a merge, `release-please.yml` queues `release-publish.yml` with
+`package=adcp-reporting-storage`; the workflow builds that package's sdist and
+wheel from `packages/adcp-reporting-storage` and publishes them through the same
+`release-publish` environment approval. The storage wheel pins
+`adcp>=9.0.0bN,<10`; publish the `adcp` release it depends on first.
+
+One-time setup, before the first storage release:
+
+- In PyPI, add a **pending** Trusted Publisher for a new project named
+  `adcp-reporting-storage` (owner `adcontextprotocol`, repository
+  `adcp-client-python`, workflow `release-publish.yml`, environment
+  `release-publish`). A pending publisher creates the project on first upload;
+  without it the publish job fails and the `adcp` release is unaffected.
+- The first release PR bumps `0.1.0-beta.0` (the manifest's bootstrap value,
+  never published) to `0.1.0-beta.1`. Check the PR's `pyproject.toml` version
+  was normalized to `0.1.0b1` the same way the root is.
 
 If publication fails, fix the cause and rerun `release-publish.yml` for the same
 release SHA and tag. PyPI will reject files it has already accepted; check its

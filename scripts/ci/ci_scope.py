@@ -80,6 +80,7 @@ def scope_for_paths(paths: list[str]) -> Scope:
         elif path.startswith(
             (
                 "src/adcp/reporting/",
+                "packages/adcp-reporting-storage/src/",
                 "src/adcp/decisioning/",
                 "src/adcp/signing/",
                 "src/adcp/server/",

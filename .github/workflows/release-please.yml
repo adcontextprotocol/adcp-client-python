@@ -45,10 +45,18 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PROPOSAL_PRS: ${{ steps.release.outputs.prs }}
-      - name: Queue publication for the created release
+      - name: Queue publication for the created adcp release
         if: steps.release.outputs.release_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
-        run: gh workflow run release-publish.yml --ref main -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"
+        run: gh workflow run release-publish.yml --ref main -f package=adcp -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"
+      - name: Queue publication for the created adcp-reporting-storage release
+        # Manifest mode prefixes every non-root package's outputs with its path.
+        if: steps.release.outputs['packages/adcp-reporting-storage--release_created'] == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs['packages/adcp-reporting-storage--sha'] }}
+          RELEASE_TAG: ${{ steps.release.outputs['packages/adcp-reporting-storage--tag_name'] }}
+        run: gh workflow run release-publish.yml --ref main -f package=adcp-reporting-storage -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"

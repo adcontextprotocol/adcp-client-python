@@ -15,8 +15,11 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+STORAGE := packages/adcp-reporting-storage
+STORAGE_SRC := $(STORAGE)/src/adcp_reporting_storage
+
 install-dev: ## Legacy pip-only install; bootstrap is preferred for contributors
-	$(PIP) install -e ".[dev]"
+	$(PIP) install -e ".[dev]" -e "./$(STORAGE)[pg,gcs,s3,azure]"
 
 check-uv:
 	@command -v $(UV) >/dev/null || { \
@@ -29,19 +32,19 @@ bootstrap: check-uv ## Recommended contributor setup: uv-managed deps and git ho
 	$(UV) run --extra dev --group dev pre-commit install --hook-type commit-msg
 
 format: ## Format code with black (excludes generated files)
-	$(BLACK) src/ tests/ scripts/
+	$(BLACK) src/ tests/ scripts/ $(STORAGE)/src/
 	@echo "✓ Code formatted successfully (_generated.py excluded via pyproject.toml)"
 
-lint: ## Run linter (ruff) on source code
-	$(RUFF) check src/
+lint: ## Run linter (ruff) on source code (both distributions)
+	$(RUFF) check src/ $(STORAGE)/src/
 	@echo "✓ Linting passed"
 
 lint-all: ## Run linter (ruff) on source and tests
-	$(RUFF) check src/ tests/
+	$(RUFF) check src/ $(STORAGE)/src/ tests/
 	@echo "✓ Source and test linting passed"
 
-typecheck: ## Run type checker (mypy) on source code
-	$(MYPY) src/adcp/
+typecheck: ## Run type checker (mypy) on source code (both distributions)
+	$(MYPY) src/adcp/ $(STORAGE_SRC)/
 	@echo "✓ Type checking passed"
 
 typecheck-all: typecheck test-type-checks test-type-checks-pyright check-type-ignore-contract ## Run all type-check contracts
@@ -117,6 +120,7 @@ ci-local: lint typecheck-all test validate-generated ## Run core CI checks local
 clean: ## Clean generated files and caches
 	rm -rf build/
 	rm -rf dist/
+	rm -rf dist-storage/ $(STORAGE)/build/ $(STORAGE)/src/*.egg-info
 	rm -rf *.egg-info
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
@@ -127,9 +131,10 @@ clean: ## Clean generated files and caches
 	find . -type f -name "*.pyc" -delete
 	@echo "✓ Cleaned all generated files and caches"
 
-build: ## Build distribution packages
+build: ## Build distribution packages (adcp into dist/, adcp-reporting-storage into dist-storage/)
 	$(PYTHON) scripts/bundle_schemas.py
 	python -m build
+	python -m build --outdir dist-storage/ $(STORAGE)
 	@echo "✓ Distribution packages built"
 
 # Development workflow commands
