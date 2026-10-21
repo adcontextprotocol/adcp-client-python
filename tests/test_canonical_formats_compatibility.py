@@ -282,3 +282,57 @@ def test_upgrade_legacy_format_id_keeps_every_parameter_it_was_given() -> None:
     assert (upgraded.width, upgraded.height) == (300, 250)
     assert upgraded.duration_ms == 15000
     assert upgraded.pixel_ratio == 2
+
+
+#: ``(supported pixel_ratio, requested pixel_ratio, served)`` for two otherwise
+#: identical 300x250 references; ``None`` omits the field. The omitted form is
+#: the 1x variant on *both* sides, so the table is symmetric in its verdicts.
+_PIXEL_RATIO_MATRIX: list[tuple[float | None, float | None, bool]] = [
+    (None, None, True),
+    (None, 1, True),
+    (None, 2, False),
+    (1, None, True),
+    (2, None, False),
+    (1, 1, True),
+    (2, 2, True),
+    (1, 2, False),
+    (2, 1, False),
+]
+
+
+def _with_pixel_ratio(pixel_ratio: float | None) -> dict[str, object]:
+    return _BASE if pixel_ratio is None else {**_BASE, "pixel_ratio": pixel_ratio}
+
+
+@pytest.mark.parametrize(("supported", "requested", "served"), _PIXEL_RATIO_MATRIX)
+def test_format_is_supported_reads_an_omitted_pixel_ratio_as_1x_on_both_sides(
+    supported: float | None, requested: float | None, served: bool
+) -> None:
+    """A supported 300x250 that omits ``pixel_ratio`` is the 1x variant.
+
+    ``core/format-id.json`` describes the omitted field as "the
+    backward-compatible 1x variant" without naming a side, so a product that
+    omits it serves only 1x — it refuses a 2x creative exactly as a 2x product
+    refuses a creative that omits the field.
+    """
+    assert format_is_supported(_with_pixel_ratio(requested), _with_pixel_ratio(supported)) is served
+
+
+@pytest.mark.parametrize("requested", [None, 1, 2])
+def test_a_template_supported_format_accepts_any_pixel_ratio(requested: float | None) -> None:
+    """The implied 1x needs dimensions, because ``pixel_ratio`` requires them.
+
+    A bare ``display_image`` names no 300x250 variant to be 1x of, so it stays
+    the broad template it was and serves a request at any density.
+    """
+    template = {"agent_url": CANONICAL_CREATIVE_AGENT_URL, "id": "display_image"}
+
+    assert format_is_supported(_with_pixel_ratio(requested), template)
+
+
+def test_a_legacy_size_supported_format_is_the_1x_variant() -> None:
+    """A legacy ``display_300x250`` upgrades to a dimensioned, 1x reference."""
+    legacy = {"agent_url": CANONICAL_CREATIVE_AGENT_URL, "id": "display_300x250"}
+
+    assert format_is_supported(_BASE, legacy)
+    assert not format_is_supported({**_BASE, "pixel_ratio": 2}, legacy)

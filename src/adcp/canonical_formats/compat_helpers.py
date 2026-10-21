@@ -45,9 +45,25 @@ _PARAMETER_FIELDS: tuple[str, ...] = tuple(sorted(set(FormatId.model_fields) - {
 #: ``core/format-id.json`` describes omitting ``pixel_ratio`` as selecting
 #: "the backward-compatible 1x variant", which is a value, not silence. An
 #: omitted width or duration means "template, unparameterized"; an omitted
-#: density means 1x. So a product fixed at 2x refuses a request that says
-#: nothing, while one fixed at 1x still serves it.
+#: density means 1x — on either side. So a product fixed at 2x refuses a
+#: request that says nothing, a product that says nothing refuses a 2x
+#: request, and one fixed at 1x still serves a request that says nothing.
 _IMPLIED_WHEN_ABSENT: dict[str, float] = {"pixel_ratio": 1.0}
+
+
+def _parameter_value(fid: FormatId, field: str) -> Any:
+    """The value ``fid`` gives ``field``, reading an implied default for absence.
+
+    The implied value applies to whichever side omits the field — a supported
+    300x250 with no density is the 1x variant just as a requested one is. It
+    applies only to a dimensioned reference, because ``pixel_ratio`` "Requires
+    ``width`` and ``height``": a template such as bare ``display_image`` has
+    no 1x variant to select and stays broad.
+    """
+    value = getattr(fid, field)
+    if value is None and fid.width is not None and fid.height is not None:
+        return _IMPLIED_WHEN_ABSENT.get(field)
+    return value
 
 
 def _coerce_format_id(
@@ -170,8 +186,10 @@ def format_is_supported(
 
     ``pixel_ratio`` is the one parameter whose absence carries a value rather
     than meaning "unspecified": the schema describes omitting it as selecting
-    the backward-compatible 1x variant. A product fixed at 2x therefore
-    refuses a request that omits the field, and one fixed at 1x accepts it.
+    the backward-compatible 1x variant. That reading applies to both sides
+    of a dimensioned reference: a product fixed at 2x refuses a request that
+    omits the field, a product that omits it (so is 1x) refuses a 2x request,
+    and a product fixed at 1x accepts a request that omits it.
     """
     req = _upgrade_legacy_format_id(
         requested, default_agent_url=default_agent_url, param="requested"
@@ -183,13 +201,10 @@ def format_is_supported(
         return False
 
     for field in _PARAMETER_FIELDS:
-        supported_value = getattr(sup, field)
+        supported_value = _parameter_value(sup, field)
         if supported_value is None:
             continue
-        requested_value = getattr(req, field)
-        if requested_value is None:
-            requested_value = _IMPLIED_WHEN_ABSENT.get(field)
-        if requested_value != supported_value:
+        if _parameter_value(req, field) != supported_value:
             return False
     return True
 
