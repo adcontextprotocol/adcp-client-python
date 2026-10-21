@@ -9,7 +9,7 @@ object stores are untrusted for integrity, and every read verifies the stored by
 against digests committed in the database before a row is released.
 
 Row location lives in the ``adcp_reporting_row_sets`` side table, keyed by revision
-ID, until the shared Core layout. A revision without a row set still carries its
+ID. A revision without a row set still carries its
 rows in the legacy ``reporting_revision_rows`` table.
 
 Two binding kinds exist. ``postgres`` stores chunk bodies as ``BYTEA`` in the same
@@ -583,13 +583,13 @@ class ReportingRowStorageV1:
         """Refuse a row-set table that another SDK created with a core-table foreign key.
 
         The JavaScript migration references ``adcp_reporting_obligations``, which
-        Python obligations never populate (they live in ``reporting_obligations``
-        until the shared Core layout). Writing here would fail at the first row
-        set, so refuse up front with the remedy.
+        Python obligations never populate (they live in ``reporting_obligations``).
+        Writing here would fail at the first row set, so refuse up front with the remedy.
         """
         row = await (
             await connection.execute(
-                "SELECT conname FROM pg_constraint WHERE conrelid ="
+                "SELECT conname, quote_ident(conname), quote_ident(current_schema())"
+                " FROM pg_constraint WHERE conrelid ="
                 " to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_sets')"
                 " AND contype = 'f' AND (SELECT relname FROM pg_class WHERE oid = confrelid)"
                 " <> ALL(%s::text[]) LIMIT 1",
@@ -601,7 +601,8 @@ class ReportingRowStorageV1:
                 "STATE_UNAVAILABLE",
                 "adcp_reporting_row_sets has a foreign key to another SDK's core table "
                 f"({row[0]}); apply reporting_row_storage.sql before that SDK's migration, "
-                "or drop the constraint",
+                "or remove that foreign key with "
+                f"ALTER TABLE {row[2]}.adcp_reporting_row_sets DROP CONSTRAINT {row[1]};",
             )
 
     # -- providers --------------------------------------------------------
@@ -970,8 +971,10 @@ class ReportingRowStorageV1:
         Identical rows are those with the same ``row_manifest_sha256``. Sharing
         never crosses an obligation, so it never crosses a consumer. A header-only
         revision references the existing chunks instead of storing them again.
-        Takes ``FOR SHARE`` on the row set so retention cannot retire it before the
-        caller's transaction commits.
+        Takes ``FOR SHARE`` for the lifetime of the caller's transaction. Object
+        staging releases that transaction before the ledger commit, so
+        ``persist_revision_row_set`` re-checks liveness and takes its own
+        ``FOR SHARE`` lock inside the commit transaction before sharing chunks.
         """
         if not prepared.encoded.chunks:
             return None

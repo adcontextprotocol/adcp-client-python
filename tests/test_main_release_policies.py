@@ -101,6 +101,61 @@ def test_every_post_release_integration_has_real_agreement(history: list[str]) -
     assert policies.conventional("push", history[-1], {})["commits"] == history[1:]
 
 
+def test_conventional_rerun_reads_the_corrected_pr_body(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": BREAKING_SUBJECT,
+        "body": "Missing the breaking footer in the original webhook.",
+    }
+    api.data["pulls/1174"] = {**pr, "body": BREAKING_FOOTER}
+
+    result = policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+    assert result["commits"] == history[1:]
+    assert api.reads == ["pulls/1174"]
+
+
+def test_conventional_rerun_rejects_a_newly_invalid_pr_message(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": BREAKING_SUBJECT,
+        "body": BREAKING_FOOTER,
+    }
+    api.data["pulls/1174"] = {**pr, "body": None}
+
+    with pytest.raises(ReleaseRejectedError, match="BREAKING CHANGE"):
+        policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+def test_conventional_rerun_cannot_validate_a_different_pr_head(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": "fix: valid contribution",
+        "body": "",
+    }
+    api.data["pulls/1174"] = {**pr, "head": {"sha": "a" * 40}}
+
+    with pytest.raises(ReleaseRejectedError, match="PR head changed"):
+        policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+def test_conventional_workflow_can_read_current_pr_metadata() -> None:
+    workflow = yaml.safe_load((policies.ROOT / ".github/workflows/ci.yml").read_text())
+    job = workflow["jobs"]["conventional-commits"]
+    assert job["permissions"] == {"contents": "read", "pull-requests": "read"}
+    step = next(s for s in job["steps"] if "check_main_policies conventional" in s.get("run", ""))
+    assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
+
+
 @pytest.mark.parametrize(
     "case",
     [
