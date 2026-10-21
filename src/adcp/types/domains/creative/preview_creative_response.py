@@ -103,7 +103,7 @@ class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
 
 
 class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     response_type: Literal['submitted'] = 'submitted'
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str

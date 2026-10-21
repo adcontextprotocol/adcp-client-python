@@ -101,7 +101,7 @@ class TestFixIdempotency:
     """The post-gen fix must be idempotent — running it twice produces the same output."""
 
     def test_fix_is_idempotent_on_synthesized_source(self) -> None:
-        from scripts.post_generate_fixes import _CANCELED_FIELD_RE
+        from scripts.post_generate_fixes import _CANCELED_FIELD_RE, _WIDENED_LITERAL_TRUE
 
         already_fixed = (
             "    canceled: Annotated[\n"
@@ -115,14 +115,14 @@ class TestFixIdempotency:
         )
 
         result, count = _CANCELED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             already_fixed,
         )
         assert count == 0, "fix must not re-apply to already-widened source"
         assert result == already_fixed
 
     def test_fix_matches_destructive_source(self) -> None:
-        from scripts.post_generate_fixes import _CANCELED_FIELD_RE
+        from scripts.post_generate_fixes import _CANCELED_FIELD_RE, _WIDENED_LITERAL_TRUE
 
         destructive = (
             "    canceled: Annotated[\n"
@@ -136,7 +136,7 @@ class TestFixIdempotency:
         )
 
         result, count = _CANCELED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             destructive,
         )
         assert count == 1

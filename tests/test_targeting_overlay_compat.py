@@ -315,28 +315,28 @@ def test_bridge_serialization_keeps_objects_on_the_wire(
 
 
 @pytest.mark.parametrize("container,required", _CONTAINERS)
-def test_container_json_schema_keeps_only_mutation_input_and_null(
+def test_container_json_schema_keeps_only_mutation_input(
     container: type[BaseModel], required: dict[str, Any]
 ) -> None:
-    schema = container.model_json_schema()
-    assert schema["properties"]["targeting_overlay"]["anyOf"] == [
-        {"$ref": "#/$defs/TargetingOverlayInput"},
-        {"type": "null"},
-    ]
+    # The bundled schema declares the overlay as the input shape with no null
+    # arm (the field is optional, not nullable), and the published schema
+    # states the same since ``NoExplicitNull`` (#1547).
+    node = container.model_json_schema()["properties"]["targeting_overlay"]
+    assert node["$ref"] == "#/$defs/TargetingOverlayInput"
+    assert "anyOf" not in node
 
 
 @pytest.mark.parametrize("container,required", _CONTAINERS)
-def test_field_serialization_schema_keeps_only_mutation_input_and_null(
+def test_field_serialization_schema_keeps_only_mutation_input(
     container: type[BaseModel], required: dict[str, Any]
 ) -> None:
     # Canonical parents have their own opaque wrap serializer. Check the field
     # contract directly rather than expecting properties in that parent schema.
     annotation = container.model_fields["targeting_overlay"].rebuild_annotation()
     schema = TypeAdapter(annotation).json_schema(mode="serialization")
-    assert schema["anyOf"] == [
-        {"$ref": "#/$defs/TargetingOverlayInput"},
-        {"type": "null"},
-    ]
+    assert "anyOf" not in schema
+    assert schema["title"] == "TargetingOverlayInput"
+    assert schema["type"] == "object"
 
 
 @pytest.mark.parametrize(

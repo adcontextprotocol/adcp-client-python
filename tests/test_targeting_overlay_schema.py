@@ -23,7 +23,10 @@ _TARGETING_PATHS = {
         _PACKAGE_PATH,
         ("properties", "new_packages", "anyOf", 0, "items", "properties", "targeting_overlay"),
     },
-    "control_media_buy": {_PACKAGE_PATH},
+    # ``packages`` is optional but not nullable on this request, so its
+    # advertised node is the array itself rather than an ``anyOf`` with a null
+    # arm (#1547).
+    "control_media_buy": {("properties", "packages", "items", "properties", "targeting_overlay")},
     "buy_products": {("properties", "purchases", "items", "properties", "targeting_overlay")},
 }
 
@@ -52,21 +55,31 @@ def test_advertised_targeting_mutations_keep_input_only_schema(tool: str) -> Non
 
     # Independent mutation-only reference. Canonical create/update schemas
     # intentionally sanitize nested creative identities across their graph.
-    expected = _inline_refs(TypeAdapter(TargetingOverlayInput | None).json_schema())
+    # The overlay property is optional, not nullable: the bundled schema
+    # declares the input shape with no null arm, and the advertised node now
+    # states the same (#1547), so the reference is the input shape itself.
+    expected = _inline_refs(TypeAdapter(TargetingOverlayInput).json_schema())
     if tool in {"create_media_buy", "update_media_buy"}:
         expected = sanitize_canonical_schema(expected)
-    assert len(expected["anyOf"]) == 2
-    assert expected["anyOf"][0]["title"] == "TargetingOverlayInput"
-    assert expected["anyOf"][1] == {"type": "null"}
+    assert expected["title"] == "TargetingOverlayInput"
+    assert expected["type"] == "object"
 
     for path, node in nodes.items():
-        assert set(node) == {"anyOf", "default", "description", "title"}, (tool, path)
-        # The runtime bridge makes this field non-ref-shaped, so Pydantic adds
-        # this annotation (30 bytes/site). Pin it rather than permitting an
-        # arbitrary amount of metadata outside the mutation-only anyOf.
+        assert set(node) == {
+            "additionalProperties",
+            "default",
+            "description",
+            "properties",
+            "title",
+            "type",
+        }, (tool, path)
+        # Inlining the reference merges the input object into the field node;
+        # the field keeps its own title and description. Pin the keys rather
+        # than permitting an arbitrary amount of metadata around the object.
         assert node["title"] == "Targeting Overlay", (tool, path)
-        assert len(node["anyOf"]) == 2, (tool, path)
-        assert node["anyOf"] == expected["anyOf"], (tool, path)
+        assert node["type"] == "object", (tool, path)
+        assert node["properties"] == expected["properties"], (tool, path)
+        assert node["additionalProperties"] == expected["additionalProperties"], (tool, path)
         assert node["default"] is None
         assert isinstance(node["description"], str)
         actual_bytes = json.dumps(node, sort_keys=True).encode()
@@ -96,7 +109,7 @@ def test_advertised_targeting_fields_carry_the_description_the_schema_declares()
         t["inputSchema"] for t in ADCP_TOOL_DEFINITIONS if t["name"] == "create_media_buy"
     )
     overlay = next(iter(dict(_targeting_nodes(_inline_refs(advertised))).values()))
-    fields = next(arm for arm in overlay["anyOf"] if "properties" in arm)["properties"]
+    fields = overlay["properties"]
 
     assert set(fields) == set(
         TargetingOverlayInput.model_json_schema()["properties"]

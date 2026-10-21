@@ -101,7 +101,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, NoExplicitNull
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -318,6 +318,9 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
     """Find functional serializers, including ones inside container annotations."""
     if isinstance(annotation, (PlainSerializer, WrapSerializer)):
         return True
+    if annotation is NoExplicitNull:
+        # Validation-only: it changes nothing about how a value is dumped.
+        return False
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
         if not is_adcp_model and getattr(annotation, "__module__", "").split(".")[0] != "pydantic":

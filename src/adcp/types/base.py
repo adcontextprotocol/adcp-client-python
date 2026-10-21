@@ -19,6 +19,7 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    GetCoreSchemaHandler,
     SerializerFunctionWrapHandler,
     StrictInt,
     StrictStr,
@@ -26,7 +27,7 @@ from pydantic import (
     WithJsonSchema,
     model_serializer,
 )
-from pydantic_core import PydanticSerializationError
+from pydantic_core import PydanticSerializationError, core_schema
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
@@ -308,6 +309,110 @@ WireUrl = Annotated[
     AfterValidator(_require_absolute_url),
     WithJsonSchema({"type": "string", "format": "uri"}),
 ]
+
+
+def _without_nullable(schema: Any) -> core_schema.CoreSchema:
+    """The schema with its ``nullable`` wrapper removed, if it has one.
+
+    The wrapper is usually outermost. A field another annotation already
+    rebuilt — the targeting-overlay bridge builds its own ``json_or_python``
+    with validator functions around the type — carries it further in, and
+    only the JSON side of such a schema matters here.
+    """
+    kind = schema["type"]
+    if kind == "nullable":
+        return cast(core_schema.CoreSchema, schema["schema"])
+    if kind == "json-or-python":
+        return cast(
+            core_schema.CoreSchema,
+            {**schema, "json_schema": _without_nullable(schema["json_schema"])},
+        )
+    if kind in ("function-before", "function-after", "function-wrap", "json", "default"):
+        stripped = {**schema, "schema": _without_nullable(schema["schema"])}
+        # A validator function may publish a separate input schema; the JSON
+        # Schema is generated from that one when it is present.
+        if "json_schema_input_schema" in stripped:
+            stripped["json_schema_input_schema"] = _without_nullable(
+                stripped["json_schema_input_schema"]
+            )
+        return cast(core_schema.CoreSchema, stripped)
+    return cast(core_schema.CoreSchema, schema)
+
+
+class _NoExplicitNull:
+    """Annotated metadata: the property may be omitted, but a JSON ``null`` is refused.
+
+    A JSON Schema property outside ``required`` whose type does not admit
+    ``null`` permits exactly one way of not supplying it — leaving it out.
+    The generator renders every optional property as ``T | None = None``,
+    and that annotation is the right Python surface: the attribute reads as
+    ``None`` when the property was omitted, and ``model_dump`` (which
+    defaults to ``exclude_none=True``) leaves it off the wire again. What
+    the annotation got wrong is *input*: it also admitted an explicit
+    ``null``, which the schema — and the SDK's own JSON-Schema arm,
+    :func:`adcp.validation.validate_request` — rejects.
+
+    This marker closes that gap without changing the annotation. It builds
+    a ``json_or_python`` core schema: the JSON side is the type without its
+    null arm, so a document carrying ``null`` fails with the type's own
+    error (``list_type``, ``model_type``, ...) exactly as a required field
+    would, and ``model_json_schema()`` publishes no null arm; the Python
+    side keeps ``T | None``, so ``Model(field=None)`` and ``model_validate``
+    on a dict still read ``None`` as the SDK's spelling of "not supplied",
+    symmetric with ``model_dump``. The ``= None`` default is not validated,
+    so omission reads back as ``None`` either way. No Python function sits
+    in the validation path, so nested validation keeps pydantic's native
+    JSON handling (duplicate-key diagnostics, error order).
+
+    ``ADCP_STRICT_VALIDATION`` — the switch that also forbids unknown
+    fields — makes the Python side refuse ``None`` too, for suites that want
+    to catch a caller spelling absence as an explicit ``None``. A property
+    whose schema *does* admit ``null`` is generated without the marker and
+    keeps accepting it.
+
+    The generator marks every such property from the schema
+    (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``)
+    and ``scripts/post_generate_fixes.py`` points the mark here. See #1547.
+    """
+
+    __slots__ = ()
+
+    def __get_pydantic_core_schema__(
+        self, source: Any, handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        nullable = handler(source)
+        strict = _without_nullable(nullable)
+        return core_schema.json_or_python_schema(
+            json_schema=strict,
+            python_schema=strict if _EXTRA_POLICY == "forbid" else nullable,
+        )
+
+    def __repr__(self) -> str:
+        return "NoExplicitNull"
+
+    # One marker, however a ``FieldInfo`` carrying it is copied: a canonical
+    # redeclaration takes ``copy.deepcopy`` of the generated field
+    # (``canonical_creative._inherit``), and a test asks ``NoExplicitNull in
+    # field.metadata``.
+    def __copy__(self) -> _NoExplicitNull:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> _NoExplicitNull:
+        return self
+
+    def __reduce__(self) -> str:
+        return "NoExplicitNull"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _NoExplicitNull)
+
+    def __hash__(self) -> int:
+        return hash(_NoExplicitNull)
+
+
+#: Marks an optional property whose schema does not admit ``null``: omit it or
+#: supply a value. See :class:`_NoExplicitNull`.
+NoExplicitNull = _NoExplicitNull()
 
 
 class AdCPBaseModel(BaseModel):
