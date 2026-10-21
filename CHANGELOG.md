@@ -4,6 +4,32 @@
 
 ### ⚠ BREAKING CHANGES
 
+* **reporting:** the Reliable Reporting storage implementations ship as a
+  separate distribution, `adcp-reporting-storage`, maintained in this
+  repository and versioned on its own line (`packages/adcp-reporting-storage`).
+  The PostgreSQL ledger, reconciliation, materializer, receipt, feed,
+  projection, production, outbox, status, inline-storage and buyer-submission
+  stores, the chunked row storage with its filesystem, GCS, S3 and Azure
+  providers, the host change feed, period retirement, row migration, the
+  caller-ownership migration helpers and `ReliableReportingService.postgres`
+  moved out of `adcp.reporting`; the old import paths are gone, with no shims.
+  `adcp` keeps the store protocols, the in-memory stores, the producer, the
+  handlers, the row encoding and the store-contract errors, and never imports
+  the new package. The `adcp[reporting-gcs]`, `[reporting-s3]` and
+  `[reporting-azure]` extras are removed; `adcp[pg]` remains for the signing
+  and decisioning stores. Install `adcp-reporting-storage[pg]` (plus `gcs`,
+  `s3`, `azure`) and import from `adcp_reporting_storage`; the full old-to-new
+  table is in [docs/reporting-storage-package-migration.md](docs/reporting-storage-package-migration.md).
+  The composition now depends on store protocols
+  (`adcp.reporting.production.store.ReportingProductionStore`,
+  `adcp.reporting.outbox.durable.ReportingDurableNotificationLedger`,
+  `ReportingDurableStatusStore`, `adcp.reporting.ledger.ReportingRowStagingStore`,
+  `ReportingSourcePublicationStore`, `ReportingWorkerRetryPolicy`) instead of
+  recognizing the PostgreSQL classes by type; `ReliableReportingService` takes
+  `staging=`, `seals=` and `initialize_source_storage=`. The public-API
+  snapshot now covers `adcp.reporting`, `adcp.reporting.ledger` and
+  `adcp_reporting_storage`. Refs #1510, #1490, #1488, #1489.
+
 * **types:** `ProductFormatDeclaration` is a class again — a `Format` subclass
   that reads the root rules of `core/product-format-declaration.json` on every
   validation — rather than an `Annotated` union. Construction,

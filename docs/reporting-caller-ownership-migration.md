@@ -116,7 +116,7 @@ itself called from async code.
 import sqlalchemy as sa
 from alembic import op
 
-from adcp.reporting.migration import (
+from adcp_reporting_storage.migration import (
     replace_empty_legacy_reporting_sync,
     replace_empty_owned_reporting_sync,
 )

@@ -36,7 +36,7 @@ test database/schema, and inject the public stores. Initialize the schema before
 wrapping a store; failure wrappers borrow it and do not own DDL or the pool.
 
 ```python
-from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
+from adcp_reporting_storage.inline_storage import PgReportingSealStore, PgReportingStagingStore
 from adcp.reporting.testing import run_reporting_adapter_conformance
 
 
