@@ -177,6 +177,9 @@ dev = [
     # propagate. Required at runtime by examples/v3_reference_seller/
     # src/app.py and seed.py.
     "alembic>=1.13.0",
+    # SQLAlchemy's default PostgreSQL driver: the sync reporting replacements
+    # are tested inside Alembic revisions on it as well as on psycopg 3.
+    "psycopg2-binary>=2.9.9",
     "pre-commit>=4.4.0",
     # In-memory span exporter used by the optional observability tests.  The
     # library itself imports only opentelemetry-api and never configures an SDK.

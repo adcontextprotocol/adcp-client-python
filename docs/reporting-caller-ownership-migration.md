@@ -92,6 +92,99 @@ Keep reporting admission disabled until every process
 uses the owned API. The table locks provide database quiescence for the empty
 replacement; they do not make mixed-version reporting safe afterward.
 
+With no transaction open on the connection, the async function commits its own
+transaction, whether or not the connection is in autocommit mode. Inside a
+transaction already open on the connection, it runs as a savepoint of that
+transaction and commits with it.
+
+### From an Alembic revision
+
+`replace_empty_legacy_reporting_sync` is the same replacement for synchronous
+migration frameworks. Pass it Alembic's `op.get_bind()`: a SQLAlchemy
+`Connection` on psycopg2 (the default `postgresql://` driver) or psycopg 3
+(`postgresql+psycopg://`). A raw sync psycopg 3 or psycopg2 connection also
+works. Unless the connection is in autocommit mode with no transaction open,
+the replacement joins the caller's transaction and never commits it. The drop
+therefore commits atomically
+with the revision's version bump. If anything later in the run fails, both roll
+back. It never starts an event loop, so it is safe when the migration runner is
+itself called from async code.
+
+```python
+"""Replace the empty pre-ownership reporting ledger."""
+
+import sqlalchemy as sa
+from alembic import op
+
+from adcp.reporting.migration import (
+    replace_empty_legacy_reporting_sync,
+    replace_empty_owned_reporting_sync,
+)
+
+
+def _ledger_columns() -> set[str]:
+    inspector = sa.inspect(op.get_bind())
+    if not inspector.has_table("reporting_configurations"):
+        return set()
+    return {column["name"] for column in inspector.get_columns("reporting_configurations")}
+
+
+def upgrade() -> None:
+    columns = _ledger_columns()
+    if columns and "consumer_id" not in columns:  # an 8.x ledger
+        replace_empty_legacy_reporting_sync(op.get_bind())
+
+
+def downgrade() -> None:
+    if "consumer_id" in _ledger_columns():  # see "Rolling back to an 8.x image"
+        replace_empty_owned_reporting_sync(op.get_bind())
+```
+
+The shape check only makes the revision a no-op on a fresh database. The helpers
+re-verify the shape under the schema lock and refuse anything unexpected. The
+table locks are held until the migration transaction commits. To fail fast
+rather than wait behind running queries, run `SET LOCAL lock_timeout = '15s'`
+before the call. Do not call `create_schema()` in the same revision. It uses
+another connection, which waits for the schema lock this transaction holds while
+the revision waits for it. PostgreSQL cannot detect that deadlock, because it
+spans two client connections, so the migration hangs. The owned schema is
+created when the service starts, as usual. A refusal rolls back
+only the helper's own savepoint, and the exception then fails the revision.
+Offline (`--sql`) mode has no connection and is not supported.
+
+## Rolling back to an 8.x image
+
+An 8.x image cannot run against the caller-owned ledger. Its startup keeps the
+existing owned tables, and its INSERTs omit `consumer_id`. Before deploying an
+8.x image again:
+
+1. Stop every SDK 9 reporting process, including admission, readers and workers.
+   Keep them stopped until the 8.x image is deployed.
+2. If the owned ledger never admitted any reporting state, remove it with
+   `replace_empty_owned_reporting(operator_connection)`. In an Alembic
+   `downgrade()`, use `replace_empty_owned_reporting_sync(op.get_bind())` as
+   shown above. Both give the same guarantees as the replacement: READ COMMITTED
+   isolation, the schema advisory lock, and `ACCESS EXCLUSIVE` on every
+   `reporting_*` and `adcp_reporting_*` table before any row is checked. They
+   then remove those tables, sequences and functions. Rows that installation and
+   startup write do not count as state: the change-feed horizon before its first
+   prune, and registered row-storage bindings. `adcp_persistence_installation`,
+   the row-storage installation identity, is kept. 8.x ignores it, and a later
+   upgrade reuses it.
+3. Deploy the 8.x image. It creates its own ledger on start. To upgrade again
+   later, follow [An entirely empty ledger](#an-entirely-empty-ledger).
+
+The removal refuses, and changes nothing, when any reporting table holds another
+row, when active row security could hide rows, or when objects outside the
+reporting surface depend on it. An 8.x image cannot represent owned rows, so
+there is no supported downgrade of a populated ledger. Keep running SDK 9, or
+restore the backup taken before the upgrade, which loses everything written
+since. A ledger created by `migrate_legacy_reporting` is refused with a specific
+error, because the archive registry names its quarantine schema. The legacy rows
+live in that archive, and removing the owned ledger would not restore them.
+Restore the pre-upgrade backup instead. Do not move archived tables back by
+hand: they carry the quarantine triggers and the maintenance role's ownership.
+
 ## Rolling deployment boundary
 
 The owned configuration and obligation tables require `consumer_id NOT NULL`.

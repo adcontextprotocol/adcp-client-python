@@ -7,8 +7,10 @@ Queues, leases, destination bindings and signing material are never imported.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import re
+from collections.abc import Generator
 from dataclasses import dataclass
 from importlib.resources import files
 from typing import Any, Literal
@@ -23,6 +25,9 @@ __all__ = [
     "legacy_generation_digest",
     "migrate_legacy_reporting",
     "replace_empty_legacy_reporting",
+    "replace_empty_legacy_reporting_sync",
+    "replace_empty_owned_reporting",
+    "replace_empty_owned_reporting_sync",
 ]
 
 
@@ -81,6 +86,290 @@ async def require_owned_schema_or_empty(connection: Any) -> None:
         )
 
 
+@dataclass(frozen=True)
+class _Statement:
+    """One statement of an empty-ledger replacement, as either driver runs it."""
+
+    query: Any
+    params: tuple[Any, ...] | None = None
+    returns_rows: bool = False
+
+
+_Rows = list[tuple[Any, ...]]
+# A replacement is written once, as a generator that yields each statement and
+# is sent back its rows. Every guard and every statement lives there; the sync
+# and async drivers below only execute, so both enforce the same checks in the
+# same order. ``sql`` is the driver's composition module: psycopg 3 and psycopg2
+# expose the same ``sql.SQL``/``sql.Identifier`` API.
+_Steps = Generator[_Statement, _Rows, None]
+
+_SCHEMA_LOCK = (
+    "SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'),hashtext(current_schema()))"
+)
+_ARCHIVE_REGISTRY = "adcp_reporting_ownership_archives"
+# Rows that schema installation or service startup writes, by the predicate they
+# match before any reporting happens: the change-feed horizon singleton until the
+# first prune, and the row-storage bindings each boot registers (row bytes are
+# tracked in the row-set, chunk and write-intent tables, which must be empty).
+# They are configuration, not reporting state, so alone they leave a ledger empty.
+_STARTUP_ROWS = {
+    "adcp_reporting_change_horizon": "pruned_through_seq = 0 AND pruned_through_xid = '0'",
+    "adcp_reporting_row_bindings": "TRUE",
+}
+_DEPENDENT_OBJECTS_STILL_EXIST = "2BP01"
+_SAVEPOINT = "adcp_reporting_replacement"
+
+
+def _query(query: Any, params: tuple[Any, ...] | None = None) -> _Statement:
+    return _Statement(query, params, returns_rows=True)
+
+
+def _drop_functions(sql: Any, names: list[str]) -> _Statement:
+    # regprocedure text is emitted by PostgreSQL, never caller-supplied SQL.
+    return _Statement(
+        sql.SQL("DROP FUNCTION {} RESTRICT").format(sql.SQL(", ").join(map(sql.SQL, names)))
+    )
+
+
+def _replacement_steps(sql: Any, *, owned: bool) -> _Steps:
+    """Lock, verify and drop an empty reporting surface of the expected shape.
+
+    ``owned=False`` removes a pre-ownership (8.x) ledger before ``create_schema``;
+    ``owned=True`` removes the caller-owned ledger before an 8.x image starts.
+    """
+    surface = "owned" if owned else "legacy"
+    isolation = (yield _query("SHOW transaction_isolation"))[0][0]
+    if isolation != "read committed":
+        raise ReportingOwnershipMigrationError(
+            f"empty {surface} replacement requires READ COMMITTED isolation"
+        )
+    yield _Statement(_SCHEMA_LOCK)
+    current = (yield _query("SELECT current_schema()"))[0][0]
+    columns = yield _query(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema=%s"
+        " AND table_name='reporting_configurations'",
+        (current,),
+    )
+    if owned:
+        if ("consumer_id",) not in columns:
+            raise ReportingOwnershipMigrationError("expected a caller-owned reporting schema")
+    elif not columns or ("consumer_id",) in columns:
+        raise ReportingOwnershipMigrationError("expected an unmigrated legacy reporting schema")
+    tables = yield _query(
+        "SELECT c.oid, c.relname, c.relkind FROM pg_class c JOIN pg_namespace n"
+        " ON n.oid=c.relnamespace WHERE n.nspname=%s AND c.relkind IN ('r','p','f')"
+        " AND (c.relname LIKE 'reporting\\_%%' ESCAPE '\\'"
+        " OR c.relname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\') ORDER BY c.relname",
+        (current,),
+    )
+    if any(kind == "f" for _, _, kind in tables):
+        raise ReportingOwnershipMigrationError("foreign reporting tables cannot be verified")
+    oids = [oid for oid, _, _ in tables]
+    for _, table, _ in tables:
+        yield _Statement(
+            sql.SQL("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE").format(sql.Identifier(current, table))
+        )
+    hidden_rows = yield _query(
+        "SELECT 1 FROM pg_class WHERE oid=ANY(%s::oid[]) AND row_security_active(oid) LIMIT 1",
+        (oids,),
+    )
+    if hidden_rows:
+        raise ReportingOwnershipMigrationError(
+            f"row security prevents verifying all {surface} reporting rows"
+        )
+    # Dropping a partitioned table can implicitly remove children. Only
+    # children in the same verified reporting surface may be removed.
+    outside_children = yield _query(
+        "SELECT 1 FROM pg_inherits WHERE inhparent=ANY(%s::oid[])"
+        " AND NOT inhrelid=ANY(%s::oid[]) LIMIT 1",
+        (oids, oids),
+    )
+    if outside_children:
+        raise ReportingOwnershipMigrationError("reporting tables have external children")
+    if owned and any(table == _ARCHIVE_REGISTRY for _, table, _ in tables):
+        # A registered archive means migrate_legacy_reporting moved a populated
+        # legacy ledger aside. Dropping the registry would orphan that archive,
+        # and the legacy rows are not restored by removing the owned ledger.
+        registered = yield _query(
+            sql.SQL("SELECT 1 FROM {} LIMIT 1").format(sql.Identifier(current, _ARCHIVE_REGISTRY))
+        )
+        if registered:
+            raise ReportingOwnershipMigrationError(
+                "owned reporting registers a legacy quarantine archive; restore the"
+                " pre-upgrade backup instead"
+            )
+    for _, table, _ in tables:
+        rows = sql.SQL("SELECT 1 FROM {}").format(sql.Identifier(current, table))
+        if table in _STARTUP_ROWS:
+            rows += sql.SQL(" WHERE NOT ({})").format(sql.SQL(_STARTUP_ROWS[table]))
+        populated = yield _query(rows + sql.SQL(" LIMIT 1"))
+        if populated:
+            raise ReportingOwnershipMigrationError(
+                "owned reporting contains rows; nothing was removed"
+                if owned
+                else "legacy reporting contains rows; use migrate_legacy_reporting"
+            )
+    triggers = yield _query(
+        "SELECT t.tgname, c.relname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid"
+        " WHERE t.tgrelid=ANY(%s::oid[]) AND NOT t.tgisinternal",
+        (oids,),
+    )
+    # Remove only triggers on the locked, verified empty tables.
+    for trigger, table in triggers:
+        yield _Statement(
+            sql.SQL("DROP TRIGGER {} ON {} RESTRICT").format(
+                sql.Identifier(trigger), sql.Identifier(current, table)
+            )
+        )
+    # A function that takes a table's row type (or an array of it), or whose
+    # SQL-standard body references a table, depends on it and goes before the
+    # tables. A CHECK constraint depends on the function it calls, so every
+    # other function goes after them.
+    functions = yield _query(
+        "SELECT p.oid::regprocedure::text, EXISTS (SELECT 1 FROM pg_depend d"
+        " LEFT JOIN pg_type t ON d.refclassid='pg_type'::regclass AND t.oid=d.refobjid"
+        " LEFT JOIN pg_type e ON e.oid=t.typelem"
+        " WHERE d.classid='pg_proc'::regclass AND d.objid=p.oid"
+        " AND (d.refclassid='pg_class'::regclass AND d.refobjid=ANY(%s::oid[])"
+        " OR t.typrelid=ANY(%s::oid[]) OR e.typrelid=ANY(%s::oid[])))"
+        " FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=%s"
+        " AND (p.proname LIKE 'reporting\\_%%' ESCAPE '\\'"
+        " OR p.proname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\') ORDER BY 1",
+        (oids, oids, oids, current),
+    )
+    row_typed = [name for name, typed in functions if typed]
+    if row_typed:
+        yield _drop_functions(sql, row_typed)
+    if tables:
+        yield _Statement(
+            sql.SQL("DROP TABLE {} RESTRICT").format(
+                sql.SQL(", ").join(sql.Identifier(current, table) for _, table, _ in tables)
+            )
+        )
+    untyped = [name for name, typed in functions if not typed]
+    if untyped:
+        yield _drop_functions(sql, untyped)
+    sequences = yield _query(
+        "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace"
+        " WHERE n.nspname=%s AND c.relkind='S'"
+        " AND (c.relname LIKE 'reporting\\_%%' ESCAPE '\\'"
+        " OR c.relname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\')",
+        (current,),
+    )
+    if sequences:
+        yield _Statement(
+            sql.SQL("DROP SEQUENCE {} RESTRICT").format(
+                sql.SQL(", ").join(sql.Identifier(current, name) for (name,) in sequences)
+            )
+        )
+
+
+def _dependency_error(*, owned: bool) -> ReportingOwnershipMigrationError:
+    surface, outcome = ("owned", "removed") if owned else ("legacy", "replaced")
+    return ReportingOwnershipMigrationError(
+        f"{surface} reporting has external dependencies; nothing was {outcome}"
+    )
+
+
+def _is_dependency_failure(exc: BaseException) -> bool:
+    # psycopg 3 exposes the SQLSTATE as ``sqlstate``, psycopg2 as ``pgcode``.
+    code = getattr(exc, "sqlstate", None) or getattr(exc, "pgcode", None)
+    return code == _DEPENDENT_OBJECTS_STILL_EXIST
+
+
+async def _replace_async(connection: Any, *, owned: bool) -> None:
+    from psycopg import sql
+
+    steps = _replacement_steps(sql, owned=owned)
+    try:
+        async with connection.transaction():
+            statement = next(steps)
+            while True:
+                cursor = await connection.execute(statement.query, statement.params)
+                rows = await cursor.fetchall() if statement.returns_rows else []
+                try:
+                    statement = steps.send(rows)
+                except StopIteration:
+                    break
+    except Exception as exc:
+        if _is_dependency_failure(exc):
+            raise _dependency_error(owned=owned) from exc
+        raise
+
+
+def _sync_driver(connection: Any) -> tuple[Any, Any]:
+    """Return the DB-API connection to run on and its ``sql`` composition module.
+
+    A SQLAlchemy ``Connection`` (Alembic's ``op.get_bind()``) is unwrapped to its
+    driver connection, which carries the same transaction. As any statement on
+    it would, this begins the SQLAlchemy transaction if none is open.
+    """
+    driver = connection
+    if hasattr(getattr(connection, "connection", None), "driver_connection"):
+        if not connection.in_transaction():
+            connection.begin()
+        driver = connection.connection.driver_connection
+    try:
+        import psycopg
+    except ImportError:  # pragma: no cover - psycopg2-only installation
+        pass
+    else:
+        if isinstance(driver, psycopg.Connection):
+            return driver, psycopg.sql
+    try:
+        import psycopg2.extensions  # type: ignore[import-untyped,import-not-found,unused-ignore]
+        import psycopg2.sql  # type: ignore[import-untyped,import-not-found,unused-ignore]
+    except ImportError:
+        pass
+    else:
+        if isinstance(driver, psycopg2.extensions.connection):
+            return driver, psycopg2.sql
+    raise TypeError(
+        "the sync replacement needs a sync psycopg 3 or psycopg2 connection, or a"
+        " SQLAlchemy Connection on either driver; await the async variant otherwise"
+    )
+
+
+def _replace_sync(connection: Any, *, owned: bool) -> None:
+    driver, sql = _sync_driver(connection)
+    steps = _replacement_steps(sql, owned=owned)
+    # Outside any transaction on an autocommit connection, the replacement is its
+    # own transaction. Otherwise it joins the caller's (the driver opens one on a
+    # non-autocommit connection), never commits it, and runs in a savepoint so a
+    # refusal leaves the caller's transaction usable. Both drivers report libpq's
+    # transaction status, where 0 is idle.
+    if driver.autocommit and driver.info.transaction_status == 0:
+        undo: tuple[str, ...] = ("ROLLBACK",)
+        begin, release = "BEGIN", "COMMIT"
+    else:
+        begin = f"SAVEPOINT {_SAVEPOINT}"
+        release = f"RELEASE SAVEPOINT {_SAVEPOINT}"
+        undo = (f"ROLLBACK TO SAVEPOINT {_SAVEPOINT}", release)
+    try:
+        with driver.cursor() as cursor:
+            cursor.execute(begin)
+            try:
+                statement = next(steps)
+                while True:
+                    cursor.execute(statement.query, statement.params)
+                    rows = cursor.fetchall() if statement.returns_rows else []
+                    try:
+                        statement = steps.send(rows)
+                    except StopIteration:
+                        break
+            except BaseException:
+                # A broken connection cannot undo; report the original failure.
+                with contextlib.suppress(Exception):
+                    for command in undo:
+                        cursor.execute(command)
+                raise
+            cursor.execute(release)
+    except Exception as exc:
+        if _is_dependency_failure(exc):
+            raise _dependency_error(owned=owned) from exc
+        raise
+
+
 async def replace_empty_legacy_reporting(connection: Any) -> None:
     """Remove an entirely empty pre-ownership ledger without creating an archive.
 
@@ -89,143 +378,51 @@ async def replace_empty_legacy_reporting(connection: Any) -> None:
     Populated ledgers and dependencies outside the reporting surface are refused;
     failure rolls back every drop. Reporting admission must remain disabled
     until all processes use the caller-owned API.
-    """
-    from psycopg import errors, sql
 
-    try:
-        async with connection.transaction():
-            isolation = (await (await connection.execute("SHOW transaction_isolation")).fetchone())[
-                0
-            ]
-            if isolation != "read committed":
-                raise ReportingOwnershipMigrationError(
-                    "empty legacy replacement requires READ COMMITTED isolation"
-                )
-            await connection.execute(
-                "SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'),"
-                "hashtext(current_schema()))"
-            )
-            current = (await (await connection.execute("SELECT current_schema()")).fetchone())[0]
-            columns = await (
-                await connection.execute(
-                    "SELECT column_name FROM information_schema.columns WHERE table_schema=%s"
-                    " AND table_name='reporting_configurations'",
-                    (current,),
-                )
-            ).fetchall()
-            if not columns or ("consumer_id",) in columns:
-                raise ReportingOwnershipMigrationError(
-                    "expected an unmigrated legacy reporting schema"
-                )
-            tables = await (
-                await connection.execute(
-                    "SELECT c.oid, c.relname, c.relkind FROM pg_class c JOIN pg_namespace n"
-                    " ON n.oid=c.relnamespace WHERE n.nspname=%s AND c.relkind IN ('r','p','f')"
-                    " AND (c.relname LIKE 'reporting\\_%%' ESCAPE '\\'"
-                    " OR c.relname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\') ORDER BY c.relname",
-                    (current,),
-                )
-            ).fetchall()
-            if any(kind == "f" for _, _, kind in tables):
-                raise ReportingOwnershipMigrationError(
-                    "foreign reporting tables cannot be verified"
-                )
-            for _, table, _ in tables:
-                await connection.execute(
-                    sql.SQL("LOCK TABLE {}.{} IN ACCESS EXCLUSIVE MODE").format(
-                        sql.Identifier(current), sql.Identifier(table)
-                    )
-                )
-            hidden_rows = await (
-                await connection.execute(
-                    "SELECT 1 FROM pg_class WHERE oid=ANY(%s) AND row_security_active(oid) LIMIT 1",
-                    ([oid for oid, _, _ in tables],),
-                )
-            ).fetchone()
-            if hidden_rows:
-                raise ReportingOwnershipMigrationError(
-                    "row security prevents verifying all legacy reporting rows"
-                )
-            # Dropping a partitioned table can implicitly remove children. Only
-            # children in the same verified reporting surface may be removed.
-            outside_children = await (
-                await connection.execute(
-                    "SELECT 1 FROM pg_inherits WHERE inhparent=ANY(%s)"
-                    " AND NOT inhrelid=ANY(%s) LIMIT 1",
-                    ([oid for oid, _, _ in tables], [oid for oid, _, _ in tables]),
-                )
-            ).fetchone()
-            if outside_children:
-                raise ReportingOwnershipMigrationError("reporting tables have external children")
-            for _, table, _ in tables:
-                populated = await (
-                    await connection.execute(
-                        sql.SQL("SELECT 1 FROM {}.{} LIMIT 1").format(
-                            sql.Identifier(current), sql.Identifier(table)
-                        )
-                    )
-                ).fetchone()
-                if populated:
-                    raise ReportingOwnershipMigrationError(
-                        "legacy reporting contains rows; use migrate_legacy_reporting"
-                    )
-            triggers = await (
-                await connection.execute(
-                    "SELECT t.tgname, c.relname FROM pg_trigger t JOIN pg_class c"
-                    " ON c.oid=t.tgrelid"
-                    " WHERE t.tgrelid=ANY(%s) AND NOT t.tgisinternal",
-                    ([oid for oid, _, _ in tables],),
-                )
-            ).fetchall()
-            # Trigger functions can accept a reporting table's composite type.
-            # Remove only triggers on the locked, verified empty tables, then
-            # drop functions before their argument types disappear with tables.
-            for trigger, table in triggers:
-                await connection.execute(
-                    sql.SQL("DROP TRIGGER {} ON {}.{} RESTRICT").format(
-                        sql.Identifier(trigger), sql.Identifier(current), sql.Identifier(table)
-                    )
-                )
-            functions = await (
-                await connection.execute(
-                    "SELECT p.oid::regprocedure::text FROM pg_proc p JOIN pg_namespace n"
-                    " ON n.oid=p.pronamespace WHERE n.nspname=%s"
-                    " AND (p.proname LIKE 'reporting\\_%%' ESCAPE '\\'"
-                    " OR p.proname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\')",
-                    (current,),
-                )
-            ).fetchall()
-            if functions:
-                # regprocedure is emitted by PostgreSQL, never caller-supplied SQL.
-                await connection.execute(
-                    sql.SQL("DROP FUNCTION {} RESTRICT").format(
-                        sql.SQL(", ").join(sql.SQL(name) for (name,) in functions)
-                    )
-                )
-            await connection.execute(
-                sql.SQL("DROP TABLE {} RESTRICT").format(
-                    sql.SQL(", ").join(sql.Identifier(current, table) for _, table, _ in tables)
-                )
-            )
-            sequences = await (
-                await connection.execute(
-                    "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace"
-                    " WHERE n.nspname=%s AND c.relkind='S'"
-                    " AND (c.relname LIKE 'reporting\\_%%' ESCAPE '\\'"
-                    " OR c.relname LIKE 'adcp\\_reporting\\_%%' ESCAPE '\\')",
-                    (current,),
-                )
-            ).fetchall()
-            if sequences:
-                await connection.execute(
-                    sql.SQL("DROP SEQUENCE {} RESTRICT").format(
-                        sql.SQL(", ").join(sql.Identifier(current, name) for (name,) in sequences)
-                    )
-                )
-    except errors.DependentObjectsStillExist as exc:
-        raise ReportingOwnershipMigrationError(
-            "legacy reporting has external dependencies; nothing was replaced"
-        ) from exc
+    With no transaction open on the connection, this commits its own
+    transaction, on an autocommit connection or not. Inside a transaction
+    already open on the connection, it runs as a savepoint of it.
+    From a synchronous migration such as an Alembic revision, use
+    :func:`replace_empty_legacy_reporting_sync`.
+    """
+    await _replace_async(connection, owned=False)
+
+
+def replace_empty_legacy_reporting_sync(connection: Any) -> None:
+    """Synchronous :func:`replace_empty_legacy_reporting`, inside the caller's transaction.
+
+    Accepts a sync psycopg 3 or psycopg2 connection, or a SQLAlchemy
+    ``Connection`` on either driver, such as Alembic's ``op.get_bind()``. Unless
+    the connection is in autocommit mode with no transaction open, the drop joins
+    the caller's transaction and commits with it, so it is atomic with a
+    migration's version bump; the locks are held until then. A refusal rolls back only this
+    function's savepoint. It never starts an event loop.
+    """
+    _replace_sync(connection, owned=False)
+
+
+async def replace_empty_owned_reporting(connection: Any) -> None:
+    """Remove an entirely empty caller-owned ledger, so an 8.x image can start.
+
+    The reverse of :func:`replace_empty_legacy_reporting`, with the same
+    guarantees: READ COMMITTED isolation, the schema advisory lock, then
+    ``ACCESS EXCLUSIVE`` on every ``reporting_*`` and ``adcp_reporting_*`` table
+    before any row is checked. A populated table, a registered legacy
+    quarantine archive, active row security or a dependency outside the
+    reporting surface is refused, and nothing is removed. Every reporting
+    process must be stopped and stay stopped until the 8.x image is deployed.
+    """
+    await _replace_async(connection, owned=True)
+
+
+def replace_empty_owned_reporting_sync(connection: Any) -> None:
+    """Synchronous :func:`replace_empty_owned_reporting`, inside the caller's transaction.
+
+    Accepts the same connections, with the same transaction behaviour, as
+    :func:`replace_empty_legacy_reporting_sync` — for example from an Alembic
+    ``downgrade()``.
+    """
+    _replace_sync(connection, owned=True)
 
 
 async def migrate_legacy_reporting(
