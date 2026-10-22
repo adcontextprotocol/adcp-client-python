@@ -73,6 +73,28 @@ async def test_automatic_discovery_transport_failure_retains_failed_result(accou
         await client.fetch_capabilities()
 
 
+async def test_invalid_v3_discovery_is_a_failed_task_and_explicit_fetch_still_raises():
+    client = _client()
+    wire = AsyncMock(
+        return_value=_completed(
+            {
+                "adcp": {"major_versions": [3]},
+                "supported_protocols": ["media_buy"],
+                "media_buy": "invalid capability block",
+            }
+        )
+    )
+    client.adapter._call_mcp_tool_wire = wire
+
+    result = await client.get_products(_discovery())
+
+    assert not result.success
+    assert "Failed to parse response" in result.error
+    assert all(call.args[0] == "get_adcp_capabilities" for call in wire.call_args_list)
+    with pytest.raises(ADCPError, match="v3 capabilities response"):
+        await client.fetch_capabilities()
+
+
 @pytest.mark.parametrize("protocol", [Protocol.MCP, Protocol.A2A])
 @pytest.mark.parametrize("case", ["no_common_version", "new_task", "null_clear"])
 async def test_version_preflight_failure_is_a_failed_result_without_dispatch(protocol, case):

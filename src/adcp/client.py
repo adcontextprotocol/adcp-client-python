@@ -1998,12 +1998,13 @@ class ADCPClient:
                 bool(result.error),
                 raw_data is not None,
             )
-            raise ADCPError(
+            raise _CapabilitiesFetchError(
                 f"v3 capabilities response from agent {self.agent_config.id!r} "
                 f"failed schema validation: {result.error or result.message}. "
                 f"The response is structurally v3-shaped (carries `adcp`, "
                 f"`supported_protocols`, or a v3 protocol block) — fix the "
                 f"agent's wire shape rather than downgrading to v2.",
+                result=result,
                 agent_id=self.agent_config.id,
                 agent_uri=self.agent_config.agent_uri,
             )
@@ -6276,6 +6277,10 @@ class ADCPClient:
         }
         callback_dialect: CreativeDialect | None = None
         wire_result = result
+        if task_type == "refine_proposals" and isinstance(wire_result, Mapping):
+            # Verification needs the authenticated original even when strict
+            # validation or conversion rejects its application representation.
+            conversion_metadata[WIRE_RESPONSE_METADATA_KEY] = wire_result
         if (
             status == GeneratedTaskStatus.completed
             and isinstance(result, dict)

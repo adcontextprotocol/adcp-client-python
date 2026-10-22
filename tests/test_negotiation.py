@@ -953,3 +953,28 @@ def test_webhook_parser_retains_refinement_wire_payload() -> None:
     )
 
     assert result.metadata[WIRE_RESPONSE_METADATA_KEY] is wire
+
+
+def test_invalid_refinement_webhook_preserves_evidence_without_bypassing_validation() -> None:
+    client = ADCPClient(
+        AgentConfig(id="seller", agent_uri="https://seller.example", protocol=Protocol.A2A)
+    )
+    wire = {"status": "completed", "results": "invalid", "products": []}
+    original = deepcopy(wire)
+
+    result = client._parse_webhook_result(
+        task_id="task-1",
+        task_type="refine_proposals",
+        operation_id="op-1",
+        status=GeneratedTaskStatus.completed,
+        result=wire,
+        timestamp="2026-08-24T00:00:00Z",
+        message=None,
+        context_id=None,
+    )
+
+    assert not result.success
+    assert result.status == TaskStatus.FAILED
+    assert "Schema validation failed" in result.error
+    assert result.metadata[WIRE_RESPONSE_METADATA_KEY] is wire
+    assert wire == original
