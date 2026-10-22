@@ -19,7 +19,7 @@ from pydantic import (
 
 class EnumsAgentOnboardingMode(str, Enum):
     """
-    How a party takes on counterparties it has not worked with. The direction comes from where the value appears: in a seller's account.agent_onboarding, how the seller onboards buyer agents for one billing party or for sandbox access; in a buyer's trust.json posture (core/buyer-onboarding-posture.json), how the buyer considers sellers. Absent means undeclared, never invite_only.
+    How a party takes on counterparties it has not worked with. The direction comes from where the value appears: in a seller's account.agent_onboarding, how the seller onboards buyer agents for one billing party or for sandbox access; in a buyer's trust.json posture (core/buyer-onboarding-posture.json), how the buyer considers sellers.
     """
 
     open = "open"
@@ -29,7 +29,7 @@ class EnumsAgentOnboardingMode(str, Enum):
 
 class EnumsAgentOnboardingRequirementKind(str, Enum):
     """
-    What a counterparty must satisfy before an onboarding mode applies. Each kind states the direction it applies to; a kind used in the other direction is ignored. Readers MUST treat an unknown kind as unsatisfiable by machine and fall back to the posture's message and url.
+    What a counterparty must satisfy before an onboarding mode applies. Each kind states the direction it applies to (docs/protocol/get_adcp_capabilities.mdx#accountagent_onboarding). Readers MUST treat an unknown kind as unsatisfiable by machine and fall back to the posture's message and url.
     """
 
     grant = "grant"
@@ -83,9 +83,7 @@ class CoreAgentOnboardingRequirement(BaseModel):
     ] = None
     id: Annotated[
         str | None,
-        Field(
-            description="storyboard: the storyboard or specialism id. experimental_feature: the feature id."
-        ),
+        Field(description="storyboard: the storyboard id. experimental_feature: the feature id."),
     ] = None
     ext: CoreExt | None = None
 
@@ -124,7 +122,7 @@ class EnumsBillingParty(str, Enum):
 
 class CoreAgentOnboarding(BaseModel):
     """
-    How a seller onboards buyer agents: a mode per billing party and for sandbox, with requirements, and where a human starts. Seller-wide and identical for every caller, served on the unauthenticated get_adcp_capabilities fetch, and absent from error payloads, so it cannot act as a per-agent onboarding oracle. Its content is advisory; it changes no error code and no oracle clamp. An absent key means undeclared, never invite_only. See specs/agent-identity-3-3.md R7 (#8113).
+    How a seller onboards buyer agents: a mode per billing party and for sandbox, with requirements, and where a human starts. Seller-wide and identical for every caller, served on the unauthenticated get_adcp_capabilities fetch, and absent from error payloads, so it cannot act as a per-agent onboarding oracle. Its content is advisory; it changes no error code and no oracle clamp. See specs/agent-identity-3-3.md R7 (#8113).
     """
 
     model_config = ConfigDict(
@@ -133,13 +131,13 @@ class CoreAgentOnboarding(BaseModel):
     sandbox: Annotated[
         CoreAgentOnboardingTier | None,
         Field(
-            description="Onboarding for sandbox accounts. Valid only when account.sandbox is true. Sandbox carries no spend, so open here grants identity and sandbox access only."
+            description="Onboarding for sandbox accounts. Valid only when account.sandbox is true."
         ),
     ] = None
     billing: Annotated[
         dict[EnumsBillingParty, CoreAgentOnboardingTier] | None,
         Field(
-            description="Onboarding per billing party, keyed by billing-party values. Keys MUST be a subset of account.supported_billing. Under open, spend needs an existing seller-side billing relationship with the billed party: the operator domain under operator, the brand's domain under advertiser."
+            description="Onboarding per billing party, keyed by billing-party values. Keys MUST be a subset of account.supported_billing. What open allows per party is in docs/protocol/get_adcp_capabilities.mdx#accountagent_onboarding."
         ),
     ] = None
     url: Annotated[
@@ -169,7 +167,7 @@ class CoreBuyerOnboardingPosture(BaseModel):
     requirements: Annotated[
         list[CoreAgentOnboardingRequirement] | None,
         Field(
-            description="What a seller must satisfy. Uses the kinds that apply when a buyer gates a seller (aao_verified, storyboard, sandbox, experimental_feature); others are ignored."
+            description="What a seller must satisfy. Uses the kinds that apply when a buyer gates a seller (aao_verified, storyboard, sandbox, experimental_feature)."
         ),
     ] = None
     url: Annotated[
@@ -207,10 +205,7 @@ class Setup(BaseModel):
         extra="allow",
     )
     url: Annotated[
-        AnyUrl | None,
-        Field(
-            description="URL where a human at the buyer completes the step. Untrusted: surface it, never fetch or execute it."
-        ),
+        AnyUrl | None, Field(description="URL where a human at the buyer completes the step.")
     ] = None
     message: Annotated[str, Field(description="Human-readable description of what is needed.")]
     expires_at: Annotated[AwareDatetime | None, Field(description="When this step expires.")] = None
@@ -218,7 +213,7 @@ class Setup(BaseModel):
 
 class CorePrincipalRelationship(BaseModel):
     """
-    The seller's commercial relationship with the authenticated caller, returned by get_principal only to that caller. Sent only in responses served at 3.3 or later: a seller MUST omit it for callers below 3.3, whose get_principal result arms are closed (DR-0024, #8117). Present when a relationship or an application exists; omitted when the seller has no relationship with the caller and no application in progress, which is the identity-established state of a verified signer the seller has not bound. Because it is returned only to the authenticated caller, it never acts as an onboarding oracle. See specs/agent-identity-3-3.md R8.
+    The seller's commercial relationship with the authenticated caller, as get_principal reports it. Present when a relationship or an application exists; omitted when the seller has no relationship with the caller and no application in progress, as for an identity-established caller (docs/building/by-layer/L1/security.mdx#web-bot-auth-identities). See docs/protocol/get_principal.mdx#relationship-status.
     """
 
     model_config = ConfigDict(
@@ -230,7 +225,7 @@ class CorePrincipalRelationship(BaseModel):
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description="When the relationship lapses unless renewed. Absent means no scheduled expiry. principal.changed fires with reason relationship_expiring at a seller-declared lead time before this instant."
+            description="When the relationship lapses unless renewed. Absent means no scheduled expiry. principal.changed fires with reason relationship_expiring at a seller-chosen lead time before this instant."
         ),
     ] = None
     setup: Annotated[
@@ -1243,7 +1238,7 @@ class Agent(BaseModel):
 
 class Grant(BaseModel):
     """
-    Authority this organization delegates: 'the grantee (optionally only these agents) may act for us, for these scopes, in these countries, during this window.' Non-transitive: a grantee never extends a grant it received. In the AdCP profile this is the demand-side grant (#6033, DR-0025), evaluated as L2 §Grants in trust.json describes (docs/building/by-layer/L2/accounts-and-agents.mdx), at sync_accounts and on the freshness schedule.
+    Authority this organization delegates: 'the grantee (optionally only these agents) may act for us, for these scopes, in these countries, during this window.' Non-transitive: a grantee never extends a grant it received. In the AdCP profile this is the demand-side grant (#6033, DR-0025), evaluated as L2 §Grants in trust records describes (docs/building/by-layer/L2/accounts-and-agents.mdx), at sync_accounts and on the freshness schedule.
     """
 
     model_config = ConfigDict(
@@ -1252,7 +1247,7 @@ class Grant(BaseModel):
     grantee: Annotated[
         Domain,
         Field(
-            description="Domain of the organization receiving the grant. Its agents resolve to this domain through its own trust.json."
+            description="Registrable domain (eTLD+1) of the organization receiving the grant, under the pinned Public Suffix List snapshot, ICANN and private sections (spec R3a step 1). Its agents resolve to this domain through its own trust.json. A host below a registrable domain (t1.vendor.example) is not one, and neither is a public suffix itself (github.io); alice.github.io is one, because github.io is in the private section. A grant whose grantee is not a registrable domain covers no claim, and its scopes still count for exclusive_grants, as L2 §Grants in trust records describes (docs/building/by-layer/L2/accounts-and-agents.mdx). A pattern can't evaluate the Public Suffix List, so verifiers apply the rule. To limit a grant to some of the grantee's agents, list them in agents[]."
         ),
     ]
     agents: Annotated[
@@ -1284,7 +1279,7 @@ class Grant(BaseModel):
 
 class TrustV1Trust2(BaseModel):
     """
-    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
+    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
     """
 
     model_config = ConfigDict(
@@ -1300,7 +1295,7 @@ class TrustV1Trust2(BaseModel):
     exclusive_grants: Annotated[
         bool | None,
         Field(
-            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion. A fetch failure is never equivalent to an absent grant; once a relying party has seen exclusive_grants: true for a host, it MUST fail closed on fetch failure."
+            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion."
         ),
     ] = False
     acknowledgements: Annotated[
@@ -1326,7 +1321,7 @@ class TrustV1Trust2(BaseModel):
 
 class TrustV1Trust3(BaseModel):
     """
-    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
+    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
     """
 
     model_config = ConfigDict(
@@ -1344,7 +1339,7 @@ class TrustV1Trust3(BaseModel):
     exclusive_grants: Annotated[
         bool | None,
         Field(
-            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion. A fetch failure is never equivalent to an absent grant; once a relying party has seen exclusive_grants: true for a host, it MUST fail closed on fetch failure."
+            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion."
         ),
     ] = False
     acknowledgements: Annotated[
@@ -1370,7 +1365,7 @@ class TrustV1Trust3(BaseModel):
 
 class TrustV1Trust4(BaseModel):
     """
-    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
+    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
     """
 
     model_config = ConfigDict(
@@ -1388,7 +1383,7 @@ class TrustV1Trust4(BaseModel):
     exclusive_grants: Annotated[
         bool | None,
         Field(
-            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion. A fetch failure is never equivalent to an absent grant; once a relying party has seen exclusive_grants: true for a host, it MUST fail closed on fetch failure."
+            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion."
         ),
     ] = False
     acknowledgements: Annotated[
@@ -1414,7 +1409,7 @@ class TrustV1Trust4(BaseModel):
 
 class TrustV1Trust5(BaseModel):
     """
-    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
+    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
     """
 
     model_config = ConfigDict(
@@ -1432,7 +1427,7 @@ class TrustV1Trust5(BaseModel):
     exclusive_grants: Annotated[
         bool | None,
         Field(
-            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion. A fetch failure is never equivalent to an absent grant; once a relying party has seen exclusive_grants: true for a host, it MUST fail closed on fetch failure."
+            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion."
         ),
     ] = False
     acknowledgements: Annotated[
@@ -1458,7 +1453,7 @@ class TrustV1Trust5(BaseModel):
 
 class TrustV1Trust6(BaseModel):
     """
-    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
+    An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.
     """
 
     model_config = ConfigDict(
@@ -1476,7 +1471,7 @@ class TrustV1Trust6(BaseModel):
     exclusive_grants: Annotated[
         bool | None,
         Field(
-            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion. A fetch failure is never equivalent to an absent grant; once a relying party has seen exclusive_grants: true for a host, it MUST fail closed on fetch failure."
+            description="When true, grants[] is exhaustive for every scope it names: relying parties MUST reject acts-for claims no active grant covers. When false or absent, an uncovered claim is at the relying party's discretion."
         ),
     ] = False
     acknowledgements: Annotated[
@@ -1518,7 +1513,7 @@ class TrustV1Trust(
         | TrustV1Trust5
         | TrustV1Trust6,
         Field(
-            description="An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust.json; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.",
+            description="An organization's agent trust record, hosted at /.well-known/trust.json on the organization's own host. Protocol-neutral core: the agents the organization runs (agents[]), the authority it delegates to others (grants[]), and the grants it has accepted from others (acknowledgements[]). Protocol-specific semantics live in namespaced roles and scopes (e.g. 'adcp:sales') and in per-protocol `profiles` objects; this draft defines the `adcp` profile. The organization a record speaks for is the host serving /.well-known/trust.json — never a value inside the document. Versioned independently of any one protocol. The v1 in the path is a namespace, not a stability promise: while x-status is experimental the schema may change in breaking ways. EXPERIMENTAL (x-status: experimental, feature id identity.trust_json). In AdCP 3.3 the experimental Web Bot Auth signing profile reads agents[] (origin and roles) when it evaluates a trust record derived from an agent's origin (docs/building/by-layer/L1/security.mdx, Web Bot Auth identities); grants[] are read when a relying party evaluates acts-for authority, at sync_accounts and on the freshness schedule (docs/building/by-layer/L2/accounts-and-agents.mdx, Grants in trust records; DR-0025). Outside those uses, third parties, crawlers and registries MUST NOT treat a published trust.json as authority. brand.json behavior is unchanged for the RFC 9421 signing profile. The document name and its /.well-known path may change before graduation (the JournalList trust.txt naming outreach is still open), so do not treat the file name as frozen. An agent URL anywhere in this record identifies the agent by its canonical origin (see docs/reference/url-canonicalization.mdx): one agent per origin. See RFC #7809 and specs/agent-identity-3-3.md.",
             title="trust.json",
         ),
     ]

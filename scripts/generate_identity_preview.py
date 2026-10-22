@@ -1,9 +1,8 @@
-"""Generate experimental identity types from pinned draft schemas, offline.
+"""Generate experimental identity types from the pinned 3.3 schemas, offline.
 
 The stable AdCP wire pin and generated domain tree are intentionally unchanged.
-Each source schema is copied verbatim from the open spec branch recorded in
-_identity_schemas/UPSTREAM.json; trust/v1/trust.json is composed there (spec main
-plus the onboarding and grants branch diffs), so this script composes nothing.
+Each source schema is copied verbatim from adcp main at the single commit
+recorded in _identity_schemas/UPSTREAM.json, so this script composes nothing.
 """
 
 from __future__ import annotations
@@ -128,7 +127,7 @@ def main():
     text = text.replace("    constr,\n", "")
     target.write_text(text)
     subprocess.run([sys.executable, "-m", "black", str(target)], check=True)
-    print(f"Generated {target.relative_to(ROOT)} from pinned drafts")
+    print(f"Generated {target.relative_to(ROOT)} from pinned schemas")
 
 
 if __name__ == "__main__":

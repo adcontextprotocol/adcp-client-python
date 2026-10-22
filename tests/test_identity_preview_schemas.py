@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from importlib.resources import files
 from pathlib import Path
@@ -17,7 +18,12 @@ from adcp.server.principal import (
     PrincipalIdentity,
     PrincipalService,
 )
-from adcp.signing import TrustRecordError, validate_trust_record
+from adcp.signing import (
+    TrustRecordError,
+    TrustRecordEvaluator,
+    TrustResponse,
+    validate_trust_record,
+)
 from adcp.types.experimental_identity import (
     AgentOnboarding,
     AgentOnboardingMode,
@@ -228,7 +234,55 @@ def test_aao_verified_uses_verified_specialisms():
     assert parsed.verified_specialisms == ["sales-guaranteed"]
 
 
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        {"kind": "aao_verified"},
+        {"kind": "aao_verified", "verified_specialisms": ["sales-guaranteed"]},
+        {"kind": "storyboard"},
+        {"kind": "experimental_feature"},
+    ],
+)
+async def test_requirement_kind_conditionals_reject_missing_role_or_id(requirement):
+    # adcp main adds if/then conditionals: aao_verified requires role;
+    # storyboard and experimental_feature require id.
+    assert errors(requirement, "core/agent-onboarding-requirement.json")
+    posture = {"mode": "open", "requirements": [requirement]}
+    assert errors(posture, "core/buyer-onboarding-posture.json")
+    assert errors({"sandbox": posture}, "core/agent-onboarding.json")
+    document = trust_record(posture, record_level=False)
+    with pytest.raises(TrustRecordError):
+        validate_trust_record(document, operator_domain="platform.com")
+
+    # The reader keeps only unknown kinds; a known kind that breaks its
+    # conditional is a malformed record, as for any other schema violation.
+    async def fetch(url: str, *, allow_private: bool = False) -> TrustResponse:
+        return TrustResponse(json.dumps(document).encode())
+
+    evaluator = TrustRecordEvaluator(fetcher=fetch, clock=lambda: 1000)
+    with pytest.raises(TrustRecordError):
+        await evaluator.evaluate(ORIGIN, role="adcp:buying")
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        {"kind": "aao_verified", "role": "media-buy"},
+        {"kind": "storyboard", "id": "media_buy_seller"},
+        {"kind": "experimental_feature", "id": "identity.trust_json"},
+        {"kind": "sandbox"},
+        {"kind": "grant"},
+    ],
+)
+def test_requirement_kind_conditionals_accept_complete_requirements(requirement):
+    assert errors(requirement, "core/agent-onboarding-requirement.json") == []
+
+
 # provenance ---------------------------------------------------------------
+
+
+def _git_blob_id(data: bytes) -> str:
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
 
 def test_upstream_lists_exactly_the_pinned_schema_files():
@@ -239,7 +293,12 @@ def test_upstream_lists_exactly_the_pinned_schema_files():
         if path.name not in {"UPSTREAM.json", "bundle.json"}
     }
     assert set(upstream["sources"]) == present
-    for source in upstream["sources"].values():
-        assert len(source["commit"]) == 40
-        int(source["commit"], 16)
-    assert set(upstream["composition"]) <= present
+    # Every file comes verbatim from adcp main at one commit; nothing is composed.
+    assert upstream["branch"] == "main"
+    assert len(upstream["commit"]) == 40
+    int(upstream["commit"], 16)
+    assert "composition" not in upstream
+    for path, source in upstream["sources"].items():
+        assert source["commit"] == upstream["commit"]
+        assert source["path"] == f"static/schemas/source/{path}"
+        assert source["blob"] == _git_blob_id((SCHEMAS / path).read_bytes()), path
