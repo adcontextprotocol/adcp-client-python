@@ -207,11 +207,12 @@ def _validate_trust_record(
             raise TrustRecordError("a trust record must list one agent per origin")
         seen.add(origin)
     if not reader:
-        # Authoring: publish grantees as registrable domains. Readers compare
-        # any grantee as its registrable domain instead of rejecting it.
+        # Authoring only: readers keep such a grant (TrustGrantEvaluator).
         for grant in document.get("grants", []):
             if registrable_domain(grant["grantee"]) != grant["grantee"]:
-                raise TrustRecordError("grant grantee must be an exact registrable domain")
+                raise TrustRecordError(
+                    "grant grantee must be a registrable domain under the pinned PSL snapshot"
+                )
     return dict(document)
 
 
@@ -924,8 +925,9 @@ def _grant_matches(
     countries: frozenset[str],
     now: float,
 ) -> bool:
-    # Grantees compare as registrable domains under the pinned PSL snapshot.
-    if _registrable(grant["grantee"]) != grantee or not _scope_covers(grant["scopes"], scope):
+    # ``grantee`` is a registrable domain; the grant's is compared exactly,
+    # never reduced (see TrustGrantEvaluator).
+    if grant["grantee"] != grantee or not _scope_covers(grant["scopes"], scope):
         return False
     # agents[] narrows the link that reaches the signer: the signer's
     # canonical origin must be listed, or the chain ends at this link.
@@ -973,6 +975,10 @@ class TrustGrantEvaluator:
     * Domains compare as registrable domains under the pinned PSL snapshot.
       Authority is implicit when ``account.operator``, the brand's domain and
       the signer's operator share one.
+    * A grant's ``grantee`` must itself be a registrable domain. A grant
+      whose grantee is not one (``ads.platform.com``, or a public suffix such
+      as ``github.io``) covers no claim, and its ``scopes`` still count for
+      ``exclusive_grants``.
     * Otherwise a chain must reach the signer's operator with
       ``account.operator`` on it: the house grants the signer's operator,
       which is ``account.operator``; the brand is ``account.operator`` (a
