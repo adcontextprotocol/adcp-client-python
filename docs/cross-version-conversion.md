@@ -6,6 +6,9 @@ and chooses the highest common release for each call. Discovery follows the
 existing `capabilities_ttl` cache; refreshing capabilities changes subsequent
 calls, without changing requests already in flight. An advertisement containing
 only `major_versions: [3]` selects the 3.0 compatibility contract.
+For A2A, discovery uses a separate conversation and never changes a retained
+business context or task ID. Refreshing capabilities while approval is pending
+therefore preserves the original task for resumption.
 
 `adcp_version` sets a negotiation ceiling. A request's explicit `adcp_version`
 overrides the constructor ceiling for that call. `server_version` declares a

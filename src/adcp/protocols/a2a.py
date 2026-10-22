@@ -494,12 +494,13 @@ class A2AAdapter(ProtocolAdapter):
             # intent from text.
             parts = [_make_text_part(self._format_tool_request(tool_name, params))]
 
+        discovery = tool_name == "get_adcp_capabilities"
         message = pb.Message(
             message_id=message_id,
             role=pb.Role.ROLE_USER,
             parts=parts,
-            context_id=self._context_id or "",
-            task_id=self._active_task_id or "",
+            context_id="" if discovery else self._context_id or "",
+            task_id="" if discovery else self._active_task_id or "",
         )
 
         request = pb.SendMessageRequest(message=message)
@@ -580,8 +581,13 @@ class A2AAdapter(ProtocolAdapter):
                 # All raise-sites have passed; commit next-turn state so
                 # the adapter reflects the response the caller is about
                 # to receive.
-                self._context_id = next_context_id
-                self._active_task_id = next_active_task_id
+                # Discovery is independent of business conversations, including
+                # an approval task retained across capability TTL refreshes.
+                # Guard writes rather than restoring old values after await:
+                # concurrent business calls may have advanced the session.
+                if not discovery:
+                    self._context_id = next_context_id
+                    self._active_task_id = next_active_task_id
                 # Post-receive schema validation. Only runs when the task
                 # carries data (terminal completion); async interim states
                 # with ``data=None`` skip naturally. Strict mode flips the
