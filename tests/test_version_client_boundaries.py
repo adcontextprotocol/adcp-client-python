@@ -1,0 +1,233 @@
+"""Regression coverage for application intent crossing negotiated boundaries."""
+
+from copy import deepcopy
+from unittest.mock import AsyncMock
+
+from adcp import ADCPClient
+from adcp.compat.versions import CONVERSION_METADATA_KEY
+from adcp.server.responses import capabilities_response
+from adcp.types import (
+    CreateMediaBuyRequest,
+    GetAdcpCapabilitiesResponse,
+    GetProductsRequest,
+    SyncAccountsRequest,
+    UpdateMediaBuyRequest,
+)
+from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
+from adcp.types.domains.enums.task_status import TaskStatus as GeneratedTaskStatus
+
+
+def _client(**kwargs):
+    return ADCPClient(
+        AgentConfig(id="seller", agent_uri="https://seller.example/mcp/", protocol=Protocol.MCP),
+        account_policy="off",
+        **kwargs,
+    )
+
+
+def _capabilities(version):
+    declaration = capabilities_response(
+        ["media_buy"], adcp_version=version, supported_versions=["3.0", version]
+    )
+    declaration["adcp"]["idempotency"] = {"supported": False}
+    if version == "3.1":
+        declaration["media_buy"] = {"features": {"canonical_creatives": False}}
+    return GetAdcpCapabilitiesResponse.model_validate(declaration)
+
+
+def _completed(data):
+    return TaskResult(status=TaskStatus.COMPLETED, success=True, data=data)
+
+
+def _discovery(**kwargs):
+    return GetProductsRequest.model_validate({"buying_mode": "brief", "brief": "video", **kwargs})
+
+
+async def test_per_call_newer_ceiling_preserves_explicit_null_clear():
+    client = _client(adcp_version="3.1")
+    client.fetch_capabilities = AsyncMock(return_value=_capabilities("3.2"))
+    wire = AsyncMock(return_value=TaskResult(status=TaskStatus.FAILED, success=False))
+    client.adapter._call_mcp_tool_wire = wire
+
+    await client.update_media_buy(
+        UpdateMediaBuyRequest.model_validate(
+            {
+                "adcp_version": "3.2",
+                "idempotency_key": "per-call-null-clear-1551",
+                "account": {"account_id": "account-one"},
+                "media_buy_id": "buy-one",
+                "frequency_cap": None,
+            }
+        )
+    )
+
+    params = wire.call_args.args[1]
+    assert params["adcp_version"] == "3.2"
+    assert "frequency_cap" in params
+    assert params["frequency_cap"] is None
+
+
+async def test_historical_prerelease_success_keeps_its_existing_response_path():
+    client = _client(server_version="3.2.0-beta.5")
+    client.adapter._call_mcp_tool_wire = AsyncMock(
+        return_value=_completed({"status": "completed", "products": [], "cache_scope": "public"})
+    )
+
+    result = await client.get_products(_discovery())
+
+    assert result.success, result.error
+    assert result.data.products == []
+    params = client.adapter._call_mcp_tool_wire.call_args.args[1]
+    assert result.metadata[CONVERSION_METADATA_KEY]["wire_version"] == params["adcp_version"]
+
+
+async def test_cold_legacy_discovery_converts_inline_creative_without_package_selector():
+    legacy_ref = {"agent_url": "https://formats.example/mcp", "id": "display_300x250_image"}
+    client = _client(canonical_format_legacy_resolver=lambda _: [legacy_ref])
+
+    async def respond(tool, params):
+        if tool == "get_adcp_capabilities":
+            return _completed(_capabilities("3.1").model_dump(mode="json", exclude_none=True))
+        return TaskResult(status=TaskStatus.FAILED, success=False)
+
+    wire = AsyncMock(side_effect=respond)
+    client.adapter._call_mcp_tool_wire = wire
+    assert client.capabilities is None
+
+    await client.create_media_buy(
+        CreateMediaBuyRequest.model_validate(
+            {
+                "idempotency_key": "cold-creative-conversion-1551",
+                "account": {"account_id": "account-one"},
+                "brand": {"domain": "brand.example"},
+                "start_time": "2026-11-01T00:00:00Z",
+                "end_time": "2026-11-30T00:00:00Z",
+                "packages": [
+                    {
+                        "product_id": "product-one",
+                        "pricing_option_id": "price-one",
+                        "budget": 1000,
+                        "creatives": [
+                            {
+                                "creative_id": "creative-one",
+                                "name": "Inline image",
+                                "format_kind": "image",
+                                "assets": {"headline": {"asset_type": "text", "content": "Hello"}},
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+    )
+
+    params = wire.call_args.args[1]
+    package = params["packages"][0]
+    assert params["adcp_version"] == "3.1"
+    assert "format_ids" not in package
+    assert package["creatives"][0]["format_id"] == legacy_ref
+    assert "format_kind" not in package["creatives"][0]
+
+
+async def test_response_parse_failure_keeps_request_loss_metadata():
+    client = _client(server_version="3.1")
+    client.adapter._call_mcp_tool_wire = AsyncMock(
+        return_value=_completed(
+            {"products": "invalid", "status": "completed", "cache_scope": "public"}
+        )
+    )
+
+    result = await client.get_products(
+        _discovery(brand={"domain": "brand.example", "countries": ["US"]})
+    )
+
+    assert not result.success
+    assert "parse" in result.error.lower()
+    report = result.metadata[CONVERSION_METADATA_KEY]
+    assert report["wire_version"] == "3.1"
+    assert any(loss["pointer"] == "/brand/countries" for loss in report["losses"])
+
+
+async def test_per_call_ceiling_cannot_exceed_configured_peer_version():
+    client = _client(server_version="3.1")
+    client.adapter._call_mcp_tool_wire = AsyncMock(
+        return_value=_completed({"products": [], "status": "completed", "cache_scope": "public"})
+    )
+
+    result = await client.get_products(_discovery(adcp_version="3.2"))
+
+    assert result.success, result.error
+    assert client.adapter._call_mcp_tool_wire.call_args.args[1]["adcp_version"] == "3.1"
+    assert result.metadata[CONVERSION_METADATA_KEY]["wire_version"] == "3.1"
+
+
+async def test_seller_upgrade_retains_provisioned_account_address_at_client_boundary():
+    key = {
+        "brand": {"domain": "brand.example", "countries": ["US"]},
+        "operator": "agency.example",
+        "operator_unit": {"id": "seat-one"},
+        "currency": "USD",
+        "timezone": "UTC",
+    }
+    reduced = {"brand": {"domain": "brand.example"}, "operator": "agency.example"}
+    client = _client()
+    client.fetch_capabilities = AsyncMock(return_value=_capabilities("3.1"))
+    client.adapter._call_mcp_tool_wire = AsyncMock(
+        return_value=_completed(
+            {
+                "status": "completed",
+                "accounts": [
+                    {
+                        **deepcopy(reduced),
+                        "account_id": "seller-account",
+                        "action": "created",
+                        "status": "active",
+                    }
+                ],
+            }
+        )
+    )
+    provisioned = await client.sync_accounts(
+        SyncAccountsRequest.model_validate(
+            {
+                "idempotency_key": "account-upgrade-1551",
+                "accounts": [{**key, "billing": "operator"}],
+            }
+        )
+    )
+    assert provisioned.success, provisioned.error
+    assert (await client.accounts.get(key)).wire_version == "3.1"
+    client.fetch_capabilities = AsyncMock(return_value=_capabilities("3.2"))
+    client.adapter._call_mcp_tool_wire = AsyncMock(
+        return_value=_completed({"products": [], "status": "completed", "cache_scope": "account"})
+    )
+
+    result = await client.get_products(_discovery(account=key))
+
+    assert result.success, result.error
+    params = client.adapter._call_mcp_tool_wire.call_args.args[1]
+    assert params["adcp_version"] == "3.2"
+    assert params["account"] == {**reduced, "sandbox": False}
+    assert result.metadata[CONVERSION_METADATA_KEY]["account_identity_migration_pending"] == [
+        {"pointer": "/account", "provisioned_wire_version": "3.1", "wire_version": "3.2"}
+    ]
+
+
+def test_known_legacy_webhook_upgrades_product_envelope_without_public_cache_assumption():
+    client = _client(server_version="3.0", webhook_secret="webhook-secret-for-test-1551")
+
+    result = client._parse_webhook_result(
+        task_id="task-one",
+        task_type="get_products",
+        operation_id="operation-one",
+        status=GeneratedTaskStatus.completed,
+        result={"products": []},
+        timestamp="2026-10-22T00:00:00Z",
+        message=None,
+        context_id=None,
+    )
+
+    assert result.success, result.error
+    assert result.data.status == "completed"
+    assert result.data.cache_scope == "account"
+    assert result.data.adcp_version == "3.2"

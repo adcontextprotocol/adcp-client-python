@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
+from contextlib import AbstractContextManager, nullcontext
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
 
+from adcp.compat.versions import ConversionResult
 from adcp.types.core import AgentConfig, TaskResult, TaskStatus
 from adcp.utils.response_parser import parse_json_or_text, parse_mcp_content
 from adcp.validation.client_hooks import ValidationHookConfig, ValidationMode
@@ -56,6 +58,9 @@ class ProtocolAdapter(ABC):
         # so the event hook never needs to fetch capabilities recursively on
         # the same MCP session.
         self.signing_capability_check: Callable[[], Awaitable[None]] | None = None
+        self.signing_request_scope: (
+            Callable[[str, dict[str, Any], str | None], AbstractContextManager[None]] | None
+        ) = None
         # Schema validation modes — resolved by the owning ADCPClient via
         # ``configure_validation``. Class defaults match the TS port: warn
         # on requests (don't block partial payloads in error-path tests),
@@ -80,6 +85,41 @@ class ProtocolAdapter(ABC):
         # types) — flipping any of them to ``extra="forbid"`` would break
         # this assumption silently.
         self.envelope_enricher: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+        self.request_converter: (
+            Callable[[str, dict[str, Any]], Awaitable[ConversionResult]] | None
+        ) = None
+        self.response_converter: (
+            Callable[[str, TaskResult[Any], ConversionResult], TaskResult[Any]] | None
+        ) = None
+
+    async def _prepare_outgoing_request(
+        self, tool: str, params: dict[str, Any]
+    ) -> ConversionResult:
+        if self.request_converter is not None:
+            return await self.request_converter(tool, params)
+        return ConversionResult(self._enrich_outgoing_params(params))
+
+    def _finish_incoming_result(
+        self, tool: str, result: TaskResult[Any], request: ConversionResult
+    ) -> TaskResult[Any]:
+        if self.response_converter is not None:
+            return self.response_converter(tool, result, request)
+        return result
+
+    def _outgoing_signing_scope(
+        self, tool: str, params: dict[str, Any]
+    ) -> AbstractContextManager[None]:
+        """Bind exact post-idempotency parameters for a transport writer hook."""
+        if self.signing_request_scope is None:
+            return nullcontext()
+        return self.signing_request_scope(tool, params, self._request_version(params))
+
+    @staticmethod
+    def _request_version(params: dict[str, Any]) -> str | None:
+        version = params.get("adcp_version")
+        if isinstance(version, str):
+            return version
+        return "3.0" if params.get("adcp_major_version") == 3 else None
 
     def _enrich_outgoing_params(self, params: Any) -> Any:
         """Apply ``envelope_enricher`` to an outbound params dict.
@@ -131,6 +171,7 @@ class ProtocolAdapter(ABC):
                 message=raw_result.message,
                 success=raw_result.success,  # Preserve original success state
                 error=raw_result.error,  # Only use error if one was set
+                adcp_error=raw_result.adcp_error,
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
                 idempotency_key=raw_result.idempotency_key,
@@ -151,6 +192,7 @@ class ProtocolAdapter(ABC):
                 message=raw_result.message,  # Preserve human-readable message from protocol
                 success=raw_result.success,
                 error=raw_result.error,
+                adcp_error=raw_result.adcp_error,
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
                 idempotency_key=raw_result.idempotency_key,
@@ -163,8 +205,10 @@ class ProtocolAdapter(ABC):
             return TaskResult[T](
                 status=TaskStatus.FAILED,
                 error=f"Failed to parse response: {e}",
+                adcp_error=raw_result.adcp_error,
                 message=raw_result.message,
                 success=False,
+                metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
                 idempotency_key=raw_result.idempotency_key,
                 replayed=raw_result.replayed,

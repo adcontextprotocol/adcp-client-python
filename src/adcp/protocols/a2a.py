@@ -431,6 +431,13 @@ class A2AAdapter(ProtocolAdapter):
     async def _call_a2a_tool(
         self, tool_name: str, params: dict[str, Any], use_explicit_skill: bool = True
     ) -> TaskResult[Any]:
+        request = await self._prepare_outgoing_request(tool_name, params)
+        result = await self._call_a2a_tool_wire(tool_name, request.payload, use_explicit_skill)
+        return self._finish_incoming_result(tool_name, result, request)
+
+    async def _call_a2a_tool_wire(
+        self, tool_name: str, params: dict[str, Any], use_explicit_skill: bool = True
+    ) -> TaskResult[Any]:
         """
         Call a tool using A2A protocol via official a2a-sdk client.
 
@@ -450,7 +457,6 @@ class A2AAdapter(ProtocolAdapter):
             tool_name, params, client_token=self.idempotency_client_token
         )
         # Apply per-instance envelope enrichment (e.g. adcp_version pin).
-        params = self._enrich_outgoing_params(params)
         assert_reporting_request_supported(tool_name, params)
 
         # Pre-send schema validation. Matches the MCP adapter: strict mode
@@ -461,11 +467,7 @@ class A2AAdapter(ProtocolAdapter):
                 tool_name,
                 params,
                 self.request_validation_mode,
-                version=(
-                    params.get("adcp_version")
-                    if isinstance(params.get("adcp_version"), str)
-                    else None
-                ),
+                version=self._request_version(params),
             )
         except SchemaValidationError as exc:
             return TaskResult[Any](
@@ -526,7 +528,12 @@ class A2AAdapter(ProtocolAdapter):
                 mutating=_idempotency.is_mutating(tool_name),
                 idempotency_key=idempotency_key,
             )
-            stream_event = await self._send_and_aggregate(a2a_client, request)
+            # Fingerprint the protobuf's actual JSON values. Struct numbers
+            # normalize to floats, so the original Python dict may differ.
+            invocation = _part_data_dict(parts[0]) if use_explicit_skill else None
+            signing_params = invocation["parameters"] if invocation is not None else params
+            with self._outgoing_signing_scope(tool_name, signing_params):
+                stream_event = await self._send_and_aggregate(a2a_client, request)
 
             payload_kind = stream_event.WhichOneof("payload")
             if payload_kind == "task":
@@ -584,7 +591,7 @@ class A2AAdapter(ProtocolAdapter):
                 # call in the same conversation should still target the
                 # right session.
                 if task_result.success and task_result.data is not None:
-                    response_version = (
+                    response_version = self._request_version(params) or (
                         task_result.data.get("adcp_version")
                         if isinstance(task_result.data, dict)
                         and isinstance(task_result.data.get("adcp_version"), str)

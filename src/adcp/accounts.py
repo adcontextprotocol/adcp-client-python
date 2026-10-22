@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
@@ -53,6 +54,8 @@ class AccountRecord:
 
     account_id: str | None
     status: str | None
+    wire_key: dict[str, Any] | None = None
+    wire_version: str | None = None
 
 
 class AccountStorage(Protocol):
@@ -60,6 +63,8 @@ class AccountStorage(Protocol):
 
     An adapter MUST be private to one authenticated buyer identity. Sharing
     it across credentials requires a separate namespace for each buyer.
+    Persist the optional ``AccountRecord.wire_key`` and ``wire_version``
+    fields to retain account continuity across seller upgrades and restarts.
     """
 
     async def load(self, seller: str, key: str) -> AccountRecord | None: ...
@@ -125,7 +130,11 @@ def _sync_key(
             matched = key == echoed
         else:
             matched = all(
-                key.get(name) == value
+                (
+                    all(key.get("brand", {}).get(part) == item for part, item in value.items())
+                    if name == "brand" and isinstance(value, dict)
+                    else key.get(name) == value
+                )
                 for name, value in echoed.items()
                 if name in ref or name in {"brand", "operator"}
             )
@@ -157,6 +166,67 @@ class AccountRegistry:
     async def forget(self, key: AccountReference | Mapping[str, Any]) -> None:
         """Invalidate a stale record, e.g. after a seller reports a missing account."""
         await self._storage.delete(self._seller, account_key(key))
+
+    async def preserve_wire_keys(
+        self, operation: str, params: dict[str, Any], *, version: str
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Keep previously reduced account addresses stable across seller upgrades.
+
+        Full application keys remain the storage address. A seller upgrading its
+        schemas does not reconcile an existing account's identity, so subsequent
+        requests must retain the natural key used to provision it. Diagnostics
+        contain paths and versions only, never account identifiers.
+        """
+        from adcp._version import (
+            is_adcp_version_at_least,
+            normalize_to_release_precision,
+            resolve_adcp_version_alias,
+        )
+
+        result = deepcopy(params)
+        pending: list[dict[str, Any]] = []
+        references: list[tuple[dict[str, Any], str]] = []
+        if isinstance(result.get("account"), dict):
+            references.append((result["account"], "/account"))
+        if operation == "sync_accounts":
+            references.extend(
+                (entry, f"/accounts/{index}")
+                for index, entry in enumerate(result.get("accounts") or [])
+                if isinstance(entry, dict)
+            )
+        for reference, pointer in references:
+            if reference.get("account_id"):
+                continue
+            try:
+                record = await self.get(reference)
+            except ValueError:
+                continue
+            if record is None or record.wire_key is None:
+                continue
+            # Only identity dimensions are replaced. Keep provisioning options
+            # and mutable display metadata supplied by this request.
+            for name in ("operator", "operator_unit", "currency", "timezone", "sandbox"):
+                if name in record.wire_key:
+                    reference[name] = deepcopy(record.wire_key[name])
+                else:
+                    reference.pop(name, None)
+            brand = reference.get("brand", {})
+            for name in ("domain", "brand_id", "countries"):
+                if name in record.wire_key["brand"]:
+                    brand[name] = deepcopy(record.wire_key["brand"][name])
+                else:
+                    brand.pop(name, None)
+            reference["brand"] = brand
+            normalized = resolve_adcp_version_alias(normalize_to_release_precision(version))
+            if is_adcp_version_at_least(normalized, "3.2"):
+                pending.append(
+                    {
+                        "pointer": pointer,
+                        "provisioned_wire_version": record.wire_version,
+                        "wire_version": version,
+                    }
+                )
+        return result, pending
 
     async def ensure(
         self,
@@ -287,10 +357,39 @@ class AccountRegistry:
                     key.pop("timezone", None)
             if row.get("action") is None and operation == "sync_accounts":
                 continue
+            previous = await self.get(key)
+            wire_key = previous.wire_key if previous is not None else None
+            wire_version = previous.wire_version if previous is not None else None
+            report = (getattr(result, "metadata", None) or {}).get("adcp_version_conversion", {})
+            observed_version = report.get("wire_version")
+            if (
+                operation == "sync_accounts"
+                and wire_key is None
+                and "account_id" not in key
+                and isinstance(observed_version, str)
+                and observed_version in {"3.0", "3.1"}
+            ):
+                from adcp.compat.versions import convert_payload
+
+                reduced = convert_payload(
+                    "sync_accounts",
+                    {"accounts": [key]},
+                    direction="request",
+                    source_version="3.2",
+                    target_version=observed_version,
+                ).payload["accounts"][0]
+                if account_key(reduced) != account_key(key):
+                    wire_key = account_key_payload(reduced)
+                    wire_version = observed_version
             await self._storage.save(
                 self._seller,
                 account_key(key),
-                AccountRecord(account_id=row.get("account_id"), status=row.get("status")),
+                AccountRecord(
+                    account_id=row.get("account_id"),
+                    status=row.get("status"),
+                    wire_key=wire_key,
+                    wire_version=wire_version,
+                ),
             )
 
     async def prepare(self, operation: str, request: BaseModel, policy: AccountPolicy) -> BaseModel:

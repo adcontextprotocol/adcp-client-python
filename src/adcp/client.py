@@ -13,6 +13,7 @@ import os
 import time
 import warnings
 from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping
+from copy import deepcopy
 from datetime import datetime, timezone
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ParamSpec, TypedDict, TypeVar, cast
@@ -31,7 +32,11 @@ from adcp._response_limit import (
     reset_call_max_response_bytes,
     set_call_max_response_bytes,
 )
-from adcp._version import resolve_adcp_version
+from adcp._version import (
+    normalize_to_release_precision,
+    resolve_adcp_version,
+    resolve_adcp_version_alias,
+)
 from adcp.accounts import (
     ACCOUNT_POLICIES,
     AccountPolicy,
@@ -54,9 +59,17 @@ from adcp.canonical_formats import (
 )
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
+from adcp.compat.versions import (
+    CONVERSION_METADATA_KEY,
+    ConversionLoss,
+    ConversionResult,
+    convert_payload,
+    negotiate_version,
+)
 from adcp.exceptions import (
     ACCOUNT_ERROR_CODE_MAP,
     ADCPError,
+    ADCPFeatureUnsupportedError,
     ADCPResponseEncodingError,
     ADCPResponseTooLargeError,
     ADCPTimeoutError,
@@ -92,6 +105,7 @@ from adcp.signing.autosign import (
 from adcp.signing.autosign import (
     current_operation as _signing_current_operation,
 )
+from adcp.signing.negotiated_profiles import NegotiatedSigningProfiles
 from adcp.signing.signer import sign_request
 from adcp.task_options import (
     TaskOptions,
@@ -844,11 +858,11 @@ class ADCPClient:
                 advertises before pinning.
 
                 Raises ``TypeError`` if passed with a non-A2A protocol.
-            adcp_version: AdCP protocol release this client speaks
+            adcp_version: Maximum AdCP protocol release to negotiate
                 (release-precision string, e.g. ``"3.0"``, ``"3.1"``,
-                ``"3.1-beta"``). Stripe-style per-instance pin: the
-                value is sent as ``adcp_version`` on every outbound
-                request and selects creative dialect behavior. ``None``
+                ``"3.1-beta"``). Each call selects the highest release
+                shared with the seller, at or below this ceiling. Application
+                requests and responses use the SDK's latest models. ``None``
                 (default) resolves
                 to the SDK's compile-time pin (``ADCP_VERSION``
                 packaged with the wheel). Cross-major pins raise
@@ -861,9 +875,9 @@ class ADCPClient:
                 of the negotiation contract. ``get_adcp_version()``
                 returns the normalized form.
 
-                Caller-supplied ``adcp_version`` on a per-call params
-                dict wins over the constructor pin: the enricher is
-                the default, not an override.
+                Caller-supplied ``adcp_version`` on a per-call params dict
+                supplies that call's ceiling. ``server_version`` explicitly
+                declares the peer's wire version and bypasses discovery.
 
                 Migration from ``adcp_major_version`` (legacy integer
                 wire field): generated request types still expose
@@ -941,6 +955,7 @@ class ADCPClient:
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
+        self._task_wire_contexts: dict[tuple[str, str], ConversionResult] = {}
         self._feature_resolver: FeatureResolver | None = None
         self._capabilities_fetched_at: float | None = None
         self._idempotency_capability_verified: bool = False
@@ -975,8 +990,10 @@ class ADCPClient:
         if strict_idempotency:
             self.adapter.idempotency_capability_check = self._ensure_idempotency_capability
         if signing is not None:
+            self._negotiated_signing_profiles = NegotiatedSigningProfiles()
             self.adapter.signing_request_hook = self._sign_outgoing_request
             self.adapter.signing_capability_check = self._prepare_signing_capabilities
+            self.adapter.signing_request_scope = self._negotiated_signing_profiles.bind
         # Apply schema validation modes (default: requests=warn, responses=strict
         # in dev/test, warn in production — see ``ValidationHookConfig`` docs).
         self.adapter.configure_validation(validation)
@@ -997,6 +1014,8 @@ class ADCPClient:
             return {"adcp_version": _pinned_version, **params}
 
         self.adapter.envelope_enricher = _inject_adcp_version
+        self.adapter.request_converter = self._convert_outgoing_request
+        self.adapter.response_converter = self._convert_incoming_response
 
         if context_id:
             # Empty string is treated as "not provided" — callers using
@@ -1012,6 +1031,181 @@ class ADCPClient:
         from adcp.simple import SimpleAPI
 
         self.simple = SimpleAPI(self)
+
+    async def _convert_outgoing_request(
+        self, tool: str, params: dict[str, Any]
+    ) -> ConversionResult:
+        """Negotiate independently for each call; discovery uses its own envelope."""
+        if tool == "get_adcp_capabilities":
+            # An unversioned discovery request works before the peer's version
+            # set is known. Preserve explicit discovery pins for callers.
+            return ConversionResult(dict(params))
+        maximum = params.get("adcp_version") or self._adcp_version
+        declared_peer = self._server_version or maximum
+        if not str(declared_peer).startswith("3."):
+            return ConversionResult(self.adapter._enrich_outgoing_params(params))
+        if "-" in str(declared_peer) and declared_peer != "3.2-rc.7":
+            # Historical prerelease pins keep their exact contract and gates;
+            # minor-release translators must not guess prerelease semantics.
+            return ConversionResult(self.adapter._enrich_outgoing_params(params))
+        if self._server_version is not None:
+            target = negotiate_version([self._server_version], maximum=maximum)
+        else:
+            caps = await self.fetch_capabilities()
+            declared = caps.model_dump(mode="json", exclude_none=True).get("adcp", {})
+            supported = declared.get("supported_versions")
+            if supported is None:
+                # Major-only advertisements predate minor negotiation.
+                supported = ["3.0"] if 3 in declared.get("major_versions", []) else []
+            target = negotiate_version(supported, maximum=maximum)
+        prepared = deepcopy(params)
+        prepared["adcp_version"] = target
+        try:
+            prepared, migrations = await self.accounts.preserve_wire_keys(
+                tool, prepared, version=target
+            )
+        except Exception:
+            if self.account_policy != "off":
+                raise
+            logger.warning("Account continuity storage unavailable for %s", self.agent_config.id)
+            migrations = []
+        continuity_losses: list[ConversionLoss] = []
+        for migration in migrations:
+            pointer = migration["pointer"]
+            if pointer == "/account":
+                original, retained = params.get("account", {}), prepared.get("account", {})
+            else:
+                index = int(pointer.split("/")[-1])
+                original, retained = params["accounts"][index], prepared["accounts"][index]
+            dropped = [
+                name
+                for name in ("operator_unit", "currency", "timezone")
+                if name in original and name not in retained
+            ]
+            if "countries" in original.get("brand", {}) and "countries" not in retained.get(
+                "brand", {}
+            ):
+                dropped.append("brand/countries")
+            for name in dropped:
+                loss = ConversionLoss(
+                    f"{pointer}/{name}",
+                    resolve_adcp_version(None),
+                    migration["provisioned_wire_version"],
+                    "account_identity_migration_pending",
+                )
+                continuity_losses.append(loss)
+                logger.warning("Account continuity retained an older identity at %s", loss.pointer)
+        dialect = (
+            self._creative_dialect(prepared, legacy_projection_available=True)
+            if tool in _LEGACY_CREATIVE_TASKS
+            else None
+        )
+        if dialect is CreativeDialect.LEGACY:
+            for collection in ("packages", "new_packages"):
+                for index, package in enumerate(prepared.get(collection) or []):
+                    if isinstance(package, dict):
+                        self._downgrade_package(package, field=f"{collection}[{index}]")
+            for index, creative in enumerate(prepared.get("creatives") or []):
+                if creative.get("format_kind") or creative.get("format_option_ref"):
+                    self._downgrade_creative(creative, field=f"creatives[{index}]")
+        converted = convert_payload(
+            tool,
+            prepared,
+            direction="request",
+            source_version=resolve_adcp_version(None),
+            target_version=target,
+        )
+        return ConversionResult(
+            converted.payload,
+            converted.losses + tuple(continuity_losses),
+            dialect.value if dialect is not None else None,
+            identity_migrations=tuple(migrations),
+        )
+
+    def _convert_incoming_response(
+        self, tool: str, result: TaskResult[Any], request: ConversionResult
+    ) -> TaskResult[Any]:
+        """Upgrade validated wire data and retain request losses on failures too."""
+        version = self.adapter._request_version(request.payload)
+        losses = request.metadata()
+        if result.success and isinstance(result.data, dict):
+            version = version or result.data.get("adcp_version")
+            if (
+                isinstance(version, str)
+                and version.startswith("3.")
+                and "-" not in resolve_adcp_version_alias(normalize_to_release_precision(version))
+            ):
+                direction = result.data.get("status")
+                try:
+                    converted = convert_payload(
+                        tool,
+                        result.data,
+                        direction=(
+                            direction
+                            if direction in {"submitted", "working", "input-required"}
+                            else "sync"
+                        ),
+                        source_version=version,
+                        target_version=resolve_adcp_version(None),
+                        request=request.payload,
+                    )
+                    result = result.model_copy(update={"data": converted.payload})
+                    losses.extend(converted.metadata())
+                except ADCPFeatureUnsupportedError as exc:
+                    message = str(exc)
+                    metadata = dict(result.metadata or {})
+                    metadata["adcp_conversion_wire_response"] = result.data
+                    details = {
+                        "source_version": version,
+                        "target_version": resolve_adcp_version(None),
+                        "wire_response_received": True,
+                    }
+                    for name in ("pointer", "reason"):
+                        if getattr(exc, name, None) is not None:
+                            details[name] = getattr(exc, name)
+                    result = result.model_copy(
+                        update={
+                            "success": False,
+                            "status": TaskStatus.FAILED,
+                            "data": None,
+                            "error": message,
+                            "metadata": metadata,
+                            "adcp_error": {
+                                "code": "UNSUPPORTED_FEATURE",
+                                "message": message,
+                                "details": details,
+                            },
+                        }
+                    )
+        if version is not None or losses:
+            metadata = dict(result.metadata or {})
+            metadata[CONVERSION_METADATA_KEY] = {"wire_version": version, "losses": losses}
+            if request.creative_dialect is not None:
+                metadata[CONVERSION_METADATA_KEY]["creative_dialect"] = request.creative_dialect
+            if request.identity_migrations:
+                metadata[CONVERSION_METADATA_KEY]["account_identity_migration_pending"] = list(
+                    request.identity_migrations
+                )
+                for migration in request.identity_migrations:
+                    logger.warning("Account identity migration pending at %s", migration["pointer"])
+            result = result.model_copy(update={"metadata": metadata})
+        if result.success and isinstance(version, str):
+            body = result.data if isinstance(result.data, dict) else {}
+            task_id = body.get("task_id") or (result.metadata or {}).get("task_id")
+            if isinstance(task_id, str) and (
+                body.get("status") in {"submitted", "working", "input-required"}
+                or result.status
+                in {TaskStatus.SUBMITTED, TaskStatus.WORKING, TaskStatus.NEEDS_INPUT}
+            ):
+                context: dict[str, Any] = {"adcp_version": version}
+                if request.payload.get("account") is not None:
+                    context["account"] = {}
+                self._task_wire_contexts[(task_id, tool)] = ConversionResult(
+                    context, creative_dialect=request.creative_dialect
+                )
+                if len(self._task_wire_contexts) > 1024:
+                    self._task_wire_contexts.pop(next(iter(self._task_wire_contexts)))
+        return result
 
     def get_adcp_version(self) -> str:
         """Return the AdCP protocol release this client is pinned to.
@@ -1495,7 +1689,11 @@ class ADCPClient:
             cover_digest = True
 
         body = request.content
-        signing_profile_version = self._signing_profile_version
+        signing_profile_version = (
+            self.signing.signing_profile_version
+            or self._negotiated_signing_profiles.resolve(request.content)
+            or self._signing_profile_version
+        )
         if signing_profile_version is None:  # pragma: no cover - constructor invariant
             raise RuntimeError("request signing profile was not initialized")
         signed = sign_request(
@@ -1855,16 +2053,29 @@ class ADCPClient:
                     self._canonical_legacy_routes[global_key] = None
 
     def _creative_dialect(
-        self, request: Any = None, *, legacy_projection_available: bool = False
+        self,
+        request: Any = None,
+        *,
+        legacy_projection_available: bool = False,
+        result: TaskResult[Any] | None = None,
     ) -> CreativeDialect:
         """Resolve this call's wire dialect from version, capability, and request evidence."""
 
+        if result is not None:
+            report = (result.metadata or {}).get(CONVERSION_METADATA_KEY, {})
+            if report.get("creative_dialect") in {"canonical", "legacy"}:
+                return CreativeDialect(report["creative_dialect"])
         request_version = None
         if isinstance(request, dict):
             request_version = request.get("adcp_version")
         elif request is not None:
             request_version = getattr(request, "adcp_version", None)
         version = request_version or self._server_version or self._adcp_version
+        if self._server_version is None and self._capabilities is not None:
+            declared = self._capabilities.model_dump(mode="json", exclude_none=True).get("adcp", {})
+            supported = declared.get("supported_versions")
+            if supported:
+                version = negotiate_version(supported, maximum=version)
         if not str(version).startswith("3."):
             return CreativeDialect.LEGACY
         return resolve_creative_dialect(
@@ -1960,11 +2171,14 @@ class ADCPClient:
             package.pop("params", None)
 
         for index, creative in enumerate(package.get("creatives") or []):
-            self._downgrade_creative(
-                creative,
-                field=f"{field}.creatives[{index}]",
-                product_id=product_id,
-            )
+            if isinstance(creative, dict) and (
+                creative.get("format_kind") or creative.get("format_option_ref")
+            ):
+                self._downgrade_creative(
+                    creative,
+                    field=f"{field}.creatives[{index}]",
+                    product_id=product_id,
+                )
 
     def _downgrade_creative(
         self,
@@ -2003,7 +2217,7 @@ class ADCPClient:
             # create/update_media_buy would drop every targeting null-clear and
             # the MediaBuy-level frequency_cap removal.
             params = preserve_explicit_nulls(
-                request, params, task_name=task_name, version=self._adcp_version
+                request, params, task_name=task_name, version=resolve_adcp_version(None)
             )
         if strip_legacy_creative_identity(params) != params:
             raise ValueError(
@@ -2240,7 +2454,7 @@ class ADCPClient:
         # from becoming a request no seller can accept. Kept on the shared
         # client path so MCP and A2A preserve the same intent.
         params = preserve_explicit_nulls(
-            request, params, task_name=task_type, version=self._adcp_version
+            request, params, task_name=task_type, version=resolve_adcp_version(None)
         )
         self._emit_activity(
             Activity(
@@ -2801,7 +3015,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncCreativesResponse
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request, task_name="sync_creatives")
 
@@ -2828,7 +3042,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.LEGACY:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.LEGACY
+        ):
             return cast(
                 TaskResult[SyncCreativesResponse],
                 self._canonicalize_lifecycle_result(
@@ -2856,7 +3073,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListCreativesResponse
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -2883,7 +3100,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.CANONICAL:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.CANONICAL
+        ):
             return self.adapter._parse_response(raw_result, ListCreativesResponse)
         return cast(
             TaskResult[ListCreativesResponse],
@@ -2913,7 +3133,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetMediaBuyDeliveryResponse
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -2940,7 +3160,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.LEGACY:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.LEGACY
+        ):
             return cast(
                 TaskResult[GetMediaBuyDeliveryResponse],
                 self._canonicalize_lifecycle_result(
@@ -2968,7 +3191,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetMediaBuysResponse
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
         if params.get("include_webhook_activity") is False:
@@ -2999,7 +3222,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.LEGACY:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.LEGACY
+        ):
             return cast(
                 TaskResult[GetMediaBuysResponse],
                 self._canonicalize_lifecycle_result(
@@ -3185,7 +3411,7 @@ class ADCPClient:
             >>> if result.success:
             ...     media_buy_id = result.data.media_buy_id
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request, task_name="create_media_buy")
 
@@ -3212,7 +3438,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.LEGACY:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.LEGACY
+        ):
             return cast(
                 TaskResult[CreateMediaBuyResponse],
                 self._canonicalize_lifecycle_result(
@@ -3263,7 +3492,7 @@ class ADCPClient:
             >>> if result.success:
             ...     updated_packages = result.data.packages
         """
-        dialect = self._creative_dialect(request, legacy_projection_available=True)
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request, task_name="update_media_buy")
 
@@ -3290,7 +3519,10 @@ class ADCPClient:
             )
         )
 
-        if dialect is CreativeDialect.LEGACY:
+        if (
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
+            is CreativeDialect.LEGACY
+        ):
             return cast(
                 TaskResult[UpdateMediaBuyResponse],
                 self._canonicalize_lifecycle_result(
@@ -3871,7 +4103,7 @@ class ADCPClient:
         )
 
         if (
-            self._creative_dialect(request, legacy_projection_available=True)
+            self._creative_dialect(request, legacy_projection_available=True, result=raw_result)
             is CreativeDialect.CANONICAL
         ):
             return self.adapter._parse_response(raw_result, GetCreativeDeliveryResponse)
@@ -5954,6 +6186,7 @@ class ADCPClient:
         context_id: str | None,
         *,
         preserve_legacy_identity: bool = False,
+        wire_version: str | None = None,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Parse webhook data into typed TaskResult based on task_type.
@@ -5976,6 +6209,80 @@ class ADCPClient:
             protocol-agnostic parameters rather than protocol-specific objects.
         """
         from adcp.utils.response_parser import parse_json_or_text
+        from adcp.validation.client_hooks import validate_incoming_response
+        from adcp.validation.schema_validator import format_issues
+
+        conversion_metadata: dict[str, Any] = {
+            "task_id": task_id,
+            "operation_id": operation_id,
+            "timestamp": timestamp,
+            "message": message,
+            "context_id": context_id,
+        }
+        callback_dialect: CreativeDialect | None = None
+        wire_result = result
+        if (
+            status == GeneratedTaskStatus.completed
+            and isinstance(result, dict)
+            and not preserve_legacy_identity
+        ):
+            saved_context = self._task_wire_contexts.pop((task_id, task_type), None)
+            version = (
+                wire_version
+                or result.get("adcp_version")
+                or (self.adapter._request_version(saved_context.payload) if saved_context else None)
+                or self._server_version
+                or self._adcp_version
+            )
+            if isinstance(version, str) and version.startswith("3."):
+                # Authentication happens before this parser. Validate the
+                # authenticated wire mapping before applying application defaults.
+                outcome = validate_incoming_response(
+                    task_type, result, self.adapter.response_validation_mode, version=version
+                )
+                if not outcome.valid and self.adapter.response_validation_mode == "strict":
+                    summary = format_issues(outcome.issues)
+                    return TaskResult(
+                        status=TaskStatus.FAILED,
+                        success=False,
+                        error=f"Schema validation failed for {task_type}: {summary}",
+                        metadata={
+                            **conversion_metadata,
+                            CONVERSION_METADATA_KEY: {"wire_version": version, "losses": []},
+                        },
+                    )
+                context = saved_context or ConversionResult(
+                    {"adcp_version": version, "account": {}}
+                )
+                converted = self._convert_incoming_response(
+                    task_type,
+                    TaskResult(
+                        status=TaskStatus.COMPLETED,
+                        success=True,
+                        data=result,
+                        metadata=conversion_metadata,
+                    ),
+                    context,
+                )
+                if not converted.success:
+                    return cast(TaskResult[AdcpAsyncResponseData], converted)
+                result = converted.data
+                conversion_metadata = converted.metadata or {}
+                dialect = conversion_metadata.get(CONVERSION_METADATA_KEY, {}).get(
+                    "creative_dialect"
+                )
+                if dialect in {"canonical", "legacy"}:
+                    callback_dialect = CreativeDialect(dialect)
+                elif task_type in _LEGACY_CREATIVE_TASKS:
+                    try:
+                        callback_dialect = resolve_creative_dialect(
+                            version,
+                            request=wire_result,
+                            capabilities=self._capabilities,
+                            legacy_projection_available=True,
+                        )
+                    except CreativeDialectError:
+                        callback_dialect = None
 
         # Map task types to their response types (using string literals, not enum)
         # Note: Some response types are Union types (e.g., ActivateSignalResponse = Success | Error)
@@ -6083,6 +6390,7 @@ class ADCPClient:
                         success=True,
                         message=message,
                         metadata={
+                            **conversion_metadata,
                             "task_id": task_id,
                             "operation_id": operation_id,
                             "timestamp": timestamp,
@@ -6105,7 +6413,8 @@ class ADCPClient:
             if (
                 not preserve_legacy_identity
                 and lifecycle_types is not None
-                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+                and (callback_dialect or self._callback_creative_dialect(result))
+                is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_lifecycle_result(
                     TaskResult[Any](
@@ -6113,6 +6422,7 @@ class ADCPClient:
                         data=result,
                         success=True,
                         message=message,
+                        metadata=conversion_metadata,
                     ),
                     legacy_type=lifecycle_types[0],
                     canonical_type=lifecycle_types[1],
@@ -6121,7 +6431,8 @@ class ADCPClient:
             if (
                 not preserve_legacy_identity
                 and task_type == "list_creatives"
-                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+                and (callback_dialect or self._callback_creative_dialect(result))
+                is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_format_read_result(
                     TaskResult[Any](
@@ -6129,6 +6440,7 @@ class ADCPClient:
                         data=result,
                         success=True,
                         message=message,
+                        metadata=conversion_metadata,
                     ),
                     legacy_type=LegacyListCreativesResponse,
                     canonical_type=ListCreativesResponse,
@@ -6139,7 +6451,8 @@ class ADCPClient:
             if (
                 not preserve_legacy_identity
                 and task_type == "get_creative_delivery"
-                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+                and (callback_dialect or self._callback_creative_dialect(result))
+                is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_format_read_result(
                     TaskResult[Any](
@@ -6147,6 +6460,7 @@ class ADCPClient:
                         data=result,
                         success=True,
                         message=message,
+                        metadata=conversion_metadata,
                     ),
                     legacy_type=LegacyGetCreativeDeliveryResponse,
                     canonical_type=GetCreativeDeliveryResponse,
@@ -6159,13 +6473,14 @@ class ADCPClient:
                 try:
                     parsed_result: Any = parse_json_or_text(result, response_type)
                     metadata: dict[str, Any] = {
+                        **conversion_metadata,
                         "task_id": task_id,
                         "operation_id": operation_id,
                         "timestamp": timestamp,
                         "message": message,
                     }
                     if task_type == "refine_proposals" and isinstance(result, Mapping):
-                        metadata[WIRE_RESPONSE_METADATA_KEY] = result
+                        metadata[WIRE_RESPONSE_METADATA_KEY] = wire_result
                     return TaskResult[AdcpAsyncResponseData](
                         status=TaskStatus.COMPLETED,
                         data=parsed_result,
@@ -6197,6 +6512,7 @@ class ADCPClient:
                     error_message = first_error.message
 
         fallback_metadata: dict[str, Any] = {
+            **conversion_metadata,
             "task_id": task_id,
             "operation_id": operation_id,
             "timestamp": timestamp,
@@ -6204,7 +6520,7 @@ class ADCPClient:
             "context_id": context_id,
         }
         if task_type == "refine_proposals" and isinstance(result, Mapping):
-            fallback_metadata[WIRE_RESPONSE_METADATA_KEY] = result
+            fallback_metadata[WIRE_RESPONSE_METADATA_KEY] = wire_result
         return TaskResult[AdcpAsyncResponseData](
             status=task_status,
             data=result,
@@ -6329,6 +6645,7 @@ class ADCPClient:
             message=webhook.message,
             context_id=webhook.context_id,
             preserve_legacy_identity=preserve_legacy_identity,
+            wire_version=payload.get("adcp_version"),
         )
 
     async def _handle_a2a_webhook(

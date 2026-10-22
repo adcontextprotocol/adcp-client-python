@@ -368,6 +368,10 @@ adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
 adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
 ```
 
+Client calls and server handlers use current application models while the SDK
+translates older wire versions. See [cross-version conversion](docs/cross-version-conversion.md)
+for negotiation, dropped-field reports, and account-key reduction.
+
 The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility
 alias for buyers shipped with `adcp==8.0.0rc3`. These requests use the stable
 3.2 validators and responses retain the `"3.2-rc.7"` alias so strict rc3
