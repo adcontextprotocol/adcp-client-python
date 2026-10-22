@@ -38,6 +38,16 @@ confirmation timestamp instead.
 When converting a response down to a release that permits omission but rejects
 `null`, the SDK omits that field and records the loss. Request-side explicit
 null clears instead fail if the older contract cannot express the clear.
+Historical product reporting metrics that have no verified newer equivalent,
+including 3.0's `video_completions`, also fail with an exact field pointer.
+The SDK does not manufacture a mapping to `completed_views`.
+
+Older governance registrations can name several agents or restrict an agent to
+specific `categories`. AdCP 3.1+ instead assigns one agent the full account
+lifecycle. The SDK rejects those older scoped or multi-agent registrations with
+a structured version-conversion error before handler dispatch; it never drops
+scope restrictions or merges governance authorities automatically. A legacy
+single-agent registration without categories upgrades normally.
 
 Both MCP and A2A validate requests after converting to the wire version and
 validate responses before upgrading them. Server dispatch validates an older
@@ -45,7 +55,9 @@ request against its original schema, upgrades it before typed handler parsing,
 and converts the response before wire validation. `ToolContext.resolved_adcp_version`
 continues to describe the buyer's wire contract for transport-aware integrations.
 Response envelope defaults and the 3.0 media-buy lifecycle status are adapted
-at the boundary. Frozen reporting feeds and receipt ingress retain their exact
+at the boundary. Governance decision and acknowledgement statuses map to
+`verdict` and `outcome_state`, including verdicts on audit check entries.
+Frozen reporting feeds and receipt ingress retain their exact
 version restrictions because they preserve signed/durable wire data.
 
 Polling results use their `task_type` to convert the embedded `result`, including

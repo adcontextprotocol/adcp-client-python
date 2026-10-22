@@ -329,6 +329,8 @@ async def test_established_route_negotiates_old_response_through_real_boundary(
 
     assert lifecycle.negotiated_version == seller_version
     assert listing.compatibility.lifecycle is MediaBuyLifecycle.ESTABLISHED
+    assert listing.raw.data.adcp_version == "3.2"
+    assert listing.raw.metadata["adcp_version_conversion"]["wire_version"] == seller_version
     assert purchase.success
     routed = [name for name, _ in handler.calls]
     assert "get_products" in routed

@@ -3,13 +3,17 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock
 
+import pytest
+
 from adcp import ADCPClient
 from adcp.compat.versions import CONVERSION_METADATA_KEY
+from adcp.exceptions import ADCPError
 from adcp.server.responses import capabilities_response
 from adcp.types import (
     CreateMediaBuyRequest,
     GetAdcpCapabilitiesResponse,
     GetProductsRequest,
+    ListProductsRequest,
     SyncAccountsRequest,
     UpdateMediaBuyRequest,
 )
@@ -20,7 +24,7 @@ from adcp.types.domains.enums.task_status import TaskStatus as GeneratedTaskStat
 def _client(**kwargs):
     return ADCPClient(
         AgentConfig(id="seller", agent_uri="https://seller.example/mcp/", protocol=Protocol.MCP),
-        account_policy="off",
+        account_policy=kwargs.pop("account_policy", "off"),
         **kwargs,
     )
 
@@ -41,6 +45,74 @@ def _completed(data):
 
 def _discovery(**kwargs):
     return GetProductsRequest.model_validate({"buying_mode": "brief", "brief": "video", **kwargs})
+
+
+@pytest.mark.parametrize("account_policy", ["off", "auto", "strict"])
+async def test_automatic_discovery_transport_failure_retains_failed_result(account_policy):
+    client = _client(account_policy=account_policy)
+    failure = TaskResult(
+        status=TaskStatus.FAILED,
+        success=False,
+        error="HTTP 403: token cannot discover this seller",
+        adcp_error={"code": "UNAUTHORIZED", "message": "Discovery denied"},
+        metadata={"http_status": 403},
+    )
+    wire = AsyncMock(return_value=failure)
+    client.adapter._call_mcp_tool_wire = wire
+
+    result = await client.get_products(
+        _discovery(account={"brand": {"domain": "brand.example"}, "operator": "buyer.example"})
+    )
+
+    assert not result.success
+    assert result.error == failure.error
+    assert result.adcp_error == failure.adcp_error
+    assert result.metadata["http_status"] == 403
+    assert [call.args[0] for call in wire.call_args_list] == ["get_adcp_capabilities"]
+    with pytest.raises(ADCPError, match="Failed to fetch capabilities"):
+        await client.fetch_capabilities()
+
+
+@pytest.mark.parametrize("protocol", [Protocol.MCP, Protocol.A2A])
+@pytest.mark.parametrize("case", ["no_common_version", "new_task", "null_clear"])
+async def test_version_preflight_failure_is_a_failed_result_without_dispatch(protocol, case):
+    client = ADCPClient(
+        AgentConfig(id="seller", agent_uri="https://seller.example", protocol=protocol),
+        server_version="3.1",
+        adcp_version="3.0" if case == "no_common_version" else "3.2",
+        account_policy="off",
+    )
+    wire = AsyncMock()
+    if protocol is Protocol.MCP:
+        client.adapter._call_mcp_tool_wire = wire
+    else:
+        client.adapter._call_a2a_tool_wire = wire
+
+    if case == "no_common_version":
+        result = await client.get_products(_discovery())
+    elif case == "new_task":
+        result = await client.list_products(ListProductsRequest())
+    else:
+        result = await client.update_media_buy(
+            UpdateMediaBuyRequest.model_validate(
+                {
+                    "account": {"account_id": "account-one"},
+                    "media_buy_id": "buy-one",
+                    "idempotency_key": "unsupported-null-clear-1551",
+                    "frequency_cap": None,
+                }
+            )
+        )
+
+    assert not result.success
+    assert result.status == TaskStatus.FAILED
+    assert result.data is None
+    assert result.adcp_error["code"] == "UNSUPPORTED_FEATURE"
+    assert result.adcp_error["details"]["wire_response_received"] is False
+    if case == "null_clear":
+        assert result.adcp_error["details"]["pointer"] == "/frequency_cap"
+        assert result.idempotency_key == "unsupported-null-clear-1551"
+    wire.assert_not_awaited()
 
 
 async def test_per_call_newer_ceiling_preserves_explicit_null_clear():

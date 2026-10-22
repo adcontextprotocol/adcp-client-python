@@ -3193,7 +3193,12 @@ def create_tool_caller(
     )
     from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.compat.legacy.errors import legacy_adapter_task_error
-    from adcp.compat.versions import CONVERSION_METADATA_KEY, ConversionResult, convert_payload
+    from adcp.compat.versions import (
+        CONVERSION_METADATA_KEY,
+        ADCPVersionConversionError,
+        ConversionResult,
+        convert_payload,
+    )
     from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.server.version_policy import project_supported_versions, resolve_supported_versions
@@ -3272,9 +3277,24 @@ def create_tool_caller(
                 target_version=target_version,
             )
         except ADCPFeatureUnsupportedError as exc:
+            details = None
+            if isinstance(exc, ADCPVersionConversionError):
+                details = {
+                    "pointer": exc.pointer,
+                    "source_version": exc.source_version,
+                    "target_version": exc.target_version,
+                    "reason": exc.reason,
+                }
             raise ADCPTaskError(
                 operation=method_name,
-                errors=[Error(code="VERSION_UNSUPPORTED", message=str(exc))],
+                errors=[
+                    Error(
+                        code="VERSION_UNSUPPORTED",
+                        message=str(exc),
+                        field=exc.pointer if isinstance(exc, ADCPVersionConversionError) else None,
+                        details=details,
+                    )
+                ],
             ) from exc
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
@@ -3556,6 +3576,7 @@ def create_tool_caller(
             and wire_version is not None
             and wire_version != application_version
             and wire_version.startswith("3.")
+            and "-" not in wire_version
             and method_name != "sync_reporting_receipts"
             and not frozen_reporting_feed
         )
@@ -3820,7 +3841,9 @@ def create_tool_caller(
                 method_name,
                 result,
                 raw_params,
-                adcp_version=response_validator_version,
+                adcp_version=(
+                    application_version if convert_minor_version else response_validator_version
+                ),
             )
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``

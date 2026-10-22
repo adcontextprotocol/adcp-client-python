@@ -32,6 +32,7 @@ from adcp._response_limit import (
 from adcp.exceptions import ADCPResponseEncodingError, ADCPResponseTooLargeError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter
+from adcp.server.responses import capabilities_response
 from adcp.types import GetProductsRequest
 from adcp.types.core import AgentConfig, Protocol
 
@@ -400,6 +401,12 @@ def test_task_options_default_inherits_the_agent_budget():
 # ---------------------------------------------------------------------------
 
 
+def _capabilities_payload():
+    data = capabilities_response(["media_buy"])
+    data["adcp"]["idempotency"] = {"supported": False}
+    return data
+
+
 class _MCPHandler(BaseHTTPRequestHandler):
     """Smallest streamable-HTTP MCP server that can answer one tool call."""
 
@@ -419,7 +426,13 @@ class _MCPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         method = message.get("method")
-        padding = "x" * self.tool_payload_size if method == self.padded_method else ""
+        discovery = (
+            method == "tools/call"
+            and message.get("params", {}).get("name") == "get_adcp_capabilities"
+        )
+        padding = (
+            "x" * self.tool_payload_size if method == self.padded_method and not discovery else ""
+        )
         if method == "initialize":
             result = {
                 "protocolVersion": message["params"]["protocolVersion"],
@@ -427,7 +440,9 @@ class _MCPHandler(BaseHTTPRequestHandler):
                 "serverInfo": {"name": "oversize-agent", "version": padding or "1"},
             }
         elif method == "tools/call":
-            if self.text_fallback:
+            if discovery:
+                result = {"content": [], "structuredContent": _capabilities_payload()}
+            elif self.text_fallback:
                 result = {
                     "content": [
                         {
@@ -443,13 +458,16 @@ class _MCPHandler(BaseHTTPRequestHandler):
                 }
         else:
             result = {
-                "tools": [{"name": padding or "get_products", "inputSchema": {"type": "object"}}]
+                "tools": [
+                    {"name": padding or "get_products", "inputSchema": {"type": "object"}},
+                    {"name": "get_adcp_capabilities", "inputSchema": {"type": "object"}},
+                ]
             }
         body = json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}).encode()
         self.send_response(200)
         self.send_header("content-type", "application/json")
         self.send_header("mcp-session-id", "session-1")
-        if self.content_encoding and method == self.padded_method:
+        if self.content_encoding and method == self.padded_method and not discovery:
             self.send_header("content-encoding", self.content_encoding)
         self.send_header("content-length", str(len(body)))
         self.end_headers()
@@ -886,6 +904,10 @@ async def _injected_session(text: str):
             return None
 
         async def call_tool(self, name, params, **kwargs):
+            if name == "get_adcp_capabilities":
+                return SimpleNamespace(
+                    isError=False, content=[], structuredContent=_capabilities_payload()
+                )
             return SimpleNamespace(isError=False, content=[{"type": "text", "text": text}])
 
         async def list_tools(self):

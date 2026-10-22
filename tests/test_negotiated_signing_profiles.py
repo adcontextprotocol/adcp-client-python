@@ -76,7 +76,7 @@ async def test_mcp_writer_uses_negotiated_31_profile():
         try:
             await client._sign_outgoing_request(request)
             completed.set_result(request)
-        except BaseException as exc:
+        except Exception as exc:
             completed.set_exception(exc)
 
     writer_task = asyncio.create_task(writer())
@@ -140,7 +140,7 @@ async def test_concurrent_bindings_survive_sibling_completion_and_cancellation()
     assert registry.resolve(body) == "3.1"
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
-        await task
+        await asyncio.gather(task)
     assert registry.resolve(body) is None
 
 

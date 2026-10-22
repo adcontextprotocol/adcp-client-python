@@ -100,9 +100,21 @@ def negotiate_version(supported: list[str], *, maximum: str) -> str:
 
 @lru_cache(maxsize=512)
 def _schema(tool: str, direction: Direction, version: str) -> dict[str, Any]:
+    if version == "3.0" and direction == "submitted" and tool == "create_media_buy":
+        # The main 3.0 response includes the submitted wire envelope. Its
+        # separate async schema describes webhook data without that envelope.
+        direction = "sync"
     schema = get_portable_schema(tool, direction, version=version)
     if schema is None:
         raise ADCPFeatureUnsupportedError([f"{tool} is unavailable in AdCP {version}"])
+    if version == "3.0" and direction in {"submitted", "working", "input-required"}:
+        # Older async schemas describe data beneath the transport envelope.
+        # Preserve that envelope when projecting a flat tool response.
+        schema["properties"] = {
+            **schema.get("properties", {}),
+            "status": {"type": "string", "const": direction},
+            "task_id": {"type": "string"},
+        }
     return schema
 
 
@@ -131,7 +143,9 @@ def _score(schema: dict[str, Any], value: Any, root: dict[str, Any]) -> int:
     if isinstance(value, dict):
         props = schema.get("properties", {})
         score = len(props.keys() & value.keys()) * 2
-        score -= len(set(schema.get("required", [])) - value.keys()) * 3
+        # A malformed discriminator must not redirect a structurally complete
+        # success into an errors-only arm and discard its financial artifact.
+        score -= len(set(schema.get("required", [])) - value.keys()) * 10_000
         for key in props.keys() & value.keys():
             child = _resolve(props[key], root)
             if "const" in child or "enum" in child:
@@ -249,6 +263,16 @@ def _project(
             source_child = _property(source, key)
             target_child = _property(target, key)
             if source_child is not None and target_child is None:
+                if (
+                    drop_unavailable_nulls
+                    and not path
+                    and key == "message"
+                    and target.get("additionalProperties", True) is not False
+                ):
+                    # Human-readable MCP summaries predate the protocol
+                    # envelope; older open response objects can retain them.
+                    projected[key] = child
+                    continue
                 if (
                     not drop_unavailable_nulls
                     and child is None
@@ -424,6 +448,56 @@ def _upgrade_media_buy_metadata(tool: str, payload: dict[str, Any]) -> None:
         entry["confirmed_at"] = None
 
 
+def _upgrade_governance_registration(payload: dict[str, Any]) -> None:
+    """A category-scoped authority cannot become the full lifecycle owner."""
+    for account_index, account in enumerate(payload.get("accounts", [])):
+        if not isinstance(account, dict):
+            continue
+        agents = account.get("governance_agents", [])
+        if not isinstance(agents, list):
+            continue
+        path = _pointer(_pointer("/accounts", account_index), "governance_agents")
+        if len(agents) > 1:
+            raise ADCPVersionConversionError(
+                pointer=path,
+                source_version="3.0",
+                target_version="3.1",
+                reason="multiple governance authorities cannot become one lifecycle owner",
+            )
+        for agent_index, agent in enumerate(agents):
+            if isinstance(agent, dict) and "categories" in agent:
+                raise ADCPVersionConversionError(
+                    pointer=_pointer(_pointer(path, agent_index), "categories"),
+                    source_version="3.0",
+                    target_version="3.1",
+                    reason="category-scoped governance cannot become full lifecycle authority",
+                )
+
+
+def _upgrade_product_reporting_metrics(payload: dict[str, Any]) -> None:
+    """A removed historical metric has no certified equivalent in the newer vocabulary."""
+    products = payload.get("products", [])
+    if not isinstance(products, list):
+        return
+    for product_index, product in enumerate(products):
+        if not isinstance(product, dict):
+            continue
+        capabilities = product.get("reporting_capabilities")
+        if not isinstance(capabilities, dict):
+            continue
+        metrics = capabilities.get("available_metrics", [])
+        if not isinstance(metrics, list):
+            continue
+        for metric_index, metric in enumerate(metrics):
+            if metric == "video_completions":
+                raise ADCPVersionConversionError(
+                    pointer=f"/products/{product_index}/reporting_capabilities/available_metrics/{metric_index}",
+                    source_version="3.0",
+                    target_version="3.1",
+                    reason="the historical reporting metric has no verified newer equivalent",
+                )
+
+
 def _convert_embedded_results(
     tool: str,
     payload: dict[str, Any],
@@ -520,6 +594,17 @@ def convert_payload(
         target = f"{source_parts[0]}.{minor + step}"
         source_schema = _schema(tool, direction, source)
         target_schema = _schema(tool, direction, target)
+        from adcp.compat.governance import convert_governance_fields
+
+        convert_governance_fields(tool, result, source, target, direction)
+        if (
+            tool == "sync_governance"
+            and direction == "request"
+            and (source, target) == ("3.0", "3.1")
+        ):
+            _upgrade_governance_registration(result)
+        if tool == "get_products" and direction != "request" and (source, target) == ("3.0", "3.1"):
+            _upgrade_product_reporting_metrics(result)
         if direction != "request" and {source, target} == {"3.0", "3.1"}:
             from adcp.validation._response_envelope import uses_task_status_envelope
 
@@ -535,8 +620,12 @@ def convert_payload(
                     if result.get("status") not in {None, "completed"}:
                         result["media_buy_status"] = result["status"]
                     result["status"] = "completed"
-                elif step < 0 and "media_buy_status" in result:
-                    result["status"] = result.pop("media_buy_status")
+                elif step < 0:
+                    if "media_buy_status" in result:
+                        result["status"] = result.pop("media_buy_status")
+                    elif result.get("status") == "completed":
+                        result.pop("status")
+                        losses.append(ConversionLoss("/status", source, target))
             elif step > 0 and uses_task_status_envelope(tool):
                 result.setdefault("status", "completed")
             if step > 0 and tool in {"get_products", "get_signals"}:

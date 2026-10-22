@@ -198,8 +198,8 @@ async def test_typed_numbers_cross_protocol_and_client_rounding_are_distinct(bac
     async with onboarding_server(backend, tmp_path, scenario="feed") as (uri, ready):
         for version in ("0.3", "1.0"):
             async with (
-                public_client(uri, "acct_a") as mcp,
-                public_client(uri, "acct_a", "a2a-" + version) as a2a,
+                public_client(uri, "acct_a", server_version="3.2") as mcp,
+                public_client(uri, "acct_a", "a2a-" + version, server_version="3.2") as a2a,
             ):
                 for start, finish in ((mcp, a2a), (a2a, mcp)):
                     raw = {

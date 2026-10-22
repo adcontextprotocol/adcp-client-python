@@ -478,6 +478,18 @@ async def _account_bookkeeping(
         )
 
 
+class _TaskPreparationError(ADCPError):
+    """Retain preflight failure details for the enclosing task result."""
+
+    def __init__(self, message: str, *, result: TaskResult[Any], **kwargs: Any) -> None:
+        super().__init__(message, **kwargs)
+        self.result = result
+
+
+class _CapabilitiesFetchError(_TaskPreparationError):
+    """Explicit capability fetches retain their documented exception API."""
+
+
 def _task_options_method(
     method: Callable[P, Coroutine[Any, Any, R]],
 ) -> Callable[P, Coroutine[Any, Any, R]]:
@@ -527,19 +539,28 @@ def _task_options_method(
                 if len(positional) > request_index
                 else call_kwargs.get("request")
             )
-            if isinstance(request, BaseModel):
-                if (
-                    implicit_account_policy
-                    and task_name != "list_accounts"
-                    and has_natural_reference(request)
-                ):
-                    client._warn_implicit_account_policy()
-                prepared = await client.accounts.prepare(task_name, request, account_policy)
-                if len(positional) > request_index:
-                    positional[request_index] = prepared
-                else:
-                    call_kwargs["request"] = prepared
-            result = await method(*cast(Any, positional), **cast(Any, call_kwargs))
+            try:
+                if isinstance(request, BaseModel):
+                    if (
+                        implicit_account_policy
+                        and task_name != "list_accounts"
+                        and has_natural_reference(request)
+                    ):
+                        client._warn_implicit_account_policy()
+                    prepared = await client.accounts.prepare(task_name, request, account_policy)
+                    if len(positional) > request_index:
+                        positional[request_index] = prepared
+                    else:
+                        call_kwargs["request"] = prepared
+                result = await method(*cast(Any, positional), **cast(Any, call_kwargs))
+            except _TaskPreparationError as exc:
+                if workflow:
+                    raise
+                # Discovery and conversion precede the business request. Keep the
+                # existing failed-result contract (including auth diagnostics)
+                # when that transport step fails. Explicit capability fetches
+                # still raise ADCPError as documented.
+                result = cast(R, exc.result)
             if (
                 isinstance(result, TaskResult)
                 and client.product_property_policy is not None
@@ -955,6 +976,7 @@ class ADCPClient:
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
+        self._capabilities_wire_version: str | None = None
         self._task_wire_contexts: dict[tuple[str, str], ConversionResult] = {}
         self._feature_resolver: FeatureResolver | None = None
         self._capabilities_fetched_at: float | None = None
@@ -1014,7 +1036,7 @@ class ADCPClient:
             return {"adcp_version": _pinned_version, **params}
 
         self.adapter.envelope_enricher = _inject_adcp_version
-        self.adapter.request_converter = self._convert_outgoing_request
+        self.adapter.request_converter = self._prepare_versioned_task
         self.adapter.response_converter = self._convert_incoming_response
 
         if context_id:
@@ -1031,6 +1053,36 @@ class ADCPClient:
         from adcp.simple import SimpleAPI
 
         self.simple = SimpleAPI(self)
+
+    async def _prepare_versioned_task(self, tool: str, params: dict[str, Any]) -> ConversionResult:
+        """Convert version preflight failures to the public task-result contract."""
+        try:
+            return await self._convert_outgoing_request(tool, params)
+        except ADCPFeatureUnsupportedError as exc:
+            message = str(exc)
+            details: dict[str, Any] = {"wire_response_received": False}
+            for name in ("pointer", "source_version", "target_version", "reason"):
+                if getattr(exc, name, None) is not None:
+                    details[name] = getattr(exc, name)
+            result = TaskResult[Any](
+                status=TaskStatus.FAILED,
+                success=False,
+                error=message,
+                adcp_error={"code": "UNSUPPORTED_FEATURE", "message": message, "details": details},
+                idempotency_key=params.get("idempotency_key"),
+                metadata={
+                    CONVERSION_METADATA_KEY: {
+                        "wire_version": details.get("target_version"),
+                        "losses": [],
+                    }
+                },
+            )
+            raise _TaskPreparationError(
+                message,
+                result=result,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from exc
 
     async def _convert_outgoing_request(
         self, tool: str, params: dict[str, Any]
@@ -1909,6 +1961,8 @@ class ADCPClient:
         result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
         if result.success and result.data is not None:
             self._capabilities = result.data
+            conversion = (result.metadata or {}).get(CONVERSION_METADATA_KEY, {})
+            self._capabilities_wire_version = conversion.get("wire_version")
             self._feature_resolver = FeatureResolver(result.data)
             self._capabilities_fetched_at = time.monotonic()
             return self._capabilities
@@ -1954,8 +2008,9 @@ class ADCPClient:
                 agent_uri=self.agent_config.agent_uri,
             )
 
-        raise ADCPError(
+        raise _CapabilitiesFetchError(
             f"Failed to fetch capabilities: {result.error or result.message}",
+            result=result,
             agent_id=self.agent_config.id,
             agent_uri=self.agent_config.agent_uri,
         )

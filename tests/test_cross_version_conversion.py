@@ -193,6 +193,146 @@ def test_unknown_confirmation_is_omitted_when_old_response_cannot_express_null()
     assert validate_response("create_media_buy", response.payload, version="3.0").valid
 
 
+@pytest.mark.parametrize(
+    "payload,expected_keys",
+    [
+        (
+            {"status": "submitted", "task_id": "task_1", "message": "Awaiting approval"},
+            {"status", "task_id", "message"},
+        ),
+        (
+            {"status": "failed", "errors": [{"code": "INVALID_REQUEST", "message": "Invalid"}]},
+            {"errors"},
+        ),
+        (
+            {
+                "status": "completed",
+                "media_buy_id": "mb_1",
+                "packages": [],
+                "revision": 1,
+                "confirmed_at": "2026-10-22T00:00:00Z",
+            },
+            {"media_buy_id", "packages", "revision", "confirmed_at"},
+        ),
+    ],
+)
+def test_media_buy_union_projection_keeps_the_structural_response_arm(payload, expected_keys):
+    assert validate_response("create_media_buy", payload, version="3.2").valid
+    response = convert_payload(
+        "create_media_buy", payload, direction="sync", source_version="3.2", target_version="3.0"
+    )
+    assert expected_keys <= response.payload.keys()
+    assert validate_response("create_media_buy", response.payload, version="3.0").valid
+
+
+@pytest.mark.parametrize("tool", ["create_media_buy", "update_media_buy"])
+def test_explicit_async_schema_projection_preserves_submitted_envelopes(tool: str) -> None:
+    payload = {"status": "submitted", "task_id": "task_1", "message": "Awaiting approval"}
+    assert validate_response(tool, payload, version="3.2").valid
+    response = convert_payload(
+        tool, payload, direction="submitted", source_version="3.2", target_version="3.0"
+    )
+    assert response.payload == payload
+    assert validate_response(tool, response.payload, version="3.0").valid
+
+
+def test_human_summary_message_survives_an_older_open_response_contract() -> None:
+    response = convert_payload(
+        "get_products",
+        {"status": "completed", "products": [], "cache_scope": "public", "message": "No products"},
+        direction="sync",
+        source_version="3.2",
+        target_version="3.0",
+    )
+    assert response.payload["message"] == "No products"
+    assert "cache_scope" not in response.payload
+    assert all(loss.pointer != "/message" for loss in response.losses)
+    assert validate_response("get_products", response.payload, version="3.0").valid
+
+
+@pytest.mark.parametrize("target", ["3.1", "3.2"])
+@pytest.mark.parametrize("metrics", [["video_completions"], ["impressions", "video_completions"]])
+def test_removed_reporting_metrics_fail_without_inventing_a_new_metric(target, metrics) -> None:
+    payload = {
+        "products": [
+            {
+                "product_id": "product_1",
+                "name": "Video",
+                "description": "Video product",
+                "publisher_properties": [
+                    {"publisher_domain": "publisher.example", "selection_type": "all"}
+                ],
+                "format_ids": [],
+                "delivery_type": "non_guaranteed",
+                "pricing_options": [
+                    {"pricing_model": "cpm", "pricing_option_id": "price_1", "currency": "USD"}
+                ],
+                "reporting_capabilities": {
+                    "available_reporting_frequencies": ["daily"],
+                    "expected_delay_minutes": 0,
+                    "timezone": "UTC",
+                    "supports_webhooks": False,
+                    "available_metrics": metrics,
+                    "date_range_support": "date_range",
+                },
+            }
+        ]
+    }
+    original = deepcopy(payload)
+    assert validate_response("get_products", payload, version="3.0").valid
+    with pytest.raises(ADCPVersionConversionError) as error:
+        convert_payload(
+            "get_products", payload, direction="sync", source_version="3.0", target_version=target
+        )
+    assert payload == original
+    assert error.value.pointer == (
+        f"/products/0/reporting_capabilities/available_metrics/{len(metrics) - 1}"
+    )
+    assert error.value.source_version == "3.0"
+    assert error.value.target_version == "3.1"
+
+
+@pytest.mark.parametrize("scope", ["categories", "multiple_agents", "account"])
+def test_legacy_governance_does_not_silently_broaden_authority(scope: str) -> None:
+    agent = {
+        "url": "https://governance.example/mcp/",
+        "authentication": {"schemes": ["Bearer"], "credentials": "secret" * 8},
+    }
+    agents = [agent]
+    if scope == "categories":
+        agent["categories"] = ["budget_authority"]
+    elif scope == "multiple_agents":
+        agents.append(deepcopy(agent))
+    payload = {
+        "idempotency_key": "cross-version-governance-1234",
+        "accounts": [{"account": {"account_id": "account_1"}, "governance_agents": agents}],
+    }
+    assert validate_request("sync_governance", payload, version="3.0").valid
+    if scope == "account":
+        response = convert_payload(
+            "sync_governance",
+            payload,
+            direction="request",
+            source_version="3.0",
+            target_version="3.2",
+        )
+        assert validate_request("sync_governance", response.payload, version="3.2").valid
+    else:
+        with pytest.raises(ADCPVersionConversionError) as error:
+            convert_payload(
+                "sync_governance",
+                payload,
+                direction="request",
+                source_version="3.0",
+                target_version="3.2",
+            )
+        prefix = "/accounts/0/governance_agents"
+        assert error.value.pointer == (
+            prefix + "/0/categories" if scope == "categories" else prefix
+        )
+        assert "secret" not in str(error.value)
+
+
 @pytest.mark.parametrize("tool", ["create_media_buy", "get_media_buys"])
 def test_missing_legacy_confirmation_uses_null_only_for_uncommitted_state(tool: str) -> None:
     entry = {"media_buy_id": "mb_1", "packages": [], "revision": 1}

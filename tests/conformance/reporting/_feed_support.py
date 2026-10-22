@@ -200,7 +200,7 @@ class MountedFeed(MountedReceipts):
             observed.append((protocol, method, params))
 
         async with self.client(public_url="http://localhost") as transport:
-            # Keep both public SDK transport stacks, negotiation and encoders.
+            # Keep both public SDK transport stacks and encoders.
             # The factory/HTTP pool injection only replaces the network socket.
             def mcp_http(**kwargs):
                 return httpx2.AsyncClient(
@@ -226,6 +226,9 @@ class MountedFeed(MountedReceipts):
                         ADCPClient(
                             config,
                             adcp_version=self.version,
+                            # Exercise the known frozen mount contract.
+                            # Production discovery is checked separately.
+                            server_version=self.version,
                             force_a2a_version=a2a_version if protocol == "a2a" else None,
                             httpx_client_factory=mcp_http if protocol == "mcp" else None,
                         )
