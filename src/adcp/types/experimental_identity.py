@@ -1,6 +1,6 @@
-"""Opt-in types for pinned AdCP 3.3 identity drafts, independent of the wire pin.
+"""Opt-in types for the pinned AdCP 3.3 identity schemas, independent of the wire pin.
 
-The schemas are pinned to open spec branches (see
+The schemas are pinned to one adcp main commit (see
 adcp/signing/_identity_schemas/UPSTREAM.json). Seller and buyer onboarding
 postures share one mode enum, AgentOnboardingMode (open, application,
 invite_only). The buyer posture is published only in trust.json, at

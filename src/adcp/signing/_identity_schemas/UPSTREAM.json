@@ -1,80 +1,102 @@
 {
   "repository": "adcontextprotocol/adcp",
+  "branch": "main",
+  "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+  "note": "Every file is copied verbatim from adcp main at one commit, after the AdCP 3.3 identity spec stack merged (#8121, #8155, #8157, #8162, #8168, #8169, #8170, #8172, #8177, #8219, #8298, #8299, #7894, #8117). These are merged-main sources, not open PR drafts, and nothing is composed locally. blob is the git blob id of the vendored bytes; last_changed_on_main is the first-parent main commit that last changed the file.",
   "sources": {
     "core/agent-onboarding.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/core/agent-onboarding.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "0cc222111df06d30a7a88632057db53cc2ea69e8",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "core/agent-onboarding-tier.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/core/agent-onboarding-tier.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "e6622e45c46b114bbd3c187ee194f76d07268371",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "core/agent-onboarding-requirement.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/core/agent-onboarding-requirement.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "41cca4a663dd64f15dd28ecf1fa954bbde1d08f1",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "core/buyer-onboarding-posture.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/core/buyer-onboarding-posture.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "93f04144012e5c0a4147c529d9226c11e94f4aef",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "enums/agent-onboarding-mode.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/enums/agent-onboarding-mode.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "b5088e84e4e1dce549bb78402ecd0088250839da",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "enums/agent-onboarding-requirement-kind.json": {
-      "pr": 8170,
-      "branch": "bokelley/agent-onboarding-posture",
-      "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
+      "path": "static/schemas/source/enums/agent-onboarding-requirement-kind.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "083bda5e5c363288e8d6e624b3eea7916b324342",
+      "last_changed_on_main": {
+        "pr": 8170,
+        "commit": "0091d90a64438f2568ef411a7d6da0ea50a9274c"
+      }
     },
     "core/principal-relationship.json": {
-      "pr": 8168,
-      "branch": "bokelley/agent-identity-p4-principal",
-      "commit": "478f94edbd27b942235e0601652b1ae8cd3fbdd4"
+      "path": "static/schemas/source/core/principal-relationship.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "1390df6667a6afe573e110d8b0028558fb336043",
+      "last_changed_on_main": {
+        "pr": 8168,
+        "commit": "0c887e7055d870a3b3f1f914488ab55012541923"
+      }
     },
     "enums/principal-relationship-status.json": {
-      "pr": 8168,
-      "branch": "bokelley/agent-identity-p4-principal",
-      "commit": "478f94edbd27b942235e0601652b1ae8cd3fbdd4"
+      "path": "static/schemas/source/enums/principal-relationship-status.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "56d52fa68feae03e6130e027f117bb1245df02ca",
+      "last_changed_on_main": {
+        "pr": 8168,
+        "commit": "0c887e7055d870a3b3f1f914488ab55012541923"
+      }
     },
     "core/identity-relying-party.json": {
-      "pr": null,
-      "branch": "main",
-      "commit": "d5f56dbea17ed190fe9b499764be1b697dd33418"
+      "path": "static/schemas/source/core/identity-relying-party.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "3b2d914acc8265454ce020492f9d3df946c6560b",
+      "last_changed_on_main": {
+        "pr": 8077,
+        "commit": "8d32f661d71acec378aaf4e1e3e8993ae5e8d01a"
+      }
     },
     "trust/v1/trust.json": {
-      "pr": null,
-      "branch": "main",
-      "commit": "d5f56dbea17ed190fe9b499764be1b697dd33418",
-      "composed_from": [
-        {
-          "pr": 8170,
-          "branch": "bokelley/agent-onboarding-posture",
-          "commit": "d73bffc950df81ffd0020efc187abc71f4fcd91e"
-        },
-        {
-          "pr": 8169,
-          "branch": "bokelley/agent-identity-p5-grants",
-          "commit": "41615bda07eba8ade1e937134dc71d5d37683487"
-        }
-      ]
+      "path": "static/schemas/source/trust/v1/trust.json",
+      "commit": "277e0a53517976726bbc69d1485de57944a284d4",
+      "blob": "718579ffbf7f9052f6184ac2595c6442587e483a",
+      "last_changed_on_main": {
+        "pr": 8077,
+        "commit": "8d32f661d71acec378aaf4e1e3e8993ae5e8d01a"
+      }
     }
   },
   "baseline_dependencies": {
     "directory": "schemas/cache/3.2",
     "note": "Offline references not present in the preview sources use the SDK pinned AdCP 3.2 cache."
-  },
-  "composition": {
-    "trust/v1/trust.json": [
-      "Base: origin/main trust/v1/trust.json at d5f56dbea17ed190fe9b499764be1b697dd33418 (unchanged on main since #8121, the merge base of both branches below).",
-      "Applied the PR #8170 diff (git diff origin/main...bokelley/agent-onboarding-posture): native profiles.adcp.onboarding on the record_profiles definition and on agents[].profiles.",
-      "Applied the PR #8169 diff (git diff origin/main...bokelley/agent-identity-p5-grants, which contains PR #8168): top-level description and the grant, brands, valid_until and exclusive_grants descriptions.",
-      "PR #8162 (bokelley/agent-identity-p3-security at f009439908f40dac971ffecfd3ff36ae32ba620e) changes only the top-level description, identically to PR #8168; the newer PR #8169 description supersedes it.",
-      "The two diffs touch disjoint regions apart from the top-level description; the file is otherwise byte-for-byte the patched upstream text."
-    ]
   }
 }
