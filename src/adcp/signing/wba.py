@@ -547,8 +547,8 @@ class _VerifiedDirectory:
     signatures_expire: float
 
 
-def _parse_directory_keys(body: bytes) -> tuple[dict[str, dict[str, Any]], set[str]]:
-    """Index the usable keys by thumbprint; also return the unusable keys' thumbprints."""
+def _parse_directory_keys(body: bytes) -> dict[str, dict[str, Any]]:
+    """Index the usable keys by thumbprint."""
     try:
         document = parse_strict_json(body)
     except StrictJsonError as exc:
@@ -557,7 +557,6 @@ def _parse_directory_keys(body: bytes) -> tuple[dict[str, dict[str, Any]], set[s
     if not isinstance(keys, list) or not 1 <= len(keys) <= _DIRECTORY_MAX_KEYS:
         raise WbaVerificationError("invalid directory key count")
     index: dict[str, dict[str, Any]] = {}
-    ignored: set[str] = set()
     for jwk in keys:
         if not isinstance(jwk, dict):
             raise WbaVerificationError("directory entry is not an object")
@@ -572,13 +571,9 @@ def _parse_directory_keys(body: bytes) -> tuple[dict[str, dict[str, Any]], set[s
             _algorithm(jwk)
             thumbprint = thumbprint_key_id(jwk)
         except (WbaVerificationError, ValueError):
-            # A directory may hold keys for other uses: skip what the profile
-            # cannot verify with (RFC 7517 section 5), and remember it so its
-            # signature is skipped too.
-            try:
-                ignored.add(thumbprint_key_id(jwk))
-            except ValueError:
-                pass  # No thumbprint, so no signature can name it.
+            # A directory may hold keys for other uses, and keys that do not
+            # import: skip what the profile cannot verify with (RFC 7517
+            # section 5). Their signatures are not read.
             continue
         if thumbprint in index:
             raise WbaVerificationError("directory repeats a key")
@@ -587,7 +582,7 @@ def _parse_directory_keys(body: bytes) -> tuple[dict[str, dict[str, Any]], set[s
         index[thumbprint] = {**jwk, "kid": thumbprint}
     if not index:
         raise WbaVerificationError("directory holds no usable key")
-    return index, ignored
+    return index
 
 
 def _verify_directory(
@@ -611,7 +606,7 @@ def _verify_directory(
     # The digest covers the exact bytes served, a UTF-8 BOM included.
     if digest is None or not content_digest_matches(digest, response.body):
         raise WbaVerificationError("directory digest mismatch")
-    keys, ignored = _parse_directory_keys(response.body)
+    keys = _parse_directory_keys(response.body)
     inputs = _dictionary(raw_inputs)
     signatures = _dictionary(raw_signatures)
     if set(signatures) != set(inputs):
@@ -623,31 +618,40 @@ def _verify_directory(
         headers=dict(response.headers),
     )
     signed: dict[str, dict[str, Any]] = {}
+    seen: set[str] = set()
+    failure: WbaVerificationError | None = None
     earliest = float("inf")
     for label, member in inputs.items():
         if not _rfc9421.is_inner_list(member):
             raise WbaVerificationError("invalid directory signature profile")
         items, params = member
-        if params.get("keyid") in ignored:
-            # The signature of a key the profile cannot use is not read.
+        keyid = params.get("keyid")
+        if keyid not in keys:
+            # The signature of a key the profile does not use is not read.
             continue
-        if params.get("tag") != DIRECTORY_TAG:
-            raise WbaVerificationError("invalid directory signature profile")
-        _window(params, now=now, directory=True, label=label)
-        covered = {_rfc9421.component_identifier(item) for item in items}
-        # Exact identifiers: a "content-digest" member or a bare @authority
-        # does not bind the response's digest and request authority.
-        if not {'"@authority";req', '"content-digest"'} <= covered:
-            raise WbaVerificationError("directory signature does not bind authority and digest")
-        keyid = params["keyid"]
-        if keyid not in keys or keyid in signed:
-            raise WbaVerificationError("directory signature key is absent or repeated")
-        _verify_crypto(message, label=label, params=params, jwk=keys[keyid])
+        if keyid in seen:
+            raise WbaVerificationError("directory key signs more than once")
+        seen.add(keyid)
+        try:
+            if params.get("tag") != DIRECTORY_TAG:
+                raise WbaVerificationError("invalid directory signature profile")
+            _window(params, now=now, directory=True, label=label)
+            covered = {_rfc9421.component_identifier(item) for item in items}
+            # Exact identifiers: a "content-digest" member or a bare @authority
+            # does not bind the response's digest and request authority.
+            if not {'"@authority";req', '"content-digest"'} <= covered:
+                raise WbaVerificationError("directory signature does not bind authority and digest")
+            _verify_crypto(message, label=label, params=params, jwk=keys[keyid])
+        except WbaVerificationError as exc:
+            # A key without a valid signature is ignored, with its signature.
+            failure = exc
+            continue
         signed[keyid] = keys[keyid]
         earliest = min(earliest, float(params["expires"]))
-    # One signature per key (Appendix B.1): every usable key proves possession.
-    if signed.keys() != keys.keys():
-        raise WbaVerificationError("a usable directory key did not sign")
+    # Only the keys with a valid signature are used (wba-profile.mdx, Key
+    # directories; WBA Appendix B.1; directory draft section 5).
+    if not signed:
+        raise failure or WbaVerificationError("no directory key has a valid signature")
     return _VerifiedDirectory(signed, earliest)
 
 
@@ -657,12 +661,13 @@ def verify_directory_response(
     """Validate a key directory served at ``origin``; return keys by thumbprint.
 
     The response must be served as :data:`DIRECTORY_MEDIA_TYPE` and signed
-    per WBA Appendix B.1, as the profile requires: every key the profile can
-    use signs it, and each of those signatures verifies and covers
-    ``"@authority";req`` and ``"content-digest"``. A key the profile cannot
-    use (P-256 or RSA, for example) is ignored, and so is its signature. An
-    unsigned directory is refused. Every key is indexed by its RFC 7638
-    thumbprint (a ``kid`` is optional).
+    per WBA Appendix B.1. Only the Ed25519 keys whose signature verifies and
+    covers ``"@authority";req`` and ``"content-digest"`` are returned. Every
+    other key is ignored with its signature: a key without a valid signature,
+    a key the profile does not use (P-256 or RSA, for example), and a key
+    that does not import (RFC 7517 section 5). A directory with no such key
+    is refused, and so is one in which any key carries a private member.
+    Every key is indexed by its RFC 7638 thumbprint (a ``kid`` is optional).
     """
     return _verify_directory(origin, response, now=now).keys
 

@@ -215,19 +215,20 @@ def test_rsa_pss_appendix_e_vector_is_not_a_web_bot_auth_signature():
     ("error", "refusal"),
     [
         (WbaVerificationError("refused", status=403), True),
-        (ValueError("the SDK refuses to sign"), True),
+        (ValueError("not a verification refusal"), False),
         (TypeError("a bug in the SDK"), False),
         (KeyError("request"), False),
     ],
-    ids=["verification-refusal", "signing-refusal", "type-error", "key-error"],
+    ids=["verification-refusal", "value-error", "type-error", "key-error"],
 )
 async def test_the_interop_adapter_reports_only_sdk_refusals(monkeypatch, error, refusal):
     """The harness grades a refusal; any other exception crashes the adapter.
 
-    ``WbaVerificationError`` and ``ValueError`` are how the SDK refuses. Any
-    other exception is a defect, so the adapter lets it propagate instead of
-    reporting it as ``ok: false``, which the harness would grade as a correct
-    refusal.
+    ``WbaVerificationError`` is how the SDK refuses a verification. Any other
+    exception, a plain ``ValueError`` included, propagates instead of reading
+    as ``ok: false``, which the harness would grade as a correct refusal
+    (``PROTOCOL.md``: an adapter writes a refusal only for the
+    implementation's own verification refusals).
     """
     from tests.wba_interop import adapter
 

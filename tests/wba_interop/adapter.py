@@ -23,12 +23,11 @@ Operations (``PROTOCOL.md`` in the harness):
     ``origin``, ``response``, ``now``. Returns ``ok`` and ``keyids``, or a
     failure.
 
-A failure is ``{"ok": false, "status": ..., "rule": ..., "error": ...}``. The
-status is the one the SDK answers with; an error that carries no HTTP status
-(the SDK refusing to sign, for example) reports ``0``. Only the SDK's refusals
-are failures: ``WbaVerificationError``, and the ``ValueError`` it raises when
-it refuses to sign. Any other exception is a defect, and it crashes the
-adapter rather than reading as a refusal.
+A failure is ``{"ok": false, "status": ..., "rule": ..., "error": ...}``, with
+the status the SDK answers with. Only the SDK's verification refusals are
+failures: ``WbaVerificationError``. Any other exception, a ``ValueError``
+included, crashes the adapter rather than reading as a refusal, as
+``PROTOCOL.md`` requires.
 
 Run it as ``uv run python tests/wba_interop/adapter.py``.
 """
@@ -63,13 +62,8 @@ def _private_key(jwk: Mapping[str, Any]) -> Any:
     return JWKRegistry.import_key(dict(jwk)).private_key
 
 
-def _failure(exc: ValueError) -> Result:
-    return {
-        "ok": False,
-        "status": getattr(exc, "status", 0),
-        "rule": getattr(exc, "reason", type(exc).__name__),
-        "error": str(exc),
-    }
+def _failure(exc: WbaVerificationError) -> Result:
+    return {"ok": False, "status": exc.status, "rule": exc.reason, "error": str(exc)}
 
 
 def _directory(response: Mapping[str, Any]) -> DirectoryResponse:
@@ -148,7 +142,7 @@ OPERATIONS: dict[str, Callable[[Mapping[str, Any]], Awaitable[Result]]] = {
 async def run(op: Mapping[str, Any]) -> Result:
     try:
         return await OPERATIONS[op["op"]](op)
-    except ValueError as exc:  # WbaVerificationError is a ValueError
+    except WbaVerificationError as exc:
         # The harness grades the refusal itself, so a refusal is a result.
         return _failure(exc)
 
