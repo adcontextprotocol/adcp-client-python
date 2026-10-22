@@ -42,9 +42,10 @@ The request-signature path itself still never reads a trust record.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections import OrderedDict
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 from urllib.parse import urlsplit
@@ -213,8 +214,16 @@ def _lists_origin(record: EvaluatedTrustRecord, origin: str) -> bool:
     return False
 
 
+#: Whether the verifier has bound ``origin`` to a principal (R5). Raises
+#: when the binding store cannot be read.
+OriginBindingLookup = Callable[[str], bool | Awaitable[bool]]
+
+
 async def select_jws_artifact_profile(
-    signing_agent_url: str, records: TrustRecordEvaluator
+    signing_agent_url: str,
+    records: TrustRecordEvaluator,
+    *,
+    bound_origins: OriginBindingLookup | None = None,
 ) -> JwsArtifactProfile:
     """Apply R4's selection rule to the signing agent URL the caller trusts.
 
@@ -225,24 +234,47 @@ async def select_jws_artifact_profile(
     cannot be read (an outage, an invalid record, a 404/410 after the
     operator served one, or local capacity) raises :class:`JwsArtifactError`
     ``jws_key_unavailable``: a fetch failure never selects the 3.2 profile.
+
+    ``bound_origins`` enforces R4's no downgrade: an ``O`` the verifier has
+    bound (R5) is never sent to the 3.2 profile, and raises ``jws_invalid``
+    instead. A lookup that raises is ``jws_key_unavailable``.
     """
     origin = _signing_origin(signing_agent_url)
+
+    async def legacy(
+        reason: Literal["unlisted", "no_trust_record"], record: EvaluatedTrustRecord | None = None
+    ) -> JwsArtifactProfile:
+        if bound_origins is not None:
+            try:
+                bound = bound_origins(origin)
+                if inspect.isawaitable(bound):
+                    bound = await bound
+            except Exception as exc:
+                raise JwsArtifactError(
+                    "jws_key_unavailable", "origin binding lookup failed"
+                ) from exc
+            if bound:
+                raise JwsArtifactError(
+                    "jws_invalid", "a bound origin is never verified under the 3.2 profile"
+                )
+        return JwsArtifactProfile("3.2", origin, reason, record)
+
     try:
         has_operator = registrable_domain(origin) is not None
     except ValueError:
         has_operator = False
     if not has_operator:
-        return JwsArtifactProfile("3.2", origin, "no_trust_record")
+        return await legacy("no_trust_record")
     try:
         record = await records.evaluate(origin)
     except TrustRecordUnavailableError as exc:
         raise JwsArtifactError("jws_key_unavailable", "issuer trust record is unavailable") from exc
     except TrustRecordError:
         # Absent (404/410 before any 200) or no registrable domain.
-        return JwsArtifactProfile("3.2", origin, "no_trust_record")
+        return await legacy("no_trust_record")
     if _lists_origin(record, origin):
         return JwsArtifactProfile("web-bot-auth", origin, "listed", record)
-    return JwsArtifactProfile("3.2", origin, "unlisted", record)
+    return await legacy("unlisted", record)
 
 
 def _default_registry() -> JWSRegistry:
@@ -341,7 +373,7 @@ async def verify_wba_jws_artifact(
         raise JwsArtifactError("jws_invalid", "the b64 header is not supported")
     kid = header.get("kid")
     if not isinstance(kid, str) or not kid or len(kid) > 256:
-        raise JwsArtifactError("jws_key_unknown", "kid is missing")
+        raise JwsArtifactError("jws_invalid", "kid is missing")
 
     key: Mapping[str, Any] | None = None
     key_source: Literal["directory", "archive"] = "directory"
@@ -427,16 +459,22 @@ class WbaJwsArtifactVerifier:
     * ``archive``: the governance key archive, for historical verification of
       a governance context (:class:`HttpGovernanceKeyArchive`). ``None``
       disables history.
+    * ``bound_origins``: whether an origin is bound to a principal (R5), for
+      R4's no downgrade. Usually the binding store the request path's
+      principal binding writes to.
     """
 
     records: TrustRecordEvaluator
     signer_keys: WbaSignerKeyResolver
     revocation: Any
     archive: GovernanceKeyArchive | None = None
+    bound_origins: OriginBindingLookup | None = None
 
     async def select(self, signing_agent_url: str) -> JwsArtifactProfile:
-        """:func:`select_jws_artifact_profile` with this verifier's trust records."""
-        return await select_jws_artifact_profile(signing_agent_url, self.records)
+        """:func:`select_jws_artifact_profile` with this verifier's records and bindings."""
+        return await select_jws_artifact_profile(
+            signing_agent_url, self.records, bound_origins=self.bound_origins
+        )
 
     async def verify(
         self,

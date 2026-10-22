@@ -10,6 +10,7 @@ A fetch failure never selects the 3.2 profile; unlisted issuers stay on it.
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -243,6 +244,67 @@ async def test_a_signing_agent_url_must_be_an_https_origin(url):
     assert caught.value.code == "jws_invalid"
 
 
+def _bound(*origins: str, calls: list[str] | None = None):
+    async def lookup(origin: str) -> bool:
+        if calls is not None:
+            calls.append(origin)
+        return origin in origins
+
+    return lookup
+
+
+_UNLISTED = {trust_record_url(GOV): {"agents": [{"url": BRAND_AGENT, "roles": ["adcp:buying"]}]}}
+
+
+@pytest.mark.parametrize(
+    ("url", "documents"),
+    [(GOV_ISSUER, _UNLISTED), (GOV_ISSUER, {}), ("https://203.0.113.7/gov", {})],
+    ids=["unlisted", "never-published", "no-registrable-domain"],
+)
+async def test_a_bound_origin_is_never_sent_to_3_2(url, documents):
+    """R4, no downgrade: once O is bound (R5), the 3.2 profile is refused for O."""
+    origin = url.rsplit("/", 1)[0]
+    with pytest.raises(JwsArtifactError) as caught:
+        await select_jws_artifact_profile(url, _records(documents), bound_origins=_bound(origin))
+    assert caught.value.code == "jws_invalid"
+
+
+async def test_an_unbound_origin_still_selects_3_2():
+    calls: list[str] = []
+    profile = await select_jws_artifact_profile(
+        GOV_ISSUER, _records(_UNLISTED), bound_origins=_bound(BRAND_AGENT, calls=calls)
+    )
+    assert (profile.profile, profile.reason) == ("3.2", "unlisted")
+    assert calls == [GOV]
+
+
+async def test_a_listed_origin_does_not_consult_the_bindings():
+    calls: list[str] = []
+    profile = await select_jws_artifact_profile(
+        GOV_ISSUER, _records(_listing(GOV)), bound_origins=_bound(GOV, calls=calls)
+    )
+    assert profile.profile == "web-bot-auth"
+    assert calls == []
+
+
+@pytest.mark.parametrize("sync", [True, False], ids=["sync", "async"])
+async def test_a_binding_lookup_may_be_sync_or_async(sync):
+    lookup = (lambda origin: origin == GOV) if sync else _bound(GOV)
+    with pytest.raises(JwsArtifactError) as caught:
+        await select_jws_artifact_profile(GOV_ISSUER, _records(_UNLISTED), bound_origins=lookup)
+    assert caught.value.code == "jws_invalid"
+
+
+async def test_a_binding_lookup_that_fails_is_unavailable():
+    def lookup(origin: str) -> bool:
+        raise RuntimeError("binding store down")
+
+    with pytest.raises(JwsArtifactError) as caught:
+        await select_jws_artifact_profile(GOV_ISSUER, _records(_UNLISTED), bound_origins=lookup)
+    assert caught.value.code == "jws_key_unavailable"
+    assert caught.value.transient
+
+
 # ---------------------------------------------------------------------------
 # Governance context, online
 # ---------------------------------------------------------------------------
@@ -294,6 +356,48 @@ async def test_an_unlisted_issuer_stays_on_the_3_2_profile():
 
     assert result.ok, result
     assert directory.calls == []
+
+
+async def test_a_bound_issuer_is_refused_rather_than_verified_on_3_2():
+    from adcp.signing import StaticJwksResolver
+
+    private = ed25519.Ed25519PrivateKey.generate()
+    jwk = {
+        **OKPKey.import_key(private).as_dict(private=False),
+        "kid": "gov-2026",
+        "use": "sig",
+        "key_ops": ["verify"],
+        "adcp_use": "governance-signing",
+    }
+    verifier = WbaJwsArtifactVerifier(
+        records=_records({}),
+        signer_keys=Directory(),
+        revocation=Revocation(),
+        archive=Archive(),
+        bound_origins=_bound(GOV),
+    )
+    token = _governance_token(private, "gov-2026")
+
+    online = await _verify_governance(token, verifier, StaticJwksResolver({"keys": [jwk]}))
+    historical = await verify_historical_governance_context(
+        token=token, expected_issuer=GOV_ISSUER, web_bot_auth=verifier
+    )
+
+    assert (online.ok, online.error) == (False, "governance_token_invalid")
+    assert (historical.ok, historical.error) == (False, "governance_token_invalid")
+    assert historical.profile != "3.2"
+
+
+@pytest.mark.parametrize("listed", [True, False], ids=["wba", "3.2"])
+async def test_a_governance_token_without_a_kid_is_invalid(listed):
+    private, jwk = _wba_key()
+    encoded_header, payload, signature = _governance_token(private, jwk["kid"]).split(".")
+    header = json.loads(base64.urlsafe_b64decode(encoded_header + "=" * (-len(encoded_header) % 4)))
+    del header["kid"]
+    token = ".".join((b64url_encode(json.dumps(header).encode()), payload, signature))
+    verifier = _verifier(_listing(GOV) if listed else {}, Directory({GOV: [jwk]}))
+    result = await _verify_governance(token, verifier, ForbiddenJwks())
+    assert (result.ok, result.error) == (False, "governance_token_invalid")
 
 
 async def test_the_3_2_profile_still_checks_key_purpose():
@@ -780,8 +884,8 @@ async def test_malformed_tokens_are_invalid(token, code):
     [
         (b'{"alg":"EdDSA","alg":"EdDSA","typ":"test+jws"}', "jws_invalid"),
         (b'["EdDSA"]', "jws_invalid"),
-        ({"alg": "EdDSA", "typ": "test+jws"}, "jws_key_unknown"),
-        ({"alg": "EdDSA", "typ": "test+jws", "kid": 7}, "jws_key_unknown"),
+        ({"alg": "EdDSA", "typ": "test+jws"}, "jws_invalid"),
+        ({"alg": "EdDSA", "typ": "test+jws", "kid": 7}, "jws_invalid"),
     ],
     ids=["duplicate-member", "not-an-object", "no-kid", "non-string-kid"],
 )
