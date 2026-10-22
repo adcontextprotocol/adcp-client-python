@@ -38,6 +38,12 @@ confirmation timestamp instead.
 When converting a response down to a release that permits omission but rejects
 `null`, the SDK omits that field and records the loss. Request-side explicit
 null clears instead fail if the older contract cannot express the clear.
+Unsupported request conversions, including a missing common version or a task
+absent from the negotiated release, return a failed `TaskResult` with
+`adcp_error.code="UNSUPPORTED_FEATURE"` before sending the business request.
+Its error details set `wire_response_received=false`; any supplied idempotency
+key is retained. Explicit `fetch_capabilities()` calls still raise `ADCPError`
+when discovery fails, while automatic discovery retains the failed task result.
 Historical product reporting metrics that have no verified newer equivalent,
 including 3.0's `video_completions`, also fail with an exact field pointer.
 The SDK does not manufacture a mapping to `completed_views`.
