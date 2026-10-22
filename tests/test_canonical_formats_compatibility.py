@@ -15,6 +15,7 @@ from adcp.canonical_formats.projection import (
     project_legacy_format_id,
 )
 from adcp.types import FormatCard
+from adcp.types.canonical_creative import sanitize_canonical_schema
 from adcp.types.legacy import LegacyFormatId as FormatId
 from adcp.validation.schema_loader import get_named_schema_document
 
@@ -252,7 +253,7 @@ def test_format_is_supported_refuses_a_request_that_omits_a_required_pixel_ratio
     """
     supported = {**_BASE, "pixel_ratio": 2}
 
-    assert formats_are_equivalent(_BASE, supported)
+    assert not formats_are_equivalent(_BASE, supported)
     assert not format_is_supported(_BASE, supported)
 
 
@@ -314,8 +315,16 @@ def test_format_is_supported_reads_an_omitted_pixel_ratio_as_1x_on_both_sides(
     backward-compatible 1x variant" without naming a side, so a product that
     omits it serves only 1x — it refuses a 2x creative exactly as a 2x product
     refuses a creative that omits the field.
+
+    ``formats_are_equivalent`` reads the omission the same way, so for two
+    references of the same size it agrees with gating in both directions.
     """
-    assert format_is_supported(_with_pixel_ratio(requested), _with_pixel_ratio(supported)) is served
+    requested_ref = _with_pixel_ratio(requested)
+    supported_ref = _with_pixel_ratio(supported)
+
+    assert format_is_supported(requested_ref, supported_ref) is served
+    assert formats_are_equivalent(requested_ref, supported_ref) is served
+    assert formats_are_equivalent(supported_ref, requested_ref) is served
 
 
 @pytest.mark.parametrize("requested", [None, 1, 2])
@@ -328,6 +337,7 @@ def test_a_template_supported_format_accepts_any_pixel_ratio(requested: float | 
     template = {"agent_url": CANONICAL_CREATIVE_AGENT_URL, "id": "display_image"}
 
     assert format_is_supported(_with_pixel_ratio(requested), template)
+    assert formats_are_equivalent(_with_pixel_ratio(requested), template)
 
 
 def test_a_legacy_size_supported_format_is_the_1x_variant() -> None:
@@ -336,3 +346,20 @@ def test_a_legacy_size_supported_format_is_the_1x_variant() -> None:
 
     assert format_is_supported(_BASE, legacy)
     assert not format_is_supported({**_BASE, "pixel_ratio": 2}, legacy)
+
+
+def test_schema_sanitizer_recognises_an_untitled_reference_carrying_pixel_ratio() -> None:
+    """The legacy-tuple shape check knows every parameter the model declares.
+
+    An untitled object holding only format-reference properties is a legacy
+    reference, so its ``agent_url`` is stripped — including when it carries
+    ``pixel_ratio``, which a hand-written key list left out.
+    """
+    reference = {
+        "type": "object",
+        "properties": {key: {} for key in ("agent_url", "id", "width", "height", "pixel_ratio")},
+    }
+
+    sanitized = sanitize_canonical_schema({"type": "object", "properties": {"ref": reference}})
+
+    assert "agent_url" not in sanitized["properties"]["ref"]["properties"]

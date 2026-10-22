@@ -48,6 +48,8 @@ _PARAMETER_FIELDS: tuple[str, ...] = tuple(sorted(set(FormatId.model_fields) - {
 #: density means 1x — on either side. So a product fixed at 2x refuses a
 #: request that says nothing, a product that says nothing refuses a 2x
 #: request, and one fixed at 1x still serves a request that says nothing.
+#: Both helpers read it this way, so equivalence never contradicts gating
+#: on density.
 _IMPLIED_WHEN_ABSENT: dict[str, float] = {"pixel_ratio": 1.0}
 
 
@@ -148,9 +150,12 @@ def formats_are_equivalent(
     """Return true when two format IDs identify the same canonical family.
 
     Both inputs are first passed through :func:`upgrade_legacy_format_id`.
-    Declared parameters must not conflict, but an omitted parameter on either
-    side is treated as unspecified rather than a mismatch. Use
-    :func:`format_is_supported` for product/capability gating, where a
+    Declared parameters must not conflict, but an omitted width, height or
+    duration on either side is treated as unspecified rather than a mismatch:
+    omitting them names the template, which covers every variant. An omitted
+    ``pixel_ratio`` on a sized reference is not unspecified — it names the 1x
+    variant — so 300x250 and 300x250 at 2x are different formats here too.
+    Use :func:`format_is_supported` for product/capability gating, where a
     supported fixed size, duration or pixel density requires the request to
     state that value.
     """
@@ -162,8 +167,8 @@ def formats_are_equivalent(
         return False
 
     for field in _PARAMETER_FIELDS:
-        left_value = getattr(left, field)
-        right_value = getattr(right, field)
+        left_value = _parameter_value(left, field)
+        right_value = _parameter_value(right, field)
         if left_value is not None and right_value is not None and left_value != right_value:
             return False
     return True
