@@ -1481,6 +1481,242 @@ async def test_house_brand_id_is_checked_against_the_house_portfolio():
     assert seen == [("novamotors.com", "own_brand_id")]
 
 
+# Implicit authority extends to the brand's house (L2 §Grants in trust
+# records, adcp#8169): account.operator and the signer's operator sharing a
+# registrable domain with the brand's domain or its house's need no grant.
+
+HOUSE_AGENT = "https://buyer.house.com"
+
+# brand.json documents for a seller's resolver: a leaf names its house with
+# house_domain, and the resolver returns the house only when the house's
+# brand_refs[] lists the leaf back. The SDK relies on the resolver for this:
+# these tests pin what it does with the house returned, or with none.
+_BRAND_JSON: dict[str, dict[str, Any]] = {
+    "novamotors.com": {"house_domain": "house.com"},
+    "orphan.com": {"house_domain": "house.com"},
+    "house.com": {"brand_refs": [{"domain": "novamotors.com", "brand_id": "nova_motors"}]},
+}
+
+
+async def _mutual_assertion_house(brand_domain: str, brand_id: str | None):
+    from adcp.signing.trust import BrandHouse
+
+    house = _BRAND_JSON.get(brand_domain, {}).get("house_domain")
+    if house is None:
+        return None
+    for ref in _BRAND_JSON.get(house, {}).get("brand_refs", []):
+        if ref["domain"] == brand_domain:
+            return BrandHouse(house, brand_id=ref["brand_id"])
+    # Leaf-only: the house does not list the brand back, so the relationship
+    # is unverified and the brand is its own house.
+    return None
+
+
+def _house_documents(*, house_grants: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    return {
+        trust_record_url(HOUSE_AGENT): {
+            "agents": [{"url": HOUSE_AGENT, "roles": ["adcp:buying"]}],
+            "grants": house_grants or [],
+        },
+        trust_record_url("https://buyer.agency.com"): {
+            "agents": [{"url": "https://buyer.agency.com", "roles": ["adcp:buying"]}]
+        },
+        trust_record_url("novamotors.com"): {"grants": []},
+        trust_record_url("orphan.com"): {"grants": []},
+    }
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", "adcp/request-signing/v1"])
+async def test_a_house_operating_its_own_child_brand_needs_no_grant(signing_profile):
+    fetched: list[str] = []
+    result = await TrustGrantEvaluator(
+        _grant_records(_house_documents(), fetched), resolve_house=_mutual_assertion_house
+    ).check(
+        agent_origin=HOUSE_AGENT,
+        brand_domain="novamotors.com",
+        account_operator="house.com",
+        signing_profile=signing_profile,
+    )
+    assert result.authorized, result.reason
+    # The house's record (also the signer's) is the only one read.
+    assert set(fetched) == {trust_record_url(HOUSE_AGENT)}
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", "adcp/request-signing/v1"])
+async def test_house_implicit_authority_still_needs_the_signer_listed(signing_profile):
+    documents = _house_documents()
+    documents[trust_record_url(HOUSE_AGENT)] = {"agents": []}
+    result = await TrustGrantEvaluator(
+        _grant_records(documents), resolve_house=_mutual_assertion_house
+    ).check(
+        agent_origin=HOUSE_AGENT,
+        brand_domain="novamotors.com",
+        account_operator="house.com",
+        signing_profile=signing_profile,
+    )
+    assert not result.authorized and result.reason == "signer_not_listed"
+
+
+async def test_house_implicit_authority_when_the_house_record_is_absent_or_unreadable():
+    async def legacy(request):
+        return True
+
+    claim = {
+        "agent_origin": HOUSE_AGENT,
+        "brand_domain": "novamotors.com",
+        "account_operator": "house.com",
+    }
+    documents = _house_documents()
+    del documents[trust_record_url(HOUSE_AGENT)]
+    # RFC 9421: a house that never published keeps the legacy path.
+    result = await TrustGrantEvaluator(
+        _grant_records(documents),
+        resolve_house=_mutual_assertion_house,
+        legacy_authorization=legacy,
+    ).check(**claim, signing_profile="adcp/request-signing/v1")
+    assert result.authorized and result.legacy_fallback_allowed
+    # Web Bot Auth always needs the operator's listing.
+    result = await TrustGrantEvaluator(
+        _grant_records(documents),
+        resolve_house=_mutual_assertion_house,
+        legacy_authorization=legacy,
+    ).check(**claim)
+    assert not result.authorized and result.reason == "signer_not_listed"
+    # An unreadable house record is an outage, never grant_absent.
+    documents[trust_record_url(HOUSE_AGENT)] = OSError("house unreachable")
+    for profile in ("web-bot-auth", "adcp/request-signing/v1"):
+        result = await TrustGrantEvaluator(
+            _grant_records(documents),
+            resolve_house=_mutual_assertion_house,
+            legacy_authorization=legacy,
+        ).check(**claim, signing_profile=profile)
+        assert not result.authorized and result.error_code == "SERVICE_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", "adcp/request-signing/v1"])
+async def test_brand_implicit_authority_never_waits_on_the_house(signing_profile):
+    async def broken(brand_domain: str, brand_id: str | None):
+        raise OSError("brand.json unreachable")
+
+    agent = "https://legacy.novamotors.com"
+    documents = {trust_record_url(agent): {"agents": [{"url": agent, "roles": ["adcp:buying"]}]}}
+    result = await TrustGrantEvaluator(_grant_records(documents), resolve_house=broken).check(
+        agent_origin=agent,
+        brand_domain="novamotors.com",
+        account_operator="novamotors.com",
+        signing_profile=signing_profile,
+    )
+    assert result.authorized, result.reason
+
+
+async def test_with_no_house_resolved_the_brand_is_its_own_house():
+    # The house does not list orphan.com back, so the resolver returns None.
+    evaluator = TrustGrantEvaluator(
+        _grant_records(_house_documents()), resolve_house=_mutual_assertion_house
+    )
+    denied = await evaluator.check(
+        agent_origin=HOUSE_AGENT, brand_domain="orphan.com", account_operator="house.com"
+    )
+    assert not denied.authorized and denied.reason == "grant_absent"
+    assert denied.error_code == "PERMISSION_DENIED"
+
+    # The brand is its own house, so its own record can grant the claimed house.
+    documents = _house_documents()
+    documents[trust_record_url("orphan.com")] = {
+        "grants": [{"grantee": "house.com", "scopes": ["adcp:media_buying"]}]
+    }
+    granted = await TrustGrantEvaluator(
+        _grant_records(documents), resolve_house=_mutual_assertion_house
+    ).check(agent_origin=HOUSE_AGENT, brand_domain="orphan.com", account_operator="house.com")
+    assert granted.authorized
+
+
+async def test_an_operator_outside_the_brand_and_its_house_still_needs_a_grant():
+    agency = "https://buyer.agency.com"
+    denied = await TrustGrantEvaluator(
+        _grant_records(_house_documents()), resolve_house=_mutual_assertion_house
+    ).check(agent_origin=agency, brand_domain="novamotors.com", account_operator="agency.com")
+    assert not denied.authorized and denied.reason == "grant_absent"
+
+    # The house's agent under another organization's account is not implicit.
+    other_account = await TrustGrantEvaluator(
+        _grant_records(_house_documents()), resolve_house=_mutual_assertion_house
+    ).check(agent_origin=HOUSE_AGENT, brand_domain="novamotors.com", account_operator="agency.com")
+    assert not other_account.authorized and other_account.reason == "grant_absent"
+
+    # The house's agent under its self-operated child brand's account is not
+    # implicit: account.operator is the brand, not the signer's operator.
+    self_operated = await TrustGrantEvaluator(
+        _grant_records(_house_documents()), resolve_house=_mutual_assertion_house
+    ).check(
+        agent_origin=HOUSE_AGENT, brand_domain="novamotors.com", account_operator="novamotors.com"
+    )
+    assert not self_operated.authorized and self_operated.reason == "grant_absent"
+
+    granted = await TrustGrantEvaluator(
+        _grant_records(
+            _house_documents(
+                house_grants=[{"grantee": "agency.com", "scopes": ["adcp:media_buying"]}]
+            )
+        ),
+        resolve_house=_mutual_assertion_house,
+    ).check(agent_origin=agency, brand_domain="novamotors.com", account_operator="agency.com")
+    assert granted.authorized
+
+
+@pytest.mark.parametrize("non_spend", [False, True], ids=["spend", "non-spend"])
+async def test_a_house_resolution_failure_is_never_grant_absent(non_spend):
+    async def broken(brand_domain: str, brand_id: str | None):
+        raise OSError("brand.json unreachable")
+
+    result = await TrustGrantEvaluator(
+        _grant_records(_house_documents()), resolve_house=broken
+    ).check(
+        agent_origin=HOUSE_AGENT,
+        brand_domain="novamotors.com",
+        account_operator="house.com",
+        allow_stale_on_outage=non_spend,
+    )
+    assert not result.authorized
+    assert result.error_code == "SERVICE_UNAVAILABLE"
+    assert result.reason == "brand_house_unavailable"
+    assert not result.include_grant_absent_details
+
+
+@pytest.mark.parametrize("signing_profile", ["web-bot-auth", "adcp/request-signing/v1"])
+@pytest.mark.parametrize(
+    "agent,account_operator,house,authorized",
+    [
+        # Hosts reduce to their registrable domain on every side.
+        ("https://buyer.house.com", "ads.house.com", "www.house.com", True),
+        ("https://agent.buy.house.co.uk", "house.co.uk", "brands.house.co.uk", True),
+        # PSL PRIVATE section: two github.io tenants are different operators.
+        ("https://alice.github.io", "alice.github.io", "bob.github.io", False),
+    ],
+    ids=["subdomains", "multi-label-suffix", "private-suffix"],
+)
+async def test_implicit_house_authority_compares_registrable_domains(
+    agent, account_operator, house, authorized, signing_profile
+):
+    async def resolve(brand_domain: str, brand_id: str | None) -> str:
+        return house
+
+    # When the domains match, the house's record is the signer's record.
+    documents = {
+        trust_record_url(house): {"grants": []},
+        trust_record_url(agent): {"agents": [{"url": agent, "roles": ["adcp:buying"]}]},
+    }
+    result = await TrustGrantEvaluator(_grant_records(documents), resolve_house=resolve).check(
+        agent_origin=agent,
+        brand_domain="novamotors.com",
+        account_operator=account_operator,
+        signing_profile=signing_profile,
+    )
+    assert result.authorized is authorized
+    if not authorized:
+        assert result.reason == "grant_absent"
+
+
 @pytest.mark.parametrize(
     "grantee",
     ["ads.platform.com", "buyer.platform.com"],
