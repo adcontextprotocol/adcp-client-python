@@ -624,7 +624,6 @@ class ExplicitAccounts(Generic[TMeta]):
                 message=(
                     "ExplicitAccounts.resolve requires ref with 'account_id'; got missing/empty ref"
                 ),
-                recovery="terminal",
                 field="account.account_id",
             )
         return self._loader(ref["account_id"])
@@ -731,7 +730,6 @@ class FromAuthAccounts(Generic[TMeta]):
                     "FromAuthAccounts.resolve requires auth_info with a "
                     "verified principal; got None / empty"
                 ),
-                recovery="terminal",
             )
         return self._loader(auth_info.principal)
 

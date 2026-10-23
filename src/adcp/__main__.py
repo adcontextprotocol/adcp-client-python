@@ -448,8 +448,21 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         return await method(request)
     except ValidationError as e:
         # User-friendly error for invalid payloads
+        from adcp.types.error_narrowing import narrow_union_errors
+
         error_details = []
-        for error in e.errors():
+        # Narrow first, as every other consumer of a union ValidationError
+        # does. Iterating the raw errors let a split root's wholesale refusal
+        # ("packages is not accepted by this request shape", at no field at
+        # all) and every branch's duplicate reach the CLI alongside the real
+        # one.
+        #
+        # No projection of `loc` here: the public `narrow_union_errors` already
+        # returns each error with `without_schema_labels` applied to its loc,
+        # which is why `server.mcp_tools` calls it bare too. Projecting again
+        # at the call site is the pattern that was deleted from
+        # `error_narrowing` for deciding membership by spelling.
+        for error in narrow_union_errors(e.errors()):
             field = ".".join(str(loc) for loc in error["loc"])
             msg = error["msg"]
             error_details.append(f"  - {field}: {msg}")

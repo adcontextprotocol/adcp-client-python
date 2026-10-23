@@ -131,7 +131,6 @@ def _denied_error() -> AdcpError:
     return AdcpError(
         "PERMISSION_DENIED",
         message=_DENIED_MESSAGE,
-        recovery="correctable",
     )
 
 

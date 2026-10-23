@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import BaseModel, ValidationError
 
 from adcp.types.error_narrowing import narrow_union_errors
 
@@ -291,12 +292,22 @@ def test_narrow_returns_defensive_copies() -> None:
     assert original_err["msg"] == "Field required"
 
 
-def test_narrow_passes_through_oversized_input() -> None:
-    """DoS guard: above 500 errors we don't run narrowing — narrowing
-    is UX, not correctness, and a hostile request shouldn't get to
-    amplify CPU through the bucketing logic. Verifies the cap is
-    enforced and the original list comes back unchanged."""
-    # Build 600 errors that WOULD be narrowable if we ran the algorithm.
+def test_narrow_keeps_every_arm_of_a_six_hundred_way_tie() -> None:
+    """600 arms, one ``missing`` each, all kept — because they TIE.
+
+    This asserted a DoS cap: above 500 errors narrowing was skipped and the
+    input returned unchanged. The cap is gone (salesagent-8qela.75) — it made
+    quality degrade exactly when volume was highest, and narrowing measured
+    linear at ~4-5us per error, so there was no amplification to guard.
+
+    The length is still 600, which is why the removal did not turn this red:
+    it now passes through the TIE path instead of the cap. Every arm has one
+    ``missing``, so none gets past its own requiredness, depths are equal, and
+    the count sort ties — ``_pick_winning_variant`` returns None and declines
+    to guess. Same number, different reason, so the docstring is corrected
+    rather than the assertion: a test passing for a mechanism that no longer
+    exists is worse than one failing.
+    """
     errors: list[dict[str, Any]] = [
         {
             "type": "missing",
@@ -306,4 +317,103 @@ def test_narrow_passes_through_oversized_input() -> None:
         for i in range(600)
     ]
     narrowed = narrow_union_errors(errors)
-    assert len(narrowed) == 600  # bypass — input came back as-is
+    assert len(narrowed) == 600
+
+
+# ---------------------------------------------------------------------------
+# The depth preference, pinned in both directions.
+#
+# PROVISIONAL, and the docstrings say so. Depth is NOT the principle: it fails
+# a count-tied depth-differing case (salesagent-8qela.79) while a count-only
+# rule fails the case below, and no ordering of the two satisfies both. The
+# signal both cases actually turn on is which arm's DECLARED FIELDS the
+# document carries, which the narrowing cannot see because it receives error
+# dicts and never the arm's model (salesagent-8qela.89).
+#
+# These pin TODAY'S behaviour anyway, because the alternative was measured: with
+# no guard, a sweep over 275 generated-type items concluded the preference had
+# nothing to decide and it was approved for deletion. The guard exists to make
+# that deletion deliberate rather than silent, not to assert depth is right.
+#
+# Fixtures are declared here rather than taken from the SDK. The previous
+# coverage went through generated request models, and the emitter change that
+# collapsed a split root's branches took the behaviour out from under it. An
+# adopter-shaped fixture cannot go stale that way, and it is the path the
+# module's docstring names for adopters building typed models in platform
+# method bodies.
+#
+# One holder serves both cases, and the equal-depth case asserts its own
+# depths before narrowing — both from sdk-rootcause's 3ea04ebaf, which is the
+# better shape: one model means the pair cannot disagree about what pydantic
+# reports, and the depth assertion means a fixture that stops being a tie says
+# so instead of quietly testing something else.
+# ---------------------------------------------------------------------------
+
+
+class InnerNeed(BaseModel):
+    need: int
+
+
+class ShallowArm(BaseModel):
+    kind: str
+
+
+class DeepArm(BaseModel):
+    kind: str
+    inner: InnerNeed
+
+
+class DepthHolder(BaseModel):
+    choice: ShallowArm | DeepArm
+
+
+def _union_errors(model: type[BaseModel], payload: dict[str, Any]) -> list[Any]:
+    with pytest.raises(ValidationError) as raised:
+        model.model_validate(payload)
+    return raised.value.errors(include_input=False, include_context=False, include_url=False)
+
+
+def test_both_arms_survive_when_they_reach_the_same_depth() -> None:
+    """Equal depth is a genuine tie, and a tie keeps every arm.
+
+    Neither arm read further than the other, so nothing in the document says
+    which was meant and narrowing must not choose. This is the invariant
+    against over-narrowing, and it holds under the depth preference because
+    depth is inert when depths are equal.
+    """
+    errors = _union_errors(DepthHolder, {"choice": {"kind": 5, "inner": {"need": 1}}})
+    depths = {len(tuple(error["loc"])) for error in errors}
+    assert depths == {3}, f"the fixture stopped being an equal-depth tie: {depths}"
+
+    narrowed = [tuple(error["loc"]) for error in narrow_union_errors(errors)]
+
+    assert narrowed == [
+        ("choice", "ShallowArm", "kind"),
+        ("choice", "DeepArm", "kind"),
+    ], f"a tie must keep both arms, got {narrowed}"
+
+
+def test_the_deeper_arm_wins_when_the_arms_reach_different_depths() -> None:
+    """Differing depths select the deeper arm, dropping the shallower one's errors.
+
+    PINS CURRENT BEHAVIOUR, NOT A PRINCIPLE. The document carries ``inner``, a
+    key only ``DeepArm`` declares, so ``DeepArm`` is the arm that was meant —
+    and depth happens to pick it. Counting errors would pick ``ShallowArm``
+    (one error against two) and report only ``kind``, hiding ``inner.need``
+    until the buyer fixed ``kind`` and resubmitted: worse than not narrowing.
+
+    So the DROP asserted here is correct for this input, and the rule that
+    produces it is not. Depth merely correlates with the real signal, which is
+    declared-field presence (salesagent-8qela.89). When that rule lands, this
+    test should be rewritten to assert it — deliberately, which is the whole
+    reason the case is graded at all.
+    """
+    errors = _union_errors(DepthHolder, {"choice": {"kind": 5, "inner": {}}})
+    depths = {len(tuple(error["loc"])) for error in errors}
+    assert depths == {3, 4}, f"the fixture stopped differing in depth: {depths}"
+
+    narrowed = [tuple(str(part) for part in error["loc"]) for error in narrow_union_errors(errors)]
+
+    assert all("ShallowArm" not in path for path in narrowed), narrowed
+    # The error a count-based rule would have hidden.
+    assert any(path[-1] == "need" for path in narrowed), narrowed

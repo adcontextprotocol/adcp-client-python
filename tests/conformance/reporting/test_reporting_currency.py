@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator, Callable
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, localcontext
+from decimal import localcontext
 from typing import Any
 
 import pytest
@@ -864,16 +864,42 @@ async def test_postgres_currency_survives_closing_every_application_connection()
         ("media_buy", "CURRENCY_MISMATCH"),
         ("package", "CURRENCY_MISMATCH"),
         ("mixed_packages", "MIXED_CURRENCY_SCOPE"),
-        ("reporting_rows", "CURRENCY_MISMATCH"),
-        ("matching_eur", None),
     ],
 )
 async def test_delivery_response_currency_is_checked_before_flattening(
     store: ReportingLedgerStore,
     monkeypatch: pytest.MonkeyPatch,
     shape: str,
-    expected_error: str | None,
+    expected_error: str,
 ) -> None:
+    """A denomination anywhere in the response contradicts the frozen request.
+
+    Every shape here states its currency on the delivery response itself, which
+    is what the name means and what ``_delivery_rows`` reads before flattening.
+
+    TWO SHAPES WERE REMOVED AND MUST NOT COME BACK AS THEY WERE.
+    ``reporting_rows`` and ``matching_eur`` put canonical rows on the response to
+    get exact decimal money onto a surface whose own metrics are floats. The pin
+    forbids the document they built: ``get-media-buy-delivery-response.json``
+    requires ``reporting_revision``, ``reporting_revision_binding`` and
+    ``pagination`` as soon as ``reporting_rows`` is present, and the field is for
+    "one page of authoritative logical rows for an exact reporting_revision_id
+    read" -- a different operation from this fetch. The model refused both
+    documents, the refusal reached ``_unclassified`` as PROVIDER_TRANSIENT, and
+    the two cases had never once executed the currency logic they named.
+
+    Supplying the missing fields does not rescue them: the revision's
+    ``control_totals`` values are integer strings (``^-?(?:0|[1-9][0-9]*)$``), so
+    the ``"0.30"`` spend those two cases were about cannot be stated there at
+    all.
+
+    The exact-decimal concern is covered, twice, through the surface the other
+    twelve ``money_rows`` call sites in this file use --
+    ``test_sealed_source_retry_after_commit_failure_keeps_currency`` and
+    ``test_inline_money_is_frozen_before_staging_awaits`` both assert a
+    ``"0.30"`` spend control total from ``money_rows``.
+    """
+
     def fetch(request: ReportingSourceSliceRequestV1) -> GetMediaBuyDeliveryResponse:
         delivery: dict[str, Any] = {
             "media_buy_id": "mb_eur",
@@ -885,12 +911,8 @@ async def test_delivery_response_currency_is_checked_before_flattening(
             "reporting_period": {"start": START, "end": END},
             "media_buy_deliveries": [delivery],
         }
-        if shape in {"response", "reporting_rows", "matching_eur"}:
-            payload["currency"] = "EUR" if shape == "matching_eur" else "USD"
-        if shape in {"reporting_rows", "matching_eur"}:
-            # Core's canonical row format uses exact decimal strings; the
-            # ordinary delivery surface models its legacy metrics as floats.
-            payload["reporting_rows"] = money_rows(request)
+        if shape == "response":
+            payload["currency"] = "USD"
         if shape == "media_buy":
             delivery["currency"] = "USD"
         if shape in {"package", "mixed_packages"}:
@@ -913,22 +935,16 @@ async def test_delivery_response_currency_is_checked_before_flattening(
     producer = producer_for(store, source, staging, currency="EUR")
     config = configuration()
     (obligation,) = await close_admitted_periods(producer, config)
-    if expected_error is None:
-        revision = await producer.acquire_obligation(config, obligation)
-        assert revision is not None
-        assert Decimal(dict(revision.control_totals)["spend"]) == Decimal("0.30")
-        assert obligation.currency == "EUR"
-    else:
 
-        def must_not_aggregate(*args: Any) -> None:
-            raise AssertionError("delivery-response currency was discarded before aggregation")
+    def must_not_aggregate(*args: Any) -> None:
+        raise AssertionError("delivery-response currency was discarded before aggregation")
 
-        monkeypatch.setattr("adcp.reporting.inline_source._control_totals", must_not_aggregate)
-        request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=NOW)
-        result = await source.execute(request, cancel=asyncio.Event())
-        assert result.error is not None and result.error.code == "INTEGRITY_FAILED"
-        assert result.error.retry == "terminal"
-        assert expected_error in result.error.safe_message
+    monkeypatch.setattr("adcp.reporting.inline_source._control_totals", must_not_aggregate)
+    request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=NOW)
+    result = await source.execute(request, cancel=asyncio.Event())
+    assert result.error is not None and result.error.code == "INTEGRITY_FAILED"
+    assert result.error.retry == "terminal"
+    assert expected_error in result.error.safe_message
 
 
 async def test_inline_money_is_frozen_before_staging_awaits(

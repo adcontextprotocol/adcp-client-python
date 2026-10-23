@@ -10,7 +10,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # Request types are imported at module scope (NOT under TYPE_CHECKING)
 # so that ``typing.get_type_hints(method)`` resolves every ADCPHandler
@@ -208,6 +208,94 @@ class NotImplementedResponse(BaseModel):
     supported: bool = False
     reason: str = "This operation is not supported by this agent"
     error: Error | None = None
+
+
+def invalid_request(
+    error: Exception,
+    *,
+    request_model: type[BaseModel] | None = None,
+    payload: Any = None,
+) -> NotImplementedResponse:
+    """The one refusal a request-validation path returns to a peer.
+
+    Every ``handler.<tool>()`` in this package validates ``params`` into its
+    request model and must answer a rejection with a protocol error rather
+    than let the exception escape as a transport failure. This builds that
+    answer once.
+
+    A pydantic ``ValidationError`` is projected to value-free ``issues[]``
+    (see :mod:`adcp.validation.pydantic_errors`) and then through the same
+    envelope builder the jsonschema oracle path uses, so the two routes to
+    ``VALIDATION_ERROR`` agree. ``str(error)`` is never used for one: it
+    renders pydantic's diagnostic including ``input_value``, which reflects
+    the peer's own payload — a bearer token, PII, a prompt-injection string —
+    back out through an envelope that logs and intermediaries see.
+
+    Any other exception is a rule raised by this SDK's own validators, whose
+    text is authored and value-free, so it is carried as the single issue's
+    message. Those callers pass ``request_model`` because only a pydantic
+    error knows which model refused it.
+
+    Args:
+        error: The rejection. A pydantic ``ValidationError`` names its own
+            model via ``.title``, so the tool name is derived, not declared.
+        request_model: Required only when ``error`` is not a pydantic
+            ``ValidationError``.
+    """
+    from adcp.types.versioned import _schema_key_for_model_name
+    from adcp.validation.pydantic_errors import issues_from_validation_error
+    from adcp.validation.schema_errors import build_adcp_validation_error_payload
+    from adcp.validation.schema_validator import SchemaRuleError, ValidationIssue
+
+    issues: list[ValidationIssue]
+    if isinstance(error, ValidationError):
+        model_name = request_model.__name__ if request_model is not None else error.title
+        # The buyer's document, so the loc resolves against what was actually
+        # sent. Read for KEY MEMBERSHIP only -- the resolver appends elements of
+        # the loc and never anything out of the document -- which is what keeps
+        # the issue rows value-free while making the pointer resolvable.
+        issues = issues_from_validation_error(error, payload)
+    elif request_model is not None:
+        model_name = request_model.__name__
+        if isinstance(error, SchemaRuleError):
+            # The rule named its own vocabulary term and pointer, and a site that
+            # enforces two rules carries two rows. Nothing is stamped here.
+            issues = list(error.issues)
+        else:
+            # An exception this package did not raise -- `invalid_request` is public
+            # API, so an adopter can pass one -- and there is nothing to derive a
+            # keyword from. `validation` is NOT a JSON Schema vocabulary term and
+            # core/error.json says not to invent values, so this row is known to be
+            # non-conformant; it survives because the alternative is guessing a term
+            # for a rule this package cannot see. salesagent-8qela.117.
+            issues = [
+                ValidationIssue(
+                    pointer="/",
+                    message=str(error),
+                    keyword="validation",
+                    schema_path="",
+                )
+            ]
+    else:
+        # A caller bug, not a peer's. Loud rather than mislabelled: without
+        # either source there is no tool name to put in the envelope.
+        raise TypeError(
+            "invalid_request needs request_model for a non-ValidationError "
+            f"rejection, got {type(error).__name__}"
+        )
+
+    tool, side = _schema_key_for_model_name(model_name)
+
+    payload = build_adcp_validation_error_payload(tool, side, issues)
+    return NotImplementedResponse(
+        supported=False,
+        # The builder's message, not "Invalid request: {e}" — the old spelling
+        # interpolated the exception and so echoed the payload here too.
+        reason=payload["message"],
+        # Every envelope field comes from the builder, so this lane and the
+        # jsonschema oracle answer a rejection identically.
+        error=Error(**payload),
+    )
 
 
 def not_supported(

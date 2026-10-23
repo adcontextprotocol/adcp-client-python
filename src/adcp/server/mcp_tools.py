@@ -1928,6 +1928,142 @@ def _prune_schema_node(
     return value
 
 
+#: The two keywords a SPLIT ROOT's schema states its branches under. A root whose
+#: branches partition the document space generates one class per branch, and its
+#: JSON schema is the combinator over them and nothing else.
+_BRANCH_COMBINATORS = ("anyOf", "oneOf")
+
+
+#: Annotations that describe a field rather than constrain it. Hoisted out of the
+#: per-branch declarations before they are compared, so two branches that differ
+#: only in a default are still recognised as declaring the same type.
+_FIELD_ANNOTATIONS = ("default", "title", "description")
+
+
+def _widest_declaration(declared: list[dict[str, Any]]) -> dict[str, Any]:
+    """One field's declaration across the branches that declare it.
+
+    A branch only ever NARROWS a root field -- it states what it changes, and
+    types what it forbids as ``None``. So the root's own declaration is the UNION
+    of its branches', and combining them recovers it rather than guessing at it.
+    Measured on ``create_media_buy``'s ``packages``:
+
+        fixed-allocation branch     {"items": {...}, "type": "array"}
+        seller-optimized branch     {"items": {...}, "type": "array"}
+        committed-proposal branch   {"default": null, "type": "null"}
+        the root class declares     Sequence[PackageRequest] | None
+
+    No branch carries the root's shape and the union of the three is exactly it.
+    Taking the first branch's instead advertised ``packages`` as a required
+    non-nullable array and ``proposal_id`` as necessarily null -- the narrowing
+    of one branch presented as the contract of all three.
+    """
+    annotations: dict[str, Any] = {}
+    for key in _FIELD_ANNOTATIONS:
+        for declaration in declared:
+            if key in declaration:
+                annotations[key] = declaration[key]
+                break
+    variants: list[dict[str, Any]] = []
+    for declaration in declared:
+        constraint = {k: v for k, v in declaration.items() if k not in _FIELD_ANNOTATIONS}
+        if constraint and constraint not in variants:
+            variants.append(constraint)
+    if not variants:
+        return dict(annotations)
+    if len(variants) == 1:
+        return {**variants[0], **annotations}
+    return {"anyOf": variants, **annotations}
+
+
+def _object_root_from_branches(schema: dict[str, Any]) -> dict[str, Any] | None:
+    """An unconditional object root for a split root, or ``None``.
+
+    MCP discovery needs ``type: "object"`` with ``properties`` at the root so a
+    client can render the form, which is why :func:`_model_to_json_schema`
+    refuses a combinator there. But refusing the whole schema threw away the
+    fields too: the three split-root request models -- create_media_buy,
+    request_proposals, verify_brand_claim -- fell back to hand-crafted stubs,
+    and a client reading create_media_buy's ``inputSchema`` could not see
+    ``account`` at all (salesagent-8qela.85).
+
+    Nothing is reconstructed. A branch's ``$defs`` entry is already a complete
+    object schema -- measured on CreateMediaBuyRequestExplicitPackagesWithFixedAllocation:
+    ``additionalProperties``, ``description``, ``properties`` (31, ``account``
+    among them), ``required``, ``title``, ``type`` -- so this reads what the
+    union already carries rather than rendering a second schema. An earlier
+    attempt stashed the root's own core schema in the type layer and rendered it
+    separately; that is unsound, because the core schema the handler returns is
+    not self-contained and both a borrowed and a fresh generator raised
+    ``KeyError`` on a definition the enclosing build owns.
+
+    PROPERTIES ARE UNIONED and REQUIRED IS INTERSECTED, which is what makes the
+    result honest about what it is: every field any branch accepts is
+    advertised, and only a field EVERY branch demands is advertised as required.
+    So the schema is permissive about which branch a document must satisfy -- a
+    client can build a payload satisfying none -- and that is discovery, not
+    validation: the branches are still enforced on arrival. It is also strictly
+    better than the stub it replaces, which was permissive about everything and
+    named the wrong fields.
+
+    The division of labour, because conflating the two is what produced the stub:
+    THE ADVERTISED SCHEMA'S JOB IS TO LET A CLIENT BUILD A CANDIDATE, AND THE
+    SERVER'S JOB IS TO REFUSE A WRONG ONE. A schema that admits a payload
+    satisfying no branch is a smaller defect than one that cannot describe the
+    request at all.
+
+    AND THE ADVERTISED SCHEMA IS NOT THE PINNED DOCUMENT. They are different
+    artifacts with different consumers, and the pin is not the authority here:
+    ``create-media-buy-request.json`` carries ``anyOf`` AND ``allOf`` at its
+    root, so a pin-faithful projection is exactly what
+    ``test_every_input_discovery_schema_has_unconditional_object_root`` refuses.
+    "Match the pin" sounds unarguable and is the wrong instruction for this
+    function; matching it in ``model_json_schema()`` is a separate obligation
+    (salesagent-8qela.90).
+    """
+    combinator = next((kw for kw in _BRANCH_COMBINATORS if kw in schema), None)
+    if combinator is None:
+        return None
+    branches = schema.get(combinator)
+    definitions = schema.get("$defs") or {}
+    if not isinstance(branches, list) or not branches:
+        return None
+    resolved: list[dict[str, Any]] = []
+    for branch in branches:
+        # Only a bare ``$ref`` to a local object definition. Anything else -- an
+        # inline branch, a nested combinator, a non-object -- is a shape this
+        # has not been measured against, and returning None keeps the existing
+        # refusal rather than guessing.
+        if not isinstance(branch, dict) or set(branch) != {"$ref"}:
+            return None
+        target = definitions.get(str(branch["$ref"]).rsplit("/", 1)[-1])
+        if not isinstance(target, dict) or target.get("type") != "object":
+            return None
+        if not target.get("properties"):
+            return None
+        resolved.append(target)
+
+    properties: dict[str, Any] = {}
+    for name in dict.fromkeys(key for target in resolved for key in target["properties"]):
+        declared = [
+            target["properties"][name] for target in resolved if name in target["properties"]
+        ]
+        properties[name] = _widest_declaration(declared)
+    required = set(resolved[0].get("required") or ())
+    for target in resolved[1:]:
+        required &= set(target.get("required") or ())
+
+    root = {key: value for key, value in schema.items() if key != combinator}
+    root["type"] = "object"
+    root["properties"] = properties
+    if required:
+        root["required"] = sorted(required)
+    for inherited in ("additionalProperties", "description", "title"):
+        if inherited not in root and inherited in resolved[0]:
+            root[inherited] = resolved[0][inherited]
+    return root
+
+
 def _model_to_json_schema(
     model_type: Any,
     *,
@@ -1957,6 +2093,10 @@ def _model_to_json_schema(
 
     Returns ``None`` on any failure — callers fall back to skipping.
     """
+    # Annotated rather than inferred: the first assignment comes from an ``Any``
+    # expression, so a later reassignment resets the flow narrowing the
+    # ``isinstance`` guard below establishes and the return becomes ``Any``.
+    schema: dict[str, Any]
     try:
         from pydantic import TypeAdapter
 
@@ -1968,9 +2108,12 @@ def _model_to_json_schema(
     except Exception:
         return None
 
-    if not isinstance(schema, dict):
-        return None
-
+    # An ``isinstance(schema, dict)`` guard stood here and mypy reports it
+    # unreachable under the annotation above: both ``model_json_schema()`` and
+    # ``TypeAdapter.json_schema()`` are typed to return ``dict[str, Any]``, and
+    # anything else they could raise is already caught. Keeping it would mean
+    # keeping the annotation off, which is what let the return type decay to
+    # ``Any``.
     schema.pop("title", None)
 
     if not allow_root_union:
@@ -1985,7 +2128,20 @@ def _model_to_json_schema(
             "else",
             "dependentSchemas",
         }
-        if schema.get("type") != "object" or unsupported_root_keywords.intersection(schema):
+        present = unsupported_root_keywords.intersection(schema)
+        if present and set(present) <= set(_BRANCH_COMBINATORS):
+            # A split root: recoverable, because its branches carry the object
+            # surface the root's own schema has no room for. A conditional
+            # (``if``/``then``, ``not``, ``dependentSchemas``) or a composition
+            # (``allOf``, ``$ref``) constrains the SAME object and is NOT
+            # recoverable -- dropping one would advertise a surface the seller
+            # does not accept, which is the contract
+            # ``test_pydantic_fallback_rejects_conditional_root`` holds.
+            recovered = _object_root_from_branches(schema)
+            if recovered is None:
+                return None
+            schema = _drop_unreachable_defs(recovered)
+        elif present or schema.get("type") != "object":
             return None
 
     if schema_mode not in _SCHEMA_MODES:

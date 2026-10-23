@@ -13,7 +13,6 @@ from adcp.types import (
     AcceptancePolicyProfile,
     ControlMediaBuyResponse,
     CreateMediaBuyRequest,
-    GetProductsRequest,
     ListProductsResponse,
     Product,
     RefineProposalsRequest,
@@ -123,7 +122,19 @@ def test_responses_only_emit_replayed_when_supplied(
     [
         (CreateMediaBuyRequest, "bidding", {"bid_amount": 5}, "automatic"),
         (Product, "media_buy_support", {"future_capability": True}, "frequency_cap"),
-        (GetProductsRequest, "required_media_buy_support", {}, "frequency_cap"),
+        # ProductMediaBuySupportRequirements is NOT here, and cannot be: this
+        # case needs a schema-valid document that OMITS the constant field, and
+        # core/media-buy-support-requirements.json admits none. It declares
+        # exactly two properties, additionalProperties false, minProperties 1,
+        # and dependencies {frequency_cap_constraints: [frequency_cap]} -- so
+        # {} is refused on minProperties, frequency_cap_constraints alone is
+        # refused on dependencies, and every accepted document carries
+        # frequency_cap. Asked of the oracle rather than reasoned: of {},
+        # {frequency_cap_constraints}, {frequency_cap} and both, only
+        # {"frequency_cap": True} validates. The case asserted behaviour over a
+        # document the spec rejects, and it passed only while minProperties was
+        # uncompiled (salesagent-09ghh). frequency_cap's constant is still
+        # graded, by the Product.media_buy_support case above.
         (
             AcceptancePolicyProfile,
             "scope",

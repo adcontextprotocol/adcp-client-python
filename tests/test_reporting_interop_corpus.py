@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -862,20 +863,35 @@ def test_ts_version_and_abort_helpers_fail_closed_without_sdk_execution() -> Non
         assert.throws(() => privateInputsModule.storyboardPrivateInputs({{
           ...storyboardEnvironment, ADCP_INTEROP_TS_STORYBOARD_STARTUP_PROOF: 'short',
         }}), /strong per-run private input/);
-        const ready = core.buildReadyRecord({{
+        // The core seller's ready record carries an owned-start proof, and
+        // ts_core_server.cjs's processStartToken() reads /proc/<pid>/stat
+        // field 22 for it -- so it fail-closes off Linux by design. Both
+        // halves are asserted, and the marker each writes tells the caller
+        // which one ran: neither platform skips this block silently.
+        const coreReadyArgs = [{{
           expectedIntegrity: 'sha512-fixture', installed: {{ version: '14.0.0-test' }},
           packageName: '@adcp/sdk',
         }}, {{
           adcpVersion: '3.2.0-rc.6', authBindings: bindings, port: 55555,
           sellerRole: 'candidate', startupProof: privateInputs.startupProof,
           url: 'http://127.0.0.1:55555/mcp',
-        }});
-        const encodedReady = JSON.stringify(ready);
-        assert.equal(encodedReady.includes(strongA), false);
-        assert.equal(encodedReady.includes(strongB), false);
-        assert.equal(encodedReady.includes(privateInputs.startupProof), false);
-        assert.equal(ready.seller_package.package_role, 'candidate');
-        assert.equal(ready.seller_package.protocol, '3.2.0-rc.6');
+        }}];
+        if (process.platform === 'linux') {{
+          const ready = core.buildReadyRecord(...coreReadyArgs);
+          const encodedReady = JSON.stringify(ready);
+          assert.equal(encodedReady.includes(strongA), false);
+          assert.equal(encodedReady.includes(strongB), false);
+          assert.equal(encodedReady.includes(privateInputs.startupProof), false);
+          assert.equal(ready.seller_package.package_role, 'candidate');
+          assert.equal(ready.seller_package.protocol, '3.2.0-rc.6');
+          process.stdout.write('ts-core-ready-record-complete\\n');
+        }} else {{
+          assert.throws(
+            () => core.buildReadyRecord(...coreReadyArgs),
+            /requires Linux \\/proc/,
+          );
+          process.stdout.write('ts-core-ready-record-requires-linux\\n');
+        }}
         for (const fixtureReady of [
           controlled.buildReadyRecord(fakeApi, {{
             adcpVersion: '3.2.0-rc.6', authToken: strongA, port: 55555,
@@ -910,7 +926,18 @@ def test_ts_version_and_abort_helpers_fail_closed_without_sdk_execution() -> Non
         text=True,
         timeout=30,
     )
-    assert completed.stdout.splitlines() == ["ts-version-abort-helpers-complete"]
+    # The core seller's owned-start proof needs Linux ``/proc``; off Linux the
+    # script asserts that it fail-closes instead. Which marker appears is
+    # therefore an assertion about the platform, not a skipped obligation.
+    core_marker = (
+        "ts-core-ready-record-complete"
+        if sys.platform.startswith("linux")
+        else "ts-core-ready-record-requires-linux"
+    )
+    assert completed.stdout.splitlines() == [
+        core_marker,
+        "ts-version-abort-helpers-complete",
+    ]
     assert "urllib.request.urlopen" in receiver_server
     assert '"normative_019_match"' in receiver_client
     assert '"blocking_acceptance"' in receiver_client

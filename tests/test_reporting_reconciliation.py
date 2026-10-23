@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 import json
 import threading
 from copy import deepcopy
 from datetime import datetime
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -103,6 +105,9 @@ def test_capability_uses_public_reporting_delivery_model() -> None:
             "supported": True,
             "managed_delivery": True,
             "reconciled_billing": True,
+            # reconciled_billing names the task consumers submit receipts through
+            # (core/reporting-delivery-capabilities.json, allOf member 4).
+            "receipt_task": "sync_reporting_receipts",
             "offerings": [
                 {
                     "offering_id": "billing-daily",
@@ -115,9 +120,18 @@ def test_capability_uses_public_reporting_delivery_model() -> None:
                         "version": "1",
                         "schema_uri": "https://schemas.example/reporting/billing-v1.json",
                         "schema_sha256": "c" * 64,
+                        "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+                        "schema_ref_policy": "local_fragment_only",
                         "grain": "media_buy_day",
                         "primary_keys": ["media_buy_id", "date"],
+                        # A consumer_receipt offering's profile carries the whole
+                        # canonical-digest contract, not three of its five fields
+                        # (core/reporting-delivery-offering.json, allOf member 1).
                         "canonicalization_id": "rows-v1",
+                        "canonicalization_contract_version": "1.0",
+                        "canonicalization_media_type": (
+                            "application/vnd.adcp.reporting-canonicalization+json"
+                        ),
                         "canonicalization_uri": "https://schemas.example/canonicalization/rows-v1.json",
                         "canonicalization_sha256": "b" * 64,
                     },
@@ -181,6 +195,83 @@ REVISION = {
 }
 
 
+def _issue(code: str) -> dict[str, object]:
+    """One reporting issue. A published consumer_receipt obligation whose receipt is
+    pending or rejected is action_required and MUST carry an issue naming which
+    (core/reporting-obligation.json, allOf members 2, 3 and 8)."""
+    return {
+        "issue_id": f"issue-{code.lower().replace('_', '-')}",
+        "code": code,
+        "severity": "action_required",
+        "responsible_party": "buyer",
+        "recommended_action": "contact_buyer",
+    }
+
+
+def _restate(record: Any, **changes: Any) -> Any:
+    """A typed record with fields restated, built without re-validating it."""
+    return record.model_construct(**{**record.__dict__, **changes})
+
+
+def _restated(ledger: Any, field: str, index: int, record: Any) -> Any:
+    """``ledger`` with one of its typed records replaced.
+
+    ``evaluate_reporting_ledger`` is a pure function over typed records, and some of
+    its checks guard states the pinned schema refuses outright: an official revision
+    with no finality evidence (core/reporting-revision.json member 1), or a resource
+    kind and verification path disagreeing with the method (members 2 to 4 of
+    core/reporting-materialization.json, which fix both from the method). No
+    validated response can carry one, and a loaded ledger refuses mutation, so the
+    record is restated and the ledger rebuilt around it. That grades the check at
+    the boundary it actually defends.
+    """
+    records = list(getattr(ledger, field))
+    records[index] = record
+    return dataclasses.replace(ledger, **{field: tuple(records)})
+
+
+def _health(value: str, *, code: str = "RECEIPT_REQUIRED") -> dict[str, object]:
+    """``health`` together with the issues the schema ties to it.
+
+    One owner for THAT tie: core/reporting-obligation.json states it outside its
+    properties, member 1 giving a healthy or complete obligation NO open issue
+    and member 8 giving a delayed or action_required one at least one. Setting
+    health alone leaves a document the schema refuses, which is why the two are
+    one return value.
+
+    It owns NOTHING ELSE, and two members say so. Members 2 and 3 read
+    ``reconciliation_status`` and name the code a pending or rejected receipt
+    requires, which is why ``code`` is a parameter -- a published
+    consumer_receipt obligation that is still pending is action_required
+    whatever this returns -- and member 7 requires all three receipt counts,
+    ``pending_adjustment_count`` among them, once such an obligation reads
+    healthy or complete. So a caller moving the health moves those in the same
+    update. Measured against the bundled validator rather than inferred:
+    ``_health("complete")`` over :func:`_obligation` is refused on member 2, and
+    refused on member 7 even once the status is settled. :func:`_reconciled` is
+    the one that owns the whole derivation.
+    """
+    closed = value in ("healthy", "complete")
+    return {"health": value, "issues": [] if closed else [_issue(code)]}
+
+
+def _delivery_only_complete() -> dict[str, object]:
+    """The state an obligation reaches when delivery alone settles it.
+
+    Fourteen sites in this module put an obligation into exactly this state, and
+    the schema makes it four keys rather than three: member 6 ties delivery_only
+    to a not_required status, and member 1 forbids an open issue at a complete
+    health, which is why the health comes through :func:`_health` rather than as
+    a literal. A function and not a constant, so each site gets its own
+    ``issues`` list to mutate.
+    """
+    return {
+        "reconciliation_mode": "delivery_only",
+        "reconciliation_status": "not_required",
+        **_health("complete"),
+    }
+
+
 def _obligation(identifier: str = "obligation-billing") -> dict[str, object]:
     return {
         "reporting_obligation_id": identifier,
@@ -199,12 +290,22 @@ def _obligation(identifier: str = "obligation-billing") -> dict[str, object]:
             "period_duration": "P1M",
             "alignment": "billing_cycle",
             "delivery_sla": "P1D",
+            # billing_cycle requires both: the anchor fixes the recurring cycle and
+            # the timezone defines its calendar arithmetic. Anchored ON the period
+            # rather than on a literal that happens to derive it, so the monthly
+            # boundaries stay exactly PERIOD if PERIOD ever moves.
+            "period_anchor": PERIOD["start"],
+            "period_timezone": "UTC",
         },
         "destination_ref": f"destination-{identifier}",
         "required_finality": "official",
         "reconciliation_mode": "consumer_receipt",
         "reconciliation_status": "pending",
-        "health": "waiting",
+        # A published consumer_receipt obligation whose receipt is still pending is
+        # action_required carrying a RECEIPT_REQUIRED issue, which the schema states
+        # outside its properties (core/reporting-obligation.json, allOf members 2
+        # and 8). "waiting" with no issues is a document the schema refuses.
+        "health": "action_required",
         "production_status": "published",
         "revision_count": 1,
         "materialization_count": 1,
@@ -214,7 +315,7 @@ def _obligation(identifier: str = "obligation-billing") -> dict[str, object]:
         "adjustment_count": 0,
         "adjustment_receipt_count": 0,
         "accepted_adjustment_receipt_count": 0,
-        "issues": [],
+        "issues": [_issue("RECEIPT_REQUIRED")],
         "resource_retained_until": "2026-12-01T00:00:00Z",
     }
 
@@ -263,9 +364,18 @@ def _response(receipts: list[dict[str, object]] | None = None) -> dict[str, obje
         accepted_receipts = [receipt for receipt in receipts if receipt.get("status") == "accepted"]
         item.update(receipt_count=len(receipts), accepted_receipt_count=len(accepted_receipts))
         if accepted_receipts:
-            item.update(reconciliation_status="accepted", health="complete")
+            # Member 7 also requires the three receipt counts on a complete
+            # consumer_receipt obligation, pending_adjustment_count among them.
+            item.update(
+                reconciliation_status="accepted",
+                pending_adjustment_count=0,
+                **_health("complete"),
+            )
         else:
-            item.update(reconciliation_status="rejected", health="waiting")
+            item.update(
+                reconciliation_status="rejected",
+                **_health("action_required", code="RECEIPT_REJECTED"),
+            )
     return {
         "status": "completed",
         "view": "periods",
@@ -353,9 +463,7 @@ class _CoreClient:
         ):
             obligation.pop(field, None)
         obligation.update(
-            reconciliation_mode="delivery_only",
-            reconciliation_status="not_required",
-            health="complete",
+            **_delivery_only_complete(),
         )
         revision = deepcopy(REVISION)
         revision.pop("canonical_content_digest")
@@ -1171,9 +1279,7 @@ async def test_partial_reporting_coverage_prevents_definitive_result() -> None:
     )
     raw["periods"][0].update(
         coverage=partial,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
     raw["revisions"][0]["coverage"] = deepcopy(partial)
 
@@ -1236,9 +1342,7 @@ async def test_one_revision_cannot_materialize_under_two_obligations() -> None:
     second = _obligation("obligation-b")
     for item in (first, second):
         item.update(
-            reconciliation_mode="delivery_only",
-            reconciliation_status="not_required",
-            health="complete",
+            **_delivery_only_complete(),
         )
     raw["periods"] = [first, second]
     raw["materializations"] = [
@@ -1276,9 +1380,7 @@ async def test_current_publication_is_selected_before_its_materialization(
     obligation.update(
         required_finality=finality,
         revision_count=2,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
     older = deepcopy(REVISION)
     older.update(reporting_revision_id="older-materialized-snapshot", finality="snapshot")
@@ -1375,9 +1477,7 @@ async def test_official_close_cannot_mask_a_broken_snapshot_history(
     raw = _response()
     raw["periods"][0].update(
         revision_count=3,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
         required_finality="official",
         materialization_count=1,
         successful_materialization_count=1,
@@ -1407,9 +1507,7 @@ async def test_identical_scope_obligations_each_keep_their_own_materialized_publ
     for item in (first, second):
         item.update(
             revision_count=1,
-            reconciliation_mode="delivery_only",
-            reconciliation_status="not_required",
-            health="complete",
+            **_delivery_only_complete(),
             required_finality="official",
             materialization_count=1,
             successful_materialization_count=1,
@@ -1447,18 +1545,14 @@ async def test_unowned_publication_never_falls_back_to_an_older_materialized_sna
     second.update(delivery_config_id="analytics-feed", feed_purpose="analytics")
     first.update(
         revision_count=2,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
         required_finality="snapshot",
         materialization_count=1,
         successful_materialization_count=1,
     )
     second.update(
         revision_count=1,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
         required_finality="official",
         materialization_count=1,
         successful_materialization_count=1,
@@ -1501,9 +1595,7 @@ async def test_native_commit_requires_a_native_version_resource_descriptor() -> 
     raw = _response()
     raw["periods"][0].update(
         revision_count=1,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
         required_finality="official",
         feed_purpose="analytics",
         materialization_count=1,
@@ -1565,9 +1657,7 @@ async def test_mismatched_native_producer_evidence_is_not_definitive() -> None:
     obligation = raw["periods"][0]
     assert isinstance(obligation, dict)
     obligation.update(
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
     attempt = raw["materializations"][0]
     assert isinstance(attempt, dict)
@@ -1582,6 +1672,12 @@ async def test_mismatched_native_producer_evidence_is_not_definitive() -> None:
         },
     )
     verification.pop("canonical_content_digest")
+    # core/reporting-materialization.json member 5: a BILLING materialization that
+    # is available or delivered verifies by canonical digest. Native commit is an
+    # analytics-feed profile, so the whole generation states that purpose.
+    for item in [obligation, attempt, *raw["scope"]["delivery_config_generations"]]:
+        item["feed_purpose"] = "analytics"
+    raw["scope"]["feed_purposes"] = ["analytics"]
 
     class NativeMismatchClient(_Client):
         async def get_reporting_status(
@@ -1613,15 +1709,8 @@ async def test_official_revision_requires_finality_evidence() -> None:
     obligation = raw["periods"][0]
     assert isinstance(obligation, dict)
     obligation.update(
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
-    revision = raw["revisions"][0]
-    assert isinstance(revision, dict)
-    revision.pop("finality_basis")
-    revision.pop("finality_policy_id")
-    revision.pop("finalized_at")
 
     class MissingFinalityEvidenceClient(_Client):
         async def get_reporting_status(
@@ -1636,6 +1725,17 @@ async def test_official_revision_requires_finality_evidence() -> None:
         MissingFinalityEvidenceClient(),
         GetReportingStatusRequest.model_validate(
             {"account": {"account_id": "account-1"}, "view": "periods"}
+        ),
+    )
+    ledger = _restated(
+        ledger,
+        "revisions",
+        0,
+        _restate(
+            ledger.revisions[0],
+            finality_basis=None,
+            finality_policy_id=None,
+            finalized_at=None,
         ),
     )
     result = evaluate_reporting_ledger(
@@ -1654,18 +1754,8 @@ async def test_materialization_method_evidence_must_match_method() -> None:
     obligation = raw["periods"][0]
     assert isinstance(obligation, dict)
     obligation.update(
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
-    materialization = raw["materializations"][0]
-    assert isinstance(materialization, dict)
-    resource = materialization["resource"]
-    verification = materialization["verification"]
-    assert isinstance(resource, dict)
-    assert isinstance(verification, dict)
-    resource["kind"] = "warehouse_relation"
-    verification["verification_path"] = "destination"
 
     class MethodMismatchClient(_Client):
         async def get_reporting_status(
@@ -1680,6 +1770,17 @@ async def test_materialization_method_evidence_must_match_method() -> None:
         MethodMismatchClient(),
         GetReportingStatusRequest.model_validate(
             {"account": {"account_id": "account-1"}, "view": "periods"}
+        ),
+    )
+    materialization = ledger.materializations[0]
+    ledger = _restated(
+        ledger,
+        "materializations",
+        0,
+        _restate(
+            materialization,
+            resource=_restate(materialization.resource, kind="warehouse_relation"),
+            verification=_restate(materialization.verification, verification_path="destination"),
         ),
     )
     result = evaluate_reporting_ledger(
@@ -1698,9 +1799,7 @@ async def test_superseded_revision_must_be_present() -> None:
     obligation = raw["periods"][0]
     assert isinstance(obligation, dict)
     obligation.update(
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
     revision = raw["revisions"][0]
     assert isinstance(revision, dict)
@@ -1808,9 +1907,7 @@ async def test_core_obligation_without_materialization_can_be_definitive() -> No
     obligation.pop("accepted_receipt_count")
     obligation.pop("resource_retained_until")
     obligation.update(
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
+        **_delivery_only_complete(),
     )
     raw["materializations"] = []
     raw["pagination"] = {"has_more": False, "total_count": 2}

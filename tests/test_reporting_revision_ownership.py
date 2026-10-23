@@ -17,7 +17,12 @@ from adcp.reporting.ownership import (
 )
 from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse
 from adcp.types.core import TaskResult, TaskStatus
-from tests.test_reporting_reconciliation import REVISION, _obligation, _response
+from tests.test_reporting_reconciliation import (
+    REVISION,
+    _delivery_only_complete,
+    _obligation,
+    _response,
+)
 
 ARRAYS = (
     "periods",
@@ -216,14 +221,14 @@ async def test_explicit_ownership_separates_identical_scopes_and_legacy_stays_co
     raw = _response()
     raw["periods"].append(_obligation("obligation-other"))
     raw["revisions"].append({**deepcopy(REVISION), "reporting_revision_id": "revision-other"})
-    raw["periods"][1].update(
-        destination_ref=None,
-        materialization_count=None,
-        successful_materialization_count=None,
-        reconciliation_mode="delivery_only",
-        reconciliation_status="not_required",
-        health="complete",
-    )
+    # An obligation with no destination is exempt from the materialization
+    # counts core/reporting-obligation.json allOf[4] requires of one that has a
+    # destination, and the way a document says "no destination" is to omit the
+    # key: destination_ref is a string and the counts are integers, so an
+    # explicit null is a value of the wrong type rather than an absence.
+    for field in ("destination_ref", "materialization_count", "successful_materialization_count"):
+        raw["periods"][1].pop(field, None)
+    raw["periods"][1].update(**_delivery_only_complete())
     owned = await load(pages(raw))
     result = evaluate_reporting_ledger(owned, now=datetime(2026, 9, 3, tzinfo=timezone.utc))
     assert result.obligations[1].reporting_revision_id == "revision-other"

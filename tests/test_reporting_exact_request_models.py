@@ -62,7 +62,10 @@ def test_explicit_aggregate_selectors_are_forbidden_even_when_null(field):
 def test_exact_mode_rejects_explicit_boolean_flags_without_mutation(field, flag):
     raw = {**exact_request(), field: flag}
     before = deepcopy(raw)
-    with pytest.raises(ValidationError, match="exact revision requests forbid aggregate selectors"):
+    # The schema states the exclusion in its root allOf, so the derived constraint
+    # names the selectors an exact-revision request may not carry. It reads the
+    # document rather than the value, which is why a FALSE flag is refused too.
+    with pytest.raises(ValidationError, match=r"root conjunct 0\) over attribution_window"):
         GetMediaBuyDeliveryRequest.model_validate(raw)
     assert raw == before
 
@@ -95,7 +98,9 @@ def test_aggregate_defaults_and_explicit_flags_are_preserved(flags):
 
 
 def test_pagination_requires_an_exact_revision():
-    with pytest.raises(ValidationError, match="pagination requires reporting_revision_id"):
+    with pytest.raises(
+        ValidationError, match=r"root conjunct 1\) over pagination, reporting_revision_id"
+    ):
         GetMediaBuyDeliveryRequest.model_validate({"pagination": {"max_results": 100}})
 
 

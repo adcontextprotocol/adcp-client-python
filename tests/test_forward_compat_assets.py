@@ -72,7 +72,7 @@ _UNDECLARED_GROUP = _an_undeclared_asset_type(format_module.BaseGroupAsset)
 
 
 class TestUnknownFormatAssetParsing:
-    """Format.assets accepts novel asset_type values after _forward_compat patch."""
+    """Format.assets accepts an asset_type this pin has no class for."""
 
     def test_novel_asset_type_parses_as_unknown(self):
         """A novel asset_type that is not in the SDK parses as UnknownFormatAsset."""

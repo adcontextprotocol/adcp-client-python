@@ -46,7 +46,10 @@ Type Coercion:
     - FieldModel lists accept strings:
         ListCreativesRequest(fields=["creative_id", "name"])  # Works!
 
-    See adcp.types._ergonomic for implementation details.
+    The coercion is declared on the generated field itself -- see
+COMPATIBILITY_ANNOTATIONS in scripts/post_generate_fixes.py. Most of it needs
+no declaration at all: a generated enum is a StrEnum, so a string is accepted
+natively, and pydantic builds a model field from a dict natively.
 """
 
 from __future__ import annotations
@@ -111,6 +114,7 @@ __all__ = [
     "RefineProposalsRequest",
     "RefineProposalsResponse",
     "RequestProposalsRequest",
+    "RequestProposalsRequestBranches",
     "RequestProposalsResponse",
     "UnsupportedRefinementDimensionDetails",
     "RegistryAcceptancePolicyProfileReference",
@@ -159,6 +163,7 @@ __all__ = [
     "ListAccountsResponse",
     "ListAccountChangesRequest",
     "ListAccountChangesResponse",
+    "ListAccountChangesResponseBranches",
     "PaymentTerms",
     "ReportUsageRequest",
     "ReportUsageResponse",
@@ -206,6 +211,7 @@ __all__ = [
     "ByCatalogItemItem",
     "ByPackageItem",
     "CreateMediaBuyRequest",
+    "CreateMediaBuyRequestBranches",
     "CreateMediaBuyResponse",
     "DailyBreakdownItem",
     "GetMediaBuyDeliveryRequest",
@@ -285,6 +291,7 @@ __all__ = [
     "GetBrandIdentityResponse",
     "GetRightsRequest",
     "GetRightsResponse",
+    "VerifyBrandClaimRequestBranches",
     "VerifyBrandClaimPayload",
     "VerifyBrandClaimRequest",
     "VerifyBrandClaimResponse",
@@ -457,6 +464,7 @@ __all__ = [
     "CreativeAssignment",
     "CreativeFilters",
     "CreativeManifest",
+    "CreativeManifestNamedFormatManifest",
     "CreativePolicy",
     "CreativeVariant",
     "DevicePlatform",
@@ -648,6 +656,7 @@ __all__ = [
     "VcpmPricingOption",
     "WebhookChallenge",
     "WebhookChallengeResponse",
+    "WebhookChallengeResponseBranches",
     # Status enums & simple types
     "SignalAvailabilityType",
     "SignalCatalogType",
@@ -1155,7 +1164,7 @@ if not TYPE_CHECKING:
         """Lazily resolve the AdCP type surface (PEP 562).
 
         ``import adcp.types`` stays cheap; the generated Pydantic graph — and its
-        import-time coercion / forward-compat patching — is built on first access
+        type graph — is built on first access
         to any type *symbol*, by importing :mod:`adcp.types._eager`. Resolved names
         are cached into this module's namespace, so ``__getattr__`` fires at most
         once per name.

@@ -138,7 +138,6 @@ def _project_status(
     return AdcpError(
         "INVALID_REQUEST",
         message=base,
-        recovery="correctable",
     )
 
 
@@ -282,7 +281,6 @@ class UpstreamHttpClient:
                     f"upstream {method} {path} returned non-JSON body "
                     f"(status {response.status_code}): {exc}"
                 ),
-                recovery="transient",
             ) from exc
         return parsed
 

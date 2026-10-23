@@ -553,7 +553,7 @@ AccountReference = AccountReference1 | AccountReference2
 """Account reference union without a generated ``RootModel`` wrapper.
 
 Validate untrusted data with ``TypeAdapter(AccountReference)``. Construct a
-known arm with :class:`AccountReferenceById` or
+known branch with :class:`AccountReferenceById` or
 :class:`AccountReferenceByNaturalKey`.
 """
 
@@ -603,7 +603,7 @@ InlineAccountReference = AccountReference2
 
 # These public names intentionally expose the schema unions directly instead
 # of the generator's outer RootModel wrappers. They compose cleanly in adopter
-# annotations without imposing another wrapper around their constituent arms.
+# annotations without imposing another wrapper around their constituent branches.
 PostalArea = _Annotated[
     PostalArea2 | PostalArea1,
     BeforeValidator(_g.PostalArea._validate_country_system_pairing),
@@ -651,12 +651,12 @@ carries a ``MediaBuyStatus`` value (``pending_creatives``, ``pending_start``,
 # Get Products Response Variants
 #
 # The rc.9 ``get_products_response`` schema is a single flat success
-# object — the async arms (submitted / working / input_required) ship as
+# object — the async branches (submitted / working / input_required) ship as
 # separate ``core/async_response_refs`` schemas, NOT unioned into the
 # top-level response. So ``GetProductsResponse`` (the public name) stays
 # the constructable success class; these aliases name the orphaned async
-# arms semantically, mirroring ``CreateMediaBuySubmittedResponse`` even
-# though create_media_buy's submitted arm IS unioned into its generated
+# branches semantically, mirroring ``CreateMediaBuySubmittedResponse`` even
+# though create_media_buy's submitted branch IS unioned into its generated
 # response (its schema is a oneOf, get_products' is not).
 GetProductsSuccessResponse: TypeAlias = _GetProductsSuccessResponse
 """Success response - product catalog issued in-line (synchronous read)."""
@@ -665,7 +665,7 @@ GetProductsSubmittedResponse: TypeAlias = GetProductsSubmitted
 """Submitted (async) envelope - brief / refine discovery handed off to a
 background task. Carries ``task_id`` + ``status='submitted'``; the
 ``products`` array is issued on the completion artifact (poll
-``tasks/get``), not here. Wholesale calls MUST NOT produce this arm."""
+``tasks/get``), not here. Wholesale calls MUST NOT produce this branch."""
 
 GetProductsWorkingResponse: TypeAlias = GetProductsWorking
 """Working (async) progress envelope for an in-flight get_products task."""
@@ -675,7 +675,7 @@ GetProductsInputRequiredResponse: TypeAlias = GetProductsInputRequired
 solicit buyer clarification (CLARIFICATION_NEEDED / BUDGET_REQUIRED)."""
 
 #: Full async-aware union for ``get_products``. Includes the synchronous
-#: success arm plus the three async arms the rc.9 spec ships for this
+#: success branch plus the three async branches the rc.9 spec ships for this
 #: verb. The public ``GetProductsResponse`` name remains the success
 #: class (so direct construction / ``model_validate`` keep working);
 #: this union is the honest type of "any get_products response shape on
@@ -689,7 +689,7 @@ GetProductsResponseUnion: TypeAlias = (
 
 # Get Signals Response Variants
 #
-# get_signals ships ONLY submitted + working async arms — NO
+# get_signals ships ONLY submitted + working async branches — NO
 # input_required (signal discovery cannot pause to solicit buyer input).
 # Same flat-success-schema posture as get_products.
 GetSignalsSuccessResponse: TypeAlias = _GetSignalsSuccessResponse
@@ -699,14 +699,14 @@ GetSignalsSubmittedResponse: TypeAlias = GetSignalsSubmitted
 """Submitted (async) envelope - brief discovery handed off to a
 background task. Carries ``task_id`` + ``status='submitted'``; the
 ``signals`` array is issued on the completion artifact. Wholesale calls
-MUST NOT produce this arm."""
+MUST NOT produce this branch."""
 
 GetSignalsWorkingResponse: TypeAlias = GetSignalsWorking
 """Working (async) progress envelope for an in-flight get_signals task."""
 
 #: Full async-aware union for ``get_signals``. Includes the synchronous
-#: success arm plus the two async arms (submitted / working). Has NO
-#: input_required arm — narrower than ``GetProductsResponseUnion``.
+#: success branch plus the two async branches (submitted / working). Has NO
+#: input_required branch — narrower than ``GetProductsResponseUnion``.
 GetSignalsResponseUnion: TypeAlias = (
     _GetSignalsSuccessResponse | GetSignalsSubmitted | GetSignalsWorking
 )
@@ -852,10 +852,10 @@ UpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
 UpdateMediaBuySubmittedResponse: TypeAlias = UpdateMediaBuyResponse3
 """Submitted (async) envelope - media buy update accepted for async processing."""
 
-# One Legacy name per arm of this union, not two of the three (#1399). The
-# generated arm is what a seller holds after reading a response off the wire;
+# One Legacy name per branch of this union, not two of the three (#1399). The
+# generated branch is what a seller holds after reading a response off the wire;
 # the bare names above are the canonical SUBCLASSES, so without these the only
-# public spelling for the arm itself was an ``adcp.types.domains`` path.
+# public spelling for the branch itself was an ``adcp.types.domains`` path.
 LegacyUpdateMediaBuySuccessResponse: TypeAlias = UpdateMediaBuyResponse1
 """Exact legacy-generated update success shape for private-import migration."""
 
@@ -1887,19 +1887,19 @@ WebhookFormatGroupAsset = _WebhookFormatGroupAssetInternal
 """Webhook asset slot nested in a RepeatableAssetGroup (asset_type='webhook')."""
 
 # ============================================================================
-# OPEN UNION TYPES — forward-compat fallback arms for Format.assets
+# OPEN UNION TYPES — forward-compat fallback branches for Format.assets
 # ============================================================================
 # AdCP enums grow additively by design. When a new asset_type arrives before
 # the SDK is updated, the closed discriminated union in the generated tree raises a
-# cascade of ValidationErrors (one per arm per slot) and zeroes out the entire
+# cascade of ValidationErrors (one per branch per slot) and zeroes out the entire
 # list_creative_formats catalog. These open union types add an unknown fallback
-# arm so callers receive unrecognized assets as typed-unknown rather than
+# branch so callers receive unrecognized assets as typed-unknown rather than
 # losing every format in the response.
 #
 # Asymmetric strictness (Postel's Law):
-#   - Emit path stays strict: request/write types keep closed Literal arms.
+#   - Emit path stays strict: request/write types keep closed Literal branches.
 #   - Parse path is lenient: response/read types accept novel discriminators
-#     via UnknownFormatAsset / UnknownGroupAsset fallback arms.
+#     via UnknownFormatAsset / UnknownGroupAsset fallback branches.
 #
 # The callable Discriminator + Tag pattern is the Pydantic v2 ≥2.5 canonical
 # approach for open discriminated unions. Both unions are GENERATED into
@@ -2573,7 +2573,7 @@ __all__ = [
     "PrincipalReadResult",
     "PrincipalSyncResult",
     # Creative format asset slot aliases (item_type='individual')
-    # Forward-compat fallback arms (novel asset_type values parse as these)
+    # Forward-compat fallback branches (novel asset_type values parse as these)
     "UnknownFormatAsset",
     "UnknownGroupAsset",
     # Open union types, generated into core/format.py and carried by

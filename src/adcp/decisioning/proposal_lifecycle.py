@@ -111,7 +111,6 @@ async def enforce_proposal_expiry(
                 "refine=[{action:'finalize',...}] to obtain a committed "
                 "proposal_id before referencing it on create_media_buy."
             ),
-            recovery="correctable",
             field="proposal_id",
         )
     if record.state != ProposalState.COMMITTED:
@@ -123,7 +122,6 @@ async def enforce_proposal_expiry(
                 "be accepted via create_media_buy. Call get_products "
                 "with buying_mode='refine' and action='finalize' first."
             ),
-            recovery="correctable",
             field="proposal_id",
         )
     if record.expires_at is not None:

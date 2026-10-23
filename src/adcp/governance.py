@@ -43,6 +43,7 @@ from adcp.signing.etld import host_from
 from adcp.signing.jwks import AsyncCachingJwksResolver, AsyncJwksResolver, JwksResolver
 from adcp.signing.replay import ReplayStore, supports_atomic_claim
 from adcp.types import CheckGovernanceRequest, ReportPlanOutcomeRequest
+from adcp.validation.schema_validator import SchemaRuleError, rule
 
 GOVERNANCE_AUTHORIZATION_TYP = "adcp-gov+jws"
 GOVERNANCE_AUTHORIZATION_CRITICAL_CLAIMS = (
@@ -619,7 +620,7 @@ def validate_governance_request(
     """
     raw = _record(request, exclude_unset=True)
     if raw is None:
-        raise ValueError("invalid check_governance request")
+        raise SchemaRuleError(rule("type", "/", "expected type 'object'"))
     intent_keys = {
         "target_agent",
         "tool",
@@ -634,24 +635,73 @@ def validate_governance_request(
     has_intent = any(key in raw for key in intent_keys)
     has_execution = any(key in raw for key in execution_keys)
     if has_intent and has_execution:
-        raise ValueError("check_governance request cannot mix intent and execution fields")
+        raise SchemaRuleError(
+            rule(
+                "oneOf",
+                "/",
+                "check_governance request cannot mix intent and execution fields",
+            )
+        )
     if has_intent:
         missing = [
             key for key in ("plan_id", "tool", "payload", "target_agent") if raw.get(key) is None
         ]
         if missing or "governance_context" in raw:
-            raise ValueError("intent check requires plan_id, tool, payload, and target_agent only")
+            # TWO rules at one site: the four keys an intent check requires, and
+            # the one it forbids. One row each, so neither class is lost.
+            raise SchemaRuleError(
+                *(
+                    rule("required", f"/{key}", f"'{key}' is a required property")
+                    for key in missing
+                ),
+                *(
+                    [
+                        rule(
+                            "not",
+                            "/governance_context",
+                            "'governance_context' is not accepted by an intent check",
+                        )
+                    ]
+                    if "governance_context" in raw
+                    else []
+                ),
+            )
         tool = raw.get("tool")
         if governance_task_requires_proposed_commitment(cast(str, tool)) and (
             "proposed_commitment" not in raw
         ):
-            raise ValueError(f"{tool} intent check requires proposed_commitment")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/proposed_commitment",
+                    f"'proposed_commitment' is required for a {tool} intent check",
+                )
+            )
         if tool == "accept_proposal" and "proposal" not in raw:
-            raise ValueError("accept_proposal intent check requires proposal")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/proposal",
+                    "'proposal' is required for an accept_proposal intent check",
+                )
+            )
         if "proposal" in raw and tool != "accept_proposal":
-            raise ValueError("proposal is valid only for accept_proposal intent checks")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/proposal",
+                    "'proposal' is accepted only for an accept_proposal intent check",
+                )
+            )
         if "consultation_context" in raw and "governance_context" in raw:
-            raise ValueError("consultation context is non-authorizing")
+            raise SchemaRuleError(
+                rule(
+                    "not",
+                    "/consultation_context",
+                    "'consultation_context' is non-authorizing and cannot accompany"
+                    " 'governance_context'",
+                )
+            )
         if "runtime_attestations" in raw:
             payload = raw.get("payload")
             if (
@@ -660,33 +710,82 @@ def validate_governance_request(
                 or not isinstance(payload, Mapping)
                 or payload.get("action", "activate") != "activate"
             ):
-                raise ValueError(
-                    "runtime_attestations require an activate_signal activation intent"
+                raise SchemaRuleError(
+                    rule(
+                        "dependencies",
+                        "/runtime_attestations",
+                        "'runtime_attestations' is accepted only on an activate_signal"
+                        " activation intent",
+                    )
                 )
         return "intent"
     if has_execution:
         if raw.get("governance_context") is None or any(key in raw for key in intent_keys):
-            raise ValueError("execution check requires governance_context and no intent payload")
+            # TWO rules at one site, as above: the key an execution check requires
+            # and the intent keys it forbids.
+            raise SchemaRuleError(
+                *(
+                    [
+                        rule(
+                            "required",
+                            "/governance_context",
+                            "'governance_context' is a required property",
+                        )
+                    ]
+                    if raw.get("governance_context") is None
+                    else []
+                ),
+                *(
+                    rule("not", f"/{key}", f"'{key}' is not accepted by an execution check")
+                    for key in sorted(intent_keys & raw.keys())
+                ),
+            )
         if "planned_delivery" not in raw:
-            raise ValueError("execution check requires planned_delivery")
+            raise SchemaRuleError(
+                rule("required", "/planned_delivery", "'planned_delivery' is a required property")
+            )
         phase = raw.get("phase", "purchase")
         delivery = raw.get("planned_delivery")
         if isinstance(delivery, BaseModel):
             delivery = delivery.model_dump(mode="json", exclude_unset=True)
         if not isinstance(delivery, Mapping):
-            raise ValueError("execution check requires planned_delivery")
+            raise SchemaRuleError(rule("type", "/planned_delivery", "expected type 'object'"))
         if phase in {"modification", "delivery"} and (not delivery.get("media_buy_id")):
-            raise ValueError(f"{phase} execution check requires planned_delivery.media_buy_id")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/planned_delivery/media_buy_id",
+                    f"'media_buy_id' is required for a {phase} execution check",
+                )
+            )
         if delivery.get("total_budget") is not None and delivery.get("currency") is None:
-            raise ValueError("planned_delivery.total_budget requires currency")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/planned_delivery/currency",
+                    "'currency' is required when 'total_budget' is present",
+                )
+            )
         if phase == "modification" and "execution_commitment" not in raw:
-            raise ValueError("modification execution check requires execution_commitment")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/execution_commitment",
+                    "'execution_commitment' is required for a modification execution check",
+                )
+            )
         if phase == "delivery" and "delivery_metrics" not in raw:
-            raise ValueError("delivery execution check requires delivery_metrics")
+            raise SchemaRuleError(
+                rule(
+                    "dependencies",
+                    "/delivery_metrics",
+                    "'delivery_metrics' is required for a delivery execution check",
+                )
+            )
         if phase == "delivery":
             metrics = raw.get("delivery_metrics")
             if not isinstance(metrics, Mapping):
-                raise ValueError("delivery execution check requires delivery_metrics")
+                raise SchemaRuleError(rule("type", "/delivery_metrics", "expected type 'object'"))
             required_metrics = {
                 "statement_id",
                 "statement_digest",
@@ -697,9 +796,21 @@ def validate_governance_request(
                 "currency",
             }
             if any(metrics.get(key) is None for key in required_metrics):
-                raise ValueError("delivery_metrics is missing its canonical statement binding")
+                raise SchemaRuleError(
+                    *(
+                        rule(
+                            "required",
+                            f"/delivery_metrics/{key}",
+                            f"'{key}' is a required property of the canonical statement binding",
+                        )
+                        for key in sorted(required_metrics)
+                        if metrics.get(key) is None
+                    )
+                )
         return "execution"
-    raise ValueError("check_governance request must be an intent or execution check")
+    raise SchemaRuleError(
+        rule("anyOf", "/", "check_governance request must be an intent or execution check")
+    )
 
 
 def validate_governance_outcome_request(
@@ -711,17 +822,19 @@ def validate_governance_outcome_request(
     """Enforce outcome/body/check binding before governance adopter code."""
     raw = _record(request, exclude_unset=True)
     if raw is None:
-        raise ValueError("invalid report_plan_outcome request")
+        raise SchemaRuleError(rule("type", "/", "expected type 'object'"))
     outcome = raw.get("outcome")
     if not isinstance(outcome, str):
-        raise ValueError("invalid governance outcome")
+        raise SchemaRuleError(rule("type", "/outcome", "expected type 'string'"))
     expected_body = {
         "completed": "seller_response",
         "failed": "error",
         "delivery": "delivery",
     }.get(outcome)
     if expected_body is None:
-        raise ValueError("invalid governance outcome")
+        raise SchemaRuleError(
+            rule("enum", "/outcome", "'outcome' is not one of 'completed', 'failed', 'delivery'")
+        )
     version = raw.get("adcp_version") or resolved_version
     modern_version = (
         isinstance(version, str)
@@ -737,12 +850,24 @@ def validate_governance_outcome_request(
     if not legacy_delivery and not all(
         key in raw and raw[key] is not None for key in ("check_id", "governance_context")
     ):
-        raise ValueError("governance outcome requires check_id and governance_context")
+        raise SchemaRuleError(
+            *(
+                rule("required", f"/{key}", f"'{key}' is a required property")
+                for key in ("check_id", "governance_context")
+                if raw.get(key) is None
+            )
+        )
     populated = [
         key for key in ("seller_response", "error", "delivery") if raw.get(key) is not None
     ]
     if populated != [expected_body]:
-        raise ValueError(f"{outcome} outcome requires exactly the {expected_body} body")
+        raise SchemaRuleError(
+            rule(
+                "oneOf",
+                f"/{expected_body}",
+                f"a {outcome} outcome carries exactly the '{expected_body}' body",
+            )
+        )
     if outcome == "delivery":
         delivery = raw["delivery"]
         if (
@@ -753,8 +878,16 @@ def validate_governance_outcome_request(
                 or delivery.get("seller_statement_digest") is None
             )
         ):
-            raise ValueError(
-                "seller_statement_copy requires seller_statement_id and seller_statement_digest"
+            raise SchemaRuleError(
+                *(
+                    rule(
+                        "dependencies",
+                        f"/delivery/{key}",
+                        f"'{key}' is required when 'source' is 'seller_statement_copy'",
+                    )
+                    for key in ("seller_statement_id", "seller_statement_digest")
+                    if delivery.get(key) is None
+                )
             )
     return request
 
@@ -793,13 +926,25 @@ def governance_request_check_type(
         and any(key in raw for key in ("planned_delivery", "phase", "delivery_metrics"))
     )
     if intent and execution:
-        raise ValueError("check_governance request cannot mix intent and execution fields")
+        raise SchemaRuleError(
+            rule(
+                "oneOf",
+                "/",
+                "check_governance request cannot mix intent and execution fields",
+            )
+        )
     if intent:
         return "intent"
     if execution:
         return "execution"
     if modern_version:
-        raise ValueError("AdCP 3.2 governance request must select an intent or execution shape")
+        raise SchemaRuleError(
+            rule(
+                "anyOf",
+                "/",
+                "AdCP 3.2 governance request must select an intent or execution shape",
+            )
+        )
     return None
 
 

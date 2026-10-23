@@ -13,6 +13,9 @@ from adcp.types._legacy_assets import (
 )
 from adcp.types.domains.core.creative_asset import CreativeAsset as LegacyCreativeAsset
 from adcp.types.domains.core.creative_filters import CreativeFilters as LegacyCreativeFilters
+from adcp.types.domains.core.creative_manifest import (
+    CreativeManifest as LegacyCreativeManifest,
+)
 from adcp.types.domains.core.format import Format as LegacyFormat
 from adcp.types.domains.core.format_id import FormatReferenceStructuredObject
 from adcp.types.domains.core.package import Package as LegacyPackage
@@ -21,6 +24,9 @@ from adcp.types.domains.core.product import Product as LegacyProduct
 from adcp.types.domains.core.product_filters import ProductFilters as LegacyProductFilters
 from adcp.types.domains.core.product_format_declaration import (
     ProductFormatDeclaration as LegacyGeneratedProductFormatDeclaration,
+)
+from adcp.types.domains.core.proposal import (
+    TotalBudgetGuidance as LegacyProposalTotalBudgetGuidance,
 )
 from adcp.types.domains.creative.get_creative_delivery_response import (
     GetCreativeDeliveryResponse as LegacyGetCreativeDeliveryResponse,
@@ -152,19 +158,19 @@ LegacyFormatId = FormatReferenceStructuredObject
 LegacyFormatReferenceStructuredObject = FormatReferenceStructuredObject
 LegacyProductFormatDeclaration = LegacyGeneratedProductFormatDeclaration
 
-# One semantic name per ARM of every response union whose tool reaches this
+# One semantic name per BRANCH of every response union whose tool reaches this
 # surface. Not a curated subset of them (#1399): where the bare public name for
-# an arm is the canonical SUBCLASS, the generated arm itself has no public
+# an branch is the canonical SUBCLASS, the generated branch itself has no public
 # spelling at all without one of these, and a seller reading an off-the-wire
 # response can then only name it through ``adcp.types.domains.<domain>.*`` —
 # which is the private tree this release exists to retire.
 #
 # The set used to be curated, and it had five holes at once:
 # ``LegacyUpdateMediaBuySubmittedResponse`` and all three
-# ``LegacyCreateMediaBuy*Response`` arms were absent while
+# ``LegacyCreateMediaBuy*Response`` branches were absent while
 # ``LegacyUpdateMediaBuy{Success,Error}Response`` shipped, and the generator had
-# already opened a fifth by adding a fourth ``preview_creative`` arm that nobody
-# named. ``tests/test_legacy_surface_names_every_arm.py`` derives the required
+# already opened a fifth by adding a fourth ``preview_creative`` branch that nobody
+# named. ``tests/test_legacy_surface_names_every_branch.py`` derives the required
 # set from the generated response unions, so a sixth fails the build instead of
 # reaching an adopter.
 LegacyBuildCreativeSuccessResponse = LegacyBuildCreativeResponse1
@@ -177,6 +183,9 @@ LegacyPreviewCreativeSingleResponse = LegacyPreviewCreativeResponse1
 LegacyPreviewCreativeBatchResponse = LegacyPreviewCreativeResponse2
 LegacyPreviewCreativeVariantResponse = LegacyPreviewCreativeResponse3
 LegacyPreviewCreativeSubmittedResponse = LegacyPreviewCreativeResponse4
+LegacyUpdateMediaBuySuccessResponse = LegacyUpdateMediaBuyResponse1
+LegacyUpdateMediaBuyErrorResponse = LegacyUpdateMediaBuyResponse2
+LegacyUpdateMediaBuySubmittedResponse = LegacyUpdateMediaBuyResponse3
 
 __all__ = [
     "infer_asset_type",
@@ -208,6 +217,7 @@ __all__ = [
     "LegacyCreateMediaBuySuccessResponse",
     "LegacyCreativeAsset",
     "LegacyCreativeFilters",
+    "LegacyCreativeManifest",
     "LegacyFormat",
     "LegacyFormatId",
     "LegacyFormatReferenceStructuredObject",
@@ -237,11 +247,15 @@ __all__ = [
     "LegacyProduct",
     "LegacyProductFilters",
     "LegacyProductFormatDeclaration",
+    "LegacyProposalTotalBudgetGuidance",
     "LegacySyncCreativesRequest",
     "LegacySyncCreativesResponse",
+    "LegacyUpdateMediaBuyErrorResponse",
     "LegacyUpdateMediaBuyRequest",
     "LegacyUpdateMediaBuyResponse",
     "LegacyUpdateMediaBuyResponse1",
     "LegacyUpdateMediaBuyResponse2",
     "LegacyUpdateMediaBuyResponse3",
+    "LegacyUpdateMediaBuySubmittedResponse",
+    "LegacyUpdateMediaBuySuccessResponse",
 ]

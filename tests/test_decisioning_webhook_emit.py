@@ -494,8 +494,24 @@ def _make_request(*, with_url: bool = True, idem_suffix: str = "x") -> CreateMed
         "idempotency_key": f"idem_aaaa12345678{idem_suffix}",
         "start_time": "2026-05-01T00:00:00Z",
         "end_time": "2026-05-31T23:59:59Z",
-        # create-media-buy-request.json requires packages, a budget, or a proposal.
-        "packages": [{"buyer_ref": "pkg_1", "product_id": "prod_1", "pricing_option_id": "cpm"}],
+        # create-media-buy-request.json's three arms are: explicit packages with
+        # fixed allocation, where EVERY package carries a budget; explicit
+        # packages with seller-optimized allocation, which also requires
+        # total_budget and budget_allocation; or a committed proposal. The
+        # fixed-allocation arm is the smallest of the three, and the package
+        # budget is part of it rather than an alternative to it.
+        #
+        # This comment used to read "requires packages, a budget, or a
+        # proposal", which is what the incomplete validator enforced -- the
+        # defect taught its own contract to whoever wrote the fixture.
+        "packages": [
+            {
+                "buyer_ref": "pkg_1",
+                "product_id": "prod_1",
+                "pricing_option_id": "cpm",
+                "budget": 1000.0,
+            }
+        ],
     }
     if with_url:
         payload["push_notification_config"] = {

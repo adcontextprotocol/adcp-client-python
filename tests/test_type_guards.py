@@ -111,21 +111,28 @@ class TestGenericGuards:
             SyncReportingReceiptsResponse,
         )
 
+        # Both principal responses supply ``status``: their schema roots state
+        # ``if result.kind == "failed" then status in ["failed","rejected"]``,
+        # and the generated envelope's ergonomic default is ``completed``, so a
+        # failed result that omits it is a document no conformant server sends.
+        # ``rejected`` is the value the SDK itself uses for a failed result.
         responses = [
             GetPrincipalResponse.model_validate(
                 {
+                    "status": "rejected",
                     "result": {
                         "kind": "failed",
                         "errors": [{"code": "UNAUTHORIZED", "message": "Unauthorized"}],
-                    }
+                    },
                 }
             ),
             SyncPrincipalResponse.model_validate(
                 {
+                    "status": "rejected",
                     "result": {
                         "kind": "failed",
                         "errors": [{"code": "CONFLICT", "message": "Version conflict"}],
-                    }
+                    },
                 }
             ),
             SyncReportingReceiptsResponse.model_validate(

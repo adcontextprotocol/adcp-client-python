@@ -86,6 +86,58 @@ def redacted_stage_stderr(stderr):
     )
 
 
+def _signal_owned_group(process, sent_signal):
+    """Signal this task's own child process group, tolerating a group already gone.
+
+    ``start_new_session=True`` makes the child both session and group leader, so
+    its pid is its pgid. "The group is already gone" reaches us as TWO different
+    errnos depending on whether the leader has been reaped. Measured here, one
+    child per row, ``ps`` consulted without reaping:
+
+        live leader                      ps Ss    killpg OK
+        zombie leader, group empty       ps Z     killpg PermissionError    [errno 1]
+        reaped leader, group empty       ps gone  killpg ProcessLookupError [errno 3]
+        zombie leader + live grandchild  ps Z     killpg OK
+        reaped leader + live grandchild  ps gone  killpg OK
+
+    So EPERM arises in exactly one state: the group's only remaining member is the
+    unreaped zombie leader -- precisely when there is nothing left to signal. It
+    means the same thing ESRCH means, and both are tolerated.
+
+    REAPING FIRST WAS TRIED AND DOES NOT WORK HERE, which is worth recording
+    because it is the more obvious fix. ``Popen.poll()`` is advisory: it takes
+    ``_waitpid_lock`` with ``blocking=False`` and returns ``None`` without
+    reaping if anything else holds it. The progress monitor polls the same child
+    from its own thread, so on the failing path ``poll()`` returned ``None`` and
+    ``returncode`` stayed ``None`` against a child ``ps`` reported as ``Z``. A
+    reap that cannot be guaranteed cannot replace the guard.
+
+    ``os.getpgid`` is not a usable precondition either: it raised ESRCH in four of
+    the five states above, including the two where ``killpg`` SUCCEEDS because a
+    grandchild is alive. It answers a question about the process, not the group,
+    so gating the signal on it would leak live grandchildren.
+
+    Both errnos are caught rather than switching on platform: POSIX specifies
+    ESRCH for no-such-group, Darwin returns EPERM for a zombie leader, and Linux
+    is untested here.
+
+    THE PRECONDITION IS THE CALLER'S, and this guard cannot check it. Tolerating
+    EPERM is only correct for a group this process created and has not reaped;
+    passing any other pid makes it swallow a real permission error, which probing
+    it with ``pid=1`` confirms it does. That is why this helper is private and why
+    both call sites hand it the ``Popen`` built above with
+    ``start_new_session=True``. It is not a general-purpose killpg wrapper, and
+    widening it to one would need a way to prove ownership that this module does
+    not have -- ``poll()`` cannot, for the reason above.
+    """
+    try:
+        os.killpg(process.pid, sent_signal)
+    except (ProcessLookupError, PermissionError):
+        # The owned group already exited; the caller still drains its pipes and
+        # reaps the child below.
+        pass
+
+
 def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
     started = time.monotonic()
     environment = {key: item for key, item in os.environ.items() if key != "PYTHONPATH"}
@@ -128,11 +180,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
         # Give only this task-owned process group a bounded graceful shutdown,
         # then escalate. A timeout is a failing gate, never an implicit retry.
         cleanup = "terminated"
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            # The owned group already exited; still drain its pipes and reap the child below.
-            pass
+        _signal_owned_group(process, signal.SIGTERM)
         if progress is not None:
             progress.signal_owned(signal.SIGTERM)
         try:
@@ -142,10 +190,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
             if progress is not None:
                 progress.signal_owned(signal.SIGKILL)
             if progress is None or not progress.supervised:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                _signal_owned_group(process, signal.SIGKILL)
             try:
                 stdout, stderr = process.communicate(timeout=5)
             except subprocess.TimeoutExpired as error:

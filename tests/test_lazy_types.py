@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -106,6 +107,13 @@ def test_version_not_clobbered_by_version_submodule() -> None:
 # adcp`` used to mask import-order cycles by loading everything in a fixed
 # order; under the lazy facade each must import standalone. Guards the
 # webhooks <-> webhook_sender cycle (and any sibling) from regressing.
+#
+# Named one by one because they are top-level modules with no shared shape to
+# derive from. The ``adcp.types`` package tree below IS derived, and it was
+# added after this list missed a cycle entirely: an eager domain facade made all
+# 16 modules under ``formats/canonical/``, ``content_standards`` entire,
+# ``core.product`` and four top-level modules unimportable on their own, and
+# nothing here covered any of them.
 _STANDALONE_FIRST_IMPORT = [
     "adcp.webhook_sender",
     "adcp.webhooks",
@@ -120,21 +128,103 @@ _STANDALONE_FIRST_IMPORT = [
     "adcp.server",
 ]
 
+#: Modules whose import is MEANT to fail, carrying a refusal as their content. A
+#: removal shim raises ``ImportError`` naming the migration, so a standalone
+#: import check has to tell that apart from a defect.
+_DELIBERATE_IMPORT_REFUSALS = frozenset({"adcp.types.domains.enums.format_category"})
 
-@pytest.mark.parametrize("module", _STANDALONE_FIRST_IMPORT)
-def test_submodule_imports_standalone(module: str) -> None:
-    """Each cross-importing submodule must import first in a fresh interpreter.
+
+def _module_name(path: Path) -> str:
+    parts = path.resolve().relative_to(SRC_TYPES.parent.parent).with_suffix("").parts
+    return ".".join(parts).removesuffix(".__init__")
+
+
+def _types_tree_population() -> list[str]:
+    """Every package root under ``adcp.types``, plus leaves: ALL at the root, one deeper.
+
+    DERIVED, so a package added later is covered without anyone remembering.
+
+    ONE leaf per DEEP package rather than all 1139 modules, and that is a
+    reduction with a reason rather than a sample: the amplifier there is a
+    package ``__init__``, so when one runs eagerly and its domain is in a cycle,
+    EVERY leaf of that package fails and one of them detects it. The full tree is
+    about an hour of CPU here -- a subprocess import costs ~3s and 1057 of the
+    1139 modules import across package boundaries, so there is no cheaper honest
+    subset -- which is a scan to run by hand when the import graph is reshaped,
+    not a guard.
+
+    ALL leaves of the ``adcp.types`` ROOT, because that argument does not hold
+    there and sampling one of them hid a live defect for as long as this
+    population existed. The root's 27 top-level modules are not leaves of a
+    generated domain that fails together; each is hand-written and cross-imports
+    on its own terms. The sampled one was ``aliases`` (alphabetically first) and
+    the broken one was ``projections``, which imported four TYPE NAMES from
+    ``adcp.types`` -- routed through the single ``_eager`` module that binds the
+    whole surface and that imports ``projections`` back, so the module could not
+    be imported first. This test was green throughout (salesagent-8qela.77).
+    26 extra subprocess imports, pooled, ~10s.
+    """
+    population: set[str] = set()
+    for init in sorted(SRC_TYPES.rglob("__init__.py")):
+        if "__pycache__" in init.parts:
+            continue
+        population.add(_module_name(init))
+        leaves = sorted(
+            path
+            for path in init.parent.glob("*.py")
+            if path.name != "__init__.py" and not path.name.startswith("_")
+        )
+        if leaves:
+            population.update(
+                _module_name(leaf) for leaf in (leaves if init.parent == SRC_TYPES else leaves[:1])
+            )
+    population -= _DELIBERATE_IMPORT_REFUSALS
+    assert len(population) > 30, f"population is {len(population)}: that is not the package tree"
+    # The package's own entry point, named rather than left to the derivation.
+    # Removing an edge a cycle runs through can trade a direct-import failure for
+    # a worse top-level one, and a population that stopped covering the root
+    # would let that pass.
+    assert "adcp.types" in population, "the population lost the package entry point"
+    assert "adcp.types.projections" in population, (
+        "the population lost adcp.types.projections, whose import-first failure "
+        "this sampling could not see before (salesagent-8qela.60 / .77)"
+    )
+    return sorted(population)
+
+
+def test_submodule_imports_standalone() -> None:
+    """Each cross-importing module must import FIRST, in a fresh interpreter.
 
     A circular import only manifests when the module is imported *before* the
-    module it cycles with, so each runs in its own subprocess.
+    module it cycles with, so a fresh interpreter per module is the measurement
+    rather than an implementation detail.
+
+    One test over a pool rather than one test per module: the cost here is
+    entirely the subprocesses, and pytest parameters would serialize what is
+    embarrassingly parallel. The failure message names every module that could
+    not be imported first, with its traceback.
     """
-    result = subprocess.run(
-        [sys.executable, "-c", f"import {module}"],
-        capture_output=True,
-        text=True,
-        check=False,
+    population = sorted({*_STANDALONE_FIRST_IMPORT, *_types_tree_population()})
+
+    def probe(module: str) -> tuple[str, str]:
+        result = subprocess.run(
+            [sys.executable, "-c", f"import {module}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return module, "" if result.returncode == 0 else result.stderr.strip()[-400:]
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outcomes = dict(pool.map(probe, population))
+
+    assert len(outcomes) == len(
+        population
+    ), f"{len(outcomes)} results for a population of {len(population)}"
+    failures = {module: why for module, why in outcomes.items() if why}
+    assert not failures, "modules that cannot be imported first:\n" + "\n\n".join(
+        f"{module}\n{why}" for module, why in sorted(failures.items())
     )
-    assert result.returncode == 0, f"`import {module}` failed standalone:\n{result.stderr}"
 
 
 def test_import_adcp_types_does_not_build_schema_graph() -> None:

@@ -675,7 +675,6 @@ class PgProposalStore:
                     raise AdcpError(
                         "PROPOSAL_NOT_FOUND",
                         message=(f"Proposal {proposal_id!r} not found."),
-                        recovery="correctable",
                         field="proposal_id",
                     )
                 (
@@ -695,7 +694,6 @@ class PgProposalStore:
                             "committed proposal that hasn't been accepted "
                             "or reserved by another request."
                         ),
-                        recovery="correctable",
                         field="proposal_id",
                     )
                 await conn.execute(

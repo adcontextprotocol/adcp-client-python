@@ -10,6 +10,7 @@ Validates that:
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -95,9 +96,13 @@ class TestGeneratedTypeOverrides:
             "custom_targeting": {"segments": ["sports_fans"], "score": 0.92},
         }
 
+        # A payload makes this an intent check, and governance/check-governance-request.json
+        # states that an intent check names the tool and the agent it targets.
         obj = CheckGovernanceRequest(
             plan_id="plan_1",
             caller="https://buyer.example",
+            tool="create_media_buy",
+            target_agent="https://seller.example",
             payload=payload,
         )
 
@@ -322,6 +327,62 @@ class TestGeneratedCodeMatchesSchemas:
             all_schemas[underscore_key] = schema
         return all_schemas
 
+    @staticmethod
+    def _declares_extra_allow(source: str) -> bool:
+        """Whether this module DECLARES ``extra='allow'``, by parsing it.
+
+        A substring search over the file text cannot tell a declaration from a
+        mention, and the branch emitter writes the string in prose: every
+        generated branch class carries a comment explaining why its
+        ``mode="before"`` validator is needed, and the explanation names
+        ``extra='allow'``. Three generated modules mention it that way while
+        declaring ``extra='forbid'``, so a text match asked the wrong question
+        of all three -- flagging one against its closed schema, and passing the
+        other two only because their schemas happen to be open.
+        """
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:  # pragma: no cover - generated code parses
+            return False
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and getattr(node.func, "id", getattr(node.func, "attr", "")) == "ConfigDict"
+            ):
+                for keyword in node.keywords:
+                    if (
+                        keyword.arg == "extra"
+                        and isinstance(keyword.value, ast.Constant)
+                        and keyword.value.value == "allow"
+                    ):
+                        return True
+            if isinstance(node, ast.Dict):
+                for key, value in zip(node.keys, node.values, strict=False):
+                    if (
+                        isinstance(key, ast.Constant)
+                        and key.value == "extra"
+                        and isinstance(value, ast.Constant)
+                        and value.value == "allow"
+                    ):
+                        return True
+        return False
+
+    def test_a_mention_of_extra_allow_is_not_a_declaration(self) -> None:
+        """The detector reads the config, not the file's prose.
+
+        Both halves asserted: the generated comment that made this necessary
+        must not count, and a real ``ConfigDict`` must.
+        """
+        mention = (
+            "class X:\n"
+            "    model_config = ConfigDict(extra='forbid')\n"
+            "    # a raw document still needs this: extra='allow' files an\n"
+            "    # undeclared key under extras and accepts\n"
+        )
+        assert not self._declares_extra_allow(mention)
+        assert self._declares_extra_allow("model_config = ConfigDict(extra='allow')")
+        assert self._declares_extra_allow("model_config = {'extra': 'allow'}")
+
     def test_no_spurious_extra_allow(self) -> None:
         """Generated types with extra='allow' must have schema support for open extras."""
         all_schemas = self._load_schemas()
@@ -331,18 +392,25 @@ class TestGeneratedCodeMatchesSchemas:
         }
 
         spurious = []
+        graded = 0
         for py_file in sorted(GENERATED_DIR.rglob("*.py")):
             if py_file.name == "__init__.py":
                 continue
             content = py_file.read_text()
-            if "extra='allow'" not in content and 'extra="allow"' not in content:
+            if not self._declares_extra_allow(content):
                 continue
             m = re.search(r"filename:\s+(.+)", content)
             if m:
                 schema_name = m.group(1).strip()
-                if schema_name in schema_allows and not schema_allows[schema_name]:
-                    spurious.append(f"{py_file.name} <- {schema_name}")
+                if schema_name in schema_allows:
+                    graded += 1
+                    if not schema_allows[schema_name]:
+                        spurious.append(f"{py_file.name} <- {schema_name}")
 
+        # A detector that matches nothing grades nothing and reports a clean
+        # pass, which is how this check would fail silently if the AST walk
+        # above ever stopped recognising the generated form.
+        assert graded > 400, f"only {graded} generated modules were graded; the detector is broken"
         assert (
             not spurious
         ), "Generated files have extra='allow' without schema support:\n" + "\n".join(

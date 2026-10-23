@@ -528,7 +528,6 @@ class DecisioningPlatform:
                         "AccountStore.resolve for mock-mode accounts. "
                         "See docs/handler-authoring.md#mock-mode-upstream-routing."
                     ),
-                    recovery="terminal",
                     field="account.metadata.mock_upstream_url",
                 )
         else:
@@ -547,7 +546,6 @@ class DecisioningPlatform:
                         "or mark the account mode='mock' and populate "
                         "metadata['mock_upstream_url']."
                     ),
-                    recovery="terminal",
                 )
             base_url = self.upstream_url
 

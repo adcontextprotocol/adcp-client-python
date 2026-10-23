@@ -308,7 +308,6 @@ def _tenant_id_from_ctx(ctx: RequestContext[Any]) -> str:
                 "resolved account; got "
                 f"{tenant_id!r}."
             ),
-            recovery="terminal",
             field="account.metadata.tenant_id",
         )
     return str(tenant_id)
@@ -509,7 +508,6 @@ class PlatformRouter(DecisioningPlatform):
                     "``platforms=`` mapping passed to the router, or "
                     "fix the AccountStore to resolve to a known tenant."
                 ),
-                recovery="terminal",
                 field="account.metadata.tenant_id",
             )
 
@@ -1038,7 +1036,6 @@ class LazyPlatformRouter(DecisioningPlatform):
                     "AdcpError from inside the factory if the tenant should "
                     "be rejected."
                 ),
-                recovery="terminal",
                 field="account.metadata.tenant_id",
             )
 
@@ -1333,7 +1330,6 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
                     "before dispatch. Check your SubdomainTenantMiddleware or "
                     "context_factory wiring."
                 ),
-                recovery="terminal",
                 field="ctx.tenant_id",
             )
         resolution = await self._registry.resolve_by_id(tenant_id)
@@ -1353,7 +1349,6 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
                     f"RegistryPlatformAdapter: tenant {tenant_id!r} is not available "
                     f"(health={health!r}). Allowed states: {sorted(self._serve_states)}."
                 ),
-                recovery="transient",
                 details={"tenant_id": tenant_id, "health": health},
             )
         # Guard catches tenants whose resolved platform doesn't implement the

@@ -66,9 +66,7 @@ def _encode_cursor(offset: int, query_hash: str, secret: bytes | None = None) ->
         {"v": _CURSOR_VERSION, "o": offset, "qh": query_hash}, separators=(",", ":")
     ).encode()
     sig = _sign(payload, secret if secret is not None else _secret())
-    envelope = json.dumps(
-        {"p": payload.decode(), "s": sig}, separators=(",", ":")
-    ).encode()
+    envelope = json.dumps({"p": payload.decode(), "s": sig}, separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(envelope).rstrip(b"=").decode()
 
 
@@ -86,7 +84,6 @@ def _decode_cursor(cursor: str, expected_query_hash: str, secret: bytes | None =
             "pagination.cursor is malformed or expired. Omit the cursor to restart from page 1."
         ),
         field="pagination.cursor",
-        recovery="correctable",
     )
     try:
         # Restore stripped padding before decoding.
@@ -118,7 +115,6 @@ def _decode_cursor(cursor: str, expected_query_hash: str, secret: bytes | None =
                 "issued. Omit the cursor to restart pagination with the new filter values."
             ),
             field="pagination.cursor",
-            recovery="correctable",
             suggestion="Omit the cursor to start from the first page with the updated filters.",
         )
 
@@ -200,9 +196,7 @@ def apply_framework_pagination(
     full_list = list(products)
     page = full_list[offset : offset + max_results]
     has_more = (offset + max_results) < len(full_list)
-    next_cursor = (
-        _encode_cursor(offset + max_results, query_hash, secret) if has_more else None
-    )
+    next_cursor = _encode_cursor(offset + max_results, query_hash, secret) if has_more else None
 
     # Deferred: adcp.types imports adcp.decisioning.types; top-level import is circular.
     from adcp.types import PaginationResponse

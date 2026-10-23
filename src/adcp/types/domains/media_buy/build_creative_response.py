@@ -25,6 +25,9 @@ from ..enums import creative_selection_strategy as creative_selection_strategy_1
 from ..enums import task_status as task_status_1
 
 
+from adcp.types._readback import readback_clone
+
+
 class Input(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     name: str
@@ -134,9 +137,31 @@ class Estimate(AdcpVersionEnvelope):
     per_leaf: list[PerLeaf] | None = None
 
 
+_BuildReadbackVariant = readback_clone(
+    "_BuildReadbackVariant",
+    Variant,
+    {"creative_manifest": creative_manifest_1._ReadbackCreativeManifest},
+)
+
+
+_BuildReadbackCreative = readback_clone(
+    "_BuildReadbackCreative",
+    Creative,
+    {
+        # This constraint is inside the optional union in the generated type, so it
+        # has to stay on the non-None branch when that annotation is replaced.
+        "variants": Annotated[list[_BuildReadbackVariant], Field(min_length=1)] | None
+    },
+)
+
+
 class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    creative_manifest: creative_manifest_1.CreativeManifest
+    # A response carries the tolerant read-back node, not the strict input class: a seller may
+    # send an unknown field, or a manifest instance of a sibling class, and neither may become
+    # acceptable on the INPUT model (#1241). See adcp.types._readback and READBACK_CLONES in
+    # scripts/post_generate_fixes.py.
+    creative_manifest: creative_manifest_1._ReadbackCreativeManifest
     build_variant_id: str | None = None
     recipe_hash: str | None = None
     sandbox: bool | None = None
@@ -160,7 +185,11 @@ class BuildCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
 
 class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    creative_manifests: Annotated[list[creative_manifest_1.CreativeManifest], Field(min_length=1)]
+    # A response carries the tolerant read-back node, not the strict input class: a seller may
+    # send an unknown field, or a manifest instance of a sibling class, and neither may become
+    # acceptable on the INPUT model (#1241). See adcp.types._readback and READBACK_CLONES in
+    # scripts/post_generate_fixes.py.
+    creative_manifests: Annotated[list[creative_manifest_1._ReadbackCreativeManifest], Field(min_length=1)]
     sandbox: bool | None = None
     expires_at: AwareDatetime | None = None
     preview: Preview3 | None = None
@@ -175,7 +204,11 @@ class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
 
 class BuildCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    creatives: Annotated[list[Creative], Field(min_length=1)]
+    # A response carries the tolerant read-back node, not the strict input class: a seller may
+    # send an unknown field, or a manifest instance of a sibling class, and neither may become
+    # acceptable on the INPUT model (#1241). See adcp.types._readback and READBACK_CLONES in
+    # scripts/post_generate_fixes.py.
+    creatives: Annotated[list[_BuildReadbackCreative], Field(min_length=1)]
     items_total: Annotated[int, Field(ge=0)] | None = None
     items_returned: Annotated[int, Field(ge=0)] | None = None
     leaves_total: Annotated[int, Field(ge=0)] | None = None

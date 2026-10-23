@@ -27,7 +27,7 @@ from typing import Protocol, runtime_checkable
 
 # Wire types — already exported from adcp.types. Re-export for
 # one-stop import from adcp.decisioning. Per CLAUDE.md import
-# architecture rules, only adcp.types/{stable,aliases,_ergonomic} may
+# architecture rules, only adcp.types/{stable,aliases} may
 # import from the generated tree; everywhere else uses the public
 # adcp.types surface.
 from adcp.types import (

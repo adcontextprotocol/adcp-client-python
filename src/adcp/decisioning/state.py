@@ -35,7 +35,7 @@ from typing import Literal, NewType, Protocol, runtime_checkable
 
 # Wire types referenced through the StateReader. ``Proposal`` is
 # exported from adcp.types; importing from there keeps the layering
-# rule in CLAUDE.md happy (only adcp.types/{stable,aliases,_ergonomic}
+# rule in CLAUDE.md happy (only adcp.types/{stable,aliases}
 # may import from the generated tree).
 from adcp.types import Proposal
 

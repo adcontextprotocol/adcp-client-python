@@ -60,7 +60,10 @@ def _make_product(**overrides: Any) -> Product:
 
 
 def _make_response(*products: Product) -> GetProductsResponse:
-    return GetProductsResponse(products=list(products))
+    # ``cache_scope`` is required on every 3.1+ get_products response: the root
+    # conditional's standard branch names it alongside ``products``, and the
+    # two-layer cache model's safety property depends on it.
+    return GetProductsResponse(products=list(products), cache_scope="public")
 
 
 # ---------------------------------------------------------------------------
@@ -227,6 +230,7 @@ def test_projection_preserves_other_response_fields() -> None:
         products=[product],
         property_list_applied=True,
         errors=None,
+        cache_scope="public",
     )
     projected = _project_product_fields(response, [GetProductsField.product_id])
     assert projected.property_list_applied is True
@@ -259,7 +263,7 @@ async def test_handler_no_fields_returns_response_unchanged(executor) -> None:
         accounts = SingletonAccounts(account_id="acct")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[product])
+            return GetProductsResponse(products=[product], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     req = GetProductsRequest(buying_mode="brief", brief="any")
@@ -279,7 +283,7 @@ async def test_handler_with_fields_drops_unrequested_optional(executor) -> None:
         accounts = SingletonAccounts(account_id="acct")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[product])
+            return GetProductsResponse(products=[product], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     req = GetProductsRequest(
@@ -302,7 +306,7 @@ async def test_handler_fields_preserves_required_fields(executor) -> None:
         accounts = SingletonAccounts(account_id="acct")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[product])
+            return GetProductsResponse(products=[product], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     req = GetProductsRequest(
@@ -328,7 +332,7 @@ async def test_handler_fields_empty_list_is_noop(executor) -> None:
         accounts = SingletonAccounts(account_id="acct")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[product])
+            return GetProductsResponse(products=[product], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     # Manually construct request with empty fields list to test the guard

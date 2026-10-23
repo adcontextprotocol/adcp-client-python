@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
+from adcp.canonical_formats.identity import declared_v1_format_refs
 from adcp.types import (
     CanonicalFormatKind,
     Error,
@@ -144,7 +145,7 @@ def project_declaration_to_v1(
         advisories the resolution order emitted.
     """
     kind = declaration.format_kind
-    refs = list(declaration.legacy_format_refs)
+    refs = list(declared_v1_format_refs(declaration))
 
     # Step 1: seller has explicitly opted out of v1 projection.
     # ``Format`` enforces this is mutually exclusive

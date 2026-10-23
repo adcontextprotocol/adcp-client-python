@@ -16,9 +16,11 @@ from adcp.types import (
     Product,
     Protocol,
 )
-from adcp.types._generated import (
-    CreativeManifest,
-)
+
+# Every construction below passes ``format_id``, which names the deprecated
+# named-format arm. Taken from the public surface rather than ``_generated``:
+# the root's public name is a union now, and the arm is what these build.
+from adcp.types import CreativeManifestNamedFormatManifest as CreativeManifest
 from adcp.types.core import TaskResult, TaskStatus
 from adcp.types.legacy import (
     LegacyFormat,
@@ -441,12 +443,14 @@ async def test_get_products_with_preview_urls():
     # Raw result from adapter (unparsed)
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
-        data={"products": []},  # Will be replaced by _parse_response mock
+        data={"products": [], "cache_scope": "public"},  # Replaced by the _parse_response mock
         success=True,
     )
 
     # Parsed result from _parse_response
-    mock_products_response = GetProductsResponse(products=[product], errors=None)
+    mock_products_response = GetProductsResponse(
+        products=[product], errors=None, cache_scope="public"
+    )
     mock_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_products_response, success=True
     )

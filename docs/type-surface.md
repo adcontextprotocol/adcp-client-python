@@ -199,7 +199,7 @@ Three classifiers, derived once from the MRO — there is no per-class table to 
 They partition `model_fields`, which is pinned by a test. The tie-breaks follow the
 envelopes' own text: `context` is protocol, because the spec says the envelope declaration
 is authoritative where a body-level mirror also exists; a `status` narrowed to a `Literal`
-on a payload arm is still protocol; `errors` is payload and `adcp_error` protocol, because
+on a payload branch is still protocol; `errors` is payload and `adcp_error` protocol, because
 the spec says the two must be treated as distinct fields by name. `adcp_version` reports as
 version rather than payload even though the wire calls it payload, so that a transport
 composing a `DataPart` or an audit record gets tool arguments only — union the two sets if
@@ -215,15 +215,15 @@ you want payload-including-version.
 | responses with `AdcpVersionEnvelope` | 70 / 77 |
 | responses with `ProtocolEnvelope` | 67 / 77 |
 
-Counted per arm: a union-rooted message counts only when *every* class it can validate into
-has the ancestry, because an arm is what a buyer actually receives.
+Counted per branch: a union-rooted message counts only when *every* class it can validate into
+has the ancestry, because an branch is what a buyer actually receives.
 
 The residues are the spec's, not the SDK's, and they are visible rather than papered over.
 `creative/validate-input-request.json` declares no version fields at all, so the SDK does
 not invent them; its `version_fields()` is empty while `get_adcp_version()` still answers,
 because the accessor reads the instance, not the MRO. The five compact media-buy responses
 compose an envelope-free shared response, and the two proposals responses carry a submitted
-arm that declares no version fields. Ten task responses do not compose the protocol
+branch that declares no version fields. Ten task responses do not compose the protocol
 envelope despite its own "REQUIRED on every task response envelope" claim.
 
 Each residue is pinned by equality in the SDK's guard, so a schema that gains the ancestry
@@ -233,7 +233,7 @@ residue schema; run it against a checkout or an installed wheel.
 
 ## Response variations
 
-A task response whose schema root is a union generates one class per arm and a plain
+A task response whose schema root is a union generates one class per branch and a plain
 `TypeAlias` over them. There is no `RootModel` and no `.root`:
 
 ```python
@@ -263,11 +263,21 @@ from pydantic import TypeAdapter
 response = TypeAdapter(CreateMediaBuyResponse).validate_python(raw)
 ```
 
-Validation resolves arms left to right. Where the schema gives an arm a discriminating
+**Five response names are classes rather than aliases**, because callers construct them:
+`ComplyTestControllerResponse`, `CreateContentStandardsResponse`,
+`ListContentStandardsResponse`, `UpdateContentStandardsResponse` and
+`SyncGovernanceResponse`. Each is a base over its numbered branches, so for those five the
+public name has `model_validate`, it returns the branch the document satisfies on every
+validation path, and `isinstance(branch, Base)` holds. Thirteen schema ROOTS are classes for
+the same reason — see
+[extending-types.md](extending-types.md#a-split-root-is-a-class-and-its-branches-subclass-it)
+for which, and what that means for subclassing.
+
+Validation resolves branches left to right. Where the schema gives an branch a discriminating
 `const`, that becomes a defaulted `Literal` field and pydantic takes it as a fast path. But
-most arms have no such tag: of the 58 numbered arm classes across the 22 union-rooted
+most branches have no such tag: of the 58 numbered branch classes across the 22 union-rooted
 response modules, 47 declare no `status` field of their own and are distinguished by their
-required sets instead — `create-media-buy-response.json`'s error arm is identified by
+required sets instead — `create-media-buy-response.json`'s error branch is identified by
 requiring `errors` and nothing else. A synthetic discriminator field would make every union
 pydantic-discriminated, and is refused: it would be either a non-spec field on the wire or a
 serialization-excluded phantom that still shows up in `model_fields`, the extra policy and
@@ -276,10 +286,10 @@ the idempotency hash.
 ### The numbered names, and what replaces them
 
 `CreateMediaBuyResponse1` is a positional name, and a positional name's meaning can change
-without the thing it names changing: insert an arm into a `oneOf` upstream and
-`CreateMediaBuyResponse2` becomes a different arm.
+without the thing it names changing: insert an branch into a `oneOf` upstream and
+`CreateMediaBuyResponse2` becomes a different branch.
 
-The schema already carries better names — `create-media-buy-response.json` titles its arms
+The schema already carries better names — `create-media-buy-response.json` titles its branches
 `CreateMediaBuySuccess`, `CreateMediaBuyError` and `CreateMediaBuySubmitted` — and
 `aliases.py` hand-transcribes most of them back today:
 
@@ -287,16 +297,20 @@ The schema already carries better names — `create-media-buy-response.json` tit
 from adcp.types import CreateMediaBuySuccessResponse   # == CreateMediaBuyResponse1
 ```
 
-A rule that derives each arm's name from its own schema node now exists in the repository
-and is graded, and the old-to-new table for all 58 numbered arm classes is derivable from
-it. **The renames are not applied yet**, and 38 numeric-suffixed names are still on the flat
-surface. Until they are, prefer the semantic alias over the numbered class where one exists,
-and expect the numbered names to be removed in a future major with a deprecation shim and a
-migration table. Writing new code against `CreateMediaBuyResponse2` is writing against the
-drift channel.
+A rule that derives each branch's name from its own schema node — the branch's `title`,
+then a discriminator `const`, then its full `required` set, failing closed rather than
+numbering — is wired for the thirteen schema roots whose branches partition by
+requiredness. `CreateMediaBuyRequestCommittedProposalExecution` is a name from that rule.
 
-See [design/type-generation.md](design/type-generation.md) for the rule itself and what
-remains to wire it.
+For the numbered RESPONSE classes it is not applied, and 39 numeric-suffixed names are
+still on the flat surface. Prefer the semantic alias over the numbered class where one
+exists, and expect the numbered names to be removed in a future major with a deprecation
+shim and a migration table. Writing new code against `CreateMediaBuyResponse2` is writing
+against the drift channel; the two surface-policy decisions wiring the rule for these names
+needs are tracked in #1409.
+
+See [design/type-generation.md](design/type-generation.md#union-branch-names-schema-derived)
+for the rule itself.
 
 ## Scalars, unions and composition, in one paragraph each
 
@@ -305,9 +319,14 @@ covers each in full, including the subclassing rules.
 
 - **A scalar schema root is a plain scalar.** `PropertyTag` is a `str` subclass carrying the
   schema's constraints, not a `RootModel` wrapper. `tag == "sports"` is `True`.
-- **An object-union root is a type alias.** Construct the arm you mean; use `TypeAdapter`
-  when the arm is not known in advance. A root that composes rather than naming a single
-  scalar keeps its `RootModel`; `isinstance(x, RootModel)` distinguishes them.
+- **A nested object union is a type alias.** Construct the branch you mean; use
+  `TypeAdapter` when the branch is not known in advance. A root that composes rather than
+  naming a single scalar keeps its `RootModel`; `isinstance(x, RootModel)` distinguishes
+  them.
+- **A schema root whose branches PARTITION is a class.** The public name is a base over one
+  class per branch; `model_validate` through it returns the branch the document satisfies,
+  and a document satisfying no branch is refused naming the root's JSON Schema keyword.
+  Thirteen roots, and five response names besides.
 - **A root `allOf` plus `$ref` is inheritance.** `GetProductsRequest` *is* an
   `AdcpVersionEnvelope`; the envelope's fields are not copied onto it. So an `isinstance`
   check or a generic boundary can bind to the composed base.

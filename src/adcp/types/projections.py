@@ -30,8 +30,21 @@ from typing import Annotated, Any
 from pydantic import ConfigDict, Field, field_validator
 
 from adcp._version import normalize_to_release_precision
-from adcp.types import Account, BusinessEntity, NotificationAuthentication, NotificationConfig
+
+# From the modules that DECLARE them, not from ``adcp.types``. The package's
+# surface is lazy per NAME only for a submodule; a type name routes through one
+# ``_eager`` module that binds the whole graph, and ``_eager`` imports this
+# module (``_eager.py``'s import of ``AccountResponse`` is the only importer of
+# ``projections`` in the package). So resolving a type name HERE, at this
+# module's own import time, re-entered a module still initializing and
+# ``import adcp.types.projections`` raised ImportError unless something had
+# imported ``adcp.types`` first. Measured: these four are the identical objects
+# ``adcp.types`` exposes, and each declaring module imports standalone.
+from adcp.types.aliases import NotificationAuthentication
 from adcp.types.capabilities import GeoPostalAreas, LegacyPostalCodeSystem
+from adcp.types.domains.core.account import Account
+from adcp.types.domains.core.business_entity import BusinessEntity
+from adcp.types.domains.core.notification_config import NotificationConfig
 from adcp.types.variants import SchemaVariant
 
 _NATIVE_TO_LEGACY_POSTAL: dict[tuple[str, str], LegacyPostalCodeSystem] = {

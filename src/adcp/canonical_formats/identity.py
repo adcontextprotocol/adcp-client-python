@@ -76,3 +76,39 @@ def coerce_format_id(value: object) -> LegacyFormatId:
     if isinstance(agent_url, AnyUrl):
         body["agent_url"] = str(agent_url)
     return LegacyFormatId.model_validate(body)
+
+
+#: The two spellings a product format declaration uses for its v1 refs, in the
+#: order they are probed. They are disjoint: no type in this package declares
+#: both, so the first hit is the only hit.
+_V1_REF_SPELLINGS = ("v1_format_ref", "legacy_format_refs")
+
+
+def declared_v1_format_refs(declaration: object) -> tuple[LegacyFormatId, ...]:
+    """Return the v1 refs *declaration* asserts, in whichever spelling it uses.
+
+    Two types in this package are called a product format declaration and they
+    name this field differently:
+
+    * the sixteen generated ``ProductFormatDeclaration`` arms declare
+      ``v1_format_ref`` as a real field, which is what
+      ``domains.core.product.Product.format_options`` holds;
+    * ``canonical_creative.Format`` exposes ``legacy_format_refs``, a property
+      over private state populated from ``v1_format_ref`` at construction.
+
+    Reading either spelling directly raises ``AttributeError`` on the other
+    type, so every reader goes through here. A declaration that asserts no refs
+    returns an empty tuple; one that is not a declaration at all raises
+    ``TypeError``, because the case worth refusing loudly is the type nobody
+    meant to pass — a ``getattr`` default would answer "asserts no v1 refs",
+    which is a wrong answer with no signal rather than a crash.
+    """
+    for name in _V1_REF_SPELLINGS:
+        if not hasattr(declaration, name):
+            continue
+        refs = getattr(declaration, name)
+        return tuple(coerce_format_id(ref) for ref in refs) if refs else ()
+    raise TypeError(
+        f"{type(declaration).__name__} declares neither "
+        f"{' nor '.join(_V1_REF_SPELLINGS)}; it is not a product format declaration"
+    )

@@ -1,7 +1,5 @@
 """The exact public mutation variant supports adopter subclasses and all facades."""
 
-from typing import cast
-
 from pydantic import Field
 from typing_extensions import assert_type
 
@@ -25,20 +23,25 @@ created = PackageRequest.model_validate(
 )
 updated = PackageUpdate.model_validate({"package_id": "package-1", "targeting_overlay": overlay})
 
-# The STATIC type is the generated declaration, ``TargetingOverlayInput | None``.
-# The readback union is wider at runtime: ``_forward_compat`` widens the field
-# to admit beta.14 ``TargetingOverlay`` objects, carrying the ``SkipJsonSchema``
-# arm, the left-to-right union mode and a per-model core schema with it — a
-# runtime mutation no source annotation expresses, so no type checker sees it.
-# These assertions previously read the wider union out of
-# ``canonical_creative.pyi``, which hand-transcribed the patch result; the stub
-# is deleted -- it declared 35 classes while leaving 759 of their runtime fields
-# undeclared across 33 of them, 40 of those required, and declared one field the
-# runtime does not have -- so the static claim is now the generated one, and the
-# wider runtime union is graded by the identity assertions below and by
-# tests/test_targeting_overlay_compat.py.
-assert_type(created.targeting_overlay, TargetingOverlayInput | None)
-assert_type(updated.targeting_overlay, TargetingOverlayInput | None)
+# The static type now CARRIES the beta.14 arm: ``TargetingOverlayInput |
+# TargetingOverlay | None``. This block previously asserted the narrow
+# ``TargetingOverlayInput | None`` and explained that the wider union was "a
+# runtime mutation no source annotation expresses, so no type checker sees it".
+# That is no longer true, measured on the model rather than read off the source:
+#
+#   upstream 65626be29  static TargetingOverlayInput | None
+#                       runtime TargetingOverlayInput | None
+#   here                static TargetingOverlayInput | TargetingOverlay | None
+#                       runtime TargetingOverlayInput
+#                               | Annotated[TargetingOverlay, SkipJsonSchema()]
+#                               | None
+#
+# So the two views agree now where they used to diverge, and asserting the
+# narrow union would assert the old gap back into existence. ``SkipJsonSchema``
+# is a runtime-only marker a type checker does not see, which is the one
+# remaining and expected difference between the two columns.
+assert_type(created.targeting_overlay, TargetingOverlayInput | TargetingOverlay | None)
+assert_type(updated.targeting_overlay, TargetingOverlayInput | TargetingOverlay | None)
 assert_type(overlay.workflow_id, str)
 assert created.targeting_overlay is overlay
 assert updated.targeting_overlay is overlay
@@ -52,7 +55,8 @@ legacy = LegacyTargeting(workflow_id="beta14-1181")
 legacy_update = PackageUpdate.model_validate(
     {"package_id": "package-1", "targeting_overlay": legacy}
 )
-assert_type(legacy_update.targeting_overlay, TargetingOverlayInput | None)
-# The beta.14 arm is the half the static annotation does not carry, so the
-# identity check has to say so explicitly rather than read as non-overlapping.
-assert cast(object, legacy_update.targeting_overlay) is legacy
+assert_type(legacy_update.targeting_overlay, TargetingOverlayInput | TargetingOverlay | None)
+# The ``cast(object, ...)`` this line used to need is gone with the widening it
+# worked around: the annotation now carries the beta.14 arm, so a LegacyTargeting
+# identity check no longer reads as non-overlapping and can be asserted directly.
+assert legacy_update.targeting_overlay is legacy

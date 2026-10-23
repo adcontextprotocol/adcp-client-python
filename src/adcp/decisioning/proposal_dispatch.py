@@ -255,7 +255,6 @@ async def maybe_intercept_finalize(
                 "get_products with buying_mode='brief' or 'refine' to "
                 "obtain a draft proposal_id before finalizing it."
             ),
-            recovery="correctable",
             field=field_path,
         )
     # Finalize requires a draft; finalizing an already-committed proposal
@@ -272,7 +271,6 @@ async def maybe_intercept_finalize(
                 "finalized. Already-committed proposals should be "
                 "accepted via create_media_buy(proposal_id=...) directly."
             ),
-            recovery="correctable",
             field=field_path,
         )
 
@@ -445,7 +443,6 @@ async def maybe_validate_refine_proposal_refs(
                     "get_products with buying_mode='brief' to obtain a draft "
                     "proposal_id before refining it."
                 ),
-                recovery="correctable",
                 field=f"refine[{refine_index}].proposal_id",
             )
 
