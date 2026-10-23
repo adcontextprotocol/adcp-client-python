@@ -330,6 +330,13 @@ def test_single_parent_commit_cannot_impersonate_github_merge(history: list[str]
         ("a" * 40, "feat(reporting)!: enable production tier status and ownership", False),
         (None, "feat(reporting)!: enable production tier status and ownership", False),
         ("34c8f6d929aeac3407e2f595104a8e903e572623", BREAKING_SUBJECT, False),
+        (
+            "5ce9ee4dc9daef34af143b84ff7d660489fef1be",
+            "fix(types)!: allow assignment-only creative syncs",
+            True,
+        ),
+        ("a" * 40, "fix(types)!: allow assignment-only creative syncs", False),
+        ("5ce9ee4dc9daef34af143b84ff7d660489fef1be", BREAKING_SUBJECT, False),
     ],
 )
 def test_historical_footer_exception_requires_exact_commit_and_subject(

@@ -88,15 +88,21 @@ CONVENTIONAL = re.compile(
     r"(?:\([^()\n]+\))?(?P<breaking>!)?: (?P<description>\S.*)$"
 )
 GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
-# These already-merged commits predate the guard. Their breaking subjects
-# and reviewed PR migration notes retain the release signal. No other commit,
-# including one with the same subject, inherits these historical exceptions.
+# These already-merged commits lack the footer in the message this guard reads.
+# The first two predate the guard; their breaking subjects and reviewed PR
+# migration notes retain the release signal. 5ce9ee4dc is #1546's GitHub merge
+# commit: its body carries only the PR title, while the merged commit 81c2a8b2b
+# carries the BREAKING CHANGE footer. No other commit, including one with the
+# same subject, inherits these historical exceptions.
 HISTORICAL_BREAKING_SUBJECTS = {
     "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac": (
         "fix(reporting)!: scope configuration generations by account (#1174)"
     ),
     "34c8f6d929aeac3407e2f595104a8e903e572623": (
         "feat(reporting)!: enable production tier status and ownership"
+    ),
+    "5ce9ee4dc9daef34af143b84ff7d660489fef1be": (
+        "fix(types)!: allow assignment-only creative syncs"
     ),
 }
 
