@@ -56,11 +56,22 @@ To install everything this guide uses while developing: `pip install -e '.[dev,p
 
 ## Layout notes
 
-`adcp_reporting_row_sets` is the side table that records where a revision's rows live until the shared Core layout
-(persistence Stage 3). It matches the JavaScript table column for column except that `obligation_id` has no
+`adcp_reporting_row_sets` is the side table that records where a revision's rows live.
+It matches the JavaScript table column for column except that `obligation_id` has no
 foreign key: Python obligations live in `reporting_obligations`, not in the JavaScript
 `adcp_reporting_obligations` table. If the JavaScript migration created the table first, `ready_row_storage`
-refuses with the constraint name; apply this migration first, or drop that constraint.
+refuses with the constraint name and a schema-qualified, quoted statement to remove it.
+Apply the Python migration first, or, for an existing database with Python as its writer,
+remove the JavaScript foreign key before running readiness again. The default constraint name is:
+
+```sql
+ALTER TABLE adcp_reporting_row_sets
+    DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;
+```
+
+Run this in the ledger schema. Use the exact statement from the refusal if the schema or
+constraint has a different name. This removes the cross-SDK foreign key; row integrity
+continues to be verified against the stored digests.
 
 A revision written before protocol-shape control totals (see the release notes) has a binding over `{name, value}`
 pairs. Its row set records the rows-only digest profile `rows_v1`, and its pair binding is verified against the
@@ -302,7 +313,9 @@ A period qualifies once the later of its period end and its newest revision or a
 `ledger_record_retention_days` is the generation's `status_retention_days`; a shorter value is ignored, because a row
 retention shorter than the advertised window is non-conformant.
 
-Python keeps revision headers and their records until the shared Core layout (persistence Stage 3). A pruned row set
+Python keeps revision headers and their records. Record retirement refuses periods with protected reconciliation
+or audit evidence, so production periods carrying those records remain retained; row-byte pruning still runs.
+A pruned row set
 stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
@@ -346,12 +359,13 @@ either verify in the other. Three things must match between the two deployments:
 - **The same binding definitions.** A binding's identity digest is `sha256(JCS([kind, provider, identity_config]))`
   over the names the JavaScript SDK uses (`location`, `prefix`, `keyTemplate`), so an object binding that differs in
   location, prefix or key template is a different binding and is refused rather than silently redirected.
-- **The row-storage migration applied by this SDK first**, because the JavaScript `adcp_reporting_row_sets` has a
-  foreign key to its own obligations table that Python obligations can never satisfy. See "Layout notes".
+- **The row-storage migration applied by this SDK first**, or the JavaScript foreign key removed with
+  `ALTER TABLE adcp_reporting_row_sets DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;`
+  in the ledger schema. Python obligations cannot satisfy that foreign key. See "Layout notes" for renamed constraints.
 
-Until the shared Core layout (persistence Stage 3) each SDK keeps its own revision headers, so what is shared today
+Each SDK keeps its own revision headers, so what is shared today
 is the row sets: JavaScript-written row sets verify through `ReportingRowStorageV1.find` and `read_all` here, and the
-other way around.
+other way around. A shared Core layout is no longer planned; keep one writer SDK per ledger database.
 
 The acceptance test runs both SDKs against one PostgreSQL schema and one filesystem bucket root, in both directions:
 

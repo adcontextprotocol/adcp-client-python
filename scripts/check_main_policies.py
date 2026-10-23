@@ -176,12 +176,21 @@ def event_context() -> tuple[str, str, dict[str, Any]]:
     return kind, target, event
 
 
-def conventional(kind: str, target: str, event: dict[str, Any]) -> dict[str, Any]:
+def conventional(
+    kind: str, target: str, event: dict[str, Any], *, api: GitHub | None = None
+) -> dict[str, Any]:
     if kind == "push":
         commits = main_commits(target)
     else:
         pr = event["pull_request"]
-        validate_message(pr["title"] + "\n\n" + (pr["body"] or ""))
+        # Reruns retain the original webhook payload, including an obsolete PR
+        # description. Read the editable message again without changing which
+        # checkout and commits this run is allowed to validate.
+        if api is None:
+            api = GitHub(os.environ["GH_TOKEN"])
+        current = api.repo(f"pulls/{pr['number']}")
+        require(current["head"]["sha"] == pr["head"]["sha"], "PR head changed; run current CI")
+        validate_message(current["title"] + "\n\n" + (current["body"] or ""))
         head, base = pr["head"]["sha"], pr["base"]["sha"]
         require(SHA.fullmatch(head) and SHA.fullmatch(base), "invalid PR source identities")
         fork = git("merge-base", base, head)
