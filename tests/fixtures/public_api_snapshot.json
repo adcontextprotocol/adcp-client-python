@@ -8169,7 +8169,6 @@
   },
   "adcp_reporting_storage": {
     "resolves": {
-      "PG_AVAILABLE": "value:True",
       "PgReportingActivityUnionStore": "adcp_reporting_storage.outbox.status_activity_pg",
       "PgReportingFeedStore": "adcp_reporting_storage.feed.pg",
       "PgReportingLedgerStore": "adcp_reporting_storage.ledger.pg",

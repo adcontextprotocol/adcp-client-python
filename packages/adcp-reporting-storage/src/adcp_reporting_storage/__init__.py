@@ -59,7 +59,6 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.ledger.period_retirement import (
         ReportingPeriodRetirementV1 as ReportingPeriodRetirementV1,
     )
-    from adcp_reporting_storage.ledger.pg import PG_AVAILABLE as PG_AVAILABLE
     from adcp_reporting_storage.ledger.pg import (
         PgReportingLedgerStore as PgReportingLedgerStore,
     )
@@ -211,7 +210,6 @@ __version__ = "0.1.0b0"
 #: Public name -> (module under this package, attribute). Resolved on first use.
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Stores
-    "PG_AVAILABLE": ("ledger.pg", "PG_AVAILABLE"),
     "PgReportingLedgerStore": ("ledger.pg", "PgReportingLedgerStore"),
     "PgReportingReconciliationStore": ("ledger.delivery_pg", "PgReportingReconciliationStore"),
     "PgReportingMaterializerStore": ("materializer.pg", "PgReportingMaterializerStore"),

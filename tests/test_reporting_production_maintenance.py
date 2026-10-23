@@ -62,6 +62,7 @@ def service(store: Any, seconds: float | None = 300.0) -> ReportingProductionSup
 
 def test_postgres_store_lists_the_passes_for_its_features() -> None:
     """The selection lives in the store; the worker runs whatever it lists."""
+    pytest.importorskip("psycopg")  # the store refuses to construct without its driver
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
     cases = [

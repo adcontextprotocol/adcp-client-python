@@ -9,6 +9,7 @@ claim.  A runner must give every invocation a fresh PostgreSQL database.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 from dataclasses import fields
 from datetime import datetime, timedelta, timezone
@@ -27,7 +28,12 @@ from adcp.reporting.ledger import (
     derive_period,
     revision_content_sha256,
 )
-from adcp_reporting_storage import PgReportingLedgerStore
+
+if importlib.util.find_spec("adcp.reporting.ledger.pg") is not None:
+    # Published wheels before the storage split (#1510) carry the store in adcp.
+    from adcp.reporting.ledger import PgReportingLedgerStore
+else:
+    from adcp_reporting_storage import PgReportingLedgerStore
 from adcp.reporting.ledger.status_server import ReportingStatusNotificationHandler
 from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
