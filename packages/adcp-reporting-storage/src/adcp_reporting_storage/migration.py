@@ -18,6 +18,11 @@ from typing import Any, Literal
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import consumer_reference, principal_reference
 
+try:
+    from adcp.reporting.service_lifecycle import ReportingOperatorActionError
+except ImportError:  # adcp 9.0.0 predates it; startup then wraps the error.
+    ReportingOperatorActionError = RuntimeError  # type: ignore[misc,assignment]
+
 __all__ = [
     "ReportingOwnershipBackfill",
     "ReportingOwnershipMigrationError",
@@ -31,8 +36,11 @@ __all__ = [
 ]
 
 
-class ReportingOwnershipMigrationError(RuntimeError):
-    """An operator migration precondition failed; no partial changes commit."""
+class ReportingOwnershipMigrationError(ReportingOperatorActionError):
+    """An operator migration precondition failed; no partial changes commit.
+
+    Service startup re-raises it unwrapped, so the operator sees the remedy.
+    """
 
 
 @dataclass(frozen=True)
