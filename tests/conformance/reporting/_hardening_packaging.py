@@ -1,5 +1,17 @@
 """Installed hardening probes reuse fixtures, never current SDK source modules."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import hashlib
 import json
 import os
@@ -8,14 +20,20 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-from .test_reporting_notification_packaging import ROOT, run_step
+from .test_reporting_notification_packaging import (
+    ROOT,
+    STORAGE_SRC,
+    is_current_build,
+    run_step,
+    storage_distribution,
+)
 
 MODULES = (
     "adcp.reporting.outbox.support",
-    "adcp.reporting.outbox._schema",
-    "adcp.reporting.outbox.status_schema",
+    "adcp_reporting_storage.outbox._schema",
+    "adcp_reporting_storage.outbox.status_schema",
     "adcp.reporting.receipts.handler",
-    "adcp.reporting.receipts.pg",
+    "adcp_reporting_storage.receipts.pg",
     "adcp.reporting.receipts._diagnostics",
 )
 ASSETS = (
@@ -56,26 +74,56 @@ def installed_hardening(root, python, wheel, *, label, parent=False, driver_abse
         cwd=root,
         timeout=180,
     )
-    with zipfile.ZipFile(wheel) as archive:
-        modules = {
-            name: hashlib.sha256(archive.read(name.replace(".", "/") + ".py")).hexdigest()
-            for name in MODULES
-            if name.replace(".", "/") + ".py" in archive.namelist()
-        }
-        assets = {
-            name: hashlib.sha256(archive.read("adcp/reporting/" + name)).hexdigest()
-            for name in ASSETS
-        }
-        for path in [
-            *(name.replace(".", "/") + ".py" for name in modules),
-            *("adcp/reporting/" + name for name in assets),
-        ]:
-            expected = (
-                subprocess.check_output(["git", "show", f"{B23}:src/{path}"], cwd=ROOT)
-                if parent
-                else (ROOT / "src" / path).read_bytes()
-            )
-            assert archive.read(path) == expected
+    # A current build is two wheels: the stores, DDL and catalog manifests are in
+    # the storage wheel. A historical wheel (the B23 parent) carries them itself.
+    current = is_current_build(wheel)
+    storage = zipfile.ZipFile(storage_distribution(wheel)) if current else None
+
+    def located(name):
+        """(archive, member path, expected bytes) for a module or asset name."""
+        if name in ASSETS:
+            if current:
+                member, source = "adcp_reporting_storage/" + name, STORAGE_SRC / name
+            else:
+                member, source = "adcp/reporting/" + name, ROOT / "src/adcp/reporting" / name
+        elif name.startswith("adcp_reporting_storage."):
+            member = name.replace(".", "/") + ".py"
+            source = STORAGE_SRC.parent / member
+            if not current:
+                member = member.replace("adcp_reporting_storage/", "adcp/reporting/", 1)
+        else:
+            member = name.replace(".", "/") + ".py"
+            source = ROOT / "src" / member
+        archive = (
+            storage if current and member.startswith("adcp_reporting_storage/") else wheel_archive
+        )
+
+        def expected():
+            # Resolved only for members the archive carries: a module newer than
+            # the parent has no bytes at the parent commit.
+            if parent:
+                return subprocess.check_output(["git", "show", f"{B23}:src/{member}"], cwd=ROOT)
+            return source.read_bytes()
+
+        return archive, member, expected
+
+    with zipfile.ZipFile(wheel) as wheel_archive:
+        modules, assets = {}, {}
+        for name in MODULES:
+            archive, member, expected = located(name)
+            if member not in archive.namelist():
+                continue
+            raw = archive.read(member)
+            assert raw == expected(), member
+            key = name if current else name.replace("adcp_reporting_storage.", "adcp.reporting.", 1)
+            modules[key] = hashlib.sha256(raw).hexdigest()
+        for name in ASSETS:
+            archive, member, expected = located(name)
+            raw = archive.read(member)
+            assert raw == expected(), member
+            assets[name] = hashlib.sha256(raw).hexdigest()
+    if storage is not None:
+        storage.close()
     settings = {
         "workspace": str(ROOT),
         "fixtures": str(fixture_root),

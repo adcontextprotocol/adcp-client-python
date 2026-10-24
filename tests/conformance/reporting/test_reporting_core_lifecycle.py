@@ -3,7 +3,7 @@
 Every other test in this suite checks one piece. This one checks that the
 pieces compose: a simulated reporting source drives
 :class:`~adcp.reporting.ledger.ReportingProducer`, which writes a
-:class:`~adcp.reporting.ledger.pg.PgReportingLedgerStore`, which
+:class:`~adcp_reporting_storage.ledger.pg.PgReportingLedgerStore`, which
 :class:`~adcp.reporting.ledger.ReportingStatusHandler` projects onto the wire,
 which the SDK's **own buyer-side** ``reconcile_reporting_core`` then reconciles.
 
@@ -54,6 +54,8 @@ if not TEST_URL:
         allow_module_level=True,
     )
 
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore  # noqa: E402
+
 from adcp.reporting import (  # noqa: E402
     ExpectedReportingPeriod,
     ReportingReconciliationError,
@@ -81,7 +83,6 @@ from adcp.reporting.ledger.models import (  # noqa: E402
     first_ordinal_after,
     iso_duration_to_timedelta,
 )
-from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
 from adcp.reporting.ledger.producer import recompute_revision_content_sha256  # noqa: E402
 from adcp.reporting.source import reporting_source_capabilities_sha256_v1  # noqa: E402
 from adcp.types import (  # noqa: E402

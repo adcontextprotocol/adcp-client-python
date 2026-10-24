@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
 from pydantic import ValidationError
 
 from adcp.reporting import (
@@ -18,7 +19,6 @@ from adcp.reporting.conformance import validate_reporting_source_execution
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     LedgerConflictError,
-    PgReportingLedgerStore,
     ProducerOfferings,
     ReportingConfiguration,
     ReportingProducer,

@@ -5,14 +5,11 @@ from dataclasses import replace
 from urllib.parse import quote
 
 import pytest
+from adcp_reporting_storage import PgReportingReconciliationStore
 
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.registry import BuyerAgent, HttpSigCredential
-from adcp.reporting.ledger import (
-    PgReportingReconciliationStore,
-    ReportingDeliveryPrincipal,
-    ReportingIssueLifecycle,
-)
+from adcp.reporting.ledger import ReportingDeliveryPrincipal, ReportingIssueLifecycle
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     ReportingNotificationError,

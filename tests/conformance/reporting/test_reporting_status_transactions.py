@@ -5,8 +5,8 @@ from dataclasses import replace
 from datetime import timedelta
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore, PgStatusNotificationStore
 
-from adcp.reporting.ledger import PgReportingLedgerStore
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import (
@@ -14,11 +14,7 @@ from adcp.reporting.ledger.status_projection import (
     mismatch_key,
     project_status_scope,
 )
-from adcp.reporting.outbox import (
-    PgStatusNotificationStore,
-    ReportingStatusScope,
-    ReportingStatusSweeper,
-)
+from adcp.reporting.outbox import ReportingStatusScope, ReportingStatusSweeper
 
 from . import test_reporting_status_projection_contract as _contract
 from ._generation_support import (
@@ -130,7 +126,9 @@ async def test_consumer_status_pre_lifecycle_crash_rolls_back_both_and_self_dirt
     await h.status.baseline(account_id="acct_a")
     outbox = NotificationHarness(h.reliable).outbox
     before = await outbox.read_status_dirty(account_id="acct_a")
-    import adcp.reporting.ledger.status_snapshot as snapshots
+    import adcp_reporting_storage.ledger.status_snapshot as snapshots
+
+    import adcp.reporting.ledger.status_snapshot as memory_snapshots
 
     def crash_memory(*args, **kwargs):
         raise SimulatedCrash("consumer_status_pre_lifecycle")
@@ -144,7 +142,7 @@ async def test_consumer_status_pre_lifecycle_crash_rolls_back_both_and_self_dirt
         reporting_revision_id=revision.reporting_revision_id,
     )
     with monkeypatch.context() as patch:
-        patch.setattr(snapshots, "apply_memory_intents", crash_memory)
+        patch.setattr(memory_snapshots, "apply_memory_intents", crash_memory)
         patch.setattr(snapshots, "apply_intents_on", crash_pg)
         with pytest.raises(SimulatedCrash):
             await h.ledger.record_consumer_status_with_lifecycle(record)
@@ -185,7 +183,9 @@ async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_ha
                 reporting_revision_id=revision.reporting_revision_id,
                 readable=False,
             )
-    from adcp.reporting.outbox import status_memory, status_pg
+    from adcp_reporting_storage.outbox import status_pg
+
+    from adcp.reporting.outbox import status_memory
 
     called = 0
     original = status_pg.advance_checkpoint
@@ -224,7 +224,9 @@ async def test_expiry_during_checkpoint_event_work_rolls_back_the_entire_turn(
     h.clock.now = obligation.period.expected_at
     lease = await h.status.claim_due(account_id="acct_a", lease_seconds=30)
     assert lease is not None
-    from adcp.reporting.outbox import status_memory, status_pg
+    from adcp_reporting_storage.outbox import status_pg
+
+    from adcp.reporting.outbox import status_memory
 
     original = status_pg.advance_checkpoint
 

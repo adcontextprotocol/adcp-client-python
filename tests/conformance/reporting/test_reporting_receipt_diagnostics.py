@@ -1,5 +1,17 @@
 """Unexpected original failures are useful to operators without retaining payloads."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp under test predates the storage split (#1510).
+
+    The installed hardening controls run this module inside historical wheels,
+    whose stores still live in adcp.reporting.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import json
 import logging
@@ -540,10 +552,13 @@ async def test_raw_store_boundary_label_assertion_is_load_bearing(caplog, monkey
     """
     caplog.set_level(logging.ERROR)
     async with receipt_harness("postgres") as h:
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.receipts import pg as receipt_pg
+        else:
+            from adcp_reporting_storage.receipts import pg as receipt_pg
         from psycopg import AsyncConnection, OperationalError
 
         from adcp.reporting.receipts import _diagnostics
-        from adcp.reporting.receipts import pg as receipt_pg
 
         s, request = await sensitive_case(h)
         fired = []

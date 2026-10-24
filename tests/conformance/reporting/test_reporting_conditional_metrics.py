@@ -9,6 +9,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import postgres_reliable_reporting_service
 
 from adcp.reporting.conformance import (
     ReportingSourceConformanceError,
@@ -143,7 +144,7 @@ async def conditional_service(
     async with AsyncExitStack() as stack:
         if request.param == "postgres":
             pool = await stack.enter_async_context(isolated_reporting_pool())
-            service = ReliableReportingService.postgres(
+            service = postgres_reliable_reporting_service(
                 pool=pool, account_context=context, clock=clock
             )
         else:

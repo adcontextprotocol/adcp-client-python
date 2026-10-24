@@ -5,20 +5,22 @@ import json
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingMaterializerStore, PgReportingReceiptStore
+from adcp_reporting_storage.outbox._schema import schema_objects
 
-from adcp.reporting.materializer import PgReportingMaterializerStore
-from adcp.reporting.outbox._schema import schema_objects
-from adcp.reporting.receipts import PgReportingReceiptStore, ReportingReceiptError
+from adcp.reporting.receipts import ReportingReceiptError
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import isolated_reporting_pool
 from ._receipt_support import receipt_case, receipt_harness, request_for
 from ._reconciliation_support import Clock
 
-SQL = files("adcp.reporting.ledger").joinpath("reporting_receipt_ingestion.sql").read_text()
-MANIFEST = json.loads(files("adcp.reporting.receipts").joinpath("required_schema.json").read_text())
+SQL = files("adcp_reporting_storage.ledger").joinpath("reporting_receipt_ingestion.sql").read_text()
+MANIFEST = json.loads(
+    files("adcp_reporting_storage.receipts").joinpath("required_schema.json").read_text()
+)
 PARENT_MANIFEST = json.loads(
-    files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
+    files("adcp_reporting_storage.materializer").joinpath("required_schema.json").read_text()
 )
 
 

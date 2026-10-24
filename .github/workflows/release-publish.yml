@@ -8,6 +8,14 @@ name: Release publish
 on:
   workflow_dispatch:
     inputs:
+      package:
+        description: Distribution to publish (each Release Please component publishes on its own)
+        required: true
+        type: choice
+        default: adcp
+        options:
+          - adcp
+          - adcp-reporting-storage
       release_sha:
         description: Exact commit of the Release Please release
         required: true
@@ -20,7 +28,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: release-publish-${{ inputs.tag_name }}
+  group: release-publish-${{ inputs.package }}-${{ inputs.tag_name }}
   cancel-in-progress: false
 
 jobs:
@@ -44,8 +52,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ inputs.release_sha }}
           RELEASE_TAG: ${{ inputs.tag_name }}
+          PACKAGE: ${{ inputs.package }}
         run: |
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          # adcp tags are vX.Y.Z; the storage component tags carry its name.
+          case "$PACKAGE" in
+            adcp) [[ "$RELEASE_TAG" =~ ^v[0-9] ]] ;;
+            # Only main releases the storage component; next cuts adcp alphas.
+            adcp-reporting-storage) [[ "$GITHUB_REF_NAME" = main && "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]] ;;
+            *) echo "unknown package $PACKAGE" >&2; exit 1 ;;
+          esac
           test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_SHA"
           git merge-base --is-ancestor "$RELEASE_SHA" HEAD
           for attempt in {1..220}; do
@@ -62,9 +78,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build and check distributions
+        env:
+          PACKAGE: ${{ inputs.package }}
         run: |
           python -m pip install build twine
-          python -m build
+          if [ "$PACKAGE" = adcp ]; then
+            python -m build
+          else
+            python -m build --outdir dist/ packages/adcp-reporting-storage
+          fi
           python -m twine check dist/*
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

@@ -64,6 +64,21 @@ def install_client(monkeypatch, fetcher, pages):
 
 
 @pytest.mark.asyncio
+async def test_scoped_list_client_uses_known_contract_without_capability_discovery(monkeypatch):
+    client = MCPPropertyListFetcher()._create_client(REF["agent_url"], REF["auth_token"])
+    discovery = AsyncMock(side_effect=AssertionError("shared token cannot discover capabilities"))
+    monkeypatch.setattr(client, "fetch_capabilities", discovery)
+
+    prepared = await client._convert_outgoing_request(
+        "get_property_list", {"list_id": REF["list_id"], "resolve": True}
+    )
+
+    assert prepared.payload["adcp_version"] == client.get_adcp_version()
+    assert prepared.payload["list_id"] == REF["list_id"]
+    discovery.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_pages_types_expiry_and_auth_isolated_cache(monkeypatch):
     fetcher = MCPPropertyListFetcher()
     expiry = datetime.now(timezone.utc) + timedelta(hours=1)

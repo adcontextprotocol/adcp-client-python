@@ -1,4 +1,4 @@
-"""Typed #1168B mounting/lifecycle example; install ``adcp[pg]``.
+"""Typed #1168B mounting/lifecycle example; install ``adcp-reporting-storage[pg]``.
 
 Call ``register_approved_subscription`` after account authorization and endpoint
 proof verification. ``run_reporting_service`` accepts the adopter's existing
@@ -12,6 +12,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Protocol
 
+from adcp_reporting_storage import PgReportingLedgerStore, PgReportingOutbox
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.decisioning import (
@@ -21,9 +22,7 @@ from adcp.decisioning import (
 )
 from adcp.decisioning.accounts import ResolveContext
 from adcp.decisioning.handler import PlatformHandler
-from adcp.reporting.ledger import PgReportingLedgerStore
 from adcp.reporting.outbox import (
-    PgReportingOutbox,
     ReportingActivityProjector,
     ReportingActivitySupport,
     ReportingEnvelopeCipher,

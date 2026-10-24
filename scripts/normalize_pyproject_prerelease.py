@@ -28,15 +28,22 @@ _PEP440_LABELS = {
     "rc": "rc",
 }
 _REPOSITORY = "adcontextprotocol/adcp-client-python"
-# Release Please head branches, by the branch each release line targets.
-# ``main`` cuts the current major; ``next`` cuts draft-spec pre-releases
-# (see RELEASING.md).
+# Release Please head branch -> the pyproject.toml that branch's component
+# versions, by the branch each release line targets. ``main`` cuts the current
+# major and the ``adcp-reporting-storage`` distribution; ``next`` cuts
+# draft-spec ``adcp`` pre-releases only (see RELEASING.md).
 _RELEASE_BRANCHES = {
-    target: {
-        f"release-please--branches--{target}",
-        f"release-please--branches--{target}--components--adcp",
-    }
-    for target in ("main", "next")
+    "main": {
+        "release-please--branches--main": "pyproject.toml",
+        "release-please--branches--main--components--adcp": "pyproject.toml",
+        "release-please--branches--main--components--adcp-reporting-storage": (
+            "packages/adcp-reporting-storage/pyproject.toml"
+        ),
+    },
+    "next": {
+        "release-please--branches--next": "pyproject.toml",
+        "release-please--branches--next--components--adcp": "pyproject.toml",
+    },
 }
 
 
@@ -112,15 +119,20 @@ def _github(path: str, token: str, *, body: dict[str, Any] | None = None) -> Any
 def normalize_release_prs(
     prs: list[dict[str, Any]], token: str, target_branch: str = "main"
 ) -> None:
-    """Normalize the one Release Please PR with the App credential that opened it.
+    """Normalize each component's Release Please PR with the App credential that opened it.
 
-    ``target_branch`` is the release line whose workflow opened the PR; the PR
-    must target that branch from that line's Release Please branch.
+    ``target_branch`` is the release line whose workflow opened the PRs; each PR
+    must target that branch from one of that line's Release Please branches.
+    Release Please opens one PR per component (``separate-pull-requests``), so a
+    run on ``main`` may propose both the ``adcp`` and the ``adcp-reporting-storage``
+    PR; each is normalized in its own ``pyproject.toml``.
     """
     if target_branch not in _RELEASE_BRANCHES:
         raise ValueError("unexpected release target branch")
-    if len(prs) > 1:
-        raise ValueError("expected at most one release PR")
+    branches = _RELEASE_BRANCHES[target_branch]
+    if len(prs) > len(branches):
+        raise ValueError("more release PRs than release components")
+    seen: set[str] = set()
     for proposed in prs:
         number = int(proposed["number"])
         pr = _github(f"pulls/{number}", token)
@@ -129,17 +141,18 @@ def normalize_release_prs(
             pr["base"]["ref"] != target_branch
             or pr["base"]["repo"]["full_name"] != _REPOSITORY
             or pr["head"]["repo"]["full_name"] != _REPOSITORY
-            or branch not in _RELEASE_BRANCHES[target_branch]
+            or branch not in branches
+            or branch in seen
         ):
             raise ValueError("unexpected release PR identity")
-        original = _github(
-            f"contents/pyproject.toml?ref={urllib.parse.quote(branch, safe='')}", token
-        )
+        seen.add(branch)
+        pyproject = branches[branch]
+        original = _github(f"contents/{pyproject}?ref={urllib.parse.quote(branch, safe='')}", token)
         contents = base64.b64decode(original["content"], validate=False).decode()
         normalized = normalize_pyproject_text(contents)
         if normalized != contents:
             _github(
-                "contents/pyproject.toml",
+                f"contents/{pyproject}",
                 token,
                 body={
                     "message": "chore: normalize prerelease version to PEP 440",

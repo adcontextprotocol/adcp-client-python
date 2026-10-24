@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -55,13 +67,25 @@ async def fresh_read_after_legacy_refusals(mount, account_id, positions):
 
 async def main(settings):
     origins = verify_installation(settings)
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.feed import pg as feed_pg
+    else:
+        from adcp_reporting_storage.feed import pg as feed_pg
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.projection.pg import (
+            PgReportingProjectionStore,
+            PgReportingStatusProjection,
+        )
+    else:
+        from adcp_reporting_storage.projection.pg import (
+            PgReportingProjectionStore,
+            PgReportingStatusProjection,
+        )
     from psycopg_pool import AsyncConnectionPool
 
     from adcp.reporting.canonical_json import canonical_json_utf8_v1
-    from adcp.reporting.feed import pg as feed_pg
     from adcp.reporting.ledger import ProducerOfferings, ReportingProducer
     from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
-    from adcp.reporting.projection.pg import PgReportingProjectionStore, PgReportingStatusProjection
     from adcp.types import GetReportingStatusRequest
     from adcp.validation.schema_loader import get_named_validator, get_validator
     from tests.conformance.reporting._feed_support import MountedFeed

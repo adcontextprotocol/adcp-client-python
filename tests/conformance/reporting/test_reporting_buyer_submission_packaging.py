@@ -12,15 +12,22 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingSubmissionIntentStore
 
 from adcp.reporting.ledger.delivery import receipt_to_wire
-from adcp.reporting.submissions import PgReportingSubmissionIntentStore, ReportingSubmissionScope
+from adcp.reporting.submissions import ReportingSubmissionScope
 
 from ._generation_support import require_rolling_database
 from ._receipt_support import adjustment_for, batch_state, receipt_case, receipt_harness
 from .test_reporting_buyer_submission_process import buyer_worker
 from .test_reporting_materializer_packaging import b1_wheels, built_distribution
-from .test_reporting_notification_packaging import ROOT, run_step
+from .test_reporting_notification_packaging import (
+    ROOT,
+    STORAGE_SRC,
+    run_step,
+    storage_distribution,
+    storage_source,
+)
 
 __all__ = ["b1_wheels", "built_distribution"]
 
@@ -51,7 +58,12 @@ async def test_python310_installed_buyer_submission_contract(request, kind, driv
     )
     await asyncio.to_thread(
         run_step,
-        [*installer, str(wheels[kind]) + ("[pg]" if drivers else ""), "mypy==1.20.2"],
+        [
+            *installer,
+            str(wheels[kind]) + ("[pg]" if drivers else ""),
+            str(storage_distribution(wheels[kind])),
+            "mypy==1.20.2",
+        ],
         label=label + "-install",
         cwd=root,
         timeout=180,
@@ -63,10 +75,20 @@ async def test_python310_installed_buyer_submission_contract(request, kind, driv
         ).hexdigest()
         for path in (ROOT / "src/adcp/reporting/submissions").glob("*.py")
     }
-    sql_path = ROOT / "src/adcp/reporting/ledger/reporting_buyer_submissions.sql"
-    with zipfile.ZipFile(wheels[kind]) as wheel, tarfile.open(source) as sdist:
+    modules["adcp_reporting_storage.submissions.pg"] = hashlib.sha256(
+        (STORAGE_SRC / "submissions/pg.py").read_bytes()
+    ).hexdigest()
+    sql_path = (
+        ROOT
+        / "packages/adcp-reporting-storage/src/adcp_reporting_storage"
+        / "ledger/reporting_buyer_submissions.sql"
+    )
+    with (
+        zipfile.ZipFile(storage_distribution(wheels[kind])) as wheel,
+        tarfile.open(storage_source(source)) as sdist,
+    ):
         prefix = sdist.getnames()[0].split("/")[0]
-        member = "adcp/reporting/ledger/reporting_buyer_submissions.sql"
+        member = "adcp_reporting_storage/ledger/reporting_buyer_submissions.sql"
         assert (
             wheel.read(member)
             == sdist.extractfile(f"{prefix}/src/{member}").read()

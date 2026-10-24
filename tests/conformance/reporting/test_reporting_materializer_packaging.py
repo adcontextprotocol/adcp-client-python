@@ -43,11 +43,27 @@ def b1_wheels(built_distribution):
             timeout=180,
         )
     vcs_wheel = next(direct.glob("*.whl"))
+    # The storage distribution's VCS wheel, from its own tree, next to adcp's.
+    storage_direct = path / "vcs-wheel-storage"
+    run_step(
+        distribution.build_command(distribution.STORAGE_ROOT, storage_direct, wheel=True),
+        label="b1-vcs-storage-wheel",
+        cwd=ROOT,
+        timeout=180,
+    )
+    storage_vcs_wheel = next(storage_direct.glob("*.whl"))
+    distribution.register_storage(
+        vcs_wheel,
+        wheel=storage_vcs_wheel,
+        source=distribution.storage_source(sdist_wheel),
+    )
     expected = {f.name: f.read_bytes() for f in ASSETS.glob("*.json")}
     with (
         zipfile.ZipFile(vcs_wheel) as vcs,
         zipfile.ZipFile(sdist_wheel) as wheel,
         tarfile.open(source) as tar,
+        zipfile.ZipFile(storage_vcs_wheel) as storage_vcs,
+        zipfile.ZipFile(distribution.storage_distribution(sdist_wheel)) as storage_wheel,
     ):
         prefix = tar.getnames()[0].split("/")[0]
         for name, raw in expected.items():
@@ -63,9 +79,9 @@ def b1_wheels(built_distribution):
             "receipts/required_schema.json",
         ):
             assert (
-                vcs.read(f"adcp/reporting/{relative}")
-                == wheel.read(f"adcp/reporting/{relative}")
-                == (ROOT / "src/adcp/reporting" / relative).read_bytes()
+                storage_vcs.read(f"adcp_reporting_storage/{relative}")
+                == storage_wheel.read(f"adcp_reporting_storage/{relative}")
+                == (distribution.STORAGE_SRC / relative).read_bytes()
             )
     return (
         path,
@@ -123,7 +139,12 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
         else [str(python), "-m", "pip", "install"]
     )
     run_step(
-        [*installer, str(wheels[kind]), "mypy==1.20.2"],
+        [
+            *installer,
+            str(wheels[kind]),
+            str(distribution.storage_distribution(wheels[kind])),
+            "mypy==1.20.2",
+        ],
         label=f"b1-{kind}-noneditable-install",
         cwd=path,
         timeout=180,

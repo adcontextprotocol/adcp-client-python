@@ -7,12 +7,9 @@ import secrets
 from contextlib import asynccontextmanager
 
 import pytest
+from adcp_reporting_storage import PgReportingMaterializerStore
 
-from adcp.reporting.materializer import (
-    PgReportingMaterializerStore,
-    ReportingMaterializerLease,
-    ReportingWriterError,
-)
+from adcp.reporting.materializer import ReportingMaterializerLease, ReportingWriterError
 
 from ._durable_materializer_support import durable_case
 

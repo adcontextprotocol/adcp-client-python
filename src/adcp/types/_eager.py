@@ -2,7 +2,7 @@
 
 This module binds every public name exported by :mod:`adcp.types` and runs
 the import-time Pydantic patching (``_ergonomic`` coercion +
-``_forward_compat`` open-union ``Format.assets``). It is imported on demand
+``_forward_compat``'s readback and capability patches). It is imported on demand
 by :mod:`adcp.types`'s lazy ``__getattr__`` the first time any type symbol is
 accessed, so ``import adcp.types`` itself stays cheap.
 
@@ -18,7 +18,10 @@ import importlib
 # Run the import-time patchers as a side effect, before binding the generated
 # types below (must come first — see the original "must be imported before
 # other types" note): ``_ergonomic`` applies BeforeValidator coercion and
-# ``_forward_compat`` opens ``Format.assets`` / ``RepeatableAssetGroup.assets``.
+# ``_forward_compat`` threads the readback nodes and the capability clones. The
+# asset slots are no longer among them — ``Format.assets`` and the repeatable
+# group's ``assets`` carry their open union by generation, so no import order
+# decides whether a novel asset_type parses.
 # Imported via ``import_module`` — a call, not a name binding — so they read as
 # the intentional side-effect imports they are rather than tripping
 # unused-import analysers. (The removed ``format_category`` submodule has a real

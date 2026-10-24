@@ -481,6 +481,11 @@ def test_public_api_surface_matches_snapshot():
     snapshot = json.loads(snapshot_path.read_text())
     regen_cmd = "python scripts/regenerate_public_api_snapshot.py"
 
+    assert set(snapshot) == {label for label, _ in snapshot_modules()}, (
+        "Snapshot namespaces changed. Review the public surface and regenerate "
+        f"the snapshot with `{regen_cmd}`."
+    )
+
     for label, module_path in snapshot_modules():
         module = importlib.import_module(module_path)
         recorded = snapshot[label]["resolves"]

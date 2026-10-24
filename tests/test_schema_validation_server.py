@@ -101,6 +101,7 @@ class _EnumMediaBuyStatusHandler(ADCPHandler[Any]):
 
 
 VALID_GET_PRODUCTS = {
+    "adcp_version": "3.2",
     "brief": "test campaign",
     "promoted_offering": "shoes",
     "buying_mode": "brief",
@@ -396,6 +397,21 @@ class TestResponses:
         )
         assert result["status"] == "draft"
         assert "media_buy_status" not in result
+        assert result["media_buy_id"] == "mb_1"
+        assert result["packages"] == []
+        assert result["revision"] == 1
+        assert result["confirmed_at"] == "2026-05-23T10:00:00Z"
+
+    @pytest.mark.asyncio
+    async def test_invalid_legacy_media_buy_status_still_fails_strict_validation(self) -> None:
+        caller = create_tool_caller(
+            _InvalidLegacyCreateMediaBuyStatusHandler(),
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        with pytest.raises(ADCPTaskError) as error:
+            await caller({"adcp_major_version": 3})
+        assert error.value.errors[0].code == "VALIDATION_ERROR"
 
     @pytest.mark.asyncio
     async def test_task_id_response_without_status_is_not_marked_completed(self) -> None:

@@ -179,7 +179,7 @@ def use_clock(h, moment):
 async def pin_current_clock(h):
     moment = h.clock()
     if h.pool is not None:
-        from adcp.reporting.outbox.pg import database_now
+        from adcp_reporting_storage.outbox.pg import database_now
 
         async with h.pool.connection() as connection:
             moment = await database_now(connection, None)

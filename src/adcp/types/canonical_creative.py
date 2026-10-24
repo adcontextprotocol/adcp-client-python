@@ -101,7 +101,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, NoExplicitNull
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -109,6 +109,9 @@ from adcp.types.domains.core.creative_manifest import (
     CreativeManifest as _CanonicalCreativeManifestWire,
 )
 from adcp.types.domains.core.creative_variant import CreativeVariant as _LegacyCreativeVariant
+from adcp.types.domains.core.format_id import (
+    FormatReferenceStructuredObject as _LegacyFormatReference,
+)
 from adcp.types.domains.core.macro_resolution_capability import MacroProcessingCapability
 from adcp.types.domains.core.package import Package as _LegacyPackage
 from adcp.types.domains.core.placement import Placement as _LegacyPlacement
@@ -318,6 +321,9 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
     """Find functional serializers, including ones inside container annotations."""
     if isinstance(annotation, (PlainSerializer, WrapSerializer)):
         return True
+    if annotation is NoExplicitNull:
+        # Validation-only: it changes nothing about how a value is dumped.
+        return False
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
         if not is_adcp_model and getattr(annotation, "__module__", "").split(".")[0] != "pydantic":
@@ -542,11 +548,17 @@ def _legacy_creative_identity_path(
     return None
 
 
+#: Every property a legacy format reference declares, derived from the model so
+#: a parameter added to ``core/format-id.json`` (as ``pixel_ratio`` was) is
+#: recognised without being named here.
+_LEGACY_FORMAT_REFERENCE_KEYS = frozenset(_LegacyFormatReference.model_fields)
+
+
 def _looks_like_legacy_format_tuple(schema: dict[str, Any], properties: dict[str, Any]) -> bool:
     keys = set(properties)
     title = str(schema.get("title", "")).lower()
     return {"agent_url", "id"} <= keys and (
-        "format" in title or keys <= {"agent_url", "id", "width", "height", "duration_ms"}
+        "format" in title or keys <= _LEGACY_FORMAT_REFERENCE_KEYS
     )
 
 
@@ -1102,7 +1114,7 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
 class PackageUpdate(_LegacyPackageUpdate, CanonicalBoundaryModel):
     """Canonical package update; creatives are canonical assets."""
 
-    creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
+    creatives: list[CreativeAsset] | None = _inherit(_LegacyPackageUpdate, "creatives")  # type: ignore[assignment]
 
 
 class Package(_LegacyPackage, CanonicalBoundaryModel):
@@ -1219,7 +1231,9 @@ UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | Upd
 class SyncCreativesRequest(_LegacySyncCreativesRequest, CanonicalBoundaryModel):
     """Canonical creative sync request; creatives are canonical assets."""
 
-    creatives: list[CreativeAsset] = Field(min_length=1)  # type: ignore[assignment]
+    # Requiredness is version-specific: AdCP 3.2 permits assignment-only syncs,
+    # so optionality, like the item bounds, comes from the generated parent.
+    creatives: list[CreativeAsset] | None = _inherit(_LegacySyncCreativesRequest, "creatives")  # type: ignore[assignment]
 
 
 class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):

@@ -293,7 +293,8 @@ If your current sender doesn't have one of these properties, this is what you're
 
 ## Reporting-stream correlation on AdCP 3.2
 
-For scheduled `media_buy_delivery` notifications, see the
-[interim reporting operation ID guide](reporting-operation-id-3.2.md).
-It covers the optional registration extension, seller persistence and echo,
-and updating existing registrations before resuming scheduled delivery.
+For scheduled `media_buy_delivery` notifications, use
+`WebhookSender.send_media_buy_delivery` with the stored `reporting_webhook`
+registration. See the [reporting operation ID guide](reporting-operation-id-3.2.md),
+which covers the registration field, seller echo and skip-and-flag behavior, and
+updating existing registrations before scheduled delivery resumes.

@@ -13,7 +13,13 @@ import pytest
 
 from ._generation_support import require_rolling_database
 from .test_reporting_materializer_packaging import b1_wheels, built_distribution
-from .test_reporting_notification_packaging import ROOT, run_step
+from .test_reporting_notification_packaging import (
+    ROOT,
+    STORAGE_SRC,
+    run_step,
+    storage_distribution,
+    storage_source,
+)
 
 __all__ = ["b1_wheels", "built_distribution"]
 
@@ -28,19 +34,20 @@ from adcp.reporting.ledger import (
     ReportingScheduleSpec,
     ReportingStatusCaller,
 )
-from adcp.reporting.migration import ReportingOwnershipBackfill
+from adcp_reporting_storage import postgres_reliable_reporting_service
+from adcp_reporting_storage.migration import ReportingOwnershipBackfill
 from adcp.reporting.service import ReliableReportingService
 from adcp.server import ADCPHandler
 from psycopg import AsyncConnection, sql
 from psycopg_pool import AsyncConnectionPool
 
 settings = json.load(sys.stdin)
-assert Path(__import__("adcp.reporting.migration", fromlist=["*"]).__file__).is_relative_to(
+assert Path(__import__("adcp_reporting_storage.migration", fromlist=["*"]).__file__).is_relative_to(
     Path(sys.prefix)
 )
 assert (
     "retain_without_replay"
-    in files("adcp.reporting.ledger").joinpath("reporting_caller_ownership.sql").read_text()
+    in files("adcp_reporting_storage.ledger").joinpath("reporting_caller_ownership.sql").read_text()
 )
 
 
@@ -100,7 +107,7 @@ async def main():
             ) as pool:
                 await pool.wait()
                 await verify(
-                    ReliableReportingService.postgres(
+                    postgres_reliable_reporting_service(
                         pool=pool, account_context=lambda _: None, caller_resolver=resolver
                     )
                 )
@@ -145,13 +152,18 @@ async def test_owned_resources_and_private_reads_installed(request, kind):
         "outbox/required_schema.json",
         "materializer/required_schema.json",
     ]
-    with zipfile.ZipFile(wheels[kind]) as wheel, tarfile.open(source) as archive:
+    # Every one of these resources moved to the storage distribution (#1510).
+    with (
+        zipfile.ZipFile(storage_distribution(wheels[kind])) as wheel,
+        tarfile.open(storage_source(source)) as archive,
+    ):
         prefix = archive.getnames()[0].split("/")[0]
         for relative in resources:
-            expected = (ROOT / "src/adcp/reporting" / relative).read_bytes()
-            assert wheel.read("adcp/reporting/" + relative) == expected
+            expected = (STORAGE_SRC / relative).read_bytes()
+            assert wheel.read("adcp_reporting_storage/" + relative) == expected
             assert (
-                archive.extractfile(prefix + "/src/adcp/reporting/" + relative).read() == expected
+                archive.extractfile(prefix + "/src/adcp_reporting_storage/" + relative).read()
+                == expected
             )
     environment = root / ("owned-installed-" + kind)
     await asyncio.to_thread(
@@ -168,7 +180,14 @@ async def test_owned_resources_and_private_reads_installed(request, kind):
     )
     await asyncio.to_thread(
         run_step,
-        [*installer, str(wheels[kind]) + "[pg]", "pytest", "pytest-asyncio", "asgi-lifespan"],
+        [
+            *installer,
+            str(wheels[kind]) + "[pg]",
+            str(storage_distribution(wheels[kind])),
+            "pytest",
+            "pytest-asyncio",
+            "asgi-lifespan",
+        ],
         label="owned-install",
         cwd=root,
         timeout=180,

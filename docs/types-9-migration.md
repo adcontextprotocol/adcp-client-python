@@ -167,12 +167,58 @@ consumer parsing of kinds this SDK's pin does not know —
 set, which is the producer-side rule. `LegacyProductFormatDeclaration` names the
 raw generated branch union for code that wants per-branch typed parameters.
 
+#### Strict authoring, lenient reading and publishing
+
+The two classes have different jobs:
+
+- **`Format` is the lenient read and publish path.** It accepts any
+  `format_kind` string and an open `params` bag, as adcp 8 did. Use it to load
+  stored declarations, to publish them on `Product.format_options`, and to
+  consume another agent's declarations.
+- **`ProductFormatDeclaration` is the strict authoring check.** It grades a
+  declaration against the root schema. Use it where a declaration is created or
+  edited, so you can refuse it before you store it.
+
+Stored data can predate the strict check. Examples are a declaration written
+before 9.0, or a malformed `params` bag a seller chose to pass through. Either
+can fail `ProductFormatDeclaration` even though the declaration served fine
+under adcp 8. Grading those on every read turns a data-quality issue into a
+failed product listing, so publish stored declarations through `Format`:
+
+```python
+from adcp.types import Format, Product, ProductFormatDeclaration
+
+# Authoring: refuse what the schema refuses, before it is stored.
+declaration = ProductFormatDeclaration.model_validate(submitted)
+
+# Reading and publishing stored options: lenient, as in adcp 8.
+options = [Format.model_validate(raw) for raw in stored_options]
+product = Product(product_id="p1", format_options=options, ...)
+```
+
+To report data quality without failing the read, run the strict check and keep
+its errors:
+
+```python
+from pydantic import ValidationError
+
+def declaration_issues(raw: dict) -> list[dict]:
+    try:
+        ProductFormatDeclaration.model_validate(raw)
+    except ValidationError as exc:
+        return exc.errors()  # a root-rule failure's "type" is its JSON Schema keyword
+    return []
+```
+
+The list includes every field error, but the root rules stop at their first
+failure. Treat it as a signal that the declaration needs attention, not as a
+complete inventory of what is wrong.
+
 #### Validating a declaration and publishing it as a `Format`
 
-`Product.format_options` is `list[Format]`, so a seller converting stored
-declarations into products validates each option strictly and then publishes the
-validated object itself. There is no conversion step: a
-`ProductFormatDeclaration` *is* a `Format`.
+`Product.format_options` is `list[Format]`. When a declaration has just passed
+the strict check, publish the validated object itself. There is no conversion
+step: a `ProductFormatDeclaration` *is* a `Format`.
 
 ```python
 from adcp.types import Product, ProductFormatDeclaration

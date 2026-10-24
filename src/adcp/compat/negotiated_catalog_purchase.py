@@ -21,13 +21,14 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast
 from pydantic import BaseModel, RootModel
 from typing_extensions import NotRequired, Required, TypedDict
 
-from adcp._version import normalize_to_release_precision
+from adcp._version import normalize_to_release_precision, resolve_adcp_version_alias
 from adcp.compat.purchase_continuation import (
     CompatibilityPurchaseOperation,
     LegacyPurchaseCoordinator,
     _token_hash,
     canonical_account_identity,
 )
+from adcp.compat.versions import CONVERSION_METADATA_KEY, convert_payload, negotiate_version
 from adcp.types import (
     BuyProductsRequest,
     GetAdcpCapabilitiesResponse,
@@ -267,7 +268,25 @@ class MediaBuyLifecycleCoordinator:
 
         self.client = client
         self.capabilities = capabilities
-        self.negotiated_version = _negotiate_version(capabilities, client.get_adcp_version())
+        # Capability models describe the current application shape after the
+        # client upgrades them. Only provenance for this exact cached response
+        # can identify the discovery contract the seller actually served.
+        wire_version = (
+            getattr(client, "_capabilities_wire_version", None)
+            if capabilities is getattr(client, "capabilities", None)
+            else None
+        )
+        maximum = client.get_adcp_version()
+        configured_peer = (
+            client.get_server_version()
+            if wire_version is not None and hasattr(client, "get_server_version")
+            else None
+        )
+        if configured_peer is not None and _compare_release(configured_peer, maximum) < 0:
+            maximum = configured_peer
+        self.negotiated_version = _negotiate_version(
+            capabilities, maximum, wire_version=wire_version
+        )
         self._tools = frozenset(str(tool) for tool in advertised_tools)
         media_buy = getattr(capabilities, "media_buy", None)
         self._tools = self._tools | frozenset(
@@ -968,10 +987,31 @@ class MediaBuyLifecycleCoordinator:
                 f"{operation} did not return a completed successful response: "
                 f"{result.error or result.message or result.status.value}",
             )
-        return cast(
+        payload = cast(
             JsonObject,
             result.data.model_dump(mode="json", exclude_none=True, exclude_unset=True),
         )
+        conversion = (result.metadata or {}).get(CONVERSION_METADATA_KEY, {})
+        wire_version = conversion.get("wire_version")
+        if isinstance(wire_version, str):
+            # The compatibility continuation stores exact-version seller
+            # evidence. Reconstruct that contract from the client's upgraded
+            # application payload after checking the actual boundary version.
+            self._validate_served_version(operation, {"adcp_version": wire_version}, lifecycle)
+            application_version = payload.get("adcp_version")
+            if isinstance(application_version, str) and application_version != wire_version:
+                payload = convert_payload(
+                    (
+                        "get_products"
+                        if lifecycle is MediaBuyLifecycle.ESTABLISHED
+                        else "list_products"
+                    ),
+                    payload,
+                    direction="sync",
+                    source_version=application_version,
+                    target_version=wire_version,
+                ).payload
+        return payload
 
     def _validate_served_version(
         self, operation: str, payload: JsonObject, lifecycle: MediaBuyLifecycle
@@ -988,8 +1028,8 @@ class MediaBuyLifecycleCoordinator:
                 "served_version_invalid",
                 "The seller returned an invalid response adcp_version.",
             )
-        normalized = normalize_to_release_precision(served)
-        if normalized != self.negotiated_version:
+        normalized = resolve_adcp_version_alias(normalize_to_release_precision(served))
+        if normalized != resolve_adcp_version_alias(self.negotiated_version):
             raise self._unsupported(
                 operation,
                 lifecycle,
@@ -1077,7 +1117,9 @@ class MediaBuyLifecycleCoordinator:
 NegotiatedCatalogBuyer = MediaBuyLifecycleCoordinator
 
 
-def _negotiate_version(capabilities: Any, client_version: str) -> str:
+def _negotiate_version(
+    capabilities: Any, client_version: str, *, wire_version: str | None = None
+) -> str:
     client = normalize_to_release_precision(client_version)
     client_parsed = _parse_release(client)
     if client_parsed is None:
@@ -1089,6 +1131,12 @@ def _negotiate_version(capabilities: Any, client_version: str) -> str:
         for value in raw_advertised
         if _parse_release(str(_root_value(value))) is not None
     ]
+    if wire_version is not None:
+        # Discovery may use a newer contract than subsequent calls allow.
+        # Current clients already validated and upgraded that response, so
+        # negotiate from the advertised releases within the call ceiling.
+        # A major-only old declaration has only its observed wire contract.
+        return negotiate_version(advertised or [wire_version], maximum=client)
     served = getattr(capabilities, "adcp_version", None)
     if isinstance(served, str) and served:
         normalized = normalize_to_release_precision(served)

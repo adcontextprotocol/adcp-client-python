@@ -12,18 +12,18 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.row_storage import (
+    REPORTING_ROW_STORAGE_DDL_PATH,
+    ReportingRowStorageOptionsV1,
+    ReportingRowStoreError,
+)
 
 from adcp.reporting.ledger import (
-    PgReportingLedgerStore,
     ReportingControlTotalRecord,
     ReportingObligationRecord,
     ReportingRevisionRecord,
     revision_content_sha256,
-)
-from adcp.reporting.ledger.row_storage import (
-    REPORTING_ROW_STORAGE_DDL_PATH,
-    ReportingRowStorageOptionsV1,
-    ReportingRowStoreError,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
 
@@ -569,8 +569,8 @@ async def test_rows_with_fractional_and_exponent_numbers_round_trip_and_verify()
 
 
 async def test_the_packaged_catalog_manifest_matches_a_clean_migration() -> None:
-    from adcp.reporting.ledger.row_storage import REPORTING_ROW_STORAGE_TABLES
-    from adcp.reporting.outbox._schema import _catalog_objects
+    from adcp_reporting_storage.ledger.row_storage import REPORTING_ROW_STORAGE_TABLES
+    from adcp_reporting_storage.outbox._schema import _catalog_objects
 
     async with isolated_reporting_pool() as pool:
         async with pool.connection() as connection:
@@ -584,7 +584,9 @@ async def test_the_packaged_catalog_manifest_matches_a_clean_migration() -> None
     from importlib.resources import files
 
     packaged = json.loads(
-        files("adcp.reporting.ledger").joinpath("required_row_storage_schema.json").read_text()
+        files("adcp_reporting_storage.ledger")
+        .joinpath("required_row_storage_schema.json")
+        .read_text()
     )
     assert installed == packaged, "run scripts/generate_row_storage_catalog.py"
 

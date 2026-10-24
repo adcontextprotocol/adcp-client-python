@@ -1462,8 +1462,9 @@ def test_the_identity_digest_omits_an_absent_mismatch_code() -> None:
     # retry would then fail with STATUS_IDENTITY_CONFLICT instead of replaying
     # as `unchanged` -- the one thing an idempotent append-only surface must
     # never do.
+    from adcp_reporting_storage.ledger.pg import _consumer_status_payload
+
     from adcp.reporting.ledger.models import ConsumerStatusRecord
-    from adcp.reporting.ledger.pg import _consumer_status_payload
     from adcp.reporting.ledger.store import _consumer_status_identity
 
     def record(**overrides):

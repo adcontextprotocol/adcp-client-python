@@ -2,10 +2,10 @@
 
 Mount one support's handler, start its owned lifecycle, then activate accounts
 after migration and drain. The memory implementation is for conformance and
-does not claim durability. PostgreSQL uses the shared optional driver guard.
+does not claim durability. The PostgreSQL production store is
+``adcp_reporting_storage.production.pg``; both implement
+:class:`~adcp.reporting.production.store.ReportingProductionStore`.
 """
-
-from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.production.configuration import (
     ConfigurationAdmission,
@@ -34,17 +34,16 @@ from adcp.reporting.production.service import (
     ReportingProductionSupport,
 )
 from adcp.reporting.production.source_registry import ReportingProductionSourceRegistry
-
-if TYPE_CHECKING:
-    from adcp.reporting.production.pg import PgReportingProductionOutbox, PgReportingProductionStore
+from adcp.reporting.production.store import (
+    ReportingProductionProjection,
+    ReportingProductionStore,
+)
 
 __all__ = [
     "ConfigurationAdmission",
     "ConfigurationTask",
     "InMemoryReportingProductionOutbox",
     "InMemoryReportingProductionStore",
-    "PgReportingProductionOutbox",
-    "PgReportingProductionStore",
     "ReportingConfigurationAdmission",
     "ReportingProductionConfigurationTask",
     "ReportingProductionDestination",
@@ -52,18 +51,12 @@ __all__ = [
     "ReportingProductionHandler",
     "ReportingProductionMethod",
     "ReportingProductionOffering",
+    "ReportingProductionProjection",
     "ReportingProductionSigning",
     "ReportingProductionSource",
     "ReportingProductionSourceBinding",
     "ReportingProductionSourceRegistry",
+    "ReportingProductionStore",
     "ReportingProductionSupport",
     "production_notification_workers",
 ]
-
-
-def __getattr__(name: str) -> Any:
-    if name in {"PgReportingProductionOutbox", "PgReportingProductionStore"}:
-        from adcp.reporting.production import pg
-
-        return getattr(pg, name)
-    raise AttributeError(name)

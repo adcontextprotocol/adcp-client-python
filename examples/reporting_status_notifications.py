@@ -1,4 +1,4 @@
-"""Strictly typed #1168C Core mounting; install ``adcp[pg]``.
+"""Strictly typed #1168C Core mounting; install ``adcp-reporting-storage[pg]``.
 
 The adopter supplies real account configuration and immutable revision-content
 handlers, trusted caller resolution and a durable subscription/key registry.
@@ -13,19 +13,18 @@ from collections.abc import Awaitable, Callable, Sequence
 from copy import deepcopy
 from typing import Any, Protocol
 
+from adcp_reporting_storage import PgReportingLedgerStore, PgStatusNotificationStore
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel
 
 from adcp.reporting.ledger import (
     ConsumerStatusIngest,
-    PgReportingLedgerStore,
     ReportingDeliveryEscalation,
     ReportingStatusCallerResolver,
     ReportingStatusHandler,
     ReportingStatusNotificationHandler,
 )
 from adcp.reporting.outbox import (
-    PgStatusNotificationStore,
     ReportingEnvelopeCipher,
     ReportingNotificationError,
     ReportingNotificationSubscription,

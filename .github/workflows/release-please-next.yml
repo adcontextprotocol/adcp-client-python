@@ -3,9 +3,11 @@ name: Release Please (next)
 # Draft-spec line copy of main's release-please.yml. It runs from next only,
 # opens release PRs against next with next's own config and manifest, and
 # queues next's copy of release-publish.yml. Releases are 10.0.0-alpha.N
-# pre-releases. main's release flow, config, and manifest are unchanged; this
-# file and next's config and manifest are inert on main and are removed when
-# next merges into main at ratification. See RELEASING.md.
+# pre-releases of adcp only: the adcp-reporting-storage component is released
+# from main, and next's config excludes its path. main's release flow, config,
+# and manifest are unchanged; this file and next's config and manifest are
+# inert on main and are removed when next merges into main at ratification.
+# See RELEASING.md.
 
 on:
   push:
@@ -59,4 +61,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
-        run: gh workflow run release-publish.yml --ref next -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"
+        run: gh workflow run release-publish.yml --ref next -f package=adcp -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"

@@ -18,6 +18,7 @@ it remains; a difference matching none of them fails the suite.
 from __future__ import annotations
 
 import copy
+import json
 from functools import cache
 from typing import Any
 
@@ -76,8 +77,11 @@ def _model_for(tool: str) -> tuple[str, Any] | tuple[None, None]:
 
 
 def _model_verdict(model: Any, document: Any) -> tuple[bool, frozenset[str]]:
+    # The document under test is a JSON document, so the model grades it in
+    # JSON mode: that is where a ``null`` is a value rather than the SDK's
+    # Python spelling of absence (``adcp.types.base.NoExplicitNull``).
     try:
-        model.model_validate(document)
+        model.model_validate_json(json.dumps(document))
     except ValidationError as exc:
         return False, frozenset(error["type"] for error in exc.errors())
     return True, frozenset()

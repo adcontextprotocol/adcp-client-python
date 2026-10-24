@@ -8,6 +8,8 @@ delivery. Migrate and drain older workers before starting this composition.
 
 from __future__ import annotations
 
+from adcp_reporting_storage import PgReportingProductionStore, PgReportingStatusProjection
+
 from adcp.decisioning.registry import BuyerAgentRegistry
 from adcp.reporting.materializer import (
     ReportingDestinationIO,
@@ -20,7 +22,6 @@ from adcp.reporting.outbox import (
     ReportingSubscriptionResolver,
 )
 from adcp.reporting.production import (
-    PgReportingProductionStore,
     ReportingProductionConfigurationTask,
     ReportingProductionDestination,
     ReportingProductionOffering,
@@ -28,7 +29,6 @@ from adcp.reporting.production import (
     ReportingProductionSupport,
     production_notification_workers,
 )
-from adcp.reporting.projection import PgReportingStatusProjection
 from adcp.reporting.receipts import ReceiptAccountResolver
 from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, auth_context_factory

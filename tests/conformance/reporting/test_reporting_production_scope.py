@@ -77,7 +77,7 @@ async def onboarding_server(backend, root, *, scenario="scope", count=0, notific
                         await asyncio.to_thread(child.wait)
 
 
-def public_client(uri, account, route="mcp"):
+def public_client(uri, account, route="mcp", *, server_version=None):
     return ADCPClient(
         AgentConfig(
             id="scope-" + account,
@@ -88,6 +88,7 @@ def public_client(uri, account, route="mcp"):
             auth_type="bearer",
         ),
         adcp_version="3.2.1",
+        server_version=server_version,
         force_a2a_version=route.removeprefix("a2a-") if route != "mcp" else None,
     )
 

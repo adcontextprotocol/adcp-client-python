@@ -13,6 +13,23 @@ another composition keyword. `x-adcp-validation` carries behavioral rules that
 neither Pydantic nor a standard JSON Schema validator interprets generically;
 the SDK implements security- and commitment-critical instances explicitly.
 
+Absence and `null` are two different things, and the models keep them apart
+the way the schemas do. A property outside `required` may be omitted, and
+reads back as `None`; an explicit JSON `null` is a value, valid only where the
+schema's type admits it. The generator marks every optional property whose
+schema refuses `null` with `adcp.types.base.NoExplicitNull`: a JSON document
+carrying `null` there is refused (`model_validate_json`, with the type's own
+error, e.g. `list_type`) and `model_json_schema()` publishes no null arm, while
+the annotation stays `T | None = None`. A property whose schema lists `null`
+(`"type": ["string", "null"]`, an `anyOf` with a null arm) keeps accepting it.
+
+On the Python side `None` remains the spelling of "not supplied":
+`Model(field=None)` and `model_validate` on a dict accept it, it reads back as
+`None`, and `model_dump()` (which defaults to `exclude_none=True`) leaves it
+off the wire — the same document an omitted property produces. Set
+`ADCP_STRICT_VALIDATION=1` (the switch that also forbids unknown fields) to
+refuse a Python `None` as well, for suites that want to catch it.
+
 ## Wire-boundary behavior
 
 - SDK clients validate requests before sending and responses after receiving,

@@ -55,7 +55,8 @@ async def test_no_version_field_validator_uses_legacy_30_compat() -> None:
         )
         await caller({"buying_mode": "brief", "brief": "Q4"})
 
-    assert mock_validate.call_count == 1
+    assert mock_validate.call_count == 2
+    assert mock_validate.call_args_list[0].kwargs["version"] == "3.0"
     _, kwargs = mock_validate.call_args
     assert kwargs.get("version") is None
     assert handler.contexts[0].resolved_adcp_version == "3.0"
@@ -97,7 +98,8 @@ async def test_explicit_adcp_version_threads_through_to_validator() -> None:
             },
         )
 
-    assert mock_validate.call_count == 1
+    assert mock_validate.call_count == 2
+    assert mock_validate.call_args_list[0].kwargs["version"] == "3.0"
     _, kwargs = mock_validate.call_args
     assert kwargs.get("version") is None
 
@@ -162,7 +164,8 @@ async def test_adcp_major_version_int_threads_through_to_validator() -> None:
             },
         )
 
-    assert mock_validate.call_count == 1
+    assert mock_validate.call_count == 2
+    assert mock_validate.call_args_list[0].kwargs["version"] == "3.0"
     _, kwargs = mock_validate.call_args
     assert kwargs.get("version") is None
 

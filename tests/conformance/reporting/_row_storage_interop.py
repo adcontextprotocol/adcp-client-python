@@ -10,22 +10,49 @@ tables and the canonical chunk bytes. Interop is proven two ways:
 
 from __future__ import annotations
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import base64
 import json
 from pathlib import Path
 from typing import Any
 
-from adcp.reporting.ledger.row_storage import (
-    ReportingObjectRowBindingV1,
-    ReportingPostgresRowBindingV1,
-    ReportingRowStorageOptionsV1,
-    ReportingRowStorageV1,
-)
-from adcp.reporting.ledger.row_storage_object import (
-    ReportingRowObjectContextV1,
-    ReportingRowObjectPutInputV1,
-    create_filesystem_reporting_row_object_provider_v1,
-)
+if _storage_split():  # wheels before the storage split (#1510)
+    from adcp.reporting.ledger.row_storage import (
+        ReportingObjectRowBindingV1,
+        ReportingPostgresRowBindingV1,
+        ReportingRowStorageOptionsV1,
+        ReportingRowStorageV1,
+    )
+else:
+    from adcp_reporting_storage.ledger.row_storage import (
+        ReportingObjectRowBindingV1,
+        ReportingPostgresRowBindingV1,
+        ReportingRowStorageOptionsV1,
+        ReportingRowStorageV1,
+    )
+if _storage_split():  # wheels before the storage split (#1510)
+    from adcp.reporting.ledger.row_storage_object import (
+        ReportingRowObjectContextV1,
+        ReportingRowObjectPutInputV1,
+        create_filesystem_reporting_row_object_provider_v1,
+    )
+else:
+    from adcp_reporting_storage.ledger.row_storage_object import (
+        ReportingRowObjectContextV1,
+        ReportingRowObjectPutInputV1,
+        create_filesystem_reporting_row_object_provider_v1,
+    )
 
 NAMESPACE = "interop"
 #: A zone whose local date differs from UTC, so the object key proves the timezone rule.
@@ -273,3 +300,39 @@ async def replay_state(pool: Any, root: Path, state: dict[str, Any]) -> dict[str
                 ),
             )
     return versions
+
+
+def write_fixture(path: Path, expected: list[dict[str, Any]], state: dict[str, Any]) -> None:
+    """Commit a writer's rows compactly: one row set, chunk, body or object per line.
+
+    ``indent=1`` made each fixture 12,926 lines for 12 row sets (#1491); one
+    JSON item per line keeps a diff per row set and the file under 100 KB.
+    """
+
+    def items(values: list[dict[str, Any]]) -> str:
+        return (
+            "[\n"
+            + ",\n".join(
+                "  " + json.dumps(value, separators=(",", ":"), sort_keys=True) for value in values
+            )
+            + "\n ]"
+        )
+
+    objects = ",\n".join(
+        f"  {json.dumps(key)}:{json.dumps(value)}"
+        for key, value in sorted(state["objects"].items())
+    )
+    text = (
+        "{\n"
+        ' "expected": ' + items(expected) + ",\n"
+        ' "state": {\n'
+        '  "chunk_bodies": ' + items(state["chunk_bodies"]).replace("\n ", "\n  ") + ",\n"
+        '  "objects": {\n' + objects.replace("\n ", "\n  ") + "\n  },\n"
+        '  "row_chunks": ' + items(state["row_chunks"]).replace("\n ", "\n  ") + ",\n"
+        '  "row_sets": ' + items(state["row_sets"]).replace("\n ", "\n  ") + "\n"
+        " }\n"
+        "}\n"
+    )
+    assert json.loads(text) == {"expected": expected, "state": state}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)

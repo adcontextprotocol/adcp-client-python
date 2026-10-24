@@ -12,7 +12,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
 
 - **Connect as a buyer** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Quick Start: Distributed Operations](#quick-start-distributed-operations). Entry point: `from adcp import ADCPClient, AgentConfig`; start with the `client.simple.*` API.
 - **Build a seller / agent** → [Building an AdCP Agent](#building-an-adcp-agent). Entry point: `from adcp.server import ADCPHandler, serve`; use the [production seller path](docs/production-seller.md) when adding tenants, durable tasks, and webhooks.
-- **Run Reliable Reporting** → [Account currencies](docs/reporting-currency.md), [ledger migrations](docs/reporting-ledger-migration.md), [reconciliation storage](docs/reporting-reconciliation-storage.md), and [durable status notifications](docs/reporting-status-notifications.md).
+- **Run Reliable Reporting** → [Account currencies](docs/reporting-currency.md), [ledger migrations](docs/reporting-ledger-migration.md), [reconciliation storage](docs/reporting-reconciliation-storage.md), and [durable status notifications](docs/reporting-status-notifications.md). The PostgreSQL and object-storage stores are the separate [`adcp-reporting-storage`](packages/adcp-reporting-storage/README.md) distribution.
 - **Understand the type system & imports** → [Type Safety](#type-safety) (import surface, partial modules, cold-start note).
 - **Test against reference agents** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Test Helpers](#test-helpers). Entry point: `from adcp.testing import test_agent, creative_agent`.
 
@@ -221,21 +221,11 @@ pip install adcp
 
 > **Note**: This client requires Python 3.10 or later and supports both synchronous and asynchronous workflows.
 
-### SDK 9 beta
+### Upgrading to SDK 9
 
-SDK 9 is available as a prerelease. Ordinary installation selects the stable
-SDK 8 release; a stable `adcp==9.0.0` pin becomes available at GA. The release
-tag `9.0.0-beta.3` corresponds to the Python package version `9.0.0b3`.
-
-```bash
-pip install 'adcp==9.0.0b3'                         # exact beta
-pip install --pre 'adcp>=9.0.0b3,<10'              # latest SDK 9 prerelease
-uv add --prerelease allow 'adcp>=9.0.0b3,<10'       # uv prerelease opt-in
-```
-
-Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md) before upgrading.
-The package's Production/Stable classifier describes the stable channel;
-SDK 9 betas remain prereleases regardless of that classifier.
+`pip install adcp` selects SDK 9, which targets AdCP 3.2. To stay on SDK 8,
+pin `adcp>=8,<9`. Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md)
+before upgrading.
 
 ## Quick Start: Test Helpers
 
@@ -367,6 +357,10 @@ import adcp
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
 adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
 ```
+
+Client calls and server handlers use current application models while the SDK
+translates older wire versions. See [cross-version conversion](docs/cross-version-conversion.md)
+for negotiation, dropped-field reports, and account-key reduction.
 
 The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility
 alias for buyers shipped with `adcp==8.0.0rc3`. These requests use the stable

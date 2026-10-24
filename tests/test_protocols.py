@@ -2185,12 +2185,18 @@ class TestFromMcpClientFactory:
 
     def _make_mock_session(self) -> AsyncMock:
         """Return a minimal mock ClientSession."""
+        from adcp.server.responses import capabilities_response
+
         session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.isError = False
-        mock_result.structuredContent = {"products": [], "cache_scope": "public"}
-        mock_result.content = []
-        session.call_tool.return_value = mock_result
+
+        async def call_tool(name, params):
+            data = {"products": [], "cache_scope": "public", "status": "completed"}
+            if name == "get_adcp_capabilities":
+                data = capabilities_response(["media_buy"])
+                data["adcp"]["idempotency"] = {"supported": False}
+            return MagicMock(isError=False, structuredContent=data, content=[])
+
+        session.call_tool.side_effect = call_tool
         return session
 
     def test_factory_injects_session(self):
@@ -2231,11 +2237,16 @@ class TestFromMcpClientFactory:
         session = self._make_mock_session()
         client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
 
-        result = await client.adapter._call_mcp_tool("get_products", {"brief": "test"})
+        result = await client.adapter._call_mcp_tool(
+            "get_products", {"buying_mode": "brief", "brief": "test"}
+        )
 
-        session.call_tool.assert_called_once()
+        assert [call.args[0] for call in session.call_tool.call_args_list] == [
+            "get_adcp_capabilities",
+            "get_products",
+        ]
         assert result.success is True
-        assert result.data == {"products": [], "cache_scope": "public"}
+        assert result.data == {"products": [], "cache_scope": "public", "status": "completed"}
 
     @pytest.mark.asyncio
     async def test_close_is_noop_for_injected_session(self):

@@ -559,7 +559,7 @@ from adcp.reporting.ledger import (
 )
 ReportingStatusHandler(InMemoryReportingLedgerStore())
 ReportingStatusHandler(InMemoryReportingReconciliationStore())
-assert 'adcp.reporting.ledger.delivery_pg' not in sys.modules
+assert 'adcp_reporting_storage.ledger.delivery_pg' not in sys.modules
 """
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "9.0.0b4"
+version = "9.0.0"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -201,6 +201,9 @@ dev = [
     # propagate. Required at runtime by examples/v3_reference_seller/
     # src/app.py and seed.py.
     "alembic>=1.13.0",
+    # SQLAlchemy's default PostgreSQL driver: the sync reporting replacements
+    # are tested inside Alembic revisions on it as well as on psycopg 3.
+    "psycopg2-binary>=2.9.9",
     "pre-commit>=4.4.0",
     # In-memory span exporter used by the optional observability tests.  The
     # library itself imports only opentelemetry-api and never configures an SDK.
@@ -219,23 +222,16 @@ pg = [
     # PostgreSQL-backed adcp.signing.PgReplayStore,
     # adcp.decisioning.PostgresTaskRegistry (durable HITL task state), and
     # future PgIdempotencyBackend. psycopg3 ships both sync + async pool
-    # interfaces so the single dep serves all three use cases.
+    # interfaces so the single dep serves all three use cases. The reporting
+    # stores are ``adcp-reporting-storage[pg]``.
     "psycopg[binary]>=3.1.0",
     "psycopg-pool>=3.2.0",
 ]
-reporting-gcs = [
-    # Row storage on Google Cloud Storage. The provider takes a client you build,
-    # with keyless credentials; it never imports the library itself.
-    "google-cloud-storage>=2.18",
-]
-reporting-s3 = [
-    # Row storage on Amazon S3 or an S3-compatible store (needs bucket versioning).
-    "boto3>=1.35",
-]
-reporting-azure = [
-    # Row storage on Azure Blob Storage (needs blob versioning on the account).
-    "azure-storage-blob>=12.20",
-]
+# The reporting row-storage providers (``reporting-gcs``, ``reporting-s3``,
+# ``reporting-azure``) moved with the PostgreSQL reporting stores to the
+# separately versioned ``adcp-reporting-storage`` distribution
+# (packages/adcp-reporting-storage); install its ``[gcs]``/``[s3]``/``[azure]``
+# extras instead.
 observability = [
     # API-only library instrumentation: without an application-configured SDK
     # provider/exporter, OpenTelemetry remains a non-recording no-op.
@@ -267,16 +263,7 @@ adcp = [
     "notification_outbox.sql",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
-    "reporting/ledger/*.sql",
-    "reporting/ledger/*.json",
-    "reporting/outbox/*.json",
     "reporting/materializer/assets/*.json",
-    "reporting/materializer/*.json",
-    "reporting/receipts/*.json",
-    "reporting/feed/*.json",
-    "reporting/projection/*.json",
-    "reporting/production/*.json",
-    "reporting/production/*.sql",
     # PREVIEW: vendored sync_reporting_status schemas. They are the runtime
     # validator for the wire conditionals codegen cannot express, so the wheel
     # must carry them. Removed with the rest of _preview/ at rc.2.
@@ -470,8 +457,18 @@ directory = "htmlcov"
 exclude_dirs = ["tests", "scripts"]
 skips = ["B101"]  # Allow assert in code (we're not using -O optimization)
 
+[tool.uv.workspace]
+members = ["packages/adcp-reporting-storage"]
+
+[tool.uv.sources]
+adcp-reporting-storage = { workspace = true }
+
 [dependency-groups]
 dev = [
+    # The storage distribution, editable, with every provider extra, so the
+    # shared test suite and type checks see both distributions at once. pip
+    # users install it explicitly: ``make install-dev``.
+    "adcp-reporting-storage[pg,gcs,s3,azure]",
     "datamodel-code-generator==0.64.0",
     "pre-commit>=4.4.0",
     "types-protobuf>=7.34.1.20260408",

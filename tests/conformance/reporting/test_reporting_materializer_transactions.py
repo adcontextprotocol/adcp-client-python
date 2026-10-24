@@ -72,7 +72,7 @@ async def test_reservation_rolls_back_attempt_work_delivery_and_sequence_heads(
             # Count explicitly so attempt failure happens after the delivery's
             # own complete insertion, not at its earlier feed append.
             if position == "attempt":
-                from adcp.reporting.materializer.pg import PgReportingMaterializerStore
+                from adcp_reporting_storage.materializer.pg import PgReportingMaterializerStore
 
                 original = PgReportingMaterializerStore._commit_record_on
 
@@ -261,7 +261,7 @@ async def test_missing_enabled_logical_event_cannot_ack_a_verified_finish(backen
 
             monkeypatch.setattr(MaterializerNotificationState, "enqueue", empty)
         else:
-            import adcp.reporting.materializer.pg as pg
+            import adcp_reporting_storage.materializer.pg as pg
 
             async def empty(connection, event):
                 pass

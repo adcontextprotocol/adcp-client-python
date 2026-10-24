@@ -37,7 +37,7 @@ async def test_warm_proof_rechecks_the_actual_mount(transport, mutation, tmp_pat
 
 
 async def test_shared_scan_cancellation_and_post_scan_dynamic_check(tmp_path, monkeypatch):
-    import adcp.reporting.production.schema as schema
+    import adcp_reporting_storage.production.schema as schema
 
     async with production_harness("postgres", tmp_path / "destination.sqlite") as h:
         support = h.production
@@ -83,7 +83,7 @@ async def test_discovery_preserves_declaration_while_admission_rechecks_pool(
 ):
     from contextlib import AsyncExitStack
 
-    import adcp.reporting.production.schema as schema
+    import adcp_reporting_storage.production.schema as schema
 
     pool_type = pytest.importorskip("psycopg_pool").AsyncConnectionPool
     async with production_harness(
@@ -160,7 +160,7 @@ async def test_discovery_preserves_declaration_while_admission_rechecks_queue_po
 ):
     from contextlib import AsyncExitStack
 
-    import adcp.reporting.production.schema as schema
+    import adcp_reporting_storage.production.schema as schema
 
     pool_type = pytest.importorskip("psycopg_pool").AsyncConnectionPool
     # The projection queue also participates without optional HTTP workers.
@@ -223,7 +223,7 @@ async def test_discovery_preserves_declaration_while_admission_rechecks_queue_po
 async def test_warm_mounted_discovery_does_not_checkout_a_saturated_valid_pool(
     notifications, tmp_path, monkeypatch
 ):
-    import adcp.reporting.production.schema as schema
+    import adcp_reporting_storage.production.schema as schema
 
     async with production_harness(
         "postgres",
@@ -314,7 +314,7 @@ async def test_optional_delivery_is_owned_and_broken_enabled_chain_fails_closed(
 async def test_discovery_preserves_signing_declaration_while_admission_rechecks_wiring(
     tmp_path, monkeypatch
 ):
-    import adcp.reporting.production.schema as schema
+    import adcp_reporting_storage.production.schema as schema
 
     async with production_harness(
         "postgres", tmp_path / "destination.sqlite", notifications=True, notification_delivery=True

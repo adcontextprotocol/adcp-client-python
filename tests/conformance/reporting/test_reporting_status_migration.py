@@ -10,21 +10,21 @@ from importlib.resources import files
 from pathlib import Path
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingReconciliationStore
-from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.ledger.status_projection import lifecycle_intents, mismatch_key
-from adcp.reporting.outbox import (
+from adcp_reporting_storage import (
     PgReportingOutbox,
+    PgReportingReconciliationStore,
     PgStatusNotificationStore,
-    ReportingNotificationError,
 )
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
-from adcp.reporting.outbox.status_schema import (
+from adcp_reporting_storage.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
+from adcp_reporting_storage.outbox.status_schema import (
     REQUIRED_STATUS_OBJECTS,
     REQUIRED_STATUS_SELECTOR_OBJECTS,
     validate_status_schema,
 )
+
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+from adcp.reporting.ledger.status_projection import lifecycle_intents, mismatch_key
+from adcp.reporting.outbox import ReportingNotificationError
 
 from . import test_reporting_notification_process_matrix as _process
 from ._generation_support import (
@@ -50,7 +50,11 @@ ARTIFACTS = {
     "a": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
     "b": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
 }
-SQL = files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").read_text()
+SQL = (
+    files("adcp_reporting_storage.ledger")
+    .joinpath("reporting_status_notifications.sql")
+    .read_text()
+)
 C_QUEUES = (
     "reporting_status_notification_events",
     "reporting_status_notification_expansions",
@@ -209,7 +213,7 @@ async def test_populated_repeated_c_manifest_preserves_every_a_b_object_and_row(
                 }
                 assert (
                     json.dumps(REQUIRED_STATUS_OBJECTS, sort_keys=True, indent=2) + "\n"
-                    == files("adcp.reporting.outbox")
+                    == files("adcp_reporting_storage.outbox")
                     .joinpath("required_status_schema.json")
                     .read_text()
                 )
@@ -277,12 +281,11 @@ async def test_concurrent_interrupted_c_migration_is_atomic_and_baseline_is_rest
 @pytest.mark.parametrize("release", ["a", "b"])
 @case_deadline
 async def test_actual_unowned_artifact_requires_stopped_worker_migration(release, actual_sources):
-    from psycopg import sql
-
-    from adcp.reporting.migration import (
+    from adcp_reporting_storage.migration import (
         ReportingOwnershipMigrationError,
         migrate_legacy_reporting,
     )
+    from psycopg import sql
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with service_process(

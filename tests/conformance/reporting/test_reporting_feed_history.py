@@ -342,7 +342,7 @@ async def test_accepted_artifact_and_canonical_evidence_remain_frozen_after_late
         # preserved. Actual unmodified DB-time selection has a separate vector.
         h.clock.now += timedelta(days=500)
         if h.pool is not None:
-            from adcp.reporting.feed import pg as feed_pg
+            from adcp_reporting_storage.feed import pg as feed_pg
 
             async def future(connection):
                 return (

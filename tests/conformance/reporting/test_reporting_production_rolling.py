@@ -58,7 +58,9 @@ def production_parent(request, tmp_path_factory):
 
     with zipfile.ZipFile(wheel) as archive:
         modules = {}
-        for name in {*feed_modules(), "adcp.reporting.outbox.status_pg"}:
+        for name in {*feed_modules(), "adcp_reporting_storage.outbox.status_pg"}:
+            # The hardening parent predates the storage split: its stores live in adcp.
+            name = name.replace("adcp_reporting_storage.", "adcp.reporting.", 1)
             member = name.replace(".", "/") + ".py"
             if member not in archive.namelist():
                 member = name.replace(".", "/") + "/__init__.py"

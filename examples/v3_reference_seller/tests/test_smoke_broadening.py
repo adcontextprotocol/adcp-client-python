@@ -1418,6 +1418,38 @@ async def test_sync_creatives_uploads_each_creative_to_upstream(
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
+async def test_sync_creatives_assigns_existing_creative_without_upload(respx_mock: Any) -> None:
+    from adcp.types import SyncCreativesRequest
+
+    attach = respx_mock.post("/v1/orders/ord_1/lineitems/pkg_1/creative-attach").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    scope = platform._account_scope(ctx)
+    platform._creative_id_map[(scope, "existing")] = "up_cr_1"
+    platform._buy_state[(scope, "ord_1")] = {"packages": {"pkg_1": {}}}
+    req = SyncCreativesRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "assignment-only-sync-0001",
+            "assignments": [{"creative_id": "existing", "package_id": "pkg_1"}],
+        }
+    )
+
+    response = await platform.sync_creatives(req, ctx)
+
+    assert attach.call_count == 1
+    assert json.loads(attach.calls.last.request.content) == {"creative_id": "up_cr_1"}
+    assert len(respx_mock.calls) == 1
+    assert response.creatives == []
+    assert platform._buy_state[(scope, "ord_1")]["packages"]["pkg_1"]["creative_assignments"] == [
+        {"creative_id": "existing"}
+    ]
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
     """The upstream's ``GET /v1/orders`` is per-network; we filter to
     this AdCP account's ``advertiser_id`` so a misrouted buyer can't

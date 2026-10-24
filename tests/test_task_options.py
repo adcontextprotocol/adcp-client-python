@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import time
 import warnings
+from types import SimpleNamespace
 from typing import Any, get_type_hints
 from unittest.mock import patch
 
@@ -212,16 +213,23 @@ async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> N
 
 @pytest.mark.asyncio
 async def test_real_mcp_dispatch_reports_the_exact_pinned_wire_key() -> None:
+    from adcp.server.responses import capabilities_response
+
     class BlockingSession:
         sent: dict[str, Any] | None = None
 
-        async def call_tool(self, _name: str, params: dict[str, Any]) -> Any:
+        async def call_tool(self, name: str, params: dict[str, Any]) -> Any:
+            if name == "get_adcp_capabilities":
+                caps = capabilities_response(["creative"])
+                caps["adcp"]["idempotency"] = {"supported": False}
+                return SimpleNamespace(isError=False, structuredContent=caps, content=[])
             self.sent = params
             await asyncio.sleep(1)
 
     session = BlockingSession()
     client = ADCPClient.from_mcp_client(session, agent_id="in-process")  # type: ignore[arg-type]
     client.adapter.request_validation_mode = "off"
+    await client.fetch_capabilities()
     key = "0123456789abcdef-pinned-wire-key"
 
     with warnings.catch_warnings(), client.use_idempotency_key(key):

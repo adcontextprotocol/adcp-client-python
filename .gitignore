@@ -11,6 +11,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+dist-storage/
 # Bundled schema copy — populated by scripts/bundle_schemas.py before
 # wheel build, mirrors schemas/cache/ so setuptools package-data ships
 # them. Committed copies would duplicate ~13MB across both trees.

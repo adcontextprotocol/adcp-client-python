@@ -11,9 +11,8 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.ledger.change_feed import encode_reporting_change_cursor_v1
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.change_feed import encode_reporting_change_cursor_v1
 
 from ._generation_support import isolated_reporting_pool
 from .test_reporting_row_storage_pg import fetch_all

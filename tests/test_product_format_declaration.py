@@ -22,6 +22,7 @@ from adcp.types import (
     Format,
     LegacyProductFormatDeclaration,
     Package,
+    Product,
     ProductFormatDeclaration,
     validate_union,
 )
@@ -282,6 +283,44 @@ def test_open_consumer_format_and_params_helper_remain_available() -> None:
     assert future.model_dump()["format_kind"] == "future_kind"
     image = Format(format_kind="image", params={"width": 300})
     assert image.params_as(CanonicalFormatImage).width == 300
+
+
+def test_stored_declarations_publish_leniently_while_authoring_stays_strict() -> None:
+    # A declaration stored before 9.0 whose params a seller chose to pass through.
+    stored = {"format_kind": "image", "params": {"width": "wide"}}
+    with pytest.raises(ValidationError) as refused:
+        ProductFormatDeclaration.model_validate(stored)
+    # The non-raising data-quality check the types guide shows.
+    assert [(error["type"], error["loc"]) for error in refused.value.errors()] == [("oneOf", ())]
+
+    product = Product.model_validate(
+        {
+            "product_id": "display",
+            "name": "Display",
+            "description": "Display inventory",
+            "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
+            "channels": ["display"],
+            "delivery_type": "guaranteed",
+            "reporting_capabilities": {
+                "available_reporting_frequencies": ["daily"],
+                "expected_delay_minutes": 60,
+                "timezone": "UTC",
+                "supports_webhooks": False,
+                "available_metrics": ["impressions"],
+                "date_range_support": "date_range",
+            },
+            "format_options": [Format.model_validate(copy.deepcopy(stored))],
+            "pricing_options": [
+                {
+                    "pricing_option_id": "cpm",
+                    "pricing_model": "cpm",
+                    "currency": "USD",
+                    "fixed_price": 1,
+                }
+            ],
+        }
+    )
+    assert product.model_dump(mode="json")["format_options"] == [stored]
 
 
 def test_concurrent_authoring_validation_uses_independent_resolvers() -> None:
