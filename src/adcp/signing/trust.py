@@ -973,8 +973,17 @@ class TrustGrantEvaluator:
       brand's own domain is the house. Grants in any other record are never
       consulted.
     * Domains compare as registrable domains under the pinned PSL snapshot.
-      Authority is implicit when ``account.operator``, the brand's domain and
-      the signer's operator share one.
+      Authority is implicit when ``account.operator`` and the signer's
+      operator share one with the brand's domain or with its house's: an
+      organization's own agents act for its child brands without a grant.
+      The house is the one ``resolve_house`` returns, so implicit authority
+      and the authorizing record never disagree; a house the brand claims but
+      that does not reciprocate is the resolver's ``None``, and its operator
+      then needs a grant like any other. ``resolve_house`` is not called for a
+      claim implicit on the brand's own domain; for every other claim a
+      resolver failure is the retryable ``SERVICE_UNAVAILABLE``, never
+      ``grant_absent``: an outage never narrows an implicit authorization to
+      a denial.
     * A grant's ``grantee`` must itself be a registrable domain. A grant
       whose grantee is not one (``ads.platform.com``, or a public suffix such
       as ``github.io``) covers no claim, and its ``scopes`` still count for
@@ -1118,7 +1127,10 @@ class TrustGrantEvaluator:
             if signer_operator == brand_operator == operator:
                 return await self._authorization(True, [signer_record], agent_origin=origin)
         house = brand_domain
-        if self._resolve_house is not None:
+        # Implicit authority on the brand's own domain never depends on its
+        # house, so an RFC 9421 brand-implicit claim keeps reading the
+        # brand's record (Web Bot Auth returned above).
+        if self._resolve_house is not None and not (signer_operator == brand_operator == operator):
             try:
                 resolved = await self._resolve_house(brand_domain, brand_id)
             except Exception:
@@ -1130,8 +1142,13 @@ class TrustGrantEvaluator:
                     brand_id = resolved.brand_id
             elif isinstance(resolved, str):
                 house = resolved
-        if _registrable(house) is None:
+        house_operator = _registrable(house)
+        if house_operator is None:
             return _unlisted("grant_absent")
+        if signer_record is not None and signer_operator == operator == house_operator:
+            # The house operates its own child brand: implicit, and the
+            # signer's record is the house's record.
+            return await self._authorization(True, [signer_record], agent_origin=origin)
         try:
             brand_record = await self.records.evaluate(house, allow_stale_on_outage=non_spend)
         except TrustRecordAbsentError:
@@ -1167,7 +1184,7 @@ class TrustGrantEvaluator:
             if isinstance(listing, GrantAuthorization):
                 return listing
             signer_record = listing
-            if signer_operator == brand_operator == operator:
+            if signer_operator == operator and operator in {brand_operator, house_operator}:
                 return await self._authorization(True, [signer_record], agent_origin=origin)
         args: dict[str, Any] = {
             "origin": origin,
