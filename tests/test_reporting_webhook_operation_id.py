@@ -220,7 +220,10 @@ def test_reporting_operation_id_constraints_match_push_notification_config() -> 
     assert reporting.annotation == push.annotation
     assert [repr(item) for item in reporting.metadata] == [repr(item) for item in push.metadata]
     schema = ReportingWebhook.model_json_schema()["properties"]["operation_id"]
-    assert schema["anyOf"][0] == {
+    # ``NoExplicitNull`` publishes no null arm: the property may be omitted,
+    # but a JSON ``null`` is refused, exactly as for push_notification_config.
+    assert "anyOf" not in schema
+    assert {key: schema[key] for key in ("type", "minLength", "maxLength", "pattern")} == {
         "type": "string",
         "minLength": 1,
         "maxLength": 255,
