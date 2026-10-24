@@ -839,7 +839,9 @@ class ADCPAgentExecutor(AgentExecutor):
         if details:
             adcp_error["details"] = dict(details)
 
-        data: dict[str, Any] = {"adcp_error": adcp_error}
+        # A fatal failure populates both layers (L3 error handling): the payload
+        # carries the protocol-neutral ``errors[]`` and the envelope ``adcp_error``.
+        data: dict[str, Any] = {"adcp_error": adcp_error, "errors": [dict(adcp_error)]}
         if params is not None:
             inject_context(params, data)
 
