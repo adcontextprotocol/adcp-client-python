@@ -58,7 +58,7 @@ from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, PydanticCustomError, core_schema
 from pydantic_core.core_schema import ErrorType
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, NoExplicitNull
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
@@ -156,6 +156,9 @@ _ReportingOperationId = Annotated[
             "identical wire shape, so confirm seller support before relying on it."
         ),
     ),
+    # Optional, not nullable: a JSON null is refused, as on the generated
+    # push_notification_config.operation_id this field mirrors (#1547).
+    NoExplicitNull,
 ]
 
 if TYPE_CHECKING:
