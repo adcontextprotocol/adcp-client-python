@@ -465,6 +465,32 @@ def _canonical_clone(
     return model
 
 
+def _inherited(
+    source: type[AdCPBaseModel],
+    name: str,
+    annotation: Any,
+    *,
+    required: bool = False,
+) -> tuple[Any, Any]:
+    """Return a clone override that retypes ``source.name`` but keeps its schema.
+
+    A canonical clone that narrows an inherited field's *annotation* still wants
+    the generated field's constraints and description. A bare ``Field()`` in the
+    override silently drops ``max_length`` and the description, so the canonical
+    model would accept, and advertise, more items than the wire schema allows.
+
+    ``required=True`` keeps the constraints but drops the generated default, for
+    a field this SDK line requires although the generated parent makes it
+    optional. The constraints then travel as ``Annotated`` metadata, because a
+    ``FieldInfo`` copy cannot be made required through public API.
+    """
+
+    info = copy.deepcopy(source.model_fields[name])
+    if not required:
+        return (annotation, info)
+    return (Annotated[(annotation, *info.metadata)], Field(description=info.description))
+
+
 _CanonicalParamsT = TypeVar("_CanonicalParamsT", bound=AdCPBaseModel)
 CanonicalPricingOption = Annotated[
     _LegacyPricingOption,
@@ -720,7 +746,9 @@ ProductFilters = _canonical_clone("ProductFilters", _LegacyProductFilters)
 _PackageRequestBase = _canonical_clone(
     "PackageRequest",
     _LegacyPackageRequest,
-    overrides={"creatives": (list[CreativeAsset] | None, Field(default=None, min_length=1))},
+    overrides={
+        "creatives": _inherited(_LegacyPackageRequest, "creatives", list[CreativeAsset] | None)
+    },
 )
 
 
@@ -740,7 +768,9 @@ class PackageRequest(_PackageRequestBase):
 PackageUpdate = _canonical_clone(
     "PackageUpdate",
     _LegacyPackageUpdate,
-    overrides={"creatives": (list[CreativeAsset] | None, Field(default=None, min_length=1))},
+    overrides={
+        "creatives": _inherited(_LegacyPackageUpdate, "creatives", list[CreativeAsset] | None)
+    },
 )
 
 Package = _canonical_clone("Package", _LegacyPackage)
@@ -879,7 +909,13 @@ UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | Upd
 SyncCreativesRequest = _canonical_clone(
     "SyncCreativesRequest",
     _LegacySyncCreativesRequest,
-    overrides={"creatives": (list[CreativeAsset], Field(min_length=1))},
+    # The generated 3.2 parent makes creatives optional (assignment-only syncs);
+    # SDK 8 keeps it required, so only the item bounds and description carry over.
+    overrides={
+        "creatives": _inherited(
+            _LegacySyncCreativesRequest, "creatives", list[CreativeAsset], required=True
+        )
+    },
 )
 
 _ListCreativesRequestBase = _canonical_clone(
