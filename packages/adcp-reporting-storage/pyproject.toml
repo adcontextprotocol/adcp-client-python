@@ -32,7 +32,7 @@ dependencies = [
     # this package subclass nothing in ``adcp`` but import its private
     # ``adcp.reporting`` helpers, so the range is one major: a new ``adcp``
     # major means a new release here.
-    "adcp>=9.0.0b4,<10",
+    "adcp>=9.0.0,<10",
     # RFC 8785 canonical JSON for row bodies and object keys; the same pin as adcp.
     "rfc8785>=0.1.4",
 ]
