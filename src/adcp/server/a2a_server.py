@@ -511,7 +511,7 @@ class ADCPAgentExecutor(AgentExecutor):
             return
 
         if skill_name not in self._tool_callers:
-            await self._send_error(event_queue, context, f"Unknown skill: {skill_name}")
+            await self._send_error(event_queue, context, f"Unknown skill: {skill_name}", params)
             return
 
         tool_context = self._build_tool_context(skill_name, context)
@@ -544,7 +544,9 @@ class ADCPAgentExecutor(AgentExecutor):
             )
         except Exception:
             logger.exception("Error executing skill %s", skill_name)
-            await self._send_error(event_queue, context, f"Skill execution failed: {skill_name}")
+            await self._send_error(
+                event_queue, context, f"Skill execution failed: {skill_name}", params
+            )
 
     async def _dispatch_with_middleware(
         self,
@@ -779,11 +781,25 @@ class ADCPAgentExecutor(AgentExecutor):
         event_queue: EventQueue,
         context: RequestContext,
         error_msg: str,
+        params: dict[str, Any] | None = None,
     ) -> None:
-        """Publish a failed task."""
+        """Publish a failed task for a failure with no AdCP error envelope.
+
+        Covers an unknown skill and an unexpected exception. When ``params``
+        carries a wire ``context``, a DataPart echoes it: AdCP echoes
+        ``context`` on every response, errors included, and buyers correlate
+        failures by it. The text part keeps the generic message; the
+        exception detail stays in the server log.
+        """
+        data: dict[str, Any] = {}
+        if params is not None:
+            from adcp.server.helpers import inject_context
+
+            inject_context(params, data)
         task = _make_task(
             context,
             state=pb.TaskState.TASK_STATE_FAILED,
+            data=data or None,
             message=error_msg,
         )
         await event_queue.enqueue_event(task)
