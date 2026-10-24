@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar, overload
 
 from adcp.reporting.service import (
     ReliableReportingService,
@@ -15,6 +15,34 @@ from adcp.reporting.service_production import ReportingProductionOptions
 
 __all__ = ["postgres_reliable_reporting_service"]
 
+_ServiceT = TypeVar("_ServiceT", bound=ReliableReportingService)
+
+
+@overload
+def postgres_reliable_reporting_service(
+    *,
+    pool: Any,
+    account_context: ReportingContextResolver,
+    caller_resolver: ReportingCallerResolver | None = ...,
+    clock: Callable[[], datetime] | None = ...,
+    production: ReportingProductionOptions | None = ...,
+    service_class: None = ...,
+    **kwargs: Any,
+) -> ReliableReportingService: ...
+
+
+@overload
+def postgres_reliable_reporting_service(
+    *,
+    pool: Any,
+    account_context: ReportingContextResolver,
+    caller_resolver: ReportingCallerResolver | None = ...,
+    clock: Callable[[], datetime] | None = ...,
+    production: ReportingProductionOptions | None = ...,
+    service_class: type[_ServiceT],
+    **kwargs: Any,
+) -> _ServiceT: ...
+
 
 def postgres_reliable_reporting_service(
     *,
@@ -23,6 +51,7 @@ def postgres_reliable_reporting_service(
     caller_resolver: ReportingCallerResolver | None = None,
     clock: Callable[[], datetime] | None = None,
     production: ReportingProductionOptions | None = None,
+    service_class: type[ReliableReportingService] | None = None,
     **kwargs: Any,
 ) -> ReliableReportingService:
     """Create durable ledger, staging and seal stores over a borrowed pool.
@@ -31,6 +60,10 @@ def postgres_reliable_reporting_service(
     optional signed notifications when ``install`` freezes registered sources.
     Startup installs all SDK-owned schemas. Explicit source-store overrides
     remain the adopter's responsibility. No pool is opened or closed here.
+
+    ``service_class`` builds an adopter's ``ReliableReportingService``
+    subclass, as ``SubClass.memory(...)`` does, so a host can override the
+    installed tool methods without copying this composition.
 
     This is what ``ReliableReportingService.postgres(...)`` was before the
     storage implementations moved to this distribution.
@@ -45,7 +78,8 @@ def postgres_reliable_reporting_service(
         else PgReportingLedgerStore(pool=pool, clock=clock)
     )
     staging = PgReportingStagingStore(pool=pool)
-    return ReliableReportingService(
+    cls = ReliableReportingService if service_class is None else service_class
+    return cls(
         store=store,
         account_context=account_context,
         caller_resolver=caller_resolver,
