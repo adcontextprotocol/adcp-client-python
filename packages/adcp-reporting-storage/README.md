@@ -54,7 +54,7 @@ client you build; the extras only pin the client libraries.
 This package implements the protocols of one `adcp` major and imports a few
 private helpers of `adcp.reporting` to do so (`adcp.reporting.ledger._record_rows`,
 `_delivery_state`, `status_snapshot`). Its dependency range is therefore one
-major (`adcp>=9.0.0b4,<10`), and a new `adcp` major means a new release here.
+major (`adcp>=9.0.0,<10`), and a new `adcp` major means a new release here.
 `adcp` never imports this package; a test in the main repository enforces that.
 
 ## Versioning
