@@ -58,7 +58,7 @@ from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, PydanticCustomError, core_schema
 from pydantic_core.core_schema import ErrorType
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, NoExplicitNull
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
@@ -156,6 +156,7 @@ _ReportingOperationId = Annotated[
             "identical wire shape, so confirm seller support before relying on it."
         ),
     ),
+    NoExplicitNull,
 ]
 
 if TYPE_CHECKING:
