@@ -182,6 +182,30 @@ Task webhook correlation remains unchanged: buyers supply
 `push_notification_config.operation_id`, and sellers echo that value in the
 corresponding `McpWebhookPayload.operation_id`.
 
+### 8.2.0: scheduled delivery reports echo the registration's `operation_id`
+
+AdCP 3.3 adds an optional `reporting_webhook.operation_id`
+([adcp#7895](https://github.com/adcontextprotocol/adcp/pull/7895)). SDK 8 still
+has no typed field: a buyer-supplied value is kept as a `ReportingWebhook`
+extra.
+
+- Buyers: set `operation_id` on `reporting_webhook` once the seller confirms
+  support.
+- Sellers: send scheduled reports with `WebhookSender.send_media_buy_delivery`
+  (or `prepare_media_buy_delivery`, or `create_media_buy_delivery_webhook_payload`
+  with `deliver`). They echo the stored value and `token`, and validate the
+  value against the 3.3 constraints. A registration without one raises
+  `ReportingWebhookOperationIdMissingError` before any network I/O and logs a
+  structured WARNING; ask that buyer to update the registration rather than
+  inventing an ID.
+- **Behavior change:** `create_mcp_webhook_payload` (and so `send_mcp` /
+  `prepare_mcp`) no longer defaults `notification_id` to `"{task_id}.terminal"`
+  for `task_type="media_buy_delivery"`. Delivery reports are point-in-time
+  events deduped by `idempotency_key`. Pass `notification_id` explicitly if you
+  relied on the old value. Other task types keep the default.
+
+See [reporting correlation](docs/webhooks/reporting-operation-id-3.2.md).
+
 ## Webhook activity metadata
 
 `ActivityType.WEBHOOK_RECEIVED` no longer copies the complete callback into
