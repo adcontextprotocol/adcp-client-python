@@ -1,9 +1,12 @@
 """Forward-compatibility and generated-model composition patches.
 
 Patches Format.assets and RepeatableAssetGroup.assets at import
-time so responses containing novel asset_type values (e.g., 'pixel_tracker')
-parse as UnknownFormatAsset / UnknownGroupAsset instead of raising a cascade
-of ValidationErrors that zero out the entire list_creative_formats response.
+time so responses containing novel asset_type values parse as
+UnknownFormatAsset / UnknownGroupAsset instead of raising a cascade of
+ValidationErrors that zero out the entire list_creative_formats response.
+Models that nest Format, such as the list_creative_formats responses, keep the
+closed generated unions and gain the same fallbacks only for asset types those
+unions have no arm for (see ``_apply_asset_fallbacks``).
 
 This module is intentionally NOT auto-generated. It lives outside
 generated_poc/ and is preserved across codegen runs (generate_types.py only
@@ -34,7 +37,7 @@ from collections.abc import Callable
 from copy import copy, deepcopy
 from functools import partial
 from types import GenericAlias
-from typing import Annotated, Any, cast, get_args
+from typing import Annotated, Any, cast, get_args, get_origin
 
 from pydantic import (
     BaseModel,
@@ -42,8 +45,11 @@ from pydantic import (
     Field,
     GetCoreSchemaHandler,
     GetPydanticSchema,
+    RootModel,
+    SerializationInfo,
     SerializerFunctionWrapHandler,
     ValidationError,
+    ValidationInfo,
     ValidatorFunctionWrapHandler,
     create_model,
     model_validator,
@@ -52,7 +58,13 @@ from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
-from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
+from adcp.types.aliases import (
+    FormatAssetUnion,
+    GroupFormatAssetUnion,
+    RepeatableAssetGroup,
+    UnknownFormatAsset,
+    UnknownGroupAsset,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
@@ -236,6 +248,256 @@ def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
     )
 
 
+def _declared_asset_types(closed_union: Any) -> frozenset[str]:
+    """The ``asset_type`` values a closed generated asset union has arms for."""
+    if get_origin(closed_union) is Annotated:
+        closed_union = get_args(closed_union)[0]
+    declared: set[str] = set()
+    for arm in get_args(closed_union):
+        field = getattr(arm, "model_fields", {}).get("asset_type")
+        if field is not None and isinstance(field.default, str):
+            declared.add(field.default)
+    if not declared:
+        raise RuntimeError(f"forward compatibility: no asset_type arms found in {closed_union!r}")
+    return frozenset(declared)
+
+
+def _is_undeclared_asset(
+    value: Any,
+    fallback: type[BaseModel],
+    declared: frozenset[str],
+    item_type: str | None,
+) -> bool:
+    """Whether ``value`` is an asset the closed generated union has no arm for.
+
+    Only a mapping whose ``asset_type`` is a string outside ``declared``
+    qualifies, plus an instance of the fallback itself. Everything else,
+    including a declared asset with invalid fields or a non-string
+    ``asset_type``, stays on the closed union and fails exactly as before.
+    """
+    if isinstance(value, fallback):
+        return True
+    if not isinstance(value, dict):
+        return False
+    if item_type is not None and value.get("item_type", item_type) != item_type:
+        return False
+    asset_type = value.get("asset_type")
+    return isinstance(asset_type, str) and asset_type not in declared
+
+
+def _with_undeclared_fallback(
+    closed_union: Any,
+    fallback: type[BaseModel],
+    *,
+    item_type: str | None,
+) -> Any:
+    """Give a closed generated asset union a fallback for undeclared asset types.
+
+    Declared asset types never reach the fallback, so every document the closed
+    union accepts parses and serializes exactly as before. The fallback is not
+    a union arm: the advertised JSON schema stays the closed union's.
+    """
+    declared = _declared_asset_types(closed_union)
+
+    def validate(value: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo) -> Any:
+        if _is_undeclared_asset(value, fallback, declared, item_type):
+            return fallback.model_validate(value, context=info.context)
+        return handler(value)
+
+    def serialize(
+        value: Any, serializer: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
+        if isinstance(value, fallback):
+            return value.model_dump(
+                mode=info.mode,
+                include=cast(Any, info.include),
+                exclude=cast(Any, info.exclude),
+                context=info.context,
+                by_alias=info.by_alias,
+                exclude_unset=info.exclude_unset,
+                exclude_defaults=info.exclude_defaults,
+                exclude_none=info.exclude_none,
+                round_trip=info.round_trip,
+                serialize_as_any=info.serialize_as_any,
+            )
+        return serializer(value)
+
+    def schema(source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        closed = handler(source)
+        return core_schema.with_info_wrap_validator_function(
+            validate,
+            closed,
+            serialization=core_schema.wrap_serializer_function_ser_schema(
+                serialize, schema=closed, info_arg=True
+            ),
+        )
+
+    return Annotated[closed_union, GetPydanticSchema(schema)]
+
+
+def _loaded_adcp_models() -> list[type[BaseModel]]:
+    """Every SDK model class defined so far."""
+    seen: set[type[BaseModel]] = set()
+    found: list[type[BaseModel]] = []
+    stack: list[type[BaseModel]] = [BaseModel]
+    while stack:
+        for subclass in stack.pop().__subclasses__():
+            if subclass in seen:
+                continue
+            seen.add(subclass)
+            stack.append(subclass)
+            if subclass.__module__.startswith("adcp."):
+                found.append(subclass)
+    return found
+
+
+def _referenced_models(annotation: Any, found: set[type[BaseModel]]) -> None:
+    """Collect the model classes a possibly nested annotation names."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        found.add(annotation)
+        return
+    for arg in get_args(annotation):
+        _referenced_models(arg, found)
+
+
+def _rebuild_dependents(rebuilt: tuple[type[BaseModel], ...]) -> None:
+    """Rebuild every loaded model that nests one of ``rebuilt``.
+
+    A parent model copies a nested model's core schema when the parent is
+    built, so it keeps validating with whatever the nested model looked like
+    then. The parents are found by following field annotations, so a model
+    added by a schema refresh is covered without a list to maintain. Each one
+    is rebuilt after the models it nests.
+    """
+    references: dict[type[BaseModel], set[type[BaseModel]]] = {}
+    for model in _loaded_adcp_models():
+        if not model.__pydantic_complete__:
+            # Not built yet, so it embeds nothing. It will copy the nested
+            # models as they are when it is first used, as it always has.
+            continue
+        nested: set[type[BaseModel]] = set()
+        for field in model.model_fields.values():
+            _referenced_models(field.annotation, nested)
+        nested.discard(model)
+        references[model] = nested
+
+    stale = set(rebuilt)
+    changed = True
+    while changed:
+        changed = False
+        for model, nested in references.items():
+            if model not in stale and not nested.isdisjoint(stale):
+                stale.add(model)
+                changed = True
+
+    done = set(rebuilt)
+
+    def rebuild(model: type[BaseModel], path: frozenset[type[BaseModel]]) -> None:
+        if model in done:
+            return
+        for nested in references[model] & stale:
+            if nested not in path:
+                rebuild(nested, path | {model})
+        if model not in done:
+            done.add(model)
+            model.model_rebuild(force=True)
+
+    for model in references:
+        if model in stale:
+            rebuild(model, frozenset())
+
+
+def _list_item(annotation: Any, owner: str) -> Any:
+    """The item type of ``list[X]`` or ``list[X] | None``."""
+    for arm in (annotation, *get_args(annotation)):
+        if get_origin(arm) is list:
+            return get_args(arm)[0]
+    raise RuntimeError(f"forward compatibility: {owner} is no longer a list (got {annotation!r})")
+
+
+def _apply_asset_fallbacks() -> None:
+    """Accept undeclared asset types everywhere without changing declared ones.
+
+    Three validation paths exist on 8.x, and each keeps its result for every
+    document it accepted before:
+
+    - ``RepeatableAssetGroup`` on its own routes by the hand-written 12-type
+      vocabulary in aliases.py (``GroupFormatAssetUnion``).
+    - ``Format`` routes its individual assets by the 14-type vocabulary
+      (``FormatAssetUnion``). Its repeatable-group arm embeds the group as it
+      was BEFORE the group was patched: every generated group type typed,
+      each item wrapped in the generated RootModel.
+    - Models that nest ``Format`` and were built before this patch, such as
+      ``ListCreativeFormatsResponse``, embed the closed generated ``Format``:
+      every generated asset type typed, group items wrapped. A model built
+      later, such as the creative agent's response, embeds ``Format`` as
+      patched, and keeps doing so.
+
+    The second and third paths used to fail on any asset_type the generated
+    unions have no arm for. Each closed union now falls back to
+    UnknownFormatAsset / UnknownGroupAsset for exactly those asset types.
+
+    This relies on Pydantic copying a nested model's core schema when the
+    parent is built. Each model is rebuilt while the models it nests have the
+    shape the parent needs, so the ORDER BELOW IS LOAD-BEARING.
+    tests/test_forward_compat_assets.py pins each path, and
+    tests/test_forward_compat_assets_baseline.py compares every path with a
+    baseline recorded before this patch.
+    """
+    group = cast(type[BaseModel], RepeatableAssetGroup)
+    group_field = group.model_fields["assets"]
+    group_item = _list_item(group_field.annotation, "RepeatableAssetGroup.assets")
+    if not (isinstance(group_item, type) and issubclass(group_item, RootModel)):
+        raise RuntimeError(
+            "forward compatibility: RepeatableAssetGroup.assets lost its generated "
+            f"RootModel item (got {group_item!r})"
+        )
+    group_wrapper = cast(type[BaseModel], group_item)
+    format_field = Format.model_fields["assets"]
+    format_item = _list_item(format_field.annotation, "Format.assets")
+
+    # 1. The generated group item wrapper falls back for undeclared group assets.
+    #    Its discriminator moves inside, onto the closed union it belongs to.
+    root_field = group_wrapper.model_fields["root"]
+    closed_group_items: Any = root_field.annotation
+    new_root = copy(root_field)
+    new_root.discriminator = None
+    new_root.annotation = _with_undeclared_fallback(
+        Annotated[closed_group_items, Field(discriminator="asset_type")],
+        UnknownGroupAsset,
+        item_type=None,
+    )
+    group_wrapper.model_fields["root"] = new_root
+    group_wrapper.__annotations__["root"] = new_root.annotation
+    group_wrapper.model_rebuild(force=True)
+    # 2. The group, still generated, embeds the new wrapper.
+    group.model_rebuild(force=True)
+
+    # 3. A generated Format whose closed asset union falls back for undeclared
+    #    individual assets, and which embeds the group from step 2 ...
+    _patch_model_field(
+        Format,
+        "assets",
+        GenericAlias(
+            list,
+            _with_undeclared_fallback(format_item, UnknownFormatAsset, item_type="individual"),
+        )
+        | None,
+    )
+    Format.model_rebuild(force=True)
+    # 4. ... which every model built before this patch embeds in its place.
+    _rebuild_dependents((group_wrapper, group, Format))
+
+    # 5. Format itself routes by the 14-type vocabulary, as before. Its group
+    #    arm embeds the group from step 2.
+    _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
+    Format.model_rebuild(force=True)
+
+    # 6. Last, the group on its own routes by the 12-type vocabulary, as before.
+    _patch_model_field(group, "assets", list[GroupFormatAssetUnion])
+    group.model_rebuild(force=True)
+
+
 def _patch_equivalent_model_field(
     model: type[BaseModel],
     field_name: str,
@@ -409,11 +671,7 @@ def _apply_forward_compat() -> None:
     AdcpAsyncResponseData.model_rebuild(force=True)
     McpWebhookPayload.model_rebuild(force=True)
 
-    _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
-    Format.model_rebuild(force=True)
-
-    _patch_model_field(RepeatableAssetGroup, "assets", list[GroupFormatAssetUnion])
-    cast(type[BaseModel], RepeatableAssetGroup).model_rebuild(force=True)
+    _apply_asset_fallbacks()
 
     # The 3.1 canonical-creatives capability was published after the bundled
     # generated model. Preserve it across code generation until the schema
