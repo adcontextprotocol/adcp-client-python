@@ -1,5 +1,17 @@
 """Copied out of the checkout and run with -I in an installed frozen wheel."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -14,10 +26,13 @@ from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
 
 async def main(settings):
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.ledger import PgReportingLedgerStore
+    else:
+        from adcp_reporting_storage import PgReportingLedgerStore
     from psycopg_pool import AsyncConnectionPool
 
     import adcp.reporting.ledger as ledger_module
-    from adcp.reporting.ledger import PgReportingLedgerStore
 
     origins = {}
     for name, expected in settings["modules"].items():
@@ -51,13 +66,19 @@ async def main(settings):
         if settings["action"] == "install":
             await store.create_schema()
             if settings["artifact"] in {"c", "b1"}:
-                from adcp.reporting.outbox import PgStatusNotificationStore
+                if _storage_split():  # wheels before the storage split (#1510)
+                    from adcp.reporting.outbox import PgStatusNotificationStore
+                else:
+                    from adcp_reporting_storage import PgStatusNotificationStore
 
                 await PgStatusNotificationStore(
                     store_type(pool=pool, notifications=True)
                 ).create_schema()
             if settings["artifact"] in {"a", "b", "c", "b1"}:
-                from adcp.reporting.outbox._schema import validate_schema
+                if _storage_split():  # wheels before the storage split (#1510)
+                    from adcp.reporting.outbox._schema import validate_schema
+                else:
+                    from adcp_reporting_storage.outbox._schema import validate_schema
 
                 async with pool.connection() as connection:
                     await validate_schema(connection)
@@ -75,8 +96,12 @@ async def main(settings):
 
         notifications_ready = None
         if settings["artifact"] in {"a", "b", "c", "b1"}:
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox._schema import validate_schema
+            else:
+                from adcp_reporting_storage.outbox._schema import validate_schema
+
             from adcp.reporting.ledger.notification_models import ReportingNotificationError
-            from adcp.reporting.outbox._schema import validate_schema
 
             async with pool.connection() as connection:
                 try:
@@ -134,7 +159,10 @@ async def main(settings):
         status = None
         projector_turns = 0
         if settings["artifact"] in {"c", "b1"} and settings["action"] != "baseline":
-            from adcp.reporting.outbox import PgStatusNotificationStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox import PgStatusNotificationStore
+            else:
+                from adcp_reporting_storage import PgStatusNotificationStore
 
             store = store_type(pool=pool, notifications=True)
             status = PgStatusNotificationStore(store)
@@ -160,12 +188,13 @@ async def main(settings):
         workers = {}
         event_identities = {}
         if settings["artifact"] in {"a", "b", "c", "b1"} and settings["action"] != "baseline":
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox import PgReportingOutbox
+            else:
+                from adcp_reporting_storage import PgReportingOutbox
+
             from adcp.reporting.ledger.notification_models import decode_event
-            from adcp.reporting.outbox import (
-                PgReportingOutbox,
-                ReportingEnvelopeCipher,
-                ReportingNotificationWorker,
-            )
+            from adcp.reporting.outbox import ReportingEnvelopeCipher, ReportingNotificationWorker
 
             class EmptySubscriptions:
                 async def list_active(self, **kwargs):
@@ -177,7 +206,10 @@ async def main(settings):
 
             outboxes = {"ordinary": PgReportingOutbox(pool=pool)}
             if settings["artifact"] in {"c", "b1"}:
-                from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox
+                if _storage_split():  # wheels before the storage split (#1510)
+                    from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox
+                else:
+                    from adcp_reporting_storage.outbox.status_pg import PgReportingStatusOutbox
 
                 outboxes["status"] = PgReportingStatusOutbox(pool=pool)
             for name, outbox in outboxes.items():

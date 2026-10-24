@@ -10,18 +10,19 @@ import pytest
 
 exceptions = pytest.importorskip("google.api_core.exceptions")
 
-from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError  # noqa: E402
-from adcp.reporting.ledger.row_storage_gcs import (  # noqa: E402
+from adcp_reporting_storage.ledger.row_storage_gcs import (  # noqa: E402
     assert_gcs_reporting_row_bucket_policy_v1,
     create_gcs_reporting_row_object_provider_v1,
 )
-from adcp.reporting.ledger.row_storage_object import (  # noqa: E402
+from adcp_reporting_storage.ledger.row_storage_object import (  # noqa: E402
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
     ReportingRowObjectPutInputV1,
     run_reporting_row_object_provider_conformance_v1,
 )
+
+from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError  # noqa: E402
 
 CONTEXT = ReportingRowObjectContextV1()
 LOCATION = {"bucket": "rows-bucket"}
@@ -182,7 +183,7 @@ async def test_create_only_upload_sends_the_precondition_and_a_declared_checksum
     provider = create_gcs_reporting_row_object_provider_v1(storage=storage)
     created = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl.gz"), CONTEXT)
     assert created.created and created.native_version_ref.isdigit()
-    (_, options) = next(call for call in storage.calls if call[0] == "upload")
+    _, options = next(call for call in storage.calls if call[0] == "upload")
     assert options["if_generation_match"] == 0
     assert options["content_type"] == "application/gzip" and options["checksum"] == "md5"
     stored = storage.objects[("rows-bucket", "adcp-rows/ns/a.jsonl.gz")][0]
@@ -217,7 +218,7 @@ async def test_reads_pin_the_generation_request_raw_bytes_and_honour_ranges_and_
         )
 
     assert await read(max_bytes=6, byte_range=(4, 6)) == b"456789"
-    (_, options) = [call for call in storage.calls if call[0] == "download"][-1]
+    _, options = [call for call in storage.calls if call[0] == "download"][-1]
     assert options["generation"] == int(created.native_version_ref)
     assert options["raw_download"] is True and options["checksum"] is None
     assert (options["start"], options["end"]) == (4, 9)
@@ -368,8 +369,8 @@ def test_locations_are_closed_and_options_validated() -> None:
 
 
 async def test_provider_errors_never_leak_their_messages() -> None:
-    from adcp.reporting.ledger import ReportingObjectRowBindingV1, ReportingRowStorageOptionsV1
-    from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+    from adcp_reporting_storage import ReportingObjectRowBindingV1, ReportingRowStorageOptionsV1
+    from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
     class Broken(FakeStorage):
         def bucket(self, name: str) -> Any:

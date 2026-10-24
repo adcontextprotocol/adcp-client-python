@@ -131,15 +131,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system -e ".[dev]" -e "./packages/adcp-reporting-storage"
 
       - name: Run linter
         if: matrix.python-version == '3.12'
-        run: ruff check src/
+        run: ruff check src/ packages/adcp-reporting-storage/src/
 
       - name: Run type checker
         if: matrix.python-version == '3.12'
-        run: mypy src/adcp/
+        run: mypy src/adcp/ packages/adcp-reporting-storage/src/adcp_reporting_storage/
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
@@ -245,7 +245,7 @@ jobs:
 
       - name: Install dependencies (with [pg] extra)
         run: |
-          uv pip install --system -e ".[dev,pg]"
+          uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
 
       - name: Run Postgres conformance tests
         env:
@@ -356,8 +356,12 @@ jobs:
           npm ci
           npm run build
           test -f dist/lib/reporting/ledger/index.js
+          # SDK 16 moved the row storage into the @adcp/reporting-storage workspace
+          # package, which the root build does not compile; the interop driver reads it.
+          npm run build --workspace packages/reporting-storage
+          test -f node_modules/@adcp/reporting-storage/dist/index.js
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run the interop test in both directions
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_interop_test
@@ -445,7 +449,7 @@ jobs:
 
       - name: Install dependencies (with [pg] extra)
         run: |
-          uv pip install --system -e ".[dev,pg]"
+          uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
 
       - name: Run status semantics, transaction, clock/process and maintenance gates
         env:
@@ -508,7 +512,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run installed frozen binaries and materializer migrations
         # Propagate pytest failures through tee while retaining evidence for upload.
         shell: bash
@@ -574,7 +578,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run receipt transactions, real mounts, crash and installed gates
         shell: bash
         timeout-minutes: 30
@@ -642,7 +646,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Require stopped-worker retention, ownership backfill and receipt isolation
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipt_maintenance_test
@@ -690,7 +694,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run frozen feeds, checkpoints, mounts, transaction faults and migrations
         shell: bash
         timeout-minutes: 20
@@ -773,7 +777,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Require private feeds and legacy cursor invalidation after maintenance
         shell: bash
         timeout-minutes: 45
@@ -836,7 +840,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run installed base and PostgreSQL restart cells
         shell: bash
         timeout-minutes: 40
@@ -894,7 +898,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run complete production and projection conformance
         shell: bash
         # A passing suite plus harness cleanup can exceed 30 minutes.
@@ -977,7 +981,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Run installed source-equivalent production contract
         shell: bash
         timeout-minutes: 45
@@ -1045,7 +1049,7 @@ jobs:
           prune-cache: true
 
       - name: Install test dependencies
-        run: uv pip install --system -e ".[dev,pg]"
+        run: uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
       - name: Require owned production admission and installed maintenance contracts
         shell: bash
         timeout-minutes: 42
@@ -1141,6 +1145,10 @@ jobs:
           python -m build --outdir dist/
           python scripts/ci/check_distribution_size.py dist/
           pip install dist/*.whl
+          # The storage distribution is built from its own tree and must
+          # install over the freshly built adcp wheel, never pull adcp from PyPI.
+          python -m build --outdir dist-storage/ packages/adcp-reporting-storage
+          pip install --no-deps dist-storage/*.whl
 
       - name: Verify prerelease dependency resolution imports server
         run: |
@@ -1262,7 +1270,15 @@ jobs:
           )
           assert adcp.get_adcp_version(), "ADCP_VERSION file is empty"
 
-          print(f"OK — adcp=={adcp.__version__}, spec={adcp.get_adcp_version()}")
+          # The storage distribution's facade is lazy and its stores work without a driver installed.
+          import sys
+          import adcp_reporting_storage
+          assert not [m for m in sys.modules if m.startswith("adcp_reporting_storage.")]
+          from adcp_reporting_storage import PgReportingLedgerStore, ReportingRowStorageOptionsV1
+          assert "adcp.reporting.ledger.pg" not in sys.modules, "the ledger store moved; adcp must not ship it"
+
+          print(f"OK — adcp=={adcp.__version__}, spec={adcp.get_adcp_version()}, "
+                f"adcp-reporting-storage=={adcp_reporting_storage.__version__}")
           PY
 
   schema-check:
@@ -1291,7 +1307,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system -e ".[dev]" -e "./packages/adcp-reporting-storage"
 
       # Blocking. Grades the COMMITTED generated tree against a regeneration
       # from the COMMITTED schemas, so it runs before the sync steps below
@@ -1665,7 +1681,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev,pg]"
+          uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
           # Example-local deps: the v3 reference seller imports
           # sqlalchemy + asyncpg + httpx-respx but those aren't in the
           # SDK's [dev] extras. Install them inline rather than adding
@@ -1740,7 +1756,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev,pg]"
+          uv pip install --system -e ".[dev,pg]" -e "./packages/adcp-reporting-storage[pg,gcs,s3,azure]"
           # Example-local deps: the v3 reference seller imports
           # sqlalchemy + asyncpg (async Postgres driver) which aren't
           # in the SDK's [dev,pg] extras. Install inline rather than
@@ -2011,7 +2027,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system -e ".[dev]" -e "./packages/adcp-reporting-storage"
 
       - name: Map tenant subdomains to localhost
         run: |
@@ -2148,7 +2164,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system -e ".[dev]" -e "./packages/adcp-reporting-storage"
 
       - name: Boot sales-proposal-mode seller
         run: |

@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.outbox.activity import ReportingActivityProjector
+from adcp.reporting.outbox.durable import (
+    ReportingDurableNotificationLedger,
+    ReportingDurableStatusStore,
+)
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.store import ReportingLedgerStore
@@ -15,7 +19,7 @@ if TYPE_CHECKING:
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
 
-_ProofKey = tuple[str, tuple[int, ...], str, str]
+_ProofKey = tuple[str, tuple[int, ...], str]
 
 
 @dataclass
@@ -69,9 +73,9 @@ class ReportingActivitySupport:
         state.positive = None
         state.flight = None
 
-    async def _schema_proven(self, pool: Any, *, composite: bool) -> bool:
-        from adcp.reporting.outbox import _schema
-
+    async def _schema_proven(
+        self, ledger: ReportingDurableNotificationLedger, *, composite: bool
+    ) -> bool:
         assert self.projector is not None
         wiring: tuple[object, ...] = (
             self.worker,
@@ -83,12 +87,9 @@ class ReportingActivitySupport:
             self.worker.cipher,
             self.worker.subscriptions,
             self.worker.signing,
-            pool,
+            ledger.storage_identity,
         )
-        status_contract = ""
         if composite:
-            from adcp.reporting.outbox import status_schema
-
             assert self.status is not None
             wiring += (
                 self.status,
@@ -96,12 +97,10 @@ class ReportingActivitySupport:
                 self.status.worker,
                 self.status.worker.outbox,
             )
-            status_contract = _schema._digest(status_schema.REQUIRED_STATUS_OBJECTS)
         key: _ProofKey = (
             "B+C" if composite else "B",
             tuple(id(component) for component in wiring),
-            _schema._digest(_schema.REQUIRED_OBJECTS),
-            status_contract,
+            ledger.activity_schema_contract(composite=composite),
         )
         state = self._schema_validation
         if state.positive == key:
@@ -110,7 +109,9 @@ class ReportingActivitySupport:
         if flight is None:
             flight = _SchemaFlight(key, state.epoch)
             state.flight = flight
-            flight.task = asyncio.create_task(self._scan_schema(pool, flight, composite=composite))
+            flight.task = asyncio.create_task(
+                self._scan_schema(ledger, flight, composite=composite)
+            )
             flight.task.add_done_callback(_consume_schema_failure)
         task = flight.task
         if task is None or flight.key != key or task.get_loop() is not asyncio.get_running_loop():
@@ -123,27 +124,16 @@ class ReportingActivitySupport:
         # Rerun the same cheap checks before accepting the completed proof.
         return await self.durable()
 
-    async def _scan_schema(self, pool: Any, flight: _SchemaFlight, *, composite: bool) -> bool:
-        from adcp.reporting.outbox import _schema
-
+    async def _scan_schema(
+        self,
+        ledger: ReportingDurableNotificationLedger,
+        flight: _SchemaFlight,
+        *,
+        composite: bool,
+    ) -> bool:
         state = self._schema_validation
         try:
-            async with pool.connection() as connection:
-                try:
-                    installed = await _schema.schema_objects(connection)
-                except Exception:
-                    raise ReportingNotificationError(
-                        "notification_schema_unready:catalog_unavailable"
-                    ) from None
-                # One physical catalog capture, each required contract once.
-                retired = await _schema.legacy_rows_retired(connection, installed)
-                _schema._validate_schema_objects(
-                    installed, activity=True, **({"legacy_rows_retired": True} if retired else {})
-                )
-                if composite:
-                    from adcp.reporting.outbox import status_schema
-
-                    status_schema._validate_status_objects(installed, activity=True, status=False)
+            await ledger.validate_activity_schema(composite=composite)
             if state.epoch != flight.epoch or state.flight is not flight:
                 return False
             state.positive = flight.key
@@ -179,71 +169,46 @@ class ReportingActivitySupport:
             ):
                 raise ReportingNotificationError("activity_chain_unready")
             return False
-        # Lazy imports retain base-install operation without the [pg] extra.
-        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-        from adcp.reporting.outbox.pg import PgReportingOutbox
-
-        if (
-            type(self.worker.outbox) is not PgReportingOutbox
-            or not isinstance(self.worker.outbox, PgReportingOutbox)
-            or type(self.ledger) not in {PgReportingLedgerStore, PgReportingReconciliationStore}
-            or not isinstance(self.ledger, PgReportingLedgerStore)
-            or self.ledger._pool is not self.worker.outbox._pool
-            or not self.ledger._notifications_enabled
-        ):
+        # A durable ledger proves its own queue and storage identity.
+        ledger = self.ledger
+        if not isinstance(ledger, ReportingDurableNotificationLedger):
             raise ReportingNotificationError("activity_chain_unready")
-        return await self._schema_proven(self.ledger._pool, composite=False)
+        ledger.validate_activity_chain(self.worker.outbox)
+        return await self._schema_proven(ledger, composite=False)
 
     async def _composite_durable(self) -> bool:
         """Only the closed B+C read/purge union may replace the original B reader."""
         assert self.status is not None
         if not self.status.scheduled:
             return False
-        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-        from adcp.reporting.outbox.pg import PgReportingOutbox
         from adcp.reporting.outbox.routing import ReportingEnvelopeCipher
-        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
-        from adcp.reporting.outbox.status_pg import (
-            PgReportingStatusOutbox,
-            PgStatusNotificationStore,
-        )
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
         store = self.status.store
-        if not isinstance(store, PgStatusNotificationStore):
+        if not isinstance(store, ReportingDurableStatusStore):
             return False
         reader = self.projector.store if self.projector is not None else None
+        ledger = self.ledger
         if (
             type(self.worker) is not ReportingNotificationWorker
-            or type(store) is not PgStatusNotificationStore
-            or type(self.ledger) not in {PgReportingLedgerStore, PgReportingReconciliationStore}
-            or not isinstance(self.ledger, PgReportingLedgerStore)
-            or type(self.worker.outbox) is not PgReportingOutbox
-            or not isinstance(self.worker.outbox, PgReportingOutbox)
+            or not isinstance(ledger, ReportingDurableNotificationLedger)
             or type(self.worker.cipher) is not ReportingEnvelopeCipher
             or type(self.status.worker) is not ReportingNotificationWorker
             or type(self.projector) is not ReportingActivityProjector
-            or type(reader) is not PgReportingActivityUnionStore
-            or not isinstance(reader, PgReportingActivityUnionStore)
-            or reader.b_outbox is not self.worker.outbox
-            or reader.status_outbox is not store.outbox
-            or self.worker.activity is not self.worker.outbox
-            or self.status.worker.activity is not store.outbox
-            or self.status.worker.outbox is not store.outbox
-            or self.ledger is not store.ledger
-            or self.worker.outbox._pool is not store.ledger._pool
-            or type(store.outbox) is not PgReportingStatusOutbox
-            or store.outbox._pool is not store.ledger._pool
-            or self.worker.outbox._clock is not store.outbox._clock
-            or not store.ledger._notifications_enabled
+            or id(self.worker.activity) != id(self.worker.outbox)
+            or id(self.status.worker.activity) != id(store.outbox)
+            or id(self.status.worker.outbox) != id(store.outbox)
+            or ledger is not store.ledger
             or self.worker.cipher is not self.status.worker.cipher
             or self.worker.subscriptions is not self.status.worker.subscriptions
             or self.worker.signing is not self.status.worker.signing
         ):
             raise ReportingNotificationError("activity_chain_unready")
-        return await self._schema_proven(store.ledger._pool, composite=True)
+        # Exact queue, union-reader and storage identity checks are the ledger's.
+        ledger.validate_composite_activity_chain(
+            outbox=self.worker.outbox, status_store=store, reader=reader
+        )
+        return await self._schema_proven(ledger, composite=True)
 
     async def capability_flags(
         self, *, account_activity: ReportingActivityProjector | None = None

@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from tests.conformance.reporting._generation_support import (
     isolated_reporting_pool,
 )
@@ -23,7 +23,9 @@ if TYPE_CHECKING:
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 _BETA15_SCHEMA = _FIXTURES / "reporting_ledger_beta15.sql"
 _BETA15_DATA = _FIXTURES / "reporting_ledger_beta15_data.sql"
-_MIGRATION = files("adcp.reporting.ledger").joinpath("reporting_ledger_account_generations.sql")
+_MIGRATION = files("adcp_reporting_storage.ledger").joinpath(
+    "reporting_ledger_account_generations.sql"
+)
 _TABLES = (
     "reporting_configurations",
     "reporting_obligations",
@@ -142,7 +144,7 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
 
 
 async def test_beta15_boot_fails_closed_and_preserves_all_evidence() -> None:
-    from adcp.reporting.migration import ReportingOwnershipMigrationError
+    from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
     async with isolated_reporting_pool() as pool:
         await _load_beta15(pool)
@@ -189,7 +191,7 @@ async def test_standalone_key_upgrade_requires_explicit_maintenance() -> None:
     ],
 )
 async def test_legacy_key_variants_do_not_authorize_implicit_ownership(key_change: str) -> None:
-    from adcp.reporting.migration import ReportingOwnershipMigrationError
+    from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
     async with isolated_reporting_pool() as pool:
         await _load_beta15(pool)
@@ -202,7 +204,7 @@ async def test_legacy_key_variants_do_not_authorize_implicit_ownership(key_chang
 
 
 async def test_adopter_foreign_keys_survive_refused_implicit_upgrade() -> None:
-    from adcp.reporting.migration import ReportingOwnershipMigrationError
+    from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
     async with isolated_reporting_pool() as pool:
         await _load_beta15(pool)

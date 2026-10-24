@@ -1,5 +1,17 @@
 """Real catalog accounting through the supported activity/capability composition."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp under test predates the storage split (#1510).
+
+    The installed hardening controls run this module inside historical wheels,
+    whose stores still live in adcp.reporting.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
@@ -106,8 +118,16 @@ async def compose_activity(reliable, composite):
     status = None
     reader = outbox
     if composite:
-        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
-        from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
+        else:
+            from adcp_reporting_storage.outbox.status_activity_pg import (
+                PgReportingActivityUnionStore,
+            )
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
+        else:
+            from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
 
         store = PgStatusNotificationStore(reliable.store)
         await store.create_schema()
@@ -461,7 +481,10 @@ async def test_separate_search_paths_and_instances_do_not_share_positive_proof(m
 
 
 async def test_b_and_composite_prove_each_packaged_contract_once(monkeypatch):
-    from adcp.reporting.outbox import _schema, status_schema
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.outbox import _schema, status_schema
+    else:
+        from adcp_reporting_storage.outbox import _schema, status_schema
 
     async with reliable_factory("postgres", notifications=True, autocommit=True) as reliable:
         composite = await compose_activity(reliable, True)
@@ -514,7 +537,10 @@ async def test_b_and_composite_prove_each_packaged_contract_once(monkeypatch):
 
 
 async def test_positive_proof_is_bound_to_packaged_manifest_contract(activity_proof, monkeypatch):
-    from adcp.reporting.outbox import _schema
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.outbox import _schema
+    else:
+        from adcp_reporting_storage.outbox import _schema
 
     support, handler, accounting, _ = activity_proof
     await handler.get_adcp_capabilities()

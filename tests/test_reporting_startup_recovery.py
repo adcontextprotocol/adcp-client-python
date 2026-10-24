@@ -11,6 +11,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from adcp_reporting_storage import postgres_reliable_reporting_service
 
 from adcp.reporting.fixtures import redacted_capabilities
 from adcp.reporting.ledger import ReportingProducer, WorkerTurn
@@ -191,7 +192,7 @@ async def recovery_service_factory(request: Any) -> AsyncIterator[Any]:
         async with isolated_reporting_pool(autocommit=request.param == "pg-autocommit") as pool:
 
             def create(resolver: Any) -> ReliableReportingService:
-                service = ReliableReportingService.postgres(
+                service = postgres_reliable_reporting_service(
                     pool=pool, account_context=resolver, clock=lambda: NOW
                 )
                 service.sources.register(

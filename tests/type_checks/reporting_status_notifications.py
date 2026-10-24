@@ -2,11 +2,15 @@
 
 from datetime import datetime
 
+from adcp_reporting_storage import (
+    PgReportingLedgerStore,
+    PgReportingOutbox,
+    PgStatusNotificationStore,
+)
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
-    PgReportingLedgerStore,
     ReportingLedgerStore,
     ReportingStatusSnapshot,
     StatusProjectionInput,
@@ -17,8 +21,6 @@ from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
     InMemoryStatusNotificationStore,
-    PgReportingOutbox,
-    PgStatusNotificationStore,
     ReportingNotificationOutbox,
     ReportingStatusNotificationLifecycle,
     ReportingStatusProjector,

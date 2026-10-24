@@ -88,6 +88,43 @@ def test_release_pr_normalization_updates_only_the_expected_branch(
     )
 
 
+def test_release_pr_normalization_handles_the_storage_component_pr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each component's PR normalizes its own pyproject.toml; a duplicate branch is refused."""
+    calls: list[tuple[str, dict | None]] = []
+    branches = {
+        "pulls/1": "release-please--branches--main--components--adcp",
+        "pulls/2": "release-please--branches--main--components--adcp-reporting-storage",
+    }
+
+    def github(path: str, token: str, *, body: dict | None = None) -> dict:
+        calls.append((path, body))
+        if path in branches:
+            return {
+                "base": {"ref": "main", "repo": {"full_name": normalizer._REPOSITORY}},
+                "head": {"ref": branches[path], "repo": {"full_name": normalizer._REPOSITORY}},
+            }
+        if path.startswith("contents/"):
+            return {
+                "content": base64.b64encode(b'[project]\nversion = "0.1.0-beta.1"\n').decode(),
+                "sha": "blob",
+            }
+        return {}
+
+    monkeypatch.setattr(normalizer, "_github", github)
+    normalizer.normalize_release_prs([{"number": 1}, {"number": 2}], "app-token")
+    writes = [(path, body["branch"]) for path, body in calls if body is not None]
+    assert writes == [
+        ("contents/pyproject.toml", branches["pulls/1"]),
+        ("contents/packages/adcp-reporting-storage/pyproject.toml", branches["pulls/2"]),
+    ]
+    with pytest.raises(ValueError, match="unexpected release PR identity"):
+        normalizer.normalize_release_prs([{"number": 2}, {"number": 2}], "app-token")
+    with pytest.raises(ValueError, match="more release PRs"):
+        normalizer.normalize_release_prs([{"number": 1}] * 4, "app-token")
+
+
 def test_release_pr_normalization_refuses_foreign_pr(monkeypatch: pytest.MonkeyPatch) -> None:
     def github(path: str, token: str, *, body: dict | None = None) -> dict:
         return {

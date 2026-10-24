@@ -13,7 +13,7 @@ are mounted.
 
 ## Mounting and lifecycle
 
-Install `adcp[pg]` and use PostgreSQL 16. The
+Install `adcp-reporting-storage[pg]` and use PostgreSQL 16. The
 [fully typed example](../examples/reporting_webhook_activity.py) shows trusted
 identity resolution, registration persistence, migration, capability validation,
 both worker phases, HTTP serving, bounded draining, and pool shutdown.

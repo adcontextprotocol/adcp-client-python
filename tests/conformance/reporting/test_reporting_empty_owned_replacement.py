@@ -5,8 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
-from adcp.reporting.migration import (
+from adcp_reporting_storage.migration import (
     ReportingOwnershipMigrationError,
     replace_empty_legacy_reporting,
     replace_empty_owned_reporting,
@@ -256,7 +255,7 @@ def test_snapshot_isolation_refuses_rollback(isolation):
 
 async def test_async_rollback_matches_the_sync_guarantees():
     require_rolling_database()
-    from adcp.reporting.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         await PgReportingLedgerStore(pool=pool, change_feed=True).create_schema()

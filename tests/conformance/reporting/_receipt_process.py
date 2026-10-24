@@ -1,5 +1,17 @@
 """Real receipt worker. Pause while holding an ordinal transaction, then SIGKILL."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -10,11 +22,14 @@ from pathlib import Path
 
 async def main():
     settings = json.loads(await asyncio.to_thread(sys.stdin.readline))
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.receipts import PgReportingReceiptStore
+    else:
+        from adcp_reporting_storage import PgReportingReceiptStore
     from psycopg import AsyncConnection
     from psycopg_pool import AsyncConnectionPool
 
     from adcp.reporting.ledger import ReportingDeliveryPrincipal
-    from adcp.reporting.receipts import PgReportingReceiptStore
 
     origins = {}
     if settings.get("installed"):

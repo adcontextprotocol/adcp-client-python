@@ -12,16 +12,15 @@ from importlib.resources import files
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore, PgReportingOutbox
+from adcp_reporting_storage.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
 
-from adcp.reporting.ledger import PgReportingLedgerStore
 from adcp.reporting.outbox import (
     ActivityOutcome,
     ActivityRequest,
-    PgReportingOutbox,
     ReportingActivityProjector,
     ReportingNotificationError,
 )
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
 
 from ._generation_support import (
     NOW,
@@ -42,7 +41,7 @@ from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS, retain
 from .test_reporting_notification_packaging import run_step
 from .test_reporting_webhook_activity import prepare, reserve, rows
 
-SQL = files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql").read_text()
+SQL = files("adcp_reporting_storage.ledger").joinpath("reporting_webhook_activity.sql").read_text()
 # The integrated A predecessor includes checkpoint and locale-portable readiness.
 BASE = "17ee407ae3978c8a2bb54437287afbf9dafb8130"
 ROOT = Path(__file__).resolve().parents[3]
@@ -51,13 +50,13 @@ ROOT = Path(__file__).resolve().parents[3]
 async def install_a(pool):
     async with pool.connection() as conn, conn.transaction():
         for name in CHAIN:
-            await conn.execute(files("adcp.reporting.ledger").joinpath(name).read_text())
+            await conn.execute(files("adcp_reporting_storage.ledger").joinpath(name).read_text())
 
 
 async def test_required_manifest_is_identical_across_random_schemas_and_repeated_migration():
     snapshots = []
     identities = []
-    manifest = files("adcp.reporting.outbox").joinpath("required_schema.json").read_text()
+    manifest = files("adcp_reporting_storage.outbox").joinpath("required_schema.json").read_text()
     async with (
         isolated_reporting_pool(autocommit=True) as first,
         isolated_reporting_pool(autocommit=True) as second,
@@ -559,6 +558,7 @@ from pathlib import Path
 values = json.load(sys.stdin)
 sys.path.insert(0, str(Path.cwd() / 'src'))
 from psycopg_pool import AsyncConnectionPool
+# The actual A source predates the storage split: its stores live in adcp.reporting.
 from adcp.reporting.ledger import PgReportingLedgerStore
 from adcp.reporting.outbox import (
     PgReportingOutbox, ReportingEnvelopeCipher, ReportingNotificationSubscription,
@@ -643,9 +643,11 @@ async def test_actual_a_binary_refuses_owned_schema_without_rewriting_delivery(a
 
 
 async def test_actual_a_schema_requires_ownership_maintenance_before_activity(actual_a_source):
+    from adcp_reporting_storage.migration import (
+        ReportingOwnershipMigrationError,
+        migrate_legacy_reporting,
+    )
     from psycopg import sql
-
-    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         await run_a(actual_a_source, pool, action="bootstrap")

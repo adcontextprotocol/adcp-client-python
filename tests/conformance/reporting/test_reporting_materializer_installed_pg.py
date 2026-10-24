@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 import pytest
-
-from adcp.reporting.materializer import PgReportingMaterializerStore
+from adcp_reporting_storage import PgReportingMaterializerStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import isolated_reporting_pool, require_rolling_database
 from .test_reporting_materializer_packaging import ROOT, b1_wheels, built_distribution, run_step
 from .test_reporting_materializer_process import worker
+from .test_reporting_notification_packaging import STORAGE_SRC, storage_distribution
 
 # Expose the exact existing fixtures without rebuilding a current module as an
 # alleged historical artifact. These are the new head's two distribution paths.
@@ -41,7 +41,11 @@ def installed_materializer(request):
         else [str(python), "-m", "pip", "install"]
     )
     run_step(
-        [*installer, f"{wheels[request.param]}[pg]"],
+        [
+            *installer,
+            f"{wheels[request.param]}[pg]",
+            str(storage_distribution(wheels[request.param])),
+        ],
         label=f"materializer-{request.param}-pg-install",
         cwd=path,
         timeout=180,
@@ -58,10 +62,13 @@ def installed_materializer(request):
     if os.environ.get("ADCP_PYTHON310"):
         assert version == [3, 10]
     modules = {}
-    for name in ("materializer/pg.py", "materializer/service.py", "materializer/verification.py"):
+    for name in ("materializer/service.py", "materializer/verification.py"):
         modules["adcp.reporting." + name.removesuffix(".py").replace("/", ".")] = hashlib.sha256(
             (ROOT / "src/adcp/reporting" / name).read_bytes()
         ).hexdigest()
+    modules["adcp_reporting_storage.materializer.pg"] = hashlib.sha256(
+        (STORAGE_SRC / "materializer/pg.py").read_bytes()
+    ).hexdigest()
     return path, python, script, {"workspace": str(ROOT), "python": version, "modules": modules}
 
 

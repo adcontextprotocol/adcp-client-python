@@ -389,7 +389,7 @@ async def test_a2a_to_mcp_replay_after_mount_restart_keeps_every_original_ordina
         _, first = await mount.a2a(client, request, v1=v1)
         assert [r["result"] for r in first["results"]] == ["failed", "recorded", "recorded"], first
     if h.pool is not None:
-        from adcp.reporting.receipts import PgReportingReceiptStore
+        from adcp_reporting_storage import PgReportingReceiptStore
 
         h.store = PgReportingReceiptStore(pool=h.pool, notifications=h.store._notifications_enabled)
     restarted = MountedReceipts(h, hydrated=True)

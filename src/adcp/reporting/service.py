@@ -478,7 +478,13 @@ class ReliableReportingService:
         production: ReportingProductionOptions | None = None,
         automated_recovery_window: timedelta = timedelta(hours=6),
         status_retention_days: int = 400,
+        staging: ReportingStagingStore | None = None,
+        seals: ReportingSealStore | None = None,
+        initialize_source_storage: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
+        """``staging``/``seals`` are the default source stores adapters register with;
+        ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
+        so a durable storage distribution can install its own schema."""
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -498,8 +504,8 @@ class ReliableReportingService:
         self.store = store
         self._production: ReportingProductionSupport | None = None
         self._production_options = production
-        self._initialize_source_storage: Callable[[], Awaitable[None]] | None = None
-        self.sources = ReportingAdapterRegistry(clock=effective_clock)
+        self._initialize_source_storage = initialize_source_storage
+        self.sources = ReportingAdapterRegistry(clock=effective_clock, staging=staging, seals=seals)
         self._context_resolver = account_context
         self._caller_resolver = caller_resolver or self._default_caller
         self._consumer_status_enabled = consumer_status_enabled
@@ -617,58 +623,14 @@ class ReliableReportingService:
             **kwargs,
         )
 
-    @classmethod
-    def postgres(
-        cls,
-        *,
-        pool: Any,
-        account_context: ReportingContextResolver,
-        caller_resolver: ReportingCallerResolver | None = None,
-        clock: Callable[[], datetime] | None = None,
-        production: ReportingProductionOptions | None = None,
-        **kwargs: Any,
-    ) -> ReliableReportingService:
-        """Create durable ledger, staging and seal stores over a borrowed pool.
-
-        ``production`` additionally composes the managed pipeline, receipts and
-        optional signed notifications when ``install`` freezes registered sources.
-        Startup installs all SDK-owned schemas. Explicit source-store overrides
-        remain the adopter's responsibility. No pool is opened or closed here.
-        """
-        from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-        from adcp.reporting.production.pg import PgReportingProductionStore
-
-        store = (
-            PgReportingProductionStore(
-                pool=pool, clock=clock, notifications=production.notifications
-            )
-            if production is not None
-            else PgReportingLedgerStore(pool=pool, clock=clock)
-        )
-        service = cls(
-            store=store,
-            account_context=account_context,
-            caller_resolver=caller_resolver,
-            clock=clock,
-            production=production,
-            **kwargs,
-        )
-        staging = PgReportingStagingStore(pool=pool)
-        service.sources = ReportingAdapterRegistry(
-            clock=service._clock, staging=staging, seals=PgReportingSealStore(pool=pool)
-        )
-        service._initialize_source_storage = staging.create_schema
-        return service
-
     def _compose_production(self) -> None:
         if self._production_options is None or self._production is not None:
             return
-        from adcp.reporting.production.memory import InMemoryReportingProductionStore
-        from adcp.reporting.production.pg import PgReportingProductionStore
+        from adcp.reporting.production.store import ReportingProductionStore
 
-        if not isinstance(
-            self.store, (InMemoryReportingProductionStore, PgReportingProductionStore)
+        if (
+            not isinstance(self.store, ReportingProductionStore)
+            or not self.store.is_sdk_production_store()
         ):
             raise ReliableReportingConfigurationError(
                 "production options require a memory or postgres production store"

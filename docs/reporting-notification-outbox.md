@@ -30,12 +30,8 @@ existing behavior. A memory outbox shares its ledger's rollback boundary but
 has no process-crash durability.
 
 ```python
-from adcp.reporting.ledger import PgReportingReconciliationStore
-from adcp.reporting.outbox import (
-    PgReportingOutbox,
-    ReportingEnvelopeCipher,
-    ReportingNotificationWorker,
-)
+from adcp.reporting.outbox import ReportingEnvelopeCipher, ReportingNotificationWorker
+from adcp_reporting_storage import PgReportingOutbox, PgReportingReconciliationStore
 
 ledger = PgReportingReconciliationStore(pool=pool, notifications=True)
 await ledger.create_schema()

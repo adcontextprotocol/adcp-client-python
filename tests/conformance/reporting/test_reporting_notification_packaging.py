@@ -31,6 +31,44 @@ from ._provisional_catalog import PROVISIONAL_OBJECTS
 from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS
 
 ROOT = Path(__file__).resolve().parents[3]
+#: The storage distribution ships separately (adcp-client-python#1510); a current
+#: build is two wheels. Historical wheels predate the split and carry the stores.
+STORAGE_ROOT = ROOT / "packages/adcp-reporting-storage"
+STORAGE_SRC = STORAGE_ROOT / "src/adcp_reporting_storage"
+#: adcp wheel or sdist of the current tree -> (storage wheel, storage sdist) built with it.
+STORAGE_DISTRIBUTIONS: dict[Path, tuple[Path, Path]] = {}
+
+
+def register_storage(*adcp_artifacts, wheel, source):
+    for artifact in adcp_artifacts:
+        STORAGE_DISTRIBUTIONS[Path(artifact)] = (Path(wheel), Path(source))
+
+
+def is_current_build(distribution):
+    """Whether ``distribution`` is an adcp artifact of this tree (so needs the storage wheel)."""
+    return Path(distribution) in STORAGE_DISTRIBUTIONS
+
+
+def storage_distribution(distribution):
+    """The adcp-reporting-storage wheel to install next to this adcp artifact."""
+    return STORAGE_DISTRIBUTIONS[Path(distribution)][0]
+
+
+def storage_source(distribution):
+    return STORAGE_DISTRIBUTIONS[Path(distribution)][1]
+
+
+def storage_sources():
+    """The storage package inputs, for build fingerprints and copies."""
+    return [
+        p
+        for p in STORAGE_ROOT.rglob("*")
+        if p.is_file()
+        and not any(
+            part in {"__pycache__", "build", "dist"} or part.endswith(".egg-info")
+            for part in p.parts
+        )
+    ]
 
 
 def build_command(project, output, *, wheel=False):
@@ -291,6 +329,7 @@ def built_distribution(tmp_path_factory, request):
     )
     sources.extend(p for p in (ROOT / "schemas/cache").rglob("*.json"))
     sources.extend(p for p in (ROOT / "schemas/releases").rglob("*.json"))
+    sources.extend(storage_sources())
     digest = hashlib.sha256()
     for item in sorted(sources):
         digest.update(str(item.relative_to(ROOT)).encode())
@@ -304,6 +343,10 @@ def built_distribution(tmp_path_factory, request):
             "distribution source changed; rebuild the release artifact"
         )
         wheel, source = next(cached.glob("*.whl")), next(cached.glob("*.tar.gz"))
+        storage = cached / "storage"
+        register_storage(
+            wheel, source, wheel=next(storage.glob("*.whl")), source=next(storage.glob("*.tar.gz"))
+        )
         print("notification_distribution stage=reuse-verified-wheel-sdist passed", flush=True)
         return path, wheel, source
     project = path / "project"
@@ -336,12 +379,34 @@ def built_distribution(tmp_path_factory, request):
         timeout=300,
     )
     wheel, source = next(dist.glob("*.whl")), next(dist.glob("*.tar.gz"))
+    # The storage distribution builds from its own tree; its wheel declares the
+    # adcp range and installs next to the adcp wheel built above.
+    storage_project, storage_dist = path / "project-storage", path / "dist-storage"
+    shutil.copytree(
+        STORAGE_ROOT,
+        storage_project,
+        ignore=shutil.ignore_patterns("__pycache__", "*.egg-info", "build", "dist"),
+    )
+    run_step(
+        build_command(storage_project, storage_dist),
+        label="build-storage-sdist-and-wheel",
+        cwd=path,
+        timeout=300,
+    )
+    storage_wheel = next(storage_dist.glob("*.whl"))
+    storage_sdist = next(storage_dist.glob("*.tar.gz"))
     if cached is not None:
         cached.mkdir(parents=True, exist_ok=True)
         shutil.copy2(wheel, cached / wheel.name)
         shutil.copy2(source, cached / source.name)
+        (cached / "storage").mkdir(exist_ok=True)
+        shutil.copy2(storage_wheel, cached / "storage" / storage_wheel.name)
+        shutil.copy2(storage_sdist, cached / "storage" / storage_sdist.name)
         (cached / "source.sha256").write_text(fingerprint + "\n")
         wheel, source = cached / wheel.name, cached / source.name
+        storage_wheel = cached / "storage" / storage_wheel.name
+        storage_sdist = cached / "storage" / storage_sdist.name
+    register_storage(wheel, source, wheel=storage_wheel, source=storage_sdist)
     return path, wheel, source
 
 
@@ -363,15 +428,19 @@ def installed_distribution(built_distribution, request):
         if shutil.which("uv")
         else [str(python), "-m", "pip", "install"]
     )
-    run_step([*installer, str(distribution)], label=f"{request.param}-base-install", cwd=path)
+    run_step(
+        [*installer, str(distribution), str(storage_distribution(distribution))],
+        label=f"{request.param}-base-install",
+        cwd=path,
+    )
     base_check = r"""
 import importlib.util
 from importlib.resources import files
 from pathlib import Path
 import adcp
+from adcp_reporting_storage import PgReportingOutbox
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
-    PgReportingOutbox,
     ReportingEnvelopeCipher,
     ReportingNotificationWorker,
     ReportingActivityProjector,
@@ -390,7 +459,7 @@ import inspect, sys
 
 assert importlib.util.find_spec("psycopg") is None
 assert importlib.util.find_spec("psycopg_pool") is None
-assert "adcp.reporting.outbox.status_pg" not in sys.modules
+assert "adcp_reporting_storage.outbox.status_pg" not in sys.modules
 assert "installed" in str(Path(adcp.__file__))
 assert "notifications" not in inspect.signature(ReportingProducer).parameters
 assert not hasattr(InMemoryReportingLedgerStore(), "commit_materialization")
@@ -400,10 +469,10 @@ outbox = InMemoryReportingOutbox(InMemoryReportingLedgerStore(notifications=True
 try:
     PgReportingOutbox(pool=None)
 except ImportError as error:
-    assert "adcp[pg]" in str(error), str(error)
+    assert "adcp-reporting-storage[pg]" in str(error), str(error)
 else:
     raise AssertionError("PgReportingOutbox must raise the [pg] install hint")
-from adcp.reporting.outbox import (
+from adcp_reporting_storage import (
     PgStatusNotificationStore, PgReportingStatusOutbox, PgReportingActivityUnionStore,
 )
 for constructor in (lambda: PgStatusNotificationStore(None),
@@ -412,16 +481,18 @@ for constructor in (lambda: PgStatusNotificationStore(None),
     try:
         constructor()
     except ImportError as error:
-        assert "adcp[pg]" in str(error)
+        assert "adcp-reporting-storage[pg]" in str(error)
     else:
         raise AssertionError("every C PG constructor must explain its extra")
-assert files("adcp.reporting.ledger").joinpath("reporting_notification_outbox.sql").is_file()
-assert files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql").is_file()
-assert files("adcp.reporting.outbox").joinpath("required_schema.json").is_file()
-assert files("adcp.reporting.outbox").joinpath("required_status_schema.json").is_file()
-assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").is_file()
-assert files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
-assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
+ledger_assets = files("adcp_reporting_storage.ledger")
+outbox_assets = files("adcp_reporting_storage.outbox")
+assert ledger_assets.joinpath("reporting_notification_outbox.sql").is_file()
+assert ledger_assets.joinpath("reporting_webhook_activity.sql").is_file()
+assert outbox_assets.joinpath("required_schema.json").is_file()
+assert outbox_assets.joinpath("required_status_schema.json").is_file()
+assert ledger_assets.joinpath("reporting_status_notifications.sql").is_file()
+assert ledger_assets.joinpath("reporting_status_selector_version.sql").is_file()
+assert outbox_assets.joinpath("required_status_selector_schema.json").is_file()
 version = files("adcp").joinpath("ADCP_VERSION").read_text().strip()
 assert get_named_validator(
     "core/reporting-status-changed-webhook.json", version=version) is not None
@@ -440,7 +511,9 @@ print("base-import-without-pg-ok")
 
 
 def test_wheel_and_sdist_contain_exact_complete_sql_chain(built_distribution):
-    _, wheel, source = built_distribution
+    """The DDL chain and catalog manifests ship in the storage distribution, not adcp."""
+    _, adcp_wheel, _ = built_distribution
+    wheel, source = storage_distribution(adcp_wheel), storage_source(adcp_wheel)
     with zipfile.ZipFile(wheel) as archive, tarfile.open(source) as tar:
         prefix = tar.getnames()[0].split("/")[0]
         for name in (
@@ -449,22 +522,22 @@ def test_wheel_and_sdist_contain_exact_complete_sql_chain(built_distribution):
             "reporting_status_notifications.sql",
             "reporting_status_selector_version.sql",
         ):
-            expected = (ROOT / "src" / "adcp" / "reporting" / "ledger" / name).read_bytes()
-            assert archive.read(f"adcp/reporting/ledger/{name}") == expected
-            member = tar.extractfile(f"{prefix}/src/adcp/reporting/ledger/{name}")
+            expected = (STORAGE_SRC / "ledger" / name).read_bytes()
+            assert archive.read(f"adcp_reporting_storage/ledger/{name}") == expected
+            member = tar.extractfile(f"{prefix}/src/adcp_reporting_storage/ledger/{name}")
             assert member is not None and member.read() == expected
         assert (
-            archive.read("adcp/reporting/outbox/_schema.py")
-            == (ROOT / "src" / "adcp" / "reporting" / "outbox" / "_schema.py").read_bytes()
+            archive.read("adcp_reporting_storage/outbox/_schema.py")
+            == (STORAGE_SRC / "outbox" / "_schema.py").read_bytes()
         )
-        expected = (ROOT / "src/adcp/reporting/outbox/required_schema.json").read_bytes()
-        assert archive.read("adcp/reporting/outbox/required_schema.json") == expected
-        member = tar.extractfile(f"{prefix}/src/adcp/reporting/outbox/required_schema.json")
-        assert member is not None and member.read() == expected
-        expected = (ROOT / "src/adcp/reporting/outbox/required_status_schema.json").read_bytes()
-        assert archive.read("adcp/reporting/outbox/required_status_schema.json") == expected
-        member = tar.extractfile(f"{prefix}/src/adcp/reporting/outbox/required_status_schema.json")
-        assert member is not None and member.read() == expected
+        for name in ("required_schema.json", "required_status_schema.json"):
+            expected = (STORAGE_SRC / "outbox" / name).read_bytes()
+            assert archive.read(f"adcp_reporting_storage/outbox/{name}") == expected
+            member = tar.extractfile(f"{prefix}/src/adcp_reporting_storage/outbox/{name}")
+            assert member is not None and member.read() == expected
+    with zipfile.ZipFile(adcp_wheel) as archive:
+        shipped = [n for n in archive.namelist() if n.startswith("adcp/reporting/ledger/")]
+        assert not [n for n in shipped if n.endswith((".sql", ".json"))], shipped
 
 
 def test_installed_base_import_needs_no_pg_extra(installed_distribution):
@@ -489,7 +562,11 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
             "now": NOW.isoformat(),
             "rows": rows,
             "required_objects": json.loads(
-                (ROOT / "src/adcp/reporting/outbox/required_schema.json").read_text()
+                (
+                    ROOT
+                    / "packages/adcp-reporting-storage/src/adcp_reporting_storage"
+                    / "outbox/required_schema.json"
+                ).read_text()
             ),
             "waiver_objects": WAIVER_OBJECTS,
             "provisional_objects": PROVISIONAL_OBJECTS,
@@ -508,23 +585,24 @@ from importlib.resources import files
 from pydantic import TypeAdapter
 from psycopg_pool import AsyncConnectionPool
 from adcp.reporting.ledger import (
-    PgReportingReconciliationStore,
     ReportingConfiguration,
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
 from adcp.reporting.outbox import (
-    ActivityOutcome, ActivityRequest, PgReportingOutbox, ReportingEnvelopeCipher,
+    ActivityOutcome, ActivityRequest, ReportingEnvelopeCipher,
     ReportingLegacyAuthentication, ReportingNotificationSubscription,
     ReportingNotificationWorker, ReportingActivityProjector, ReportingActivitySupport,
-    PgStatusNotificationStore,
 )
-from adcp.reporting.outbox._schema import schema_objects
+from adcp_reporting_storage import (
+    PgReportingOutbox, PgReportingReconciliationStore, PgStatusNotificationStore,
+)
+from adcp_reporting_storage.outbox._schema import schema_objects
 
 values = json.load(sys.stdin)
 assert len(values["waiver_objects"]) == 10
 assert len(values["provisional_objects"]) == 27
-assert json.loads(files("adcp.reporting.ledger").joinpath(
+assert json.loads(files("adcp_reporting_storage.ledger").joinpath(
     "required_provisional_schema.json").read_text()) == values["provisional_objects"]
 expected_objects = {
     **values["required_objects"], **values["waiver_objects"], **values["provisional_objects"]
@@ -561,7 +639,7 @@ async def main():
             assert objects == expected_objects
             required = {key: objects[key] for key in values["required_objects"]}
             assert json.dumps(required, indent=2, sort_keys=True) + "\n" == files(
-                "adcp.reporting.outbox"
+                "adcp_reporting_storage.outbox"
             ).joinpath("required_schema.json").read_text()
         await store.put_configuration(
             TypeAdapter(ReportingConfiguration).validate_python(values["config"])

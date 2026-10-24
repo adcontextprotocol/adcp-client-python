@@ -12,7 +12,7 @@ writes the same tables and the same bytes, so chunks written by either SDK verif
 ## Enable it
 
 ```python
-from adcp.reporting.ledger import PgReportingLedgerStore, ReportingRowStorageOptionsV1
+from adcp_reporting_storage import PgReportingLedgerStore, ReportingRowStorageOptionsV1
 
 store = PgReportingLedgerStore(
     pool=pool,
@@ -123,13 +123,13 @@ configuration the allowlist: the database records which binding each revision us
 can never point reads or writes at a destination the host did not configure.
 
 ```python
-from adcp.reporting.ledger import (
+from adcp_reporting_storage import (
     PgReportingLedgerStore,
     ReportingObjectRowBindingV1,
     ReportingPostgresRowBindingV1,
     ReportingRowStorageOptionsV1,
+    create_filesystem_reporting_row_object_provider_v1,
 )
-from adcp.reporting.ledger.row_storage_object import create_filesystem_reporting_row_object_provider_v1
 
 store = PgReportingLedgerStore(
     pool=pool,
@@ -206,19 +206,19 @@ await store.create_schema()
 ### Cloud providers
 
 Cloud providers wrap official clients that the host constructs with its own credentials, so the extras only need to
-be installed where those clients are created: `pip install 'adcp[reporting-gcs]'`, `'adcp[reporting-s3]'` or
-`'adcp[reporting-azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
+be installed where those clients are created: `pip install 'adcp-reporting-storage[gcs]'`, `'adcp-reporting-storage[s3]'` or
+`'adcp-reporting-storage[azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
 `credential_ref` names one of the clients you injected; an unknown reference fails `UNSAFE_BINDING`. Provider errors
 surface only as stable `ReportingRowStoreError` codes. Row buckets are separate from Managed Delivery buckets. A
 native version always identifies exactly one write, and every read and delete is pinned to it. An ETag is never
 enough, because an identical upload re-created at the same key has the same ETag and a delayed delete would remove
 the replacement.
 
-**Google Cloud Storage** (`adcp.reporting.ledger.row_storage_gcs`):
+**Google Cloud Storage** (`adcp_reporting_storage.ledger.row_storage_gcs`):
 
 ```python
 from google.cloud import storage
-from adcp.reporting.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
 
 gcs = create_gcs_reporting_row_object_provider_v1(
     storage=storage.Client(),  # keyless credentials: workload identity or ADC
@@ -236,11 +236,11 @@ gcs = create_gcs_reporting_row_object_provider_v1(
   retention-driven deletion in the ledger, not in bucket lifecycle.
 - The client needs `storage.buckets.get` for the probe plus object create, get and delete.
 
-**Amazon S3 and S3-compatible stores** (`adcp.reporting.ledger.row_storage_s3`):
+**Amazon S3 and S3-compatible stores** (`adcp_reporting_storage.ledger.row_storage_s3`):
 
 ```python
 import boto3
-from adcp.reporting.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
 
 s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region_name="us-east-1"))
 # ReportingObjectRowBindingV1(provider="s3", location={"bucket": "acme-adcp-rows", "region": "us-east-1"}, ...)
@@ -263,12 +263,12 @@ s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region
 - The client needs `s3:ListBucket`, `s3:GetLifecycleConfiguration`, `s3:GetBucketVersioning`, object put and get,
   `s3:GetObjectVersion` and `s3:DeleteObjectVersion`. `s3:GetBucketPolicyStatus` is optional.
 
-**Azure Blob Storage** (`adcp.reporting.ledger.row_storage_azure`):
+**Azure Blob Storage** (`adcp_reporting_storage.ledger.row_storage_azure`):
 
 ```python
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from adcp.reporting.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
 
 azure = create_azure_blob_reporting_row_object_provider_v1(
     client=BlobServiceClient("https://acmerows.blob.core.windows.net", credential=DefaultAzureCredential())
@@ -374,10 +374,13 @@ ADCP_JS_SDK_DIR=/path/to/adcp-client ADCP_PG_TEST_URL=postgresql://... \
     pytest tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
 ```
 
-It needs Node and a built `adcp-client` checkout (`npm ci && npm run build`); without them it skips. The rows each SDK
-wrote are committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
-`ADCP_UPDATE_INTEROP_FIXTURES=1`), and the replay tests load them into a fresh database and bucket and verify them
-here, so Python CI does not need Node. The JavaScript SDK can replay `python-written.json` the same way.
+It needs Node and a built `adcp-client` checkout (`npm ci && npm run build && npm run build --workspace
+packages/reporting-storage`, since SDK 16 ships the row storage as `@adcp/reporting-storage`). Locally it skips without
+them; CI runs it with `ADCP_REQUIRE_JS_INTEROP=1`, so a missing build fails the lane. The rows each SDK wrote are
+committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
+`scripts/regenerate_row_storage_interop_fixtures.py`), and the replay tests load them into a fresh database and bucket
+and verify them here, so Python CI does not need Node. A replay test fails, rather than skips, when a fixture is
+missing. The JavaScript SDK has no replay of `python-written.json`; the live test is what proves that direction.
 
 ## Host change feed and consumers
 

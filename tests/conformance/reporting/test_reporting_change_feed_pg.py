@@ -6,9 +6,8 @@ import base64
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.ledger.change_feed import (
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.change_feed import (
     ReportingChangeCursorExpiredError,
     decode_reporting_change_cursor_v1,
     encode_reporting_change_cursor_v1,
@@ -367,7 +366,7 @@ async def test_a_committed_prefix_is_returned_and_the_cursor_stops_before_the_fi
 
 
 async def test_the_account_feed_query_is_served_by_the_account_seq_index() -> None:
-    from adcp.reporting.ledger.change_feed import _page_query
+    from adcp_reporting_storage.ledger.change_feed import _page_query
 
     async with isolated_reporting_pool() as pool:
         await feed_store(pool)

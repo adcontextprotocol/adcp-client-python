@@ -109,26 +109,6 @@ def decode_materializer_boundary(value: dict[str, Any]) -> ReportingMaterializer
     return result
 
 
-class _MaterializerQueueConnection:
-    """Closed table substitution, preserving the finish transaction's connection."""
-
-    def __init__(self, connection: Any) -> None:
-        self.connection = connection
-
-    async def execute(self, query: str, params: Any = None) -> Any:
-        return await self.connection.execute(
-            query.replace("reporting_notification_", "reporting_materializer_notification_"), params
-        )
-
-
-async def enqueue_materializer_event_on(connection: Any, event: ReportingDomainEvent) -> None:
-    from adcp.reporting.outbox.pg import enqueue_event
-
-    if event.notification_type != "reporting.delivery_ready":
-        raise ReportingNotificationError("materializer_event_invalid")
-    await enqueue_event(_MaterializerQueueConnection(connection), event)
-
-
 def private_snapshot(
     snapshot: ReportingStatusSnapshot, caller: ReportingDeliveryPrincipal
 ) -> ReportingStatusSnapshot:

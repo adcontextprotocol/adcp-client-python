@@ -11,11 +11,12 @@ from importlib.resources import files
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import PgReportingReconciliationStore
+from adcp_reporting_storage.ledger.delivery_pg import _IDENTITY_COLUMNS
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger import (
     LedgerConflictError,
-    PgReportingReconciliationStore,
     ReportingAdjustmentReceiptRecord,
     ReportingAdjustmentRecord,
     ReportingControlTotalRecord,
@@ -33,9 +34,8 @@ from adcp.reporting.ledger._delivery_state import (
     payload,
     storage_identity,
 )
-from adcp.reporting.ledger.delivery_pg import _IDENTITY_COLUMNS
 
-RESOURCES = files("adcp.reporting.ledger")
+RESOURCES = files("adcp_reporting_storage.ledger")
 
 from ._generation_support import END, NOW, configuration, isolated_reporting_pool
 from ._reconciliation_support import Scenario, scenario

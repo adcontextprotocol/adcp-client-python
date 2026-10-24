@@ -6,9 +6,9 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
 
 from adcp.reporting.ledger import (
-    PgReportingLedgerStore,
     ReportingObligationRecord,
     ReportingRevisionRecord,
     ReportingRowStoreError,
@@ -316,8 +316,9 @@ async def test_migration_requires_row_storage_and_a_valid_batch_size() -> None:
 
 
 async def test_the_installed_schema_stays_ready_after_the_legacy_table_is_retired() -> None:
+    from adcp_reporting_storage.outbox._schema import validate_schema
+
     from adcp.reporting.ledger.notification_models import ReportingNotificationError
-    from adcp.reporting.outbox._schema import validate_schema
 
     async with isolated_reporting_pool() as pool:
         await seed_legacy(pool)

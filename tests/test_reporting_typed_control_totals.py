@@ -15,10 +15,10 @@ from typing import Any
 
 import pytest
 import rfc8785
+from adcp_reporting_storage import PgReportingLedgerStore
 
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
-    PgReportingLedgerStore,
     ReportingControlTotalRecord,
     revision_content_sha256,
 )

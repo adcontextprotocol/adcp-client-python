@@ -1,5 +1,26 @@
 """Installed historical reader/writer probe, copied out and run with python -I."""
 
+import importlib.util as _importlib_util
+
+
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -9,7 +30,6 @@ import sys
 import traceback
 from dataclasses import replace
 from datetime import datetime, timezone
-from importlib.resources import files
 from pathlib import Path
 
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
@@ -37,11 +57,17 @@ async def main(settings):
         settings["conninfo"], kwargs=settings["kwargs"], min_size=1, max_size=2, open=False
     ) as pool:
         if settings["artifact"] == "b22":
-            from adcp.reporting.receipts import PgReportingReceiptStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.receipts import PgReportingReceiptStore
+            else:
+                from adcp_reporting_storage import PgReportingReceiptStore
 
             store_type = PgReportingReceiptStore
         elif settings["artifact"] == "b21":
-            from adcp.reporting.materializer import PgReportingMaterializerStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.materializer import PgReportingMaterializerStore
+            else:
+                from adcp_reporting_storage import PgReportingMaterializerStore
 
             store_type = PgReportingMaterializerStore
         else:
@@ -61,7 +87,10 @@ async def main(settings):
             # Use this actual parent binary's reviewed Core composition when
             # preparing the rolling baseline; the materializer migration does
             # not implicitly install or activate C's projector.
-            from adcp.reporting.outbox import PgStatusNotificationStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox import PgStatusNotificationStore
+            else:
+                from adcp_reporting_storage import PgStatusNotificationStore
 
             await PgStatusNotificationStore(
                 ledger.PgReportingReconciliationStore(pool=pool, notifications=True)
@@ -69,7 +98,7 @@ async def main(settings):
             feed_operation_1 = await store.materializer_ready()
             assert feed_operation_1
             manifest = json.loads(
-                files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
+                _asset_files(".materializer").joinpath("required_schema.json").read_text()
             )
             assert len(manifest) == 187
             return {"installed": True, "manifest_objects": len(manifest), "origins": origins}
@@ -91,7 +120,10 @@ async def main(settings):
         assert len(revisions) == 1 and revisions[0].finality == "official"
         status, projector_turns = None, 0
         if settings["notifications"] and settings["artifact"] in {"c", "b1", "b21", "b22"}:
-            from adcp.reporting.outbox import PgStatusNotificationStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox import PgStatusNotificationStore
+            else:
+                from adcp_reporting_storage import PgStatusNotificationStore
 
             status = PgStatusNotificationStore(
                 ledger.PgReportingReconciliationStore(pool=pool, notifications=True)
@@ -166,8 +198,12 @@ async def main(settings):
             await project_ordinary_status()
         readiness = None
         if settings["artifact"] in {"a", "b", "c", "b1", "b21", "b22"}:
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox._schema import validate_schema
+            else:
+                from adcp_reporting_storage.outbox._schema import validate_schema
+
             from adcp.reporting.ledger.notification_models import ReportingNotificationError
-            from adcp.reporting.outbox._schema import validate_schema
 
             async with pool.connection() as connection:
                 try:
@@ -197,20 +233,19 @@ async def main(settings):
             assert epoch == (0, "acked")
             materializer = len(
                 json.loads(
-                    files("adcp.reporting.materializer")
-                    .joinpath("required_schema.json")
-                    .read_text()
+                    _asset_files(".materializer").joinpath("required_schema.json").read_text()
                 )
             )
             assert materializer == 187
         workers = {}
         if settings["notifications"]:
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.outbox import PgReportingOutbox
+            else:
+                from adcp_reporting_storage import PgReportingOutbox
+
             from adcp.reporting.ledger.notification_models import decode_event
-            from adcp.reporting.outbox import (
-                PgReportingOutbox,
-                ReportingEnvelopeCipher,
-                ReportingNotificationWorker,
-            )
+            from adcp.reporting.outbox import ReportingEnvelopeCipher, ReportingNotificationWorker
 
             class EmptySubscriptions:
                 async def list_active(self, **kwargs):

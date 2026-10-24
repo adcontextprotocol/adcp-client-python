@@ -5,12 +5,12 @@ import json
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingFeedStore, PgReportingReceiptStore
+from adcp_reporting_storage.outbox._schema import REQUIRED_OBJECTS, schema_objects
+from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from adcp.reporting.feed import PgReportingFeedStore, ReportingFeedError
+from adcp.reporting.feed import ReportingFeedError
 from adcp.reporting.materializer import ReportingMaterializerLease
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
-from adcp.reporting.receipts import PgReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._feed_support import feed_harness, feed_request, mixed_case, walk, without_feed
@@ -19,8 +19,10 @@ from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._receipt_support import receipt_case, request_for
 from ._reconciliation_support import Clock
 
-SQL = files("adcp.reporting.ledger").joinpath("reporting_feed.sql").read_text()
-MANIFEST = json.loads(files("adcp.reporting.feed").joinpath("required_schema.json").read_text())
+SQL = files("adcp_reporting_storage.ledger").joinpath("reporting_feed.sql").read_text()
+MANIFEST = json.loads(
+    files("adcp_reporting_storage.feed").joinpath("required_schema.json").read_text()
+)
 
 
 async def fairness(pool):
@@ -73,7 +75,9 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
         for package in ("materializer", "receipts"):
             parent_manifest.update(
                 json.loads(
-                    files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+                    files("adcp_reporting_storage." + package)
+                    .joinpath("required_schema.json")
+                    .read_text()
                 )
             )
         assert len(parent_manifest) == 767
@@ -94,7 +98,9 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
         assert len(MANIFEST) == 33
         for package, count in (("materializer", 187), ("receipts", 102)):
             required = json.loads(
-                files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+                files("adcp_reporting_storage." + package)
+                .joinpath("required_schema.json")
+                .read_text()
             )
             assert len(required) == count and all(actual[k] == v for k, v in required.items())
         assert without_feed(await h.image()) == before

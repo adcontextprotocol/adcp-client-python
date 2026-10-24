@@ -28,9 +28,13 @@ _PEP440_LABELS = {
     "rc": "rc",
 }
 _REPOSITORY = "adcontextprotocol/adcp-client-python"
+#: Release Please branch -> the pyproject.toml that branch's component versions.
 _RELEASE_BRANCHES = {
-    "release-please--branches--main",
-    "release-please--branches--main--components--adcp",
+    "release-please--branches--main": "pyproject.toml",
+    "release-please--branches--main--components--adcp": "pyproject.toml",
+    "release-please--branches--main--components--adcp-reporting-storage": (
+        "packages/adcp-reporting-storage/pyproject.toml"
+    ),
 }
 
 
@@ -104,9 +108,15 @@ def _github(path: str, token: str, *, body: dict[str, Any] | None = None) -> Any
 
 
 def normalize_release_prs(prs: list[dict[str, Any]], token: str) -> None:
-    """Normalize the one Release Please PR with the App credential that opened it."""
-    if len(prs) > 1:
-        raise ValueError("expected at most one release PR")
+    """Normalize each component's Release Please PR with the App credential that opened it.
+
+    Release Please opens one PR per component (``separate-pull-requests``), so a
+    run may propose both the ``adcp`` and the ``adcp-reporting-storage`` PR; each
+    is normalized in its own ``pyproject.toml``.
+    """
+    if len(prs) > len(_RELEASE_BRANCHES):
+        raise ValueError("more release PRs than release components")
+    seen: set[str] = set()
     for proposed in prs:
         number = int(proposed["number"])
         pr = _github(f"pulls/{number}", token)
@@ -116,16 +126,17 @@ def normalize_release_prs(prs: list[dict[str, Any]], token: str) -> None:
             or pr["base"]["repo"]["full_name"] != _REPOSITORY
             or pr["head"]["repo"]["full_name"] != _REPOSITORY
             or branch not in _RELEASE_BRANCHES
+            or branch in seen
         ):
             raise ValueError("unexpected release PR identity")
-        original = _github(
-            f"contents/pyproject.toml?ref={urllib.parse.quote(branch, safe='')}", token
-        )
+        seen.add(branch)
+        pyproject = _RELEASE_BRANCHES[branch]
+        original = _github(f"contents/{pyproject}?ref={urllib.parse.quote(branch, safe='')}", token)
         contents = base64.b64decode(original["content"], validate=False).decode()
         normalized = normalize_pyproject_text(contents)
         if normalized != contents:
             _github(
-                "contents/pyproject.toml",
+                f"contents/{pyproject}",
                 token,
                 body={
                     "message": "chore: normalize prerelease version to PEP 440",

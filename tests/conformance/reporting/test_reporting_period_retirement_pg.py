@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.change_feed import encode_reporting_change_cursor_v1
 
-from adcp.reporting.ledger import PgReportingLedgerStore, ReportingRowStoreError
-from adcp.reporting.ledger.change_feed import encode_reporting_change_cursor_v1
+from adcp.reporting.ledger import ReportingRowStoreError
 from adcp.reporting.ledger.store import LedgerConflictError
 
 from ._generation_support import configuration, isolated_reporting_pool, obligation_for
@@ -242,8 +243,8 @@ async def test_a_retiring_period_refuses_new_revisions(tmp_path: Path) -> None:
 
 
 async def test_a_period_that_stopped_qualifying_is_not_retired(tmp_path: Path) -> None:
-    from adcp.reporting.ledger.period_retirement import _retire_period
-    from adcp.reporting.ledger.row_retention import NoLongerEligibleError
+    from adcp_reporting_storage.ledger.period_retirement import _retire_period
+    from adcp_reporting_storage.ledger.row_retention import NoLongerEligibleError
 
     async with isolated_reporting_pool() as pool:
         store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path), change_feed=True)

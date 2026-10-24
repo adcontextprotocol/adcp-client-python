@@ -1,6 +1,7 @@
-"""Optional transactional reporting notifications, activity and status lifecycle."""
+"""Optional transactional reporting notifications, activity and status lifecycle.
 
-from typing import TYPE_CHECKING
+The PostgreSQL queues live in ``adcp_reporting_storage.outbox``.
+"""
 
 from adcp.reporting.ledger.notification_models import (
     AdjustmentPublished,
@@ -22,6 +23,10 @@ from adcp.reporting.outbox.activity import (
     ReportingActivityStore,
     WebhookAttempt,
     sanitize_activity_url,
+)
+from adcp.reporting.outbox.durable import (
+    ReportingDurableNotificationLedger,
+    ReportingDurableStatusStore,
 )
 from adcp.reporting.outbox.identity import resolve_reporting_consumer
 from adcp.reporting.outbox.memory import InMemoryReportingOutbox
@@ -63,17 +68,13 @@ from adcp.reporting.outbox.status_support import ReportingStatusSupport
 from adcp.reporting.outbox.support import ReportingActivitySupport
 from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
-if TYPE_CHECKING:
-    from adcp.reporting.outbox.pg import PgReportingOutbox
-    from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
-    from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox, PgStatusNotificationStore
-
 __all__ = [
     "ReportingStatusNotificationLifecycle",
     "ReportingStatusService",
     "ReportingActivityReader",
+    "ReportingDurableNotificationLedger",
+    "ReportingDurableStatusStore",
     "ReportingStatusSupport",
-    "PgReportingActivityUnionStore",
     "StatusChanged",
     "StatusBoundary",
     "StatusCheckpoint",
@@ -85,8 +86,6 @@ __all__ = [
     "ReportingStatusSweeper",
     "InMemoryReportingStatusOutbox",
     "InMemoryStatusNotificationStore",
-    "PgReportingStatusOutbox",
-    "PgStatusNotificationStore",
     "ActivityOutcome",
     "ActivityRequest",
     "ReportingActivityProjector",
@@ -102,7 +101,6 @@ __all__ = [
     "ExpansionLease",
     "InMemoryReportingOutbox",
     "MaterializationReady",
-    "PgReportingOutbox",
     "ReportingDomainEvent",
     "ReportingEnvelopeCipher",
     "ReportingLegacyAuthentication",
@@ -120,25 +118,3 @@ __all__ = [
     "StoredDelivery",
     "validate_notification_payload",
 ]
-
-
-def __getattr__(name: str) -> object:
-    if name == "PgReportingActivityUnionStore":
-        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
-
-        return PgReportingActivityUnionStore
-    if name in {"PgReportingStatusOutbox", "PgStatusNotificationStore"}:
-        from adcp.reporting.outbox.status_pg import (
-            PgReportingStatusOutbox,
-            PgStatusNotificationStore,
-        )
-
-        return {
-            "PgReportingStatusOutbox": PgReportingStatusOutbox,
-            "PgStatusNotificationStore": PgStatusNotificationStore,
-        }[name]
-    if name == "PgReportingOutbox":
-        from adcp.reporting.outbox.pg import PgReportingOutbox
-
-        return PgReportingOutbox
-    raise AttributeError(name)

@@ -8,10 +8,10 @@ import json
 from dataclasses import replace
 
 import pytest
+from adcp_reporting_storage import PgReportingSubmissionIntentStore
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.submissions import (
-    PgReportingSubmissionIntentStore,
     ReportingReceiptFailureCode,
     ReportingSubmissionCode,
     ReportingSubmissionError,

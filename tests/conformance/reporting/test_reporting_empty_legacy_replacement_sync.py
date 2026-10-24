@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
-from adcp.reporting.migration import (
+from adcp_reporting_storage.migration import (
     ReportingOwnershipMigrationError,
     replace_empty_legacy_reporting_sync,
 )

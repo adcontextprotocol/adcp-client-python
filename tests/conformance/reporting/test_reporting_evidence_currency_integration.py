@@ -907,15 +907,14 @@ async def test_populated_ledger_upgrade_then_granular_publication_and_exact_reco
                 await connection.execute((fixture / "reporting_ledger_beta15.sql").read_text())
                 await connection.execute((fixture / "reporting_ledger_beta15_data.sql").read_text())
             before = await _retained_rows(h.blobs.pool)
-            from psycopg import sql
-
-            from adcp.reporting.migration import (
+            from adcp_reporting_storage.migration import (
                 ReportingOwnershipBackfill,
                 ReportingOwnershipMigrationError,
                 backfill_legacy_reporting,
                 legacy_generation_digest,
                 migrate_legacy_reporting,
             )
+            from psycopg import sql
 
             with pytest.raises(ReportingOwnershipMigrationError, match="Stop reporting workers"):
                 await h.store.create_schema()
@@ -1136,8 +1135,9 @@ from datetime import datetime
 from psycopg_pool import AsyncConnectionPool
 from adcp.reporting.inline_source import InlineFetchResult, MetricEvidence
 from adcp.reporting.ledger import (
-    PgReportingReconciliationStore, ReportingDeliveryPrincipal, ReportingReceiptKey,
+    ReportingDeliveryPrincipal, ReportingReceiptKey,
 )
+from adcp_reporting_storage import PgReportingReconciliationStore
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 from tests.conformance.reporting._reliable_support import (
     ManualClock, ReliableHarness, _BytesStore, verified,

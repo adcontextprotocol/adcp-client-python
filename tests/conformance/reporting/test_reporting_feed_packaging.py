@@ -12,6 +12,11 @@ from pathlib import Path
 import pytest
 
 from .test_reporting_materializer_packaging import ROOT, b1_wheels, built_distribution, run_step
+from .test_reporting_notification_packaging import (
+    STORAGE_SRC,
+    storage_distribution,
+    storage_source,
+)
 
 __all__ = ["b1_wheels", "built_distribution"]
 
@@ -43,9 +48,10 @@ def feed_modules():
 @pytest.fixture(scope="module")
 def feed_wheels(b1_wheels, built_distribution):
     root, wheels, _ = b1_wheels
-    _, _, source = built_distribution
+    _, _, adcp_source = built_distribution
+    source = storage_source(adcp_source)
     assets = {
-        name: (ROOT / "src/adcp/reporting" / name).read_bytes()
+        name: (STORAGE_SRC / name).read_bytes()
         for name in (
             "ledger/reporting_feed.sql",
             "feed/required_schema.json",
@@ -58,11 +64,11 @@ def feed_wheels(b1_wheels, built_distribution):
     with tarfile.open(source) as sdist:
         prefix = sdist.getnames()[0].split("/")[0]
         for name, raw in assets.items():
-            assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
+            assert sdist.extractfile(f"{prefix}/src/adcp_reporting_storage/{name}").read() == raw
     for wheel in wheels.values():
-        with zipfile.ZipFile(wheel) as archive:
+        with zipfile.ZipFile(storage_distribution(wheel)) as archive:
             for name, raw in assets.items():
-                assert archive.read("adcp/reporting/" + name) == raw
+                assert archive.read("adcp_reporting_storage/" + name) == raw
     return root, wheels, {name: hashlib.sha256(raw).hexdigest() for name, raw in assets.items()}
 
 
@@ -87,7 +93,7 @@ def test_python310_feed_without_pg_exports_sql_and_strict_adopter(request, kind)
         else [str(python), "-m", "pip", "install"]
     )
     run_step(
-        [*installer, str(wheels[kind]), "mypy==1.20.2"],
+        [*installer, str(wheels[kind]), str(storage_distribution(wheels[kind])), "mypy==1.20.2"],
         label=f"feed-{kind}-base-install",
         cwd=root,
         timeout=180,

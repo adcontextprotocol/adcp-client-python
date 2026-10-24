@@ -2,11 +2,11 @@
 
 from typing import Any
 
+from adcp_reporting_storage import PgReportingFeedStore
 from typing_extensions import assert_type
 
 from adcp.reporting.feed import (
     InMemoryReportingFeedStore,
-    PgReportingFeedStore,
     ReportingFeedError,
     ReportingFeedSnapshot,
     ReportingFeedStore,

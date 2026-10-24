@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
 from adcp.reporting.ledger import (
     ProducerOfferings,
     ReportingProducer,
     ReportingStatusCaller,
 )
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
 
 from ._generation_support import (
     NOW,
@@ -29,8 +29,10 @@ if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-MIGRATION = files("adcp.reporting.ledger").joinpath("reporting_ledger_obligation_currency.sql")
-ACCOUNT_MIGRATION = files("adcp.reporting.ledger").joinpath(
+MIGRATION = files("adcp_reporting_storage.ledger").joinpath(
+    "reporting_ledger_obligation_currency.sql"
+)
+ACCOUNT_MIGRATION = files("adcp_reporting_storage.ledger").joinpath(
     "reporting_ledger_account_generations.sql"
 )
 
@@ -74,12 +76,11 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
     autocommit: bool,
 ) -> None:
     require_rolling_database()
-    from psycopg import sql
-
-    from adcp.reporting.migration import (
+    from adcp_reporting_storage.migration import (
         ReportingOwnershipMigrationError,
         migrate_legacy_reporting,
     )
+    from psycopg import sql
 
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection:
@@ -160,7 +161,7 @@ async def test_currency_constraints_and_immutability_cover_direct_sql() -> None:
 
 async def test_unexpected_default_rolls_back_without_rewriting_evidence() -> None:
     async with isolated_reporting_pool() as pool:
-        from adcp.reporting.migration import ReportingOwnershipMigrationError
+        from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
         async with pool.connection() as connection:
             await connection.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())

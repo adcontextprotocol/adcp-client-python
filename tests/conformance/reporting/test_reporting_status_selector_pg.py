@@ -10,14 +10,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingReconciliationStore
+from adcp_reporting_storage.outbox.status_schema import validate_status_schema
 
-from adcp.reporting.ledger import PgReportingReconciliationStore
 from adcp.reporting.outbox import (
     ActivityRequest,
     ReportingEnvelopeCipher,
     ReportingNotificationWorker,
 )
-from adcp.reporting.outbox.status_schema import validate_status_schema
 
 from ._generation_support import (
     NOW,
@@ -156,9 +156,8 @@ async def populate_status_activity(status):
 
 
 async def test_actual_c_status_rows_are_archived_after_worker_stop(frozen_c):
+    from adcp_reporting_storage.migration import migrate_legacy_reporting
     from psycopg import sql
-
-    from adcp.reporting.migration import migrate_legacy_reporting
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with old_c(pool, frozen_c) as old:

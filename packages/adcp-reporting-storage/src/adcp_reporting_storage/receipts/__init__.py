@@ -1,0 +1,1 @@
+"""The PostgreSQL receipt store."""

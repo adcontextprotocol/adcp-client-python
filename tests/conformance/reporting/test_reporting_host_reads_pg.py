@@ -8,8 +8,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
+from adcp_reporting_storage import PgReportingLedgerStore
 
 from ._generation_support import START, configuration, isolated_reporting_pool, obligation_for
 from .test_reporting_row_storage_pg import fetch_all, many_rows, typed_revision
