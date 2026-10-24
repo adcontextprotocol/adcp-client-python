@@ -64,8 +64,14 @@ def _build_app(covers_content_digest: str) -> FastAPI:
     return app
 
 
-@pytest.mark.parametrize("policy,cover_digest", [("either", False), ("required", True)])
-async def test_signed_request_verifies_end_to_end(policy: str, cover_digest: bool) -> None:
+# AdCP 3.2 signers must cover content-digest over a non-empty body, so the
+# digest-off case signs with the 3.1 profile, the verifier's default.
+@pytest.mark.parametrize(
+    "policy,cover_digest,profile", [("either", False, "3.1"), ("required", True, "3.2")]
+)
+async def test_signed_request_verifies_end_to_end(
+    policy: str, cover_digest: bool, profile: str
+) -> None:
     app = _build_app(policy)
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
 
@@ -82,7 +88,7 @@ async def test_signed_request_verifies_end_to_end(policy: str, cover_digest: boo
         key_id="test-ed25519-2026",
         alg="ed25519",
         cover_content_digest=cover_digest,
-        signing_profile_version="3.2",
+        signing_profile_version=profile,
     )
     request_headers = {**headers, **signed.as_dict()}
 

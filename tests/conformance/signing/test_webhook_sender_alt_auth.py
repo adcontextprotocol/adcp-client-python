@@ -98,6 +98,7 @@ async def test_bearer_token_attaches_authorization_header() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_bearer",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -124,6 +125,7 @@ async def test_bearer_extra_headers_cannot_override_authorization() -> None:
             await sender.send_mcp(
                 url="http://test/webhooks/adcp",
                 task_id="t",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
                 extra_headers={"Authorization": "Bearer attacker"},
@@ -148,6 +150,7 @@ async def test_adcp_legacy_hmac_round_trips_against_verifier() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_legacy_hmac",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -184,6 +187,7 @@ async def test_adcp_legacy_hmac_resend_re_signs_with_fresh_timestamp() -> None:
         first = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_resend",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -267,6 +271,7 @@ async def test_standard_webhooks_round_trips_against_verifier() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_sw",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -300,6 +305,7 @@ async def test_standard_webhooks_resend_uses_fresh_msg_id_and_timestamp() -> Non
         first = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_sw_resend",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -331,6 +337,7 @@ async def test_standard_webhooks_svix_verifier_interop() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_sw_svix",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )

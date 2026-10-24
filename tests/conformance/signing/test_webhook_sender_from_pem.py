@@ -95,6 +95,7 @@ async def test_from_pem_signatures_verify_against_public_jwk(
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_from_pem",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
             result={"media_buy_id": "mb_1"},
@@ -121,6 +122,7 @@ async def test_from_pem_accepts_raw_bytes() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_bytes",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -148,6 +150,7 @@ async def test_from_pem_encrypted_pem_with_passphrase(tmp_path: Path) -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_enc",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )

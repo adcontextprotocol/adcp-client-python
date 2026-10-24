@@ -137,6 +137,12 @@ dev = [
     # tests/test_mcp_middleware_composition.py and future integration
     # tests that exercise the streamable-HTTP ASGI app in-process.
     "asgi-lifespan>=2.1.0",
+    # The signing suite's end-to-end tests serve a FastAPI app, and its
+    # Standard Webhooks interop tests verify with svix. Each skips its module
+    # (pytest.importorskip) when the package is missing, so without these
+    # CI never runs them (#1524).
+    "fastapi>=0.100",
+    "svix>=1.0",
     # mypy stubs for the protobuf runtime we use via a2a-sdk 1.0
     # (``google.protobuf.json_format``, ``struct_pb2``, ``timestamp_pb2``).
     # Without these mypy flags every import as ``import-untyped``.
