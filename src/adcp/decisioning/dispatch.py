@@ -2210,12 +2210,11 @@ async def _project_handoff(
     fn = handoff._fn
 
     # Extract the buyer's ``context`` extension from the original
-    # request and lock it onto the TaskRecord at issue-time. The
-    # registry surfaces it at the top level of ``tasks/get`` reads
-    # (sibling of ``result`` / ``error`` per
-    # ``schemas/cache/core/tasks_get_response.json``). Capturing once
-    # at issue-time means the terminal-state helpers (_fail,
-    # registry.complete) never need to know about request-side
+    # request and lock it onto the TaskRecord at issue-time.
+    # ``tasks/get`` echoes it inside ``result`` (the original task's
+    # response); the poll's top-level ``context`` is the poll's own.
+    # Capturing once at issue-time means the terminal-state helpers
+    # (_fail, registry.complete) never need to know about request-side
     # context — keeps the wire-shape boundary in one place.
     issue_kwargs: dict[str, Any] = {
         "account_id": ctx.account.id,
@@ -2254,14 +2253,12 @@ async def _project_handoff(
         registry.fail — the buyer needs the failure visible via
         tasks/get regardless of hook outcomes.
 
-        Note: the request's ``context`` extension lands on the
-        ``tasks/get`` response at the top level (sibling of
-        ``error``), not inside the ``adcp_error`` envelope — see
-        :meth:`TaskRecord.to_dict` and the
-        ``schemas/cache/core/tasks_get_response.json``
-        ``TasksGetResponse.context`` field. The context is captured
-        once at ``registry.issue()`` time below; ``_fail`` doesn't
-        touch it.
+        Note: the request's ``context`` extension is echoed in the
+        ``tasks/get`` ``result`` (sibling of ``adcp_error``), not inside
+        the ``adcp_error`` envelope — see
+        :func:`adcp.decisioning.task_queries.project_task`. The context
+        is captured once at ``registry.issue()`` time below; ``_fail``
+        doesn't touch it.
         """
         if on_failure is not None:
             try:
@@ -2379,12 +2376,10 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
-        # ``request.context`` echo lands at the top level of the
-        # ``tasks/get`` response (sibling of ``result``), not inside
-        # the typed result body. ``TaskRecord.request_context`` was
-        # captured at ``registry.issue()`` time and ``to_dict()``
-        # surfaces it under the top-level ``context`` key; nothing to
-        # do here on the result path.
+        # ``request.context`` is echoed into ``result`` at ``tasks/get``
+        # projection time (``project_task``), from
+        # ``TaskRecord.request_context`` captured at ``registry.issue()``;
+        # nothing to do here on the result path.
         await registry.complete(task_id, persisted)
         # Terminal completion webhook (spec MUST when push config present).
         # Fired AFTER registry.complete so the buyer's tasks/get poll and
@@ -2491,8 +2486,8 @@ async def _project_workflow_handoff(
     fn = handoff._fn
 
     # Same context-echo capture as :func:`_project_handoff`: the
-    # request's ``context`` extension lives on the TaskRecord and
-    # surfaces at the top level of ``tasks/get`` reads (#563). The
+    # request's ``context`` extension lives on the TaskRecord and is
+    # echoed in the ``tasks/get`` ``result`` (#563, #1574). The
     # WorkflowHandoff path persists the task and immediately returns
     # — the adopter's enqueue fn does not write to the registry — so
     # context capture must happen here at issue-time too.

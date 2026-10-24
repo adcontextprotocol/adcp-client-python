@@ -8,12 +8,21 @@ and return `None` for expired records; an optional epoch `expires_at` is also
 recognized. SDK registries retain tasks until explicit discard; no TTL is
 installed by this change.
 
-Polls use `status`, ISO UTC timestamps and protocol metadata. Progress, failure
-summary and the original task's context are preserved. Set `include_result=true`
-to retrieve a terminal artifact. A failed task exposes the stored fatal error
-in its convenience `error` summary, `result.adcp_error`, and the canonical
-`result.errors` array. Successful results retain the adopter's original wire
-response; the background callable must return a valid response for its task type.
+Polls use `status`, ISO UTC timestamps and protocol metadata. Progress and the
+failure summary are preserved; a task with no progress omits `progress` rather
+than sending `null`. Set `include_result=true` to retrieve a terminal artifact.
+A failed task exposes the stored fatal error in its convenience `error` summary,
+`result.adcp_error`, and the canonical `result.errors` array. Successful results
+retain the adopter's original wire response; the background callable must return
+a valid response for its task type.
+
+`context` is per request. A poll's top-level `context` echoes the poll request's
+own `context`, like every other response. The `context` of the request that
+created the task is echoed in `result.context`, because `result` is that task's
+terminal response and its schema carries the echo. A response the adopter
+already gave a `context` keeps it. Polls without `include_result=true` carry no
+creating-request context, and `list_tasks` items carry none. The registry still
+stores it, and `list_tasks` filters such as `context_contains` still read it.
 
 `list_tasks` is advertised only for the separate optional `ListableTaskRegistry`
 protocol. Existing third-party `TaskRegistry` implementations need no changes.
