@@ -279,11 +279,17 @@ def _legacy_creative_identity_path(
     return None
 
 
+#: Every property a legacy format reference declares, derived from the model so
+#: a parameter added to ``core/format-id.json`` (as ``pixel_ratio`` was) is
+#: recognised without being named here.
+_LEGACY_FORMAT_REFERENCE_KEYS = frozenset(LegacyFormatId.model_fields)
+
+
 def _looks_like_legacy_format_tuple(schema: dict[str, Any], properties: dict[str, Any]) -> bool:
     keys = set(properties)
     title = str(schema.get("title", "")).lower()
     return {"agent_url", "id"} <= keys and (
-        "format" in title or keys <= {"agent_url", "id", "width", "height", "duration_ms"}
+        "format" in title or keys <= _LEGACY_FORMAT_REFERENCE_KEYS
     )
 
 
