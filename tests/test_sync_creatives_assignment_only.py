@@ -10,7 +10,8 @@ from pydantic import ValidationError
 
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
-from adcp.types import CreativeAsset, PackageUpdate, SyncCreativesRequest
+from adcp.types import CreativeAsset, PackageRequest, PackageUpdate, SyncCreativesRequest
+from adcp.types.domains.media_buy.package_request import PackageRequest as _LegacyPackageRequest
 from adcp.types.domains.media_buy.package_update import PackageUpdate as _LegacyPackageUpdate
 from adcp.validation import ValidationHookConfig, get_schema, validate_request
 
@@ -147,19 +148,31 @@ def test_sync_refuses_more_creatives_than_the_bundle_permits() -> None:
     )
 
 
-def test_package_update_keeps_the_generated_creatives_constraints() -> None:
-    """``PackageUpdate`` narrows ``creatives`` the same way and must not lose its ceiling."""
-    generated = _LegacyPackageUpdate.model_fields["creatives"]
-    canonical = PackageUpdate.model_fields["creatives"]
+@pytest.mark.parametrize(
+    ("model", "generated_model", "required"),
+    [
+        pytest.param(PackageUpdate, _LegacyPackageUpdate, {"package_id": "pkg_1"}, id="update"),
+        pytest.param(
+            PackageRequest,
+            _LegacyPackageRequest,
+            {"product_id": "prod_1", "pricing_option_id": "po_1"},
+            id="request",
+        ),
+    ],
+)
+def test_package_models_keep_the_generated_creatives_constraints(
+    model: type, generated_model: type, required: dict[str, Any]
+) -> None:
+    """Package models narrow ``creatives`` the same way and must not lose its ceiling."""
+    generated = generated_model.model_fields["creatives"]
+    canonical = model.model_fields["creatives"]
     assert canonical.metadata == generated.metadata
     assert canonical.description == generated.description
 
     ceiling = next(m.max_length for m in generated.metadata if hasattr(m, "max_length"))
     creative = {"creative_id": "cr", "name": "Banner", "format_kind": "image", "assets": {}}
     with pytest.raises(ValidationError) as caught:
-        PackageUpdate.model_validate(
-            {"package_id": "pkg_1", "creatives": [creative] * (ceiling + 1)}
-        )
+        model.model_validate({**required, "creatives": [creative] * (ceiling + 1)})
     assert caught.value.errors()[0]["loc"] == ("creatives",)
     assert caught.value.errors()[0]["type"] == "too_long"
 

@@ -1099,7 +1099,7 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
-    creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)
+    creatives: list[CreativeAsset] | None = _inherit(_LegacyPackageRequest, "creatives")
 
     @model_validator(mode="after")
     def _validate_format_params(self) -> PackageRequest:
