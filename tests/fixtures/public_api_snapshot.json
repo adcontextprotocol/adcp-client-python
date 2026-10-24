@@ -781,6 +781,7 @@
       "ReportingLifecycleSnapshot": "adcp.reporting._testing_lifecycle",
       "ReportingObservation": "adcp.reporting._reconcile",
       "ReportingOperationsContactView": "adcp.reporting._consumer",
+      "ReportingOperatorActionError": "adcp.reporting.service_lifecycle",
       "ReportingPinnedDefinition": "adcp.reporting._consumer",
       "ReportingProductionOptions": "adcp.reporting.service_production",
       "ReportingReconciliationClient": "adcp.reporting._reconcile",

@@ -22,6 +22,7 @@ _T = TypeVar("_T")
 
 __all__ = [
     "ReliableReportingServiceError",
+    "ReportingOperatorActionError",
     "ReliableReportingShutdownTimeoutError",
     "ReliableReportingState",
     "ReliableReportingUnavailableError",
@@ -52,10 +53,23 @@ FailureComponent = Literal[
 ]
 
 
-class ReliableReportingServiceError(RuntimeError):
-    """Closed diagnostic for an unexpected failure; contains no provider body."""
+class ReportingOperatorActionError(RuntimeError):
+    """An SDK-authored precondition an operator must act on before startup.
 
-    def __init__(self, component: FailureComponent) -> None:
+    Subclasses carry only SDK-written messages (never provider bodies or
+    credentials), so service startup re-raises them unwrapped and the
+    operator sees the remedy, as it does for configuration errors.
+    """
+
+
+class ReliableReportingServiceError(RuntimeError):
+    """Closed diagnostic for an unexpected failure; contains no provider body.
+
+    ``cause_type`` names the class of the exception that caused the failure,
+    when known, without retaining the exception or its message.
+    """
+
+    def __init__(self, component: FailureComponent, *, cause_type: str | None = None) -> None:
         if component not in (
             "startup",
             "configuration",
@@ -66,7 +80,9 @@ class ReliableReportingServiceError(RuntimeError):
         ):
             raise ValueError("unknown reporting service failure component")
         self.component = component
-        super().__init__(f"reporting service failed ({component})")
+        self.cause_type = cause_type
+        detail = component if cause_type is None else f"{component}: {cause_type}"
+        super().__init__(f"reporting service failed ({detail})")
 
 
 class ReliableReportingShutdownTimeoutError(TimeoutError):
@@ -201,9 +217,11 @@ class _ServiceLifecycle:
                 if self.state is ReliableReportingState.STARTING:
                     self.state = ReliableReportingState.INITIALIZED
         except BaseException as error:
-            failure = await self.fail("startup")
-            if isinstance(error, self._configuration_error):
+            failure = await self.fail("startup", cause=error)
+            if isinstance(error, (self._configuration_error, ReportingOperatorActionError)):
                 raise
+            # The cause is not chained: a provider error can carry response
+            # bodies or credentials. ``cause_type`` names its class instead.
             raise failure from None
 
     async def activate(self, run: Callable[[], Awaitable[None]] | None = None) -> None:
@@ -288,10 +306,14 @@ class _ServiceLifecycle:
         async with self._lock:
             self._stop_locked()
 
-    async def fail(self, component: FailureComponent) -> ReliableReportingServiceError:
+    async def fail(
+        self, component: FailureComponent, *, cause: BaseException | None = None
+    ) -> ReliableReportingServiceError:
         async with self._lock:
             if self.failure is None:
-                self.failure = ReliableReportingServiceError(component)
+                self.failure = ReliableReportingServiceError(
+                    component, cause_type=None if cause is None else type(cause).__qualname__
+                )
             self._stop_locked()
             return self.failure
 
