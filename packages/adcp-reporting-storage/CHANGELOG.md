@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.1...adcp-reporting-storage-v0.1.0-beta.2) (2026-10-24)
+
+
+### Features
+
+* **reporting-storage:** let the Postgres service factory build a subclass ([dad5e8d](https://github.com/adcontextprotocol/adcp-client-python/commit/dad5e8d9668e0ebd3ced406780e659b42ee22001)), closes [#1588](https://github.com/adcontextprotocol/adcp-client-python/issues/1588)
+
 ## [0.1.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.0...adcp-reporting-storage-v0.1.0-beta.1) (2026-10-24)
 
 
