@@ -106,6 +106,9 @@ if TYPE_CHECKING:
         ReliableReportingUnavailableError as ReliableReportingUnavailableError,
     )
     from adcp.reporting.service_lifecycle import (
+        ReportingOperatorActionError as ReportingOperatorActionError,
+    )
+    from adcp.reporting.service_lifecycle import (
         ReportingServiceResource as ReportingServiceResource,
     )
     from adcp.reporting.service_production import (
@@ -172,6 +175,7 @@ _LAZY_EXPORTS = {
     ),
     "ReliableReportingState": ("service_lifecycle", "ReliableReportingState"),
     "ReliableReportingUnavailableError": ("service_lifecycle", "ReliableReportingUnavailableError"),
+    "ReportingOperatorActionError": ("service_lifecycle", "ReportingOperatorActionError"),
     "ReportingServiceResource": ("service_lifecycle", "ReportingServiceResource"),
     "ReportingAccountContext": ("service", "ReportingAccountContext"),
     "ReportingAdapter": ("service", "ReportingAdapter"),
@@ -226,6 +230,7 @@ __all__ = [
     "ReliableReportingShutdownTimeoutError",
     "ReliableReportingState",
     "ReliableReportingUnavailableError",
+    "ReportingOperatorActionError",
     "ReportingServiceResource",
     "ReportingAccountContext",
     "ReportingAdapter",
