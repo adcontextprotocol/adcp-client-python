@@ -84,6 +84,15 @@ class DuplicateFieldError(ValueError):
     """A Structured Field repeats a dictionary key or a parameter."""
 
 
+def _has_data(state: ParserState) -> bool:
+    """Whether the cursor has input left to read.
+
+    http-sf 1.5.0 removed ``ParserState.has_data()``; this is the same check
+    its own parsers now inline, so the walk below works on 1.4.x and 1.5.x.
+    """
+    return state.cursor < len(state.data)
+
+
 def _refuse_duplicate(key: str, context: str) -> None:
     where = "dictionary member" if context == "dictionary" else "parameter"
     raise DuplicateFieldError(f"duplicate Structured Field {where} {key!r}")
@@ -158,11 +167,11 @@ def dictionary_has_parameter(value: str, name: str, expected: str) -> bool:
     state = ParserState(value.encode("ascii", "replace"))
     try:
         discard_http_ows(state)
-        while state.has_data():
+        while _has_data(state):
             parse_key(state)
-            if state.has_data() and state.data[state.cursor] == _EQUALS:
+            if _has_data(state) and state.data[state.cursor] == _EQUALS:
                 state.cursor += 1
-                if state.has_data() and state.data[state.cursor] == _PAREN_OPEN:
+                if _has_data(state) and state.data[state.cursor] == _PAREN_OPEN:
                     state.cursor += 1
                     while True:
                         discard_ows(state)
@@ -172,19 +181,19 @@ def dictionary_has_parameter(value: str, name: str, expected: str) -> bool:
                         parse_item(state)
                 else:
                     parse_bare_item(state)
-            while state.has_data() and state.data[state.cursor] == _SEMICOLON:
+            while _has_data(state) and state.data[state.cursor] == _SEMICOLON:
                 state.cursor += 1
                 discard_ows(state)
                 key = parse_key(state)
                 parameter: Any = True
-                if state.has_data() and state.data[state.cursor] == _EQUALS:
+                if _has_data(state) and state.data[state.cursor] == _EQUALS:
                     state.cursor += 1
                     parameter = parse_bare_item(state)
                 if key == name and isinstance(parameter, (str, UserString)):
                     if parameter == expected:
                         return True
             discard_http_ows(state)
-            if not state.has_data() or state.data[state.cursor] != _COMMA:
+            if not _has_data(state) or state.data[state.cursor] != _COMMA:
                 break
             state.cursor += 1
             discard_http_ows(state)
