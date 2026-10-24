@@ -9,13 +9,11 @@ and reviews pass.
 Version-only bot release PRs, including betas, run interpreter compatibility
 checks and verify the metadata in their built wheel and sdist.
 
-SDK 9 is on the beta channel. The root package in
-`release-please-config.json` uses `versioning: prerelease`,
-`prerelease-type: beta`, and `prerelease: true`, so subsequent releases
-remain beta and GitHub marks them as prereleases. The adopting commit ends
-with `Release-As: 9.0.0-beta.1`; the release workflow normalizes that to
-`9.0.0b1` in `pyproject.toml` and on PyPI. Do not merge a release PR that
-proposes stable `9.0.0` while this beta channel is active.
+SDK 9 is on the stable channel. The 9.0.0 GA commit removed the
+`versioning: prerelease`, `prerelease-type: beta`, and `prerelease: true`
+keys from the root package in `release-please-config.json` and ended with
+`Release-As: 9.0.0`. Subsequent releases on `main` are stable 9.x versions.
+SDK 10 prereleases are cut from `next`.
 
 To choose an exact version, the squash commit that lands on `main` must
 end its body with a `Release-As: X.Y.Z` footer. The repository squashes with
@@ -35,9 +33,6 @@ screening, the explicit legacy projection boundary, and a constructible,
 `params` attribute access lives on `LegacyProductFormatDeclaration`, the
 generated branch union. Make any further public-name changes during beta and
 document the migration.
-
-At the reviewed GA exit, remove the three prerelease configuration keys,
-update the release-channel contract test, and select `Release-As: 9.0.0`.
 
 On the merge, Release Please creates the tag and GitHub release, then starts
 `release-publish.yml` on `main`. The publish workflow waits for successful CI on
@@ -61,8 +56,10 @@ One-time setup:
 ## adcp-reporting-storage
 
 `packages/adcp-reporting-storage` is a second Release Please component
-(`separate-pull-requests` is on, so it gets its own release PR) on the same
-beta channel. Its tags carry the component name
+(`separate-pull-requests` is on, so it gets its own release PR) that stays on
+the beta channel while `adcp` is stable. Its `adcp>=…,<10` floor must name a
+published `adcp` release that contains the split (9.0.0 or later); move it
+before merging the storage release PR. Its tags carry the component name
 (`adcp-reporting-storage-v0.1.0-beta.1`); the root keeps bare `vX.Y.Z` tags.
 Only commits that touch `packages/adcp-reporting-storage/` bump it, and the
 root package lists that path in `exclude-paths` (Release Please otherwise hands

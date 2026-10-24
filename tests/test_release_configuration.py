@@ -1,4 +1,4 @@
-"""Release automation owns the SDK version and the SDK 9 beta channel."""
+"""Release automation owns the SDK version and the SDK 9 stable channel."""
 
 from __future__ import annotations
 
@@ -23,18 +23,17 @@ def test_worktree_version_matches_normalized_release_manifest() -> None:
     assert project_section.group(1) == pep440_prerelease(manifest["."])
 
 
-def test_release_please_keeps_sdk_9_on_the_beta_channel() -> None:
-    """The breaking SDK 9 surface must remain beta until the reviewed GA exit.
+def test_release_please_is_on_the_stable_channel() -> None:
+    """SDK 9 left the beta channel at the reviewed GA exit.
 
-    The adopting commit's ``Release-As: 9.0.0-beta.1`` footer selects the
-    first beta. Subsequent fixes increment the beta, and GitHub releases
-    are marked as prereleases rather than presented as stable releases.
+    The GA commit's ``Release-As: 9.0.0`` footer selects the stable release.
+    With the prerelease keys removed, later fixes bump stable versions and
+    GitHub releases are no longer marked as prereleases.
     """
     config = json.loads((ROOT / "release-please-config.json").read_text())
     package = config["packages"]["."]
-    assert package["versioning"] == "prerelease"
-    assert package["prerelease-type"] == "beta"
-    assert package["prerelease"] is True
+    for key in ("versioning", "prerelease-type", "prerelease"):
+        assert key not in package, key
 
 
 STORAGE = ROOT / "packages/adcp-reporting-storage"

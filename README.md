@@ -221,21 +221,11 @@ pip install adcp
 
 > **Note**: This client requires Python 3.10 or later and supports both synchronous and asynchronous workflows.
 
-### SDK 9 beta
+### Upgrading to SDK 9
 
-SDK 9 is available as a prerelease. Ordinary installation selects the stable
-SDK 8 release; a stable `adcp==9.0.0` pin becomes available at GA. The release
-tag `9.0.0-beta.3` corresponds to the Python package version `9.0.0b3`.
-
-```bash
-pip install 'adcp==9.0.0b3'                         # exact beta
-pip install --pre 'adcp>=9.0.0b3,<10'              # latest SDK 9 prerelease
-uv add --prerelease allow 'adcp>=9.0.0b3,<10'       # uv prerelease opt-in
-```
-
-Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md) before upgrading.
-The package's Production/Stable classifier describes the stable channel;
-SDK 9 betas remain prereleases regardless of that classifier.
+`pip install adcp` selects SDK 9, which targets AdCP 3.2. To stay on SDK 8,
+pin `adcp>=8,<9`. Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md)
+before upgrading.
 
 ## Quick Start: Test Helpers
 
