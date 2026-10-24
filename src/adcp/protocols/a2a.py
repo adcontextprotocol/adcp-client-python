@@ -14,6 +14,7 @@ from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from adcp import _idempotency
+from adcp._a2a_numbers import restore_struct_integers
 from adcp._response_limit import (
     ResponseLimitPolicy,
     find_response_limit_error,
@@ -822,8 +823,13 @@ class A2AAdapter(ProtocolAdapter):
             logger.warning("A2A Task artifact has no parts")
             return {}
 
+        # The response crossed a protobuf ``Struct``; integral doubles come
+        # back as ``int`` so a buyer's echoed ``context`` (and every integer
+        # field) reads the same as over MCP. See :mod:`adcp._a2a_numbers`.
         data_parts = [
-            d for d in (_part_data_dict(p) for p in target_artifact.parts) if d is not None
+            restore_struct_integers(d)
+            for d in (_part_data_dict(p) for p in target_artifact.parts)
+            if d is not None
         ]
 
         if not data_parts:
