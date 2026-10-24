@@ -29,6 +29,7 @@ from adcp.types import (
     TargetingOverlay,
     UpdateMediaBuyRequest,
 )
+from adcp.types.base import NoExplicitNull
 from adcp.types.domains.core.targeting_input import TargetingOverlayInput as GeneratedInput
 from adcp.types.domains.media_buy.package_control import PackageControl
 from adcp.types.domains.media_buy.package_request import (
@@ -306,7 +307,13 @@ def test_bridge_serialization_keeps_objects_on_the_wire(
     }
     expected = overlay.model_dump(mode="json", **options)
     assert isinstance(expected, dict)
-    assert expected["geo_countries"] is None
+    if NoExplicitNull in overlay_class.model_fields["geo_countries"].metadata:
+        # The resolved-state shape: ``null`` is not a clear there, so a ``None``
+        # is left off even under ``exclude_none=False`` (#1587). The mutation
+        # input keeps it, and ``preserve_explicit_nulls`` is the client path.
+        assert "geo_countries" not in expected
+    else:
+        assert expected["geo_countries"] is None
     assert result.model_dump(mode="json", **options)["targeting_overlay"] == expected
     encoded = result.model_dump_json(**options)
     assert json.loads(encoded)["targeting_overlay"] == expected

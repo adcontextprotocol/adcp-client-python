@@ -11,7 +11,7 @@ every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, cast
 
 from pydantic import (
     AfterValidator,
@@ -27,6 +27,7 @@ from pydantic import (
     WithJsonSchema,
     model_serializer,
 )
+from pydantic.fields import FieldInfo
 from pydantic_core import PydanticSerializationError, core_schema
 
 from adcp._deferred_adapters import deferred_adapter
@@ -339,40 +340,28 @@ def _without_nullable(schema: Any) -> core_schema.CoreSchema:
     return cast(core_schema.CoreSchema, schema)
 
 
-class _NoExplicitNull:
-    """Annotated metadata: the property may be omitted, but a JSON ``null`` is refused.
+def _is_none(value: Any) -> bool:
+    """``exclude_if`` for a :data:`NoExplicitNull` field: ``None`` is "not supplied"."""
+    return value is None
 
-    A JSON Schema property outside ``required`` whose type does not admit
-    ``null`` permits exactly one way of not supplying it — leaving it out.
-    The generator renders every optional property as ``T | None = None``,
-    and that annotation is the right Python surface: the attribute reads as
-    ``None`` when the property was omitted, and ``model_dump`` (which
-    defaults to ``exclude_none=True``) leaves it off the wire again. What
-    the annotation got wrong is *input*: it also admitted an explicit
-    ``null``, which the schema — and the SDK's own JSON-Schema arm,
-    :func:`adcp.validation.validate_request` — rejects.
 
-    This marker closes that gap without changing the annotation. It builds
-    a ``json_or_python`` core schema: the JSON side is the type without its
-    null arm, so a document carrying ``null`` fails with the type's own
+class _RefuseJsonNull:
+    """The validation half of :data:`NoExplicitNull`: a JSON ``null`` is refused.
+
+    Builds a ``json_or_python`` core schema: the JSON side is the type without
+    its null arm, so a document carrying ``null`` fails with the type's own
     error (``list_type``, ``model_type``, ...) exactly as a required field
-    would, and ``model_json_schema()`` publishes no null arm; the Python
-    side keeps ``T | None``, so ``Model(field=None)`` and ``model_validate``
-    on a dict still read ``None`` as the SDK's spelling of "not supplied",
-    symmetric with ``model_dump``. The ``= None`` default is not validated,
-    so omission reads back as ``None`` either way. No Python function sits
-    in the validation path, so nested validation keeps pydantic's native
-    JSON handling (duplicate-key diagnostics, error order).
+    would, and ``model_json_schema()`` publishes no null arm; the Python side
+    keeps ``T | None``, so ``Model(field=None)`` and ``model_validate`` on a
+    dict still read ``None`` as the SDK's spelling of "not supplied". The
+    ``= None`` default is not validated, so omission reads back as ``None``
+    either way. No Python function sits in the validation path, so nested
+    validation keeps pydantic's native JSON handling (duplicate-key
+    diagnostics, error order).
 
     ``ADCP_STRICT_VALIDATION`` — the switch that also forbids unknown
     fields — makes the Python side refuse ``None`` too, for suites that want
-    to catch a caller spelling absence as an explicit ``None``. A property
-    whose schema *does* admit ``null`` is generated without the marker and
-    keeps accepting it.
-
-    The generator marks every such property from the schema
-    (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``)
-    and ``scripts/post_generate_fixes.py`` points the mark here. See #1547.
+    to catch a caller spelling absence as an explicit ``None``.
     """
 
     __slots__ = ()
@@ -394,25 +383,74 @@ class _NoExplicitNull:
     # redeclaration takes ``copy.deepcopy`` of the generated field
     # (``canonical_creative._inherit``), and a test asks ``NoExplicitNull in
     # field.metadata``.
-    def __copy__(self) -> _NoExplicitNull:
+    def __copy__(self) -> _RefuseJsonNull:
         return self
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> _NoExplicitNull:
+    def __deepcopy__(self, memo: dict[int, Any]) -> _RefuseJsonNull:
         return self
 
     def __reduce__(self) -> str:
-        return "NoExplicitNull"
+        return "_REFUSE_JSON_NULL"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, _NoExplicitNull)
+        # ``NoExplicitNull in field.metadata``: the list holds this half, and
+        # ``FieldInfo`` defines no ``__eq__``, so the comparison reflects here.
+        return isinstance(other, _RefuseJsonNull) or other is NoExplicitNull
 
     def __hash__(self) -> int:
-        return hash(_NoExplicitNull)
+        return hash(_RefuseJsonNull)
+
+
+_REFUSE_JSON_NULL = _RefuseJsonNull()
 
 
 #: Marks an optional property whose schema does not admit ``null``: omit it or
-#: supply a value. See :class:`_NoExplicitNull`.
-NoExplicitNull = _NoExplicitNull()
+#: supply a value. A JSON ``null`` is refused on input, and a ``None`` is left
+#: off the output from any parent.
+#:
+#: A JSON Schema property outside ``required`` whose type does not admit
+#: ``null`` permits exactly one way of not supplying it — leaving it out. The
+#: generator renders every optional property as ``T | None = None``, and that
+#: annotation is the right Python surface: the attribute reads as ``None`` when
+#: the property was omitted. What the annotation got wrong was *input*: it also
+#: admitted an explicit ``null``, which the schema — and the SDK's own
+#: JSON-Schema arm, :func:`adcp.validation.validate_request` — rejects. This
+#: marker closes that gap without changing the annotation.
+#:
+#: The marker has two halves, because the two jobs live at different levels of
+#: pydantic:
+#:
+#: * **Validation** (:class:`_RefuseJsonNull`, carried in ``metadata``): the
+#:   JSON side of the field's core schema has no null arm, so a document
+#:   carrying ``null`` is refused and the published JSON Schema states what the
+#:   bundled schema states. A Python ``None`` stays accepted.
+#: * **Serialization** (the ``FieldInfo`` itself, ``exclude_if=_is_none``): a
+#:   ``None`` is left off the output *by the field*, in pydantic-core, whoever
+#:   drives the dump. ``AdCPBaseModel.model_dump`` defaults
+#:   ``exclude_none=True``, but a plain pydantic parent's serializer never calls
+#:   that override, so before #1587 a nested AdCP model wrote ``"ext": null``
+#:   that the same model then refused to read back. The per-field exclusion is
+#:   what makes ``model_validate_json(model_dump_json())`` round-trip from any
+#:   parent: a direct field, a list, a dict, a ``RootModel`` over a union. It
+#:   also applies under an explicit ``exclude_none=False``, which is always
+#:   safe: ``null`` is never a valid value for a marked property, so there is
+#:   nothing to keep. A property whose schema *does* admit ``null`` is generated
+#:   without the marker and keeps emitting ``null`` under ``exclude_none=False``.
+#:
+#: Pydantic merges a ``FieldInfo`` found in ``Annotated`` metadata into the
+#: field (``exclude_if`` lands on the field, the inner marker lands in
+#: ``field.metadata``), so one ``NoExplicitNull`` beside the generated
+#: ``Field(...)`` is all a field needs, and ``copy.deepcopy`` of the merged
+#: ``FieldInfo`` (``canonical_creative._inherit``) carries both halves.
+#: ``NoExplicitNull in field.metadata`` holds through the halves' equality, and
+#: ``field.exclude_if is NoExplicitNull.exclude_if`` identifies the exclusion.
+#: Not a subclass: pydantic declares ``FieldInfo`` final.
+#:
+#: The generator marks every such property from the schema
+#: (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``) and
+#: ``scripts/post_generate_fixes.py`` points the mark here. See #1547 and #1587.
+NoExplicitNull: Final[FieldInfo] = FieldInfo(exclude_if=_is_none)
+NoExplicitNull.metadata.append(_REFUSE_JSON_NULL)
 
 
 class AdCPBaseModel(BaseModel):
