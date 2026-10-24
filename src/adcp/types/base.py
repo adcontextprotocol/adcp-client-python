@@ -20,6 +20,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     GetCoreSchemaHandler,
+    SerializationInfo,
     SerializerFunctionWrapHandler,
     StrictInt,
     StrictStr,
@@ -415,6 +416,35 @@ class _NoExplicitNull:
 NoExplicitNull = _NoExplicitNull()
 
 
+def _keep_opaque_nulls(
+    value: dict[str, Any], extra: dict[str, Any], info: SerializationInfo
+) -> dict[str, Any]:
+    """Put back the ``null`` values ``exclude_none`` dropped from an opaque object.
+
+    A model that declares no fields and allows extras is an opaque JSON object:
+    ``core/context.json`` (``ContextObject``), which every response echoes
+    unchanged, and ``core/ext.json``. ``exclude_none`` -- the
+    :meth:`AdCPBaseModel.model_dump` default -- exists to leave *unset
+    optional fields* off the wire, but it also dropped the object's own
+    ``null`` values, so a buyer's ``{"a": null, "b": 1}`` came back as
+    ``{"b": 1}``. An opaque object has no unset fields, so every key it holds
+    is data. Keys the caller excluded by name stay excluded; nested values are
+    plain JSON, which pydantic already dumps with their nulls.
+    """
+    include, exclude = info.include, info.exclude
+    kept: dict[str, Any] = {}
+    for key, item in extra.items():
+        if key in value:
+            kept[key] = value[key]
+        elif (
+            item is None
+            and (include is None or key in include)
+            and (exclude is None or key not in exclude)
+        ):
+            kept[key] = None
+    return kept
+
+
 class AdCPBaseModel(BaseModel):
     """Base model for AdCP types with spec-compliant serialization.
 
@@ -451,16 +481,22 @@ class AdCPBaseModel(BaseModel):
     # this serializer's return is unannotated. Even ``-> Any`` erases the shape.
     @model_serializer(mode="wrap")
     def _notification_config_wire_defaults(  # type: ignore[no-untyped-def]
-        self, handler: SerializerFunctionWrapHandler
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ):
         """Retain the unrelated product default only for product subscriptions.
 
         Reporting capability defaults and tier validation live in their own
         generated models; this wrapper does not mask reporting attributes.
+
+        Also keeps an opaque object's ``null`` values (see
+        :func:`_keep_opaque_nulls`).
         """
         value = handler(self)
         if not isinstance(value, dict):
             return value
+        extra = self.__pydantic_extra__
+        if extra and info.exclude_none and not type(self).model_fields:
+            return _keep_opaque_nulls(value, extra, info)
         # Bundled schemas can rename or inline the same wire shape. Match its
         # declared fields rather than generated class/module names; supplied
         # values still come exclusively from this instance's fields-set.
