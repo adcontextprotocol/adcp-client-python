@@ -1039,6 +1039,301 @@ def point_integer_fields_at_the_schema_integer_type() -> None:
     print(f"  Pointed integer fields at SchemaInt in {modified} file(s)")
 
 
+#: The ``Field`` keyword the generator emits for ``generate_types.NO_EXPLICIT_NULL_KEY``.
+_NO_EXPLICIT_NULL_EXTRA = "json_schema_extra={'x-adcp-no-explicit-null': True}"
+_NO_EXPLICIT_NULL_MARKER = "NoExplicitNull"
+
+
+def _generated_line_width() -> int:
+    """The line length the generator's black pass used.
+
+    datamodel-code-generator hands black ``settings_path=output``, so black
+    reads ``[tool.black] line-length`` from the nearest ``pyproject.toml``
+    above the generated tree — this repository's. The rewrite below re-renders
+    a field the way black laid it out, so it must measure against the same
+    width.
+    """
+    try:
+        pyproject = (REPO_ROOT / "pyproject.toml").read_text()
+    except FileNotFoundError:
+        return 88
+    section = re.search(r"^\[tool\.black\]\n(.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
+    configured = section and re.search(r"^line-length\s*=\s*(\d+)", section.group(1), re.MULTILINE)
+    return int(configured.group(1)) if configured else 88
+
+
+_GENERATED_LINE_WIDTH = _generated_line_width()
+
+
+def _absolute_offsets(source: bytes) -> list[int]:
+    """Byte offset of each line start. ``ast`` column offsets count UTF-8 bytes."""
+    offsets = [0]
+    for line in source.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+    return offsets
+
+
+def _node_span(node: ast.AST, offsets: list[int]) -> tuple[int, int]:
+    assert node.end_lineno is not None and node.end_col_offset is not None
+    return (
+        offsets[node.lineno - 1] + node.col_offset,
+        offsets[node.end_lineno - 1] + node.end_col_offset,
+    )
+
+
+def _segment(source: bytes, offsets: list[int], node: ast.AST) -> str:
+    """The source text of *node*, via precomputed byte offsets.
+
+    ``ast.get_source_segment`` re-splits the whole module on every call, which
+    is quadratic over a generated module's fields. Spans are in bytes because
+    that is what ``ast`` column offsets count — a description holding an em
+    dash shifts every later column on its line.
+    """
+    start, end = _node_span(node, offsets)
+    return source[start:end].decode("utf-8")
+
+
+def _no_explicit_null_keyword(call: ast.expr) -> ast.keyword | None:
+    """The ``json_schema_extra`` keyword carrying the mark, if *call* is that ``Field(...)``."""
+    if not (
+        isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "Field"
+    ):
+        return None
+    for keyword in call.keywords:
+        if keyword.arg != "json_schema_extra" or not isinstance(keyword.value, ast.Dict):
+            continue
+        keys = [k.value for k in keyword.value.keys if isinstance(k, ast.Constant)]
+        if keys == ["x-adcp-no-explicit-null"]:
+            return keyword
+    return None
+
+
+def _field_call_without_mark(
+    call: ast.Call, keyword: ast.keyword, source: bytes, offsets: list[int]
+) -> list[str] | None:
+    """The ``Field(...)`` call's remaining arguments, each as source text.
+
+    Returns ``None`` when the mark was the only argument, so the caller drops
+    the ``Field`` metadata altogether.
+    """
+    arguments = [_segment(source, offsets, positional) for positional in call.args]
+    arguments += [
+        _segment(source, offsets, other) for other in call.keywords if other is not keyword
+    ]
+    return arguments or None
+
+
+def _render_field_call(arguments: list[str], indent: int) -> str:
+    """Render ``Field(...)`` at *indent* the way black lays out a call.
+
+    One line when it fits; otherwise the arguments hugged on one inner line
+    when that fits; otherwise one argument per line with a trailing comma.
+    The ``+ 1`` leaves room for the comma the enclosing subscript adds.
+    """
+    joined = ", ".join(arguments)
+    one_line = f"Field({joined})"
+    if "\n" not in one_line and indent + len(one_line) + 1 <= _GENERATED_LINE_WIDTH:
+        return one_line
+    inner_indent = " " * (indent + 4)
+    # A single argument has no delimiter to split on, so black keeps it on
+    # one inner line however long it is, and adds no trailing comma.
+    if "\n" not in joined and (
+        len(arguments) == 1 or len(inner_indent) + len(joined) <= _GENERATED_LINE_WIDTH
+    ):
+        return f"Field(\n{inner_indent}{joined}\n{' ' * indent})"
+    lines = ["Field("]
+    for argument in arguments:
+        lines.append(f"{inner_indent}{argument},")
+    lines.append(f"{' ' * indent})")
+    return "\n".join(lines)
+
+
+def _render_annotated(
+    prefix: str, type_source: str, metadata: list[str | list[str]], suffix: str
+) -> str:
+    """Render ``prefix Annotated[type, *metadata] suffix`` the way black would.
+
+    A metadata entry is either source text or, for the ``Field(...)`` call,
+    its argument list, which is laid out for whichever form is chosen.
+    """
+    default = re.fullmatch(r" = (.+)", suffix)
+
+    def split_right_hand_side(annotation: str) -> str | None:
+        # Black splits the right-hand side first: when everything up to
+        # ``= (`` fits, the default goes on its own line and the annotation
+        # stays whole.
+        head = f"{prefix}{annotation} = ("
+        if default is None or "\n" in head or len(head) > _GENERATED_LINE_WIDTH:
+            return None
+        return f"{head}\n        {default.group(1)}\n    )"
+
+    if not metadata:
+        bare = f"{prefix}{type_source}{suffix}"
+        if "\n" not in type_source and len(bare) <= _GENERATED_LINE_WIDTH:
+            return bare
+        if "\n" not in type_source and (rhs := split_right_hand_side(type_source)) is not None:
+            return rhs
+        # Black splits a trailing subscript at its bracket; anything else it
+        # wraps in parentheses. A type that already spans lines was inside
+        # such parentheses, and keeps its own layout.
+        subscript = re.fullmatch(r"([\w.]+)\[(.+)\]", type_source, re.DOTALL)
+        if "\n" not in type_source and subscript is not None:
+            return f"{prefix}{subscript.group(1)}[\n        {subscript.group(2)}\n    ]{suffix}"
+        return f"{prefix}(\n        {type_source}\n    ){suffix}"
+
+    def flat(element: str | list[str], indent: int) -> str:
+        return _render_field_call(element, indent) if isinstance(element, list) else element
+
+    one_line_elements = [type_source, *(flat(element, 0) for element in metadata)]
+    inner = ", ".join(one_line_elements)
+    one_line = f"{prefix}Annotated[{inner}]{suffix}"
+    if "\n" not in one_line and len(one_line) <= _GENERATED_LINE_WIDTH:
+        return one_line
+    if "\n" not in inner and (rhs := split_right_hand_side(f"Annotated[{inner}]")) is not None:
+        return rhs
+    hugged = f"        {inner}"
+    if "\n" not in hugged and len(hugged) <= _GENERATED_LINE_WIDTH:
+        return f"{prefix}Annotated[\n{hugged}\n    ]{suffix}"
+    lines = [f"{prefix}Annotated["]
+    for element in [type_source, *metadata]:
+        lines.append(f"        {flat(element, 8)},")
+    lines.append(f"    ]{suffix}")
+    return "\n".join(lines)
+
+
+def _rewrite_no_explicit_null_marks(
+    source: str, marker: str | None = _NO_EXPLICIT_NULL_MARKER
+) -> tuple[str, int]:
+    """Turn every marked ``Field`` keyword into the ``NoExplicitNull`` annotation.
+
+    Returns the rewritten source and the number of fields that now carry the
+    marker. A marked field whose annotation already refuses ``None`` (a
+    ``Literal`` with a default, a required field an ``allOf`` arm supplied)
+    only loses the keyword. With ``marker=None`` the keyword is removed and
+    nothing is appended, which is how the layout is graded against the
+    generator's own: the result must be byte-identical to a run without the
+    mark.
+    """
+    raw = source.encode("utf-8")
+    tree = ast.parse(raw)
+    offsets = _absolute_offsets(raw)
+    edits: list[tuple[int, int, bytes]] = []
+    marked = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.AnnAssign) or not isinstance(node.target, ast.Name):
+            continue
+        annotation = node.annotation
+        if not (
+            isinstance(annotation, ast.Subscript)
+            and isinstance(annotation.value, ast.Name)
+            and annotation.value.id == "Annotated"
+            and isinstance(annotation.slice, ast.Tuple)
+        ):
+            continue
+        elements = annotation.slice.elts
+        keyword = None
+        for element in elements[1:]:
+            keyword = _no_explicit_null_keyword(element)
+            if keyword is not None:
+                field_call = element
+                break
+        if keyword is None:
+            continue
+        type_source = _segment(raw, offsets, elements[0])
+        metadata: list[str | list[str]] = []
+        for element in elements[1:]:
+            if element is field_call:
+                assert isinstance(element, ast.Call)
+                arguments = _field_call_without_mark(element, keyword, raw, offsets)
+                if arguments is not None:
+                    metadata.append(arguments)
+                continue
+            metadata.append(_segment(raw, offsets, element))
+        annotation_names = {n.id for n in ast.walk(elements[0]) if isinstance(n, ast.Name)} | {
+            n.value for n in ast.walk(elements[0]) if isinstance(n, ast.Constant)
+        }
+        if None in annotation_names and marker is not None:
+            metadata.append(marker)
+            marked += 1
+        # Measure from the start of the line: the indentation counts toward
+        # the width black lays the statement out against.
+        line_start = offsets[node.lineno - 1]
+        _statement_start, statement_end = _node_span(node, offsets)
+        annotation_start, annotation_end = _node_span(annotation, offsets)
+        prefix = raw[line_start:annotation_start].decode("utf-8")
+        suffix = raw[annotation_end:statement_end].decode("utf-8")
+        # A default black split onto its own line sits in parentheses the
+        # AST does not span: ``= (\n        None\n    )``. Read it back as
+        # ``= None`` and consume the closing parenthesis.
+        wrapped = re.fullmatch(r" = \(\s*(.+?)\s*(\))?", suffix, re.DOTALL)
+        if wrapped is not None:
+            if wrapped.group(2) is None:
+                closing = re.match(rb"\s*\)", raw[statement_end:])
+                assert closing is not None, (node.target.id, suffix)
+                statement_end += closing.end()
+            suffix = f" = {wrapped.group(1)}"
+        rendered = _render_annotated(prefix, type_source, metadata, suffix)
+        edits.append((line_start, statement_end, rendered.encode("utf-8")))
+    for start, end, replacement in sorted(edits, reverse=True):
+        raw = raw[:start] + replacement + raw[end:]
+    return raw.decode("utf-8"), marked
+
+
+def _ensure_no_explicit_null_import(source: str) -> str:
+    """Import ``NoExplicitNull`` from ``adcp.types.base`` when the module lacks it."""
+    if re.search(r"^from adcp\.types\.base import .*\bNoExplicitNull\b", source, re.MULTILINE):
+        return source
+    if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+        return add_to_import(source, "adcp.types.base", _NO_EXPLICIT_NULL_MARKER)
+    statement = f"from adcp.types.base import {_NO_EXPLICIT_NULL_MARKER}\n"
+    anchor = _import_pattern("pydantic").search(source)
+    if anchor is not None:
+        return source[: anchor.start()] + statement + source[anchor.start() :]
+    # No pydantic import to sit beside (a fixture module): after the typing
+    # import, else after ``from __future__``, else at the top.
+    for pattern in (r"^from typing import [^\n]*\n", r"^from __future__ import [^\n]*\n\n?"):
+        match = re.search(pattern, source, re.MULTILINE)
+        if match is not None:
+            return source[: match.end()] + statement + source[match.end() :]
+    return statement + source
+
+
+def point_omittable_fields_at_no_explicit_null() -> None:
+    """Refuse an explicit ``null`` on every optional property whose schema refuses one.
+
+    ``generate_types.mark_no_explicit_null_properties`` grades each optional
+    property with the bundled validator and marks the ones that cannot be
+    ``null``; the generator carries the mark as a ``Field(json_schema_extra=...)``
+    keyword. This pass removes that keyword and appends
+    ``adcp.types.base.NoExplicitNull`` to the field's ``Annotated`` metadata,
+    so the annotation stays ``T | None = None`` — omitted still reads as
+    ``None`` — while an explicit ``null`` is refused on input and the ``null``
+    arm leaves the published JSON Schema. See #1547.
+    """
+    modified = 0
+    marked = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if _NO_EXPLICIT_NULL_EXTRA not in source:
+            continue
+        source, count = _rewrite_no_explicit_null_marks(source)
+        assert _NO_EXPLICIT_NULL_EXTRA not in source, path
+        # A module whose only ``Field`` or ``Annotated`` was the mark's is left
+        # exactly as the generator writes it without the mark.
+        if "Field(" not in source:
+            source = drop_from_imports(source, "pydantic", "Field")
+        if "Annotated[" not in source:
+            source = drop_from_imports(source, "typing", "Annotated")
+            # Dropping the only ``typing`` import leaves its blank line behind.
+            source = re.sub(r"\n{3,}(from |import )", r"\n\n\1", source, count=1)
+        if count:
+            source = _ensure_no_explicit_null_import(source)
+        path.write_text(source)
+        modified += 1
+        marked += count
+    print(f"  Pointed {marked} optional field(s) at NoExplicitNull in {modified} file(s)")
+
+
 def remove_imports_shadowed_by_a_local_class() -> None:
     """Drop an import whose name a class in the same module redefines.
 
@@ -3406,15 +3701,21 @@ def _ensure_sequence_import(content: str) -> str:
 _CANCELED_FIELD_RE = re.compile(
     r"(    canceled: Annotated\[\n        )"
     r"Literal\[True\]"
-    r"(,\n        Field\(\n            description=[^\n]*\n        \),\n    \])"
+    r"(,\n        Field\(\n            description=[^\n]*\n        \),\n)"
+    r"(    \])"
     r" = True"
 )
+
+#: The widened form: optional, so ``None`` when omitted, and — as the schema
+#: declares a boolean — never an explicit ``null`` (#1547).
+_WIDENED_LITERAL_TRUE = r"\1Literal[True] | None\2        NoExplicitNull,\n\3 = None"
 
 
 _UNCHANGED_FIELD_RE = re.compile(
     r"(    unchanged: Annotated\[\n        )"
     r"Literal\[True\]"
-    r"(,\n        Field\(\n            description=.*?\n        \),\n    \])"
+    r"(,\n        Field\(\n            description=.*?\n        \),\n)"
+    r"(    \])"
     r" = True",
     re.DOTALL,
 )
@@ -3454,9 +3755,11 @@ def fix_canceled_literal_defaults() -> None:
 
         source = py_file.read_text()
         new_source, count = _CANCELED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             source,
         )
+        if count:
+            new_source = _ensure_no_explicit_null_import(new_source)
 
         if count == 0:
             print(f"  {py_file.relative_to(OUTPUT_DIR)}: no destructive canceled defaults found")
@@ -3497,9 +3800,11 @@ def fix_unchanged_literal_defaults() -> None:
 
         source = py_file.read_text()
         new_source, count = _UNCHANGED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             source,
         )
+        if count:
+            new_source = _ensure_no_explicit_null_import(new_source)
 
         if count == 0:
             print(f"  {py_file.relative_to(OUTPUT_DIR)}: no unchanged defaults found")
@@ -3548,16 +3853,29 @@ def fix_optional_boolean_literal_defaults() -> None:
             if not isinstance(node.value, ast.Constant) or node.value.value is not literal_value:
                 continue
             annotation = node.annotation
+            widened = f"Literal[{literal_value}] | None"
             if (
                 isinstance(annotation, ast.Subscript)
                 and _subscript_base_name(annotation) == "Annotated"
             ):
-                annotation = _first_subscript_arg(annotation)
-            assert annotation is not None
-            for part, replacement in (
-                (annotation, f"Literal[{literal_value}] | None".encode()),
-                (node.value, b"None"),
-            ):
+                # Widen the type and slot the marker in before the closing
+                # bracket, after the existing metadata.
+                first = _first_subscript_arg(annotation)
+                assert first is not None
+                closing = offsets[annotation.end_lineno - 1] + annotation.end_col_offset - 1
+                assert source[closing : closing + 1] == b"]"
+                exploded = (
+                    b"\n"
+                    in source[offsets[annotation.lineno - 1] + annotation.col_offset : closing]
+                )
+                # The closing bracket of an exploded subscript already sits on
+                # its own indented line; add one element at the element indent.
+                marker = b"    NoExplicitNull,\n    " if exploded else b", NoExplicitNull"
+                edits.append((closing, closing, marker))
+                replacements = [(first, widened.encode())]
+            else:
+                replacements = [(annotation, f"Annotated[{widened}, NoExplicitNull]".encode())]
+            for part, replacement in (*replacements, (node.value, b"None")):
                 edits.append(
                     (
                         offsets[part.lineno - 1] + part.col_offset,
@@ -3569,7 +3887,8 @@ def fix_optional_boolean_literal_defaults() -> None:
         if edits:
             for start, end, replacement in sorted(edits, reverse=True):
                 source = source[:start] + replacement + source[end:]
-            py_file.write_bytes(source)
+            text = _ensure_typing_import(source.decode(), "Annotated")
+            py_file.write_text(_ensure_no_explicit_null_import(text))
             print(
                 f"  {py_file.relative_to(OUTPUT_DIR)}: fixed {len(edits) // 2} boolean const field(s)"
             )
@@ -4005,9 +4324,7 @@ def fix_trusted_match_runtime_validators() -> None:
         print("  trusted_match/identity_match_response.py response class not found")
         return
     response_class = response_class_match.group(1)
-    source = (
-        source.rstrip()
-        + f"""
+    source = source.rstrip() + f"""
 
     @model_validator(mode='after')
     def _validate_tmpx_provider_ids(self) -> {response_class}:
@@ -4022,7 +4339,6 @@ def fix_trusted_match_runtime_validators() -> None:
             raise ValueError('tmpx_providers keys must be valid provider_id values')
         return self
 """
-    )
     identity_match_response.write_text(source.rstrip() + "\n")
     print("  trusted_match/identity_match_response.py: added runtime validators")
 
@@ -4857,9 +5173,7 @@ def restore_flattened_contract_field_types() -> None:
 
     if "@model_validator(mode='before')" not in source:
         source = ensure_pydantic_import(source, "model_validator")
-        source = (
-            source.rstrip()
-            + """
+        source = source.rstrip() + """
 
     @model_validator(mode='before')
     @classmethod
@@ -4874,7 +5188,6 @@ def restore_flattened_contract_field_types() -> None:
                 )
         return data
 """
-        )
     representation_target.write_text(source)
     print("  core/creative_representation.py: restored canonical format contract")
 
@@ -4907,9 +5220,7 @@ def enforce_transformer_output_contract() -> None:
     if "class Transformer(" not in source:
         raise RuntimeError("transformer.py: Transformer class not found")
     source = ensure_pydantic_import(source, "model_validator")
-    target.write_text(
-        source.rstrip()
-        + """
+    target.write_text(source.rstrip() + """
 
     @model_validator(mode='after')
     def _require_output_format_declaration(self) -> Transformer:
@@ -4924,8 +5235,7 @@ def enforce_transformer_output_contract() -> None:
                 'one of output_capability_ids or deprecated output_format_ids is required'
             )
         return self
-"""
-    )
+""")
     print("  core/transformer.py: enforced output declaration requirement")
 
 
@@ -5525,11 +5835,16 @@ def restore_response_variant_aliases() -> None:
             )
             if inherits_protocol_envelope:
                 self.needs_protocol_envelope = True
-            lines = [f"class {class_name}({bases}):"]
-            if is_submitted:
-                lines.append("    model_config = ConfigDict(extra='allow', validate_default=True)")
-            else:
-                lines.append("    model_config = ConfigDict(extra='allow')")
+            # Submitted arms once paired ``validate_default=True`` with
+            # ``use_enum_values`` so the ``status`` default came out as its
+            # value; the enum is a ``StrEnum`` now and the default is already
+            # the literal's member. Validating defaults would also run every
+            # inherited ``= None`` default through ``NoExplicitNull`` (#1547),
+            # which refuses it, so the arms take the base's default policy.
+            lines = [
+                f"class {class_name}({bases}):",
+                "    model_config = ConfigDict(extra='allow')",
+            ]
             is_sync_media_buy_success = self.base in {
                 "CreateMediaBuyResponse",
                 "UpdateMediaBuyResponse",
@@ -5847,8 +6162,7 @@ def fix_verify_brand_claim_models() -> None:
     bulk_response = OUTPUT_DIR / "brand" / "verify_brand_claims_response.py"
 
     if request.exists() and "claim_type:" not in request.read_text():
-        request.write_text(
-            """# generated by datamodel-codegen:
+        request.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_request.json
 
 from __future__ import annotations
@@ -5880,13 +6194,11 @@ class VerifyBrandClaimRequest(AdcpVersionEnvelope):
         dict[str, Any],
         Field(description='Claim payload. Shape varies by claim_type.'),
     ]
-"""
-        )
+""")
         print("  brand/verify_brand_claim_request.py: restored claim fields")
 
     if response.exists() and "VerifyBrandClaimSuccessResponse" not in response.read_text():
-        response.write_text(
-            """# generated by datamodel-codegen:
+        response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -5945,8 +6257,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claim_response.py: restored response arms")
 
     response_schema = SCHEMA_DIR / "brand" / "verify-brand-claim-response.json"
@@ -5955,8 +6266,7 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and response_schema.exists()
         and '"signed_response"' in response_schema.read_text()
     ):
-        response.write_text(
-            """# generated by datamodel-codegen:
+        response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -6107,8 +6417,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claim_response.py: restored signed response fields")
 
     bulk_response_schema = SCHEMA_DIR / "brand" / "verify-brand-claims-response.json"
@@ -6117,8 +6426,7 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and bulk_response_schema.exists()
         and '"signed_response"' in bulk_response_schema.read_text()
     ):
-        bulk_response.write_text(
-            """# generated by datamodel-codegen:
+        bulk_response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claims_response.json
 
 from __future__ import annotations
@@ -6301,8 +6609,7 @@ class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claims_response.py: restored signed response fields")
 
     if bulk_response.exists():
@@ -6834,9 +7141,7 @@ def fix_legacy_purchase_accepted_losses() -> None:
     )
     validator_marker = "    def _accepted_losses_match_schema("
     if validator_marker not in fixed and "field_validator" in fixed:
-        fixed = (
-            fixed.rstrip()
-            + """
+        fixed = fixed.rstrip() + """
 
 
     @field_validator('selected_product_ids')
@@ -6864,7 +7169,6 @@ def fix_legacy_purchase_accepted_losses() -> None:
             raise ValueError('accepted_losses must include the required compatibility losses')
         return values
 """
-        )
     if fixed != source:
         target.write_text(fixed)
         print("  media_buy/legacy_purchase_continuation_input.py: narrowed accepted_losses")
@@ -6995,9 +7299,7 @@ def enforce_change_term_runtime_constraints() -> None:
         )
         class_start = source.find("class MediaBuyChangeTerm(AdCPBaseModel):")
         if class_start >= 0 and "def _validate_constraint_action" not in source[class_start:]:
-            source = (
-                source.rstrip()
-                + """
+            source = source.rstrip() + """
 
     @model_validator(mode='after')
     def _validate_constraint_action(self) -> MediaBuyChangeTerm:
@@ -7017,9 +7319,7 @@ def enforce_change_term_runtime_constraints() -> None:
         if action not in allowed.get(kind, set()):
             raise ValueError('constraint kind is incompatible with action')
         return self
-"""
-                + "\n"
-            )
+""" + "\n"
             term_path.write_text(source)
             print("  media_buy/change_term.py: restored constraint/action compatibility")
 
@@ -7032,9 +7332,7 @@ def enforce_change_term_runtime_constraints() -> None:
         )
         class_start = source.find("class CommercialTerms(AdCPBaseModel):")
         if class_start >= 0 and "def _validate_change_term_set" not in source[class_start:]:
-            source = (
-                source.rstrip()
-                + """
+            source = source.rstrip() + """
 
     @model_validator(mode='after')
     def _validate_change_term_set(self) -> CommercialTerms:
@@ -7083,9 +7381,7 @@ def enforce_change_term_runtime_constraints() -> None:
             ):
                 raise ValueError('change-term earliest effective time exceeds latest time')
         return self
-"""
-                + "\n"
-            )
+""" + "\n"
             terms_path.write_text(source)
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
@@ -7989,6 +8285,11 @@ def main(argv: list[str] | None = None) -> int:
     print("Applying post-generation fixes...")
 
     fixes = [
+        # First: every later fix reads the field text the generator produced
+        # on the pinned flags, and this pass restores exactly that text (the
+        # mark's keyword is the only thing the generator added) plus the
+        # ``NoExplicitNull`` element it appends to a marked field.
+        point_omittable_fields_at_no_explicit_null,
         add_model_validator_to_product,
         fix_preview_render_self_reference,
         fix_brand_manifest_references,
