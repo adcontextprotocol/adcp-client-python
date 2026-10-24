@@ -393,9 +393,7 @@ class _RefuseJsonNull:
         return "_REFUSE_JSON_NULL"
 
     def __eq__(self, other: object) -> bool:
-        # ``NoExplicitNull in field.metadata``: the list holds this half, and
-        # ``FieldInfo`` defines no ``__eq__``, so the comparison reflects here.
-        return isinstance(other, _RefuseJsonNull) or other is NoExplicitNull
+        return isinstance(other, _RefuseJsonNull)
 
     def __hash__(self) -> int:
         return hash(_RefuseJsonNull)
@@ -441,16 +439,26 @@ _REFUSE_JSON_NULL = _RefuseJsonNull()
 #: field (``exclude_if`` lands on the field, the inner marker lands in
 #: ``field.metadata``), so one ``NoExplicitNull`` beside the generated
 #: ``Field(...)`` is all a field needs, and ``copy.deepcopy`` of the merged
-#: ``FieldInfo`` (``canonical_creative._inherit``) carries both halves.
-#: ``NoExplicitNull in field.metadata`` holds through the halves' equality, and
-#: ``field.exclude_if is NoExplicitNull.exclude_if`` identifies the exclusion.
-#: Not a subclass: pydantic declares ``FieldInfo`` final.
+#: ``FieldInfo`` (``canonical_creative._inherit``) carries both halves. The
+#: marker itself is therefore never in ``field.metadata``; ask
+#: :func:`is_no_explicit_null`, which reads the exclusion by identity. Not a
+#: subclass: pydantic declares ``FieldInfo`` final.
 #:
 #: The generator marks every such property from the schema
 #: (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``) and
 #: ``scripts/post_generate_fixes.py`` points the mark here. See #1547 and #1587.
 NoExplicitNull: Final[FieldInfo] = FieldInfo(exclude_if=_is_none)
 NoExplicitNull.metadata.append(_REFUSE_JSON_NULL)
+
+
+def is_no_explicit_null(field: FieldInfo) -> bool:
+    """Whether ``field`` carries :data:`NoExplicitNull`.
+
+    Identity, not equality: the marker is merged into the field, so what the
+    field keeps is its ``exclude_if`` (and, in ``metadata``, its validation
+    half). A redeclaration that copies the generated ``FieldInfo`` keeps both.
+    """
+    return field.exclude_if is NoExplicitNull.exclude_if
 
 
 class AdCPBaseModel(BaseModel):

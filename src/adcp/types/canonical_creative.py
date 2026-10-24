@@ -101,7 +101,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -321,7 +321,7 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
     """Find functional serializers, including ones inside container annotations."""
     if isinstance(annotation, (PlainSerializer, WrapSerializer)):
         return True
-    if annotation == NoExplicitNull:
+    if annotation is NoExplicitNull or annotation is _REFUSE_JSON_NULL:
         # Either half of the marker. Its only serialization effect is to leave a
         # ``None`` off the dump, which is what the default dump already does.
         return False

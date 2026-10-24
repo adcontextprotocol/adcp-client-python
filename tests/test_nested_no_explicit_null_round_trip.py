@@ -34,7 +34,7 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     VendorPricingOptionUnion,
 )
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull, is_no_explicit_null
 from adcp.types.domains.core.product import Provider
 from adcp.types.domains.creative.sync_creatives_request import (
     SyncCreativesRequest as GeneratedSyncCreativesRequest,
@@ -222,12 +222,19 @@ def test_exclude_none_false_keeps_an_unmarked_none_inside_an_open_dict() -> None
 
 def test_marker_carries_the_exclusion_and_the_refusal() -> None:
     field = TrustedMatch.model_fields["providers"]
-    assert NoExplicitNull in field.metadata
+    assert is_no_explicit_null(field)
     assert field.exclude_if is NoExplicitNull.exclude_if
     assert field.exclude_if(None) is True
     assert field.exclude_if([]) is False
     assert isinstance(NoExplicitNull, FieldInfo)
-    assert [repr(item) for item in field.metadata if item == NoExplicitNull] == ["NoExplicitNull"]
+    assert _REFUSE_JSON_NULL in field.metadata
+    assert [repr(item) for item in field.metadata if item is _REFUSE_JSON_NULL] == [
+        "NoExplicitNull"
+    ]
+    # The marker is merged into the field, never itself in ``metadata``; the
+    # halves are distinct objects and compare by identity.
+    assert NoExplicitNull not in field.metadata
+    assert _REFUSE_JSON_NULL != NoExplicitNull
     # A generated ``Field(description=...)`` beside the marker survives the merge.
     assert field.description
 
@@ -235,8 +242,8 @@ def test_marker_carries_the_exclusion_and_the_refusal() -> None:
 def test_forward_compat_reporting_operation_id_is_left_off_when_unset() -> None:
     """The hand-written ``_ReportingOperationId`` annotation uses the same marker."""
     field = ReportingWebhook.model_fields["operation_id"]
-    assert NoExplicitNull in field.metadata
-    assert field.exclude_if is NoExplicitNull.exclude_if
+    assert is_no_explicit_null(field)
+    assert _REFUSE_JSON_NULL in field.metadata
 
     class Holder(BaseModel):
         webhook: ReportingWebhook
@@ -260,9 +267,9 @@ def test_canonical_redeclaration_inherits_the_exclusion() -> None:
     canonical = SyncCreativesRequest.model_fields["creatives"]
     generated = GeneratedSyncCreativesRequest.model_fields["creatives"]
     assert canonical is not generated
-    assert canonical.exclude_if is NoExplicitNull.exclude_if
-    assert NoExplicitNull in canonical.metadata
-    assert copy.deepcopy(canonical).exclude_if is NoExplicitNull.exclude_if
+    assert is_no_explicit_null(canonical)
+    assert _REFUSE_JSON_NULL in canonical.metadata
+    assert is_no_explicit_null(copy.deepcopy(canonical))
 
     class Holder(BaseModel):
         request: SyncCreativesRequest
@@ -298,7 +305,10 @@ def _without_exclusion(model: type[BaseModel]) -> type[BaseModel]:
         "__annotations__": {},
     }
     for name, field in model.model_fields.items():
-        twin = copy.copy(field)
+        # A deep copy: ``copy.copy`` would share ``_attributes_set`` with the
+        # real field, and popping from it would strip the exclusion from every
+        # later redeclaration of that field.
+        twin = copy.deepcopy(field)
         twin.exclude_if = None
         twin._attributes_set.pop("exclude_if", None)
         namespace["__annotations__"][name] = field.annotation
@@ -323,8 +333,12 @@ def _without_exclusion(model: type[BaseModel]) -> type[BaseModel]:
 )
 def test_published_schema_is_unchanged_by_the_exclusion(model: type[BaseModel]) -> None:
     before = _without_exclusion(model)
-    assert any(f.exclude_if is not None for f in model.model_fields.values())
+    assert any(is_no_explicit_null(f) for f in model.model_fields.values())
     assert all(f.exclude_if is None for f in before.model_fields.values())
+    # The real fields are untouched by building the twin.
+    for field in model.model_fields.values():
+        if is_no_explicit_null(field):
+            assert "exclude_if" in field._attributes_set
     for mode in ("validation", "serialization"):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -350,10 +364,10 @@ def test_every_marked_field_in_the_generated_tree_carries_the_exclusion() -> Non
     marked = 0
     for name, model in _adcp_models():
         for field_name, field in model.model_fields.items():
-            is_marked = NoExplicitNull in field.metadata
-            if is_marked:
+            refuses = _REFUSE_JSON_NULL in field.metadata
+            if refuses:
                 marked += 1
-                assert field.exclude_if is NoExplicitNull.exclude_if, (name, field_name)
+                assert is_no_explicit_null(field), (name, field_name)
                 assert not field.is_required(), (name, field_name)
             else:
                 assert field.exclude_if is None, (name, field_name)
@@ -381,7 +395,7 @@ def test_default_instances_of_every_model_dump_no_null_for_marked_fields() -> No
             continue
         checked += 1
         for field_name, field in model.model_fields.items():
-            if NoExplicitNull in field.metadata:
+            if is_no_explicit_null(field):
                 for key in {field_name, field.alias or field_name}:
                     assert document.get(key, "absent") is not None, (name, field_name)
     assert checked > 600

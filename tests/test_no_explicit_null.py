@@ -33,7 +33,7 @@ from pydantic import BaseModel, ValidationError
 
 import adcp.types as public_types
 from adcp.types import base as types_base
-from adcp.types.base import NoExplicitNull
+from adcp.types.base import NoExplicitNull, is_no_explicit_null
 from adcp.types.domains.creative.sync_creatives_request import SyncCreativesRequest
 from adcp.types.domains.media_buy.update_media_buy_request import UpdateMediaBuyRequest
 from adcp.validation import get_schema, validate_request
@@ -109,7 +109,7 @@ def test_strict_validation_refuses_a_python_none_too(monkeypatch: pytest.MonkeyP
 def test_canonical_subclass_inherits_the_rule_through_inherit() -> None:
     """The canonical redeclaration (``_inherit``, #1548) keeps the generated marker."""
     field = public_types.SyncCreativesRequest.model_fields["creatives"]
-    assert NoExplicitNull in field.metadata
+    assert is_no_explicit_null(field)
     canonical = public_types.SyncCreativesRequest
     with pytest.raises(ValidationError) as excinfo:
         canonical.model_validate_json(json.dumps(_SYNC_WITH_NULL_CREATIVES))
@@ -124,7 +124,7 @@ def test_a_redeclaration_that_keeps_the_field_info_keeps_the_marker() -> None:
     class Narrowed(SyncCreativesRequest):
         creatives: list[dict[str, object]] | None = parent_field  # type: ignore[assignment]
 
-    assert NoExplicitNull in Narrowed.model_fields["creatives"].metadata
+    assert is_no_explicit_null(Narrowed.model_fields["creatives"])
     with pytest.raises(ValidationError) as excinfo:
         Narrowed.model_validate_json(json.dumps(_SYNC_WITH_NULL_CREATIVES))
     assert _null_errors(excinfo.value) == [(("creatives",), "list_type")]
@@ -149,7 +149,7 @@ def test_omitted_creatives_still_reads_as_none() -> None:
 def test_constraints_and_description_survive_beside_the_marker() -> None:
     """The marker is appended to the field's metadata, not substituted for it."""
     field = SyncCreativesRequest.model_fields["creatives"]
-    assert NoExplicitNull in field.metadata
+    assert is_no_explicit_null(field)
     assert field.description == "Array of creative assets to sync (create or update)"
     too_many = {
         **{k: v for k, v in _SYNC_WITH_NULL_CREATIVES.items() if k != "creatives"},
@@ -192,7 +192,7 @@ def test_genuinely_nullable_property_keeps_accepting_null() -> None:
     assert request.budget_cap_timezone is None
     assert "budget_cap_timezone" in request.model_fields_set
     for name in ("budget_cap_timezone", "daily_budget_cap"):
-        assert NoExplicitNull not in UpdateMediaBuyRequest.model_fields[name].metadata
+        assert not is_no_explicit_null(UpdateMediaBuyRequest.model_fields[name])
     node = UpdateMediaBuyRequest.model_json_schema()["properties"]["budget_cap_timezone"]
     assert {"type": "null"} in node["anyOf"]
 
@@ -249,7 +249,7 @@ def test_every_optional_field_either_carries_the_marker_or_admits_null(
         node = schema["properties"].get(wire_name)
         if node is None:
             continue
-        marked = NoExplicitNull in field.metadata
+        marked = is_no_explicit_null(field)
         annotation = repr(field.annotation)
         if marked:
             assert wire_name not in required

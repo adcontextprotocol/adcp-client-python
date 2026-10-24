@@ -39,7 +39,9 @@ round-trips from any parent (#1587). That holds under an explicit
 `exclude_none=False` too: `null` is never a valid value for a marked property,
 so there is nothing to keep. A property whose schema admits `null` is not
 marked and still emits `null` under `exclude_none=False`, from a parent or
-directly.
+directly. One consequence for subclasses: a `field_serializer` that substitutes
+a default for `None` no longer runs for a `None` value on a marked field,
+because `exclude_if` drops the field before the serializer is reached.
 
 ## Wire-boundary behavior
 
