@@ -220,13 +220,30 @@ def test_reporting_operation_id_constraints_match_push_notification_config() -> 
     assert reporting.annotation == push.annotation
     assert [repr(item) for item in reporting.metadata] == [repr(item) for item in push.metadata]
     schema = ReportingWebhook.model_json_schema()["properties"]["operation_id"]
-    assert schema["anyOf"][0] == {
+    push_schema = PushNotificationConfig.model_json_schema()["properties"]["operation_id"]
+    wire_keys = ("type", "minLength", "maxLength", "pattern", "anyOf")
+    assert {key: schema.get(key) for key in wire_keys} == {
+        key: push_schema.get(key) for key in wire_keys
+    }
+    assert {key: schema[key] for key in ("type", "minLength", "maxLength", "pattern")} == {
         "type": "string",
         "minLength": 1,
         "maxLength": 255,
         "pattern": "^[A-Za-z0-9_.:-]{1,255}$",
     }
     assert "MUST NOT emit `media_buy_delivery`" in schema["description"]
+
+
+def test_reporting_operation_id_refuses_an_explicit_json_null() -> None:
+    """Omitted is fine; a JSON null is not, matching the generated push field."""
+    base = {
+        "url": "https://buyer.example/reporting",
+        "authentication": _AUTHENTICATION,
+        "reporting_frequency": "daily",
+    }
+    assert ReportingWebhook.model_validate_json(json.dumps(base)).operation_id is None
+    with pytest.raises(ValidationError):
+        ReportingWebhook.model_validate_json(json.dumps({**base, "operation_id": None}))
 
 
 @pytest.mark.asyncio

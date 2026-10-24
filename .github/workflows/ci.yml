@@ -199,8 +199,9 @@ jobs:
       matrix:
         include:
           # Core also builds and installs the reporting wheel/sdist fixtures.
+          # It runs 25-29 minutes on main, so 30 cancelled it on slow runners.
           - lane: core
-            timeout_minutes: 30
+            timeout_minutes: 45
           - lane: process
             timeout_minutes: 15
     services:
