@@ -101,6 +101,61 @@ def test_every_post_release_integration_has_real_agreement(history: list[str]) -
     assert policies.conventional("push", history[-1], {})["commits"] == history[1:]
 
 
+def test_conventional_rerun_reads_the_corrected_pr_body(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": BREAKING_SUBJECT,
+        "body": "Missing the breaking footer in the original webhook.",
+    }
+    api.data["pulls/1174"] = {**pr, "body": BREAKING_FOOTER}
+
+    result = policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+    assert result["commits"] == history[1:]
+    assert api.reads == ["pulls/1174"]
+
+
+def test_conventional_rerun_rejects_a_newly_invalid_pr_message(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": BREAKING_SUBJECT,
+        "body": BREAKING_FOOTER,
+    }
+    api.data["pulls/1174"] = {**pr, "body": None}
+
+    with pytest.raises(ReleaseRejectedError, match="BREAKING CHANGE"):
+        policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+def test_conventional_rerun_cannot_validate_a_different_pr_head(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1174,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": "fix: valid contribution",
+        "body": "",
+    }
+    api.data["pulls/1174"] = {**pr, "head": {"sha": "a" * 40}}
+
+    with pytest.raises(ReleaseRejectedError, match="PR head changed"):
+        policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+def test_conventional_workflow_can_read_current_pr_metadata() -> None:
+    workflow = yaml.safe_load((policies.ROOT / ".github/workflows/ci.yml").read_text())
+    job = workflow["jobs"]["conventional-commits"]
+    assert job["permissions"] == {"contents": "read", "pull-requests": "read"}
+    step = next(s for s in job["steps"] if "check_main_policies conventional" in s.get("run", ""))
+    assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
+
+
 @pytest.mark.parametrize(
     "case",
     [
@@ -330,6 +385,13 @@ def test_single_parent_commit_cannot_impersonate_github_merge(history: list[str]
         ("a" * 40, "feat(reporting)!: enable production tier status and ownership", False),
         (None, "feat(reporting)!: enable production tier status and ownership", False),
         ("34c8f6d929aeac3407e2f595104a8e903e572623", BREAKING_SUBJECT, False),
+        (
+            "5ce9ee4dc9daef34af143b84ff7d660489fef1be",
+            "fix(types)!: allow assignment-only creative syncs",
+            True,
+        ),
+        ("a" * 40, "fix(types)!: allow assignment-only creative syncs", False),
+        ("5ce9ee4dc9daef34af143b84ff7d660489fef1be", BREAKING_SUBJECT, False),
     ],
 )
 def test_historical_footer_exception_requires_exact_commit_and_subject(

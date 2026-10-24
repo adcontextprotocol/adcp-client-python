@@ -31,7 +31,7 @@ class GetCreativeFeaturesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEn
 
 
 class GetCreativeFeaturesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: Annotated[str, StringConstraints(min_length=1)]
     evaluation_id: Annotated[str, StringConstraints(min_length=1)] | None = None

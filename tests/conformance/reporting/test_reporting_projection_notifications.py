@@ -17,7 +17,7 @@ async def test_status_queue_isolation_and_atomic_projection(backend, fault, monk
         if h.pool is None:
             old = InMemoryReportingStatusOutbox(h.store)
         else:
-            from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox
+            from adcp_reporting_storage.outbox.status_pg import PgReportingStatusOutbox
 
             old = PgReportingStatusOutbox(pool=h.pool)
         assert await old.list_events(account_id=account) == ()

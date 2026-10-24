@@ -5,9 +5,9 @@ from __future__ import annotations
 import traceback
 
 import pytest
+from adcp_reporting_storage import PgReportingSubmissionIntentStore
 
 from adcp.reporting.submissions import (
-    PgReportingSubmissionIntentStore,
     ReportingSubmissionCode,
     ReportingSubmissionError,
     prepare_reporting_receipt_submission,

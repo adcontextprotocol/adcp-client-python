@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import httpx
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
-from adcp.reporting.outbox.memory import InMemoryReportingOutbox
 from adcp.reporting.outbox.routing import (
     ReportingEnvelopeCipher,
     ReportingNotificationSubscription,
@@ -21,17 +21,14 @@ from adcp.reporting.production.delivery_window import (
     RETRY_HORIZON_SECONDS,
     ProductionDeliveryWindow,
 )
-from adcp.reporting.production.memory import (
-    InMemoryReportingProductionOutbox,
-    InMemoryReportingProductionStore,
+from adcp.reporting.production.store import (
+    ReportingProductionProjection,
+    ReportingProductionStore,
 )
-from adcp.reporting.projection.memory import InMemoryReportingStatusProjection
 from adcp.signing.crypto import ALLOWED_ALGS
 
 if TYPE_CHECKING:
-    from adcp.reporting.production.pg import PgReportingProductionStore
     from adcp.reporting.production.service import ReportingProductionSupport
-    from adcp.reporting.projection.pg import PgReportingStatusProjection
 
 
 @dataclass(frozen=True)
@@ -126,8 +123,8 @@ class _SignedSubscriptions:
 
 
 def production_notification_workers(
-    store: InMemoryReportingProductionStore | PgReportingProductionStore,
-    projection: InMemoryReportingStatusProjection | PgReportingStatusProjection,
+    store: ReportingProductionStore,
+    projection: ReportingProductionProjection,
     *,
     subscriptions: ReportingSubscriptionResolver,
     cipher: ReportingEnvelopeCipher,
@@ -139,32 +136,17 @@ def production_notification_workers(
     and enabled atomic logical enqueue available, without advertising push.
     Retained epoch-zero readiness queues are never among these participants.
     """
-    from adcp.reporting.outbox.pg import PgReportingOutbox
-    from adcp.reporting.production.pg import PgReportingProductionOutbox, PgReportingProductionStore
-
     if (
-        projection.ledger is not store
+        not isinstance(store, ReportingProductionStore)
+        or projection.ledger is not store
         or not projection.policy["notifications_enabled"]
         or type(signing) is not ReportingProductionSigning
     ):
         raise ReportingNotificationError("notification_chain_unready")
     ReportingProductionSigning.__post_init__(signing)
     signed_subscriptions = _SignedSubscriptions(subscriptions)
-    outboxes: tuple[Any, ...]
-    if type(store) is InMemoryReportingProductionStore:
-        outboxes = (
-            InMemoryReportingOutbox(store),
-            projection.outbox,
-            InMemoryReportingProductionOutbox(store),
-        )
-    elif type(store) is PgReportingProductionStore:
-        outboxes = (
-            PgReportingOutbox(pool=store._pool, clock=store._clock),
-            projection.outbox,
-            PgReportingProductionOutbox(pool=store._pool, clock=store._clock),
-        )
-    else:
-        raise ReportingNotificationError("notification_chain_unready")
+    # The store builds its own exact queue classes; a subclass is refused there.
+    outboxes = store.production_outboxes(projection)
     return tuple(
         ReportingNotificationWorker(
             outbox=outbox,
@@ -172,7 +154,7 @@ def production_notification_workers(
             cipher=cipher,
             signing=signing,
             activity=outbox,
-            clock=store._clock,
+            clock=store.clock,
             delivery_window=ProductionDeliveryWindow(store, queue),
         )
         for outbox, queue in zip(outboxes, ("core", "status", "ready"))
@@ -222,24 +204,7 @@ def check_workers(support: ReportingProductionSupport) -> None:
         or tuple(worker_identity(w) for w in workers) != support._notification_identity
     ):
         raise ReportingNotificationError("notification_chain_unready")
-    expected: tuple[type[Any], ...]
-    if isinstance(support.store, InMemoryReportingProductionStore):
-        from adcp.reporting.projection.memory import InMemoryReportingProjectionOutbox
-
-        expected = (
-            InMemoryReportingOutbox,
-            InMemoryReportingProjectionOutbox,
-            InMemoryReportingProductionOutbox,
-        )
-        linked = all(getattr(w.outbox, "_store", None) is support.store for w in workers)
-    else:
-        from adcp.reporting.outbox.pg import PgReportingOutbox
-        from adcp.reporting.production.pg import PgReportingProductionOutbox
-        from adcp.reporting.projection.notifications import PgReportingProjectionOutbox
-
-        expected = (PgReportingOutbox, PgReportingProjectionOutbox, PgReportingProductionOutbox)
-        linked = all(getattr(w.outbox, "_pool", None) is support.store._pool for w in workers)
-    if not linked or tuple(type(w.outbox) for w in workers) != expected:
+    if not support.store.notification_workers_linked(workers):
         raise ReportingNotificationError("notification_chain_unready")
     for worker, queue in zip(workers, ("core", "status", "ready")):
         window = worker.delivery_window
@@ -319,38 +284,17 @@ async def check_account_notifications(support: ReportingProductionSupport, accou
     check_workers(support)
 
 
+@runtime_checkable
+class _DueAccountQueue(Protocol):
+    async def next_due_account(self, *, delivery: bool, now: datetime) -> str | None: ...
+
+
 async def next_account(worker: ReportingNotificationWorker, *, delivery: bool) -> str | None:
     """Sample one indexed due queue row; never enumerate adopter accounts."""
-    from adcp.reporting.outbox.pg import PgReportingOutbox, database_now
-
     outbox = worker.outbox
-    if isinstance(outbox, InMemoryReportingOutbox):
-        now = worker._clock()
-        async with outbox._store._lock:
-            pending = (
-                ((key[0], work) for key, (_, work) in outbox._state.deliveries.items())
-                if delivery
-                else ((key[0], work) for key, work in outbox._state.expansions.items())
-            )
-            values = [(work.due_at, account) for account, work in pending if work.available(now)]
-            return min(values)[1] if values else None
-    if not isinstance(outbox, PgReportingOutbox):
+    if not isinstance(outbox, _DueAccountQueue):
         raise ReportingNotificationError("notification_chain_unready")
-    # Both identifiers are closed SDK literals. The concrete queue adapter
-    # selects the matching isolated table on this same actual connection.
-    table = "reporting_notification_deliveries" if delivery else "reporting_notification_expansions"
-    async with outbox._connection() as connection:
-        now = await database_now(connection, outbox._clock)
-        row = await (
-            await connection.execute(
-                f"SELECT account_id FROM {table}"  # nosec B608
-                " WHERE due_at<=%s AND (state='pending' OR"
-                " (state='leased' AND lease_expires_at<=%s))"
-                " ORDER BY due_at,account_id LIMIT 1",
-                (now, now),
-            )
-        ).fetchone()
-        return str(row[0]) if row is not None else None
+    return await outbox.next_due_account(delivery=delivery, now=worker._clock())
 
 
 async def notification_turn(support: ReportingProductionSupport) -> None:

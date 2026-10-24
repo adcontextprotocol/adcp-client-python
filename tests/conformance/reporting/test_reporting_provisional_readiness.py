@@ -1,8 +1,9 @@
 """Provisional persistence cannot operate with a partial or unguarded catalog."""
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore
 
-from adcp.reporting.ledger import LedgerConflictError, PgReportingLedgerStore
+from adcp.reporting.ledger import LedgerConflictError
 
 from ._generation_support import isolated_reporting_pool
 
@@ -75,8 +76,9 @@ async def test_provisional_operations_require_the_complete_immutable_extension(
 
 @pytest.mark.parametrize("damage", DAMAGE)
 async def test_notification_readiness_checks_a_present_known_extension(damage):
+    from adcp_reporting_storage.outbox._schema import validate_schema
+
     from adcp.reporting.outbox import ReportingNotificationError
-    from adcp.reporting.outbox._schema import validate_schema
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         await PgReportingLedgerStore(pool=pool).create_schema()

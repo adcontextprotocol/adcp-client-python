@@ -12,12 +12,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger.row_storage import (
+from adcp_reporting_storage.ledger.row_storage import (
     REPORTING_ROW_STORAGE_DDL_PATH,
     REPORTING_ROW_STORAGE_TABLES,
 )
-from adcp.reporting.outbox._schema import _catalog_objects
+from adcp_reporting_storage.outbox._schema import _catalog_objects
 
 from ._generation_support import isolated_reporting_pool
 

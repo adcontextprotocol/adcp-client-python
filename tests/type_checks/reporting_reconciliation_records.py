@@ -7,12 +7,12 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
 
+from adcp_reporting_storage import PgReportingReconciliationStore
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     InMemoryReportingReconciliationStore,
-    PgReportingReconciliationStore,
     ReportingCanonicalDigest,
     ReportingConfigurationGenerationKey,
     ReportingControlTotalRecord,

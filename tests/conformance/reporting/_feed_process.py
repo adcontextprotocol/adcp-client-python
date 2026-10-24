@@ -1,5 +1,17 @@
 """Actual installed/source transport process; durable snapshot crash boundaries."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -7,16 +19,28 @@ import importlib.util
 import json
 import sys
 import traceback
-from importlib.resources import files
 from pathlib import Path
 from types import SimpleNamespace
 
 
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
+
+
 async def main(settings):
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.receipts import PgReportingReceiptStore
+    else:
+        from adcp_reporting_storage import PgReportingReceiptStore
     from psycopg_pool import AsyncConnectionPool
 
     from adcp.reporting.ledger import ReportingDeliveryPrincipal
-    from adcp.reporting.receipts import PgReportingReceiptStore, ReportingReceiptHandler
+    from adcp.reporting.receipts import ReportingReceiptHandler
 
     installed = settings.get("installed")
     origins = {}
@@ -41,7 +65,10 @@ async def main(settings):
     if receipt_only:
         store_type = PgReportingReceiptStore
     else:
-        from adcp.reporting.feed import PgReportingFeedStore
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.feed import PgReportingFeedStore
+        else:
+            from adcp_reporting_storage import PgReportingFeedStore
 
         class Store(PgReportingFeedStore):
             async def _capture_feed_on(self, connection, *args, **kwargs):
@@ -68,8 +95,14 @@ async def main(settings):
                 feed_operation_3 = await store.reporting_feed_ready()
                 assert feed_operation_3
             if settings.get("legacy_status_schema"):
-                from adcp.reporting.ledger import PgReportingReconciliationStore
-                from adcp.reporting.outbox import PgStatusNotificationStore
+                if _storage_split():  # wheels before the storage split (#1510)
+                    from adcp.reporting.ledger import PgReportingReconciliationStore
+                    from adcp.reporting.outbox import PgStatusNotificationStore
+                else:
+                    from adcp_reporting_storage import (
+                        PgReportingReconciliationStore,
+                        PgStatusNotificationStore,
+                    )
 
                 await PgStatusNotificationStore(
                     PgReportingReconciliationStore(pool=pool, notifications=True)
@@ -78,24 +111,18 @@ async def main(settings):
                 "installed": True,
                 "materializer_objects": len(
                     json.loads(
-                        files("adcp.reporting.materializer")
-                        .joinpath("required_schema.json")
-                        .read_text()
+                        _asset_files(".materializer").joinpath("required_schema.json").read_text()
                     )
                 ),
                 "receipt_objects": len(
                     json.loads(
-                        files("adcp.reporting.receipts")
-                        .joinpath("required_schema.json")
-                        .read_text()
+                        _asset_files(".receipts").joinpath("required_schema.json").read_text()
                     )
                 ),
             }
             if not receipt_only:
                 result["feed_objects"] = len(
-                    json.loads(
-                        files("adcp.reporting.feed").joinpath("required_schema.json").read_text()
-                    )
+                    json.loads(_asset_files(".feed").joinpath("required_schema.json").read_text())
                 )
         else:
             spec = importlib.util.spec_from_file_location("frozen_transport", settings["helper"])

@@ -37,6 +37,18 @@ from tests.a2a_compat_shim import (
 )
 
 
+def _completed_media_buy(media_buy_id: str, buyer_ref: str) -> dict:
+    """A valid current-version artifact for transport and authentication tests."""
+    return {
+        "status": "completed",
+        "media_buy_id": media_buy_id,
+        "buyer_ref": buyer_ref,
+        "packages": [],
+        "revision": 1,
+        "confirmed_at": "2025-01-15T10:00:00Z",
+    }
+
+
 class TestMCPWebhooks:
     """Test MCP webhook handling (HTTP POST with dict payload)."""
 
@@ -82,7 +94,7 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_123", "buyer_ref": "ref_123", "packages": []},
+            "result": _completed_media_buy("mb_123", "ref_123"),
             "message": "Media buy created successfully",
         }
 
@@ -212,7 +224,7 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_333", "buyer_ref": "ref_333", "packages": []},
+            "result": _completed_media_buy("mb_333", "ref_333"),
         }
 
         # Generate valid signature using {timestamp}.{payload} format
@@ -249,7 +261,7 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_333b", "buyer_ref": "ref_333b", "packages": []},
+            "result": _completed_media_buy("mb_333b", "ref_333b"),
         }
 
         import hashlib
@@ -276,7 +288,8 @@ class TestMCPWebhooks:
         assert result.status == TaskStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_mcp_webhook_processes_the_authenticated_raw_body(self):
+    @pytest.mark.parametrize("valid_result", [True, False], ids=["valid", "schema_failure"])
+    async def test_mcp_webhook_processes_the_authenticated_raw_body(self, valid_result):
         """A separately parsed payload cannot replace the signed content."""
         import hashlib
         import hmac
@@ -288,19 +301,17 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_wrong", "buyer_ref": "ref_wrong", "packages": []},
+            "result": _completed_media_buy("mb_wrong", "ref_wrong"),
         }
         authenticated_payload = {
             **supplied_payload,
             "idempotency_key": "whk_authenticated_payload",
             "operation_id": "op_payload",
             "task_id": "task_authenticated",
-            "result": {
-                "media_buy_id": "mb_authenticated",
-                "buyer_ref": "ref_authenticated",
-                "packages": [],
-            },
+            "result": _completed_media_buy("mb_authenticated", "ref_authenticated"),
         }
+        if not valid_result:
+            authenticated_payload["result"].pop("revision")
         raw_body = json.dumps(authenticated_payload, separators=(",", ":"))
         header_timestamp = str(int(time.time()))
         signature = hmac.new(
@@ -320,6 +331,9 @@ class TestMCPWebhooks:
         )
 
         assert result.metadata["task_id"] == "task_authenticated"
+        assert result.success is valid_result
+        if valid_result:
+            assert result.data.media_buy_id == "mb_authenticated"
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_uses_authenticated_routing_fields(self):
@@ -430,7 +444,7 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_ts1", "buyer_ref": "ref_ts1", "packages": []},
+            "result": _completed_media_buy("mb_ts1", "ref_ts1"),
         }
 
         header_timestamp = str(int(time.time()))
@@ -571,7 +585,7 @@ class TestMCPWebhooks:
             "task_type": "create_media_buy",
             "timestamp": "2024-01-01T00:00:00Z",
             "status": "completed",
-            "result": {"media_buy_id": "mb_escape", "buyer_ref": "ref_escape", "packages": []},
+            "result": _completed_media_buy("mb_escape", "ref_escape"),
         }
 
         result = await client.handle_webhook(payload, "create_media_buy", "op-escape")
@@ -607,7 +621,7 @@ class TestA2AWebhooks:
     @pytest.mark.asyncio
     async def test_a2a_webhook_completed_success(self):
         """Test A2A Task with completed status and valid AdCP payload."""
-        media_buy_data = {"media_buy_id": "mb_123", "buyer_ref": "ref_123", "packages": []}
+        media_buy_data = _completed_media_buy("mb_123", "ref_123")
 
         task = Task(
             id="task_123",
@@ -947,17 +961,7 @@ class TestA2AWebhooks:
             artifacts=[
                 Artifact(
                     artifact_id="test_artifact",
-                    parts=[
-                        Part(
-                            root=DataPart(
-                                data={
-                                    "media_buy_id": "mb_666",
-                                    "buyer_ref": "ref_666",
-                                    "packages": [],
-                                }
-                            )
-                        )
-                    ],
+                    parts=[Part(root=DataPart(data=_completed_media_buy("mb_666", "ref_666")))],
                 )
             ],
         )
@@ -1004,7 +1008,7 @@ class TestUnifiedInterface:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_mcp", "buyer_ref": "ref_mcp", "packages": []},
+            "result": _completed_media_buy("mb_mcp", "ref_mcp"),
         }
 
         result = await self.mcp_client.handle_webhook(
@@ -1026,17 +1030,7 @@ class TestUnifiedInterface:
             artifacts=[
                 Artifact(
                     artifact_id="test_artifact",
-                    parts=[
-                        Part(
-                            root=DataPart(
-                                data={
-                                    "media_buy_id": "mb_a2a",
-                                    "buyer_ref": "ref_a2a",
-                                    "packages": [],
-                                }
-                            )
-                        )
-                    ],
+                    parts=[Part(root=DataPart(data=_completed_media_buy("mb_a2a", "ref_a2a")))],
                 )
             ],
         )
@@ -1075,7 +1069,7 @@ class TestUnifiedInterface:
     @pytest.mark.asyncio
     async def test_consistent_result_format(self):
         """Verify MCP and A2A return identical TaskResult structure."""
-        media_buy_data = {"media_buy_id": "mb_test", "buyer_ref": "ref_test", "packages": []}
+        media_buy_data = _completed_media_buy("mb_test", "ref_test")
 
         # MCP webhook
         mcp_payload = {
@@ -1577,7 +1571,7 @@ class TestHMACTestVectors:
             "task_type": "create_media_buy",
             "status": "completed",
             "timestamp": "2025-01-15T10:00:00Z",
-            "result": {"media_buy_id": "mb_1", "buyer_ref": "ref_1", "packages": []},
+            "result": _completed_media_buy("mb_1", "ref_1"),
         }
         # Compute what would have been a valid signature under the old
         # re-serialize-from-payload fallback. Under the fail-closed rule,

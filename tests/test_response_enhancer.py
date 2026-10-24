@@ -212,7 +212,7 @@ class TestSuccessPathCaller:
         self, method: str, params: dict[str, Any], assertion_key: str
     ) -> None:
         caller = create_tool_caller(_Handler(), method, response_enhancer=_stamp)
-        result = await caller(params)
+        result = await caller({"adcp_version": "3.2", **params})
         assert result["enhanced"] is True
         assert assertion_key in result  # original payload preserved
 

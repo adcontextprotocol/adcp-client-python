@@ -11,8 +11,8 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingFeedStore
 
-from adcp.reporting.feed import PgReportingFeedStore
 from adcp.reporting.ledger import ReportingMaterializationCheck
 from adcp.reporting.ledger.status_projection import mismatch_key
 
@@ -30,6 +30,7 @@ from .test_reporting_feed_packaging import (
 )
 from .test_reporting_feed_process import feed_process
 from .test_reporting_notification_outbox import statement
+from .test_reporting_notification_packaging import storage_distribution
 
 __all__ = ["b1_wheels", "built_distribution", "feed_wheels"]
 
@@ -52,7 +53,12 @@ def installed_feed(request):
         else [str(python), "-m", "pip", "install"]
     )
     run_step(
-        [*installer, f"{wheels[request.param]}[pg]", "asgi-lifespan==2.1.0"],
+        [
+            *installer,
+            f"{wheels[request.param]}[pg]",
+            str(storage_distribution(wheels[request.param])),
+            "asgi-lifespan==2.1.0",
+        ],
         label=f"feed-{request.param}-pg-install",
         cwd=root,
         timeout=180,

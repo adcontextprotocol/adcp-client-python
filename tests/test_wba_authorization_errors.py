@@ -472,6 +472,13 @@ async def assert_public_typed_error(
             async def call_tool(
                 self, name: str, arguments: dict[str, Any], **kwargs: Any
             ) -> CallToolResult:
+                if name == "get_adcp_capabilities":
+                    # Minor-version negotiation discovers the seller first.
+                    from adcp.server.responses import capabilities_response
+
+                    capabilities = capabilities_response(["media_buy"])
+                    capabilities["adcp"]["idempotency"] = {"supported": False}
+                    return CallToolResult(content=[], structuredContent=capabilities)
                 assert name == "get_products"
                 return decoded
 

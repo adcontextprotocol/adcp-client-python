@@ -377,12 +377,18 @@ async def test_a_clear_survives_the_real_client_and_typed_seller() -> None:
     from adcp import ADCPClient
     from adcp.server import ADCPHandler, create_mcp_server
     from adcp.server.base import ToolContext
+    from adcp.server.responses import capabilities_response
     from adcp.validation import ValidationHookConfig
 
     received: list[dict[str, Any]] = []
 
     class _Seller(ADCPHandler[Any]):
-        advertised_tools = {"update_media_buy"}
+        advertised_tools = {"get_adcp_capabilities", "update_media_buy"}
+
+        async def get_adcp_capabilities(self, params, context=None):
+            response = capabilities_response(["media_buy"])
+            response["adcp"]["idempotency"] = {"supported": False}
+            return response
 
         async def update_media_buy(
             self, params: dict[str, Any], context: ToolContext

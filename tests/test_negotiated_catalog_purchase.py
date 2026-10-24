@@ -184,6 +184,62 @@ def test_negotiation_rejects_served_version_newer_than_client_pin() -> None:
         _negotiate_version(_caps(["3.2"], served="3.2"), "3.2-rc.1")
 
 
+@pytest.mark.parametrize("wire_version", ["3.0", "3.1"])
+def test_coordinator_uses_wire_provenance_for_the_upgraded_capability_cache(wire_version):
+    client = _Client("3.2", {})
+    capabilities = _caps([wire_version], served="3.2")
+    client.capabilities = capabilities
+    client._capabilities_wire_version = wire_version
+
+    coordinator = MediaBuyLifecycleCoordinator(client, capabilities, [])
+
+    assert coordinator.negotiated_version == wire_version
+    assert capabilities.adcp_version == "3.2"
+
+
+def test_coordinator_does_not_apply_cached_wire_provenance_to_supplied_capabilities():
+    client = _Client("3.2", {})
+    client.capabilities = _caps(["3.0"], served="3.2")
+    client._capabilities_wire_version = "3.0"
+
+    coordinator = MediaBuyLifecycleCoordinator(client, _caps(["3.1"], served="3.1"), [])
+
+    assert coordinator.negotiated_version == "3.1"
+
+
+def test_cached_discovery_can_serve_newer_than_the_coordinator_ceiling():
+    client = _Client("3.1", {})
+    client.capabilities = _caps(["3.0", "3.1", "3.2"], served="3.2")
+    client._capabilities_wire_version = "3.2"
+
+    coordinator = MediaBuyLifecycleCoordinator(client, client.capabilities, [])
+
+    assert coordinator.negotiated_version == "3.1"
+
+
+def test_cached_discovery_respects_the_configured_peer_contract():
+    client = _Client("3.2", {})
+    client.capabilities = _caps(["3.0", "3.1", "3.2"], served="3.2")
+    client._capabilities_wire_version = "3.2"
+    client.get_server_version = lambda: "3.1"
+
+    coordinator = MediaBuyLifecycleCoordinator(client, client.capabilities, [])
+
+    assert coordinator.negotiated_version == "3.1"
+
+
+def test_cached_discovery_alias_matches_an_upgraded_application_response():
+    client = _Client("3.2", {})
+    client.capabilities = _caps(["3.2-rc.7"], served="3.2")
+    client._capabilities_wire_version = "3.2-rc.7"
+    coordinator = MediaBuyLifecycleCoordinator(client, client.capabilities, [])
+
+    assert coordinator.negotiated_version == "3.2-rc.7"
+    coordinator._validate_served_version(
+        "list_products", {"adcp_version": "3.2"}, MediaBuyLifecycle.COMPACT
+    )
+
+
 @pytest.mark.parametrize(
     ("versions", "served", "message"),
     [

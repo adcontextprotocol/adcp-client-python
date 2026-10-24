@@ -131,7 +131,7 @@ def request(version, view="summary"):
 
 def capture_clock(h, monkeypatch):
     if h.pool is not None:
-        from adcp.reporting.feed import pg
+        from adcp_reporting_storage.feed import pg
 
         async def now(connection):
             # Same account-locked SQL read with an explicit conformance instant.
@@ -283,7 +283,7 @@ async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positi
                 if key not in {"_clock", "_lock"}:
                     vars(store)[key] = deepcopy(value)
         else:
-            from adcp.reporting.projection.pg import PgReportingProjectionStore
+            from adcp_reporting_storage.projection.pg import PgReportingProjectionStore
 
             store = PgReportingProjectionStore(pool=h.pool, clock=h.clock)
         h.store = store

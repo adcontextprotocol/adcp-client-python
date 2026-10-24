@@ -139,7 +139,7 @@ async def history_replay(h, monkeypatch, *, legacy_baseline):
 
             old = InMemoryStatusNotificationStore(h.store)
         else:
-            from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
+            from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
 
             old = PgStatusNotificationStore(h.store)
         production_operation_5 = await old.baseline(account_id=account)

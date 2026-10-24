@@ -1,5 +1,17 @@
 """Real worker process and conditional file destination, solely for crash tests."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -21,13 +33,16 @@ async def read():
 
 async def main():
     settings = await read()
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.materializer import PgReportingMaterializerStore
+    else:
+        from adcp_reporting_storage import PgReportingMaterializerStore
     from psycopg import AsyncConnection
     from psycopg_pool import AsyncConnectionPool
     from pydantic import TypeAdapter
 
     from adcp.reporting.ledger._delivery_state import decode_record
     from adcp.reporting.materializer import (
-        PgReportingMaterializerStore,
         ReferenceReportingDestinationWriter,
         ReferenceReportingResolver,
         ReportingDestinationIO,

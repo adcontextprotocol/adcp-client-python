@@ -85,7 +85,7 @@ class UpdateMediaBuyResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
 
 
 class UpdateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
     message: Annotated[str, StringConstraints(max_length=2000)] | None = None

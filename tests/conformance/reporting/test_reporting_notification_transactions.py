@@ -8,17 +8,16 @@ from dataclasses import replace
 from datetime import timedelta
 
 import pytest
+from adcp_reporting_storage import PgReportingOutbox, PgReportingReconciliationStore
 
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
-    PgReportingReconciliationStore,
     ReportingAdjustmentRecord,
     ReportingDeliveryScope,
     ReportingMaterializationCheck,
     ReportingObligationDeliveryRecord,
     derive_period,
 )
-from adcp.reporting.outbox import PgReportingOutbox
 
 from ._generation_support import END, NOW, START, configuration, obligation_for, revision_for
 from ._reconciliation_support import scenario

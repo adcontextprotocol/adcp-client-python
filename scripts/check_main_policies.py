@@ -88,15 +88,21 @@ CONVENTIONAL = re.compile(
     r"(?:\([^()\n]+\))?(?P<breaking>!)?: (?P<description>\S.*)$"
 )
 GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
-# These already-merged commits predate the guard. Their breaking subjects
-# and reviewed PR migration notes retain the release signal. No other commit,
-# including one with the same subject, inherits these historical exceptions.
+# These already-merged commits lack the footer in the message this guard reads.
+# The first two predate the guard; their breaking subjects and reviewed PR
+# migration notes retain the release signal. 5ce9ee4dc is #1546's GitHub merge
+# commit: its body carries only the PR title, while the merged commit 81c2a8b2b
+# carries the BREAKING CHANGE footer. No other commit, including one with the
+# same subject, inherits these historical exceptions.
 HISTORICAL_BREAKING_SUBJECTS = {
     "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac": (
         "fix(reporting)!: scope configuration generations by account (#1174)"
     ),
     "34c8f6d929aeac3407e2f595104a8e903e572623": (
         "feat(reporting)!: enable production tier status and ownership"
+    ),
+    "5ce9ee4dc9daef34af143b84ff7d660489fef1be": (
+        "fix(types)!: allow assignment-only creative syncs"
     ),
 }
 
@@ -175,12 +181,21 @@ def event_context() -> tuple[str, str, dict[str, Any]]:
     return kind, target, event
 
 
-def conventional(kind: str, target: str, event: dict[str, Any]) -> dict[str, Any]:
+def conventional(
+    kind: str, target: str, event: dict[str, Any], *, api: GitHub | None = None
+) -> dict[str, Any]:
     if kind == "push":
         commits = main_commits(target)
     else:
         pr = event["pull_request"]
-        validate_message(pr["title"] + "\n\n" + (pr["body"] or ""))
+        # Reruns retain the original webhook payload, including an obsolete PR
+        # description. Read the editable message again without changing which
+        # checkout and commits this run is allowed to validate.
+        if api is None:
+            api = GitHub(os.environ["GH_TOKEN"])
+        current = api.repo(f"pulls/{pr['number']}")
+        require(current["head"]["sha"] == pr["head"]["sha"], "PR head changed; run current CI")
+        validate_message(current["title"] + "\n\n" + (current["body"] or ""))
         head, base = pr["head"]["sha"], pr["base"]["sha"]
         require(SHA.fullmatch(head) and SHA.fullmatch(base), "invalid PR source identities")
         fork = git("merge-base", base, head)

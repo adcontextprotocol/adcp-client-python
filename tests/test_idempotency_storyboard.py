@@ -238,7 +238,7 @@ class TestStoryboardPhase6VerifyDedupActuallyHeld:
 
     @pytest.mark.asyncio
     async def test_pinned_key_across_retry_yields_one_resource(self) -> None:
-        client = ADCPClient(_cfg())
+        client = ADCPClient(_cfg(), server_version="3.2")
         adapter = client.adapter
         seller_cache: dict[str, dict[str, Any]] = {}
         created_ids: set[str] = set()

@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from adcp.reporting.ledger.delivery import InMemoryReportingReconciliationStore
+from adcp.reporting.ledger.delivery import (
+    InMemoryReportingReconciliationStore,
+    ReportingReconciliationStore,
+)
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryScope
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.store import InMemoryReportingLedgerStore, ReportingLedgerStore
+from adcp.reporting.outbox.durable import ReportingDurableNotificationLedger
 from adcp.reporting.outbox.memory import InMemoryReportingOutbox
 from adcp.reporting.outbox.routing import ReportingEnvelopeCipher, ReportingNotificationSubscription
 
@@ -39,23 +43,11 @@ async def advertised_notifications(
         ):
             raise ReportingNotificationError("notification_chain_unready")
     else:
-        # Deliberately lazy: the base SDK and memory implementation need no PG extra.
-        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-        from adcp.reporting.outbox._schema import validate_schema
-        from adcp.reporting.outbox.pg import PgReportingOutbox
-
-        if (
-            type(worker.outbox) is not PgReportingOutbox
-            or not isinstance(worker.outbox, PgReportingOutbox)
-            or type(ledger) not in {PgReportingLedgerStore, PgReportingReconciliationStore}
-            or not isinstance(ledger, PgReportingLedgerStore)
-            or ledger._pool is not worker.outbox._pool
-            or not ledger._notifications_enabled
-        ):
+        # A durable ledger proves its own queue, storage and installed schema;
+        # the base SDK never imports a storage implementation to ask.
+        if not isinstance(ledger, ReportingDurableNotificationLedger):
             raise ReportingNotificationError("notification_chain_unready")
-        async with ledger._pool.connection() as connection, connection.transaction():
-            await validate_schema(connection)
+        await ledger.validate_notification_chain(worker.outbox)
 
     # A successful empty resolution is a configured service, not an error.
     # Every configured mode must also have usable trusted signing material.
@@ -97,11 +89,11 @@ async def advertised_notifications(
         # A capability string cannot turn Core into Managed. These concrete
         # stores froze and validated the configuration/destination/obligation
         # relationship transactionally. All references remain immutable.
-        if not isinstance(ledger, InMemoryReportingReconciliationStore):
-            from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-
-            if not isinstance(ledger, PgReportingReconciliationStore):
-                raise ReportingNotificationError("core_delivery_ready_forbidden")
+        reconciles = isinstance(ledger, InMemoryReportingReconciliationStore) or (
+            isinstance(ledger, ReportingDurableNotificationLedger) and ledger.durable_reconciliation
+        )
+        if not reconciles or not isinstance(ledger, ReportingReconciliationStore):
+            raise ReportingNotificationError("core_delivery_ready_forbidden")
         binding = await ledger.get_destination_binding(
             caller=ready_scope.principal, generation_key=ready_scope.generation_key
         )

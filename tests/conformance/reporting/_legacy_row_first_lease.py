@@ -5,9 +5,25 @@ locking order retains its real trigger wait and transaction rollback
 behavior. Fixing the live base method must not silently disable this control.
 """
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 from datetime import datetime, timedelta
 
-from adcp.reporting.ledger.pg import _utc
+if _storage_split():  # wheels before the storage split (#1510)
+    from adcp.reporting.ledger.pg import _utc
+else:
+    from adcp_reporting_storage.ledger.pg import _utc
+
 from adcp.reporting.ledger.store import LeasedConfiguration
 
 

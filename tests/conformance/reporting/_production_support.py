@@ -4,6 +4,18 @@ The destination is a test provider, not the development writer with a changed
 eligibility flag. Its immutable rows and grants survive a new provider process.
 """
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import hashlib
 import inspect
 import json
@@ -393,7 +405,10 @@ async def production_harness(
         elif backend == "memory":
             store = InMemoryReportingProductionStore(clock=clock, notifications=notifications)
         else:
-            from adcp.reporting.production.pg import PgReportingProductionStore
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.production.pg import PgReportingProductionStore
+            else:
+                from adcp_reporting_storage.production.pg import PgReportingProductionStore
 
             if pool is None:
                 pool = await stack.enter_async_context(isolated_reporting_pool(autocommit=True))
@@ -534,7 +549,10 @@ async def production_harness(
                 consumer_status_enabled=feedback,
             )
         else:
-            from adcp.reporting.projection.pg import PgReportingStatusProjection
+            if _storage_split():  # wheels before the storage split (#1510)
+                from adcp.reporting.projection.pg import PgReportingStatusProjection
+            else:
+                from adcp_reporting_storage.projection.pg import PgReportingStatusProjection
 
             projection = PgReportingStatusProjection(
                 store,

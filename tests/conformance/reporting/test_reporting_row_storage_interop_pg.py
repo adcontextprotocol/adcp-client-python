@@ -10,10 +10,13 @@ and one bucket**, in both directions.
       ADCP_JS_SDK_DIR=/path/to/adcp-client ADCP_PG_TEST_URL=postgresql://... \\
           pytest tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
 
-  Set ``ADCP_UPDATE_INTEROP_FIXTURES=1`` to refresh the committed fixtures from a live run.
+  CI runs it with ``ADCP_REQUIRE_JS_INTEROP=1``, so a missing build fails instead of skipping.
+  ``scripts/regenerate_row_storage_interop_fixtures.py`` runs the same steps to refresh the
+  committed fixtures.
 * The replay tests always run. They load the rows each SDK wrote, as recorded in
   ``tests/fixtures/reporting-row-storage-interop-v1/``, into a fresh database and bucket
-  and verify them through this SDK, so Python CI needs no Node.
+  and verify them through this SDK, so Python CI needs no Node. The fixtures are
+  committed, so a missing one is a repository defect, not an environment one.
 """
 
 from __future__ import annotations
@@ -26,9 +29,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.ledger.row_storage import ReportingRowStorageV1
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.row_storage import ReportingRowStorageV1
 
 from . import _row_storage_interop as interop
 from ._generation_support import isolated_reporting_pool
@@ -126,23 +128,11 @@ async def test_one_database_and_one_bucket_in_both_directions(tmp_path: Path) ->
             ("reports", "object", "filesystem"),
         ]
 
-        if os.environ.get("ADCP_UPDATE_INTEROP_FIXTURES") == "1":
-            interop.INTEROP_DIR.mkdir(parents=True, exist_ok=True)
-            for name, written in (("js-written", js_written), ("python-written", python_written)):
-                state = await interop.dump_state(
-                    pool, root, [item["row_set_id"] for item in written]
-                )
-                (interop.INTEROP_DIR / f"{name}.json").write_text(
-                    json.dumps({"expected": written, "state": state}, indent=1, sort_keys=True)
-                    + "\n"
-                )
-
 
 @pytest.mark.parametrize("writer", ["js-written", "python-written"])
 async def test_rows_written_by_the_other_sdk_verify_here(writer: str, tmp_path: Path) -> None:
     path = interop.INTEROP_DIR / f"{writer}.json"
-    if not path.exists():
-        pytest.skip("interop fixtures have not been generated")
+    assert path.is_file(), f"committed interop fixture is missing: {path}"
     recorded = json.loads(path.read_text())
     root = tmp_path / "bucket"
     async with isolated_reporting_pool() as pool:
@@ -158,8 +148,7 @@ async def test_the_recorded_object_bytes_decompress_to_the_golden_chunks(tmp_pat
     import gzip
 
     path = interop.INTEROP_DIR / "js-written.json"
-    if not path.exists():
-        pytest.skip("interop fixtures have not been generated")
+    assert path.is_file(), f"committed interop fixture is missing: {path}"
     recorded = json.loads(path.read_text())
     golden = {
         vector["id"]: [base64.b64decode(chunk) for chunk in vector["expected"]["chunks_base64"]]

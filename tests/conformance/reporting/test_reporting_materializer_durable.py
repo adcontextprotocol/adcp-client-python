@@ -33,10 +33,11 @@ async def test_core_records_do_not_create_managed_work_capture_or_readiness(back
 
 
 async def test_durable_verified_success_still_cannot_advertise_unactivated_readiness(backend):
+    from adcp_reporting_storage import PgReportingOutbox
+
     from adcp.reporting.ledger.notification_models import ReportingNotificationError
     from adcp.reporting.outbox import (
         InMemoryReportingOutbox,
-        PgReportingOutbox,
         ReportingEnvelopeCipher,
         ReportingNotificationWorker,
     )
@@ -79,10 +80,11 @@ async def test_materializer_store_closes_core_advertisement_until_b24_admits_it(
     Managed/Reconciled claims. Fail closed is correct here, but it is broader
     than a tier veto and an adopter switching store classes must be told.
     """
+    from adcp_reporting_storage import PgReportingOutbox
+
     from adcp.reporting.ledger.notification_models import ReportingNotificationError
     from adcp.reporting.outbox import (
         InMemoryReportingOutbox,
-        PgReportingOutbox,
         ReportingEnvelopeCipher,
         ReportingNotificationWorker,
     )
@@ -109,7 +111,7 @@ async def test_materializer_store_closes_core_advertisement_until_b24_admits_it(
             reviewed_outbox = InMemoryReportingOutbox(reviewed)
             outbox = InMemoryReportingOutbox(h.store)
         else:
-            from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
+            from adcp_reporting_storage.ledger.delivery_pg import PgReportingReconciliationStore
 
             reviewed = PgReportingReconciliationStore(pool=h.pool, notifications=True)
             reviewed_outbox = PgReportingOutbox(pool=h.pool)

@@ -1,5 +1,17 @@
 """Real SIGKILL after receiver acceptance; cold retry uses the durable deadline."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import json
@@ -11,6 +23,15 @@ from types import SimpleNamespace
 
 async def main(settings):
     import pytest
+
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.production.pg import PgReportingProductionStore
+    else:
+        from adcp_reporting_storage.production.pg import PgReportingProductionStore
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.projection.pg import PgReportingStatusProjection
+    else:
+        from adcp_reporting_storage.projection.pg import PgReportingStatusProjection
     from psycopg_pool import AsyncConnectionPool
 
     import adcp.reporting.production.delivery_window as window_module
@@ -19,8 +40,6 @@ async def main(settings):
         ReportingProductionSigning,
         production_notification_workers,
     )
-    from adcp.reporting.production.pg import PgReportingProductionStore
-    from adcp.reporting.projection.pg import PgReportingStatusProjection
 
     from ._reliable_support import (
         Barrier,

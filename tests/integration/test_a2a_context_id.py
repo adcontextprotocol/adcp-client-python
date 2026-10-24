@@ -26,6 +26,7 @@ first-wire detail is covered by the unit tests in
 from __future__ import annotations
 
 import asyncio
+import json
 import socket
 import sys
 from collections.abc import AsyncIterator
@@ -49,6 +50,7 @@ from starlette.applications import Starlette
 from adcp import ADCPClient
 from adcp.server import ADCPHandler
 from adcp.server.a2a_server import create_a2a_server
+from adcp.server.responses import capabilities_response
 from adcp.types import AgentConfig, Protocol
 
 # Starlette/uvicorn A2A integration requires Python 3.11+.
@@ -66,7 +68,7 @@ class _EchoHandler(ADCPHandler):
     adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
 
     async def get_adcp_capabilities(self, params: Any, context: Any = None) -> dict[str, Any]:
-        return {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
+        return capabilities_response(["media_buy"], idempotency={"supported": False})
 
     async def get_products(self, params: Any, context: Any = None) -> dict[str, Any]:
         return {"products": []}
@@ -100,9 +102,9 @@ class _Observer:
 
     def __init__(self) -> None:
         self.calls: list[dict[str, str | None]] = []
+        self.discovery_calls: list[dict[str, str | None]] = []
 
     def parser(self, context: RequestContext) -> tuple[str | None, dict[str, Any]]:
-        self.calls.append({"context_id": context.context_id, "task_id": context.task_id})
         # Reimplement the default skill-DataPart parse inline so we
         # don't reach into executor internals.
         msg = context.message
@@ -115,8 +117,38 @@ class _Observer:
             skill = data.get("skill")
             params = data.get("parameters") or {}
             if skill and isinstance(params, dict):
+                call = {"context_id": context.context_id, "task_id": context.task_id}
+                if skill == "get_adcp_capabilities":
+                    self.discovery_calls.append(call)
+                else:
+                    self.calls.append(call)
                 return str(skill), params
         return None, {}
+
+
+async def _capture_wire_messages(client: ADCPClient, observations: list[dict[str, Any]]) -> None:
+    """Observe before the server SDK fills missing Message IDs in place."""
+
+    async def capture(request):
+        if request.method != "POST":
+            return
+        payload = json.loads(request.content)
+        message = payload.get("params", payload).get("message")
+        if not isinstance(message, dict):
+            return
+        for part in message.get("parts", []):
+            data = part.get("data", {})
+            if data.get("skill"):
+                observations.append(
+                    {
+                        "skill": data["skill"],
+                        "context_id": message.get("contextId") or None,
+                        "task_id": message.get("taskId") or None,
+                    }
+                )
+
+    http_client = await client.adapter._get_httpx_client()
+    http_client.event_hooks.setdefault("request", []).append(capture)
 
 
 def _pick_free_port() -> int:
@@ -162,6 +194,7 @@ async def test_two_calls_share_server_assigned_context_id():
     echoing it, turn 2 would get a different server-minted id — the
     assertion that calls[0] == calls[1] catches that regression."""
     observer = _Observer()
+    wire_messages: list[dict[str, Any]] = []
     async with _running_server(_EchoHandler(), observer) as base_url:
         config = AgentConfig(
             id="ctx-test-agent",
@@ -170,6 +203,7 @@ async def test_two_calls_share_server_assigned_context_id():
             auth_token="test",
         )
         async with ADCPClient(config) as client:
+            await _capture_wire_messages(client, wire_messages)
             assert client.context_id is None
             r1 = await client.adapter.get_products({"brief": "x"})
             assert r1.success, r1.error
@@ -181,6 +215,14 @@ async def test_two_calls_share_server_assigned_context_id():
             assert r2.success, r2.error
 
     assert len(observer.calls) == 2
+    assert len(observer.discovery_calls) == 1
+    assert wire_messages[0] == {
+        "skill": "get_adcp_capabilities",
+        "context_id": None,
+        "task_id": None,
+    }
+    assert wire_messages[1]["skill"] == "get_products"
+    assert wire_messages[1]["context_id"] is None
     # The server saw the same context_id on both turns — this proves
     # session continuity end-to-end. The server is authoritative, so
     # this value is what any handler keyed on context_id would scope to.
@@ -252,6 +294,29 @@ class _HitlExecutor(AgentExecutor):
         self._served = 0
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+        # Discovery completes independently of the approval workflow, so it
+        # neither consumes a HITL turn nor changes the business observations.
+        if context.message is not None and any(
+            (data := _part_data_dict(part)) is not None
+            and data.get("skill") == "get_adcp_capabilities"
+            for part in context.message.parts
+        ):
+            capabilities = Value()
+            ParseDict(
+                capabilities_response(["media_buy"], idempotency={"supported": False}),
+                capabilities,
+            )
+            await event_queue.enqueue_event(
+                pb.Task(
+                    id=context.task_id or str(uuid4()),
+                    context_id=context.context_id or str(uuid4()),
+                    status=pb.TaskStatus(state=pb.TaskState.TASK_STATE_COMPLETED),
+                    artifacts=[
+                        pb.Artifact(artifact_id=str(uuid4()), parts=[pb.Part(data=capabilities)])
+                    ],
+                )
+            )
+            return
         self.observations.append(
             {
                 "context_id": context.context_id,
@@ -338,11 +403,17 @@ def _make_hitl_app(executor: _HitlExecutor, port: int) -> Any:
         default_output_modes=["application/json"],
         skills=[
             pb.AgentSkill(
+                id="get_adcp_capabilities",
+                name="get_adcp_capabilities",
+                description="get_adcp_capabilities",
+                tags=["adcp"],
+            ),
+            pb.AgentSkill(
                 id="create_media_buy",
                 name="create_media_buy",
                 description="create_media_buy",
                 tags=["adcp"],
-            )
+            ),
         ],
     )
     handler = DefaultRequestHandler(
@@ -454,3 +525,35 @@ async def test_resume_across_simulated_restart_lands_on_same_session():
     # Both server-observed calls share the same context_id.
     assert observer.calls[0]["context_id"] == observer.calls[1]["context_id"]
     assert observer.calls[1]["context_id"] == persisted_context_id
+
+
+@pytest.mark.asyncio
+async def test_capability_refresh_preserves_pending_approval_and_resume_ids():
+    """Explicit and automatic discovery must leave the pending approval intact."""
+    executor = _HitlExecutor()
+    wire_messages: list[dict[str, Any]] = []
+    async with _running_raw_server(executor) as base_url:
+        config = AgentConfig(
+            id="hitl-refresh-agent",
+            agent_uri=base_url,
+            protocol=Protocol.A2A,
+            auth_token="test",
+        )
+        async with ADCPClient(config) as client:
+            await _capture_wire_messages(client, wire_messages)
+            await client.adapter.create_media_buy({"budget": 1000})
+            retained = (client.context_id, client.active_task_id)
+            assert all(retained)
+            await client.refresh_capabilities()
+            assert (client.context_id, client.active_task_id) == retained
+            # Expire the cache so resume itself also triggers discovery.
+            client.capabilities_ttl = 0
+            resumed = await client.adapter.create_media_buy({"approval": "yes"})
+            assert resumed.success, resumed.error
+
+    assert len(executor.observations) == 2
+    assert executor.observations[1]["message_context_id"] == retained[0]
+    assert executor.observations[1]["message_task_id"] == retained[1]
+    discovery = [call for call in wire_messages if call["skill"] == "get_adcp_capabilities"]
+    assert len(discovery) == 3
+    assert all(call["context_id"] is None and call["task_id"] is None for call in discovery)

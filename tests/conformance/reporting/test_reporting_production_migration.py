@@ -7,15 +7,15 @@ from datetime import timedelta
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingFeedStore
+from adcp_reporting_storage.outbox._schema import schema_objects
+from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
+from adcp_reporting_storage.production.pg import PgReportingProductionStore
+from adcp_reporting_storage.production.schema import validate_production_schema
+from adcp_reporting_storage.projection.schema import validate_projection_schema
 
-from adcp.reporting.feed import PgReportingFeedStore
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer import ReportingMaterializerLease
-from adcp.reporting.outbox._schema import schema_objects
-from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
-from adcp.reporting.production.pg import PgReportingProductionStore
-from adcp.reporting.production.schema import validate_production_schema
-from adcp.reporting.projection.schema import validate_projection_schema
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._feed_support import feed_request, mixed_case, walk
@@ -27,13 +27,15 @@ from .test_reporting_feed_migration import fairness
 def manifests():
     required = {
         package: json.loads(
-            files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+            files("adcp_reporting_storage." + package).joinpath("required_schema.json").read_text()
         )
         for package in ("materializer", "receipts", "feed", "projection", "production")
     }
     required["production"].update(
         json.loads(
-            files("adcp.reporting.production").joinpath("service_context_schema.json").read_text()
+            files("adcp_reporting_storage.production")
+            .joinpath("service_context_schema.json")
+            .read_text()
         )
     )
     return required

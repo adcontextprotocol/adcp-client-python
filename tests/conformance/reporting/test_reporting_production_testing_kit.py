@@ -71,8 +71,11 @@ async def backend(request: pytest.FixtureRequest) -> AsyncIterator[Backend]:
         )
         yield Backend(clock, lambda: retained)
     else:
-        from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
+        from adcp_reporting_storage.inline_storage import (
+            PgReportingSealStore,
+            PgReportingStagingStore,
+        )
+        from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
         async with isolated_reporting_pool(autocommit=request.param == "pg-autocommit") as pool:
             async with pool.connection() as connection:

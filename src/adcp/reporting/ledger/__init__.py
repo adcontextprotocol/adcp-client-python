@@ -21,9 +21,10 @@ What you assemble
 
     from psycopg_pool import AsyncConnectionPool
     from adcp.reporting.ledger import (
-        PgReportingLedgerStore, ProducerOfferings, ReportingProducer,
-        ReportingStatusCaller, ReportingStatusHandler,
+        ProducerOfferings, ReportingProducer, ReportingStatusCaller, ReportingStatusHandler,
     )
+    # pip install "adcp-reporting-storage[pg]"
+    from adcp_reporting_storage import PgReportingLedgerStore
 
     store = PgReportingLedgerStore(pool=pool)
     await store.create_schema()
@@ -43,7 +44,9 @@ What you assemble
 
 No Temporal, no Celery, no Redis lock.  Durability lives in the store; the
 worker is a stateless leased turn, and the status handler is a pure projection
-you can mount from :mod:`adcp.server` or any framework.
+you can mount from :mod:`adcp.server` or any framework.  This package holds
+the store *protocols* and the in-memory reference store; the PostgreSQL store
+and the row storage providers ship separately as ``adcp-reporting-storage``.
 
 Health is derived, never stored -- a pure function of obligations, revisions,
 and the snapshot clock, so it cannot go stale and two readers of one snapshot
@@ -67,12 +70,6 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingCanonicalDigest
-from adcp.reporting.ledger.change_feed import (
-    ReportingChangeCursorExpiredError,
-    ReportingChangeKindV1,
-    ReportingChangeRecordV1,
-    ReportingChangesPageV1,
-)
 from adcp.reporting.ledger.consumer_status import (
     ConsumerMismatch,
     ConsumerStatusDisabledError,
@@ -160,7 +157,6 @@ from adcp.reporting.ledger.models import (
     derive_period,
     iso_duration_to_timedelta,
 )
-from adcp.reporting.ledger.period_retirement import ReportingPeriodRetirementV1
 from adcp.reporting.ledger.producer import (
     CurrencyResolver,
     FixedCurrencyResolver,
@@ -171,12 +167,7 @@ from adcp.reporting.ledger.producer import (
     revision_binding_algorithm,
     revision_content_sha256,
 )
-from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
-from adcp.reporting.ledger.row_storage import (
-    ReportingObjectRowBindingV1,
-    ReportingPostgresRowBindingV1,
-    ReportingRowBindingSelectionInputV1,
-    ReportingRowStorageOptionsV1,
+from adcp.reporting.ledger.row_storage_errors import (
     ReportingRowStoreError,
     ReportingRowStoreErrorCode,
 )
@@ -200,6 +191,9 @@ from adcp.reporting.ledger.store import (
     LedgerPage,
     ReportingLedgerStore,
     ReportingRowPage,
+    ReportingRowStagingStore,
+    ReportingSourcePublicationStore,
+    ReportingWorkerRetryPolicy,
     RestatementCheckpoint,
     RestatementCheckpointStore,
     RetryScheduleEntry,
@@ -218,8 +212,6 @@ from adcp.reporting.revision_selection import (
 )
 
 if TYPE_CHECKING:
-    from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-    from adcp.reporting.ledger.pg import PgReportingLedgerStore
     from adcp.reporting.ledger.status_server import (
         ReportingStatusCallerResolver,
         ReportingStatusNotificationHandler,
@@ -256,16 +248,10 @@ __all__ = [
     "LedgerPage",
     "LedgerSnapshot",
     "ObligationProjection",
-    "PgReportingLedgerStore",
-    "PgReportingReconciliationStore",
     "ProducerOfferings",
     "ReportingAdjustmentReceiptRecord",
     "ReportingAdjustmentRecord",
     "ReportingCanonicalDigest",
-    "ReportingChangeCursorExpiredError",
-    "ReportingChangeKindV1",
-    "ReportingChangeRecordV1",
-    "ReportingChangesPageV1",
     "ReportingConfiguration",
     "ReportingConfigurationGenerationKey",
     "ReportingControlTotalRecord",
@@ -294,10 +280,7 @@ __all__ = [
     "ReportingObligationDeliveryRecord",
     "ReportingObligationRecord",
     "ReportingPeriodBoundary",
-    "ReportingObjectRowBindingV1",
-    "ReportingPeriodRetirementV1",
     "ReportingPhysicalChecksum",
-    "ReportingPostgresRowBindingV1",
     "ReportingProducer",
     "ReportingProductionStatus",
     "ReportingReceiptKey",
@@ -317,11 +300,10 @@ __all__ = [
     "ReportingResourceRecord",
     "ReportingRevisionReceiptRecord",
     "ReportingRevisionRecord",
-    "ReportingRowBindingSelectionInputV1",
-    "ReportingRowIntentSweepV1",
     "ReportingRowPage",
-    "ReportingRowPruneV1",
-    "ReportingRowStorageOptionsV1",
+    "ReportingRowStagingStore",
+    "ReportingSourcePublicationStore",
+    "ReportingWorkerRetryPolicy",
     "ReportingRowStoreError",
     "ReportingRowStoreErrorCode",
     "RestatementCheckpoint",
@@ -362,15 +344,7 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
-    """Keep core evidence imports independent of database and server adapters."""
-    if name == "PgReportingLedgerStore":
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-
-        return PgReportingLedgerStore
-    if name == "PgReportingReconciliationStore":
-        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
-
-        return PgReportingReconciliationStore
+    """Keep core evidence imports independent of the server adapters."""
     if name in {"ReportingStatusCallerResolver", "ReportingStatusNotificationHandler"}:
         from adcp.reporting.ledger import status_server
 

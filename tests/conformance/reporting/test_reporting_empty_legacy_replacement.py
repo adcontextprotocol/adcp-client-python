@@ -7,9 +7,8 @@ import secrets
 from pathlib import Path
 
 import pytest
-
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
-from adcp.reporting.migration import (
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+from adcp_reporting_storage.migration import (
     ReportingOwnershipMigrationError,
     replace_empty_legacy_reporting,
 )
@@ -97,6 +96,27 @@ async def test_populated_legacy_table_refuses_replacement_atomically(table):
                     await connection.execute("SELECT to_regclass('reporting_configurations')")
                 ).fetchone()
             )[0] is not None
+
+
+async def test_sql_body_functions_on_legacy_tables_are_replaced():
+    require_rolling_database()
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        async with pool.connection() as connection:
+            await install_legacy(connection)
+            # A SQL-standard body depends on the table itself, not its row type.
+            await connection.execute(
+                "CREATE FUNCTION reporting_configuration_count() RETURNS bigint"
+                " LANGUAGE SQL BEGIN ATOMIC SELECT count(*) FROM reporting_configurations; END"
+            )
+            await replace_empty_legacy_reporting(connection)
+            assert (
+                await (
+                    await connection.execute(
+                        "SELECT to_regclass('reporting_configurations'),"
+                        " to_regprocedure('reporting_configuration_count()')"
+                    )
+                ).fetchone()
+            ) == (None, None)
 
 
 @pytest.mark.parametrize("dependency", ["view", "sequence", "function", "partition"])

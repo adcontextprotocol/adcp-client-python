@@ -8,11 +8,11 @@ import json
 from importlib.resources import files
 
 import pytest
+from adcp_reporting_storage import PgReportingOutbox, PgReportingReconciliationStore
+from adcp_reporting_storage.outbox._schema import schema_contract, validate_schema
+from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from adcp.reporting.ledger import PgReportingReconciliationStore
-from adcp.reporting.outbox import PgReportingOutbox, ReportingNotificationError
-from adcp.reporting.outbox._schema import schema_contract, validate_schema
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
+from adcp.reporting.outbox import ReportingNotificationError
 
 from ._generation_support import (
     NOW,
@@ -24,7 +24,7 @@ from ._reconciliation_support import scenario
 from ._reliable_support import Barrier
 from .test_reporting_reconciliation_migration import FIXTURES
 
-RESOURCES = files("adcp.reporting.ledger")
+RESOURCES = files("adcp_reporting_storage.ledger")
 CHAIN = (
     "reporting_ledger.sql",
     "reporting_ledger_account_generations.sql",
@@ -159,9 +159,11 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
 @pytest.mark.parametrize("hopwise", [False, True])
 async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
     require_rolling_database()
+    from adcp_reporting_storage.migration import (
+        ReportingOwnershipMigrationError,
+        migrate_legacy_reporting,
+    )
     from psycopg import sql
-
-    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with pool.connection() as conn:
@@ -314,7 +316,7 @@ async def test_readiness_validates_the_installed_chain_not_table_presence(damage
 
 async def test_malformed_outbox_upgrade_rolls_back_entire_chain():
     async with isolated_reporting_pool(autocommit=True) as pool:
-        from adcp.reporting.migration import ReportingOwnershipMigrationError
+        from adcp_reporting_storage.migration import ReportingOwnershipMigrationError
 
         async with pool.connection() as conn:
             await conn.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())
@@ -357,7 +359,7 @@ async def test_default_off_upgrade_preserves_adopter_index_and_opt_in_checks_rea
             )[0]
             assert retained == original
         # B validates the required subset: an unrelated index remains compatible.
-        from adcp.reporting.outbox import PgReportingOutbox
+        from adcp_reporting_storage import PgReportingOutbox
 
         await PgReportingOutbox(pool=pool).create_schema()
         async with pool.connection() as conn:

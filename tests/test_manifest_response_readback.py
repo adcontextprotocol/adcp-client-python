@@ -44,7 +44,8 @@ CASES = (*TASK_CASES, "context-match", "provider-context-match")
 
 def response_case(case, kind=FUTURE_KIND):
     manifest = {
-        "format_kind": kind,
+        # ``None`` means the property is absent: the schema admits no null.
+        **({"format_kind": kind} if kind is not None else {}),
         "assets": {},
         "vendor_annotation": {"notes": ["preserved"]},
     }
@@ -175,7 +176,9 @@ def test_async_response_union_and_webhook_round_trip(case):
     result = adapter.validate_json(json.dumps(payload))
     assert isinstance(result, model)
     assert read_manifest(result, case).format_kind == FUTURE_KIND
-    reparsed = adapter.validate_json(adapter.dump_json(result))
+    # A ``TypeAdapter`` dump has no ``exclude_none`` default of its own, and
+    # the schema admits no ``null`` for an omitted property.
+    reparsed = adapter.validate_json(adapter.dump_json(result, exclude_none=True))
     assert isinstance(reparsed, model)
     assert read_manifest(reparsed, case).format_kind == FUTURE_KIND
 
@@ -209,7 +212,12 @@ async def test_public_completed_task_parser_keeps_manifest_readback(case):
     # A successful untyped fallback would silently hide strict-union rejection.
     assert isinstance(result.data, model)
     assert read_manifest(result.data, case).format_kind == FUTURE_KIND
-    reparsed = TaskResult[AdcpAsyncResponseData].model_validate_json(result.model_dump_json())
+    # ``TaskResult`` is a plain pydantic model: its dump carries every ``None``
+    # as ``null`` unless told otherwise, and a JSON ``null`` is not an AdCP
+    # document (#1547). Dump the way the CLI does, with ``exclude_none``.
+    reparsed = TaskResult[AdcpAsyncResponseData].model_validate_json(
+        result.model_dump_json(exclude_none=True)
+    )
     assert isinstance(reparsed.data, model)
     assert read_manifest(reparsed.data, case).format_kind == FUTURE_KIND
 

@@ -731,7 +731,7 @@ class TestGatherSemantics:
             TaskStatus as A2ATaskStatus,
         )
 
-        client = ADCPClient(_cfg())
+        client = ADCPClient(_cfg(), server_version="3.2")
         adapter: A2AAdapter = client.adapter  # type: ignore[assignment]
         task = Task(
             id="t1",
@@ -790,7 +790,7 @@ class TestPydanticRoundTrip:
             TaskStatus as A2ATaskStatus,
         )
 
-        client = ADCPClient(_cfg())
+        client = ADCPClient(_cfg(), server_version="3.2")
         pinned = str(uuid.uuid4())
         req = ReportUsageRequest.model_validate(
             {

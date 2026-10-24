@@ -153,7 +153,7 @@ async def test_enabled_production_enqueue_is_required_inside_verified_finish(
         else:
             with monkeypatch.context() as patch:
                 if h.pool is not None:
-                    import adcp.reporting.materializer.pg as pg
+                    import adcp_reporting_storage.materializer.pg as pg
 
                     async def empty(connection, event):
                         pass

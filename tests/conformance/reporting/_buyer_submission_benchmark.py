@@ -12,6 +12,18 @@ reported as a measured result. Concurrent original gates may share the host.
 
 from __future__ import annotations
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import argparse
 import asyncio
 import json
@@ -20,9 +32,13 @@ import threading
 import time
 from contextlib import asynccontextmanager
 
+if _storage_split():  # wheels before the storage split (#1510)
+    from adcp.reporting.submissions import PgReportingSubmissionIntentStore
+else:
+    from adcp_reporting_storage import PgReportingSubmissionIntentStore
+
 from adcp.reporting.submissions import (
     InMemoryReportingSubmissionIntentStore,
-    PgReportingSubmissionIntentStore,
     models,
     prepare_reporting_receipt_submission,
     submit_reporting_receipts,

@@ -9,10 +9,11 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import postgres_reliable_reporting_service
+from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
 from adcp.reporting.fixtures import redacted_capabilities
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.service import (
     ReliableReportingService,
     ReliableReportingShutdownTimeoutError,
@@ -174,7 +175,7 @@ async def test_stop_settles_public_configuration_transaction_before_owned_cleanu
             await asyncio.wait_for(service.close(), 5)
         assert configurations_at_close == [0 if cancel_call else 1]
         assert pool.closed is False  # an injected PostgreSQL pool is borrowed
-        restarted = ReliableReportingService.postgres(pool=pool, account_context=_account_context)
+        restarted = postgres_reliable_reporting_service(pool=pool, account_context=_account_context)
         await restarted.start()
         try:
             retained = await restarted.store.list_configurations(

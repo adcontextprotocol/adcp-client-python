@@ -3193,7 +3193,13 @@ def create_tool_caller(
     )
     from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.compat.legacy.errors import legacy_adapter_task_error
-    from adcp.exceptions import ADCPTaskError
+    from adcp.compat.versions import (
+        CONVERSION_METADATA_KEY,
+        ADCPVersionConversionError,
+        ConversionResult,
+        convert_payload,
+    )
+    from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.server.version_policy import project_supported_versions, resolve_supported_versions
     from adcp.types import Error
@@ -3203,6 +3209,7 @@ def create_tool_caller(
         detect_wire_version,
     )
     from adcp.validation.schema_errors import build_adcp_validation_error_payload
+    from adcp.validation.schema_loader import Direction
     from adcp.validation.schema_validator import (
         format_issues,
         validate_request,
@@ -3257,6 +3264,38 @@ def create_tool_caller(
                 )
             ],
         )
+
+    def convert_version_payload(
+        payload: dict[str, Any], *, direction: Direction, source_version: str, target_version: str
+    ) -> ConversionResult:
+        try:
+            return convert_payload(
+                method_name,
+                payload,
+                direction=direction,
+                source_version=source_version,
+                target_version=target_version,
+            )
+        except ADCPFeatureUnsupportedError as exc:
+            details = None
+            if isinstance(exc, ADCPVersionConversionError):
+                details = {
+                    "pointer": exc.pointer,
+                    "source_version": exc.source_version,
+                    "target_version": exc.target_version,
+                    "reason": exc.reason,
+                }
+            raise ADCPTaskError(
+                operation=method_name,
+                errors=[
+                    Error(
+                        code="VERSION_UNSUPPORTED",
+                        message=str(exc),
+                        field=exc.pointer if isinstance(exc, ADCPVersionConversionError) else None,
+                        details=details,
+                    )
+                ],
+            ) from exc
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()
@@ -3381,6 +3420,22 @@ def create_tool_caller(
         wire_release_was_negotiated = isinstance(params, dict) and isinstance(
             params.get("adcp_version"), str
         )
+        if (
+            method_name == "get_adcp_capabilities"
+            and not wire_release_was_negotiated
+            # Legacy-only mounts keep the structured unsupported-version
+            # path below; minor negotiation only knows native 3.x releases.
+            and any(version not in LEGACY_ADAPTER_VERSIONS for version in accepted_versions)
+        ):
+            from adcp._version import resolve_adcp_version
+            from adcp.compat.versions import negotiate_version
+
+            # Discovery must expose supported_versions before a buyer can
+            # negotiate. Projecting an unversioned probe through 3.0 would
+            # remove that field and strand modern buyers on the legacy floor.
+            wire_version = negotiate_version(
+                list(accepted_versions), maximum=resolve_adcp_version(None)
+            )
         if wire_version is None:
             wire_version = default_unnegotiated_adcp_version
         if selected_versions is not None:
@@ -3512,6 +3567,49 @@ def create_tool_caller(
         else:
             post_adapter_validator_version = wire_version
         response_validator_version = None if legacy_adapter is not None else wire_version
+
+        from adcp._version import resolve_adcp_version
+
+        application_version = resolve_adcp_version(None)
+        convert_minor_version = (
+            legacy_adapter is None
+            and wire_version is not None
+            and wire_version != application_version
+            and wire_version.startswith("3.")
+            and "-" not in wire_version
+            and method_name != "sync_reporting_receipts"
+            and not frozen_reporting_feed
+        )
+        if convert_minor_version and wire_version is not None:
+            # Validate the original wire contract before converting. Handler
+            # validation below then checks the upgraded application shape.
+            if request_mode is not None and request_mode != "off":
+                wire_outcome = validate_request(method_name, params, version=wire_version)
+                if not wire_outcome.valid:
+                    if request_mode == "strict":
+                        raise ADCPTaskError(
+                            operation=method_name,
+                            errors=[
+                                Error(
+                                    **build_adcp_validation_error_payload(
+                                        method_name, "request", wire_outcome.issues
+                                    )
+                                )
+                            ],
+                        )
+                    logger.warning(
+                        "Schema validation warning (wire request) for %s: %s",
+                        method_name,
+                        format_issues(wire_outcome.issues),
+                    )
+            params = convert_version_payload(
+                params,
+                direction="request",
+                source_version=wire_version,
+                target_version=application_version,
+            ).payload
+            post_adapter_validator_version = None
+            ctx.metadata[CONVERSION_METADATA_KEY] = {"wire_version": wire_version, "losses": []}
 
         creative_boundary_tools = {
             "create_media_buy",
@@ -3743,7 +3841,9 @@ def create_tool_caller(
                 method_name,
                 result,
                 raw_params,
-                adcp_version=response_validator_version,
+                adcp_version=(
+                    application_version if convert_minor_version else response_validator_version
+                ),
             )
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``
@@ -3761,6 +3861,28 @@ def create_tool_caller(
                 _apply_response_enhancer(response_enhancer, method_name, result, ctx)
             if method_name == "get_adcp_capabilities" and "adcp_error" not in result:
                 result = project_supported_versions(result, selected_versions)
+
+        if (
+            convert_minor_version
+            and wire_version is not None
+            and isinstance(result, dict)
+            and "adcp_error" not in result
+        ):
+            response_direction = result.get("status")
+            converted = convert_version_payload(
+                result,
+                direction=(
+                    response_direction
+                    if response_direction in {"submitted", "working", "input-required"}
+                    else "sync"
+                ),
+                source_version=application_version,
+                target_version=wire_version,
+            )
+            result = converted.payload
+            ctx.metadata[CONVERSION_METADATA_KEY]["losses"].extend(converted.metadata())
+            if bridged_response_version is not None:
+                result["adcp_version"] = bridged_response_version
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):
             # Skip validation when the handler returned the AdCP L3

@@ -51,7 +51,7 @@ def render_tier_status(
     consumer_status_enabled: bool,
 ) -> dict[str, Any]:
     if (
-        getattr(store, "_projection_read_policy", None) != policy
+        getattr(store, "projection_read_policy", None) != policy
         or policy["consumer_status_enabled"] != consumer_status_enabled
     ):
         raise LedgerConflictError(
@@ -60,7 +60,7 @@ def render_tier_status(
     return ReportingStatusHandler(
         store,
         consumer_status_enabled=consumer_status_enabled,
-        escalation=getattr(store, "_projection_read_escalation", None),
+        escalation=getattr(store, "projection_read_escalation", None),
     ).render_snapshot(
         request,
         caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),

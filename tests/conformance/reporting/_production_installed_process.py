@@ -1,14 +1,34 @@
 """Installed activation, SIGKILL, and immutable legacy/new representation walks."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
 import json
 import sys
 from dataclasses import asdict
-from importlib.resources import files
 from pathlib import Path
 from types import SimpleNamespace
+
+
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
 
 
 async def main(settings):
@@ -23,10 +43,7 @@ async def main(settings):
         assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
         origins[name] = str(path)
     for name, digest in settings["assets"].items():
-        assert (
-            hashlib.sha256(files("adcp.reporting").joinpath(name).read_bytes()).hexdigest()
-            == digest
-        )
+        assert hashlib.sha256(_asset_files("").joinpath(name).read_bytes()).hexdigest() == digest
 
     from psycopg_pool import AsyncConnectionPool
     from pydantic import TypeAdapter

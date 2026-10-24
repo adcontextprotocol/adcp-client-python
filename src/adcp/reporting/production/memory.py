@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import weakref
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
@@ -17,6 +18,7 @@ from adcp.reporting.ledger.delivery_models import (
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
+    ReportingDeliveryEscalation,
     ReportingObligationRecord,
 )
 from adcp.reporting.ledger.notification_models import (
@@ -28,10 +30,21 @@ from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.capture import ReportingMaterializerBoundary
 from adcp.reporting.materializer.contracts import ReportingVerificationKey, failure
 from adcp.reporting.materializer.work import MaterializerContext, ReportingMaterializerLease
+from adcp.reporting.outbox.activity import ActivityRequest, ReportingActivityStore, WebhookAttempt
 from adcp.reporting.outbox.memory import InMemoryReportingOutbox, NotificationState
+from adcp.reporting.outbox.models import DeliveryLease
 from adcp.reporting.production.contracts import ReportingProductionSourceBinding
 from adcp.reporting.production.source_registry import ReportingProductionSourceContext
-from adcp.reporting.projection.memory import InMemoryReportingProjectionStore
+from adcp.reporting.production.store import (
+    MaintenanceOperation,
+    ReportingProductionProjection,
+    SavedDeliveryWindow,
+)
+from adcp.reporting.projection.memory import (
+    InMemoryReportingProjectionOutbox,
+    InMemoryReportingProjectionStore,
+    InMemoryReportingStatusProjection,
+)
 from adcp.reporting.source import ReportingConstituent
 
 if TYPE_CHECKING:
@@ -72,7 +85,7 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
     """Matches production atomicity and epochs, without claiming durable storage."""
 
     _materializer_writer_epoch = 2
-    _production_support: weakref.ReferenceType[ReportingProductionSupport] | None = None
+    production_support: weakref.ReferenceType[ReportingProductionSupport] | None = None
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -100,6 +113,117 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         from adcp.reporting.production.service import production_owner
 
         return production_owner(self)
+
+    # -- the production store contract (adcp.reporting.production.store) ------
+
+    @property
+    def durable(self) -> bool:
+        return False
+
+    @property
+    def storage_identity(self) -> object:
+        return self
+
+    @property
+    def storage_open(self) -> bool:
+        return True
+
+    def is_sdk_production_store(self) -> bool:
+        return type(self) is InMemoryReportingProductionStore
+
+    def status_projection(
+        self,
+        *,
+        consumer_status_enabled: bool,
+        escalation: ReportingDeliveryEscalation | None,
+        revision_ownership: bool,
+    ) -> InMemoryReportingStatusProjection:
+        return InMemoryReportingStatusProjection(
+            self,
+            consumer_status_enabled=consumer_status_enabled,
+            escalation=escalation,
+            revision_ownership=revision_ownership,
+        )
+
+    def is_sdk_status_projection(self, projection: object) -> bool:
+        return type(projection) is InMemoryReportingStatusProjection
+
+    def projection_linked(self, projection: ReportingProductionProjection) -> bool:
+        return (
+            type(projection.outbox) is InMemoryReportingProjectionOutbox
+            and projection.outbox._store is self
+        )
+
+    def production_outboxes(
+        self, projection: ReportingProductionProjection
+    ) -> tuple[Any, Any, Any]:
+        if type(self) is not InMemoryReportingProductionStore:
+            raise ReportingNotificationError("notification_chain_unready")
+        return (
+            InMemoryReportingOutbox(self),
+            projection.outbox,
+            InMemoryReportingProductionOutbox(self),
+        )
+
+    def notification_workers_linked(self, workers: Sequence[Any]) -> bool:
+        expected = (
+            InMemoryReportingOutbox,
+            InMemoryReportingProjectionOutbox,
+            InMemoryReportingProductionOutbox,
+        )
+        return (
+            all(getattr(w.outbox, "_store", None) is self for w in workers)
+            and tuple(type(w.outbox) for w in workers) == expected
+        )
+
+    async def validate_production_schema(
+        self, *, notifications: bool, service_context: bool
+    ) -> None:
+        """Memory has no catalog; it never advertises durability either."""
+
+    async def read_delivery_window(
+        self, key: tuple[str, str], *, now: datetime
+    ) -> tuple[SavedDeliveryWindow | None, datetime]:
+        async with self._lock:
+            return self._production_delivery_windows.get(key), now
+
+    async def reserve_delivery_attempt(
+        self,
+        activity: ReportingActivityStore,
+        lease: DeliveryLease,
+        *,
+        request: ActivityRequest,
+        now: datetime,
+        queue: str,
+        expected: tuple[str, str],
+        horizon_seconds: int,
+    ) -> tuple[WebhookAttempt | None, datetime | None, bool]:
+        from adcp.reporting.production.delivery_window import inspect_window
+
+        binding = lease.delivery.binding
+        key = (binding.account_id, binding.idempotency_key)
+        if not isinstance(activity, InMemoryReportingOutbox) or activity._store is not self:
+            raise ReportingNotificationError("notification_retry_unready")
+        async with self._mutation():
+            saved = self._production_delivery_windows.get(key)
+            deadline, expired = inspect_window(saved, expected, now)
+            if expired:
+                return None, deadline, True
+            attempt = activity._reserve_attempt_locked(lease, request=request, now=now)
+            if attempt is None:
+                return None, deadline, False
+            retained = self._production_delivery_windows.setdefault(
+                key,
+                (
+                    *expected,
+                    attempt.fired_at,
+                    attempt.fired_at + timedelta(seconds=horizon_seconds),
+                ),
+            )
+            return attempt, retained[3], False
+
+    def maintenance_operations(self) -> tuple[MaintenanceOperation, ...]:
+        return ()
 
     async def admit_production_configuration(
         self,
@@ -272,7 +396,7 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
                 work.obligation, work.turn, acquisition_state(work.obligation, revisions)
             )
 
-    async def _activate_production(self, *, account_id: str) -> bool:
+    async def activate_production(self, *, account_id: str) -> bool:
         owner = self._owner()
         async with self._mutation():
             projection = self._projection_accounts.get(account_id)

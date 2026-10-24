@@ -242,7 +242,7 @@ async def test_scoped_listing_filters_cursor_and_not_found(registry: Any) -> Non
 
         async def missing_error(task_id: str) -> dict[str, Any]:
             with pytest.raises(AdcpError) as caught:
-                await caller({"task_id": task_id})
+                await caller({"adcp_version": "3.2", "task_id": task_id})
             return caught.value.to_wire()
 
         missing = await missing_error("absent")
@@ -328,10 +328,10 @@ async def test_minimal_third_party_registry_boots_and_expiry_is_hidden() -> None
         errors = []
         for reference in (task, "absent"):
             with pytest.raises(AdcpError) as caught:
-                await caller({"task_id": reference})
+                await caller({"adcp_version": "3.2", "task_id": reference})
             errors.append(caught.value.to_wire())
         assert errors[0] == errors[1]
-        assert (await create_tool_caller(handler, "list_tasks")({}))["error"][
+        assert (await create_tool_caller(handler, "list_tasks")({"adcp_version": "3.2"}))["error"][
             "code"
         ] == "NOT_SUPPORTED"
     finally:
@@ -358,7 +358,7 @@ async def test_account_resolution_precedes_registry_reads() -> None:
         reg.list = listing
         for tool, params in (("get_task_status", {"task_id": "probe"}), ("list_tasks", {})):
             with pytest.raises(AdcpError, match="PERMISSION_DENIED"):
-                await create_tool_caller(handler, tool)(params)
+                await create_tool_caller(handler, tool)({"adcp_version": "3.2", **params})
         read.assert_not_awaited()
         listing.assert_not_awaited()
     finally:

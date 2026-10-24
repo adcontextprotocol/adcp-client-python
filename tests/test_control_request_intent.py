@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from adcp import ADCPClient
 from adcp.server import ADCPHandler, create_mcp_server
 from adcp.server.base import ToolContext
+from adcp.server.responses import capabilities_response
 from adcp.types import ControlMediaBuyRequest
 from adcp.validation import ValidationHookConfig, validate_request
 
@@ -51,10 +52,15 @@ def test_cancellation_requires_explicit_true(package: bool) -> None:
 
 
 class _ControlSeller(ADCPHandler):
-    advertised_tools = {"control_media_buy"}
+    advertised_tools = {"get_adcp_capabilities", "control_media_buy"}
 
     def __init__(self) -> None:
         self.received: list[ControlMediaBuyRequest] = []
+
+    async def get_adcp_capabilities(self, params, context=None):
+        response = capabilities_response(["media_buy"])
+        response["adcp"]["idempotency"] = {"supported": False}
+        return response
 
     async def control_media_buy(
         self, params: ControlMediaBuyRequest, context: ToolContext | None = None
