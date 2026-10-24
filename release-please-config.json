@@ -9,7 +9,10 @@
       "prerelease": true,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
-      "include-component-in-tag": false
+      "include-component-in-tag": false,
+      "exclude-paths": [
+        "packages/adcp-reporting-storage"
+      ]
     },
     "packages/adcp-reporting-storage": {
       "release-type": "python",

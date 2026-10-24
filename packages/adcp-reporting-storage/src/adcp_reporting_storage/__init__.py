@@ -34,6 +34,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    __version__: str
     from adcp_reporting_storage.feed.pg import PgReportingFeedStore as PgReportingFeedStore
     from adcp_reporting_storage.inline_storage import (
         PgReportingSealStore as PgReportingSealStore,
@@ -205,8 +206,6 @@ if TYPE_CHECKING:
         PgReportingSubmissionIntentStore as PgReportingSubmissionIntentStore,
     )
 
-__version__ = "0.1.0b0"
-
 #: Public name -> (module under this package, attribute). Resolved on first use.
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Stores
@@ -328,6 +327,15 @@ __all__ = sorted(_LAZY_EXPORTS)
 
 
 def __getattr__(name: str) -> Any:
+    if name == "__version__":
+        # Read the installed distribution's PEP 440 version rather than a
+        # literal Release Please would rewrite in its own -beta.N spelling.
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            return version("adcp-reporting-storage")
+        except PackageNotFoundError:
+            return "0.0.0"
     lazy_export = _LAZY_EXPORTS.get(name)
     if lazy_export is not None:
         import importlib

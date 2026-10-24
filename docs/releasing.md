@@ -64,9 +64,12 @@ One-time setup:
 (`separate-pull-requests` is on, so it gets its own release PR) on the same
 beta channel. Its tags carry the component name
 (`adcp-reporting-storage-v0.1.0-beta.1`); the root keeps bare `vX.Y.Z` tags.
-Only commits that touch `packages/adcp-reporting-storage/` bump it, so a
-protocol fix in `adcp` does not release the storage package and a storage fix
-does not release `adcp`. Conventional-commit scopes are free text, but
+Only commits that touch `packages/adcp-reporting-storage/` bump it, and the
+root package lists that path in `exclude-paths` (Release Please otherwise hands
+the root every commit), so a protocol fix in `adcp` does not release the storage
+package and a storage fix does not release `adcp`. A commit touching both trees
+counts for both. Keep storage changes out of a root `Release-As:` commit, or the
+storage package takes that version too. Conventional-commit scopes are free text, but
 `feat(reporting-storage):` keeps the two changelogs readable.
 
 On a merge, `release-please.yml` queues `release-publish.yml` with

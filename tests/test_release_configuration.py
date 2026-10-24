@@ -65,8 +65,11 @@ def test_storage_distribution_version_matches_its_manifest_entry() -> None:
     # Two components, two release PRs: the normalizer and the publish queue
     # are written for that.
     assert config["separate-pull-requests"] is True
+    # Release Please hands the root path every commit unless told otherwise;
+    # without this a storage-only fix or breaking change would release adcp.
+    assert config["packages"]["."]["exclude-paths"] == ["packages/adcp-reporting-storage"]
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:
     pyproject = (STORAGE / "pyproject.toml").read_text()
-    assert re.search(r'"adcp>=9\.0\.0b\d+,<10"', pyproject), "adcp range must be one major"
+    assert re.search(r'"adcp>=9\.0\.0(?:b\d+)?,<10"', pyproject), "adcp range must be one major"
