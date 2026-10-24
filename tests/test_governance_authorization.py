@@ -37,6 +37,7 @@ from adcp.server import (
 )
 from adcp.server.idempotency import IdempotencyStore, MemoryBackend
 from adcp.signing import InMemoryReplayStore, StaticJwksResolver, private_key_from_jwk
+from adcp.signing.crypto import ALG_ED25519, b64url_decode, b64url_encode, sign_signature_base
 
 VECTOR_PATH = Path(__file__).parent / "conformance/vectors/governance-authorization.json"
 VECTORS = json.loads(VECTOR_PATH.read_text())
@@ -618,3 +619,99 @@ def test_stateless_governance_applicability(
     task: str, payload: dict[str, Any], expected: bool | None
 ) -> None:
     assert stateless_governance_applicability(task, payload) is expected
+
+
+async def _verify_signed_vector(
+    header_updates: dict[str, Any], drop_claims: tuple[str, ...] = ()
+) -> Any:
+    """Re-sign the accepted vector with a changed header, then verify it.
+
+    Re-signing keeps the signature valid, so a refusal comes from the header
+    or claims check, not from signature verification.
+    """
+    signed = VECTORS["signed_jws"]
+    case = next(case for case in signed["cases"] if case["id"] == "valid-exact-authorization")
+    b64_header, b64_claims, _ = case["compact_jws"].split(".")
+    header = {**json.loads(b64url_decode(b64_header)), **header_updates}
+    claims = {
+        name: value
+        for name, value in json.loads(b64url_decode(b64_claims)).items()
+        if name not in drop_claims
+    }
+    test_key = dict(signed["test_key"])
+    test_key["d"] = test_key.pop("_private_d_for_test_only")
+    signing_input = ".".join(
+        b64url_encode(json.dumps(segment, separators=(",", ":")).encode())
+        for segment in (header, claims)
+    )
+    signature = sign_signature_base(
+        alg=ALG_ED25519,
+        private_key=private_key_from_jwk(test_key),
+        signature_base=signing_input.encode("ascii"),
+    )
+    defaults = signed["verification_defaults"]
+    public_jwk = {
+        key: value for key, value in test_key.items() if key != "d" and not key.startswith("$")
+    }
+    return await verify_governance_authorization(
+        token=f"{signing_input}.{b64url_encode(signature)}",
+        expected_issuer=defaults["expected_issuer"],
+        expected_audience=defaults["expected_audience"],
+        authenticated_caller=defaults["authenticated_caller"],
+        expected_task=defaults["expected_task"],
+        payload=defaults["payload"],
+        actual_commitment=defaults["actual_commitment"],
+        expected_phase=defaults["expected_phase"],
+        jwks=StaticJwksResolver({"keys": [public_jwk]}),
+        replay_store=InMemoryGovernanceReplayStore(),
+        now=lambda: defaults["now"],
+        clock_skew_seconds=defaults["clock_skew_seconds"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_re_signed_vector_is_accepted() -> None:
+    """``_verify_signed_vector`` re-signs a token that the verifier accepts."""
+    result = await _verify_signed_vector({})
+
+    assert result.ok
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        {
+            "crit": ["authorized_commitment", "authorized_task", "authorized_payload_hash"],
+            "authorized_commitment": False,
+        },
+        {"crit": ["authorized_task", "authorized_payload_hash"]},
+        {"crit": ["authorized_task", "authorized_payload_hash"], "authorized_commitment": False},
+    ],
+    ids=["crit-entry-and-false-marker", "marker-alone", "false-marker-alone"],
+)
+@pytest.mark.asyncio
+async def test_critical_marker_crit_entry_and_claim_appear_together(
+    header: dict[str, Any],
+) -> None:
+    """security.mdx checklist step 4: marker, crit entry, and claim appear together.
+
+    "Verifiers MUST also reject when the critical marker and its corresponding
+    claim do not appear together" (security.mdx, AdCP 3.2.1 to 3.2.4). Each
+    header here carries an ``authorized_commitment`` marker or ``crit`` entry
+    for a claim the payload doesn't have.
+    """
+    result = await _verify_signed_vector(header, drop_claims=("authorized_commitment",))
+
+    assert not result.ok
+    assert result.error == "governance_token_invalid"
+    assert result.message == "authorized_commitment claim and critical marker must match"
+
+
+@pytest.mark.parametrize("alg", [["EdDSA"], {"EdDSA": True}], ids=["list", "object"])
+@pytest.mark.asyncio
+async def test_a_non_string_alg_is_an_invalid_token(alg: object) -> None:
+    """A header ``alg`` that isn't a string is ``governance_token_invalid``, not a TypeError."""
+    result = await _verify_signed_vector({"alg": alg})
+
+    assert not result.ok
+    assert result.error == "governance_token_invalid"

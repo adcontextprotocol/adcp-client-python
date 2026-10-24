@@ -138,7 +138,11 @@ async def test_signed_webhook_verifies_end_to_end() -> None:
 @pytest.mark.asyncio
 async def test_duplicate_retry_dedupes_over_real_http() -> None:
     """The sender's retry MUST get a 200 with duplicate=True, and the
-    receiver MUST NOT reprocess. Real HTTP roundtrip twice."""
+    receiver MUST NOT reprocess. Real HTTP roundtrip twice.
+
+    A retry repeats the body under a fresh signature, as
+    ``WebhookSender.resend`` does: the receiver refuses a replayed nonce
+    before it reaches deduplication."""
     app, _ = _build_app()
 
     payload = create_mcp_webhook_payload(
@@ -149,12 +153,13 @@ async def test_duplicate_retry_dedupes_over_real_http() -> None:
         idempotency_key="whk_e2e_dupeaaaaaaaaaaaaaaa",
     )
     body = json.dumps(to_wire_dict(payload)).encode("utf-8")
-    headers = _sign_and_send_body(body)
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        first = await client.post("/webhooks/adcp", content=body, headers=headers)
-        second = await client.post("/webhooks/adcp", content=body, headers=headers)
+        first = await client.post("/webhooks/adcp", content=body, headers=_sign_and_send_body(body))
+        second = await client.post(
+            "/webhooks/adcp", content=body, headers=_sign_and_send_body(body)
+        )
 
     assert first.status_code == 200
     assert first.json()["duplicate"] is False

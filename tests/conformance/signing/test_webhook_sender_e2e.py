@@ -14,8 +14,10 @@ whole story is broken. Covers:
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +111,7 @@ async def test_sender_to_receiver_happy_path() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_sender_e2e",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
             result={"media_buy_id": "mb_1"},
@@ -126,21 +129,32 @@ async def test_sender_to_receiver_happy_path() -> None:
 async def test_retry_with_same_idempotency_key_dedupes() -> None:
     """The whole reason WebhookDeliveryResult exposes idempotency_key: so the
     retry call reuses it and the receiver dedupes correctly. Without this,
-    every retry processes as a fresh event."""
+    every retry processes as a fresh event.
+
+    The key binds the payload, so the retry repeats the first call's
+    ``timestamp``: a fresh one makes a different body under the same key,
+    which the receiver refuses with 409."""
+    from datetime import datetime, timezone
+
+    sent_at = datetime(2026, 10, 18, 12, 0, tzinfo=timezone.utc)
     app, _ = _build_receiver_app()
     async with _build_sender(app) as sender:
         first = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_retry",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
+            timestamp=sent_at,
         )
         # Simulate caller deciding to retry (e.g., if first had been non-2xx).
         retry = await sender.send_mcp(
             url=first.url,
             task_id="task_retry",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
+            timestamp=sent_at,
             idempotency_key=first.idempotency_key,
         )
 
@@ -163,6 +177,7 @@ async def test_extra_headers_cannot_override_signature_bindings() -> None:
             await sender.send_mcp(
                 url="http://test/webhooks/adcp",
                 task_id="t",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
                 extra_headers={"Signature": "attacker-controlled"},
@@ -171,6 +186,7 @@ async def test_extra_headers_cannot_override_signature_bindings() -> None:
             await sender.send_mcp(
                 url="http://test/webhooks/adcp",
                 task_id="t",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
                 extra_headers={"Content-Digest": "forged"},
@@ -317,6 +333,7 @@ async def test_sent_body_equals_signed_body_equals_received_body() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp/capture",
             task_id="task_byte_identity",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
             result={"media_buy_id": "mb_bytes"},
@@ -337,6 +354,7 @@ async def test_resend_replays_identical_bytes_with_fresh_signature() -> None:
         first = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_resend",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
             result={"media_buy_id": "mb_resend"},
@@ -373,6 +391,7 @@ async def test_extra_header_case_insensitive_rejection() -> None:
                 await sender.send_mcp(
                     url="http://test/webhooks/adcp",
                     task_id="t",
+                    operation_id="op_test",
                     task_type="create_media_buy",
                     status="completed",
                     extra_headers={bad: "attacker"},
@@ -396,6 +415,7 @@ async def test_receiver_rejects_when_sender_key_wrong() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="t",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -418,6 +438,7 @@ async def test_owned_client_rejects_loopback_destination() -> None:
             await sender.send_mcp(
                 url="https://127.0.0.1/webhooks/adcp",
                 task_id="task_ssrf",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
             )
@@ -450,6 +471,7 @@ async def test_owned_client_rejects_disallowed_port_when_hardening_configured() 
                 await sender.send_mcp(
                     url="https://example.com:6379/webhooks/adcp",
                     task_id="task_port",
+                    operation_id="op_test",
                     task_type="create_media_buy",
                     status="completed",
                 )
@@ -537,6 +559,7 @@ async def test_owned_client_default_allows_non_standard_ports() -> None:
             result = await sender.send_mcp(
                 url="http://test:9443/webhooks/adcp",
                 task_id="task_nonstd",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
             )
@@ -574,6 +597,7 @@ async def test_operator_supplied_client_bypasses_ssrf_guard() -> None:
         result = await sender.send_mcp(
             url="http://test/webhooks/adcp",
             task_id="task_op_trust",
+            operation_id="op_test",
             task_type="create_media_buy",
             status="completed",
         )
@@ -615,7 +639,9 @@ async def test_owned_client_ignores_https_proxy_env() -> None:
             # delivery path. The last writer wins; the per-request call
             # is the one we care about.
             captured_kwargs.update(kwargs)
-            self._response = MagicMock(status_code=200, headers={}, content=b"{}")
+            self._response = MagicMock(
+                status_code=200, headers={}, content=b"{}", is_stream_consumed=True
+            )
 
         async def __aenter__(self) -> _FakeAsyncClient:
             return self
@@ -626,8 +652,10 @@ async def test_owned_client_ignores_https_proxy_env() -> None:
         async def aclose(self) -> None:
             return None
 
-        async def post(self, *_args: Any, **_kwargs: Any) -> Any:
-            return self._response
+        # The sender posts with ``client.stream`` to bound the response body.
+        @contextlib.asynccontextmanager
+        async def stream(self, *_args: Any, **_kwargs: Any) -> AsyncIterator[Any]:
+            yield self._response
 
     # Set HTTPS_PROXY pointing at an unreachable address. With
     # trust_env=True (the httpx default), this would override the
@@ -642,6 +670,7 @@ async def test_owned_client_ignores_https_proxy_env() -> None:
                     await sender.send_mcp(
                         url="https://buyer.example.com/webhooks/adcp",
                         task_id="task_proxy",
+                        operation_id="op_test",
                         task_type="create_media_buy",
                         status="completed",
                     )
@@ -697,6 +726,7 @@ async def test_owned_client_rejects_hostile_url_before_signing() -> None:
             await sender.send_mcp(
                 url="https://127.0.0.1/webhooks/adcp",
                 task_id="task_no_sign",
+                operation_id="op_test",
                 task_type="create_media_buy",
                 status="completed",
             )
