@@ -169,6 +169,40 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.4...v9.0.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reporting:** the PostgreSQL reporting stores, the row storage providers, the change feed, the ownership-migration helpers and `ReliableReportingService.postgres` leave `adcp`; install `adcp-reporting-storage[pg]` (plus `gcs`/`s3`/`azure`) and import them from `adcp_reporting_storage`. The `adcp[reporting-gcs]`, `[reporting-s3]` and `[reporting-azure]` extras are removed. See docs/reporting-storage-package-migration.md.
+* **codegen:** a JSON document carrying `null` for an optional property whose schema does not admit `null` is now refused by `model_validate_json` and `TypeAdapter.validate_json`, and the published JSON Schema of such a property has no null arm. A Python `None` is still accepted. JSON produced with `exclude_none=False` must be read back in Python mode (`model_validate(json.loads(...))`).
+* **types:** SyncCreativesRequest.creatives is now list[CreativeAsset] | None. Handlers must guard it before iteration or use request.creatives or [] for assignment-only requests.
+
+### chore
+
+* **release:** leave the beta channel for SDK 9.0.0 GA ([#1567](https://github.com/adcontextprotocol/adcp-client-python/issues/1567)) ([4e9c123](https://github.com/adcontextprotocol/adcp-client-python/commit/4e9c1231600335bb45acada61523050b77dccfc5))
+
+
+### Features
+
+* **compat:** negotiate and translate AdCP minor versions ([#1559](https://github.com/adcontextprotocol/adcp-client-python/issues/1559)) ([31d7217](https://github.com/adcontextprotocol/adcp-client-python/commit/31d7217e81533e6513cfe4ab28441abb0ed3db77))
+* **reporting:** ship the Reliable Reporting storage as adcp-reporting-storage ([#1557](https://github.com/adcontextprotocol/adcp-client-python/issues/1557)) ([d59eee9](https://github.com/adcontextprotocol/adcp-client-python/commit/d59eee9da4d246557bfacf42119729e1d68e78a7))
+* **reporting:** sync empty-ledger replacement and owned-ledger rollback for 9.0 adopters ([#1554](https://github.com/adcontextprotocol/adcp-client-python/issues/1554)) ([38d046a](https://github.com/adcontextprotocol/adcp-client-python/commit/38d046a809bab9c684d8c0cac761f8d59a50072d))
+
+
+### Bug Fixes
+
+* **canonical-formats:** compare every parameter a format reference declares ([#1518](https://github.com/adcontextprotocol/adcp-client-python/issues/1518)) ([d073712](https://github.com/adcontextprotocol/adcp-client-python/commit/d0737127b94b58355221c3ab9b1e7353e66ac2d6)), closes [#1517](https://github.com/adcontextprotocol/adcp-client-python/issues/1517)
+* **canonical-formats:** read an omitted pixel_ratio as 1x on the supported side too ([#1553](https://github.com/adcontextprotocol/adcp-client-python/issues/1553)) ([b07adbc](https://github.com/adcontextprotocol/adcp-client-python/commit/b07adbc59c66cef8a7ada8189ab7739fc77c7733))
+* **codegen:** refuse a JSON null on optional properties whose schema forbids one ([#1555](https://github.com/adcontextprotocol/adcp-client-python/issues/1555)) ([a40c2f0](https://github.com/adcontextprotocol/adcp-client-python/commit/a40c2f0a71f9110cedc844f125630d3055e209f4))
+* **governance:** require crit markers with their claims, and run the signing tests CI skips ([#1539](https://github.com/adcontextprotocol/adcp-client-python/issues/1539)) ([15c85cf](https://github.com/adcontextprotocol/adcp-client-python/commit/15c85cf6e5de6b1b401c688d3e3e8470a47ba449))
+* **release:** tighten V9 reporting and CI readiness checks ([#1550](https://github.com/adcontextprotocol/adcp-client-python/issues/1550)) ([41c2be7](https://github.com/adcontextprotocol/adcp-client-python/commit/41c2be73e6851264f71edbab13fcd801d2a94454)), closes [#1383](https://github.com/adcontextprotocol/adcp-client-python/issues/1383) [#1493](https://github.com/adcontextprotocol/adcp-client-python/issues/1493)
+* **types:** allow assignment-only creative syncs ([81c2a8b](https://github.com/adcontextprotocol/adcp-client-python/commit/81c2a8b2b0fb221fff3d5d8ddcb96c673b9fbe68)), closes [#1545](https://github.com/adcontextprotocol/adcp-client-python/issues/1545)
+* **types:** generate the open asset unions, and derive the vocabulary they route by ([#1501](https://github.com/adcontextprotocol/adcp-client-python/issues/1501)) ([30a72ee](https://github.com/adcontextprotocol/adcp-client-python/commit/30a72ee2a409bccb53fe961816584bdea2518f70))
+* **types:** inherit the generated constraints on the canonical creatives field ([#1548](https://github.com/adcontextprotocol/adcp-client-python/issues/1548)) ([69a0f6b](https://github.com/adcontextprotocol/adcp-client-python/commit/69a0f6b9525b400b17b25c1b18294a4650c56afb))
+* **types:** refuse a JSON null on reporting_webhook.operation_id too ([#1570](https://github.com/adcontextprotocol/adcp-client-python/issues/1570)) ([9e238f3](https://github.com/adcontextprotocol/adcp-client-python/commit/9e238f34f75870d4d27b07156e26093a11b30151))
+* **webhooks:** echo reporting_webhook.operation_id on scheduled delivery reports ([#1552](https://github.com/adcontextprotocol/adcp-client-python/issues/1552)) ([0bac033](https://github.com/adcontextprotocol/adcp-client-python/commit/0bac033511d5b73908f2720d670b84a2642d2dba)), closes [#1092](https://github.com/adcontextprotocol/adcp-client-python/issues/1092)
+
 ## [9.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.3...v9.0.0-beta.4) (2026-10-18)
 
 
