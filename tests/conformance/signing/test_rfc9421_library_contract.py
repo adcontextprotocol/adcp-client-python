@@ -28,12 +28,18 @@ from adcp.signing import _rfc9421
 
 def test_protected_hooks_keep_their_signatures():
     build = inspect.signature(HTTPSignatureHandler._build_signature_base)
-    assert list(build.parameters) == [
+    # ``build_base`` passes exactly these; a release may add optional
+    # parameters after them (2.2.0 added ``component_resolver=None``).
+    assert list(build.parameters)[:4] == [
         "self",
         "message",
         "covered_component_ids",
         "signature_params",
     ]
+    assert all(
+        parameter.default is not inspect.Parameter.empty
+        for parameter in list(build.parameters.values())[4:]
+    )
     parse = inspect.signature(HTTPMessageSigner._parse_covered_component_ids)
     assert list(parse.parameters) == ["self", "covered_component_ids"]
     init = inspect.signature(HTTPSignatureHandler.__init__)
