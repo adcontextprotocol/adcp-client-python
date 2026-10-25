@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.3...adcp-reporting-storage-v0.1.0-beta.4) (2026-10-25)
+
+
+### docs
+
+* **reporting-storage:** note that 0.1.0b2 and 0.1.0b3 were not published ([#1602](https://github.com/adcontextprotocol/adcp-client-python/issues/1602)) ([0479d7d](https://github.com/adcontextprotocol/adcp-client-python/commit/0479d7d4060302ac06d32ce0f264f3d70b9a4d6f))
+
 ## [0.1.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.2...adcp-reporting-storage-v0.1.0-beta.3) (2026-10-25)
 
 
