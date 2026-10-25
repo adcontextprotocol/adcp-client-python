@@ -36,6 +36,30 @@ from adcp._deferred_adapters import deferred_adapter
 from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
 from adcp.types._scalar import as_json_schema_integer
 
+# Re-exported for the generated modules, beside ``WireUrl`` (#1384): the
+# wire-preserving types ``scripts/post_generate_fixes.py`` points format fields
+# at. To a type checker each IS the pydantic type it replaces -- a generated
+# ``last_updated`` reads as ``datetime``, a ``url`` as ``AnyUrl`` -- so an
+# adopter's ``assert_type``, assignment or constructor call type-checks exactly
+# as it did; at runtime the value is the subclass that remembers its wire text.
+# ``wire_text`` is the typed way to read that text.
+from adcp.types._wire import WireEmail as WireEmail
+from adcp.types._wire import wire_text as wire_text
+
+if TYPE_CHECKING:
+    import uuid as _uuid
+    from typing import TypeAlias
+
+    from pydantic import AwareDatetime as _AwareDatetime
+
+    WireDatetime: TypeAlias = _AwareDatetime
+    WireAnyUrl: TypeAlias = AnyUrl
+    WireUuid: TypeAlias = _uuid.UUID
+else:
+    from adcp.types._wire import WireAnyUrl as WireAnyUrl
+    from adcp.types._wire import WireDatetime as WireDatetime
+    from adcp.types._wire import WireUuid as WireUuid
+
 if TYPE_CHECKING:
     from typing_extensions import Self
 
@@ -306,7 +330,10 @@ def _url_adapter() -> TypeAdapter[AnyUrl]:
 
 #: A ``format: uri`` string whose bytes are part of an identity. Validated as a
 #: URL, carried as the ``str`` the wire delivered. ``scripts/post_generate_fixes.py``
-#: points the format-reference ``agent_url`` here.
+#: points the format-reference ``agent_url`` here. Its siblings for a field that
+#: keeps the parsed type -- :class:`WireAnyUrl`, :class:`WireDatetime`,
+#: :class:`WireUuid` -- and the ``str``-typed :data:`WireEmail` live in
+#: :mod:`adcp.types._wire` and are re-exported here for the generated modules.
 WireUrl = Annotated[
     StrictStr,
     AfterValidator(_require_absolute_url),
@@ -608,6 +635,40 @@ class AdCPBaseModel(BaseModel):
                 raise
             _build_deferred_serializers(self, set())
             return super().model_dump(**kwargs)
+
+    def model_dump_as_received(self, **kwargs: Any) -> dict[str, Any]:
+        """The document this model was parsed from, as JSON values.
+
+        ``model_dump(mode="json")`` emits every field, so a property the wire
+        omitted comes back carrying the schema default the generator wrote
+        into the field (``sandbox: false``, ``timezone: "inventory_local"``),
+        and an explicit ``null`` the schema admits is dropped by
+        ``exclude_none``. A reader treats those as the same document; a
+        digest does not. ``core/canonical-proposal.json`` binds
+        ``terms_digest`` to the JCS form of ``commercial_terms`` *as declared*,
+        and a buyer recomputing it over a default dump gets a mismatch whenever
+        the seller left a defaulted property out (#1613).
+
+        This dump leaves off every field the document did not set
+        (``exclude_unset``), keeps an explicit ``null`` on a property whose
+        schema admits one (``exclude_none=False``; a property the schema
+        refuses ``null`` on is left off by its own :data:`NoExplicitNull`
+        exclusion either way), and writes wire names (``by_alias``). With the
+        wire-preserving scalar types (:mod:`adcp.types._wire`), a schema-valid
+        document that reached the model round-trips byte-for-byte under RFC
+        8785 -- except for a property the model never held, which
+        ``extra='ignore'`` dropped on input (#1614).
+        ``tests/conformance/test_wire_round_trip.py`` holds every digest- and
+        echo-covered schema to that, with no allowlist.
+
+        For a model built in Python the result is exactly the fields the
+        caller set, in the deterministic forms the wire types document.
+        """
+        kwargs.setdefault("mode", "json")
+        kwargs.setdefault("exclude_unset", True)
+        kwargs.setdefault("exclude_none", False)
+        kwargs.setdefault("by_alias", True)
+        return self.model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
         if "exclude_none" not in kwargs:

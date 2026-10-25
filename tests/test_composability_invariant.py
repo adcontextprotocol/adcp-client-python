@@ -97,6 +97,8 @@ def test_capability_fields_have_no_unreviewed_public_model_collisions() -> None:
     # These are intentionally different concepts that happen to share a schema
     # name. They must not be replaced by the public class of the same name.
     semantic_name_collisions = {
+        # The capabilities flag object, not the core evidence entry (#1610).
+        ("CapabilitiesMediaBuy", "audience_evidence", "AudienceEvidence"),
         ("CapabilitiesMediaBuy", "content_standards", "ContentStandards"),
         ("CapabilitiesMediaBuy", "performance_feedback", "PerformanceFeedback"),
         ("Execution", "trusted_match", "TrustedMatch"),

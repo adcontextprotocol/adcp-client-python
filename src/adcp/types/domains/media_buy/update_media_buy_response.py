@@ -10,7 +10,8 @@ from collections.abc import Sequence
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints, model_validator
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import business_entity as business_entity_1
@@ -44,7 +45,7 @@ class UpdateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
     budget_allocation: Any | None = None
     pacing: pacing_1.Pacing | None = None
     bidding: Any | None = None
-    implementation_date: AwareDatetime | None = None
+    implementation_date: WireDatetime | None = None
     invoice_recipient: business_entity_1.BusinessEntity | None = None
     affected_packages: Sequence[package_1.Package] | None = None
     valid_actions: list[media_buy_valid_action_1.MediaBuyValidAction] | None = None

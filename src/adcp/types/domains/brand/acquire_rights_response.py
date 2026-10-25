@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AnyUrl, ConfigDict, Field
+from adcp.types.base import WireAnyUrl
+from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import rights_terms as rights_terms_1
@@ -36,7 +37,7 @@ class AcquireRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     restrictions: list[str] | None = None
     disclosure: Disclosure | None = None
     approval_webhook: push_notification_config_1.PushNotificationConfig | None = None
-    usage_reporting_url: AnyUrl | None = None
+    usage_reporting_url: WireAnyUrl | None = None
     rights_constraint: Any
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

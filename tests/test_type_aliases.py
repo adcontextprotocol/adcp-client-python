@@ -512,7 +512,7 @@ def test_deployment_aliases_can_instantiate():
         type="agent", agent_url="https://agent.example.com", is_live=False
     )
     assert agent_deployment.type == "agent"
-    assert str(agent_deployment.agent_url) == "https://agent.example.com/"
+    assert str(agent_deployment.agent_url) == "https://agent.example.com"  # as given (#1610)
     assert agent_deployment.is_live is False
 
 
@@ -552,7 +552,7 @@ def test_destination_aliases_can_instantiate():
     # Create AgentDestination
     agent_dest = AgentDestination(type="agent", agent_url="https://agent.example.com")
     assert agent_dest.type == "agent"
-    assert str(agent_dest.agent_url) == "https://agent.example.com/"
+    assert str(agent_dest.agent_url) == "https://agent.example.com"  # as given (#1610)
 
 
 def test_deployment_destination_aliases_in_exports():

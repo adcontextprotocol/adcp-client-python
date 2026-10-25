@@ -327,7 +327,14 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
         return False
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
-        if not is_adcp_model and getattr(annotation, "__module__", "").split(".")[0] != "pydantic":
+        module = getattr(annotation, "__module__", "")
+        # The wire-preserving scalars (#1610) serialize to themselves in
+        # python mode, so a stored value is what the default dump reads.
+        if (
+            not is_adcp_model
+            and module.split(".")[0] != "pydantic"
+            and module != "adcp.types._wire"
+        ):
             return True
     return any(_has_boundary_serialization_metadata(item) for item in get_args(annotation))
 

@@ -2211,7 +2211,8 @@ def test_generated_create_media_buy_success_matches_schema_nullability():
         and isinstance(node.target, ast.Name)
         and node.target.id == "confirmed_at"
     )
-    assert ast.unparse(confirmed_at.annotation) == "AwareDatetime | None"
+    # ``WireDatetime`` is the generated spelling of ``AwareDatetime`` (#1610).
+    assert ast.unparse(confirmed_at.annotation) == "WireDatetime | None"
     assert confirmed_at.value is None
 
 
