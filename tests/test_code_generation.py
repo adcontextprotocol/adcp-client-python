@@ -1801,7 +1801,7 @@ def test_targeting_public_surface_guard_accepts_a_compatible_new_subclass(monkey
     test_targeting_overlay_input_is_generated_and_public()
 
 
-def test_current_targeting_input_has_exactly_four_generated_request_sites():
+def test_targeting_input_generated_request_sites_match_pinned_schemas():
     """Pin schema sites and pre-patch annotations, independent of runtime widening."""
     import ast
     import json
@@ -1817,6 +1817,17 @@ def test_current_targeting_input_has_exactly_four_generated_request_sites():
         "package-control": "PackageControl",
         "product-purchase-input": "ProductPurchaseInput",
     }
+    expected_generated = dict(expected)
+    forecast_schema = schema_root / "media-buy/package-forecast-input.json"
+    if forecast_schema.exists():
+        # This optional 3.3 input reuses the booking field by JSON pointer;
+        # it introduces a generated composition site without adding another
+        # direct reference to targeting-input.json in the schema scan below.
+        forecast = json.loads(forecast_schema.read_text())
+        assert forecast["properties"]["targeting_overlay"]["$ref"].endswith(
+            "/media-buy/package-request.json#/properties/targeting_overlay"
+        )
+        expected_generated["package-forecast-input"] = "PackageForecastInput"
 
     def references(node, path=()):
         if isinstance(node, dict):
@@ -1871,7 +1882,7 @@ def test_current_targeting_input_has_exactly_four_generated_request_sites():
                 )
     assert generated_sites == {
         (f"media_buy/{stem.replace('-', '_')}.py", name, "targeting_overlay")
-        for stem, name in expected.items()
+        for stem, name in expected_generated.items()
     }
 
 
