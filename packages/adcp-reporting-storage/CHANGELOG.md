@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.2...adcp-reporting-storage-v0.1.0-beta.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **reporting-storage:** surface ownership migration errors from startup ([51365c9](https://github.com/adcontextprotocol/adcp-client-python/commit/51365c9715c3b74c11b3353991525af93d04f392))
+
 ## [0.1.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.1...adcp-reporting-storage-v0.1.0-beta.2) (2026-10-24)
 
 
