@@ -1299,7 +1299,8 @@ serve(MyAgent(), transport="a2a", middleware=[audit_middleware])
 - **Exception observation — never swallow an `ADCPError`.** Catch
   around `await call_next()` to log failures. Re-raise to let the
   executor's normal error path take over (`ADCPError` → failed task
-  with `adcp_error` DataPart; other exceptions → opaque failed task).
+  with `adcp_error` DataPart; other exceptions → opaque failed task
+  whose only DataPart is the request's echoed `context`, if it had one).
   Swallowing an `ADCPError` (especially `IdempotencyConflictError` or
   `ADCPTaskError`) and returning a fake-success dict silently converts
   a rejected mutation into a "completed" task — double-billing,
