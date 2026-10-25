@@ -18,6 +18,9 @@ Available when ``adcp[pg]`` is installed:
   :class:`~adcp.decisioning.InMemoryTaskRegistry` that satisfies the
   production-mode durability gate. (``PostgresTaskRegistry`` is the
   pre-4.4 name and remains as a deprecated alias through 4.4.x.)
+* :class:`PgMediaBuyContextStore` — durable
+  :class:`~adcp.decisioning.MediaBuyContextStore`: the ``create_media_buy``
+  ``context`` (buy and package level) that ``get_media_buys`` echoes.
 * :class:`PgTaskWebhookOutbox` — atomic terminal task-webhook publication
   coupled to ``PgTaskRegistry``, with lease-based workers and 1–7 day retry
   retention.
@@ -43,6 +46,7 @@ from adcp.decisioning.pg.lazy import (
     LazyTaskWebhookOutbox,
     LazyTaskWebhookOutboxFactory,
 )
+from adcp.decisioning.pg.media_buy_context_store import PgMediaBuyContextStore
 from adcp.decisioning.pg.proposal_store import PgProposalStore
 from adcp.decisioning.pg.task_registry import (
     PgTaskRegistry,
@@ -61,6 +65,7 @@ __all__ = [
     "LazyTaskWebhookOutbox",
     "LazyTaskWebhookOutboxFactory",
     "PgBuyerAgentRegistry",
+    "PgMediaBuyContextStore",
     "PgProposalStore",
     "PgTaskRegistry",
     "PgTaskWebhookOutbox",

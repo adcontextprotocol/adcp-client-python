@@ -101,6 +101,9 @@ from adcp.decisioning.errors import (
 from adcp.decisioning.helpers import ref_account_id
 from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.media_buy_store import (
+    InMemoryMediaBuyContextStore,
+    MediaBuyContexts,
+    MediaBuyContextStore,
     MediaBuyStore,
     create_media_buy_store,
 )
@@ -405,12 +408,15 @@ __all__ = [
     "GovernanceContextJWS",
     "HttpSigCredential",
     "IncrementalGetProducts",
+    "InMemoryMediaBuyContextStore",
     "InMemoryMockAdServer",
     "InMemoryTaskRegistry",
     "ListableTaskRegistry",
     "MEDIA_BUY_TRANSITIONS",
     "MaybeAsync",
     "MediaBuyNotFoundError",
+    "MediaBuyContextStore",
+    "MediaBuyContexts",
     "MediaBuyStore",
     "MockAdServer",
     "MockProposalManager",

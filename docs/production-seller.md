@@ -238,6 +238,9 @@ the shutdown path used by ordinary container and process supervisors.
   covers every supported mutation and durable task handoff.
 - Apply URL challenge and SSRF validation before accepting durable callback
   destinations.
+- Persist the `create_media_buy` `context` that `get_media_buys` must echo:
+  pass `create_media_buy_store(..., context_store=PgMediaBuyContextStore(...))`
+  (see [`media-buy-store.md`](media-buy-store.md)).
 - Run the in-process tests and the media-buy seller storyboard before deploy.
 
 `DurableTaskWiring` remains example-owned so its configuration surface can be
