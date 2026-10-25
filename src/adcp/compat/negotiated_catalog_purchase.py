@@ -8,6 +8,7 @@ selects either ``list_products``/``buy_products`` or the established
 
 from __future__ import annotations
 
+import logging
 import re
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -1010,6 +1011,9 @@ class MediaBuyLifecycleCoordinator:
                     direction="sync",
                     source_version=application_version,
                     target_version=wire_version,
+                    # Round-trips the client's own lossless upgrade back to
+                    # the served contract; only upgrade defaults can drop.
+                    loss_log_level=logging.DEBUG,
                 ).payload
         return payload
 
