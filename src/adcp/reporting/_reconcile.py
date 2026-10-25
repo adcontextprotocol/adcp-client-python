@@ -306,7 +306,8 @@ _RecordT = TypeVar("_RecordT", bound=BaseModel)
 
 
 def _record_json(value: BaseModel) -> str:
-    # Preserve optional-field presence for immutable typed-page comparisons.
+    # Preserve optional-field presence for immutable typed-page comparisons
+    # (a ``NoExplicitNull`` field's ``None`` reads as absent, as on the wire).
     # This is NOT the received canonical bytes of adjustment evidence.
     return _json(value.model_dump(mode="json", exclude_unset=True, exclude_none=False))
 

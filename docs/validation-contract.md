@@ -30,6 +30,19 @@ off the wire — the same document an omitted property produces. Set
 `ADCP_STRICT_VALIDATION=1` (the switch that also forbids unknown fields) to
 refuse a Python `None` as well, for suites that want to catch it.
 
+The omission is the field's own, not the dump call's. A marked field carries
+`exclude_if` (pydantic-core level), so a `None` there is left off whoever
+drives the serialization: an AdCP model nested in an ordinary Pydantic
+parent — a direct field, a list, a dict, a `RootModel` over an AdCP union —
+dumps exactly as it does on its own, and `model_validate_json(model_dump_json())`
+round-trips from any parent (#1587). That holds under an explicit
+`exclude_none=False` too: `null` is never a valid value for a marked property,
+so there is nothing to keep. A property whose schema admits `null` is not
+marked and still emits `null` under `exclude_none=False`, from a parent or
+directly. One consequence for subclasses: a `field_serializer` that substitutes
+a default for `None` no longer runs for a `None` value on a marked field,
+because `exclude_if` drops the field before the serializer is reached.
+
 ## Wire-boundary behavior
 
 - SDK clients validate requests before sending and responses after receiving,

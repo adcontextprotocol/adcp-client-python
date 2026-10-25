@@ -101,7 +101,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -321,8 +321,9 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
     """Find functional serializers, including ones inside container annotations."""
     if isinstance(annotation, (PlainSerializer, WrapSerializer)):
         return True
-    if annotation is NoExplicitNull:
-        # Validation-only: it changes nothing about how a value is dumped.
+    if annotation is NoExplicitNull or annotation is _REFUSE_JSON_NULL:
+        # Either half of the marker. Its only serialization effect is to leave a
+        # ``None`` off the dump, which is what the default dump already does.
         return False
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
@@ -358,7 +359,9 @@ def _direct_boundary_fields(cls: type[AdCPBaseModel]) -> frozenset[str] | None:
     for name, field in cls.model_fields.items():
         if field.exclude:
             continue
-        if field.exclude_if is not None or _has_boundary_serialization_metadata(field.annotation):
+        if field.exclude_if is not None and field.exclude_if is not NoExplicitNull.exclude_if:
+            return None
+        if _has_boundary_serialization_metadata(field.annotation):
             return None
         if any(_has_boundary_serialization_metadata(item) for item in field.metadata):
             return None
