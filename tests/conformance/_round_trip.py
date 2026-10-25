@@ -42,12 +42,21 @@ from typing import Annotated, Any, Union, get_origin
 import rfc8785
 from pydantic import TypeAdapter, ValidationError
 
+import adcp.types._eager  # noqa: F401  (see below)
 from adcp.validation.schema_loader import (
     _ensure_state,
     _make_ref_resolver,
     get_named_validator,
 )
 from tests.conformance import _schema_parity as parity
+
+# The models graded here are the ones adopters get: ``adcp.types._eager`` runs
+# the import-time patchers (``_ergonomic``, ``_forward_compat``) that add
+# validators and coercions to the generated classes. Importing a domain module
+# directly before that has happened grades an unpatched class, and the verdict
+# then depends on test order (a mutual-exclusivity validator on
+# ``PublisherPropertySelector`` refused a document in CI's full session that an
+# isolated run accepted).
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

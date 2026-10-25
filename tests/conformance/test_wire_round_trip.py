@@ -88,13 +88,16 @@ BOUND_DEFAULTS = frozenset(
 #: domain, not this one's; the set is recorded so a refusal cannot silently
 #: remove a schema from the round-trip grade, and so that it only shrinks.
 #: ``mcp-webhook-payload`` and ``async-response-data`` raise ``TypeError``
-#: (#1616); the others refuse documents the bundled schema accepts.
+#: (#1616); the others refuse documents the bundled schema accepts
+#: (``publisher-property-selector`` through the mutual-exclusivity validator
+#: ``_ergonomic`` adds, which the schema does not express).
 REFUSING = frozenset(
     {
         "brand/creative-approval-request.json",
         "brand/verify-brand-claims-response.json",
         "core/async-response-data.json",
         "core/mcp-webhook-payload.json",
+        "core/publisher-property-selector.json",
         "core/reporting-delivery-capabilities.json",
         "media-buy/change-term.json",
     }
