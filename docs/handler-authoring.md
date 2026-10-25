@@ -1065,6 +1065,28 @@ A2A protocol with auto-generated agent card (`/.well-known/agent-card.json`,
 with the 0.3 alias `/.well-known/agent.json` also served for backwards
 compatibility) derived from the `ADCPHandler` methods your class overrides.
 
+### JSON numbers and the `context` echo
+
+A2A carries skill parameters and results in a protobuf `Struct`, which stores
+every JSON number as a double. The SDK restores integers on both sides of that
+boundary, so the transport stays invisible to handlers and buyers:
+
+- A DataPart's parameters reach your handler with `7` as `int`, as they do
+  over MCP.
+- The A2A JSON-RPC response writes integral numbers as JSON integers, so a
+  buyer's `context` of `{"count": 7}` is echoed as `7`, not `7.0`. This
+  covers every field, not just `context`, which helps buyers whose JSON
+  decoders reject `7.0` for an integer field.
+- The SDK's A2A client restores integers when it reads a result.
+
+A `Struct` cannot tell `7` from `7.0`, so a buyer's `7.0` comes back over
+A2A as `7`. The two are the same JSON number, and MCP still echoes `7.0`
+as sent. Integers beyond 2^53 lose precision in the `Struct` before the
+SDK receives them, so they stay doubles. TextPart JSON never passes through
+a `Struct`, so the handler receives its numbers exactly as the buyer sent
+them. A custom `message_parser` that calls `MessageToDict` itself receives
+the raw doubles.
+
 ### Durable task storage
 
 A2A tracks each long-running operation as a `Task` — the default

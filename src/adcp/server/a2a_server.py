@@ -40,6 +40,7 @@ from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
 from starlette.requests import Request
 
+from adcp._a2a_numbers import A2AStructNumberMiddleware, restore_struct_integers
 from adcp.exceptions import ADCPError
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
@@ -232,10 +233,15 @@ class _A2ARequestContextMiddleware:
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
-    """Return the dict payload of a Part if it carries a ``data`` oneof, else None."""
+    """Return the dict payload of a Part if it carries a ``data`` oneof, else None.
+
+    ``Struct`` turns every JSON number into a double; integral values are
+    restored to ``int`` so handlers and the ``context`` echo see what MCP
+    sees (see :mod:`adcp._a2a_numbers`).
+    """
     if part.WhichOneof("content") != "data":
         return None
-    value: Any = MessageToDict(part.data)
+    value: Any = restore_struct_integers(MessageToDict(part.data))
     if not isinstance(value, dict):
         return None
     return value
@@ -254,9 +260,9 @@ def _normalize_a2a_parameters(params: Any) -> dict[str, Any]:
         return {}
     normalized = dict(params)
     major = normalized.get("adcp_major_version")
-    # Protobuf Struct stores all JSON numbers as doubles, so MessageToDict
-    # turns ``3`` into ``3.0``. Restore the integer wire field before the
-    # shared AdCP version resolver sees it.
+    # A TextPart JSON body may spell the major version ``3.0``. Restore the
+    # integer wire field before the shared AdCP version resolver sees it.
+    # (DataPart numbers are restored where they leave the protobuf Struct.)
     if isinstance(major, float) and major.is_integer():
         normalized["adcp_major_version"] = int(major)
     return normalized
@@ -1574,6 +1580,11 @@ def create_a2a_server(
             + list(create_jsonrpc_routes(**jsonrpc_kwargs))
         )
         app = Starlette(routes=routes)
+
+    # a2a-sdk prints every protobuf ``Struct`` number as a double (``7.0``).
+    # Write integral values back as JSON integers so a buyer's ``context``
+    # (and every integer field) leaves A2A the way it leaves MCP.
+    app.add_middleware(A2AStructNumberMiddleware, rpc_path=jsonrpc_kwargs["rpc_url"])
 
     # Keep the originating Starlette Request available to context factories
     # during executor dispatch. This is installed for direct
