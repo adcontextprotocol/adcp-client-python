@@ -169,6 +169,26 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0...v9.1.0) (2026-10-25)
+
+
+### Features
+
+* **media-buy:** persist and echo create context on get_media_buys ([#1600](https://github.com/adcontextprotocol/adcp-client-python/issues/1600)) ([4083dc5](https://github.com/adcontextprotocol/adcp-client-python/commit/4083dc52702ddd1d20aa840dd4265bf61dd75ddd)), closes [#1575](https://github.com/adcontextprotocol/adcp-client-python/issues/1575)
+
+
+### Bug Fixes
+
+* **a2a:** echo request context on unknown-skill and unexpected-error tasks ([#1597](https://github.com/adcontextprotocol/adcp-client-python/issues/1597)) ([7b44d8d](https://github.com/adcontextprotocol/adcp-client-python/commit/7b44d8d5d1627f98fede0ed5660ab3d804f230bd)), closes [#1573](https://github.com/adcontextprotocol/adcp-client-python/issues/1573)
+* **a2a:** keep integers integral in echoed context across the protobuf Struct ([#1594](https://github.com/adcontextprotocol/adcp-client-python/issues/1594)) ([bf6d966](https://github.com/adcontextprotocol/adcp-client-python/commit/bf6d96641910ccdaa2e2b95bf7965a564c9e1d9b)), closes [#1572](https://github.com/adcontextprotocol/adcp-client-python/issues/1572)
+* **reporting-storage:** surface ownership migration errors from startup ([51365c9](https://github.com/adcontextprotocol/adcp-client-python/commit/51365c9715c3b74c11b3353991525af93d04f392))
+* **reporting:** name the cause of a reporting startup failure ([a202a3c](https://github.com/adcontextprotocol/adcp-client-python/commit/a202a3cbeb41ce6f89dcac8db943a0a0f9d72da3)), closes [#1561](https://github.com/adcontextprotocol/adcp-client-python/issues/1561)
+* **server:** mirror a raised AdcpError into the payload errors array ([#1592](https://github.com/adcontextprotocol/adcp-client-python/issues/1592)) ([cd0319b](https://github.com/adcontextprotocol/adcp-client-python/commit/cd0319b57d27ab8bbb06ddb091537645dadf887b)), closes [#1558](https://github.com/adcontextprotocol/adcp-client-python/issues/1558)
+* **targeting:** bridge package forecast request inputs ([#1598](https://github.com/adcontextprotocol/adcp-client-python/issues/1598)) ([7cd667f](https://github.com/adcontextprotocol/adcp-client-python/commit/7cd667f9e134d958aadffadef1420d0c91c941ef))
+* **tasks:** echo the poll's own context on tasks/get ([#1599](https://github.com/adcontextprotocol/adcp-client-python/issues/1599)) ([f1f7593](https://github.com/adcontextprotocol/adcp-client-python/commit/f1f75930152510de374d98bd286f2462af2100bb)), closes [#1574](https://github.com/adcontextprotocol/adcp-client-python/issues/1574)
+* **types:** inherit the generated creatives ceiling on PackageRequest ([#1579](https://github.com/adcontextprotocol/adcp-client-python/issues/1579)) ([6f13ce0](https://github.com/adcontextprotocol/adcp-client-python/commit/6f13ce07e69bc24de23ce63b97958875f6866cc7))
+* **types:** leave unset optional fields off the wire from any parent ([#1591](https://github.com/adcontextprotocol/adcp-client-python/issues/1591)) ([1086cd9](https://github.com/adcontextprotocol/adcp-client-python/commit/1086cd90f70e760873b445f15db5cdcb0d8aeeed)), closes [#1587](https://github.com/adcontextprotocol/adcp-client-python/issues/1587)
+
 ## [9.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.4...v9.0.0) (2026-10-24)
 
 
