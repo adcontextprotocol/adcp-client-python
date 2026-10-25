@@ -9,6 +9,7 @@ with :mod:`adcp.validation`. In particular, code generation cannot represent
 every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 """
 
+import copy
 import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, cast
@@ -29,7 +30,7 @@ from pydantic import (
     model_serializer,
 )
 from pydantic.fields import FieldInfo
-from pydantic_core import PydanticSerializationError, core_schema
+from pydantic_core import PydanticSerializationError, PydanticUndefined, core_schema
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
@@ -450,6 +451,32 @@ _REFUSE_JSON_NULL = _RefuseJsonNull()
 #: ``scripts/post_generate_fixes.py`` points the mark here. See #1547 and #1587.
 NoExplicitNull: Final[FieldInfo] = FieldInfo(exclude_if=_is_none)
 NoExplicitNull.metadata.append(_REFUSE_JSON_NULL)
+
+
+def inherit_field(source: type[BaseModel], name: str, *, required: bool = False) -> Any:
+    """A copy of ``source``'s ``name`` field, for a redeclaration that retypes it.
+
+    A hand-written subclass that narrows an inherited field's *annotation*
+    (``list[Format]`` for the generated ``list[FormatOption]``) still wants
+    everything else the generated field carries: its description, its
+    constraints (``min_length``, ``max_length``), its default, and the
+    never-null marker (:data:`NoExplicitNull`) that leaves an unset ``None``
+    off the wire from any parent (#1591). A bare ``Field(...)`` on the
+    redeclaration silently drops all of them -- which is how a nested dump of
+    a canonical ``Product`` came to write ``"placements": null`` (#1620), the
+    same class of defect as #1548 and #1579.
+
+    Assign the result on the right-hand side of the annotated redeclaration.
+    ``required=True`` drops the default, for a subclass that makes an optional
+    generated field mandatory; the marker stays, and has nothing to do on a
+    required field. The return type is ``Any`` because a ``FieldInfo`` is what
+    pydantic expects there -- the same reason ``Field()`` itself is ``Any``.
+    """
+    field = copy.deepcopy(source.model_fields[name])
+    if required:
+        field.default = PydanticUndefined
+        field.default_factory = None
+    return field
 
 
 def is_no_explicit_null(field: FieldInfo) -> bool:
