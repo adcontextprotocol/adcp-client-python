@@ -25,6 +25,8 @@ from adcp.validation.schema_loader import Direction, get_portable_schema
 logger = logging.getLogger(__name__)
 CONVERSION_METADATA_KEY = "adcp_version_conversion"
 _OPAQUE_FIELDS = frozenset({"context", "ext"})
+_ARRAY_INDEX = re.compile(r"/\d+(?=/|$)")
+_SUMMARY_POINTER_LIMIT = 10
 
 
 @dataclass(frozen=True)
@@ -536,7 +538,7 @@ def _convert_embedded_results(
             continue
         prefix = _pointer(path, "result")
         try:
-            converted = convert_payload(
+            converted = _convert_payload(
                 task_type,
                 result,
                 direction=direction,
@@ -567,13 +569,81 @@ def convert_payload(
     source_version: str,
     target_version: str,
     request: dict[str, Any] | None = None,
+    loss_log_level: int = logging.WARNING,
 ) -> ConversionResult:
     """Chain adjacent minor conversions without modifying the caller's data.
 
     The 3.1/3.0 lifecycle envelope is translated semantically. Additive
     changes use the bundled schemas, including nested arrays and unions.
     New tasks without an older equivalent fail before transport.
+
+    Every loss is logged at ``loss_log_level``. ``direction`` says nothing
+    about which side of the wire is converting, so callers choose the level:
+    a buyer losing a seller's data keeps ``WARNING``, while a seller dropping
+    newer fields for an older buyer expects those losses and logs them at
+    ``DEBUG`` (see :func:`log_conversion_summary`).
     """
+    converted = _convert_payload(
+        tool,
+        payload,
+        direction=direction,
+        source_version=source_version,
+        target_version=target_version,
+        request=request,
+    )
+    for loss in converted.losses:
+        logger.log(
+            loss_log_level,
+            "AdCP conversion %s -> %s dropped %s (%s)",
+            loss.source_version,
+            loss.target_version,
+            loss.pointer,
+            loss.reason,
+        )
+    return converted
+
+
+def log_conversion_summary(
+    tool: str,
+    losses: tuple[ConversionLoss, ...],
+    *,
+    source_version: str,
+    target_version: str,
+    level: int = logging.INFO,
+) -> None:
+    """Log one line summarizing a conversion's losses, if it had any.
+
+    Array indexes collapse to ``*`` so a response repeating the same drop
+    on every item lists the pointer once, e.g.
+    ``/products/*/included_signals/*/demographic_predicate``.
+    """
+    if not losses:
+        return
+    pointers = list(dict.fromkeys(_ARRAY_INDEX.sub("/*", loss.pointer) for loss in losses))
+    shown = ", ".join(pointers[:_SUMMARY_POINTER_LIMIT])
+    if len(pointers) > _SUMMARY_POINTER_LIMIT:
+        shown += f", ... (+{len(pointers) - _SUMMARY_POINTER_LIMIT} more)"
+    logger.log(
+        level,
+        "AdCP conversion of %s %s -> %s dropped %d field(s): %s",
+        tool,
+        source_version,
+        target_version,
+        len(losses),
+        shown,
+    )
+
+
+def _convert_payload(
+    tool: str,
+    payload: dict[str, Any],
+    *,
+    direction: Direction,
+    source_version: str,
+    target_version: str,
+    request: dict[str, Any] | None = None,
+) -> ConversionResult:
+    """Convert without logging; :func:`convert_payload` logs the final losses once."""
     source_version, target_version = _release(source_version), _release(target_version)
     result = deepcopy(payload)
     losses: list[ConversionLoss] = []
@@ -659,12 +729,4 @@ def convert_payload(
         result["adcp_version"] = target_version
     if direction != "request":
         _convert_embedded_results(tool, result, source_version, target_version, losses)
-    for loss in losses:
-        logger.warning(
-            "AdCP conversion %s -> %s dropped %s (%s)",
-            loss.source_version,
-            loss.target_version,
-            loss.pointer,
-            loss.reason,
-        )
     return ConversionResult(result, tuple(losses))

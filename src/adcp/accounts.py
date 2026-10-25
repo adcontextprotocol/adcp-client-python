@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from collections.abc import Mapping
 from copy import deepcopy
@@ -377,6 +378,9 @@ class AccountRegistry:
                     direction="request",
                     source_version="3.2",
                     target_version=observed_version,
+                    # Recomputes the key the outgoing request already reduced;
+                    # that conversion warned about these losses.
+                    loss_log_level=logging.DEBUG,
                 ).payload["accounts"][0]
                 if account_key(reduced) != account_key(key):
                     wire_key = account_key_payload(reduced)

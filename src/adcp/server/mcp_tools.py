@@ -3198,6 +3198,7 @@ def create_tool_caller(
         ADCPVersionConversionError,
         ConversionResult,
         convert_payload,
+        log_conversion_summary,
     )
     from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
     from adcp.server.helpers import inject_context
@@ -3269,12 +3270,17 @@ def create_tool_caller(
         payload: dict[str, Any], *, direction: Direction, source_version: str, target_version: str
     ) -> ConversionResult:
         try:
-            return convert_payload(
+            # Seller side: dropping newer fields for an older buyer is the
+            # expected cost of serving it, and ToolContext.metadata records
+            # every loss. Log each loss at DEBUG and one INFO summary per
+            # conversion instead of a WARNING per field per item.
+            converted = convert_payload(
                 method_name,
                 payload,
                 direction=direction,
                 source_version=source_version,
                 target_version=target_version,
+                loss_log_level=logging.DEBUG,
             )
         except ADCPFeatureUnsupportedError as exc:
             details = None
@@ -3296,6 +3302,13 @@ def create_tool_caller(
                     )
                 ],
             ) from exc
+        log_conversion_summary(
+            method_name,
+            converted.losses,
+            source_version=source_version,
+            target_version=target_version,
+        )
+        return converted
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()

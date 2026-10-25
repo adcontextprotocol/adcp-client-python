@@ -93,12 +93,40 @@ Client results expose conversion details in
 }
 ```
 
-Every loss also produces a warning. Reports use JSON Pointers and contain no
-discarded values. They remain available when a request fails validation or the
-peer returns a failed task. Server reports use the same key in
-`ToolContext.metadata`; response losses are appended after the handler returns
-and are also logged. These diagnostics do not add unsupported fields to older
-wire envelopes.
+Reports use JSON Pointers and contain no discarded values. They remain
+available when a request fails validation or the peer returns a failed task.
+Server reports use the same key in `ToolContext.metadata`; response losses are
+appended after the handler returns. These diagnostics do not add unsupported
+fields to older wire envelopes.
+
+## Loss logging
+
+Losses are logged on the `adcp.compat.versions` logger at a level that depends
+on which side of the wire converts:
+
+| Side | Per-loss record | Summary |
+| --- | --- | --- |
+| Client (buyer converting its request or a seller's response) | `WARNING` | none |
+| Server dispatch (request upgrade, response downgrade) | `DEBUG` | one `INFO` line per conversion with losses |
+
+On the client, a drop means the buyer lost data it may care about. On the
+server, dropping newer fields for an older buyer is the expected cost of serving
+it, and `ToolContext.metadata` already records each loss. A 3.2 seller answering
+a 3.1 `get_products` with 50 products logs one line instead of 150 warnings:
+
+```text
+INFO adcp.compat.versions: AdCP conversion of get_products 3.2 -> 3.1 dropped 150 field(s):
+/products/*/audience_evidence, /products/*/included_signals/*/demographic_predicate,
+/products/*/included_signals/*/restricted_attributes
+```
+
+The summary collapses array indexes to `*` and lists at most ten distinct
+pointers. Request upgrades add fields rather than drop them, so a server logs
+at most one summary per response. Enable `DEBUG` on `adcp.compat.versions` to
+see every exact pointer, or read them from the metadata report.
+
+Code calling `adcp.compat.versions.convert_payload` directly chooses the level
+with `loss_log_level`; it defaults to `WARNING`.
 
 ## Account identity
 
