@@ -44,6 +44,23 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.3...v8.2.0) (2026-10-25)
+
+
+### Features
+
+* **server:** backport compact output schemas to 8.x so discovery is servable ([#1512](https://github.com/adcontextprotocol/adcp-client-python/issues/1512)) ([3f770b0](https://github.com/adcontextprotocol/adcp-client-python/commit/3f770b0119e1d75dd787ebe22bb64358d36f9496)), closes [#1507](https://github.com/adcontextprotocol/adcp-client-python/issues/1507)
+
+
+### Bug Fixes
+
+* **canonical-formats:** backport full format-parameter comparison and symmetric implied 1x to 8.x ([#1583](https://github.com/adcontextprotocol/adcp-client-python/issues/1583)) ([3a5e795](https://github.com/adcontextprotocol/adcp-client-python/commit/3a5e7958d65a3c9a5a7e6fba79dbf2ab0aca1bff))
+* **governance:** backport crit-marker and alg checks to 8.x ([#1581](https://github.com/adcontextprotocol/adcp-client-python/issues/1581)) ([c58300d](https://github.com/adcontextprotocol/adcp-client-python/commit/c58300ddd73e38bda2d97f005ccb1d580253393a))
+* **types:** backport generated creatives constraints on canonical packages and sync to 8.x ([#1584](https://github.com/adcontextprotocol/adcp-client-python/issues/1584)) ([9b3d11e](https://github.com/adcontextprotocol/adcp-client-python/commit/9b3d11e59d9671949692f8401ae5b26c1dcdcb60))
+* **types:** backport open asset-union crash fixes to 8.x ([#1586](https://github.com/adcontextprotocol/adcp-client-python/issues/1586)) ([d64c200](https://github.com/adcontextprotocol/adcp-client-python/commit/d64c200c5f511ccf56deaa70059a9df84685596f))
+* **webhooks:** backport reporting_webhook operation_id echo on scheduled delivery to 8.x ([#1582](https://github.com/adcontextprotocol/adcp-client-python/issues/1582)) ([9f8f705](https://github.com/adcontextprotocol/adcp-client-python/commit/9f8f70578a0e133dd180c70442a60f34403cc796))
+* **webhooks:** media_buy_delivery reports no longer default notification_id to {task_id}.terminal ([9f8f705](https://github.com/adcontextprotocol/adcp-client-python/commit/9f8f70578a0e133dd180c70442a60f34403cc796))
+
 ## [8.1.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.2...v8.1.3) (2026-10-15)
 
 
