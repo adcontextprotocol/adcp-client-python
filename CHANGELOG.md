@@ -169,6 +169,13 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.1.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.1.0...v9.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **compat:** log server-side conversion losses at DEBUG with one INFO summary ([#1609](https://github.com/adcontextprotocol/adcp-client-python/issues/1609)) ([f7e4f3a](https://github.com/adcontextprotocol/adcp-client-python/commit/f7e4f3a5f1c8acba40072df0af377927a0af74ec))
+
 ## [9.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0...v9.1.0) (2026-10-25)
 
 
