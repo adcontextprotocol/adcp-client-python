@@ -106,13 +106,18 @@ class WireDatetime(datetime):
     @property
     def wire(self) -> str:
         """The text this value serializes to in JSON mode."""
-        return self._wire if self._wire is not None else rfc3339(self)
+        # ``getattr``: on Python 3.10 and 3.11 ``replace()``, ``astimezone()``
+        # and arithmetic build the subclass instance without calling
+        # ``__new__``, so the slot is unset on a derived value.
+        wire = getattr(self, "_wire", None)
+        return wire if wire is not None else rfc3339(self)
 
     def __reduce_ex__(self, protocol: Any) -> Any:
         # ``datetime`` pickles as ``(cls, (bytes[, tzinfo]))``; ``copy`` and
         # ``pickle`` both go through here, so the wire text travels with the
         # value through ``deepcopy`` and ``model_copy(deep=True)``.
-        return (_rebuild_datetime, (datetime.__reduce_ex__(self, protocol), self._wire))
+        reduced = datetime.__reduce_ex__(self, protocol)
+        return (_rebuild_datetime, (reduced, getattr(self, "_wire", None)))
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
