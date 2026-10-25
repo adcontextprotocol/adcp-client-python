@@ -106,6 +106,15 @@ HISTORICAL_BREAKING_SUBJECTS = {
     ),
 }
 
+# Rebase-merged PRs record only their last commit as merge_commit_sha, so the
+# earlier commits they put on main match no PR by merge commit. These two were
+# rebase-merged so a storage-only commit would not release adcp; each maps to
+# exactly one merged PR, whose authorship is still checked. Squash-merge only.
+HISTORICAL_REBASED_COMMITS = {
+    "dad5e8d9668e0ebd3ced406780e659b42ee22001": 1589,
+    "a202a3cbeb41ce6f89dcac8db943a0a0f9d72da3": 1595,
+}
+
 
 def git(*arguments: str) -> str:
     return subprocess.check_output(["git", *arguments], cwd=ROOT, text=True).strip()
@@ -257,10 +266,11 @@ def ipr(api: GitHub, kind: str, target: str, event: dict[str, Any]) -> dict[str,
     contributions = []
     if kind == "push":
         for sha in main_commits(target):
+            rebased_pr = HISTORICAL_REBASED_COMMITS.get(sha)
             candidates = [
                 pr
                 for pr in api.pages(f"commits/{sha}/pulls")
-                if pr["merge_commit_sha"] == sha
+                if (pr["merge_commit_sha"] == sha or pr["number"] == rebased_pr)
                 and pr["merged_at"]
                 and pr["base"]["ref"] == "main"
                 and pr["base"]["repo"]["full_name"] == REPOSITORY
@@ -268,7 +278,11 @@ def ipr(api: GitHub, kind: str, target: str, event: dict[str, Any]) -> dict[str,
             require(len(candidates) == 1, f"no unique merged contribution for main commit {sha}")
             pr = api.repo(f"pulls/{candidates[0]['number']}")
             validate_pr(pr)
-            require(pr["merged"] is True and pr["merge_commit_sha"] == sha, "wrong merged PR")
+            require(
+                pr["merged"] is True
+                and (pr["merge_commit_sha"] == sha or pr["number"] == rebased_pr),
+                "wrong merged PR",
+            )
             require(pr["merged_at"], "missing contribution merge time")
             contributions.append({"sha": sha, "pr": pr["number"], **author_agreement(pr, signers)})
     else:

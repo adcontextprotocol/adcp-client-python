@@ -209,12 +209,15 @@ def test_exclude_none_false_on_a_direct_dump_keeps_only_schema_admitted_nulls() 
 
 
 def test_exclude_none_false_keeps_an_unmarked_none_inside_an_open_dict() -> None:
-    """Only marked *fields* are affected; a ``None`` value in a dict is still data."""
+    """Only marked *fields* are affected; a ``None`` value in an opaque object is data.
+
+    ``ext`` (like ``context``) keeps its nulls on every dump path (#1575/#1600).
+    """
     pricing = CpmVendorPricingOption(
         pricing_option_id="cpm", model="cpm", cpm=1.0, currency="USD", ext={"note": None}
     )
     assert pricing.model_dump(exclude_none=False)["ext"] == {"note": None}
-    assert pricing.model_dump()["ext"] == {}
+    assert pricing.model_dump()["ext"] == {"note": None}
 
 
 # --- the marker carries both halves --------------------------------------------------

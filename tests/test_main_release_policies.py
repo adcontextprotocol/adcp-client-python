@@ -216,6 +216,33 @@ def test_signer_identity_survives_login_rename_and_real_bots_follow_policy(
     assert evidence["contributions"][1]["agreement"] == "canonical-bot-exemption"
 
 
+def _rebase_merge_both_commits_into_one_pr(api: PolicyAPI, history: list[str]) -> None:
+    pr = {**api.data["pulls/1174"], "number": 1174, "merge_commit_sha": history[2]}
+    for sha in history[1:]:
+        api.data[f"commits/{sha}/pulls?per_page=100&page=1"] = [pr]
+    api.data["pulls/1174"] = pr
+
+
+def test_rebase_merged_earlier_commit_is_rejected_unless_listed(history: list[str]) -> None:
+    api = PolicyAPI(history)
+    _rebase_merge_both_commits_into_one_pr(api, history)
+    with pytest.raises(ReleaseRejectedError, match="no unique merged contribution"):
+        policies.ipr(api, "push", history[-1], {})
+
+
+def test_listed_rebased_commit_maps_to_its_exact_pr(
+    history: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = PolicyAPI(history)
+    _rebase_merge_both_commits_into_one_pr(api, history)
+    monkeypatch.setattr(policies, "HISTORICAL_REBASED_COMMITS", {history[1]: 1174})
+    evidence = policies.ipr(api, "push", history[-1], {})
+    assert [entry["pr"] for entry in evidence["contributions"]] == [1174, 1174]
+    monkeypatch.setattr(policies, "HISTORICAL_REBASED_COMMITS", {history[1]: 9999})
+    with pytest.raises(ReleaseRejectedError):
+        policies.ipr(api, "push", history[-1], {})
+
+
 def test_all_pages_are_read_before_selecting_merged_pr(history: list[str]) -> None:
     api = PolicyAPI(history)
     path = f"commits/{history[1]}/pulls?per_page=100&page="
