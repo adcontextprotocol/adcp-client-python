@@ -63,6 +63,12 @@ major (`adcp>=9.0.0,<10`), and a new `adcp` major means a new release here.
 [CHANGELOG.md](CHANGELOG.md). The package reaches 1.0 when the storage layout
 shared with the JavaScript SDK (`@adcp/reporting-storage`) is declared stable.
 
+## Unpublished tags
+
+`adcp-reporting-storage-v0.1.0-beta.2` and `-beta.3` exist on GitHub but were
+never published to PyPI: their release commits failed `main` CI, which the
+publish workflow requires. 0.1.0b4 contains both. Install 0.1.0b4 or later.
+
 ## Documentation
 
 The guides live in the repository: [Reliable Reporting service](../../docs/reliable-reporting-service.md),
