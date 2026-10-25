@@ -46,6 +46,15 @@ def task_is_expired(record: dict[str, Any]) -> bool:
 
 
 def project_task(record: dict[str, Any], *, include_result: bool = False) -> dict[str, Any]:
+    """Project a registry record onto the ``tasks/get`` wire shape.
+
+    The response's top-level ``context`` is the poll request's own: the
+    transport echoes it, as for every request. The ``context`` of the request
+    that created the task belongs to that task's response, so it is echoed in
+    ``result`` -- the original task's terminal response document, whose schema
+    carries ``context`` -- and nowhere else. Absent fields are omitted rather
+    than sent as ``null``.
+    """
     response: dict[str, Any] = {
         "task_id": record["task_id"],
         "task_type": record["task_type"],
@@ -54,20 +63,30 @@ def project_task(record: dict[str, Any], *, include_result: bool = False) -> dic
         "created_at": datetime.fromtimestamp(record["created_at"], timezone.utc).isoformat(),
         "updated_at": datetime.fromtimestamp(record["updated_at"], timezone.utc).isoformat(),
     }
-    for key in ("progress", "error", "context", "has_webhook"):
+    for key in ("progress", "error", "has_webhook"):
         if record.get(key) is not None:
             response[key] = record[key]
     if record["state"] in {"completed", "failed", "canceled", "rejected"}:
         response["completed_at"] = response["updated_at"]
         if include_result:
+            result: dict[str, Any] | None = None
             if record.get("result") is not None:
-                response["result"] = record["result"]
+                result = record["result"]
             elif record["state"] == "failed" and record.get("error") is not None:
-                response["result"] = {
+                result = {
                     "status": "failed",
                     "adcp_error": record["error"],
                     "errors": [record["error"]],
                 }
+            if result is not None:
+                origin_context = record.get("context")
+                if (
+                    isinstance(result, dict)
+                    and result.get("context") is None
+                    and origin_context is not None
+                ):
+                    result = {**result, "context": origin_context}
+                response["result"] = result
     return response
 
 
