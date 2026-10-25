@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from importlib import import_module
 from typing import Annotated, Any, get_args, get_origin
 
 import pytest
@@ -52,6 +53,19 @@ _CONTAINERS = [
     pytest.param(PackageRequest, _NEW_PACKAGE, id="public-PackageRequest"),
     pytest.param(PackageUpdate, _EXISTING_PACKAGE, id="public-PackageUpdate"),
 ]
+try:
+    _forecast_module = import_module("adcp.types.domains.media_buy.package_forecast_input")
+except ModuleNotFoundError as exc:
+    if exc.name != "adcp.types.domains.media_buy.package_forecast_input":
+        raise
+else:
+    _CONTAINERS.append(
+        pytest.param(
+            _forecast_module.PackageForecastInput,
+            {"pricing_option_id": "price-1", "budget": 1000},
+            id="PackageForecastInput",
+        )
+    )
 _REQUEST_PATHS = [
     pytest.param("create_media_buy", "packages", id="create"),
     pytest.param("update_media_buy", "packages", id="update"),
@@ -378,3 +392,61 @@ def test_targeting_patch_preserves_generated_field_metadata() -> None:
     assert field.title == "Targeting"
     assert field.description == "Mutation input"
     assert type(model.model_validate({"targeting": {}}).targeting_overlay) is GeneratedInput
+
+
+def test_optional_forecast_bridge_only_ignores_the_absent_model(monkeypatch) -> None:
+    from adcp.types import _forward_compat
+
+    def absent_module(name):
+        raise ModuleNotFoundError(name=name)
+
+    monkeypatch.setattr(_forward_compat, "import_module", absent_module)
+    _forward_compat._patch_package_forecast_targeting()
+
+    def broken_dependency(name):
+        raise ModuleNotFoundError(name="broken_generated_dependency")
+
+    monkeypatch.setattr(_forward_compat, "import_module", broken_dependency)
+    with pytest.raises(ModuleNotFoundError) as error:
+        _forward_compat._patch_package_forecast_targeting()
+    assert error.value.name == "broken_generated_dependency"
+
+
+def test_optional_forecast_bridge_refreshes_cached_refinement_parents(monkeypatch) -> None:
+    from types import ModuleType
+
+    from adcp.types import _forward_compat
+
+    forecast_module = ModuleType("adcp.types.domains.media_buy.package_forecast_input")
+    forecast_model = create_model(
+        "PackageForecastInput",
+        targeting_overlay=(GeneratedInput | None, None),
+    )
+    forecast_module.PackageForecastInput = forecast_model
+    request_module = ModuleType("adcp.types.domains.media_buy.get_products_request")
+    refinement = create_model(
+        "RenumberedProductRefinement",
+        __module__=request_module.__name__,
+        package=(forecast_model, ...),
+    )
+    generated_request = create_model("GeneratedGetProductsRequest", refine=(list[refinement], ...))
+    public_request = create_model("PublicGetProductsRequest", __base__=generated_request)
+    request_module.Refinement = refinement
+    request_module.GetProductsRequest = generated_request
+    for request in (generated_request, public_request):
+        request.model_rebuild(force=True)
+    overlay = TargetingOverlay(geo_regions=["US-NY"])
+    payload = {"refine": [{"package": {"targeting_overlay": overlay}}]}
+    with pytest.raises(ValidationError):
+        public_request.model_validate(payload)
+
+    modules = {module.__name__: module for module in (forecast_module, request_module)}
+    monkeypatch.setattr(_forward_compat, "import_module", modules.__getitem__)
+    monkeypatch.setattr(_forward_compat, "_PublicGetProductsRequest", public_request)
+    _forward_compat._patch_package_forecast_targeting()
+
+    for request in (generated_request, public_request):
+        result = request.model_validate(payload)
+        assert result.refine[0].package.targeting_overlay is overlay
+        raw = request.model_validate({"refine": [{"package": {"targeting_overlay": {}}}]})
+        assert type(raw.refine[0].package.targeting_overlay) is GeneratedInput
