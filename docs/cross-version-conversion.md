@@ -10,6 +10,42 @@ For A2A, discovery uses a separate conversation and never changes a retained
 business context or task ID. Refreshing capabilities while approval is pending
 therefore preserves the original task for resumption.
 
+## Handlers receive requests upgraded to the latest minor
+
+Since SDK 9.0.0, server dispatch upgrades an older buyer's request to the
+latest AdCP minor packaged with the SDK before the handler runs. Handlers
+always answer in the latest shapes; the SDK converts the response down to the
+buyer's version. This is a breaking change from SDK 8, where handlers saw the
+buyer's own envelope.
+
+A handler that tailors a response per version must read the buyer's version
+from the context, not from `params`:
+
+```python
+from adcp.server import ADCPHandler, ToolContext
+
+
+class Seller(ADCPHandler):
+    async def get_products(self, params, context: ToolContext):
+        # A 3.1 buyer: params["adcp_version"] == "3.2" after the upgrade,
+        # and resolve_requested_adcp_version(params) also returns "3.2".
+        buyer_version = context.resolved_adcp_version  # "3.1"
+        ...
+```
+
+`resolve_requested_adcp_version(params)` inside a handler returns the
+converted (served) version for any explicit `adcp_version` claim, so branches
+keyed on it silently stop matching older buyers. It still describes a raw wire
+payload correctly, before dispatch. `ToolContext.resolved_adcp_version` is the
+buyer's negotiated wire contract. A2A requests without any version envelope
+leave it `None` and are served as the current SDK shape. Decisioning platforms
+read the same value from `RequestContext.resolved_adcp_version`.
+
+Most handlers need no version logic: return the latest shapes and let the SDK
+drop the fields an older buyer cannot represent. Branch on
+`context.resolved_adcp_version` only when the business answer itself differs,
+for example when withholding a product that an older buyer could not book.
+
 `adcp_version` sets a negotiation ceiling. A request's explicit `adcp_version`
 overrides the constructor ceiling for that call. `server_version` declares a
 known peer version and bypasses automatic capability discovery. Application

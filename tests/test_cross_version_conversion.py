@@ -22,6 +22,7 @@ from adcp.server.responses import capabilities_response
 from adcp.types import GetAdcpCapabilitiesResponse, GetProductsRequest, SyncAccountsRequest
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
 from adcp.validation import ValidationHookConfig, validate_request, validate_response
+from adcp.validation.envelope import resolve_requested_adcp_version
 
 
 def test_highest_common_version_and_call_ceiling() -> None:
@@ -550,6 +551,9 @@ async def test_server_handlers_receive_latest_and_respond_to_old_wire(version: s
         async def get_products(self, params: dict[str, Any], context: ToolContext):
             assert params.get("adcp_version", "3.2") == "3.2"
             assert context.resolved_adcp_version == version
+            # Documented 9.0 contract: params read back as the served
+            # version; only the context carries an explicit 3.1 claim.
+            assert resolve_requested_adcp_version(params) == ("3.0" if version == "3.0" else "3.2")
             contexts.append(context)
             return {"products": [], "status": "completed", "cache_scope": "public"}
 
