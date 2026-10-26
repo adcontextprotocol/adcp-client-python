@@ -475,9 +475,10 @@ def normalize_url(url: str) -> str:
     Paths remain case-sensitive. Query strings and fragments are ignored, and
     trailing path slashes are removed, preserving the existing matching rules.
     Only the default port for the supplied scheme is removed (80 for HTTP,
-    443 for HTTPS); non-default ports remain significant.
+    443 for HTTPS); non-default ports remain significant. Surrounding
+    whitespace is stripped, so a padded adagents.json ``url`` still matches.
     """
-    parsed = urlparse(url)
+    parsed = urlparse(url.strip())
     authority = parsed.netloc
     if parsed.hostname is not None:
         host = parsed.hostname.lower()
