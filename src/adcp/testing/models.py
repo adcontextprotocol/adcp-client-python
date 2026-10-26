@@ -10,29 +10,58 @@ from pydantic import BaseModel
 
 from adcp._deferred_adapters import build_registered_adapters
 
+#: Passes the lazy-export walk may take before it is declared non-terminating.
+#: A pass only follows one that imported new modules; the SDK's own surface
+#: stabilizes in a handful, so this is a backstop, not a tuning knob.
+_MAX_REALIZE_PASSES = 100
+
 
 def _realize_lazy_exports() -> None:
     # Freezegun enumerates dir(module), including unbound lazy names. Resolve the
     # same advertised surfaces before it patches datetime. Imports can introduce
     # additional lazy facades, so take fresh snapshots until the walk stabilizes.
+    #
+    # A module can sit in sys.modules under more than one name: the deprecated
+    # ``adcp.types.generated_poc.*`` alias registers the canonical
+    # ``adcp.types.domains.*`` object under its old name, so the KEY is not the
+    # object's ``__name__``. Mark the key the snapshot filtered on (so every pass
+    # retires what it found) and walk each module object once.
     importlib.import_module("adcp.types")
-    visited: set[str] = set()
-    while True:
-        modules = [
-            module
+    seen_names: set[str] = set()
+    walked: dict[int, ModuleType] = {}
+
+    def unseen() -> list[tuple[str, ModuleType]]:
+        return [
+            (name, module)
             for name, module in tuple(sys.modules.items())
             if (name == "adcp" or name.startswith("adcp."))
             and isinstance(module, ModuleType)
-            and name not in visited
+            and name not in seen_names
         ]
-        if not modules:
+
+    for _ in range(_MAX_REALIZE_PASSES):
+        pending = unseen()
+        if not pending:
             return
-        for module in modules:
-            visited.add(module.__name__)
+        for name, module in pending:
+            seen_names.add(name)
+            if id(module) in walked:
+                continue
+            # Holding the object keeps its id from being reused by another.
+            walked[id(module)] = module
             if "__getattr__" in vars(module):
-                for name in dir(module):
-                    if not name.startswith("_"):
-                        getattr(module, name)
+                for attr in dir(module):
+                    if not attr.startswith("_"):
+                        getattr(module, attr)
+    remaining = sorted(name for name, _ in unseen())
+    if not remaining:
+        return
+    raise RuntimeError(
+        f"build_all_models(): realizing lazy exports did not stabilize after "
+        f"{_MAX_REALIZE_PASSES} passes; the last pass still imported "
+        f"{', '.join(remaining[:5])}"
+        + (f" and {len(remaining) - 5} more" if len(remaining) > 5 else "")
+    )
 
 
 def build_all_models() -> None:
