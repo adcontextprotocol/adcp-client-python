@@ -56,8 +56,21 @@ Returning `Principal` authenticates the request. Returning `None` applies the
 usual missing-bearer policy, including explicitly configured discovery and
 `allow_unauthenticated` behavior. Raising `PrincipalResolverError(401)` or
 `PrincipalResolverError(403)` rejects regardless of that opt-in. Responses contain
-only generic `unauthenticated`/`forbidden` error bodies. A 401 carries the shared
-Bearer challenge; 403 does not. Other resolver exceptions and invalid return
+only generic `unauthenticated`/`forbidden` error bodies unless the resolver
+supplies a stable code. A 401 carries the shared Bearer challenge; 403 does not.
+
+When your integrators branch on documented rejection codes, pass one as `code`:
+
+```python
+raise PrincipalResolverError(403, code="identity_org_mismatch")
+# -> 403 {"error": "identity_org_mismatch"}
+```
+
+`code` must match `^[a-z][a-z0-9_]{0,63}$`. It is a fixed identifier from your
+documented set, never a message or a value derived from the request. A code that
+doesn't match falls back to the generic body for that status, and the auth log
+records only the coarse reason `invalid_code`, never the value. Exception text
+is never sent. Without `code` the bodies are unchanged. Other resolver exceptions and invalid return
 values fail closed with generic 401; auth logs contain only coarse reason codes,
 never callback exception text or credential values.
 
