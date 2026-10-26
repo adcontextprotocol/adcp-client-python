@@ -14,6 +14,9 @@ from dataclasses import asdict, dataclass
 from functools import lru_cache
 from typing import Any
 
+from jsonschema.exceptions import best_match
+from jsonschema.validators import validator_for
+
 from adcp._version import (
     get_supported_adcp_versions,
     normalize_to_release_precision,
@@ -27,6 +30,9 @@ CONVERSION_METADATA_KEY = "adcp_version_conversion"
 _OPAQUE_FIELDS = frozenset({"context", "ext"})
 _ARRAY_INDEX = re.compile(r"/\d+(?=/|$)")
 _SUMMARY_POINTER_LIMIT = 10
+#: Compiled node validators keyed by schema identity; see :func:`_refusal`.
+_NODE_VALIDATORS: dict[tuple[int, int], tuple[Any, Any, Any]] = {}
+_NODE_VALIDATOR_LIMIT = 4096
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,19 @@ class ConversionResult:
 
     def metadata(self) -> list[dict[str, Any]]:
         return [asdict(loss) for loss in self.losses]
+
+
+class _UnrepresentableError(Exception):
+    """A projected node the target schema refuses; its parent decides what survives.
+
+    ``pointer`` locates the refused value for the structured error; the
+    parent drops the whole child it was projecting, not just that value.
+    """
+
+    def __init__(self, pointer: str, message: str) -> None:
+        super().__init__(message)
+        self.pointer = pointer
+        self.message = message
 
 
 class ADCPVersionConversionError(ADCPFeatureUnsupportedError):
@@ -131,7 +150,8 @@ def _resolve(schema: Any, root: dict[str, Any]) -> dict[str, Any]:
     if isinstance(ref, str) and ref.startswith("#/"):
         resolved: Any = root
         for segment in ref[2:].split("/"):
-            resolved = resolved[segment.replace("~1", "/").replace("~0", "~")]
+            segment = segment.replace("~1", "/").replace("~0", "~")
+            resolved = resolved[int(segment) if isinstance(resolved, list) else segment]
         return {**resolved, **{key: value for key, value in schema.items() if key != "$ref"}}
     return schema
 
@@ -209,6 +229,114 @@ def _property(schema: dict[str, Any], key: str) -> Any:
     return additional if isinstance(additional, dict) else None
 
 
+#: Keywords a node's remaining shape can fail once a direct child is dropped or
+#: coarsened, e.g. a required identity whose only newer spelling was removed.
+_SHAPE_KEYWORDS = frozenset(
+    {
+        "anyOf",
+        "contains",
+        "dependencies",
+        "if",
+        "minItems",
+        "minProperties",
+        "not",
+        "oneOf",
+        "required",
+    }
+)
+
+
+def _shape_keywords(schema: Any, root: dict[str, Any]) -> frozenset[str]:
+    """The node's own constraints that removing children could violate."""
+    resolved = _resolve(schema, root)
+    found = _SHAPE_KEYWORDS & resolved.keys()
+    for branch in resolved.get("allOf", []):
+        found |= _shape_keywords(branch, root)
+    return frozenset(found)
+
+
+def _shape_schema(schema: Any, root: dict[str, Any]) -> dict[str, Any]:
+    """The node's shape keywords alone, without ``properties`` or ``items``."""
+    resolved = _resolve(schema, root)
+    own = {key: resolved[key] for key in _SHAPE_KEYWORDS if key in resolved}
+    if "if" in own:
+        own.update({key: resolved[key] for key in ("then", "else") if key in resolved})
+    branches = [_shape_schema(branch, root) for branch in resolved.get("allOf", [])]
+    return {**own, "allOf": [branch for branch in branches if branch]} if branches else own
+
+
+def _refusal(schema: Any, root: dict[str, Any], value: Any) -> tuple[str, str] | None:
+    """Return where and why the node's own shape refuses ``value``, or ``None``.
+
+    Only the node's shape keywords run (see :func:`_shape_schema`); its
+    children are checked where they were projected. The pointer is relative
+    to ``value``. Draft-07 ignores ``$ref`` siblings, so the wrapper
+    validates only the node while every ``#/...`` pointer in it still
+    resolves against the original document.
+    """
+    if not isinstance(schema, dict) or not schema:
+        return None
+    key = (id(schema), id(root))
+    cached = _NODE_VALIDATORS.get(key)
+    if cached is None or cached[0] is not schema or cached[1] is not root:
+        if len(_NODE_VALIDATORS) >= _NODE_VALIDATOR_LIMIT:
+            _NODE_VALIDATORS.clear()
+        document = {
+            **root,
+            "$ref": "#/$defs/__adcp_conversion_node",
+            "$defs": {
+                **root.get("$defs", {}),
+                "__adcp_conversion_node": _shape_schema(schema, root),
+            },
+        }
+        cached = (schema, root, validator_for(root)(document))
+        _NODE_VALIDATORS[key] = cached
+    try:
+        error = best_match(cached[2].iter_errors(value))
+    except Exception:  # noqa: BLE001 - an unresolvable node is checked whole later
+        return None
+    if error is None:
+        return None
+    pointer = ""
+    for key in error.absolute_path:
+        pointer = _pointer(pointer, key)
+    return pointer, error.message
+
+
+def _coarsens_to_boolean(source: Any, target: dict[str, Any], root: dict[str, Any]) -> bool:
+    """A ``boolean | object`` capability whose older contract kept only the boolean.
+
+    The union itself says how to map down: the boolean is the coarse spelling
+    of the structured declaration (e.g. 3.2 ``geo_regions``).
+    """
+    types = target.get("type")
+    if types != "boolean" and not (
+        isinstance(types, list) and "boolean" in types and "object" not in types
+    ):
+        return False
+    resolved = _resolve(source, root)
+    arms = resolved.get("oneOf", resolved.get("anyOf", []))
+    return any(_resolve(arm, root).get("type") == "boolean" for arm in arms) and any(
+        _resolve(arm, root).get("type") == "object" or "properties" in _resolve(arm, root)
+        for arm in arms
+    )
+
+
+def _declares_support(value: Any) -> bool:
+    """Whether a structured capability declares anything supported."""
+    if isinstance(value, dict):
+        return any(_declares_support(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_declares_support(child) for child in value)
+    if isinstance(value, bool):
+        return value
+    return value is not None
+
+
+def _parent_pointer(pointer: str) -> str:
+    return pointer.rsplit("/", 1)[0]
+
+
 def _project(
     value: Any,
     source: Any,
@@ -220,10 +348,15 @@ def _project(
     target_version: str,
     losses: list[ConversionLoss],
     *,
-    drop_unavailable_nulls: bool = False,
+    response: bool = False,
 ) -> Any:
+    raw_source, raw_target = source, target
+    first_loss = len(losses)
     source = _view(source, value, source_root)
     target = _view(target, value, target_root)
+    if isinstance(value, dict) and _coarsens_to_boolean(raw_source, target, source_root):
+        losses.append(ConversionLoss(path, source_version, target_version, "coarsened_to_boolean"))
+        return _declares_support(value)
     if isinstance(value, dict):
         if target_version == "3.0" and source.get("title") in {
             "Postal Area",
@@ -266,7 +399,7 @@ def _project(
             target_child = _property(target, key)
             if source_child is not None and target_child is None:
                 if (
-                    drop_unavailable_nulls
+                    response
                     and not path
                     and key == "message"
                     and target.get("additionalProperties", True) is not False
@@ -276,7 +409,7 @@ def _project(
                     projected[key] = child
                     continue
                 if (
-                    not drop_unavailable_nulls
+                    not response
                     and child is None
                     and _allows_null(_view(source_child, child, source_root))
                 ):
@@ -299,7 +432,7 @@ def _project(
             source_view = _view(source_child, child, source_root)
             target_view = _view(target_child, child, target_root)
             if (
-                (not drop_unavailable_nulls or key in target["required"])
+                (not response or key in target["required"])
                 and child is None
                 and _allows_null(source_view)
                 and _rejects_null(target_view)
@@ -310,12 +443,12 @@ def _project(
                     target_version=target_version,
                     reason=(
                         "the older contract cannot express an explicit null clear"
-                        if not drop_unavailable_nulls
+                        if not response
                         else "the older contract requires a value unavailable in this response"
                     ),
                 )
             if (
-                drop_unavailable_nulls
+                response
                 and child is None
                 and key not in target["required"]
                 and _allows_null(source_view)
@@ -326,8 +459,8 @@ def _project(
                 )
                 continue
             # An optional enum member introduced by the newer release cannot
-            # be sent to the old peer. Required values remain for validation
-            # to reject rather than manufacturing a different meaning.
+            # be sent to the old peer. A required value is never replaced by
+            # a different meaning; the target check fails it structurally.
             if (
                 not isinstance(child, (dict, list))
                 and "enum" in source_view
@@ -340,18 +473,38 @@ def _project(
                     ConversionLoss(child_path, source_version, target_version, "enum_unavailable")
                 )
                 continue
-            projected[key] = _project(
-                child,
-                source_child,
-                target_child,
-                source_root,
-                target_root,
-                child_path,
-                source_version,
-                target_version,
-                losses,
-                drop_unavailable_nulls=drop_unavailable_nulls,
-            )
+            try:
+                projected[key] = _project(
+                    child,
+                    source_child,
+                    target_child,
+                    source_root,
+                    target_root,
+                    child_path,
+                    source_version,
+                    target_version,
+                    losses,
+                    response=response,
+                )
+            except _UnrepresentableError:
+                if key in target["required"]:
+                    raise
+                losses.append(
+                    ConversionLoss(
+                        child_path, source_version, target_version, "unrepresentable_in_target"
+                    )
+                )
+        _check_representable(
+            projected,
+            value,
+            raw_source,
+            raw_target,
+            source_root,
+            target_root,
+            path,
+            losses,
+            first_loss,
+        )
         return projected
     if isinstance(value, list):
         projected_items = []
@@ -371,22 +524,76 @@ def _project(
                     )
                 )
                 continue
-            projected_items.append(
-                _project(
-                    child,
-                    source.get("items", {}),
-                    target.get("items", {}),
-                    source_root,
-                    target_root,
-                    _pointer(path, index),
-                    source_version,
-                    target_version,
-                    losses,
-                    drop_unavailable_nulls=drop_unavailable_nulls,
+            try:
+                projected_items.append(
+                    _project(
+                        child,
+                        source.get("items", {}),
+                        target.get("items", {}),
+                        source_root,
+                        target_root,
+                        _pointer(path, index),
+                        source_version,
+                        target_version,
+                        losses,
+                        response=response,
+                    )
                 )
-            )
+            except _UnrepresentableError:
+                if not response:
+                    # A shortened request list can read as removal, e.g. a
+                    # sync with delete_missing. Omit the optional field that
+                    # holds it instead, or fail when none is optional.
+                    raise
+                losses.append(
+                    ConversionLoss(
+                        _pointer(path, index),
+                        source_version,
+                        target_version,
+                        "unrepresentable_in_target",
+                    )
+                )
+        _check_representable(
+            projected_items,
+            value,
+            raw_source,
+            raw_target,
+            source_root,
+            target_root,
+            path,
+            losses,
+            first_loss,
+        )
         return projected_items
     return value
+
+
+def _check_representable(
+    projected: Any,
+    value: Any,
+    source: Any,
+    target: Any,
+    source_root: dict[str, Any],
+    target_root: dict[str, Any],
+    path: str,
+    losses: list[ConversionLoss],
+    first_loss: int,
+) -> None:
+    """Refuse a node whose own projection left a shape the target rejects.
+
+    Only nodes that lost or coarsened a direct child are checked, and only
+    when the source accepted the original: projection must not turn valid
+    data invalid, but it is not a validator for data that arrived invalid.
+    The parent drops an optional field or array item and records the loss;
+    a required chain up to the root becomes a structured conversion error.
+    """
+    if not any(_parent_pointer(loss.pointer) == path for loss in losses[first_loss:]):
+        return
+    if not _shape_keywords(target, target_root):
+        return
+    refusal = _refusal(target, target_root, projected)
+    if refusal is not None and _refusal(source, source_root, value) is None:
+        raise _UnrepresentableError(path + refusal[0], refusal[1])
 
 
 def _allows_null(schema: dict[str, Any]) -> bool:
@@ -706,18 +913,28 @@ def _convert_payload(
                 )
                 result.setdefault("cache_scope", scope)
         if step < 0:
-            result = _project(
-                result,
-                source_schema,
-                target_schema,
-                source_schema,
-                target_schema,
-                "",
-                source,
-                target,
-                losses,
-                drop_unavailable_nulls=direction != "request",
-            )
+            try:
+                result = _project(
+                    result,
+                    source_schema,
+                    target_schema,
+                    source_schema,
+                    target_schema,
+                    "",
+                    source,
+                    target,
+                    losses,
+                    response=direction != "request",
+                )
+            except _UnrepresentableError as exc:
+                raise ADCPVersionConversionError(
+                    pointer=exc.pointer,
+                    source_version=source,
+                    target_version=target,
+                    reason=(
+                        f"the older contract cannot represent the remaining value: {exc.message}"
+                    ),
+                ) from None
         minor += step
     # The version envelope describes the boundary's contract, including
     # upgrades before application code. 3.0 has only the major envelope.
@@ -729,4 +946,37 @@ def _convert_payload(
         result["adcp_version"] = target_version
     if direction != "request":
         _convert_embedded_results(tool, result, source_version, target_version, losses)
+    if step < 0:
+        _require_target_valid(tool, direction, payload, result, source_version, target_version)
     return ConversionResult(result, tuple(losses))
+
+
+def _require_target_valid(
+    tool: str,
+    direction: Direction,
+    payload: dict[str, Any],
+    result: dict[str, Any],
+    source_version: str,
+    target_version: str,
+) -> None:
+    """A downgrade never emits a payload the older schema refuses.
+
+    Projection repairs what it removed. Anything else the older contract
+    requires and the payload cannot supply, such as a newly optional field
+    or a required enum member it lacks, fails as a structured error rather
+    than reaching the peer invalid. Payloads that arrived invalid are left
+    to the caller's validation policy.
+    """
+    from adcp.validation.schema_validator import validate_request, validate_response
+
+    validate = validate_request if direction == "request" else validate_response
+    outcome = validate(tool, result, version=target_version)
+    if outcome.valid or not validate(tool, payload, version=source_version).valid:
+        return
+    issue = outcome.issues[0]
+    raise ADCPVersionConversionError(
+        pointer=issue.pointer,
+        source_version=source_version,
+        target_version=target_version,
+        reason=f"the older contract refuses the converted payload: {issue.message}",
+    )

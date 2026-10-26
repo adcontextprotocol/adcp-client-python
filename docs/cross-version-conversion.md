@@ -110,6 +110,42 @@ results supplied on `list_tasks` entries. Loss pointers include `/result` or
 `/tasks/<index>/result`. Unknown vendor task results remain opaque. Nested polling
 wrappers remain opaque as well, bounding conversion to one wrapper level.
 
+## Downgrades never emit a payload the older schema refuses
+
+Dropping a newer field or enum member can leave its parent in a shape the
+older release refuses: a notification config whose `event_types` were all
+3.2-only becomes an empty list below 3.1's `minItems: 1`, and an account row
+identified only by a 3.2 `account` reference loses its identity. When a
+projected node fails its own constraints in the older schema (`required`,
+`minItems`, `minProperties`, unions or `if`/`then`) and the newer schema
+accepted the original, the SDK resolves it by one rule:
+
+| Situation | Result | Loss `reason` |
+| --- | --- | --- |
+| Newer `boolean \| object` capability, older boolean only (3.2 `geo_regions`) | `true` when the structure declares any support, otherwise `false` | `coarsened_to_boolean` |
+| Refused node is an optional field | Field omitted | `unrepresentable_in_target` |
+| Refused node is a response array item | Item omitted | `unrepresentable_in_target` |
+| Refused node is a request array item | The nearest optional field holding the list is omitted | `unrepresentable_in_target` |
+| Only required fields lead to the root | `ADCPVersionConversionError` at the refused value | — |
+
+Requests never send a shortened list. Sync tasks support `delete_missing`,
+so a partial list could read as removal; omitting the field leaves that state
+unchanged. Losses already recorded inside a dropped node stay in the report,
+explaining why it was dropped.
+
+Every downgrade then validates the result against the older release's bundled
+schema. A remaining refusal, such as a field the older release requires and
+the payload lacks or a required enum member it cannot spell, fails with
+`ADCPVersionConversionError` instead of reaching the peer invalid. A payload
+that was already invalid in its own release is projected but neither repaired
+nor rejected; the caller's validation policy decides. The server returns these
+errors as `VERSION_UNSUPPORTED`; the client returns a failed `TaskResult` with
+`adcp_error.code="UNSUPPORTED_FEATURE"`.
+
+`tests/test_version_conversion_sweep.py` converts every bundled 3.2 schema
+example and fixture down to 3.1 and 3.0 and requires each result to validate,
+or to fail with one of the structured errors it lists.
+
 ## Conversion reports
 
 Client results expose conversion details in
