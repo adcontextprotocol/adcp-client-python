@@ -708,6 +708,12 @@ re-execute and can double-allocate. Always wire `context_factory` on MCP
 servers so the auth middleware populates these fields before the handler
 runs.
 
+The same decorator works on `DecisioningPlatform` methods. A key reused with
+a different payload raises `IdempotencyConflictError`; the dispatcher
+projects it, like any other `ADCPTaskError`, to its own code and recovery
+(`IDEMPOTENCY_CONFLICT` / `correctable`) on MCP and A2A rather than
+`INTERNAL_ERROR`. You don't need your own translator.
+
 ## Error handling
 
 **Handler methods return error dicts — they do not raise.** Use

@@ -804,6 +804,44 @@ async def test_invoke_re_raises_adcp_error(
 
 
 @pytest.mark.asyncio
+async def test_invoke_projects_adcp_task_errors_to_their_own_code(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """An ``ADCPTaskError`` (``IdempotencyStore.wrap``'s conflict) keeps its
+    code and recovery instead of collapsing to INTERNAL_ERROR (#1622)."""
+    from adcp.exceptions import IdempotencyConflictError
+
+    class _ConflictPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req, ctx):
+            raise IdempotencyConflictError(operation="get_products", errors=[])
+
+    failures: list[BaseException] = []
+
+    async def _on_failure(exc: BaseException) -> None:
+        failures.append(exc)
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _ConflictPlatform(),
+            "get_products",
+            _ProductsRequest(),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            on_failure=_on_failure,
+        )
+    assert exc_info.value.code == "IDEMPOTENCY_CONFLICT"
+    assert exc_info.value.recovery == "correctable"
+    assert exc_info.value.suggestion is not None
+    assert isinstance(exc_info.value.__cause__, IdempotencyConflictError)
+    assert failures == [exc_info.value]
+
+
+@pytest.mark.asyncio
 async def test_invoke_wraps_unexpected_exceptions_to_internal_error(
     executor: ThreadPoolExecutor,
 ) -> None:
@@ -1333,6 +1371,33 @@ async def test_handoff_unexpected_exception_wraps_to_internal_error(
     assert rec["error"]["code"] == "INTERNAL_ERROR"
     # Original exception text NOT exposed.
     assert "internal bug" not in rec["error"].get("message", "")
+
+
+@pytest.mark.asyncio
+async def test_handoff_adcp_task_error_keeps_its_code(
+    executor: ThreadPoolExecutor,
+) -> None:
+    from adcp.exceptions import IdempotencyConflictError
+
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+
+    async def _handoff_fn(task_ctx):
+        raise IdempotencyConflictError(operation="create_media_buy", errors=[])
+
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+    )
+    await asyncio.sleep(0.1)
+    rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["state"] == "failed"
+    assert rec["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert rec["error"]["recovery"] == "correctable"
 
 
 @pytest.mark.asyncio
