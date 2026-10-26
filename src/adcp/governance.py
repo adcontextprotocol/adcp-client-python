@@ -1181,7 +1181,7 @@ async def verify_governance_authorization(
     token = cast(str, token)
     kid = header.get("kid")
     if not isinstance(kid, str) or not kid:
-        return reject("governance_key_unknown", "governance signing kid is missing")
+        return reject("governance_token_invalid", "governance signing kid is missing")
     # AdCP 3.3 R4: the trust record derived from the expected issuer's origin
     # selects the profile. It is never read from the unverified token, and a
     # record that cannot be read never falls back to the 3.2 profile.

@@ -59,7 +59,7 @@ def _vector_resolver(vector, keys=KEYS):
 
 def test_vendored_vectors_match_recorded_provenance():
     upstream = json.loads((ROOT / "UPSTREAM.json").read_text())
-    assert upstream["commit"] == "e59294701d733b0ea2a004a2f0c091c8eccdcaae"
+    assert upstream["commit"] == "f44785a5b65db93988f30ad3d23ba5849f1a1d5e"
     vendored = {
         str(path.relative_to(ROOT))
         for path in ROOT.rglob("*")
