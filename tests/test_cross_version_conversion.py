@@ -838,8 +838,9 @@ def test_response_drops_a_notification_config_left_without_older_events() -> Non
     assert validate_response("list_accounts", result.payload, version="3.1").valid
 
 
-def test_request_omits_a_list_it_cannot_send_whole() -> None:
-    # A shortened sync list can read as removal, so the optional field goes.
+def test_request_is_never_repaired_by_omission() -> None:
+    # Omitting a request field changes its meaning: a shortened sync list can
+    # read as removal, an absent filter matches everything.
     request = {
         "idempotency_key": "sync-accounts-notification-configs-0001",
         "accounts": [
@@ -847,24 +848,71 @@ def test_request_omits_a_list_it_cannot_send_whole() -> None:
                 "brand": {"domain": "acme.example"},
                 "operator": "agency.example",
                 "billing": "operator",
-                **_notification_accounts(["account.change_recorded"], ["product.updated"])[
-                    "accounts"
-                ][0],
+                "notification_configs": _notification_accounts(
+                    ["account.change_recorded"], ["product.updated"]
+                )["accounts"][0]["notification_configs"],
             }
         ],
     }
-    for key in ("account_id", "name", "status"):
-        request["accounts"][0].pop(key)
     assert validate_request("sync_accounts", request, version="3.2").valid
-    result = convert_payload(
-        "sync_accounts", request, direction="request", source_version="3.2", target_version="3.1"
-    )
-    assert "notification_configs" not in result.payload["accounts"][0]
-    assert (
-        "/accounts/0/notification_configs",
-        "unrepresentable_in_target",
-    ) in [(loss.pointer, loss.reason) for loss in result.losses]
-    assert validate_request("sync_accounts", result.payload, version="3.1").valid
+    with pytest.raises(ADCPVersionConversionError) as caught:
+        convert_payload(
+            "sync_accounts",
+            request,
+            direction="request",
+            source_version="3.2",
+            target_version="3.1",
+        )
+    assert caught.value.pointer == "/accounts/0/notification_configs/0/event_types"
+
+
+def test_request_filter_is_not_widened_by_omission() -> None:
+    request = {
+        "buying_mode": "brief",
+        "brief": "video",
+        "filters": {"required_metrics": ["viewable_impressions"], "channels": ["olv"]},
+    }
+    assert validate_request("get_products", request, version="3.2").valid
+    with pytest.raises(ADCPVersionConversionError) as caught:
+        convert_payload(
+            "get_products",
+            request,
+            direction="request",
+            source_version="3.2",
+            target_version="3.1",
+        )
+    assert caught.value.pointer == "/filters/required_metrics"
+
+
+def test_a_drop_does_not_take_the_blame_for_an_unrelated_refusal() -> None:
+    # spend became optional in 3.2. Dropping the 3.2-only sibling did not
+    # cause its absence, so the delivery row is not silently discarded.
+    def delivery(**totals: Any) -> dict[str, Any]:
+        return {
+            "status": "completed",
+            "reporting_period": {"start": "2026-10-01T00:00:00Z", "end": "2026-10-02T00:00:00Z"},
+            "currency": "USD",
+            "media_buy_deliveries": [
+                {
+                    "media_buy_id": "mb1",
+                    "status": "active",
+                    "totals": {"impressions": 100, **totals},
+                    "by_package": [],
+                }
+            ],
+        }
+
+    for payload in (delivery(), delivery(commissionable_value=5)):
+        assert validate_response("get_media_buy_delivery", payload, version="3.2").valid
+        with pytest.raises(ADCPVersionConversionError) as caught:
+            convert_payload(
+                "get_media_buy_delivery",
+                payload,
+                direction="sync",
+                source_version="3.2",
+                target_version="3.1",
+            )
+        assert caught.value.pointer == "/media_buy_deliveries/0/totals"
 
 
 def test_request_without_an_optional_holder_fails_structurally() -> None:

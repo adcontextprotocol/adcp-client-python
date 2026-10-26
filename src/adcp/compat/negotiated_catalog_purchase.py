@@ -1014,6 +1014,9 @@ class MediaBuyLifecycleCoordinator:
                     # Round-trips the client's own lossless upgrade back to
                     # the served contract; only upgrade defaults can drop.
                     loss_log_level=logging.DEBUG,
+                    # Reconstructs the seller's evidence faithfully, even
+                    # where the seller's own response was invalid.
+                    require_valid_target=False,
                 ).payload
         return payload
 

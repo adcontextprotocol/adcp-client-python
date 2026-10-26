@@ -32,19 +32,32 @@ EXPECTED_STRUCTURED_ERRORS = {
     ("comply_test_controller::request::example-10", "3.0"): "/scenario",
     ("comply_test_controller::sync::example-0", "3.0"): "/scenarios/1",
     # convert_payload cannot invent a legacy format_id; the creative dialect
-    # adapters supply one before conversion on real 3.0 boundaries. A request
-    # fails, while a response drops the creative and records the loss.
+    # adapters supply one before conversion on real 3.0 boundaries.
+    ("list_creatives::sync::example-0", "3.0"): "/creatives/1",
+    ("list_creatives::sync::example-1", "3.0"): "/creatives/1",
     ("sync_creatives::request::example-0", "3.0"): "/creatives/0",
     ("sync_creatives::request::example-1", "3.0"): "/creatives/0",
-    ("sync_creatives::request::example-2", "3.0"): "/creatives/0",
-    # 3.0 accounts need a brand/operator key; an account_id reference has none.
+    ("sync_creatives::request::example-2", "3.0"): "/creatives/1",
+    # Older accounts need a brand/operator key; an account_id reference has none.
     ("sync_accounts::request::example-5", "3.0"): "/accounts/0",
     ("sync_accounts::request::example-6", "3.0"): "/accounts/0",
+    ("sync_accounts::sync::example-5", "3.1"): "",
+    ("sync_accounts::sync::example-5", "3.0"): "",
     # Wholesale discovery does not exist in 3.0.
     ("parity::get_signals.valid_wholesale", "3.0"): "",
     # 3.0 media_buy sellers must declare account capabilities.
     ("fixture::issue1621.get_adcp_capabilities.geo_regions", "3.0"): "",
     ("vector::audience_evidence.capabilities", "3.0"): "",
+    # Requests are never repaired: a config left without older event types
+    # fails instead of silently changing the subscription.
+    (
+        "fixture::sync_accounts.request.notification_configs",
+        "3.1",
+    ): "/accounts/0/notification_configs/0/event_types",
+    (
+        "fixture::sync_accounts.request.notification_configs",
+        "3.0",
+    ): "/accounts/0/notification_configs/0/event_types",
 }
 
 

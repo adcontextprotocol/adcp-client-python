@@ -31,7 +31,7 @@ _OPAQUE_FIELDS = frozenset({"context", "ext"})
 _ARRAY_INDEX = re.compile(r"/\d+(?=/|$)")
 _SUMMARY_POINTER_LIMIT = 10
 #: Compiled node validators keyed by schema identity; see :func:`_refusal`.
-_NODE_VALIDATORS: dict[tuple[int, int], tuple[Any, Any, Any]] = {}
+_NODE_VALIDATORS: dict[tuple[int, int, bool], tuple[Any, Any, Any]] = {}
 _NODE_VALIDATOR_LIMIT = 4096
 
 
@@ -246,9 +246,19 @@ _SHAPE_KEYWORDS = frozenset(
 )
 
 
+def _resolve_chain(schema: Any, root: dict[str, Any]) -> dict[str, Any]:
+    """Follow ``$ref`` until it reaches a node with its own keywords."""
+    resolved = _resolve(schema, root)
+    for _ in range(32):
+        if "$ref" not in resolved:
+            break
+        resolved = _resolve(resolved, root)
+    return resolved
+
+
 def _shape_keywords(schema: Any, root: dict[str, Any]) -> frozenset[str]:
     """The node's own constraints that removing children could violate."""
-    resolved = _resolve(schema, root)
+    resolved = _resolve_chain(schema, root)
     found = _SHAPE_KEYWORDS & resolved.keys()
     for branch in resolved.get("allOf", []):
         found |= _shape_keywords(branch, root)
@@ -257,7 +267,7 @@ def _shape_keywords(schema: Any, root: dict[str, Any]) -> frozenset[str]:
 
 def _shape_schema(schema: Any, root: dict[str, Any]) -> dict[str, Any]:
     """The node's shape keywords alone, without ``properties`` or ``items``."""
-    resolved = _resolve(schema, root)
+    resolved = _resolve_chain(schema, root)
     own = {key: resolved[key] for key in _SHAPE_KEYWORDS if key in resolved}
     if "if" in own:
         own.update({key: resolved[key] for key in ("then", "else") if key in resolved})
@@ -265,18 +275,21 @@ def _shape_schema(schema: Any, root: dict[str, Any]) -> dict[str, Any]:
     return {**own, "allOf": [branch for branch in branches if branch]} if branches else own
 
 
-def _refusal(schema: Any, root: dict[str, Any], value: Any) -> tuple[str, str] | None:
-    """Return where and why the node's own shape refuses ``value``, or ``None``.
+def _refusal(
+    schema: Any, root: dict[str, Any], value: Any, *, shape: bool = True
+) -> tuple[str, str] | None:
+    """Return where and why ``schema`` refuses ``value``, or ``None``.
 
-    Only the node's shape keywords run (see :func:`_shape_schema`); its
-    children are checked where they were projected. The pointer is relative
-    to ``value``. Draft-07 ignores ``$ref`` siblings, so the wrapper
-    validates only the node while every ``#/...`` pointer in it still
-    resolves against the original document.
+    With ``shape`` only the node's own shape keywords run (see
+    :func:`_shape_schema`); its children are checked where they were
+    projected. Otherwise the whole subtree is validated. The pointer is
+    relative to ``value``. Draft-07 ignores ``$ref`` siblings, so the
+    wrapper validates only the node while every ``#/...`` pointer in it
+    still resolves against the original document.
     """
     if not isinstance(schema, dict) or not schema:
         return None
-    key = (id(schema), id(root))
+    key = (id(schema), id(root), shape)
     cached = _NODE_VALIDATORS.get(key)
     if cached is None or cached[0] is not schema or cached[1] is not root:
         if len(_NODE_VALIDATORS) >= _NODE_VALIDATOR_LIMIT:
@@ -286,7 +299,7 @@ def _refusal(schema: Any, root: dict[str, Any], value: Any) -> tuple[str, str] |
             "$ref": "#/$defs/__adcp_conversion_node",
             "$defs": {
                 **root.get("$defs", {}),
-                "__adcp_conversion_node": _shape_schema(schema, root),
+                "__adcp_conversion_node": _shape_schema(schema, root) if shape else schema,
             },
         }
         cached = (schema, root, validator_for(root)(document))
@@ -300,7 +313,21 @@ def _refusal(schema: Any, root: dict[str, Any], value: Any) -> tuple[str, str] |
     pointer = ""
     for key in error.absolute_path:
         pointer = _pointer(pointer, key)
-    return pointer, error.message
+    return pointer, _describe(error)
+
+
+def _describe(error: Any) -> str:
+    """A value-free reason: diagnostics never echo payload contents."""
+    keyword = error.validator
+    if keyword == "required":
+        missing = [name for name in error.validator_value if name not in error.instance]
+        return f"missing required field(s): {', '.join(map(str, missing))}"
+    if keyword in {"minItems", "minProperties"}:
+        unit = "item" if keyword == "minItems" else "field"
+        return f"needs at least {error.validator_value} {unit}(s)"
+    if keyword in {"enum", "const"}:
+        return "value has no spelling in the older release"
+    return f"fails the older schema's {keyword} constraint"
 
 
 def _coarsens_to_boolean(source: Any, target: dict[str, Any], root: dict[str, Any]) -> bool:
@@ -487,7 +514,9 @@ def _project(
                     response=response,
                 )
             except _UnrepresentableError:
-                if key in target["required"]:
+                if key in target["required"] or not response:
+                    # Omitting a request field changes its meaning, e.g. an
+                    # absent filter matches everything; the caller decides.
                     raise
                 losses.append(
                     ConversionLoss(
@@ -542,8 +571,7 @@ def _project(
             except _UnrepresentableError:
                 if not response:
                     # A shortened request list can read as removal, e.g. a
-                    # sync with delete_missing. Omit the optional field that
-                    # holds it instead, or fail when none is optional.
+                    # sync with delete_missing.
                     raise
                 losses.append(
                     ConversionLoss(
@@ -582,17 +610,28 @@ def _check_representable(
     """Refuse a node whose own projection left a shape the target rejects.
 
     Only nodes that lost or coarsened a direct child are checked, and only
-    when the source accepted the original: projection must not turn valid
-    data invalid, but it is not a validator for data that arrived invalid.
-    The parent drops an optional field or array item and records the loss;
-    a required chain up to the root becomes a structured conversion error.
+    when the drop caused the refusal: the source accepted the original and
+    the target accepts the node with those children put back. A refusal
+    the drop did not cause, such as a field the older release requires and
+    the payload never had, is left to :func:`_require_target_valid`.
+    Projection must not turn valid data invalid, but it is not a validator
+    for data that arrived invalid.
     """
-    if not any(_parent_pointer(loss.pointer) == path for loss in losses[first_loss:]):
-        return
-    if not _shape_keywords(target, target_root):
+    dropped = [
+        loss.pointer.rsplit("/", 1)[1].replace("~1", "/").replace("~0", "~")
+        for loss in losses[first_loss:]
+        if _parent_pointer(loss.pointer) == path
+    ]
+    if not dropped or not _shape_keywords(target, target_root):
         return
     refusal = _refusal(target, target_root, projected)
-    if refusal is not None and _refusal(source, source_root, value) is None:
+    if refusal is None or _refusal(source, source_root, value) is not None:
+        return
+    if isinstance(value, dict):
+        restored: Any = {**projected, **{key: value[key] for key in dropped if key in value}}
+    else:
+        restored = [*projected, *(value[int(index)] for index in dropped)]
+    if _refusal(target, target_root, restored) is None:
         raise _UnrepresentableError(path + refusal[0], refusal[1])
 
 
@@ -713,6 +752,7 @@ def _convert_embedded_results(
     source_version: str,
     target_version: str,
     losses: list[ConversionLoss],
+    require_valid_target: bool,
 ) -> None:
     """Use task identity for opaque polling artifacts, bounded to one wrapper level."""
     if tool == "get_task_status":
@@ -751,6 +791,7 @@ def _convert_embedded_results(
                 direction=direction,
                 source_version=source_version,
                 target_version=target_version,
+                require_valid_target=require_valid_target,
             )
         except ADCPVersionConversionError as exc:
             raise ADCPVersionConversionError(
@@ -777,6 +818,7 @@ def convert_payload(
     target_version: str,
     request: dict[str, Any] | None = None,
     loss_log_level: int = logging.WARNING,
+    require_valid_target: bool = True,
 ) -> ConversionResult:
     """Chain adjacent minor conversions without modifying the caller's data.
 
@@ -789,6 +831,11 @@ def convert_payload(
     a buyer losing a seller's data keeps ``WARNING``, while a seller dropping
     newer fields for an older buyer expects those losses and logs them at
     ``DEBUG`` (see :func:`log_conversion_summary`).
+
+    A downgrade raises :class:`ADCPVersionConversionError` rather than return
+    a payload the older schema refuses. ``require_valid_target=False`` skips
+    only that final check, for callers reconstructing a peer's own evidence
+    rather than sending a payload; projection repairs still apply.
     """
     converted = _convert_payload(
         tool,
@@ -797,6 +844,7 @@ def convert_payload(
         source_version=source_version,
         target_version=target_version,
         request=request,
+        require_valid_target=require_valid_target,
     )
     for loss in converted.losses:
         logger.log(
@@ -849,6 +897,7 @@ def _convert_payload(
     source_version: str,
     target_version: str,
     request: dict[str, Any] | None = None,
+    require_valid_target: bool = True,
 ) -> ConversionResult:
     """Convert without logging; :func:`convert_payload` logs the final losses once."""
     source_version, target_version = _release(source_version), _release(target_version)
@@ -945,8 +994,10 @@ def _convert_payload(
     elif direction != "request" or "adcp_version" in payload:
         result["adcp_version"] = target_version
     if direction != "request":
-        _convert_embedded_results(tool, result, source_version, target_version, losses)
-    if step < 0:
+        _convert_embedded_results(
+            tool, result, source_version, target_version, losses, require_valid_target
+        )
+    if step < 0 and require_valid_target:
         _require_target_valid(tool, direction, payload, result, source_version, target_version)
     return ConversionResult(result, tuple(losses))
 
@@ -965,18 +1016,19 @@ def _require_target_valid(
     requires and the payload cannot supply, such as a newly optional field
     or a required enum member it lacks, fails as a structured error rather
     than reaching the peer invalid. Payloads that arrived invalid are left
-    to the caller's validation policy.
+    to the caller's validation policy. Validation uses the same bundled
+    schemas the projection used, with no payload size cap.
     """
-    from adcp.validation.schema_validator import validate_request, validate_response
-
-    validate = validate_request if direction == "request" else validate_response
-    outcome = validate(tool, result, version=target_version)
-    if outcome.valid or not validate(tool, payload, version=source_version).valid:
+    target_schema = _schema(tool, direction, target_version)
+    refusal = _refusal(target_schema, target_schema, result, shape=False)
+    if refusal is None:
         return
-    issue = outcome.issues[0]
+    source_schema = _schema(tool, direction, source_version)
+    if _refusal(source_schema, source_schema, payload, shape=False) is not None:
+        return
     raise ADCPVersionConversionError(
-        pointer=issue.pointer,
+        pointer=refusal[0],
         source_version=source_version,
         target_version=target_version,
-        reason=f"the older contract refuses the converted payload: {issue.message}",
+        reason=f"the older contract refuses the converted payload at that pointer: {refusal[1]}",
     )
