@@ -793,3 +793,188 @@ async def test_in_flight_creative_dialect_survives_capability_refresh() -> None:
     )
     assert client._creative_dialect(request) is CreativeDialect.CANONICAL
     assert client._creative_dialect(request, result=result) is CreativeDialect.LEGACY
+
+
+def _notification_accounts(*event_types: list[str]) -> dict[str, Any]:
+    return {
+        "status": "completed",
+        "accounts": [
+            {
+                "account_id": "a1",
+                "name": "Acct",
+                "status": "active",
+                "notification_configs": [
+                    {
+                        "subscriber_id": f"s{index}",
+                        "url": f"https://buyer.example/hooks/{index}",
+                        "event_types": events,
+                    }
+                    for index, events in enumerate(event_types)
+                ],
+            }
+        ],
+    }
+
+
+def test_response_drops_a_notification_config_left_without_older_events() -> None:
+    payload = _notification_accounts(
+        ["account.change_recorded"], ["account.change_recorded", "product.updated"]
+    )
+    result = convert_payload(
+        "list_accounts", payload, direction="sync", source_version="3.2", target_version="3.1"
+    )
+    assert result.payload["accounts"][0]["notification_configs"] == [
+        {
+            "subscriber_id": "s1",
+            "url": "https://buyer.example/hooks/1",
+            "event_types": ["product.updated"],
+        }
+    ]
+    assert [(loss.pointer, loss.reason) for loss in result.losses] == [
+        ("/accounts/0/notification_configs/0/event_types/0", "enum_unavailable"),
+        ("/accounts/0/notification_configs/0", "unrepresentable_in_target"),
+        ("/accounts/0/notification_configs/1/event_types/0", "enum_unavailable"),
+    ]
+    assert validate_response("list_accounts", result.payload, version="3.1").valid
+
+
+def test_request_is_never_repaired_by_omission() -> None:
+    # Omitting a request field changes its meaning: a shortened sync list can
+    # read as removal, an absent filter matches everything.
+    request = {
+        "idempotency_key": "sync-accounts-notification-configs-0001",
+        "accounts": [
+            {
+                "brand": {"domain": "acme.example"},
+                "operator": "agency.example",
+                "billing": "operator",
+                "notification_configs": _notification_accounts(
+                    ["account.change_recorded"], ["product.updated"]
+                )["accounts"][0]["notification_configs"],
+            }
+        ],
+    }
+    assert validate_request("sync_accounts", request, version="3.2").valid
+    with pytest.raises(ADCPVersionConversionError) as caught:
+        convert_payload(
+            "sync_accounts",
+            request,
+            direction="request",
+            source_version="3.2",
+            target_version="3.1",
+        )
+    assert caught.value.pointer == "/accounts/0/notification_configs/0/event_types"
+
+
+def test_request_filter_is_not_widened_by_omission() -> None:
+    request = {
+        "buying_mode": "brief",
+        "brief": "video",
+        "filters": {"required_metrics": ["viewable_impressions"], "channels": ["olv"]},
+    }
+    assert validate_request("get_products", request, version="3.2").valid
+    with pytest.raises(ADCPVersionConversionError) as caught:
+        convert_payload(
+            "get_products",
+            request,
+            direction="request",
+            source_version="3.2",
+            target_version="3.1",
+        )
+    assert caught.value.pointer == "/filters/required_metrics"
+
+
+def test_a_drop_does_not_take_the_blame_for_an_unrelated_refusal() -> None:
+    # spend became optional in 3.2. Dropping the 3.2-only sibling did not
+    # cause its absence, so the delivery row is not silently discarded.
+    def delivery(**totals: Any) -> dict[str, Any]:
+        return {
+            "status": "completed",
+            "reporting_period": {"start": "2026-10-01T00:00:00Z", "end": "2026-10-02T00:00:00Z"},
+            "currency": "USD",
+            "media_buy_deliveries": [
+                {
+                    "media_buy_id": "mb1",
+                    "status": "active",
+                    "totals": {"impressions": 100, **totals},
+                    "by_package": [],
+                }
+            ],
+        }
+
+    for payload in (delivery(), delivery(commissionable_value=5)):
+        assert validate_response("get_media_buy_delivery", payload, version="3.2").valid
+        with pytest.raises(ADCPVersionConversionError) as caught:
+            convert_payload(
+                "get_media_buy_delivery",
+                payload,
+                direction="sync",
+                source_version="3.2",
+                target_version="3.1",
+            )
+        assert caught.value.pointer == "/media_buy_deliveries/0/totals"
+
+
+def test_request_without_an_optional_holder_fails_structurally() -> None:
+    request = {
+        "idempotency_key": "sync-accounts-by-reference-0001",
+        "accounts": [{"account": {"account_id": "acct_1"}, "name": "Acme"}],
+    }
+    with pytest.raises(ADCPVersionConversionError) as caught:
+        convert_payload(
+            "sync_accounts",
+            request,
+            direction="request",
+            source_version="3.2",
+            target_version="3.0",
+        )
+    assert caught.value.pointer == "/accounts/0"
+
+
+@pytest.mark.parametrize(
+    ("declaration", "expected"),
+    [
+        ({"countries": {"US": {"values": ["US-NY", "US-CA"]}}}, True),
+        ({"countries": {"US": {"all_values": True}}}, True),
+        ({"countries": {}}, False),
+    ],
+)
+def test_structured_capability_coarsens_to_the_older_boolean(declaration, expected) -> None:
+    capabilities = {
+        "status": "completed",
+        "adcp": {
+            "major_versions": [3],
+            "supported_versions": ["3.1", "3.2"],
+            "idempotency": {"supported": False},
+        },
+        "supported_protocols": ["media_buy"],
+        "media_buy": {"execution": {"targeting": {"geo_regions": declaration}}},
+    }
+    result = convert_payload(
+        "get_adcp_capabilities",
+        capabilities,
+        direction="sync",
+        source_version="3.2",
+        target_version="3.1",
+    )
+    assert result.payload["media_buy"]["execution"]["targeting"]["geo_regions"] is expected
+    assert [(loss.pointer, loss.reason) for loss in result.losses] == [
+        ("/media_buy/execution/targeting/geo_regions", "coarsened_to_boolean")
+    ]
+    assert validate_response("get_adcp_capabilities", result.payload, version="3.1").valid
+
+
+def test_payloads_that_arrive_invalid_are_projected_not_repaired() -> None:
+    # Missing required product fields are the sender's problem: projection
+    # still drops the 3.2-only field but neither discards the product nor
+    # turns the response into a conversion error.
+    product = {"product_id": "p1", "audience_evidence": [{"evidence_id": "e1"}]}
+    result = convert_payload(
+        "get_products",
+        {"status": "completed", "cache_scope": "public", "products": [product]},
+        direction="sync",
+        source_version="3.2",
+        target_version="3.1",
+    )
+    assert result.payload["products"] == [{"product_id": "p1"}]
+    assert [loss.pointer for loss in result.losses] == ["/products/0/audience_evidence"]
