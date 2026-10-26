@@ -467,15 +467,22 @@ def inherit_field(source: type[BaseModel], name: str, *, required: bool = False)
     same class of defect as #1548 and #1579.
 
     Assign the result on the right-hand side of the annotated redeclaration.
-    ``required=True`` drops the default, for a subclass that makes an optional
-    generated field mandatory; the marker stays, and has nothing to do on a
-    required field. The return type is ``Any`` because a ``FieldInfo`` is what
-    pydantic expects there -- the same reason ``Field()`` itself is ``Any``.
+    ``required=True`` drops the default and the never-null marker, for a
+    subclass that makes an optional generated field mandatory: a required
+    field has no "omitted" for the marker to spell. The return type is
+    ``Any`` because a ``FieldInfo`` is what pydantic expects there -- the same
+    reason ``Field()`` itself is ``Any``.
     """
     field = copy.deepcopy(source.model_fields[name])
     if required:
         field.default = PydanticUndefined
         field.default_factory = None
+        # The marker belongs to an optional property (omit it, or supply a
+        # value); a required field has no "omitted" to spell, and the tree-wide
+        # invariant is that every marked field is optional.
+        field.metadata = [item for item in field.metadata if item is not _REFUSE_JSON_NULL]
+        if field.exclude_if is NoExplicitNull.exclude_if:
+            field.exclude_if = None
     return field
 
 

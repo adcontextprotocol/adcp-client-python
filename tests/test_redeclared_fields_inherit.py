@@ -139,7 +139,11 @@ def test_redeclared_field_keeps_its_generated_metadata(
     if (owner, name) in ALLOWED:
         pytest.skip(ALLOWED[(owner, name)])
     problems = []
-    if is_no_explicit_null(parent) != is_no_explicit_null(child):
+    narrowed_to_required = child.is_required() and not parent.is_required()
+    # A field made required drops the marker (``inherit_field(required=True)``):
+    # every marked field in the tree is optional, and a required one has no
+    # "omitted" for it to spell.
+    if not narrowed_to_required and is_no_explicit_null(parent) != is_no_explicit_null(child):
         problems.append("never-null marker")
     if (parent.description or None) != (child.description or None):
         problems.append("description")

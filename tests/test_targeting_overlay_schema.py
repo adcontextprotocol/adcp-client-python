@@ -16,17 +16,18 @@ from adcp.server.mcp_tools import (
 from adcp.types import TargetingOverlayInput
 from adcp.types.canonical_creative import sanitize_canonical_schema
 
-_PACKAGE_PATH = ("properties", "packages", "anyOf", 0, "items", "properties", "targeting_overlay")
+# ``packages`` is optional but not nullable on every request, so the
+# advertised node is the array itself rather than an ``anyOf`` with a null arm
+# (#1547; the canonical create/update redeclarations inherit the generated
+# never-null marker since #1620).
+_PACKAGE_PATH = ("properties", "packages", "items", "properties", "targeting_overlay")
 _TARGETING_PATHS = {
     "create_media_buy": {_PACKAGE_PATH},
     "update_media_buy": {
         _PACKAGE_PATH,
-        ("properties", "new_packages", "anyOf", 0, "items", "properties", "targeting_overlay"),
+        ("properties", "new_packages", "items", "properties", "targeting_overlay"),
     },
-    # ``packages`` is optional but not nullable on this request, so its
-    # advertised node is the array itself rather than an ``anyOf`` with a null
-    # arm (#1547).
-    "control_media_buy": {("properties", "packages", "items", "properties", "targeting_overlay")},
+    "control_media_buy": {_PACKAGE_PATH},
     "buy_products": {("properties", "purchases", "items", "properties", "targeting_overlay")},
 }
 
