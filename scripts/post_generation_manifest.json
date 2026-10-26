@@ -1,6 +1,7 @@
 {
   "_comment": "Effect manifest for scripts/post_generate_fixes.py. ``true`` records a fix that changes the generated tree; a string records a fix that changes nothing on the pinned schema set, and states why. Regenerate with `python scripts/post_generate_fixes.py --update-manifest`.",
   "fixes": {
+    "point_omittable_fields_at_no_explicit_null": true,
     "add_model_validator_to_product": "No-op since #213 added an explicit discriminator to publisher_properties: Pydantic validates the union, and the body only prints.",
     "fix_preview_render_self_reference": "datamodel-code-generator 0.64.0 emits PreviewRender1..3 unqualified in creative/preview_render.py; the module-qualified form this fix rewrites appears nowhere.",
     "fix_brand_manifest_references": "Its target core/promoted_offerings.py is not generated \u2014 brand.json is in GENERATED_SCHEMA_EXCLUDE_FILES \u2014 and the unaliased brand_manifest.BrandManifest reference appears nowhere in the tree.",
@@ -69,9 +70,9 @@
     "annotate_registry_track_verdict": true,
     "preserve_geo_place_system_map_keys": true,
     "preserve_format_reference_agent_url_wire_string": true,
+    "preserve_wire_text_on_normalizing_fields": true,
     "insert_task_message_markers": true,
     "point_integer_fields_at_the_schema_integer_type": true,
-    "point_omittable_fields_at_no_explicit_null": true,
     "remove_imports_shadowed_by_a_local_class": true,
     "remove_unused_pydantic_field_imports": true,
     "emit_open_asset_unions": true,

@@ -25,9 +25,11 @@ import argparse
 import ast
 import hashlib
 import importlib.util
+import io
 import json
 import re
 import sys
+import tokenize
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
@@ -1005,6 +1007,97 @@ def preserve_format_reference_agent_url_wire_string() -> None:
     source, _ = _remove_unused_imports(source, {"pydantic": ("AnyUrl",)})
     target.write_text(source)
     print("  core/format_id.py: agent_url keeps the wire string (WireUrl)")
+
+
+#: The pydantic type the generator renders for each normalizing ``format`` and
+#: the wire-preserving type from ``adcp.types._wire`` that replaces it. Each
+#: replacement validates identically, keeps the attribute API (a ``datetime``,
+#: an ``AnyUrl``, a ``UUID``, a ``str``) and advertises the same JSON Schema;
+#: the only change is that JSON-mode serialization writes the text the wire
+#: delivered instead of the parser's normalized form.
+_WIRE_PRESERVING_TYPES: dict[tuple[str, str], str] = {
+    ("pydantic", "AwareDatetime"): "WireDatetime",
+    ("pydantic", "AnyUrl"): "WireAnyUrl",
+    ("pydantic", "EmailStr"): "WireEmail",
+    ("uuid", "UUID"): "WireUuid",
+}
+
+
+def _rename_code_names(source: str, renames: Mapping[str, str]) -> str:
+    """Rename identifier tokens, leaving strings and comments untouched.
+
+    A description such as "Use a fresh UUID v4 for each request" must keep
+    its wording; only a ``NAME`` token the tokenizer reports is a reference.
+    """
+    lines = source.splitlines(keepends=True)
+    edits: list[tuple[int, int, int, str]] = []
+    previous = ""
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        # ``uuid.UUID`` is an attribute, not a reference to the imported name.
+        if token.type == tokenize.NAME and token.string in renames and previous != ".":
+            (row, col), (_, end_col) = token.start, token.end
+            edits.append((row - 1, col, end_col, renames[token.string]))
+        if token.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT):
+            previous = token.string
+    for row, col, end_col, replacement in reversed(edits):
+        line = lines[row]
+        lines[row] = line[:col] + replacement + line[end_col:]
+    return "".join(lines)
+
+
+def preserve_wire_text_on_normalizing_fields() -> None:
+    """Point every normalizing scalar field at its wire-preserving type.
+
+    ``format: date-time``, ``format: uri``, ``format: uuid`` and
+    ``format: email`` fields are rendered ``AwareDatetime``, ``AnyUrl``,
+    ``UUID`` and ``EmailStr``, each of which re-serializes the value it parsed:
+    ``https://measurement.example`` comes back with a trailing slash,
+    ``2026-10-01T00:00:00.000+00:00`` as ``2026-10-01T00:00:00Z``, an
+    upper-case UUID lower-cased, an email with its domain lower-cased. AdCP
+    binds bytes to several of these objects -- ``content_digest`` is SHA-256
+    over the JCS form of an entry's declared fields -- so a parsed-then-dumped
+    entry stopped matching its own digest (#1610). The types in
+    ``adcp.types._wire`` validate the same way and serialize the text they
+    were parsed from; a value built in Python serializes as before.
+
+    Every field is pointed there, not only the digest-covered ones: a shared
+    class (``AttestationReference``, ``Provenance``) sits inside digested and
+    undigested objects alike, so a per-subtree rule would have to split
+    classes, and the invariant worth having is that the SDK never rewrites a
+    wire value it did not change.
+    """
+    renames = {name: wire for (_module, name), wire in _WIRE_PRESERVING_TYPES.items()}
+    modified = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if not any(re.search(rf"\b{name}\b", source) for name in renames):
+            continue
+        tree = ast.parse(source)
+        referenced = {
+            node.id for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id in renames
+        }
+        if not referenced:
+            continue
+        for (module, name), wire in _WIRE_PRESERVING_TYPES.items():
+            if name in referenced:
+                source = drop_from_imports(source, module, name)
+        source = _rename_code_names(source, {name: renames[name] for name in referenced})
+        wires = sorted({renames[name] for name in referenced})
+        if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+            source = add_to_import(source, "adcp.types.base", *wires)
+        else:
+            anchor = _import_pattern("pydantic").search(source)
+            if anchor is None:
+                anchor = re.search(r"^from |^import ", source, re.MULTILINE)
+            assert anchor is not None, path
+            source = (
+                source[: anchor.start()]
+                + f"from adcp.types.base import {', '.join(wires)}\n"
+                + source[anchor.start() :]
+            )
+        path.write_text(source)
+        modified += 1
+    print(f"  Pointed normalizing fields at wire-preserving types in {modified} file(s)")
 
 
 def point_integer_fields_at_the_schema_integer_type() -> None:
@@ -8360,6 +8453,9 @@ def main(argv: list[str] | None = None) -> int:
         annotate_registry_track_verdict,
         preserve_geo_place_system_map_keys,
         preserve_format_reference_agent_url_wire_string,
+        # After every pass that adds a validator typed ``AnyUrl`` and before
+        # the import cleanups, which would read the names this pass drops.
+        preserve_wire_text_on_normalizing_fields,
         insert_task_message_markers,
         point_integer_fields_at_the_schema_integer_type,
         remove_imports_shadowed_by_a_local_class,

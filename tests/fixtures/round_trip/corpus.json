@@ -1,0 +1,265 @@
+{
+  "core/audience-evidence.json": {
+    "evidence_id": "evidence_age",
+    "snapshot_id": "evidence_age_2026_q3",
+    "version": "2026-q3",
+    "audience": {
+      "dimension": "age",
+      "range": {
+        "min": 25,
+        "max": 54
+      },
+      "label": "Adults 25-54"
+    },
+    "relationship": "composition",
+    "value": 0.6,
+    "unit": "fraction",
+    "baseline": {
+      "system": "https://measurement.example",
+      "population_id": "us_adults",
+      "version": "2026"
+    },
+    "evidence_type": "measured",
+    "methodology": "projected",
+    "subject_type": "individual",
+    "provider": {
+      "domain": "measurement.example"
+    },
+    "measurement_window": {
+      "start": "2026-07-01",
+      "end": "2026-09-30"
+    },
+    "last_updated": "2026-10-01T00:00:00.000+00:00",
+    "methodology_url": "https://Measurement.Example/methodology",
+    "content_digest": "sha256:5c149933a2feffe1849fe7d16691acf7644881340e79dd2261c3e95deb98f1f7",
+    "attestation_refs": [
+      {
+        "issuer": {
+          "type": "origin",
+          "origin": "https://credentials.example"
+        },
+        "claim_type": "https://adcontextprotocol.org/claims/audience-evidence",
+        "subject": {
+          "type": "resource",
+          "resource_type": "https://adcontextprotocol.org/claims/subjects/audience-evidence",
+          "namespace": "https://measurement.example",
+          "id": "evidence_age_2026_q3",
+          "content_digest": "sha256:5c149933a2feffe1849fe7d16691acf7644881340e79dd2261c3e95deb98f1f7"
+        },
+        "locator": {
+          "type": "credential_uri",
+          "credential_uri": "https://credentials.example/vc/1"
+        }
+      }
+    ]
+  },
+  "core/canonical-audience-evidence.json": {
+    "evidence_id": "evidence_age",
+    "snapshot_id": "evidence_age_2026_q3",
+    "version": "2026-q3",
+    "audience": {
+      "dimension": "age",
+      "range": {
+        "min": 25,
+        "max": 54
+      },
+      "label": "Adults 25-54"
+    },
+    "relationship": "composition",
+    "value": 0.6,
+    "unit": "fraction",
+    "baseline": {
+      "system": "https://measurement.example",
+      "population_id": "us_adults",
+      "version": "2026"
+    },
+    "evidence_type": "measured",
+    "methodology": "projected",
+    "subject_type": "individual",
+    "provider": {
+      "domain": "measurement.example"
+    },
+    "measurement_window": {
+      "start": "2026-07-01",
+      "end": "2026-09-30"
+    },
+    "last_updated": "2026-10-01T00:00:00.000+00:00",
+    "methodology_url": "https://Measurement.Example/methodology",
+    "content_digest": "sha256:5c149933a2feffe1849fe7d16691acf7644881340e79dd2261c3e95deb98f1f7"
+  },
+  "media-buy/commercial-terms.json": {
+    "brand": {
+      "domain": "acme.example"
+    },
+    "purchases": [
+      {
+        "product_id": "prod_1",
+        "pricing_option_id": "cpm_1",
+        "pricing": {
+          "pricing_option_id": "cpm_1",
+          "pricing_model": "cpm",
+          "fixed_price": 5,
+          "currency": "USD"
+        },
+        "start_time": "2026-11-01T00:00:00.000+00:00",
+        "end_time": "2026-11-30T23:59:59+00:00",
+        "targeting_overlay": {
+          "age_restriction": {
+            "min": 21
+          }
+        }
+      }
+    ],
+    "start_time": "2026-11-01T00:00:00.000+00:00",
+    "end_time": "2026-11-30T23:59:59+00:00"
+  },
+  "core/canonical-proposal.json": {
+    "proposal_id": "prop_1",
+    "proposal_kind": "new_media_buy",
+    "proposal_status": "committed",
+    "name": "Q4",
+    "expires_at": "2026-10-15T00:00:00.000+00:00",
+    "commercial_terms": {
+      "brand": {
+        "domain": "acme.example"
+      },
+      "purchases": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_1",
+          "pricing": {
+            "pricing_option_id": "cpm_1",
+            "pricing_model": "cpm",
+            "fixed_price": 5,
+            "currency": "USD"
+          },
+          "start_time": "2026-11-01T00:00:00.000+00:00",
+          "end_time": "2026-11-30T23:59:59+00:00",
+          "targeting_overlay": {
+            "age_restriction": {
+              "min": 21
+            }
+          }
+        }
+      ],
+      "start_time": "2026-11-01T00:00:00.000+00:00",
+      "end_time": "2026-11-30T23:59:59+00:00"
+    },
+    "terms_digest": "sha256:9ZThE6bffvQLxvNEvrwwyF70xPr6eFFQuAuaMP3XEcg"
+  },
+  "core/creative-representation-set.json": {
+    "creative_id": "cr_1",
+    "revision_id": "rev_1",
+    "name": "Banner",
+    "representations": [
+      {
+        "representation_id": "rep_1",
+        "source": {
+          "system": "https://studio.example",
+          "source_representation": "asset_7"
+        },
+        "format_kind": "image",
+        "assets": {
+          "image_main": {
+            "asset_type": "image",
+            "url": "https://CDN.Example/a.png",
+            "width": 300,
+            "height": 250
+          }
+        }
+      }
+    ],
+    "revision_content_digest": "sha256:efc9ee3b58cf06c6af9187dda76cbed4899e28cbaba39cffba97606b124d3d23"
+  },
+  "core/rights-attestation-evaluation.json": {
+    "rights_id": "rights_1",
+    "content_digest": "sha256:5041bf1f713df204784353e82f6a4a535931cb64f1f4b4a5aeaffcb720918b22",
+    "reference": {
+      "issuer": {
+        "type": "brand",
+        "brand": {
+          "domain": "acme.example"
+        }
+      },
+      "claim_type": "https://adcontextprotocol.org/claims/rights/grant",
+      "subject": {
+        "type": "resource",
+        "resource_type": "https://adcontextprotocol.org/claims/subjects/rights-grant",
+        "namespace": "https://rights.example",
+        "id": "rights_1",
+        "content_digest": "sha256:5041bf1f713df204784353e82f6a4a535931cb64f1f4b4a5aeaffcb720918b22"
+      },
+      "locator": {
+        "type": "credential_uri",
+        "credential_uri": "https://credentials.example/vc/rights_1"
+      },
+      "validity_hint": {
+        "not_before": "2026-01-01T00:00:00+00:00",
+        "expires_at": "2027-01-01T00:00:00.000Z"
+      }
+    },
+    "evaluation": {
+      "reference_digest": "sha256:4a5ef326daa88b5757003264296c103f68393b1aa69150255dfe9cbcfee294d4",
+      "outcome": "verified",
+      "evaluated_at": "2026-10-01T00:00:00.000+00:00",
+      "evaluated_by": "https://Governance.Example",
+      "credential_digest": "sha256:5543b0e2cdc4859cafc5a7ff61612b4c15cb5f7a0236c915b8a8a579349335d3",
+      "proof_format": "https://www.w3.org/TR/vc-data-model-2.0/",
+      "revocation_checked_at": "2026-10-01T00:00:00+00:00",
+      "valid_until": "2026-12-31T00:00:00+00:00",
+      "action_binding": {
+        "action_type": "https://adcontextprotocol.org/actions/rights-grant-evaluation",
+        "action_id": "rights_1",
+        "action_digest": "sha256:5041bf1f713df204784353e82f6a4a535931cb64f1f4b4a5aeaffcb720918b22"
+      }
+    }
+  },
+  "governance/check-governance-response.json": {
+    "check_id": "chk_1",
+    "verdict": "approved",
+    "explanation": "ok",
+    "plan_id": "plan_1",
+    "expires_at": "2026-10-02T00:00:00.000+00:00",
+    "runtime_attestation_evaluations": [
+      {
+        "reference_digest": "sha256:4a5ef326daa88b5757003264296c103f68393b1aa69150255dfe9cbcfee294d4",
+        "outcome": "verified",
+        "evaluated_at": "2026-10-01T00:00:00.000+00:00",
+        "evaluated_by": "https://Governance.Example",
+        "credential_digest": "sha256:5543b0e2cdc4859cafc5a7ff61612b4c15cb5f7a0236c915b8a8a579349335d3",
+        "proof_format": "https://www.w3.org/TR/vc-data-model-2.0/",
+        "revocation_checked_at": "2026-10-01T00:00:00+00:00",
+        "valid_until": "2026-12-31T00:00:00+00:00",
+        "action_binding": {
+          "action_type": "https://adcontextprotocol.org/actions/governance-check",
+          "action_id": "chk_1"
+        }
+      }
+    ],
+    "runtime_attestation_binding_digest": "sha256:295927e83297514165a359593222b89693f8b9625a269898662a0a90f2dad84b"
+  },
+  "core/context.json": {
+    "buyer_ref": "po-2026-10",
+    "trace": {
+      "id": "4b1c",
+      "parent": null,
+      "hops": [
+        1,
+        null,
+        {
+          "at": "2026-10-01T00:00:00.000+00:00"
+        }
+      ]
+    },
+    "note": null,
+    "url": "https://Buyer.Example"
+  },
+  "core/ext.json": {
+    "gam": {
+      "advertiser_id": "123",
+      "flags": null,
+      "endpoint": "https://gam.example"
+    },
+    "roku": null
+  }
+}

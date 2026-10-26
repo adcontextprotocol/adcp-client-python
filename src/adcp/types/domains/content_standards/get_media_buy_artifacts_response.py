@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import artifact as artifact_1
@@ -28,7 +29,7 @@ class BrandContext(AdcpVersionEnvelope):
 class Artifact(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     record_id: str
-    timestamp: AwareDatetime | None = None
+    timestamp: WireDatetime | None = None
     package_id: str | None = None
     artifact: artifact_1.Artifact
     country: str | None = None

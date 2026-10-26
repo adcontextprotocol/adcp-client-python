@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import catalog_item_availability_state as catalog_item_availability_state_1
@@ -40,8 +41,8 @@ class Catalog(AdcpVersionEnvelope):
     items_pending: Annotated[int, Field(ge=0)] | None = None
     items_rejected: Annotated[int, Field(ge=0)] | None = None
     item_issues: list[ItemIssue] | None = None
-    last_synced_at: AwareDatetime | None = None
-    next_fetch_at: AwareDatetime | None = None
+    last_synced_at: WireDatetime | None = None
+    next_fetch_at: WireDatetime | None = None
     changes: list[str] | None = None
     errors: list[error_1.Error] | None = None
     warnings: list[str] | None = None

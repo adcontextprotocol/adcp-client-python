@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl, WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
@@ -42,8 +43,8 @@ class Preview2(AdcpVersionEnvelope):
 class Preview(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview2], Field(min_length=1)]
-    interactive_url: AnyUrl | None = None
-    expires_at: AwareDatetime
+    interactive_url: WireAnyUrl | None = None
+    expires_at: WireDatetime
 
 
 class Input2(AdcpVersionEnvelope):
@@ -65,8 +66,8 @@ class Preview4(AdcpVersionEnvelope):
 class Preview3(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview4], Field(min_length=1)]
-    interactive_url: AnyUrl | None = None
-    expires_at: AwareDatetime
+    interactive_url: WireAnyUrl | None = None
+    expires_at: WireDatetime
 
 
 class CatalogItemRef(AdcpVersionEnvelope):
@@ -140,7 +141,7 @@ class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     build_variant_id: str | None = None
     recipe_hash: str | None = None
     sandbox: bool | None = None
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
     preview: Preview | None = None
     preview_error: error_1.Error | None = None
     pricing_option_id: str | None = None
@@ -162,7 +163,7 @@ class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     model_config = ConfigDict(extra='allow')
     creative_manifests: Annotated[list[creative_manifest_1.CreativeManifest], Field(min_length=1)]
     sandbox: bool | None = None
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
     preview: Preview3 | None = None
     preview_error: error_1.Error | None = None
     pricing_option_id: str | None = None
@@ -187,7 +188,7 @@ class BuildCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     budget_status: Literal['complete', 'capped'] | None = None
     errors: list[error_1.Error] | None = None
     sandbox: bool | None = None
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
@@ -196,7 +197,7 @@ class BuildCreativeResponse5(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     model_config = ConfigDict(extra='allow')
     mode: Literal['estimate'] = 'estimate'
     estimate: Estimate
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 

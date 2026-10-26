@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl, WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account_authorization as account_authorization_1
@@ -31,9 +32,9 @@ from ..enums import payment_terms as payment_terms_1
 
 class Setup(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    url: AnyUrl | None = None
+    url: WireAnyUrl | None = None
     message: str
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
 
 
 class CreditLimit(AdcpVersionEnvelope):

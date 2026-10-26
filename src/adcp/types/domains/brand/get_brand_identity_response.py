@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AnyUrl, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
@@ -27,7 +28,7 @@ class House(AdcpVersionEnvelope):
 
 class Logo(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    url: AnyUrl
+    url: WireAnyUrl
     orientation: Literal['square', 'horizontal', 'vertical', 'stacked'] | None = None
     background: Literal['dark-bg', 'light-bg', 'transparent-bg'] | None = None
     variant: Literal['primary', 'secondary', 'icon', 'wordmark', 'full-lockup'] | None = None
@@ -88,7 +89,7 @@ class Asset(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     asset_id: str
     asset_type: asset_content_type_1.AssetContentType
-    url: AnyUrl
+    url: WireAnyUrl
     tags: list[str] | None = None
     name: str | None = None
     description: str | None = None
