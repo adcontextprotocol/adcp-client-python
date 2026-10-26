@@ -270,6 +270,128 @@ async def test_safe_rejection(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("leg", ["mcp", "a2a"])
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize("code", ["identity_org_mismatch", "network_policy_denied", "x"])
+async def test_resolver_rejection_carries_a_stable_code(
+    leg: str, status: Any, code: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    def resolve(request: AuthRequest) -> Principal | None:
+        error = PrincipalResolverError(status, code=code)
+        error.args = ("private-token",)
+        raise error
+
+    config = BearerTokenAuth(validate_token=lambda token: None, resolve_principal=resolve)
+    with caplog.at_level(logging.DEBUG, logger="adcp.server.auth"):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=resolver_app(leg, config)), base_url="http://test"
+        ) as client:
+            response = await client.post("/", json=CALL)
+    assert response.status_code == status
+    assert response.json() == {"error": code}
+    assert ("www-authenticate" in response.headers) == (status == 401)
+    assert "private-token" not in caplog.text + response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", ["mcp", "a2a"])
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize(
+    "code",
+    [
+        "",
+        "Identity_org_mismatch",
+        "1dentity",
+        "_identity",
+        "identity-org-mismatch",
+        "identity org mismatch",
+        "identity_org_mismatch\n",
+        "a" * 65,
+        "token=private-token",
+        42,
+    ],
+)
+async def test_resolver_rejection_falls_back_on_an_unsafe_code(
+    leg: str, status: Any, code: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    def resolve(request: AuthRequest) -> Principal | None:
+        raise PrincipalResolverError(status, code=code)
+
+    config = BearerTokenAuth(validate_token=lambda token: None, resolve_principal=resolve)
+    with caplog.at_level(logging.DEBUG, logger="adcp.server.auth"):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=resolver_app(leg, config)), base_url="http://test"
+        ) as client:
+            response = await client.post("/", json=CALL)
+    assert response.status_code == status
+    assert response.json() == {"error": "forbidden" if status == 403 else "unauthenticated"}
+    assert ("www-authenticate" in response.headers) == (status == 401)
+    rejected = [r for r in caplog.records if getattr(r, "reason", None) == "invalid_code"]
+    assert len(rejected) == 1
+    assert rejected[0].args == ()
+    if code not in ("", "a" * 65):
+        assert str(code) not in caplog.text + response.text
+
+
+@pytest.mark.asyncio
+async def test_combined_server_resolver_code_on_both_transports() -> None:
+    class Seller(ADCPHandler):
+        advertised_tools = {"get_products"}
+
+        async def get_products(self, params: Any, context: Any = None) -> dict[str, Any]:
+            raise AssertionError("a rejected caller must not reach the handler")
+
+    async def resolve(request: AuthRequest) -> Principal | None:
+        raise PrincipalResolverError(403, code="identity_org_mismatch")
+
+    app = _build_mcp_and_a2a_app(
+        Seller(),
+        name="seller",
+        port=3001,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        validation=None,
+        stateless_http=True,
+        enable_dns_rebinding_protection=False,
+        context_factory=auth_context_factory,
+        auth=BearerTokenAuth(validate_token=lambda token: None, resolve_principal=resolve),
+    )
+    params = {"buying_mode": "brief", "brief": "video"}
+    mcp = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": "get_products", "arguments": params},
+    }
+    a2a = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "SendMessage",
+        "params": {
+            "message": {
+                "messageId": "m1",
+                "role": "ROLE_USER",
+                "parts": [{"data": {"skill": "get_products", "parameters": params}}],
+            }
+        },
+    }
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test", follow_redirects=True
+        ) as client:
+            for path, body in [("/mcp", mcp), ("/", a2a)]:
+                response = await client.post(
+                    path,
+                    json=body,
+                    headers={"accept": "application/json, text/event-stream", "A2A-Version": "1.0"},
+                )
+                assert response.status_code == 403, response.text
+                assert response.json() == {"error": "identity_org_mismatch"}
+                assert "www-authenticate" not in response.headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", ["mcp", "a2a"])
 @pytest.mark.parametrize("allow", [False, True])
 async def test_resolver_none_applies_existing_missing_bearer_policy(leg: str, allow: bool) -> None:
     config = BearerTokenAuth(
