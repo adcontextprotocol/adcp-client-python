@@ -644,6 +644,17 @@ class NaturalKeyAccounts(Generic[TMeta]):
     persists the accounts that subsequent loader calls can resolve. Discovery
     only calls the loader, never the provisioning callback. The callback owns
     billing validation, dry-run semantics, and durable persistence.
+
+    Pass ``loader_by_id`` to also accept ``{"account_id": ...}`` references,
+    as a seller declaring AdCP 3.3 ``account.stable_account_id`` must on
+    every account-scoped task. It receives the ``account_id`` and verified
+    auth info, MUST scope the lookup to accounts the caller may operate (so
+    an id never crosses principals), and returns ``None`` on a miss. The
+    account it returns must have ``id`` equal to the requested ``account_id``,
+    and must be the same account the natural key resolves to, so state
+    written under one reference is visible under the other: return that
+    ``account_id`` from ``upsert_request`` and never change it. Without
+    ``loader_by_id``, an ``account_id`` reference is ``ACCOUNT_NOT_FOUND``.
     """
 
     resolution: ClassVar[str] = "explicit"
@@ -656,11 +667,24 @@ class NaturalKeyAccounts(Generic[TMeta]):
         ],
         *,
         upsert_request: Callable[..., Any] | None = None,
+        loader_by_id: (
+            Callable[
+                [str, AuthInfo | None],
+                Awaitable[Account[TMeta] | None] | Account[TMeta] | None,
+            ]
+            | None
+        ) = None,
     ) -> None:
         self._loader = loader
+        self._loader_by_id = loader_by_id
         # Keep the optional hook absent when provisioning isn't configured.
         if upsert_request is not None:
             self.upsert_request = upsert_request
+
+    @property
+    def resolves_account_ids(self) -> bool:
+        """Whether ``{"account_id": ...}`` references resolve (``loader_by_id`` is set)."""
+        return self._loader_by_id is not None
 
     async def resolve(
         self, ref: dict[str, Any] | None, auth_info: AuthInfo | None = None
@@ -674,9 +698,21 @@ class NaturalKeyAccounts(Generic[TMeta]):
         except ValueError as exc:
             raise AdcpError("ACCOUNT_NOT_FOUND", message=str(exc), field="account") from exc
         if "account_id" in key:
-            raise AdcpError(
-                "ACCOUNT_NOT_FOUND", message="Use the provisioned natural key", field="account"
-            )
+            if self._loader_by_id is None:
+                raise AdcpError(
+                    "ACCOUNT_NOT_FOUND", message="Use the provisioned natural key", field="account"
+                )
+            account_id = key["account_id"]
+            by_id = self._loader_by_id(account_id, auth_info)
+            if inspect.isawaitable(by_id):
+                by_id = await by_id
+            # A loader returning some other account would split state between
+            # the id and the natural key, so treat it as a miss.
+            if by_id is None or by_id.id != account_id:
+                raise AdcpError(
+                    "ACCOUNT_NOT_FOUND", message="Account has not been provisioned", field="account"
+                )
+            return by_id
         result = self._loader(key, auth_info)
         if inspect.isawaitable(result):
             result = await result
