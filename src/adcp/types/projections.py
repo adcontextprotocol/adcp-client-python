@@ -25,12 +25,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator, Mapping
-from typing import Annotated, Any
+from typing import Any
 
 from pydantic import ConfigDict, Field, field_validator
 
 from adcp._version import normalize_to_release_precision
 from adcp.types import Account, BusinessEntity, NotificationAuthentication, NotificationConfig
+from adcp.types.base import inherit_field
 from adcp.types.capabilities import GeoPostalAreas, LegacyPostalCodeSystem
 from adcp.types.variants import SchemaVariant
 
@@ -188,7 +189,9 @@ class _NotificationAuthenticationResponse(NotificationAuthentication):
 class _NotificationConfigResponse(NotificationConfig):
     """Account notification config with write-only credentials stripped."""
 
-    authentication: SchemaVariant[_NotificationAuthenticationResponse | None] = None
+    authentication: SchemaVariant[_NotificationAuthenticationResponse | None] = inherit_field(
+        NotificationConfig, "authentication"
+    )
 
 
 class AccountResponse(Account):
@@ -202,10 +205,11 @@ class AccountResponse(Account):
     to an ``AccountResponse`` and drops bank along the way.
     """
 
-    billing_entity: BusinessEntityResponse | None = None
-    notification_configs: SchemaVariant[
-        Annotated[list[_NotificationConfigResponse], Field(max_length=16)] | None
-    ] = None
+    billing_entity: BusinessEntityResponse | None = inherit_field(Account, "billing_entity")
+    # The generated field carries ``max_length=16``; it is inherited, not restated.
+    notification_configs: SchemaVariant[list[_NotificationConfigResponse] | None] = inherit_field(
+        Account, "notification_configs"
+    )
 
 
 def to_account_response(account: Account) -> AccountResponse:

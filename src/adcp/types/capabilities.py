@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from adcp.types.base import AdCPBaseModel
 
 from adcp.types._generated import CountryFusedPostalCodeSystem as LegacyPostalCodeSystem
+from adcp.types.base import inherit_field
 from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     A2ui,
     Accreditation,
@@ -152,7 +153,9 @@ from adcp.types.domains.core.reporting_delivery_capabilities import (
 class MediaBuy(_MediaBuy):
     """Media-buy capabilities using the canonical reporting model identity."""
 
-    reporting_delivery: ReportingDeliveryCapabilities | None = None  # type: ignore[assignment]
+    reporting_delivery: ReportingDeliveryCapabilities | None = inherit_field(  # type: ignore[assignment]
+        _MediaBuy, "reporting_delivery"
+    )
 
 
 CapabilitiesMediaBuy = MediaBuy
