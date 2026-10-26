@@ -189,10 +189,10 @@ class TaskRecord:
     error: dict[str, Any] | None = None
     request_context: dict[str, Any] | None = None
     """Buyer-supplied ``context`` extension from the request that
-    issued this task. Echoed to ``tasks/get`` responses at the
-    top-level ``context`` field per
-    ``schemas/cache/core/tasks_get_response.json`` (sibling of
-    ``result`` / ``error``). Captured at ``issue()`` time and
+    issued this task. ``tasks/get`` echoes it inside ``result`` — the
+    original task's terminal response, whose schema carries ``context`` —
+    never as the poll response's top-level ``context``, which echoes the
+    poll request's own (#1574). Captured at ``issue()`` time and
     immutable afterwards — terminal-state transitions
     (``complete`` / ``fail``) MUST NOT touch this field. Closes #563.
     """
@@ -200,15 +200,16 @@ class TaskRecord:
     updated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize for buyer consumption via ``tasks/get``.
+        """Serialize the registry record.
 
-        Adopters or middleware reading the dict shape get the exact
-        wire-relevant fields. ``created_at`` / ``updated_at`` are
-        included so admin tooling can build SLA reports.
+        This is the record shape, not the wire shape:
+        :func:`adcp.decisioning.task_queries.project_task` projects it onto
+        ``tasks/get``. ``created_at`` / ``updated_at`` are included so admin
+        tooling can build SLA reports.
 
-        ``context`` lands at the top level — sibling of ``result``
-        and ``error`` — matching the spec's
-        ``TasksGetResponse.context`` placement (#563).
+        ``context`` is the creating request's ``context``. The projection
+        echoes it inside ``result``; the poll response's top-level
+        ``context`` belongs to the poll request (#1574).
         """
         out: dict[str, Any] = {
             "task_id": self.task_id,

@@ -198,6 +198,51 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.1.1...v9.2.0) (2026-10-26)
+
+
+### Features
+
+* **server:** let PrincipalResolverError carry a stable error code ([#1633](https://github.com/adcontextprotocol/adcp-client-python/issues/1633)) ([cf96d57](https://github.com/adcontextprotocol/adcp-client-python/commit/cf96d573ba2240fb5b666dc0f891378f253dfbe4)), closes [#1623](https://github.com/adcontextprotocol/adcp-client-python/issues/1623)
+
+
+### Bug Fixes
+
+* **adagents:** strip surrounding whitespace in normalize_url ([#1629](https://github.com/adcontextprotocol/adcp-client-python/issues/1629)) ([4e2ae8f](https://github.com/adcontextprotocol/adcp-client-python/commit/4e2ae8fc153a662ec67bbb24ef478621b37570db)), closes [#1624](https://github.com/adcontextprotocol/adcp-client-python/issues/1624)
+* **compat:** infer display_tag and every 3.2 asset type from the asset key ([#1628](https://github.com/adcontextprotocol/adcp-client-python/issues/1628)) ([88cf04a](https://github.com/adcontextprotocol/adcp-client-python/commit/88cf04a1cd684595b6ae58712cec42e01590c58f)), closes [#1624](https://github.com/adcontextprotocol/adcp-client-python/issues/1624)
+* **compat:** never downgrade into a payload the older schema refuses ([#1630](https://github.com/adcontextprotocol/adcp-client-python/issues/1630)) ([b5234e2](https://github.com/adcontextprotocol/adcp-client-python/commit/b5234e221b539abb7c6797aa278e9c2874ea38fa))
+* **decisioning:** project ADCPTaskError from platform methods to its own wire error ([#1632](https://github.com/adcontextprotocol/adcp-client-python/issues/1632)) ([7b95b26](https://github.com/adcontextprotocol/adcp-client-python/commit/7b95b26f0d61b1b35edaae1d192f8f74adc40289)), closes [#1622](https://github.com/adcontextprotocol/adcp-client-python/issues/1622)
+* **reporting:** classify pending status and owed history as transient, unresolved references as REFERENCE_NOT_FOUND ([#1631](https://github.com/adcontextprotocol/adcp-client-python/issues/1631)) ([a2ec81c](https://github.com/adcontextprotocol/adcp-client-python/commit/a2ec81c0679042c0a3cb0a0779d03df53311e174)), closes [#1618](https://github.com/adcontextprotocol/adcp-client-python/issues/1618)
+* **testing:** stop build_all_models hanging after a generated_poc alias import ([#1626](https://github.com/adcontextprotocol/adcp-client-python/issues/1626)) ([6f61234](https://github.com/adcontextprotocol/adcp-client-python/commit/6f61234cc2717e5e9cff2a824b28d3eb480af6f8)), closes [#1619](https://github.com/adcontextprotocol/adcp-client-python/issues/1619)
+* **types:** inherit the generated field on every hand-written redeclaration ([#1625](https://github.com/adcontextprotocol/adcp-client-python/issues/1625)) ([6e0ed68](https://github.com/adcontextprotocol/adcp-client-python/commit/6e0ed688e16c3be94fb117fef5157b4cda08a136))
+
+## [9.1.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.1.0...v9.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **compat:** log server-side conversion losses at DEBUG with one INFO summary ([#1609](https://github.com/adcontextprotocol/adcp-client-python/issues/1609)) ([f7e4f3a](https://github.com/adcontextprotocol/adcp-client-python/commit/f7e4f3a5f1c8acba40072df0af377927a0af74ec))
+
+## [9.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0...v9.1.0) (2026-10-25)
+
+
+### Features
+
+* **media-buy:** persist and echo create context on get_media_buys ([#1600](https://github.com/adcontextprotocol/adcp-client-python/issues/1600)) ([4083dc5](https://github.com/adcontextprotocol/adcp-client-python/commit/4083dc52702ddd1d20aa840dd4265bf61dd75ddd)), closes [#1575](https://github.com/adcontextprotocol/adcp-client-python/issues/1575)
+
+
+### Bug Fixes
+
+* **a2a:** echo request context on unknown-skill and unexpected-error tasks ([#1597](https://github.com/adcontextprotocol/adcp-client-python/issues/1597)) ([7b44d8d](https://github.com/adcontextprotocol/adcp-client-python/commit/7b44d8d5d1627f98fede0ed5660ab3d804f230bd)), closes [#1573](https://github.com/adcontextprotocol/adcp-client-python/issues/1573)
+* **a2a:** keep integers integral in echoed context across the protobuf Struct ([#1594](https://github.com/adcontextprotocol/adcp-client-python/issues/1594)) ([bf6d966](https://github.com/adcontextprotocol/adcp-client-python/commit/bf6d96641910ccdaa2e2b95bf7965a564c9e1d9b)), closes [#1572](https://github.com/adcontextprotocol/adcp-client-python/issues/1572)
+* **reporting-storage:** surface ownership migration errors from startup ([51365c9](https://github.com/adcontextprotocol/adcp-client-python/commit/51365c9715c3b74c11b3353991525af93d04f392))
+* **reporting:** name the cause of a reporting startup failure ([a202a3c](https://github.com/adcontextprotocol/adcp-client-python/commit/a202a3cbeb41ce6f89dcac8db943a0a0f9d72da3)), closes [#1561](https://github.com/adcontextprotocol/adcp-client-python/issues/1561)
+* **server:** mirror a raised AdcpError into the payload errors array ([#1592](https://github.com/adcontextprotocol/adcp-client-python/issues/1592)) ([cd0319b](https://github.com/adcontextprotocol/adcp-client-python/commit/cd0319b57d27ab8bbb06ddb091537645dadf887b)), closes [#1558](https://github.com/adcontextprotocol/adcp-client-python/issues/1558)
+* **targeting:** bridge package forecast request inputs ([#1598](https://github.com/adcontextprotocol/adcp-client-python/issues/1598)) ([7cd667f](https://github.com/adcontextprotocol/adcp-client-python/commit/7cd667f9e134d958aadffadef1420d0c91c941ef))
+* **tasks:** echo the poll's own context on tasks/get ([#1599](https://github.com/adcontextprotocol/adcp-client-python/issues/1599)) ([f1f7593](https://github.com/adcontextprotocol/adcp-client-python/commit/f1f75930152510de374d98bd286f2462af2100bb)), closes [#1574](https://github.com/adcontextprotocol/adcp-client-python/issues/1574)
+* **types:** inherit the generated creatives ceiling on PackageRequest ([#1579](https://github.com/adcontextprotocol/adcp-client-python/issues/1579)) ([6f13ce0](https://github.com/adcontextprotocol/adcp-client-python/commit/6f13ce07e69bc24de23ce63b97958875f6866cc7))
+* **types:** leave unset optional fields off the wire from any parent ([#1591](https://github.com/adcontextprotocol/adcp-client-python/issues/1591)) ([1086cd9](https://github.com/adcontextprotocol/adcp-client-python/commit/1086cd90f70e760873b445f15db5cdcb0d8aeeed)), closes [#1587](https://github.com/adcontextprotocol/adcp-client-python/issues/1587)
+
 ## [9.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.4...v9.0.0) (2026-10-24)
 
 
@@ -206,6 +251,7 @@
 * **reporting:** the PostgreSQL reporting stores, the row storage providers, the change feed, the ownership-migration helpers and `ReliableReportingService.postgres` leave `adcp`; install `adcp-reporting-storage[pg]` (plus `gcs`/`s3`/`azure`) and import them from `adcp_reporting_storage`. The `adcp[reporting-gcs]`, `[reporting-s3]` and `[reporting-azure]` extras are removed. See docs/reporting-storage-package-migration.md.
 * **codegen:** a JSON document carrying `null` for an optional property whose schema does not admit `null` is now refused by `model_validate_json` and `TypeAdapter.validate_json`, and the published JSON Schema of such a property has no null arm. A Python `None` is still accepted. JSON produced with `exclude_none=False` must be read back in Python mode (`model_validate(json.loads(...))`).
 * **types:** SyncCreativesRequest.creatives is now list[CreativeAsset] | None. Handlers must guard it before iteration or use request.creatives or [] for assignment-only requests.
+* **compat:** server handlers receive requests already upgraded to the latest supported minor. A 3.1 buyer's request reaches the handler as `adcp_version: "3.2"`, so reading the version from handler params, including `resolve_requested_adcp_version(params)`, returns the served version, not the buyer's. Read `ToolContext.resolved_adcp_version` for the buyer's negotiated version, and answer in the latest shapes; the SDK converts the response down. Listed after release; see docs/cross-version-conversion.md. ([#1559](https://github.com/adcontextprotocol/adcp-client-python/issues/1559))
 
 ### chore
 

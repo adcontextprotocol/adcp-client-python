@@ -1,0 +1,105 @@
+{
+  "description": "Valid AdCP 3.2 payloads converted down by tests/test_version_conversion_sweep.py, in addition to every bundled schema example. Each covers a shape the bundled examples do not.",
+  "cases": [
+    {
+      "id": "issue1621.list_accounts.notification_configs",
+      "tool": "list_accounts",
+      "direction": "sync",
+      "payload": {
+        "status": "completed",
+        "accounts": [
+          {
+            "account_id": "a1",
+            "name": "Acct",
+            "status": "active",
+            "notification_configs": [
+              {
+                "subscriber_id": "only_new_events",
+                "url": "https://buyer.example/hooks/a",
+                "event_types": ["account.change_recorded"]
+              },
+              {
+                "subscriber_id": "mixed_events",
+                "url": "https://buyer.example/hooks/b",
+                "event_types": ["account.change_recorded", "product.updated"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "issue1621.get_adcp_capabilities.geo_regions",
+      "tool": "get_adcp_capabilities",
+      "direction": "sync",
+      "payload": {
+        "status": "completed",
+        "adcp": {
+          "major_versions": [3],
+          "supported_versions": ["3.1", "3.2"],
+          "idempotency": {"supported": false}
+        },
+        "supported_protocols": ["media_buy"],
+        "media_buy": {
+          "execution": {
+            "targeting": {
+              "geo_countries": true,
+              "geo_regions": {"countries": {"US": {"values": ["US-NY", "US-CA"]}}},
+              "geo_postal_areas": {"US": ["zip"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "get_adcp_capabilities.geo_regions.with_account",
+      "tool": "get_adcp_capabilities",
+      "direction": "sync",
+      "payload": {
+        "status": "completed",
+        "adcp": {
+          "major_versions": [3],
+          "supported_versions": ["3.0", "3.1", "3.2"],
+          "idempotency": {"supported": false}
+        },
+        "supported_protocols": ["media_buy"],
+        "account": {"supported_billing": ["operator"]},
+        "media_buy": {
+          "execution": {
+            "targeting": {
+              "geo_countries": true,
+              "geo_regions": {"countries": {"US": {"all_values": true}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "sync_accounts.request.notification_configs",
+      "tool": "sync_accounts",
+      "direction": "request",
+      "payload": {
+        "idempotency_key": "sync-accounts-notification-configs-0001",
+        "accounts": [
+          {
+            "brand": {"domain": "acme.example"},
+            "operator": "agency.example",
+            "billing": "operator",
+            "notification_configs": [
+              {
+                "subscriber_id": "only_new_events",
+                "url": "https://buyer.example/hooks/a",
+                "event_types": ["account.change_recorded"]
+              },
+              {
+                "subscriber_id": "mixed_events",
+                "url": "https://buyer.example/hooks/b",
+                "event_types": ["account.change_recorded", "product.updated"]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

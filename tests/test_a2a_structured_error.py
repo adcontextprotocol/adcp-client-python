@@ -417,6 +417,22 @@ async def test_request_context_echoes_into_error_envelope() -> None:
 
 
 @pytest.mark.asyncio
+async def test_error_payload_mirrors_adcp_error_into_errors_array() -> None:
+    """A2A fills both layers like MCP: payload ``errors[]`` and ``adcp_error`` (#1558)."""
+    handler = _DecisioningRaiser(
+        lambda: DecisioningAdcpError("INVALID_REQUEST", message="bad", field="packages[0]")
+    )
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    await executor.execute(_request_context("get_products", {}), queue)
+
+    payload = _adcp_error_full_payload(await queue.dequeue_event())
+    assert payload["errors"] == [payload["adcp_error"]]
+    assert payload["errors"][0]["field"] == "packages[0]"
+
+
+@pytest.mark.asyncio
 async def test_no_request_context_omits_context_from_error_envelope() -> None:
     """When the request carries no ``context`` field, the error DataPart
     MUST NOT synthesise one — only echo what the buyer sent."""

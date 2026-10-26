@@ -148,12 +148,20 @@ class ToolContext:
         headers, testing hooks). Downstream agents may subclass
         :class:`ToolContext` for typed fields; ``metadata`` is the escape
         hatch when subclassing isn't worth it.
-    :param resolved_adcp_version: Release-precision AdCP version resolved by
-        the transport dispatcher for this request. MCP unversioned native
-        traffic is pinned to ``"3.0"`` for compatibility; A2A unversioned
-        traffic leaves this as ``None`` and is served as the current SDK
-        shape. Handlers should read this only when business logic truly
-        depends on the buyer's wire contract.
+    :param resolved_adcp_version: The buyer's wire contract: the
+        release-precision AdCP version the transport dispatcher negotiated
+        for this request, before the SDK upgraded the request. A buyer
+        claiming ``adcp_version: "3.1"`` reads ``"3.1"`` here even though the
+        handler's params arrive upgraded to the latest minor, so this, not
+        :func:`adcp.validation.envelope.resolve_requested_adcp_version` on
+        those params, is the source for version-specific business logic.
+        A major-only envelope resolves to ``"3.0"``. Without any version
+        envelope, the server's pinned ``adcp_version`` applies if it has one;
+        otherwise MCP pins ``"3.0"`` for compatibility, while A2A leaves this
+        ``None`` and serves the current SDK shape. Unversioned
+        ``get_adcp_capabilities`` resolves to the highest supported release.
+        Handlers must answer in the latest shapes regardless of this value;
+        the SDK converts the response down to this version.
     """
 
     request_id: str | None = None

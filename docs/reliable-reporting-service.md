@@ -394,8 +394,14 @@ returns `AUTH_REQUIRED`; explicit buyer configuration validation can raise
 Composition errors retain `INTERNAL_ERROR` and terminal recovery, with internal
 configuration details omitted from buyer responses. Ledger codes are preserved
 and receive the SDK's recovery classification for that code. Reporting cursor/
-input extensions are correctable, storage-unavailability extensions are transient,
-and unknown extension or integrity failures default to terminal. Disabled optional methods and aggregate delivery
+input extensions are correctable. Storage-unavailability extensions are transient,
+as are a pending status lifecycle (`STATUS_PROJECTION_UNAVAILABLE`) and retained
+history the seller still owes but has not yet materialized or repaired
+(`HISTORY_UNAVAILABLE`): the request is valid, and the same retry succeeds once
+the seller catches up. A reporting reference that does not resolve for the caller
+(`LOOKUP_UNAVAILABLE`) answers the standard, nondisclosing `REFERENCE_NOT_FOUND`
+with correctable recovery. Unknown extension or integrity failures default to
+terminal. Disabled optional methods and aggregate delivery
 continue to delegate to the application.
 
 ## Source identity and automatic read timing

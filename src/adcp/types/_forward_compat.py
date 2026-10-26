@@ -38,6 +38,7 @@ import json
 from collections.abc import Callable
 from copy import copy, deepcopy
 from functools import partial
+from importlib import import_module
 from types import GenericAlias
 from typing import TYPE_CHECKING, Annotated, Any, cast, get_args
 
@@ -60,6 +61,7 @@ from pydantic_core.core_schema import ErrorType
 
 from adcp.types.base import AdCPBaseModel, NoExplicitNull
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
+from adcp.types.canonical_creative import GetProductsRequest as _PublicGetProductsRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.canonical_creative import UpdateMediaBuyRequest as _PublicUpdateMediaBuyRequest
@@ -439,6 +441,39 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
     model.model_rebuild(force=True)
 
 
+def _patch_package_forecast_targeting() -> None:
+    """Bridge the optional 3.3 package input without changing older generated trees."""
+    module_name = "adcp.types.domains.media_buy.package_forecast_input"
+    try:
+        forecast_module = import_module(module_name)
+    except ModuleNotFoundError as exc:
+        # Only the optional model itself may be absent. A broken dependency
+        # inside a present generated module must still fail the import.
+        if exc.name != module_name:
+            raise
+        return
+
+    forecast_model = forecast_module.PackageForecastInput
+    _patch_targeting_overlay(forecast_model)
+    request_module = import_module("adcp.types.domains.media_buy.get_products_request")
+    # _ergonomic eagerly builds get_products before this patch. Rebuild its
+    # product-scoped union arm first, then both public request parents. Names
+    # of generated anonymous union arms change during code generation.
+    for model in vars(request_module).values():
+        if (
+            isinstance(model, type)
+            and issubclass(model, BaseModel)
+            and model.__module__ == request_module.__name__
+            and any(
+                _annotation_contains(field.annotation, forecast_model)
+                for field in model.model_fields.values()
+            )
+        ):
+            model.model_rebuild(force=True)
+    request_module.GetProductsRequest.model_rebuild(force=True)
+    _PublicGetProductsRequest.model_rebuild(force=True)
+
+
 def _apply_forward_compat() -> None:
     """Apply readback, capability, and public-model compatibility patches."""
     for model in (
@@ -452,6 +487,7 @@ def _apply_forward_compat() -> None:
         PublicPackageUpdate,
     ):
         _patch_targeting_overlay(model)
+    _patch_package_forecast_targeting()
 
     # _ergonomic eagerly builds this legacy parent before the targeting patch.
     # Refresh its cached nested validator as well as the package model itself.

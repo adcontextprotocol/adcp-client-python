@@ -9,9 +9,10 @@ with :mod:`adcp.validation`. In particular, code generation cannot represent
 every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 """
 
+import copy
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, cast
 
 from pydantic import (
     AfterValidator,
@@ -20,6 +21,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     GetCoreSchemaHandler,
+    SerializationInfo,
     SerializerFunctionWrapHandler,
     StrictInt,
     StrictStr,
@@ -27,11 +29,36 @@ from pydantic import (
     WithJsonSchema,
     model_serializer,
 )
-from pydantic_core import PydanticSerializationError, core_schema
+from pydantic.fields import FieldInfo
+from pydantic_core import PydanticSerializationError, PydanticUndefined, core_schema
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
 from adcp.types._scalar import as_json_schema_integer
+
+# Re-exported for the generated modules, beside ``WireUrl`` (#1384): the
+# wire-preserving types ``scripts/post_generate_fixes.py`` points format fields
+# at. To a type checker each IS the pydantic type it replaces -- a generated
+# ``last_updated`` reads as ``datetime``, a ``url`` as ``AnyUrl`` -- so an
+# adopter's ``assert_type``, assignment or constructor call type-checks exactly
+# as it did; at runtime the value is the subclass that remembers its wire text.
+# ``wire_text`` is the typed way to read that text.
+from adcp.types._wire import WireEmail as WireEmail
+from adcp.types._wire import wire_text as wire_text
+
+if TYPE_CHECKING:
+    import uuid as _uuid
+    from typing import TypeAlias
+
+    from pydantic import AwareDatetime as _AwareDatetime
+
+    WireDatetime: TypeAlias = _AwareDatetime
+    WireAnyUrl: TypeAlias = AnyUrl
+    WireUuid: TypeAlias = _uuid.UUID
+else:
+    from adcp.types._wire import WireAnyUrl as WireAnyUrl
+    from adcp.types._wire import WireDatetime as WireDatetime
+    from adcp.types._wire import WireUuid as WireUuid
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -303,7 +330,10 @@ def _url_adapter() -> TypeAdapter[AnyUrl]:
 
 #: A ``format: uri`` string whose bytes are part of an identity. Validated as a
 #: URL, carried as the ``str`` the wire delivered. ``scripts/post_generate_fixes.py``
-#: points the format-reference ``agent_url`` here.
+#: points the format-reference ``agent_url`` here. Its siblings for a field that
+#: keeps the parsed type -- :class:`WireAnyUrl`, :class:`WireDatetime`,
+#: :class:`WireUuid` -- and the ``str``-typed :data:`WireEmail` live in
+#: :mod:`adcp.types._wire` and are re-exported here for the generated modules.
 WireUrl = Annotated[
     StrictStr,
     AfterValidator(_require_absolute_url),
@@ -339,40 +369,28 @@ def _without_nullable(schema: Any) -> core_schema.CoreSchema:
     return cast(core_schema.CoreSchema, schema)
 
 
-class _NoExplicitNull:
-    """Annotated metadata: the property may be omitted, but a JSON ``null`` is refused.
+def _is_none(value: Any) -> bool:
+    """``exclude_if`` for a :data:`NoExplicitNull` field: ``None`` is "not supplied"."""
+    return value is None
 
-    A JSON Schema property outside ``required`` whose type does not admit
-    ``null`` permits exactly one way of not supplying it — leaving it out.
-    The generator renders every optional property as ``T | None = None``,
-    and that annotation is the right Python surface: the attribute reads as
-    ``None`` when the property was omitted, and ``model_dump`` (which
-    defaults to ``exclude_none=True``) leaves it off the wire again. What
-    the annotation got wrong is *input*: it also admitted an explicit
-    ``null``, which the schema — and the SDK's own JSON-Schema arm,
-    :func:`adcp.validation.validate_request` — rejects.
 
-    This marker closes that gap without changing the annotation. It builds
-    a ``json_or_python`` core schema: the JSON side is the type without its
-    null arm, so a document carrying ``null`` fails with the type's own
+class _RefuseJsonNull:
+    """The validation half of :data:`NoExplicitNull`: a JSON ``null`` is refused.
+
+    Builds a ``json_or_python`` core schema: the JSON side is the type without
+    its null arm, so a document carrying ``null`` fails with the type's own
     error (``list_type``, ``model_type``, ...) exactly as a required field
-    would, and ``model_json_schema()`` publishes no null arm; the Python
-    side keeps ``T | None``, so ``Model(field=None)`` and ``model_validate``
-    on a dict still read ``None`` as the SDK's spelling of "not supplied",
-    symmetric with ``model_dump``. The ``= None`` default is not validated,
-    so omission reads back as ``None`` either way. No Python function sits
-    in the validation path, so nested validation keeps pydantic's native
-    JSON handling (duplicate-key diagnostics, error order).
+    would, and ``model_json_schema()`` publishes no null arm; the Python side
+    keeps ``T | None``, so ``Model(field=None)`` and ``model_validate`` on a
+    dict still read ``None`` as the SDK's spelling of "not supplied". The
+    ``= None`` default is not validated, so omission reads back as ``None``
+    either way. No Python function sits in the validation path, so nested
+    validation keeps pydantic's native JSON handling (duplicate-key
+    diagnostics, error order).
 
     ``ADCP_STRICT_VALIDATION`` — the switch that also forbids unknown
     fields — makes the Python side refuse ``None`` too, for suites that want
-    to catch a caller spelling absence as an explicit ``None``. A property
-    whose schema *does* admit ``null`` is generated without the marker and
-    keeps accepting it.
-
-    The generator marks every such property from the schema
-    (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``)
-    and ``scripts/post_generate_fixes.py`` points the mark here. See #1547.
+    to catch a caller spelling absence as an explicit ``None``.
     """
 
     __slots__ = ()
@@ -394,25 +412,144 @@ class _NoExplicitNull:
     # redeclaration takes ``copy.deepcopy`` of the generated field
     # (``canonical_creative._inherit``), and a test asks ``NoExplicitNull in
     # field.metadata``.
-    def __copy__(self) -> _NoExplicitNull:
+    def __copy__(self) -> _RefuseJsonNull:
         return self
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> _NoExplicitNull:
+    def __deepcopy__(self, memo: dict[int, Any]) -> _RefuseJsonNull:
         return self
 
     def __reduce__(self) -> str:
-        return "NoExplicitNull"
+        return "_REFUSE_JSON_NULL"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, _NoExplicitNull)
+        return isinstance(other, _RefuseJsonNull)
 
     def __hash__(self) -> int:
-        return hash(_NoExplicitNull)
+        return hash(_RefuseJsonNull)
+
+
+_REFUSE_JSON_NULL = _RefuseJsonNull()
 
 
 #: Marks an optional property whose schema does not admit ``null``: omit it or
-#: supply a value. See :class:`_NoExplicitNull`.
-NoExplicitNull = _NoExplicitNull()
+#: supply a value. A JSON ``null`` is refused on input, and a ``None`` is left
+#: off the output from any parent.
+#:
+#: A JSON Schema property outside ``required`` whose type does not admit
+#: ``null`` permits exactly one way of not supplying it — leaving it out. The
+#: generator renders every optional property as ``T | None = None``, and that
+#: annotation is the right Python surface: the attribute reads as ``None`` when
+#: the property was omitted. What the annotation got wrong was *input*: it also
+#: admitted an explicit ``null``, which the schema — and the SDK's own
+#: JSON-Schema arm, :func:`adcp.validation.validate_request` — rejects. This
+#: marker closes that gap without changing the annotation.
+#:
+#: The marker has two halves, because the two jobs live at different levels of
+#: pydantic:
+#:
+#: * **Validation** (:class:`_RefuseJsonNull`, carried in ``metadata``): the
+#:   JSON side of the field's core schema has no null arm, so a document
+#:   carrying ``null`` is refused and the published JSON Schema states what the
+#:   bundled schema states. A Python ``None`` stays accepted.
+#: * **Serialization** (the ``FieldInfo`` itself, ``exclude_if=_is_none``): a
+#:   ``None`` is left off the output *by the field*, in pydantic-core, whoever
+#:   drives the dump. ``AdCPBaseModel.model_dump`` defaults
+#:   ``exclude_none=True``, but a plain pydantic parent's serializer never calls
+#:   that override, so before #1587 a nested AdCP model wrote ``"ext": null``
+#:   that the same model then refused to read back. The per-field exclusion is
+#:   what makes ``model_validate_json(model_dump_json())`` round-trip from any
+#:   parent: a direct field, a list, a dict, a ``RootModel`` over a union. It
+#:   also applies under an explicit ``exclude_none=False``, which is always
+#:   safe: ``null`` is never a valid value for a marked property, so there is
+#:   nothing to keep. A property whose schema *does* admit ``null`` is generated
+#:   without the marker and keeps emitting ``null`` under ``exclude_none=False``.
+#:
+#: Pydantic merges a ``FieldInfo`` found in ``Annotated`` metadata into the
+#: field (``exclude_if`` lands on the field, the inner marker lands in
+#: ``field.metadata``), so one ``NoExplicitNull`` beside the generated
+#: ``Field(...)`` is all a field needs, and ``copy.deepcopy`` of the merged
+#: ``FieldInfo`` (``canonical_creative._inherit``) carries both halves. The
+#: marker itself is therefore never in ``field.metadata``; ask
+#: :func:`is_no_explicit_null`, which reads the exclusion by identity. Not a
+#: subclass: pydantic declares ``FieldInfo`` final.
+#:
+#: The generator marks every such property from the schema
+#: (``scripts/generate_types.py``, ``mark_no_explicit_null_properties``) and
+#: ``scripts/post_generate_fixes.py`` points the mark here. See #1547 and #1587.
+NoExplicitNull: Final[FieldInfo] = FieldInfo(exclude_if=_is_none)
+NoExplicitNull.metadata.append(_REFUSE_JSON_NULL)
+
+
+def inherit_field(source: type[BaseModel], name: str, *, required: bool = False) -> Any:
+    """A copy of ``source``'s ``name`` field, for a redeclaration that retypes it.
+
+    A hand-written subclass that narrows an inherited field's *annotation*
+    (``list[Format]`` for the generated ``list[FormatOption]``) still wants
+    everything else the generated field carries: its description, its
+    constraints (``min_length``, ``max_length``), its default, and the
+    never-null marker (:data:`NoExplicitNull`) that leaves an unset ``None``
+    off the wire from any parent (#1591). A bare ``Field(...)`` on the
+    redeclaration silently drops all of them -- which is how a nested dump of
+    a canonical ``Product`` came to write ``"placements": null`` (#1620), the
+    same class of defect as #1548 and #1579.
+
+    Assign the result on the right-hand side of the annotated redeclaration.
+    ``required=True`` drops the default and the never-null marker, for a
+    subclass that makes an optional generated field mandatory: a required
+    field has no "omitted" for the marker to spell. The return type is
+    ``Any`` because a ``FieldInfo`` is what pydantic expects there -- the same
+    reason ``Field()`` itself is ``Any``.
+    """
+    field = copy.deepcopy(source.model_fields[name])
+    if required:
+        field.default = PydanticUndefined
+        field.default_factory = None
+        # The marker belongs to an optional property (omit it, or supply a
+        # value); a required field has no "omitted" to spell, and the tree-wide
+        # invariant is that every marked field is optional.
+        field.metadata = [item for item in field.metadata if item is not _REFUSE_JSON_NULL]
+        if field.exclude_if is NoExplicitNull.exclude_if:
+            field.exclude_if = None
+    return field
+
+
+def is_no_explicit_null(field: FieldInfo) -> bool:
+    """Whether ``field`` carries :data:`NoExplicitNull`.
+
+    Identity, not equality: the marker is merged into the field, so what the
+    field keeps is its ``exclude_if`` (and, in ``metadata``, its validation
+    half). A redeclaration that copies the generated ``FieldInfo`` keeps both.
+    """
+    return field.exclude_if is NoExplicitNull.exclude_if
+
+
+def _keep_opaque_nulls(
+    value: dict[str, Any], extra: dict[str, Any], info: SerializationInfo
+) -> dict[str, Any]:
+    """Put back the ``null`` values ``exclude_none`` dropped from an opaque object.
+
+    A model that declares no fields and allows extras is an opaque JSON object:
+    ``core/context.json`` (``ContextObject``), which every response echoes
+    unchanged, and ``core/ext.json``. ``exclude_none`` -- the
+    :meth:`AdCPBaseModel.model_dump` default -- exists to leave *unset
+    optional fields* off the wire, but it also dropped the object's own
+    ``null`` values, so a buyer's ``{"a": null, "b": 1}`` came back as
+    ``{"b": 1}``. An opaque object has no unset fields, so every key it holds
+    is data. Keys the caller excluded by name stay excluded; nested values are
+    plain JSON, which pydantic already dumps with their nulls.
+    """
+    include, exclude = info.include, info.exclude
+    kept: dict[str, Any] = {}
+    for key, item in extra.items():
+        if key in value:
+            kept[key] = value[key]
+        elif (
+            item is None
+            and (include is None or key in include)
+            and (exclude is None or key not in exclude)
+        ):
+            kept[key] = None
+    return kept
 
 
 class AdCPBaseModel(BaseModel):
@@ -451,16 +588,22 @@ class AdCPBaseModel(BaseModel):
     # this serializer's return is unannotated. Even ``-> Any`` erases the shape.
     @model_serializer(mode="wrap")
     def _notification_config_wire_defaults(  # type: ignore[no-untyped-def]
-        self, handler: SerializerFunctionWrapHandler
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ):
         """Retain the unrelated product default only for product subscriptions.
 
         Reporting capability defaults and tier validation live in their own
         generated models; this wrapper does not mask reporting attributes.
+
+        Also keeps an opaque object's ``null`` values (see
+        :func:`_keep_opaque_nulls`).
         """
         value = handler(self)
         if not isinstance(value, dict):
             return value
+        extra = self.__pydantic_extra__
+        if extra and info.exclude_none and not type(self).model_fields:
+            return _keep_opaque_nulls(value, extra, info)
         # Bundled schemas can rename or inline the same wire shape. Match its
         # declared fields rather than generated class/module names; supplied
         # values still come exclusively from this instance's fields-set.
@@ -492,6 +635,40 @@ class AdCPBaseModel(BaseModel):
                 raise
             _build_deferred_serializers(self, set())
             return super().model_dump(**kwargs)
+
+    def model_dump_as_received(self, **kwargs: Any) -> dict[str, Any]:
+        """The document this model was parsed from, as JSON values.
+
+        ``model_dump(mode="json")`` emits every field, so a property the wire
+        omitted comes back carrying the schema default the generator wrote
+        into the field (``sandbox: false``, ``timezone: "inventory_local"``),
+        and an explicit ``null`` the schema admits is dropped by
+        ``exclude_none``. A reader treats those as the same document; a
+        digest does not. ``core/canonical-proposal.json`` binds
+        ``terms_digest`` to the JCS form of ``commercial_terms`` *as declared*,
+        and a buyer recomputing it over a default dump gets a mismatch whenever
+        the seller left a defaulted property out (#1613).
+
+        This dump leaves off every field the document did not set
+        (``exclude_unset``), keeps an explicit ``null`` on a property whose
+        schema admits one (``exclude_none=False``; a property the schema
+        refuses ``null`` on is left off by its own :data:`NoExplicitNull`
+        exclusion either way), and writes wire names (``by_alias``). With the
+        wire-preserving scalar types (:mod:`adcp.types._wire`), a schema-valid
+        document that reached the model round-trips byte-for-byte under RFC
+        8785 -- except for a property the model never held, which
+        ``extra='ignore'`` dropped on input (#1614).
+        ``tests/conformance/test_wire_round_trip.py`` holds every digest- and
+        echo-covered schema to that, with no allowlist.
+
+        For a model built in Python the result is exactly the fields the
+        caller set, in the deterministic forms the wire types document.
+        """
+        kwargs.setdefault("mode", "json")
+        kwargs.setdefault("exclude_unset", True)
+        kwargs.setdefault("exclude_none", False)
+        kwargs.setdefault("by_alias", True)
+        return self.model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
         if "exclude_none" not in kwargs:

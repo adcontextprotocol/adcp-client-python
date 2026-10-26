@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+
+import yaml
 from pathlib import Path
 
 from scripts.normalize_pyproject_prerelease import pep440_prerelease
@@ -102,6 +104,20 @@ def test_release_please_keeps_next_on_the_alpha_channel() -> None:
     assert set(config["packages"]) == {"."}
     assert package["exclude-paths"] == ["packages/adcp-reporting-storage"]
     assert "package=adcp-reporting-storage" not in workflow
+    # The companion gate (#1605) keeps a stable adcp release on main from
+    # stranding storage adopters. next's pre-releases are opt-in and the
+    # storage distribution's adcp-10 release is cut from main at ratification,
+    # so the gate does not run for a next publish.
+    publisher = yaml.load(
+        (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    companion_steps = [
+        step
+        for step in publisher["jobs"]["build"]["steps"]
+        if "check_companion_releases.py" in step.get("run", "")
+    ]
+    assert len(companion_steps) == 1
+    assert companion_steps[0]["if"] == "inputs.package == 'adcp' && github.ref == 'refs/heads/main'"
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:

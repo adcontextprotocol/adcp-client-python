@@ -66,6 +66,29 @@ def test_rules_match_both_adapters(key, asset, inferred, normalized):
     assert asset == original
 
 
+def test_display_tag_key_is_inferred_as_display_tag():
+    # #1624: a 3.2 display_tag asset was inferred as text from its content.
+    tag = "<script src='https://ads.example/tag.js'></script>"
+    assert coerce_legacy_assets({"display_tag": {"content": tag}}) == {
+        "display_tag": {"content": tag, "asset_type": "display_tag"}
+    }
+    assert coerce_legacy_assets({"display_tag": {"url": "https://ads.example/tag"}}) == {
+        "display_tag": {"url": "https://ads.example/tag", "asset_type": "display_tag"}
+    }
+
+
+def test_key_inference_covers_every_asset_type_the_schema_declares():
+    from adcp.types.domains.core import format as format_module
+
+    # The format slot union derives its own vocabulary from the same pin; the
+    # creative-asset vocabulary key inference uses must not lag behind it.
+    declared = format_module._KNOWN_BASE_INDIVIDUAL_ASSET_TYPES
+    assert "display_tag" in declared
+    for asset_type in declared:
+        assert infer_asset_type(asset_type, {"content": "x"}) == asset_type
+        assert infer_asset_type(asset_type, {"url": "https://cdn.example/a"}) == asset_type
+
+
 def test_public_reexports_and_mapping_immutability():
     assert legacy.infer_asset_type is infer_asset_type
     assert legacy.coerce_legacy_asset is coerce_legacy_asset

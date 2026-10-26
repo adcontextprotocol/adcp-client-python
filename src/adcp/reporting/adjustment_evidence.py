@@ -32,6 +32,7 @@ from adcp.types import (
     ReportingObligation,
     ReportingRevision,
 )
+from adcp.types._wire import rfc3339
 from adcp.validation.schema_loader import get_named_validator
 
 __all__ = [
@@ -463,7 +464,10 @@ def build_reporting_adjustment_receipt(
         moment = aware_utc(observed_at)
         if _instant(moment) < _instant(adjustment.created_at, raw["created_at"]):
             _fail("INVALID_RECEIPT")
-        payload["observed_at"] = moment.isoformat()
+        # The receipt's own spelling, written here: a parsed datetime keeps the
+        # text it was given (#1610), so ``isoformat()``'s ``+00:00`` would be
+        # emitted as such; the receipt has always carried ``Z``.
+        payload["observed_at"] = rfc3339(moment)
         if failures:
             payload["rejection_codes"] = sorted(failures)
         if current_receipt is not None:

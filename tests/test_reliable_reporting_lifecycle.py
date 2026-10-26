@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from adcp.reporting import ReportingOperatorActionError
 from adcp.reporting.fixtures import redacted_capabilities, redacted_snapshot_request
 from adcp.reporting.inline_source import FileSystemStagingStore, InlineReportingSource
 from adcp.reporting.ledger import (
@@ -217,6 +218,48 @@ async def test_startup_failure_unwinds_transferred_resources_in_reverse_order() 
     await service.close()
     await service.close()
     assert events == ["open:pool", "open:writer", "close:sender", "close:writer", "close:pool"]
+
+
+async def test_startup_failure_names_its_cause_type_without_its_message() -> None:
+    """#1561: telemetry sees which exception stopped startup, never its body."""
+
+    class ProviderTimeoutError(Exception):
+        pass
+
+    async def opening() -> None:
+        raise ProviderTimeoutError("secret-provider-response")
+
+    service = ReliableReportingService.memory(
+        account_context=_account_context,
+        owned_resources=(ReportingServiceResource(open=opening, close=lambda: None),),
+    )
+    with pytest.raises(ReliableReportingServiceError) as caught:
+        await service.start()
+    error = caught.value
+    assert error.cause_type is not None and error.cause_type.endswith("ProviderTimeoutError")
+    assert str(error).startswith("reporting service failed (startup: ")
+    assert "secret" not in str(error) and "secret" not in repr(error)
+    assert error.__cause__ is None and error.__suppress_context__
+    await service.close()
+
+
+async def test_operator_action_error_surfaces_unwrapped_from_startup() -> None:
+    """#1561: an SDK-authored precondition reaches the operator with its remedy."""
+
+    class LedgerNeedsMigrationError(ReportingOperatorActionError):
+        pass
+
+    async def opening() -> None:
+        raise LedgerNeedsMigrationError("call replace_empty_legacy_reporting first")
+
+    service = ReliableReportingService.memory(
+        account_context=_account_context,
+        owned_resources=(ReportingServiceResource(open=opening, close=lambda: None),),
+    )
+    with pytest.raises(LedgerNeedsMigrationError, match="replace_empty_legacy_reporting"):
+        await service.start()
+    assert service.state is ReliableReportingState.FAILED
+    await service.close()
 
 
 async def test_failed_closer_does_not_skip_other_resources_or_repeat_close() -> None:

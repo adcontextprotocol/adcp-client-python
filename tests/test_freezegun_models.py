@@ -7,6 +7,7 @@ import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -130,3 +131,69 @@ def test_sdk_has_no_module_level_type_adapter_construction() -> None:
                 ):
                     offenders.append(f"{path.relative_to(root)}:{node.lineno}")
     assert not offenders
+
+
+def test_build_all_models_returns_after_a_generated_poc_alias_import() -> None:
+    # #1619: the deprecated alias registers the canonical module object under a
+    # second sys.modules key, which used to make the lazy-export walk spin
+    # forever. A subprocess with a timeout turns a regression into a failure
+    # instead of a hung CI job.
+    program = r"""
+import sys
+import warnings
+
+warnings.simplefilter("ignore", DeprecationWarning)
+import adcp.types.generated_poc.core.format_id as alias
+import adcp.types.domains.core.format_id as canonical
+assert alias is canonical
+# A split name is served by its own shim module rather than the canonical object.
+from adcp.types.generated_poc.brand import Brand  # noqa: F401
+assert "adcp.types.generated_poc.brand" in sys.modules
+
+from adcp.testing import build_all_models
+build_all_models()
+build_all_models()
+print("ok")
+"""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", program],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("build_all_models() did not return after a generated_poc alias import")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
+
+
+def test_lazy_export_walk_that_never_stabilizes_raises_naming_the_module(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from adcp.testing import models
+
+    created: list[str] = []
+
+    def facade(index: int) -> ModuleType:
+        name = f"adcp._test_endless_facade_{index}"
+        module = ModuleType(name)
+
+        def realize(attr: str) -> object:
+            # Every realized facade imports a brand-new facade.
+            child = facade(index + 1)
+            monkeypatch.setitem(sys.modules, child.__name__, child)
+            created.append(child.__name__)
+            return None
+
+        module.__getattr__ = realize  # type: ignore[method-assign]
+        module.__dir__ = lambda: ["export"]  # type: ignore[method-assign]
+        return module
+
+    monkeypatch.setattr(models, "_MAX_REALIZE_PASSES", 5)
+    first = facade(0)
+    monkeypatch.setitem(sys.modules, first.__name__, first)
+
+    with pytest.raises(RuntimeError, match="did not stabilize") as excinfo:
+        models._realize_lazy_exports()
+    assert created[-1] in str(excinfo.value)

@@ -74,6 +74,7 @@ import hmac
 import inspect
 import json
 import logging
+import re
 import warnings
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from contextvars import ContextVar
@@ -271,17 +272,24 @@ still requires a valid bearer. Public transport discovery routes are exempt.
 """
 
 
+_RESOLVER_ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+
+
 class PrincipalResolverError(Exception):
-    """Intentional resolver rejection. Only the status is sent to the caller.
+    """Intentional resolver rejection. Only the status and code reach the caller.
 
     401 means identity was not established; 403 means it is forbidden by the
-    resolver's policy. Responses use fixed generic bodies, never exception text.
+    resolver's policy. Responses never include exception text. The body is
+    ``{"error": code}`` when ``code`` is a stable machine-readable identifier
+    matching ``^[a-z][a-z0-9_]{0,63}$`` (for example ``identity_org_mismatch``),
+    otherwise the generic ``unauthenticated``/``forbidden`` body.
     """
 
-    def __init__(self, status_code: Literal[401, 403] = 401) -> None:
+    def __init__(self, status_code: Literal[401, 403] = 401, *, code: str | None = None) -> None:
         if status_code not in (401, 403):
             raise ValueError("PrincipalResolverError status_code must be 401 or 403")
         self.status_code = status_code
+        self.code = code
         super().__init__("Principal resolution rejected")
 
 
@@ -317,10 +325,17 @@ async def _resolve_request_principal(
 
 
 def _resolver_rejection(error: PrincipalResolverError) -> JSONResponse:
+    code = error.code
+    if code is not None and not (
+        isinstance(code, str) and _RESOLVER_ERROR_CODE.fullmatch(code) is not None
+    ):
+        # Never echo a code that could carry free text; log no value either.
+        logger.warning("principal resolver code rejected", extra={"reason": "invalid_code"})
+        code = None
     if error.status_code == 403:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+        return JSONResponse({"error": code or "forbidden"}, status_code=403)
     return JSONResponse(
-        {"error": "unauthenticated"},
+        {"error": code or "unauthenticated"},
         status_code=401,
         headers={"WWW-Authenticate": _WWW_AUTHENTICATE_CHALLENGE},
     )

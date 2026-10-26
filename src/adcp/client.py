@@ -1173,6 +1173,9 @@ class ADCPClient:
             direction="request",
             source_version=resolve_adcp_version(None),
             target_version=target,
+            # Buyer side: each dropped request field is buyer data the
+            # seller will never see.
+            loss_log_level=logging.WARNING,
         )
         return ConversionResult(
             converted.payload,
@@ -1207,6 +1210,9 @@ class ADCPClient:
                         source_version=version,
                         target_version=resolve_adcp_version(None),
                         request=request.payload,
+                        # Buyer side: a dropped response field is seller
+                        # data the buyer may care about.
+                        loss_log_level=logging.WARNING,
                     )
                     result = result.model_copy(update={"data": converted.payload})
                     losses.extend(converted.metadata())

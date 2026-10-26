@@ -88,6 +88,12 @@ so that merges in either direction never change the other line's release flow:
   `adcp>=9.0.0bN,<11` so the workspace still installs once `next` cuts
   `10.0.0aN`; when a merge from `main` moves the floor, take `main`'s floor and
   keep `<11`.
+- `main`'s companion gate (`scripts/check_companion_releases.py`, #1605) runs
+  in `release-publish.yml` only for a publish from `main`. It refuses a stable
+  `adcp` release that no published `adcp-reporting-storage` release installs
+  with. A `next` pre-release is opt-in (`pip install --pre adcp`) and the
+  storage distribution's adcp-10 release is cut from `main` at ratification,
+  so the gate would only block every `next` release until then.
 
 One-time setup: add `next` to the `release-publish` environment's deployment
 branches (GitHub Settings → Environments). The PyPI Trusted Publisher needs no

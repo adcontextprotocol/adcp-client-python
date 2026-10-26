@@ -66,7 +66,10 @@ root package lists that path in `exclude-paths` (Release Please otherwise hands
 the root every commit), so a protocol fix in `adcp` does not release the storage
 package and a storage fix does not release `adcp`. A commit touching both trees
 counts for both. Keep storage changes out of a root `Release-As:` commit, or the
-storage package takes that version too. Conventional-commit scopes are free text, but
+storage package takes that version too. To release only one package, put its
+change in its own PR. Always squash-merge: the IPR policy maps each `main`
+commit to the PR whose merge commit it is, and a rebase merge leaves earlier
+commits with no such PR. Conventional-commit scopes are free text, but
 `feat(reporting-storage):` keeps the two changelogs readable.
 
 On a merge, `release-please.yml` queues `release-publish.yml` with

@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.1.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.3...adcp-reporting-storage-v0.1.0-beta.4) (2026-10-25)
+
+
+### docs
+
+* **reporting-storage:** note that 0.1.0b2 and 0.1.0b3 were not published ([#1602](https://github.com/adcontextprotocol/adcp-client-python/issues/1602)) ([0479d7d](https://github.com/adcontextprotocol/adcp-client-python/commit/0479d7d4060302ac06d32ce0f264f3d70b9a4d6f))
+
+## [0.1.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.2...adcp-reporting-storage-v0.1.0-beta.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **reporting-storage:** surface ownership migration errors from startup ([51365c9](https://github.com/adcontextprotocol/adcp-client-python/commit/51365c9715c3b74c11b3353991525af93d04f392))
+
+## [0.1.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.1...adcp-reporting-storage-v0.1.0-beta.2) (2026-10-24)
+
+
+### Features
+
+* **reporting-storage:** let the Postgres service factory build a subclass ([dad5e8d](https://github.com/adcontextprotocol/adcp-client-python/commit/dad5e8d9668e0ebd3ced406780e659b42ee22001)), closes [#1588](https://github.com/adcontextprotocol/adcp-client-python/issues/1588)
+
+## [0.1.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.0...adcp-reporting-storage-v0.1.0-beta.1) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reporting:** the PostgreSQL reporting stores, the row storage providers, the change feed, the ownership-migration helpers and `ReliableReportingService.postgres` leave `adcp`; install `adcp-reporting-storage[pg]` (plus `gcs`/`s3`/`azure`) and import them from `adcp_reporting_storage`. The `adcp[reporting-gcs]`, `[reporting-s3]` and `[reporting-azure]` extras are removed. See docs/reporting-storage-package-migration.md.
+
+### Features
+
+* **reporting:** ship the Reliable Reporting storage as adcp-reporting-storage ([#1557](https://github.com/adcontextprotocol/adcp-client-python/issues/1557)) ([d59eee9](https://github.com/adcontextprotocol/adcp-client-python/commit/d59eee9da4d246557bfacf42119729e1d68e78a7))
+
+
+### Bug Fixes
+
+* **reporting-storage:** require the adcp release that contains the split ([#1577](https://github.com/adcontextprotocol/adcp-client-python/issues/1577)) ([a2315b7](https://github.com/adcontextprotocol/adcp-client-python/commit/a2315b79d31bf257b42fb09d9140abc66fce604b))
+
+## Changelog
+
 ## Unreleased
 
 ### Features

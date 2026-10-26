@@ -374,9 +374,12 @@ async def test_every_record_kind_requires_immutable_cross_page_content(kind, fie
 
 
 async def test_optional_field_presence_is_part_of_typed_immutable_content() -> None:
+    # ``consumer_commit_ref`` admits no ``null`` on the wire, so an explicit
+    # ``None`` reads as absent (#1587); the presence change a typed page can
+    # carry is the optional field appearing with a value.
     pages = _pages(_history())
     replay = deepcopy(pages[-1])
-    replay["receipts"][0]["consumer_commit_ref"] = None
+    replay["receipts"][0]["consumer_commit_ref"] = "late-consumer-checkpoint"
     pages[-1]["pagination"].update(has_more=True, cursor="before-optional-change")
     pages.append(replay)
     with pytest.raises(ReportingReconciliationError) as error:
