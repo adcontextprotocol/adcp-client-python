@@ -1,37 +1,46 @@
 """Pure, opt-in normalization of pre-v3 creative asset dictionaries."""
 
 from collections.abc import Mapping
-from typing import Any
+from functools import cache
+from typing import Any, get_args
 
-_KNOWN_ASSET_TYPES = frozenset(
-    {
-        "image",
-        "video",
-        "audio",
-        "vast",
-        "text",
-        "url",
-        "html",
-        "javascript",
-        "webhook",
-        "css",
-        "daast",
-        "markdown",
-        "brief",
-        "catalog",
-    }
-)
+from pydantic import RootModel
+
+
+@cache
+def _known_asset_types() -> frozenset[str]:
+    """Every ``asset_type`` the pinned schema's canonical asset union routes.
+
+    Derived from the generated ``AssetVariant`` arms rather than listed here,
+    so a schema bump that adds an asset type (as 3.2 added ``display_tag``)
+    extends key-name inference in the same regeneration. Imported on first use:
+    the generated asset graph is not needed to import the legacy helpers.
+    """
+    from adcp.types.domains.core.assets.asset_union import AssetVariant
+
+    union = get_args(AssetVariant)[0]
+    types: set[str] = set()
+    for arm in get_args(union):
+        # A multi-shape asset (``vast``, ``display_tag``, ...) is a RootModel
+        # over per-shape classes that share one ``asset_type`` literal.
+        shapes = (
+            get_args(arm.model_fields["root"].annotation) if issubclass(arm, RootModel) else (arm,)
+        )
+        for shape in shapes:
+            types.update(get_args(shape.model_fields["asset_type"].annotation))
+    return frozenset(types)
 
 
 def infer_asset_type(asset_key: str, asset: Mapping[str, Any]) -> str | None:
     """Infer a missing discriminator from an exact key, then field presence.
 
-    Type-name keys take precedence over fields. Otherwise URL plus both
+    Keys naming any asset_type the pinned schema declares (``display_tag``,
+    ``card``, ...) take precedence over fields. Otherwise URL plus both
     dimensions implies image, URL alone implies url, and content implies text.
     Unknown keys without those fields return None for validation to diagnose.
     This function does not inspect or replace an existing discriminator.
     """
-    if asset_key in _KNOWN_ASSET_TYPES:
+    if asset_key in _known_asset_types():
         return asset_key
     if "url" in asset:
         return "image" if "width" in asset and "height" in asset else "url"
