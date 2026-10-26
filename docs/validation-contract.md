@@ -89,13 +89,22 @@ mechanisms carry it, and a conformance suite measures it:
   Each validates exactly as the pydantic type did, keeps the attribute API
   (`.year`, `.tzinfo`, `.host`, `.hex`), compares and hashes as the same
   value, advertises the same JSON Schema, and in JSON mode serializes the text
-  it was parsed from. A value built in Python has no wire text and serializes
-  as it always did: RFC 3339 with `Z` for UTC and `±HH:MM` otherwise,
-  fractional seconds only when non-zero; pydantic's normalized URL string; a
-  lower-case hyphenated UUID. Every such field is covered, not only the
+  it was parsed from — when that text passes the strict wire check the bundled
+  validator applies (`adcp._formats`: RFC 3339 for a date-time, RFC 3986
+  syntax with an agreeing host for a URI, the hyphenated 8-4-4-4-12 form for a
+  UUID, a trimmed address for an email). A string pydantic's lenient parser
+  accepts but the schema rejects (`"2026-10-01 00:00:00+00:00"`,
+  `"https:x.example"`, `"{...}"`) is normalized, as it always was. A
+  `datetime`, `AnyUrl` or `UUID` *object* passed to a constructor has no wire
+  text and serializes as before: RFC 3339 with `Z` for UTC and `±HH:MM`
+  otherwise, fractional seconds only when non-zero; pydantic's normalized URL
+  string; a lower-case hyphenated UUID. Every such field is covered, not only the
   digest-covered ones: a shared class (`AttestationReference`, `Provenance`,
   `Targeting`) sits inside digested and undigested objects alike, so a
-  per-subtree rule would have to split classes.
+  per-subtree rule would have to split classes. The rule covers the generated
+  AdCP schema types (`adcp.types.domains`); `adcp.types.registry`, the
+  OpenAPI-generated registry client, keeps pydantic's `AnyUrl` and
+  `AwareDatetime` — no registry object is digest-covered.
 - **An explicit "as received" dump.** `AdCPBaseModel.model_dump_as_received()`
   is `model_dump(mode="json", exclude_unset=True, exclude_none=False,
   by_alias=True)`: it leaves off every field the document did not set (where

@@ -32,15 +32,15 @@ import threading
 import warnings
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date
 from functools import lru_cache
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal, cast
-from urllib.parse import quote, unquote, urldefrag, urljoin, urlparse, urlsplit
+from urllib.parse import unquote, urldefrag, urljoin, urlparse, urlsplit
 
 from pydantic import AnyUrl, TypeAdapter, ValidationError
 
+from adcp import _formats
 from adcp._deferred_adapters import deferred_adapter
 from adcp.validation.version import resolve_bundle_key
 
@@ -67,13 +67,10 @@ ResponseVariant = Literal["sync", "submitted", "working", "input-required"]
 Direction = Literal["request", "sync", "submitted", "working", "input-required"]
 
 
-_RFC3339_DATE_TIME = re.compile(
-    r"^\d{4}-\d{2}-\d{2}[Tt]"
-    r"(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
-    r"(?:\.\d+)?"
-    r"(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$",
-    re.ASCII,
-)
+# The strict ``date-time`` grammar lives in ``adcp._formats`` so the wire-
+# preserving types (``adcp.types._wire``) apply the same check before keeping
+# a string's spelling; the names below are what this module always exported.
+_RFC3339_DATE_TIME = _formats.RFC3339_DATE_TIME
 
 
 def _is_rfc3339_date_time(instance: Any) -> bool:
@@ -87,17 +84,7 @@ def _is_rfc3339_date_time(instance: Any) -> bool:
     """
     if not isinstance(instance, str):
         return True
-    if _RFC3339_DATE_TIME.fullmatch(instance) is None:
-        return False
-    try:
-        # The grammar already checks time and offset ranges. Validate only
-        # the calendar here: Python 3.10's datetime parser accepts only three
-        # or six fractional digits, whereas RFC 3339 permits any positive
-        # number. Validation must neither coerce nor truncate the wire value.
-        date.fromisoformat(instance[:10])
-    except ValueError:
-        return False
-    return True
+    return _formats.is_rfc3339_date_time(instance)
 
 
 # Hostname grammar from RFC 1123 section 2.1: dot-separated labels of
@@ -115,30 +102,16 @@ _HOSTNAME = re.compile(
 def _is_uri(instance: Any) -> bool:
     """Validate URI syntax while retaining AnyUrl's internationalized URLs.
 
-    Check the original syntax before applying the ``pydantic.AnyUrl`` parser
-    used by generated models. AnyUrl alone accepts malformed percent escapes
-    and normalizes whitespace/backslashes; that would bypass the explicit
-    ad-server-token branch in macro-bearing-url. Retaining its check also
-    prevents values passing schema validation but failing model validation.
+    Check the original syntax (``adcp._formats.is_uri_syntax``) before applying
+    the ``pydantic.AnyUrl`` parser used by generated models. AnyUrl alone
+    accepts malformed percent escapes and normalizes whitespace/backslashes;
+    that would bypass the explicit ad-server-token branch in
+    macro-bearing-url. Retaining its check also prevents values passing schema
+    validation but failing model validation.
     """
     if not isinstance(instance, str):
         return True
-    from rfc3986_validator import validate_rfc3986
-
-    if any(char.isspace() or 0x7F <= ord(char) <= 0x9F for char in instance):
-        return False
-    try:
-        # Escape only non-ASCII characters for the RFC 3986 syntax check.
-        # Leave original ASCII untouched so normalization cannot hide malformed
-        # percent escapes or backslashes. AnyUrl still checks IDN validity.
-        syntax = (
-            instance
-            if instance.isascii()
-            else "".join(char if char.isascii() else quote(char, safe="") for char in instance)
-        )
-    except UnicodeEncodeError:
-        return False
-    if not validate_rfc3986(syntax):
+    if not _formats.is_uri_syntax(instance):
         return False
     try:
         _uri_adapter().validate_python(instance)

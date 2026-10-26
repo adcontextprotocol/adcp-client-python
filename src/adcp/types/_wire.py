@@ -12,9 +12,13 @@ parsed-then-dumped entry no longer matches its own digest (#1610).
 The types here validate exactly as the pydantic types the generator would
 have used, expose the same attribute API (``.year``, ``.tzinfo``, ``.host``,
 ``.hex``), compare and hash as the same values, and differ in one thing: in
-JSON mode they serialize the text the wire delivered. A value constructed in
-Python rather than parsed from text has no wire text and serializes in the
-pydantic form it always did, so nothing an adopter builds changes shape:
+JSON mode they serialize the text the wire delivered -- when that text passes
+the strict wire check the bundled schema validator applies
+(:mod:`adcp._formats`). A string pydantic's lenient parser accepts but the
+schema rejects (``"2026-10-01 00:00:00+00:00"``, ``"https:x.example"``, a
+braced UUID, ``"Bob <bob@example.com>"``) is normalized exactly as before, so
+nothing invalid is ever echoed. A ``datetime``, ``AnyUrl`` or ``UUID``
+*object* has no wire text and serializes in the pydantic form it always did:
 
 * :class:`WireDatetime`: RFC 3339 with ``Z`` for UTC and ``±HH:MM`` otherwise,
   fractional seconds written only when non-zero (six digits);
@@ -45,9 +49,9 @@ from pydantic import AnyUrl, EmailStr, GetCoreSchemaHandler, StrictStr, TypeAdap
 from pydantic.functional_validators import AfterValidator
 from pydantic.json_schema import WithJsonSchema
 from pydantic_core import CoreSchema, SchemaSerializer, core_schema
-from pydantic_core.core_schema import SerializationInfo
 from typing_extensions import Self
 
+from adcp import _formats
 from adcp._deferred_adapters import deferred_adapter
 
 __all__ = ["WireAnyUrl", "WireDatetime", "WireEmail", "WireUuid", "rfc3339", "wire_text"]
@@ -70,45 +74,35 @@ def rfc3339(value: datetime) -> str:
 class WireDatetime(datetime):
     """An aware ``datetime`` that remembers the RFC 3339 text it was parsed from.
 
-    A ``datetime`` in every respect — attributes, arithmetic, comparison,
-    hashing, ``isinstance`` — plus :attr:`wire`, the text it serializes to in
-    JSON mode. A value parsed from text serializes to that text; one built in
-    Python, or derived by ``replace()``, ``astimezone()`` or arithmetic,
-    serializes in :func:`rfc3339` form.
+    A ``datetime`` in every respect -- attributes, arithmetic, comparison,
+    hashing, ``isinstance`` -- plus :attr:`wire`, the text it serializes to in
+    JSON mode. A value parsed from strictly valid text serializes to that
+    text; one built in Python, parsed from a lenient spelling, or derived by
+    ``replace()``, ``astimezone()`` or arithmetic, serializes in
+    :func:`rfc3339` form.
+
+    The slot is left unset on a value that carries no wire text: ``datetime``
+    builds derived values and unpickles without calling ``__new__``, and a
+    constructor override costs every parse three times as much.
     """
 
     __slots__ = ("_wire",)
 
-    _wire: str | None
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        self = super().__new__(cls, *args, **kwargs)
-        self._wire = None
-        return self
+    _wire: str
 
     @classmethod
     def from_datetime(cls, value: datetime, wire: str | None = None) -> Self:
         """``value`` as a :class:`WireDatetime` carrying ``wire`` as its text."""
-        self = cls(
-            value.year,
-            value.month,
-            value.day,
-            value.hour,
-            value.minute,
-            value.second,
-            value.microsecond,
-            value.tzinfo,
-            fold=value.fold,
-        )
-        self._wire = wire
+        # The pickle state (packed bytes plus tzinfo) is the cheapest way
+        # through ``datetime.__new__``: one C call instead of nine arguments.
+        self = cls(*datetime.__reduce_ex__(value, 2)[1])
+        if wire is not None:
+            self._wire = wire
         return self
 
     @property
     def wire(self) -> str:
         """The text this value serializes to in JSON mode."""
-        # ``getattr``: on Python 3.10 and 3.11 ``replace()``, ``astimezone()``
-        # and arithmetic build the subclass instance without calling
-        # ``__new__``, so the slot is unset on a derived value.
         wire = getattr(self, "_wire", None)
         return wire if wire is not None else rfc3339(self)
 
@@ -122,36 +116,39 @@ class WireDatetime(datetime):
     @classmethod
     def __get_pydantic_core_schema__(cls, source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         inner = core_schema.datetime_schema(tz_constraint="aware")
+        is_strict = _formats.is_rfc3339_date_time
 
         def validate(value: Any, nested: core_schema.ValidatorFunctionWrapHandler) -> Any:
             if isinstance(value, cls):
                 return value
             parsed = nested(value)
-            return cls.from_datetime(parsed, value if isinstance(value, str) else None)
+            if isinstance(value, str) and is_strict(value):
+                return cls.from_datetime(parsed, value)
+            return cls.from_datetime(parsed)
 
         return core_schema.no_info_wrap_validator_function(
-            validate,
-            inner,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                _serialize_datetime, info_arg=True, when_used="always"
-            ),
+            validate, inner, serialization=_DATETIME_SERIALIZATION
         )
 
 
 def _rebuild_datetime(reduced: Any, wire: str | None) -> WireDatetime:
     cls, args = reduced[0], reduced[1]
     value: WireDatetime = cls(*args)
-    value._wire = wire
+    if wire is not None:
+        value._wire = wire
     return value
 
 
-def _serialize_datetime(value: Any, info: SerializationInfo) -> Any:
-    if info.mode != "json":
-        return value
-    if isinstance(value, WireDatetime):
-        return value.wire
-    return rfc3339(value)
+def _serialize_datetime(value: Any) -> str:
+    wire = getattr(value, "_wire", None)
+    return wire if wire is not None else rfc3339(value)
 
+
+# JSON mode only: a python-mode dump returns the value itself, with no
+# Python call per value, exactly as pydantic serializes a datetime.
+_DATETIME_SERIALIZATION = core_schema.plain_serializer_function_ser_schema(
+    _serialize_datetime, when_used="json"
+)
 
 # ``AdCPBaseModel.model_dump`` passes ``serialize_as_any=True``, under which
 # pydantic-core serializes a value by its runtime type rather than the field's
@@ -159,11 +156,7 @@ def _serialize_datetime(value: Any, info: SerializationInfo) -> Any:
 # write the normalized form. A ``__pydantic_serializer__`` on the class is what
 # the inference consults first (``AnyUrl`` carries one for the same reason).
 WireDatetime.__pydantic_serializer__ = SchemaSerializer(  # type: ignore[attr-defined]
-    core_schema.any_schema(
-        serialization=core_schema.plain_serializer_function_ser_schema(
-            _serialize_datetime, info_arg=True, when_used="always"
-        )
-    )
+    core_schema.any_schema(serialization=_DATETIME_SERIALIZATION)
 )
 
 
@@ -172,17 +165,22 @@ class WireAnyUrl(AnyUrl):
 
     Validated by the same parser as ``AnyUrl`` and exposing the same parsed
     view (``.scheme``, ``.host``, ``.path``, ...). ``str()`` and JSON-mode
-    serialization return the text as received; a value built from an
-    ``AnyUrl`` or by :meth:`build` has no wire text and serializes in
-    pydantic's normalized form. Compares equal to any ``AnyUrl`` for the same
-    parsed URL, so ``model.url == AnyUrl("https://x.example/")`` keeps holding.
+    serialization return the text as received when it is strict RFC 3986
+    syntax naming the same host the parser reports; otherwise, and for a
+    value built from an ``AnyUrl`` or by :meth:`build`, pydantic's normalized
+    form -- so ``str(url)`` can never hand a client a host ``.host`` did not
+    name. Compares equal to any ``AnyUrl`` for the same parsed URL, so
+    ``model.url == AnyUrl("https://x.example/")`` keeps holding.
     """
 
     __slots__ = ("_wire",)
 
+    _wire: str
+
     def __init__(self, url: Any) -> None:
         super().__init__(url)
-        self._wire = url if isinstance(url, str) else None
+        if isinstance(url, str):
+            _keep_url_text(self, url)
 
     @property
     def wire(self) -> str:
@@ -205,7 +203,9 @@ class WireAnyUrl(AnyUrl):
     def __deepcopy__(self, memo: dict[int, Any]) -> Self:
         clone = type(self).__new__(type(self))
         clone._url = self._url
-        clone._wire = getattr(self, "_wire", None)
+        wire = getattr(self, "_wire", None)
+        if wire is not None:
+            clone._wire = wire
         return clone
 
     def __reduce__(self) -> Any:
@@ -213,50 +213,80 @@ class WireAnyUrl(AnyUrl):
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
-        base = AnyUrl.__get_pydantic_core_schema__(cls, handler)
+        # One Python layer, not ``AnyUrl``'s wrap plus another: the core URL
+        # parser does the work and the instance is assembled here.
+        inner = core_schema.url_schema()
 
         def validate(value: Any, nested: core_schema.ValidatorFunctionWrapHandler) -> Any:
             if isinstance(value, cls):
                 return value
-            instance = nested(value)
-            instance._wire = value if isinstance(value, str) else None
+            if isinstance(value, AnyUrl):
+                value = str(value)
+            instance = cls.__new__(cls)
+            instance._url = nested(value)
+            if isinstance(value, str):
+                _keep_url_text(instance, value)
             return instance
 
         return core_schema.no_info_wrap_validator_function(
-            validate,
-            base,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                _serialize_url, info_arg=True, when_used="always"
-            ),
+            validate, inner, serialization=_URL_SERIALIZATION
         )
 
 
+def _serialize_url(value: Any, info: core_schema.SerializationInfo) -> Any:
+    return str(value) if info.mode == "json" else value
+
+
+# ``always``, as ``AnyUrl``'s own serializer is: the core URL serializer the
+# python-mode fallback would use expects the Rust URL, not the instance.
+_URL_SERIALIZATION = core_schema.plain_serializer_function_ser_schema(
+    _serialize_url, info_arg=True, when_used="always"
+)
+
+
+def _keep_url_text(instance: WireAnyUrl, text: str) -> None:
+    """Attach ``text`` to ``instance`` when it is strict syntax for the parsed host.
+
+    The fast grammar (:func:`adcp._formats.is_plain_uri`) settles the common
+    case and guarantees the host agrees; anything else takes the full RFC 3986
+    check and an explicit host comparison, so ``https://good.example\\@evil.example``
+    (a backslash the WHATWG parser reads as a slash) falls back to the
+    normalized text whose host is the one ``.host`` reports.
+    """
+    if _formats.is_plain_uri(text):
+        instance._wire = text
+        return
+    if not _formats.is_uri_syntax(text):
+        return
+    named = _formats.uri_host(text)
+    if named is None:
+        return
+    url = instance._url
+    if named == (url.host or "").lower() or named == (url.unicode_host() or "").lower():
+        instance._wire = text
+
+
 def _rebuild_url(cls: type[WireAnyUrl], parsed: str, wire: str | None) -> WireAnyUrl:
-    value = cls(parsed)
-    value._wire = wire
+    value = cls.__new__(cls)
+    value._url = AnyUrl(parsed)._url
+    if wire is not None:
+        value._wire = wire
     return value
-
-
-def _serialize_url(value: Any, info: SerializationInfo) -> Any:
-    if info.mode != "json":
-        return value
-    return str(value)
 
 
 class WireUuid(uuid.UUID):
     """A ``UUID`` that remembers the text it was parsed from.
 
     ``uuid.UUID`` serializes lower-case; RFC 4122 reads hex case-insensitively
-    and the bundled ``format: uuid`` validator accepts either case. A value
-    parsed from text serializes to that text; one built in Python serializes
-    lower-case hyphenated as before.
+    and the bundled ``format: uuid`` validator accepts either case of the
+    hyphenated 8-4-4-4-12 form, which is the only spelling kept. A braced,
+    ``urn:uuid:`` or unhyphenated input ``uuid.UUID`` accepts is normalized
+    as before, and so is a value built in Python.
     """
 
     __slots__ = ("_wire",)
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        object.__setattr__(self, "_wire", None)
+    _wire: str
 
     @property
     def wire(self) -> str:
@@ -273,53 +303,49 @@ class WireUuid(uuid.UUID):
     @classmethod
     def __get_pydantic_core_schema__(cls, source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         inner = core_schema.uuid_schema()
+        is_strict = _formats.is_uuid_text
 
         def validate(value: Any, nested: core_schema.ValidatorFunctionWrapHandler) -> Any:
             if isinstance(value, cls):
                 return value
             parsed = nested(value)
             instance = cls(int=parsed.int)
-            object.__setattr__(instance, "_wire", value if isinstance(value, str) else None)
+            if isinstance(value, str) and is_strict(value):
+                object.__setattr__(instance, "_wire", value)
             return instance
 
         return core_schema.no_info_wrap_validator_function(
-            validate,
-            inner,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                _serialize_uuid, info_arg=True, when_used="always"
-            ),
+            validate, inner, serialization=_UUID_SERIALIZATION
         )
 
 
 def _rebuild_uuid(cls: type[WireUuid], value: int, wire: str | None) -> WireUuid:
     instance = cls(int=value)
-    object.__setattr__(instance, "_wire", wire)
+    if wire is not None:
+        object.__setattr__(instance, "_wire", wire)
     return instance
 
 
-def _serialize_uuid(value: Any, info: SerializationInfo) -> Any:
-    if info.mode != "json":
-        return value
-    if isinstance(value, WireUuid):
-        return value.wire
-    return str(value)
+def _serialize_uuid(value: Any) -> str:
+    wire = getattr(value, "_wire", None)
+    return wire if wire is not None else str(value)
 
+
+_UUID_SERIALIZATION = core_schema.plain_serializer_function_ser_schema(
+    _serialize_uuid, when_used="json"
+)
 
 # See the note on ``WireDatetime.__pydantic_serializer__``.
 WireUuid.__pydantic_serializer__ = SchemaSerializer(  # type: ignore[attr-defined]
-    core_schema.any_schema(
-        serialization=core_schema.plain_serializer_function_ser_schema(
-            _serialize_uuid, info_arg=True, when_used="always"
-        )
-    )
+    core_schema.any_schema(serialization=_UUID_SERIALIZATION)
 )
 
 
 def wire_text(value: datetime | AnyUrl | uuid.UUID) -> str:
     """The text ``value`` serializes to in JSON mode.
 
-    The text as received for a value parsed from text; the deterministic form
-    the module docstring lists for one built in Python.
+    The text as received for a value parsed from strictly valid text; the
+    deterministic form the module docstring lists otherwise.
     """
     if isinstance(value, (WireDatetime, WireAnyUrl, WireUuid)):
         return value.wire
@@ -328,14 +354,19 @@ def wire_text(value: datetime | AnyUrl | uuid.UUID) -> str:
     return str(value)
 
 
-def _require_email(value: str) -> str:
-    """Validate ``value`` as ``EmailStr`` does and return it unchanged.
+def _email_as_received(value: str) -> str:
+    """``value`` when it is the trimmed address ``EmailStr`` normalizes it to.
 
-    ``EmailStr`` returns the address email-validator normalized (the domain
-    lower-cased), which rewrites a digested ``provider.data_subject_contestation.email``.
+    ``EmailStr`` lower-cases the domain, which rewrites a digested
+    ``provider.data_subject_contestation.email``; the address as written is
+    kept when it differs only by case. A display-name form
+    (``"Bob <bob@example.com>"``) or surrounding whitespace is not an address
+    the schema admits, and comes back as the normalized address, as before.
     """
-    _email_adapter().validate_python(value)
-    return value
+    normalized: str = _email_adapter().validate_python(value)
+    if value.strip() == value and value.lower() == normalized.lower():
+        return value
+    return normalized
 
 
 @deferred_adapter
@@ -344,10 +375,10 @@ def _email_adapter() -> TypeAdapter[EmailStr]:
 
 
 #: A ``format: email`` string, validated as ``EmailStr`` and carried as the
-#: ``str`` the wire delivered. ``EmailStr`` is itself a ``str`` to adopters, so
-#: nothing about the attribute changes.
+#: ``str`` the wire delivered when that is the address itself. ``EmailStr`` is
+#: itself a ``str`` to adopters, so nothing about the attribute changes.
 WireEmail = Annotated[
     StrictStr,
-    AfterValidator(_require_email),
+    AfterValidator(_email_as_received),
     WithJsonSchema({"type": "string", "format": "email"}),
 ]

@@ -316,3 +316,98 @@ def test_model_dump_as_received_keeps_an_admitted_null_and_the_wire_alias() -> N
     parsed = TargetingInput.model_validate_json(json.dumps(document))
     assert parsed.model_dump(mode="json") == {}
     assert parsed.model_dump_as_received() == document
+
+
+# ---------------------------------------------------------------------------
+# Only strictly valid wire text is kept; lenient spellings normalize as before.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        (str(datetime(2026, 10, 1, tzinfo=timezone.utc)), "2026-10-01T00:00:00Z"),  # space, not T
+        ("2026-10-01T00:00:00+0000", "2026-10-01T00:00:00Z"),  # offset without a colon
+        ("2026-10-01T00:00Z", "2026-10-01T00:00:00Z"),  # no seconds
+        ("1790000000", "2026-09-21T14:13:20Z"),  # epoch string
+    ],
+)
+def test_a_lenient_datetime_spelling_is_normalized(text: str, expected: str) -> None:
+    parsed = Model.model_validate({**WIRE, "when": text})
+    assert parsed.model_dump(mode="json")["when"] == expected
+    assert parsed.when.wire == expected
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        (" https://x.example ", "https://x.example/"),  # surrounding whitespace
+        ("https:x.example", "https://x.example/"),  # no authority
+        ("https://x.example/a b", "https://x.example/a%20b"),  # unescaped space
+        ("https://x.example/%zz", "https://x.example/%zz"),  # malformed escape: parser keeps it
+    ],
+)
+def test_a_lenient_url_spelling_is_normalized(text: str, expected: str) -> None:
+    parsed = Model.model_validate({**WIRE, "url": text})
+    assert parsed.model_dump(mode="json")["url"] == expected
+    assert str(parsed.url) == expected
+
+
+def test_str_and_host_cannot_disagree() -> None:
+    """A backslash the WHATWG parser reads as a slash must not reach a client as written."""
+    parsed = Model.model_validate({**WIRE, "url": "https://good.example\\@evil.example"})
+    assert parsed.url.host == "good.example"
+    assert str(parsed.url) == "https://good.example/@evil.example"
+    assert parsed.model_dump(mode="json")["url"] == "https://good.example/@evil.example"
+    direct = WireAnyUrl("https://good.example\\@evil.example")
+    assert (direct.host, str(direct)) == ("good.example", "https://good.example/@evil.example")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "https://user@x.example/",  # userinfo: full RFC 3986 path, host agrees
+        "https://[::1]/a",  # IP literal
+        "https://straße.de/x",  # internationalized host, compared to unicode_host()
+    ],
+)
+def test_strict_but_unusual_url_text_is_kept_when_the_host_agrees(text: str) -> None:
+    parsed = Model.model_validate({**WIRE, "url": text})
+    assert parsed.model_dump(mode="json")["url"] == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{00000000-0000-4000-8000-00000000abcd}",
+        "urn:uuid:00000000-0000-4000-8000-00000000abcd",
+        "00000000000040008000000000000abc",
+    ],
+)
+def test_a_lenient_uuid_spelling_is_normalized(text: str) -> None:
+    parsed = Model.model_validate({**WIRE, "uid": text})
+    assert parsed.model_dump(mode="json")["uid"] == str(uuid.UUID(text))
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Bob <bob@example.com>", "bob@example.com"),
+        (" bob@example.com", "bob@example.com"),
+        ("Bob@Example.COM", "Bob@Example.COM"),
+    ],
+)
+def test_an_email_is_kept_only_as_the_trimmed_address(text: str, expected: str) -> None:
+    parsed = Model.model_validate({**WIRE, "email": text})
+    assert parsed.model_dump(mode="json")["email"] == expected
+
+
+def test_a_lenient_spelling_passed_to_a_constructor_is_normalized_too() -> None:
+    built = Model(
+        when="2026-10-01 00:00:00+00:00",
+        url=" https://x.example ",
+        uid=WIRE["uid"],
+        email="a@b.example",
+    )
+    assert built.model_dump(mode="json")["when"] == "2026-10-01T00:00:00Z"
+    assert built.model_dump(mode="json")["url"] == "https://x.example/"
