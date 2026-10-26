@@ -16,6 +16,10 @@ _T = TypeVar("_T")
 
 # Reporting extensions have local meanings. Normative SDK codes always take
 # precedence; unlisted extension/invariant failures retain terminal recovery.
+# Transient covers seller-side state the seller still owes the buyer: a pending
+# status lifecycle, and retained history that is not yet materialized or awaits
+# repair. The buyer's request is valid and an identical retry succeeds once the
+# seller catches up, as for unreadable revision rows (SERVICE_UNAVAILABLE).
 _REPORTING_CORRECTABLE = frozenset(
     {
         "CURSOR_REVISION_MISMATCH",
@@ -49,6 +53,8 @@ _REPORTING_TRANSIENT = frozenset(
         "REPORTING_CONTENT_UNAVAILABLE",
         "REPORTING_FEED_STORAGE_UNAVAILABLE",
         "RECEIPT_STORAGE_UNAVAILABLE",
+        "STATUS_PROJECTION_UNAVAILABLE",
+        "HISTORY_UNAVAILABLE",
     }
 )
 
@@ -77,6 +83,12 @@ def reporting_error(code: str, message: str) -> Error:
         # nondisclosing answer is the standard reference error.
         code = "REFERENCE_NOT_FOUND"
         message = "Reporting revision not found"
+    elif code == "LOOKUP_UNAVAILABLE":
+        # A buyer-supplied reporting reference that does not resolve for this
+        # caller. Typed parameters without a dedicated code use the standard,
+        # nondisclosing reference error with a generic message.
+        code = "REFERENCE_NOT_FOUND"
+        message = "Reporting reference not found"
     recovery = None
     if code not in STANDARD_ERROR_CODES:
         if code in _REPORTING_CORRECTABLE:

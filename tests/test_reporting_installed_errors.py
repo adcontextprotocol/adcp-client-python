@@ -97,7 +97,8 @@ async def test_disabled_optional_routes_and_aggregate_delivery_delegate():
         ("CURSOR_REVISION_MISMATCH", "correctable"),
         ("INVALID_PAGE_SIZE", "correctable"),
         ("CONFIGURATION_GENERATION_IMMUTABLE", "correctable"),
-        ("HISTORY_UNAVAILABLE", "terminal"),
+        ("HISTORY_UNAVAILABLE", "transient"),
+        ("STATUS_PROJECTION_UNAVAILABLE", "transient"),
         ("REVISION_CONTENT_MISMATCH", "terminal"),
         ("REPORTING_STATUS_UNAVAILABLE", "transient"),
         ("RECEIPT_STORAGE_UNAVAILABLE", "transient"),
@@ -112,3 +113,51 @@ async def test_reporting_extension_codes_retain_their_meaning(code, recovery):
     assert caught.value.code == code
     assert caught.value.recovery == recovery
     await service.close()
+
+
+@pytest.mark.parametrize("decisioning", [False, True])
+@pytest.mark.parametrize(
+    "ledger_code,message,code,wire_message,recovery",
+    [
+        (
+            "STATUS_PROJECTION_UNAVAILABLE",
+            "status lifecycle is pending",
+            "STATUS_PROJECTION_UNAVAILABLE",
+            "status lifecycle is pending",
+            "transient",
+        ),
+        (
+            "HISTORY_UNAVAILABLE",
+            "the revision history requires repair",
+            "HISTORY_UNAVAILABLE",
+            "the revision history requires repair",
+            "transient",
+        ),
+        (
+            "LOOKUP_UNAVAILABLE",
+            "reporting_obligation_id obl_secret does not resolve for this caller and account",
+            "REFERENCE_NOT_FOUND",
+            "Reporting reference not found",
+            "correctable",
+        ),
+    ],
+)
+async def test_owed_state_retries_and_unresolved_references_are_correctable(
+    decisioning, ledger_code, message, code, wire_message, recovery
+):
+    from adcp.reporting._errors import installed_reporting_call
+
+    async def call():
+        raise LedgerConflictError(ledger_code, message)
+
+    with pytest.raises(AdcpError if decisioning else ADCPTaskError) as caught:
+        await installed_reporting_call("sync_reporting_status", call, decisioning=decisioning)
+    error = caught.value
+    if decisioning:
+        assert (error.code, error.recovery) == (code, recovery)
+        assert wire_message in str(error)
+    else:
+        wire = error.error_info[0]
+        assert (wire.code, wire.message, wire.recovery) == (code, wire_message, recovery)
+    assert "obl_secret" not in str(error)
+    assert STANDARD_ERROR_CODES.get(code, {}).get("recovery", recovery) == recovery
