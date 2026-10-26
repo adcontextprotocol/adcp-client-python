@@ -157,3 +157,33 @@ def test_downgrade_is_valid_in_the_target_or_a_structured_error(
     assert expected is None, "expected a structured error; update EXPECTED_STRUCTURED_ERRORS"
     outcome = _validate(tool, direction, result.payload, target)
     assert outcome.valid, outcome.issues
+
+
+STATUSLESS = [case for case in CASES if case[2] != "request" and "status" in case[3]]
+
+
+@pytest.mark.parametrize("target", TARGETS)
+@pytest.mark.parametrize(
+    ("case_id", "tool", "direction", "payload"),
+    STATUSLESS,
+    ids=[case[0] for case in STATUSLESS],
+)
+def test_status_defaulted_responses_get_the_same_guarantee(
+    case_id: str, tool: str, direction: str, payload: dict[str, Any], target: str
+) -> None:
+    # The SDK validators default a missing status envelope; so does the
+    # downgrade's final check, which must not switch off without it.
+    payload = {key: value for key, value in payload.items() if key != "status"}
+    if not _validate(tool, direction, payload, SOURCE).valid:
+        pytest.skip("not valid 3.2 without its status")
+    if get_portable_schema(tool, direction, version=target) is None:
+        pytest.skip(f"{tool} {direction} does not exist in AdCP {target}")
+    try:
+        result = convert_payload(
+            tool, payload, direction=direction, source_version=SOURCE, target_version=target
+        )
+    except ADCPVersionConversionError:
+        assert (case_id, target) in EXPECTED_STRUCTURED_ERRORS
+        return
+    assert (case_id, target) not in EXPECTED_STRUCTURED_ERRORS
+    assert _validate(tool, direction, result.payload, target).valid

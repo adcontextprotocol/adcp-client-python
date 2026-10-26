@@ -327,6 +327,8 @@ def _describe(error: Any) -> str:
         return f"needs at least {error.validator_value} {unit}(s)"
     if keyword in {"enum", "const"}:
         return "value has no spelling in the older release"
+    if keyword is None:
+        return "the older schema allows no value here"
     return f"fails the older schema's {keyword} constraint"
 
 
@@ -630,7 +632,13 @@ def _check_representable(
     if isinstance(value, dict):
         restored: Any = {**projected, **{key: value[key] for key in dropped if key in value}}
     else:
-        restored = [*projected, *(value[int(index)] for index in dropped)]
+        # Only removed items are restored; a coarsened item is still present.
+        removed = {
+            int(loss.pointer.rsplit("/", 1)[1])
+            for loss in losses[first_loss:]
+            if _parent_pointer(loss.pointer) == path and loss.reason != "coarsened_to_boolean"
+        }
+        restored = [*projected, *(value[index] for index in sorted(removed))]
     if _refusal(target, target_root, restored) is None:
         raise _UnrepresentableError(path + refusal[0], refusal[1])
 
@@ -1019,6 +1027,12 @@ def _require_target_valid(
     to the caller's validation policy. Validation uses the same bundled
     schemas the projection used, with no payload size cap.
     """
+    from adcp.validation._response_envelope import uses_task_status_envelope
+
+    if direction != "request" and uses_task_status_envelope(tool):
+        # Match the SDK validators, which default the status envelope.
+        payload = {"status": "completed", **payload}
+        result = {"status": "completed", **result}
     target_schema = _schema(tool, direction, target_version)
     refusal = _refusal(target_schema, target_schema, result, shape=False)
     if refusal is None:
