@@ -875,12 +875,45 @@ def test_a_private_member_refuses_the_directory_whatever_its_case(name):
         verify_directory_response(ORIGIN, _directory_signed_by([usable], entries=[entry]), now=1001)
 
 
-def test_every_usable_directory_key_signs():
-    """A usable key that does not sign refuses the directory: one signature per key."""
-    signed, unsigned = (ed25519.Ed25519PrivateKey.generate() for _ in range(2))
-    response = _directory_signed_by([signed], unsigned=[unsigned])
-    with pytest.raises(WbaVerificationError, match="did not sign"):
-        verify_directory_response(ORIGIN, response, now=1001)
+@pytest.mark.parametrize("proof", ["absent", "invalid"])
+def test_a_directory_key_without_a_valid_signature_is_ignored(proof):
+    """Only keys with a valid signature are used (adcp#7894, Key directories; #8298 D11).
+
+    WBA Appendix B.1 and the directory draft, section 5: a verifier ignores a
+    key that has no valid signature on the directory response, and the keys
+    that do sign stay usable.
+    """
+    from dataclasses import replace
+
+    signed, other = (ed25519.Ed25519PrivateKey.generate() for _ in range(2))
+    if proof == "absent":
+        response = _directory_signed_by([signed], unsigned=[other])
+    else:
+        response = _directory_signed_by([signed, other])
+        # key2 carries key1's signature bytes, which do not verify with key2.
+        first, _ = response.headers["Signature"].split(", key2=")
+        tampered = f"{first}, key2={first.split('=', 1)[1]}"
+        response = replace(response, headers={**response.headers, "Signature": tampered})
+    keys = verify_directory_response(ORIGIN, response, now=1001)
+    assert list(keys) == [public_directory_key(signed)["kid"]]
+
+
+def test_a_malformed_directory_key_is_ignored():
+    """A key that does not import is ignored, not refused (RFC 7517 section 5; #8298 D15)."""
+    signed = ed25519.Ed25519PrivateKey.generate()
+    malformed = [
+        {"kty": "OKP", "crv": "Ed25519", "kid": "malformed-no-x", "use": "sig"},
+        {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "kid": "malformed-short-x",
+            "x": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw",
+            "use": "sig",
+        },
+    ]
+    response = _directory_signed_by([signed], entries=malformed)
+    keys = verify_directory_response(ORIGIN, response, now=1001)
+    assert list(keys) == [public_directory_key(signed)["kid"]]
 
 
 @pytest.mark.parametrize("media_type", ["application/json", "application/jwk-set+json"])

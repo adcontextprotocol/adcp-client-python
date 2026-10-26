@@ -1,14 +1,14 @@
 {
   "repository": "adcontextprotocol/adcp",
-  "pull_request": 7894,
-  "commit": "e59294701d733b0ea2a004a2f0c091c8eccdcaae",
+  "pull_request": 8298,
+  "commit": "f44785a5b65db93988f30ad3d23ba5849f1a1d5e",
   "path": "static/compliance/source/test-vectors/wba-profile/",
   "vendored_on": "2026-10-19",
   "renamed": {
     "README.md": "UPSTREAM-README.md"
   },
   "sha256": {
-    "UPSTREAM-README.md": "1dfacdbe62e9157435e6b2bf4b714c193bd4f3126a4b0433299c370d8c1b292b",
+    "UPSTREAM-README.md": "d48f31c47fe968cab4c4c2326d63463e635577539aa868eaa8f5ecec57833cbe",
     "keys.json": "257850b14fe217f67596808040e2c7b4f62bd36bf2c25d0712d066733008b100",
     "negative/001-missing-nonce.json": "79a9de2bc336a3b12b20e8cb026614646dc84dbbf05d897c6c34808682062acf",
     "negative/002-replayed-nonce.json": "51d2ce5c81d8a8e60b99d5a7eaef80f18baba2a104de93d1fc8aeac5c7aaa7be",
@@ -18,6 +18,6 @@
     "negative/006-two-signatures.json": "87cb93e1f9bc4fba2eadb0df7832d51c9edf2d0add02aab5cee8265b9d7f1661",
     "positive/001-single-signer-request.json": "213b69f5f029c6da37abbc4dafff0f89e7604c5a6a4acca59b8c9df4a3d88e25",
     "positive/002-signed-directory-response.json": "b07b0a947d943225c29fcb819008d080ca83f209d56be785a1a7b15f15e82dbe",
-    "scenarios.json": "0327f40cf31de2dc6cf975d9643a999aee68a225817dd0d409b81a6f92a868e2"
+    "scenarios.json": "bb93c4c3e66821bc39a5d1d0cb0e2705a90603e46ad88ab12610f23fcde66c62"
   }
 }
