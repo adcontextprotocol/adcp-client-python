@@ -105,7 +105,8 @@ def is_plain_uri(text: str) -> bool:
     names is the host a URL parser reports (lower-cased). The common case,
     checked in a fraction of the full RFC 3986 validator's time.
     """
-    return _PLAIN_URI.match(text) is not None
+    # fullmatch: ``$`` alone would also accept a single trailing newline.
+    return _PLAIN_URI.fullmatch(text) is not None
 
 
 def is_uuid_text(text: str) -> bool:

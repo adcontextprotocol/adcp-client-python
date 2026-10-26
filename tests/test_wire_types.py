@@ -345,6 +345,8 @@ def test_a_lenient_datetime_spelling_is_normalized(text: str, expected: str) -> 
         ("https:x.example", "https://x.example/"),  # no authority
         ("https://x.example/a b", "https://x.example/a%20b"),  # unescaped space
         ("https://x.example/%zz", "https://x.example/%zz"),  # malformed escape: parser keeps it
+        ("https://x.example\n", "https://x.example/"),  # trailing newline
+        ("https://x.example/a\n", "https://x.example/a"),  # trailing newline after a path
     ],
 )
 def test_a_lenient_url_spelling_is_normalized(text: str, expected: str) -> None:
@@ -411,3 +413,17 @@ def test_a_lenient_spelling_passed_to_a_constructor_is_normalized_too() -> None:
     )
     assert built.model_dump(mode="json")["when"] == "2026-10-01T00:00:00Z"
     assert built.model_dump(mode="json")["url"] == "https://x.example/"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["https://2130706433/", "https://0x7f.1/", "https://127.1/x", "https://0177.0.0.1/"],
+)
+def test_a_shorthand_ipv4_host_is_not_echoed(text: str) -> None:
+    """``.host`` reads 127.0.0.1, so ``str()`` must name that host too (an SSRF guard reads it)."""
+    from urllib.parse import urlsplit
+
+    parsed = Model.model_validate({**WIRE, "url": text})
+    assert parsed.url.host == "127.0.0.1"
+    assert urlsplit(str(parsed.url)).hostname == "127.0.0.1"
+    assert parsed.model_dump(mode="json")["url"] == str(parsed.url)

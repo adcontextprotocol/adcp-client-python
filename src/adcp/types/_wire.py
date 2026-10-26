@@ -253,11 +253,11 @@ def _keep_url_text(instance: WireAnyUrl, text: str) -> None:
     (a backslash the WHATWG parser reads as a slash) falls back to the
     normalized text whose host is the one ``.host`` reports.
     """
-    if _formats.is_plain_uri(text):
-        instance._wire = text
+    if not (_formats.is_plain_uri(text) or _formats.is_uri_syntax(text)):
         return
-    if not _formats.is_uri_syntax(text):
-        return
+    # Compare hosts on every path: the WHATWG parser rewrites numeric hosts
+    # (``2130706433``, ``0x7f.1``, ``127.1`` all become ``127.0.0.1``), so text
+    # that is valid syntax can still name a host other than ``.host``.
     named = _formats.uri_host(text)
     if named is None:
         return
