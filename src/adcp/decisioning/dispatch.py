@@ -80,6 +80,7 @@ from adcp.decisioning.webhook_emit import (
     _extract_push_operation_id,
     emit_terminal_completion_webhook,
 )
+from adcp.exceptions import ADCPTaskError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -709,6 +710,30 @@ def _internal_error_message(method_name: str, exc: BaseException) -> str:
 def _exception_cause_details(exc: BaseException) -> dict[str, Any]:
     """Return the shared sanitized exception-type breadcrumb."""
     return {"caused_by": {"type": type(exc).__name__}}
+
+
+def _task_error_to_adcp_error(exc: ADCPTaskError) -> AdcpError:
+    """Project an AdCP-typed task error to its own wire error.
+
+    ``IdempotencyStore.wrap`` raises
+    :class:`~adcp.exceptions.IdempotencyConflictError` (an
+    ``ADCPTaskError``) for a reused key. It is a protocol answer, not an
+    internal failure, so it keeps its code and recovery. The field
+    extraction is the one ``serve()`` applies to the same exceptions, so
+    both paths answer with the same code, message, recovery, field,
+    suggestion and sanitized details.
+    """
+    from adcp.server.translate import _extract_structured_fields
+
+    code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(exc)
+    return AdcpError(
+        code,
+        message=message,
+        recovery=typing.cast(Any, recovery),
+        field=field,
+        suggestion=suggestion,
+        details=details,
+    )
 
 
 def _internal_error_details(exc: BaseException) -> dict[str, Any]:
@@ -1511,7 +1536,9 @@ async def _invoke_platform_method(
     allocate a task_id, kick off the handoff fn, and project the
     Submitted envelope.
 
-    Wraps any non-:class:`AdcpError` exception to
+    Projects an :class:`~adcp.exceptions.ADCPTaskError` (for example
+    ``IdempotencyConflictError`` from ``IdempotencyStore.wrap``) to its own
+    code and recovery. Wraps any other non-:class:`AdcpError` exception to
     ``AdcpError("INTERNAL_ERROR", recovery="terminal")`` so the wire
     response never leaks a stack trace. Adopters get the original
     exception logged via the framework's observability hooks (the
@@ -1655,6 +1682,14 @@ async def _invoke_platform_method(
         if on_failure is not None:
             await _safe_on_failure_call(on_failure, exc, method_name)
         raise
+    except ADCPTaskError as exc:
+        # AdCP-typed task errors (IdempotencyConflictError from
+        # ``IdempotencyStore.wrap``, account errors) carry their own wire
+        # code and recovery; never collapse them to INTERNAL_ERROR.
+        wrapped = _task_error_to_adcp_error(exc)
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, wrapped, method_name)
+        raise wrapped from exc
     except TypeError as exc:
         # Most likely an arg_projector or extra_kwargs signature-drift bug.
         # Bare INTERNAL_ERROR would hide the cause; project to
@@ -2300,6 +2335,9 @@ async def _project_handoff(
                 )
         except AdcpError as exc:
             await _fail(exc)
+            return
+        except ADCPTaskError as exc:
+            await _fail(_task_error_to_adcp_error(exc))
             return
         except Exception as exc:
             logger.exception(
