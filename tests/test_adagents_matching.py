@@ -45,6 +45,9 @@ def document(url: Any = AGENT, tags: list[str] | None = None) -> dict[str, Any]:
         "https://SALES.Example.com:443/mcp/",
         "http://sales.example.com:80/mcp",
         "https://sales.example.com/mcp/?q=x#fragment",
+        # #1624: stray whitespace around a listed url must not hide the agent.
+        " https://sales.example.com/mcp ",
+        "\thttps://sales.example.com/mcp/\n",
     ],
 )
 def test_normalization_retains_protocol_and_path_contract(url: str) -> None:
@@ -98,3 +101,9 @@ def test_listing_distinguishes_unbound_and_unlisted_and_retains_duplicates() -> 
     matches = find_authorized_agent_entries(unbound, AGENT)
     assert matches == unbound["authorized_agents"]
     assert matches[0] is unbound["authorized_agents"][0]
+
+
+def test_normalization_strips_surrounding_whitespace_on_either_side() -> None:
+    assert normalize_url(" https://interchange.io ") == "interchange.io"
+    assert normalize_url(" https://interchange.io ") == normalize_url("https://interchange.io")
+    assert find_authorized_agent_entries(document(), f"  {AGENT}  ")
