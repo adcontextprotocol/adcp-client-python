@@ -57,9 +57,15 @@ def test_storage_distribution_version_matches_its_manifest_entry() -> None:
     )
     assert project_section is not None
     manifest = json.loads((ROOT / ".release-please-manifest.json").read_text())
-    assert project_section.group(1) == pep440_prerelease(
-        manifest["packages/adcp-reporting-storage"]
-    )
+    expected = {pep440_prerelease(manifest["packages/adcp-reporting-storage"])}
+    # On next, the storage package releases its own 0.2.0-beta.N line from
+    # next's manifest, like the root package does in the test above.
+    next_manifest = ROOT / ".release-please-manifest.next.json"
+    if next_manifest.exists():
+        next_versions = json.loads(next_manifest.read_text())
+        if "packages/adcp-reporting-storage" in next_versions:
+            expected.add(pep440_prerelease(next_versions["packages/adcp-reporting-storage"]))
+    assert project_section.group(1) in expected
     config = json.loads((ROOT / "release-please-config.json").read_text())
     package = config["packages"]["packages/adcp-reporting-storage"]
     assert package["component"] == package["package-name"] == "adcp-reporting-storage"
