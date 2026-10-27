@@ -434,8 +434,10 @@ class _OwnerCheckedRequestHandler(DefaultRequestHandler):
         A ``message.taskId`` request is refused before handler entry unless
         its resolved operation equals the operation the task was created for
         and the caller is the principal that created it. A task with no
-        recorded binding (created outside this executor, or by an
-        unauthenticated caller) cannot be continued.
+        recorded principal (created outside this executor, or by an
+        unauthenticated caller) cannot be continued. A principal mismatch is
+        answered as task-not-found; an operation mismatch as
+        ``INVALID_REQUEST``.
         """
         from a2a.utils.errors import TaskNotFoundError
 
@@ -449,13 +451,13 @@ class _OwnerCheckedRequestHandler(DefaultRequestHandler):
             if isinstance(executor, ADCPAgentExecutor)
             else None
         )
-        if (
-            bound_operation is None
-            or bound_principal is None
-            or operation != bound_operation
-            or _principal_key(call_context) != bound_principal
-        ):
-            logger.info("a2a task continuation rejected", extra={"reason": "binding_mismatch"})
+        if bound_principal is None or _principal_key(call_context) != bound_principal:
+            # Answered exactly like a missing or foreign task, so a caller
+            # cannot probe for tasks it does not own.
+            logger.info("a2a task continuation rejected", extra={"reason": "principal_mismatch"})
+            raise TaskNotFoundError
+        if bound_operation is None or operation != bound_operation:
+            logger.info("a2a task continuation rejected", extra={"reason": "operation_mismatch"})
             raise _continuation_rejected()
 
     @validate_request_params

@@ -535,7 +535,7 @@ async def test_continuation_principal_checked_even_with_a_shared_store() -> None
     store = InMemoryTaskStore(owner_resolver=lambda _ctx: "shared")
     task_id = await _seed(store, operation="get_products", owner="buyer-a")
     handler = _request_handler(store)
-    with pytest.raises(InvalidParamsError):
+    with pytest.raises(TaskNotFoundError):
         await handler._check_continuation_binding(
             _continuation(task_id, "get_products"), _ctx("buyer-b")
         )
@@ -555,7 +555,7 @@ async def test_continuation_of_unbound_or_anonymous_task_rejected() -> None:
     anon_id = await _seed(store, operation="get_products", owner="")
     handler = _request_handler(store)
     for task_id, caller in (("unbound", "buyer-a"), (anon_id, "")):
-        with pytest.raises(InvalidParamsError):
+        with pytest.raises(TaskNotFoundError):
             await handler._check_continuation_binding(
                 _continuation(task_id, "get_products"), _ctx(caller)
             )
