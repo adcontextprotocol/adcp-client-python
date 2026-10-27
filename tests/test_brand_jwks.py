@@ -833,7 +833,7 @@ async def test_resolver_rejects_oversized_brand_json(patch_httpx) -> None:
         "https://example.com/.well-known/brand.json",
         agent_url="https://x.example/",
         agent_type="brand",
-        max_body_bytes=256 * 1024,  # default cap
+        max_body_bytes=256 * 1024,  # explicit cap below the body (default is 2 MiB)
         jwks_fetcher=_jwks_fetcher_for({}),
     )
     with pytest.raises(BrandJsonResolverError) as exc:
