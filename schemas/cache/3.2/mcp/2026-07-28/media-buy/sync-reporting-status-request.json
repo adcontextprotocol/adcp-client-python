@@ -81,6 +81,7 @@
         "adcp_major_version": {
           "type": "integer",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
           "minimum": 1,
           "maximum": 99
@@ -108,7 +109,7 @@
         {
           "properties": {
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-key.json"
             },
             "operator": {
               "type": "string",
@@ -116,7 +117,7 @@
               "x-entity": "operator"
             },
             "operator_unit": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1operator-unit.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1operator-unit.json",
               "description": "Optional operator-owned business unit, agency seat, or platform account. Only id participates in identity; name is mutable display metadata."
             },
             "currency": {
@@ -173,7 +174,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand within a house-of-brands manifest. Omit for a single-brand domain."
         },
         "countries": {

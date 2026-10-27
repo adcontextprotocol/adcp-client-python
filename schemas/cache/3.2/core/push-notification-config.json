@@ -25,13 +25,14 @@
     "authentication": {
       "type": "object",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification \u2014 signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook key is published at its brand.json `agents[]` `jwks_uri` using `adcp_use: \"request-signing\"` (deprecated `webhook-signing` keys remain accepted during the compatibility window); it does not override this selector and is only used when `authentication` is omitted. See docs/building/by-layer/L1/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
       "properties": {
         "schemes": {
           "type": "array",
           "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.4/enums/auth-scheme.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.7/enums/auth-scheme.json"
           },
           "minItems": 1,
           "maxItems": 1

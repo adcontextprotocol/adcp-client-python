@@ -21,6 +21,7 @@
     "adcp_major_version": {
       "type": "integer",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
       "minimum": 1,
       "maximum": 99
@@ -197,6 +198,7 @@
         "adcp_major_version": {
           "type": "integer",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
           "minimum": 1,
           "maximum": 99
@@ -236,7 +238,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
               },
               {
                 "not": {
@@ -267,12 +269,13 @@
         "authentication": {
           "type": "object",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "Legacy authentication selector. Same precedence and semantics as `push-notification-config.authentication` and account-level `notification-config.authentication`: presence opts the seller into Bearer or HMAC-SHA256 signing; absence selects the default RFC 9421 webhook profile keyed off the seller's brand.json `agents[]` JWKS. Deprecated; removed in AdCP 4.0. Credentials are write-only and MUST NOT be echoed on reads.",
           "properties": {
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -294,7 +297,7 @@
           "description": "When false, the seller persists the configuration but suppresses fires. Use to pause a subscriber without losing the registration. Paused configs may skip only the outbound proof challenge while inactive; sellers MUST still enforce URL parsing, HTTPS, hostname normalization, and reserved-range rejection at write time. Reactivation requires full SSRF validation with connect pinning plus proof-of-control for any tuple without current valid proof."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -419,6 +422,7 @@
     "external:enums/auth-scheme.json": {
       "title": "Authentication Scheme",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "Legacy authentication schemes for the webhook auth block. Bearer: token sent in Authorization header. HMAC-SHA256: legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit the authentication block and use the RFC 9421 webhook signing profile (applicable on schemas where authentication is optional). Removed in AdCP 4.0.",
       "type": "string",
       "enum": [
@@ -465,7 +469,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -498,7 +502,7 @@
               "description": "Physical formats accepted by this file-transfer destination."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -541,7 +545,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -558,7 +562,7 @@
               "description": "Provider-native project/dataset, database/schema, or catalog/schema locator. Printable ASCII without whitespace, '?', '#', '%', '\"', '<', or '>'. Never a credential or signed URL; sellers additionally screen and normalize per the secret_rejection and normalization rules."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -600,7 +604,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop publishing new revisions to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered or revoke provider-side grants by itself."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -617,10 +621,10 @@
               "description": "Dataset-share access family, such as databricks_to_databricks, open_sharing, or secure_data_sharing."
             },
             "recipient": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -690,7 +694,7 @@
           "maxLength": 512
         },
         "cloud": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
         },
         "region": {
           "type": "string",
@@ -755,7 +759,7 @@
         "experimental_features": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
           },
           "minItems": 1,
           "maxItems": 32,

@@ -127,7 +127,7 @@ it, and the list only shrinks:
 | class | what happens | where it stands |
 | --- | --- | --- |
 | `default_emitted` | the dump materializes a schema default the document omitted | #1613; `model_dump_as_received` recovers the bytes. Two digest-covered schemas (`canonical-proposal`, `commercial-terms`) are affected under the default dump and are listed in the suite. |
-| `field_dropped` | `extra='ignore'` drops an unknown or sibling-arm property | #1614; not recoverable by any dump. No digest-covered schema is affected at pin 3.2.4. |
+| `field_dropped` | `extra='ignore'` drops an unknown or sibling-arm property | #1614; not recoverable by any dump. No digest-covered schema is affected at pin 3.2.7. |
 | `alias_emitted` | `model_dump()` writes `pass_` for `pass`, `field_schema` for `$schema` | #1615; `model_dump_as_received` writes the wire name. |
 | `null_dropped` | `exclude_none` drops an admitted explicit `null` | #1615; `model_dump_as_received` keeps it. |
 
