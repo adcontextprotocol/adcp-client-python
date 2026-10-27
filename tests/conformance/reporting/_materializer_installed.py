@@ -1,5 +1,17 @@
 """Copied outside the checkout and executed with Python 3.10 -I against a wheel."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import hashlib
 import importlib
@@ -12,6 +24,15 @@ from importlib.resources import files
 from pathlib import Path
 
 from pydantic import TypeAdapter
+
+
+def _asset_files(package):
+    """Packaged reporting assets: the storage distribution's, or adcp's before the split."""
+    from importlib.resources import files as _files
+
+    if _storage_split():
+        return _files("adcp.reporting" + package)
+    return _files("adcp_reporting_storage" + package)
 
 
 async def main():
@@ -67,14 +88,12 @@ async def main():
         for name in config["assets"]
     }
     assert actual == config["assets"]
-    assert (
-        files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
-    )
-    assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
-    assert files("adcp.reporting.ledger").joinpath("reporting_materializer.sql").is_file()
-    assert files("adcp.reporting.materializer").joinpath("required_schema.json").is_file()
-    assert files("adcp.reporting.ledger").joinpath("reporting_receipt_ingestion.sql").is_file()
-    assert files("adcp.reporting.receipts").joinpath("required_schema.json").is_file()
+    assert _asset_files(".ledger").joinpath("reporting_status_selector_version.sql").is_file()
+    assert _asset_files(".outbox").joinpath("required_status_selector_schema.json").is_file()
+    assert _asset_files(".ledger").joinpath("reporting_materializer.sql").is_file()
+    assert _asset_files(".materializer").joinpath("required_schema.json").is_file()
+    assert _asset_files(".ledger").joinpath("reporting_receipt_ingestion.sql").is_file()
+    assert _asset_files(".receipts").joinpath("required_schema.json").is_file()
     start = datetime(2026, 9, 1, tzinfo=timezone.utc)
     schedule = ReportingScheduleSpec("PT1H", "PT1H", period_anchor=start)
     period = derive_period(schedule, account_timezone="UTC", ordinal=0)

@@ -98,9 +98,15 @@ def test_raw_values_and_presence_are_hashed_before_model_normalization(detail: s
     assert evidence.observed_adjustment_sha256 == raw["canonical_adjustment_sha256"]
     assert evidence.input_kind == "bytes"
     assert evidence.adjustment == typed
-    normalized = typed.model_dump(mode="json", exclude_none=True)
-    normalized.pop("canonical_adjustment_sha256")
-    assert rfc8785.dumps(normalized) != evidence.canonical_json
+    # A typed view parsed from a differently spelled document hashes the same
+    # raw bytes: the evidence is bound to what was received, not to the model.
+    respelled = dict(raw, created_at="2026-09-02T00:00:00+00:00")
+    other = ReportingAdjustment.model_validate(respelled)
+    assert other.model_dump(mode="json")["created_at"] == "2026-09-02T00:00:00+00:00"
+    respelled_evidence = capture_reporting_adjustment_evidence(
+        wire, typed_adjustment=other, scope=SCOPE
+    )
+    assert respelled_evidence.canonical_json == evidence.canonical_json
     assert json.loads(evidence.canonical_json)["control_total_deltas"][0]["value"] == "-0.00"
     assert json.loads(evidence.canonical_json)["control_total_deltas"][0]["value_type"] == "decimal"
 

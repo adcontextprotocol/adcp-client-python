@@ -88,9 +88,12 @@ CONVENTIONAL = re.compile(
     r"(?:\([^()\n]+\))?(?P<breaking>!)?: (?P<description>\S.*)$"
 )
 GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
-# These already-merged commits predate the guard. Their breaking subjects
-# and reviewed PR migration notes retain the release signal. No other commit,
-# including one with the same subject, inherits these historical exceptions.
+# These already-merged commits lack the footer in the message this guard reads.
+# The first two predate the guard; their breaking subjects and reviewed PR
+# migration notes retain the release signal. 5ce9ee4dc is #1546's GitHub merge
+# commit: its body carries only the PR title, while the merged commit 81c2a8b2b
+# carries the BREAKING CHANGE footer. No other commit, including one with the
+# same subject, inherits these historical exceptions.
 HISTORICAL_BREAKING_SUBJECTS = {
     "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac": (
         "fix(reporting)!: scope configuration generations by account (#1174)"
@@ -98,6 +101,18 @@ HISTORICAL_BREAKING_SUBJECTS = {
     "34c8f6d929aeac3407e2f595104a8e903e572623": (
         "feat(reporting)!: enable production tier status and ownership"
     ),
+    "5ce9ee4dc9daef34af143b84ff7d660489fef1be": (
+        "fix(types)!: allow assignment-only creative syncs"
+    ),
+}
+
+# Rebase-merged PRs record only their last commit as merge_commit_sha, so the
+# earlier commits they put on main match no PR by merge commit. These two were
+# rebase-merged so a storage-only commit would not release adcp; each maps to
+# exactly one merged PR, whose authorship is still checked. Squash-merge only.
+HISTORICAL_REBASED_COMMITS = {
+    "dad5e8d9668e0ebd3ced406780e659b42ee22001": 1589,
+    "a202a3cbeb41ce6f89dcac8db943a0a0f9d72da3": 1595,
 }
 
 
@@ -175,12 +190,21 @@ def event_context() -> tuple[str, str, dict[str, Any]]:
     return kind, target, event
 
 
-def conventional(kind: str, target: str, event: dict[str, Any]) -> dict[str, Any]:
+def conventional(
+    kind: str, target: str, event: dict[str, Any], *, api: GitHub | None = None
+) -> dict[str, Any]:
     if kind == "push":
         commits = main_commits(target)
     else:
         pr = event["pull_request"]
-        validate_message(pr["title"] + "\n\n" + (pr["body"] or ""))
+        # Reruns retain the original webhook payload, including an obsolete PR
+        # description. Read the editable message again without changing which
+        # checkout and commits this run is allowed to validate.
+        if api is None:
+            api = GitHub(os.environ["GH_TOKEN"])
+        current = api.repo(f"pulls/{pr['number']}")
+        require(current["head"]["sha"] == pr["head"]["sha"], "PR head changed; run current CI")
+        validate_message(current["title"] + "\n\n" + (current["body"] or ""))
         head, base = pr["head"]["sha"], pr["base"]["sha"]
         require(SHA.fullmatch(head) and SHA.fullmatch(base), "invalid PR source identities")
         fork = git("merge-base", base, head)
@@ -247,10 +271,11 @@ def ipr(api: GitHub, kind: str, target: str, event: dict[str, Any]) -> dict[str,
     contributions = []
     if kind == "push":
         for sha in main_commits(target):
+            rebased_pr = HISTORICAL_REBASED_COMMITS.get(sha)
             candidates = [
                 pr
                 for pr in api.pages(f"commits/{sha}/pulls")
-                if pr["merge_commit_sha"] == sha
+                if (pr["merge_commit_sha"] == sha or pr["number"] == rebased_pr)
                 and pr["merged_at"]
                 and pr["base"]["ref"] == "main"
                 and pr["base"]["repo"]["full_name"] == REPOSITORY
@@ -258,7 +283,11 @@ def ipr(api: GitHub, kind: str, target: str, event: dict[str, Any]) -> dict[str,
             require(len(candidates) == 1, f"no unique merged contribution for main commit {sha}")
             pr = api.repo(f"pulls/{candidates[0]['number']}")
             validate_pr(pr)
-            require(pr["merged"] is True and pr["merge_commit_sha"] == sha, "wrong merged PR")
+            require(
+                pr["merged"] is True
+                and (pr["merge_commit_sha"] == sha or pr["number"] == rebased_pr),
+                "wrong merged PR",
+            )
             require(pr["merged_at"], "missing contribution merge time")
             contributions.append({"sha": sha, "pr": pr["number"], **author_agreement(pr, signers)})
     else:

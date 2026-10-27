@@ -354,7 +354,7 @@ def test_intent_and_execution_builders_keep_plan_on_buyer_side() -> None:
         payload={"media_buy_id": "mb-1", "budget": 12},
         proposed_commitment=build_governance_commitment(2, "USD"),
     )
-    assert str(intent.target_agent) == "https://seller.example/"
+    assert str(intent.target_agent) == "https://seller.example"  # as given (#1610)
     assert intent.payload == {"media_buy_id": "mb-1", "budget": 12}
     assert intent.governance_context is None
 

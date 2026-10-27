@@ -41,6 +41,7 @@ from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
 from starlette.requests import Request
 
+from adcp._a2a_numbers import A2AStructNumberMiddleware, restore_struct_integers
 from adcp.exceptions import ADCPError
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
@@ -296,10 +297,15 @@ class _A2ARequestContextMiddleware:
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
-    """Return the dict payload of a Part if it carries a ``data`` oneof, else None."""
+    """Return the dict payload of a Part if it carries a ``data`` oneof, else None.
+
+    ``Struct`` turns every JSON number into a double; integral values are
+    restored to ``int`` so handlers and the ``context`` echo see what MCP
+    sees (see :mod:`adcp._a2a_numbers`).
+    """
     if part.WhichOneof("content") != "data":
         return None
-    value: Any = MessageToDict(part.data)
+    value: Any = restore_struct_integers(MessageToDict(part.data))
     if not isinstance(value, dict):
         return None
     return value
@@ -318,9 +324,9 @@ def _normalize_a2a_parameters(params: Any) -> dict[str, Any]:
         return {}
     normalized = dict(params)
     major = normalized.get("adcp_major_version")
-    # Protobuf Struct stores all JSON numbers as doubles, so MessageToDict
-    # turns ``3`` into ``3.0``. Restore the integer wire field before the
-    # shared AdCP version resolver sees it.
+    # A TextPart JSON body may spell the major version ``3.0``. Restore the
+    # integer wire field before the shared AdCP version resolver sees it.
+    # (DataPart numbers are restored where they leave the protobuf Struct.)
     if isinstance(major, float) and major.is_integer():
         normalized["adcp_major_version"] = int(major)
     return normalized
@@ -569,7 +575,7 @@ class ADCPAgentExecutor(AgentExecutor):
             return
 
         if skill_name not in self._tool_callers:
-            await self._send_error(event_queue, context, f"Unknown skill: {skill_name}")
+            await self._send_error(event_queue, context, f"Unknown skill: {skill_name}", params)
             return
 
         tool_context = self._build_tool_context(skill_name, context)
@@ -602,7 +608,9 @@ class ADCPAgentExecutor(AgentExecutor):
             )
         except Exception:
             logger.exception("Error executing skill %s", skill_name)
-            await self._send_error(event_queue, context, f"Skill execution failed: {skill_name}")
+            await self._send_error(
+                event_queue, context, f"Skill execution failed: {skill_name}", params
+            )
 
     async def _dispatch_with_middleware(
         self,
@@ -837,11 +845,25 @@ class ADCPAgentExecutor(AgentExecutor):
         event_queue: EventQueue,
         context: RequestContext,
         error_msg: str,
+        params: dict[str, Any] | None = None,
     ) -> None:
-        """Publish a failed task."""
+        """Publish a failed task for a failure with no AdCP error envelope.
+
+        Covers an unknown skill and an unexpected exception. When ``params``
+        carries a wire ``context``, a DataPart echoes it: AdCP echoes
+        ``context`` on every response, errors included, and buyers correlate
+        failures by it. The text part keeps the generic message; the
+        exception detail stays in the server log.
+        """
+        data: dict[str, Any] = {}
+        if params is not None:
+            from adcp.server.helpers import inject_context
+
+            inject_context(params, data)
         task = _make_task(
             context,
             state=pb.TaskState.TASK_STATE_FAILED,
+            data=data or None,
             message=error_msg,
         )
         await event_queue.enqueue_event(task)
@@ -903,7 +925,9 @@ class ADCPAgentExecutor(AgentExecutor):
         if details:
             adcp_error["details"] = dict(details)
 
-        data: dict[str, Any] = {"adcp_error": adcp_error}
+        # A fatal failure populates both layers (L3 error handling): the payload
+        # carries the protocol-neutral ``errors[]`` and the envelope ``adcp_error``.
+        data: dict[str, Any] = {"adcp_error": adcp_error, "errors": [dict(adcp_error)]}
         if params is not None:
             inject_context(params, data)
 
@@ -1636,6 +1660,11 @@ def create_a2a_server(
             + list(create_jsonrpc_routes(**jsonrpc_kwargs))
         )
         app = Starlette(routes=routes)
+
+    # a2a-sdk prints every protobuf ``Struct`` number as a double (``7.0``).
+    # Write integral values back as JSON integers so a buyer's ``context``
+    # (and every integer field) leaves A2A the way it leaves MCP.
+    app.add_middleware(A2AStructNumberMiddleware, rpc_path=jsonrpc_kwargs["rpc_url"])
 
     # Keep the originating Starlette Request available to context factories
     # during executor dispatch. This is installed for direct

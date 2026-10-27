@@ -213,10 +213,13 @@ def test_manifest_format_kind_keeps_its_optional_default() -> None:
         CreativeManifest(assets={})
 
     # An explicit ``None`` satisfies the document rule -- the group is keyed on the
-    # field being present, not on it being non-null -- and round-trips as null.
+    # field being present, not on it being non-null -- and reads back as ``None``.
+    # It is left off the dump even under ``exclude_none=False``: ``format_kind``
+    # admits no ``null`` on the wire (``NoExplicitNull``, #1587).
     explicit = CreativeManifest(assets={}, format_kind=None)
     assert explicit.format_kind is None
-    assert explicit.model_dump(exclude_unset=True, exclude_none=False)["format_kind"] is None
+    assert "format_kind" in explicit.model_fields_set
+    assert "format_kind" not in explicit.model_dump(exclude_unset=True, exclude_none=False)
 
 
 @pytest.mark.parametrize("json_input", [False, True], ids=["python", "json"])

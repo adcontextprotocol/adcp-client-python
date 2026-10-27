@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import uuid
 from copy import deepcopy
@@ -68,6 +69,49 @@ _DEMO_LEGACY_FORMAT_OWNERS = {
     LEGACY_FORMAT_OWNER.rstrip("/"),
     "https://your-platform.example.com",
 }
+
+
+def _adapt_demo_legacy_governance(tool: str, params: dict[str, Any]) -> dict[str, Any]:
+    """Acknowledge the demo's existing account-wide mock registration policy.
+
+    This example has never enforced governance categories. Real sellers must
+    retain the SDK's unsupported-feature rejection when old category scoping
+    cannot be represented by the current account-wide governance contract.
+    """
+    from adcp._version import normalize_to_release_precision
+    from adcp.validation import validate_request
+
+    if tool != "sync_governance" or params.get("adcp_major_version", 3) != 3:
+        return params
+    version = params.get("adcp_version")
+    if version is not None:
+        if not isinstance(version, str):
+            return params
+        try:
+            if normalize_to_release_precision(version) != "3.0":
+                return params
+        except ValueError:
+            return params
+    if not validate_request(tool, params, version="3.0").valid:
+        return params
+    entries = params.get("accounts") or []
+    # Multiple old agents cannot be collapsed into the current single-agent
+    # binding. Keep those requests on the normal rejection path.
+    if any(len(entry.get("governance_agents") or []) != 1 for entry in entries):
+        return params
+    if not any("categories" in entry["governance_agents"][0] for entry in entries):
+        return params
+    adapted = deepcopy(params)
+    for entry in adapted["accounts"]:
+        entry["governance_agents"][0].pop("categories", None)
+    logging.getLogger(__name__).warning(
+        "DemoSeller uses account-wide mock governance registrations and does not apply "
+        "legacy category scope"
+    )
+    return adapted
+
+
+DEMO_PRE_VALIDATION_HOOKS = {"sync_governance": _adapt_demo_legacy_governance}
 
 # Spec-valid values for ``Product.channels`` (the canonical
 # ``MediaChannelSchema`` enum from schemas/cache/enums/channels.json).
@@ -2169,6 +2213,7 @@ if __name__ == "__main__":
         DemoSeller(),
         name="demo-seller",
         port=PORT,
+        pre_validation_hooks=DEMO_PRE_VALIDATION_HOOKS,
         test_controller=DemoStore(),
         # Demo example: bypass the comply_test_controller sandbox-mode gate
         # so storyboard runs work without an Account.mode-aware AccountStore.

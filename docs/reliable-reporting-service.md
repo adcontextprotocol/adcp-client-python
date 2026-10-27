@@ -189,7 +189,7 @@ The PostgreSQL factory installs ledger, source staging, and replay-seal schemas
 in the caller's pool. Ordinary adapter registrations use those durable stores;
 restart replay reads the sealed bytes without refetching the source. Open the
 pool before starting the service and close it after service shutdown settles.
-This is a change for existing `postgres()` callers, including those that do not
+This is a change for existing PostgreSQL factory callers, including those that do not
 enable `production`: `initialize()` now bootstraps `reporting_inline_objects`
 and `reporting_inline_seals` in addition to the ledger schema. Before upgrading,
 ensure the pool's startup role can run that source-schema DDL. A DDL-restricted
@@ -251,16 +251,13 @@ The SDK constructs the component graph:
 
 ```python
 from psycopg_pool import AsyncConnectionPool
-from adcp.reporting import (
-    ReliableReportingService,
-    ReportingProductionOptions,
-    ReportingServiceOffering,
-)
+from adcp.reporting import ReportingProductionOptions, ReportingServiceOffering
+from adcp_reporting_storage import postgres_reliable_reporting_service
 
 pool = AsyncConnectionPool(DATABASE_URL, open=False)
 await pool.open()
 
-reporting = ReliableReportingService.postgres(
+reporting = postgres_reliable_reporting_service(
     pool=pool,
     account_context=resolve_reporting_context,
     consumer_status_enabled=True,
@@ -323,7 +320,8 @@ contracts, and [the wiring example](../examples/reporting_service_production.py)
 
 ## Advanced composition
 
-`postgres()` without production options remains the Core factory. Advanced
+`postgres_reliable_reporting_service()` (from `adcp_reporting_storage`) without
+production options remains the Core factory. Advanced
 adopters can still inject workers and receipt handlers, pass explicit
 `staging=`/`seals=` to `sources.register`, use `constituent_of=` for a custom row
 identity, or register a complete executor and object reader. Explicit stores are
@@ -396,8 +394,14 @@ returns `AUTH_REQUIRED`; explicit buyer configuration validation can raise
 Composition errors retain `INTERNAL_ERROR` and terminal recovery, with internal
 configuration details omitted from buyer responses. Ledger codes are preserved
 and receive the SDK's recovery classification for that code. Reporting cursor/
-input extensions are correctable, storage-unavailability extensions are transient,
-and unknown extension or integrity failures default to terminal. Disabled optional methods and aggregate delivery
+input extensions are correctable. Storage-unavailability extensions are transient,
+as are a pending status lifecycle (`STATUS_PROJECTION_UNAVAILABLE`) and retained
+history the seller still owes but has not yet materialized or repaired
+(`HISTORY_UNAVAILABLE`): the request is valid, and the same retry succeeds once
+the seller catches up. A reporting reference that does not resolve for the caller
+(`LOOKUP_UNAVAILABLE`) answers the standard, nondisclosing `REFERENCE_NOT_FOUND`
+with correctable recovery. Unknown extension or integrity failures default to
+terminal. Disabled optional methods and aggregate delivery
 continue to delegate to the application.
 
 ## Source identity and automatic read timing
@@ -424,7 +428,8 @@ when its official close becomes due. Every automatic read still waits for its ac
 offering to be ready.
 
 For Core service composition, set `read_jitter_window=timedelta(...)` on
-`ReliableReportingService.memory(...)`, `.postgres(...)`, or the constructor.
+`ReliableReportingService.memory(...)`, `postgres_reliable_reporting_service(...)`,
+or the constructor.
 For managed production, set the same option on `ReportingProductionOptions`.
 Direct `ReportingProducer` users can set it on the producer. A nonnegative
 duration is required; `timedelta(0)` opts out. Managed production owns this

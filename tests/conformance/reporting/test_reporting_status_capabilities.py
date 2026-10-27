@@ -5,13 +5,13 @@ from dataclasses import replace
 from itertools import product
 
 import pytest
+from adcp_reporting_storage import PgReportingActivityUnionStore
 
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
 from adcp.reporting.ledger.status_server import ReportingStatusNotificationHandler
 from adcp.reporting.outbox import (
-    PgReportingActivityUnionStore,
     ReportingActivityProjector,
     ReportingActivitySupport,
     ReportingNotificationError,
@@ -242,11 +242,16 @@ async def test_authoritative_task_is_callable_through_mcp_and_a2a_with_authentic
     assert "sync_reporting_receipts" not in {t["name"] for t in get_tools_for_handler(handler)}
     executor = ADCPAgentExecutor(handler, validation=None)
     for caller in (
-        create_tool_caller(handler, "get_reporting_status"),
+        create_tool_caller(
+            handler,
+            "get_reporting_status",
+            default_unnegotiated_adcp_version=handler.get_adcp_version(),
+        ),
         executor._tool_callers["get_reporting_status"],
     ):
         buyer = await caller(
             {
+                "adcp_version": "3.2",
                 "account": {"account_id": "acct_a"},
                 "view": "summary",
                 "context": {"consumer_id": "auditor"},
@@ -255,6 +260,7 @@ async def test_authoritative_task_is_callable_through_mcp_and_a2a_with_authentic
         )
         auditor = await caller(
             {
+                "adcp_version": "3.2",
                 "account": {"account_id": "acct_a"},
                 "view": "summary",
                 "context": {"consumer_id": "buyer"},

@@ -176,17 +176,34 @@ def test_proposal_refinement_does_not_remove_frequency_cap_by_default() -> None:
 
 @pytest.mark.parametrize("prefix", ["", "bundled"])
 @pytest.mark.parametrize(
-    "annotation,default",
+    "annotation,default,widened",
     [
-        ("Literal[True]", "True"),
-        ("Annotated[Literal[True], Field(deprecated=True)]", "True"),
-        ("Annotated[Literal[True], Field(description='Explicit choice — True')]", "True"),
+        ("Literal[True]", "True", "Annotated[Literal[True] | None, NoExplicitNull]"),
+        (
+            "Annotated[Literal[True], Field(deprecated=True)]",
+            "True",
+            "Annotated[Literal[True] | None, Field(deprecated=True), NoExplicitNull]",
+        ),
+        (
+            "Annotated[Literal[True], Field(description='Explicit choice — True')]",
+            "True",
+            "Annotated[Literal[True] | None, Field(description='Explicit choice — True'), "
+            "NoExplicitNull]",
+        ),
         (
             "Annotated[\n        Literal[True],\n"
             "        Field(description='Explicit choice — preserve metadata'),\n    ]",
             "True",
+            "Annotated[\n        Literal[True] | None,\n"
+            "        Field(description='Explicit choice — preserve metadata'),\n"
+            "        NoExplicitNull,\n    ]",
         ),
-        ("Annotated[Literal[False], Field(description='False-only flag') ]", "False"),
+        (
+            "Annotated[Literal[False], Field(description='False-only flag') ]",
+            "False",
+            "Annotated[Literal[False] | None, Field(description='False-only flag') , "
+            "NoExplicitNull]",
+        ),
     ],
 )
 def test_optional_const_fixes_are_idempotent(
@@ -195,7 +212,10 @@ def test_optional_const_fixes_are_idempotent(
     prefix: str,
     annotation: str,
     default: str,
+    widened: str,
 ) -> None:
+    """Widening keeps the constant's metadata and adds ``NoExplicitNull`` (#1547):
+    the schema admits absence, never ``null``."""
     from scripts import post_generate_fixes
 
     target = tmp_path / prefix / "core/model.py"
@@ -212,10 +232,13 @@ def test_optional_const_fixes_are_idempotent(
     fix = post_generate_fixes.fix_optional_boolean_literal_defaults
     fix()
     updated = target.read_text()
-    optional_annotation = annotation.replace(f"Literal[{default}]", f"Literal[{default}] | None")
-    assert updated == original.replace(
-        f"optional_flag: {annotation} = {default}",
-        f"optional_flag: {optional_annotation} = None",
+    assert updated == (
+        "from typing import Annotated\n"
+        "from adcp.types.base import NoExplicitNull\n"
+        + original.replace(
+            f"optional_flag: {annotation} = {default}",
+            f"optional_flag: {widened} = None",
+        )
     )
     ast.parse(updated)
     fix()

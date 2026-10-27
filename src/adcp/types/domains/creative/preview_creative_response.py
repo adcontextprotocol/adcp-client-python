@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl, WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import preview_render as preview_render_1
@@ -52,8 +53,8 @@ class Preview2(AdcpVersionEnvelope):
 class Response(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview2], Field(min_length=1)]
-    interactive_url: AnyUrl | None = None
-    expires_at: AwareDatetime | None = None
+    interactive_url: WireAnyUrl | None = None
+    expires_at: WireDatetime | None = None
 
 
 class Result(AdcpVersionEnvelope):
@@ -76,8 +77,8 @@ class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
     quality_used: creative_quality_1.CreativeQuality | None = None
-    interactive_url: AnyUrl | None = None
-    expires_at: AwareDatetime | None = None
+    interactive_url: WireAnyUrl | None = None
+    expires_at: WireDatetime | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
@@ -97,13 +98,13 @@ class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     creative_id: str | None = None
     previews: Annotated[list[Preview3], Field(min_length=1)]
     manifest: creative_manifest_1.CreativeManifest | None = None
-    expires_at: AwareDatetime | None = None
+    expires_at: WireDatetime | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
 
 class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     response_type: Literal['submitted'] = 'submitted'
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str

@@ -4,17 +4,17 @@ import json
 from importlib.resources import files
 
 import pytest
-
-from adcp.reporting.ledger import LedgerConflictError
-from adcp.reporting.outbox._schema import (
+from adcp_reporting_storage import PgReportingReceiptStore
+from adcp_reporting_storage.outbox._schema import (
     PROVISIONAL_REQUIRED_OBJECTS,
     REQUIRED_OBJECTS,
     _catalog_objects,
     schema_objects,
     validate_provisional_schema,
 )
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
-from adcp.reporting.receipts import PgReportingReceiptStore
+from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
+
+from adcp.reporting.ledger import LedgerConflictError
 
 from ._generation_support import isolated_reporting_pool
 
@@ -63,7 +63,9 @@ async def test_exact_catalog_scope_preserves_full_contract_and_excludes_overload
     for package in ("materializer", "receipts"):
         expected.update(
             json.loads(
-                files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+                files("adcp_reporting_storage." + package)
+                .joinpath("required_schema.json")
+                .read_text()
             )
         )
     assert len(expected) == 794 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27

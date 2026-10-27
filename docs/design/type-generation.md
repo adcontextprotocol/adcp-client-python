@@ -139,6 +139,22 @@ Each of these operates on the staging copy only. The cached bundle, the schemas 
 ships and any direct-from-schema validation are untouched, which is what keeps the
 transforms from changing what the SDK validates against.
 
+One more transform runs once over the whole staged tree after every file is written,
+because it has to resolve `$ref`s into the documents the generator will read:
+`mark_no_explicit_null_properties`. JSON Schema separates two things the generator
+conflates — a property outside `required` may be *absent*, and `null` is a valid *value*
+only where the declared type admits it — and the generator renders both as
+`T | None = None`, so the model accepted `{"creatives": null}` where the bundled validator
+reports a `type` error (#1547). The pass grades every optional property with the same
+`jsonschema` validator the bundled arm uses (`is_valid(None)` on the property node, refs
+resolved against the staged tree), and marks the ones that refuse `null` with
+`x-adcp-no-explicit-null: true`. The generator carries the mark into
+`Field(json_schema_extra=...)` via `--field-extra-keys`, and the first post-generation fix
+turns it into the `NoExplicitNull` annotation (below). The key exists only in the staged
+input; the shipped schemas never carry it. A property whose schema admits `null` — a type
+list, an `anyOf` with a null arm, a `$ref` to a nullable schema — is not marked and keeps
+accepting it.
+
 Two of them carry explicit ceilings rather than trusting a bump not to move the problem.
 `normalize_version_envelope_composition` raises if it would rewrite more than 12 schemas:
 *"A bump changed the shape of the problem: re-measure which schemas declare the version
@@ -159,8 +175,18 @@ on the file being present and absent.
 `scripts/post_generate_fixes.py` is 7367 lines holding 130 module-level functions: 72 fix
 entrypoints, built as one ordered list in `main()` and run in list order, plus 58 helpers.
 
-Three ordering constraints are commented in the list itself and must be preserved:
+Four ordering constraints are commented in the list itself and must be preserved:
 
+- `point_omittable_fields_at_no_explicit_null` runs first. It removes the
+  `json_schema_extra={'x-adcp-no-explicit-null': True}` keyword the generator emitted for
+  every marked property and appends `adcp.types.base.NoExplicitNull` to the field's
+  `Annotated` metadata, re-rendering the field the way black lays it out, so every later
+  fix reads exactly the text the generator produced on the pinned flags plus that one
+  element. The annotation stays `T | None = None`: omitted still reads as `None`, a JSON
+  `null` is refused (with the type's own error; a Python `None` stays the spelling of absence
+  unless `ADCP_STRICT_VALIDATION` is set), and the `null` arm leaves the published JSON
+  Schema. A marked field whose annotation already refuses `None` (a
+  `Literal` with a default, a field an `allOf` arm made required) only loses the keyword.
 - `point_integer_fields_at_the_schema_integer_type` retypes every `type: integer`,
   including an integer root's own `root` annotation, so it must precede
   `rewrite_scalar_rootmodels` — run after, and an integer root is still spelled

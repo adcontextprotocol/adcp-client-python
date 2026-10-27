@@ -7,9 +7,9 @@ import shutil
 from pathlib import Path
 
 import pytest
+from adcp_reporting_storage import PgReportingReceiptStore
 
 from adcp.reporting.ledger.delivery import receipt_to_wire
-from adcp.reporting.receipts import PgReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness
 from ._generation_support import isolated_reporting_pool
@@ -17,6 +17,7 @@ from ._receipt_support import adjustment_for, receipt_case, request_for
 from ._reconciliation_support import Clock
 from .test_reporting_materializer_installed_pg import installed_materializer
 from .test_reporting_materializer_packaging import ROOT, b1_wheels, built_distribution, run_step
+from .test_reporting_notification_packaging import STORAGE_SRC
 from .test_reporting_receipt_process import worker
 
 __all__ = ["installed_materializer", "b1_wheels", "built_distribution"]
@@ -37,8 +38,10 @@ def installed_receipts(installed_materializer):
         timeout=60,
     )
     modules = dict(original["modules"])
+    modules["adcp_reporting_storage.receipts.pg"] = hashlib.sha256(
+        (STORAGE_SRC / "receipts/pg.py").read_bytes()
+    ).hexdigest()
     for name in (
-        "reporting/receipts/pg.py",
         "reporting/receipts/handler.py",
         "reporting/receipts/wire.py",
         "reporting/receipts/transport.py",

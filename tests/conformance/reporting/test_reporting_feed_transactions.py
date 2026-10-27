@@ -10,9 +10,10 @@ from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from adcp_reporting_storage import PgReportingFeedStore
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
-from adcp.reporting.feed import PgReportingFeedStore, ReportingFeedError
+from adcp.reporting.feed import ReportingFeedError
 from adcp.reporting.feed.snapshot import StoredFeedSnapshot
 
 from ._durable_materializer_support import DurableHarness, durable_case
@@ -37,7 +38,7 @@ __all__ = ["feeds"]
 @asynccontextmanager
 async def paused_feed_projection(monkeypatch, *, failure=False):
     """Pause the real pure projector, without blocking the test event loop."""
-    from adcp.reporting.feed import pg
+    from adcp_reporting_storage.feed import pg
 
     loop = asyncio.get_running_loop()
     loop_thread = threading.get_ident()
@@ -432,7 +433,9 @@ async def test_every_snapshot_fault_rolls_back_all_collections_heads_and_upstrea
         if fault == "assembly":
             monkeypatch.setattr(StoredFeedSnapshot, "page", failing)
         else:
-            from adcp.reporting.feed import memory, pg
+            from adcp_reporting_storage.feed import pg
+
+            from adcp.reporting.feed import memory
 
             monkeypatch.setattr(memory if h.pool is None else pg, "inject_context", failing)
     elif h.pool is None:

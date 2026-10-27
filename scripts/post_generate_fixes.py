@@ -25,9 +25,11 @@ import argparse
 import ast
 import hashlib
 import importlib.util
+import io
 import json
 import re
 import sys
+import tokenize
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
@@ -1007,6 +1009,97 @@ def preserve_format_reference_agent_url_wire_string() -> None:
     print("  core/format_id.py: agent_url keeps the wire string (WireUrl)")
 
 
+#: The pydantic type the generator renders for each normalizing ``format`` and
+#: the wire-preserving type from ``adcp.types._wire`` that replaces it. Each
+#: replacement validates identically, keeps the attribute API (a ``datetime``,
+#: an ``AnyUrl``, a ``UUID``, a ``str``) and advertises the same JSON Schema;
+#: the only change is that JSON-mode serialization writes the text the wire
+#: delivered instead of the parser's normalized form.
+_WIRE_PRESERVING_TYPES: dict[tuple[str, str], str] = {
+    ("pydantic", "AwareDatetime"): "WireDatetime",
+    ("pydantic", "AnyUrl"): "WireAnyUrl",
+    ("pydantic", "EmailStr"): "WireEmail",
+    ("uuid", "UUID"): "WireUuid",
+}
+
+
+def _rename_code_names(source: str, renames: Mapping[str, str]) -> str:
+    """Rename identifier tokens, leaving strings and comments untouched.
+
+    A description such as "Use a fresh UUID v4 for each request" must keep
+    its wording; only a ``NAME`` token the tokenizer reports is a reference.
+    """
+    lines = source.splitlines(keepends=True)
+    edits: list[tuple[int, int, int, str]] = []
+    previous = ""
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        # ``uuid.UUID`` is an attribute, not a reference to the imported name.
+        if token.type == tokenize.NAME and token.string in renames and previous != ".":
+            (row, col), (_, end_col) = token.start, token.end
+            edits.append((row - 1, col, end_col, renames[token.string]))
+        if token.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT):
+            previous = token.string
+    for row, col, end_col, replacement in reversed(edits):
+        line = lines[row]
+        lines[row] = line[:col] + replacement + line[end_col:]
+    return "".join(lines)
+
+
+def preserve_wire_text_on_normalizing_fields() -> None:
+    """Point every normalizing scalar field at its wire-preserving type.
+
+    ``format: date-time``, ``format: uri``, ``format: uuid`` and
+    ``format: email`` fields are rendered ``AwareDatetime``, ``AnyUrl``,
+    ``UUID`` and ``EmailStr``, each of which re-serializes the value it parsed:
+    ``https://measurement.example`` comes back with a trailing slash,
+    ``2026-10-01T00:00:00.000+00:00`` as ``2026-10-01T00:00:00Z``, an
+    upper-case UUID lower-cased, an email with its domain lower-cased. AdCP
+    binds bytes to several of these objects -- ``content_digest`` is SHA-256
+    over the JCS form of an entry's declared fields -- so a parsed-then-dumped
+    entry stopped matching its own digest (#1610). The types in
+    ``adcp.types._wire`` validate the same way and serialize the text they
+    were parsed from; a value built in Python serializes as before.
+
+    Every field is pointed there, not only the digest-covered ones: a shared
+    class (``AttestationReference``, ``Provenance``) sits inside digested and
+    undigested objects alike, so a per-subtree rule would have to split
+    classes, and the invariant worth having is that the SDK never rewrites a
+    wire value it did not change.
+    """
+    renames = {name: wire for (_module, name), wire in _WIRE_PRESERVING_TYPES.items()}
+    modified = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if not any(re.search(rf"\b{name}\b", source) for name in renames):
+            continue
+        tree = ast.parse(source)
+        referenced = {
+            node.id for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id in renames
+        }
+        if not referenced:
+            continue
+        for (module, name), wire in _WIRE_PRESERVING_TYPES.items():
+            if name in referenced:
+                source = drop_from_imports(source, module, name)
+        source = _rename_code_names(source, {name: renames[name] for name in referenced})
+        wires = sorted({renames[name] for name in referenced})
+        if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+            source = add_to_import(source, "adcp.types.base", *wires)
+        else:
+            anchor = _import_pattern("pydantic").search(source)
+            if anchor is None:
+                anchor = re.search(r"^from |^import ", source, re.MULTILINE)
+            assert anchor is not None, path
+            source = (
+                source[: anchor.start()]
+                + f"from adcp.types.base import {', '.join(wires)}\n"
+                + source[anchor.start() :]
+            )
+        path.write_text(source)
+        modified += 1
+    print(f"  Pointed normalizing fields at wire-preserving types in {modified} file(s)")
+
+
 def point_integer_fields_at_the_schema_integer_type() -> None:
     """Rewrite the generator's ``StrictInt`` marker to ``SchemaInt``.
 
@@ -1037,6 +1130,301 @@ def point_integer_fields_at_the_schema_integer_type() -> None:
         path.write_text(source)
         modified += 1
     print(f"  Pointed integer fields at SchemaInt in {modified} file(s)")
+
+
+#: The ``Field`` keyword the generator emits for ``generate_types.NO_EXPLICIT_NULL_KEY``.
+_NO_EXPLICIT_NULL_EXTRA = "json_schema_extra={'x-adcp-no-explicit-null': True}"
+_NO_EXPLICIT_NULL_MARKER = "NoExplicitNull"
+
+
+def _generated_line_width() -> int:
+    """The line length the generator's black pass used.
+
+    datamodel-code-generator hands black ``settings_path=output``, so black
+    reads ``[tool.black] line-length`` from the nearest ``pyproject.toml``
+    above the generated tree — this repository's. The rewrite below re-renders
+    a field the way black laid it out, so it must measure against the same
+    width.
+    """
+    try:
+        pyproject = (REPO_ROOT / "pyproject.toml").read_text()
+    except FileNotFoundError:
+        return 88
+    section = re.search(r"^\[tool\.black\]\n(.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
+    configured = section and re.search(r"^line-length\s*=\s*(\d+)", section.group(1), re.MULTILINE)
+    return int(configured.group(1)) if configured else 88
+
+
+_GENERATED_LINE_WIDTH = _generated_line_width()
+
+
+def _absolute_offsets(source: bytes) -> list[int]:
+    """Byte offset of each line start. ``ast`` column offsets count UTF-8 bytes."""
+    offsets = [0]
+    for line in source.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+    return offsets
+
+
+def _node_span(node: ast.AST, offsets: list[int]) -> tuple[int, int]:
+    assert node.end_lineno is not None and node.end_col_offset is not None
+    return (
+        offsets[node.lineno - 1] + node.col_offset,
+        offsets[node.end_lineno - 1] + node.end_col_offset,
+    )
+
+
+def _segment(source: bytes, offsets: list[int], node: ast.AST) -> str:
+    """The source text of *node*, via precomputed byte offsets.
+
+    ``ast.get_source_segment`` re-splits the whole module on every call, which
+    is quadratic over a generated module's fields. Spans are in bytes because
+    that is what ``ast`` column offsets count — a description holding an em
+    dash shifts every later column on its line.
+    """
+    start, end = _node_span(node, offsets)
+    return source[start:end].decode("utf-8")
+
+
+def _no_explicit_null_keyword(call: ast.expr) -> ast.keyword | None:
+    """The ``json_schema_extra`` keyword carrying the mark, if *call* is that ``Field(...)``."""
+    if not (
+        isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "Field"
+    ):
+        return None
+    for keyword in call.keywords:
+        if keyword.arg != "json_schema_extra" or not isinstance(keyword.value, ast.Dict):
+            continue
+        keys = [k.value for k in keyword.value.keys if isinstance(k, ast.Constant)]
+        if keys == ["x-adcp-no-explicit-null"]:
+            return keyword
+    return None
+
+
+def _field_call_without_mark(
+    call: ast.Call, keyword: ast.keyword, source: bytes, offsets: list[int]
+) -> list[str] | None:
+    """The ``Field(...)`` call's remaining arguments, each as source text.
+
+    Returns ``None`` when the mark was the only argument, so the caller drops
+    the ``Field`` metadata altogether.
+    """
+    arguments = [_segment(source, offsets, positional) for positional in call.args]
+    arguments += [
+        _segment(source, offsets, other) for other in call.keywords if other is not keyword
+    ]
+    return arguments or None
+
+
+def _render_field_call(arguments: list[str], indent: int) -> str:
+    """Render ``Field(...)`` at *indent* the way black lays out a call.
+
+    One line when it fits; otherwise the arguments hugged on one inner line
+    when that fits; otherwise one argument per line with a trailing comma.
+    The ``+ 1`` leaves room for the comma the enclosing subscript adds.
+    """
+    joined = ", ".join(arguments)
+    one_line = f"Field({joined})"
+    if "\n" not in one_line and indent + len(one_line) + 1 <= _GENERATED_LINE_WIDTH:
+        return one_line
+    inner_indent = " " * (indent + 4)
+    # A single argument has no delimiter to split on, so black keeps it on
+    # one inner line however long it is, and adds no trailing comma.
+    if "\n" not in joined and (
+        len(arguments) == 1 or len(inner_indent) + len(joined) <= _GENERATED_LINE_WIDTH
+    ):
+        return f"Field(\n{inner_indent}{joined}\n{' ' * indent})"
+    lines = ["Field("]
+    for argument in arguments:
+        lines.append(f"{inner_indent}{argument},")
+    lines.append(f"{' ' * indent})")
+    return "\n".join(lines)
+
+
+def _render_annotated(
+    prefix: str, type_source: str, metadata: list[str | list[str]], suffix: str
+) -> str:
+    """Render ``prefix Annotated[type, *metadata] suffix`` the way black would.
+
+    A metadata entry is either source text or, for the ``Field(...)`` call,
+    its argument list, which is laid out for whichever form is chosen.
+    """
+    default = re.fullmatch(r" = (.+)", suffix)
+
+    def split_right_hand_side(annotation: str) -> str | None:
+        # Black splits the right-hand side first: when everything up to
+        # ``= (`` fits, the default goes on its own line and the annotation
+        # stays whole.
+        head = f"{prefix}{annotation} = ("
+        if default is None or "\n" in head or len(head) > _GENERATED_LINE_WIDTH:
+            return None
+        return f"{head}\n        {default.group(1)}\n    )"
+
+    if not metadata:
+        bare = f"{prefix}{type_source}{suffix}"
+        if "\n" not in type_source and len(bare) <= _GENERATED_LINE_WIDTH:
+            return bare
+        if "\n" not in type_source and (rhs := split_right_hand_side(type_source)) is not None:
+            return rhs
+        # Black splits a trailing subscript at its bracket; anything else it
+        # wraps in parentheses. A type that already spans lines was inside
+        # such parentheses, and keeps its own layout.
+        subscript = re.fullmatch(r"([\w.]+)\[(.+)\]", type_source, re.DOTALL)
+        if "\n" not in type_source and subscript is not None:
+            return f"{prefix}{subscript.group(1)}[\n        {subscript.group(2)}\n    ]{suffix}"
+        return f"{prefix}(\n        {type_source}\n    ){suffix}"
+
+    def flat(element: str | list[str], indent: int) -> str:
+        return _render_field_call(element, indent) if isinstance(element, list) else element
+
+    one_line_elements = [type_source, *(flat(element, 0) for element in metadata)]
+    inner = ", ".join(one_line_elements)
+    one_line = f"{prefix}Annotated[{inner}]{suffix}"
+    if "\n" not in one_line and len(one_line) <= _GENERATED_LINE_WIDTH:
+        return one_line
+    if "\n" not in inner and (rhs := split_right_hand_side(f"Annotated[{inner}]")) is not None:
+        return rhs
+    hugged = f"        {inner}"
+    if "\n" not in hugged and len(hugged) <= _GENERATED_LINE_WIDTH:
+        return f"{prefix}Annotated[\n{hugged}\n    ]{suffix}"
+    lines = [f"{prefix}Annotated["]
+    for element in [type_source, *metadata]:
+        lines.append(f"        {flat(element, 8)},")
+    lines.append(f"    ]{suffix}")
+    return "\n".join(lines)
+
+
+def _rewrite_no_explicit_null_marks(
+    source: str, marker: str | None = _NO_EXPLICIT_NULL_MARKER
+) -> tuple[str, int]:
+    """Turn every marked ``Field`` keyword into the ``NoExplicitNull`` annotation.
+
+    Returns the rewritten source and the number of fields that now carry the
+    marker. A marked field whose annotation already refuses ``None`` (a
+    ``Literal`` with a default, a required field an ``allOf`` arm supplied)
+    only loses the keyword. With ``marker=None`` the keyword is removed and
+    nothing is appended, which is how the layout is graded against the
+    generator's own: the result must be byte-identical to a run without the
+    mark.
+    """
+    raw = source.encode("utf-8")
+    tree = ast.parse(raw)
+    offsets = _absolute_offsets(raw)
+    edits: list[tuple[int, int, bytes]] = []
+    marked = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.AnnAssign) or not isinstance(node.target, ast.Name):
+            continue
+        annotation = node.annotation
+        if not (
+            isinstance(annotation, ast.Subscript)
+            and isinstance(annotation.value, ast.Name)
+            and annotation.value.id == "Annotated"
+            and isinstance(annotation.slice, ast.Tuple)
+        ):
+            continue
+        elements = annotation.slice.elts
+        keyword = None
+        for element in elements[1:]:
+            keyword = _no_explicit_null_keyword(element)
+            if keyword is not None:
+                field_call = element
+                break
+        if keyword is None:
+            continue
+        type_source = _segment(raw, offsets, elements[0])
+        metadata: list[str | list[str]] = []
+        for element in elements[1:]:
+            if element is field_call:
+                assert isinstance(element, ast.Call)
+                arguments = _field_call_without_mark(element, keyword, raw, offsets)
+                if arguments is not None:
+                    metadata.append(arguments)
+                continue
+            metadata.append(_segment(raw, offsets, element))
+        annotation_names = {n.id for n in ast.walk(elements[0]) if isinstance(n, ast.Name)} | {
+            n.value for n in ast.walk(elements[0]) if isinstance(n, ast.Constant)
+        }
+        if None in annotation_names and marker is not None:
+            metadata.append(marker)
+            marked += 1
+        # Measure from the start of the line: the indentation counts toward
+        # the width black lays the statement out against.
+        line_start = offsets[node.lineno - 1]
+        _statement_start, statement_end = _node_span(node, offsets)
+        annotation_start, annotation_end = _node_span(annotation, offsets)
+        prefix = raw[line_start:annotation_start].decode("utf-8")
+        suffix = raw[annotation_end:statement_end].decode("utf-8")
+        # A default black split onto its own line sits in parentheses the
+        # AST does not span: ``= (\n        None\n    )``. Read it back as
+        # ``= None`` and consume the closing parenthesis.
+        wrapped = re.fullmatch(r" = \(\s*(.+?)\s*(\))?", suffix, re.DOTALL)
+        if wrapped is not None:
+            if wrapped.group(2) is None:
+                closing = re.match(rb"\s*\)", raw[statement_end:])
+                assert closing is not None, (node.target.id, suffix)
+                statement_end += closing.end()
+            suffix = f" = {wrapped.group(1)}"
+        rendered = _render_annotated(prefix, type_source, metadata, suffix)
+        edits.append((line_start, statement_end, rendered.encode("utf-8")))
+    for start, end, replacement in sorted(edits, reverse=True):
+        raw = raw[:start] + replacement + raw[end:]
+    return raw.decode("utf-8"), marked
+
+
+def _ensure_no_explicit_null_import(source: str) -> str:
+    """Import ``NoExplicitNull`` from ``adcp.types.base`` when the module lacks it."""
+    if re.search(r"^from adcp\.types\.base import .*\bNoExplicitNull\b", source, re.MULTILINE):
+        return source
+    if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+        return add_to_import(source, "adcp.types.base", _NO_EXPLICIT_NULL_MARKER)
+    statement = f"from adcp.types.base import {_NO_EXPLICIT_NULL_MARKER}\n"
+    anchor = _import_pattern("pydantic").search(source)
+    if anchor is not None:
+        return source[: anchor.start()] + statement + source[anchor.start() :]
+    # No pydantic import to sit beside (a fixture module): after the typing
+    # import, else after ``from __future__``, else at the top.
+    for pattern in (r"^from typing import [^\n]*\n", r"^from __future__ import [^\n]*\n\n?"):
+        match = re.search(pattern, source, re.MULTILINE)
+        if match is not None:
+            return source[: match.end()] + statement + source[match.end() :]
+    return statement + source
+
+
+def point_omittable_fields_at_no_explicit_null() -> None:
+    """Refuse an explicit ``null`` on every optional property whose schema refuses one.
+
+    ``generate_types.mark_no_explicit_null_properties`` grades each optional
+    property with the bundled validator and marks the ones that cannot be
+    ``null``; the generator carries the mark as a ``Field(json_schema_extra=...)``
+    keyword. This pass removes that keyword and appends
+    ``adcp.types.base.NoExplicitNull`` to the field's ``Annotated`` metadata,
+    so the annotation stays ``T | None = None`` — omitted still reads as
+    ``None`` — while an explicit ``null`` is refused on input and the ``null``
+    arm leaves the published JSON Schema. See #1547.
+    """
+    modified = 0
+    marked = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if _NO_EXPLICIT_NULL_EXTRA not in source:
+            continue
+        source, count = _rewrite_no_explicit_null_marks(source)
+        assert _NO_EXPLICIT_NULL_EXTRA not in source, path
+        # A module whose only ``Field`` or ``Annotated`` was the mark's is left
+        # exactly as the generator writes it without the mark.
+        if "Field(" not in source:
+            source = drop_from_imports(source, "pydantic", "Field")
+        if "Annotated[" not in source:
+            source = drop_from_imports(source, "typing", "Annotated")
+            # Dropping the only ``typing`` import leaves its blank line behind.
+            source = re.sub(r"\n{3,}(from |import )", r"\n\n\1", source, count=1)
+        if count:
+            source = _ensure_no_explicit_null_import(source)
+        path.write_text(source)
+        modified += 1
+        marked += count
+    print(f"  Pointed {marked} optional field(s) at NoExplicitNull in {modified} file(s)")
 
 
 def remove_imports_shadowed_by_a_local_class() -> None:
@@ -3406,15 +3794,21 @@ def _ensure_sequence_import(content: str) -> str:
 _CANCELED_FIELD_RE = re.compile(
     r"(    canceled: Annotated\[\n        )"
     r"Literal\[True\]"
-    r"(,\n        Field\(\n            description=[^\n]*\n        \),\n    \])"
+    r"(,\n        Field\(\n            description=[^\n]*\n        \),\n)"
+    r"(    \])"
     r" = True"
 )
+
+#: The widened form: optional, so ``None`` when omitted, and — as the schema
+#: declares a boolean — never an explicit ``null`` (#1547).
+_WIDENED_LITERAL_TRUE = r"\1Literal[True] | None\2        NoExplicitNull,\n\3 = None"
 
 
 _UNCHANGED_FIELD_RE = re.compile(
     r"(    unchanged: Annotated\[\n        )"
     r"Literal\[True\]"
-    r"(,\n        Field\(\n            description=.*?\n        \),\n    \])"
+    r"(,\n        Field\(\n            description=.*?\n        \),\n)"
+    r"(    \])"
     r" = True",
     re.DOTALL,
 )
@@ -3454,9 +3848,11 @@ def fix_canceled_literal_defaults() -> None:
 
         source = py_file.read_text()
         new_source, count = _CANCELED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             source,
         )
+        if count:
+            new_source = _ensure_no_explicit_null_import(new_source)
 
         if count == 0:
             print(f"  {py_file.relative_to(OUTPUT_DIR)}: no destructive canceled defaults found")
@@ -3497,9 +3893,11 @@ def fix_unchanged_literal_defaults() -> None:
 
         source = py_file.read_text()
         new_source, count = _UNCHANGED_FIELD_RE.subn(
-            r"\1Literal[True] | None\2 = None",
+            _WIDENED_LITERAL_TRUE,
             source,
         )
+        if count:
+            new_source = _ensure_no_explicit_null_import(new_source)
 
         if count == 0:
             print(f"  {py_file.relative_to(OUTPUT_DIR)}: no unchanged defaults found")
@@ -3548,16 +3946,29 @@ def fix_optional_boolean_literal_defaults() -> None:
             if not isinstance(node.value, ast.Constant) or node.value.value is not literal_value:
                 continue
             annotation = node.annotation
+            widened = f"Literal[{literal_value}] | None"
             if (
                 isinstance(annotation, ast.Subscript)
                 and _subscript_base_name(annotation) == "Annotated"
             ):
-                annotation = _first_subscript_arg(annotation)
-            assert annotation is not None
-            for part, replacement in (
-                (annotation, f"Literal[{literal_value}] | None".encode()),
-                (node.value, b"None"),
-            ):
+                # Widen the type and slot the marker in before the closing
+                # bracket, after the existing metadata.
+                first = _first_subscript_arg(annotation)
+                assert first is not None
+                closing = offsets[annotation.end_lineno - 1] + annotation.end_col_offset - 1
+                assert source[closing : closing + 1] == b"]"
+                exploded = (
+                    b"\n"
+                    in source[offsets[annotation.lineno - 1] + annotation.col_offset : closing]
+                )
+                # The closing bracket of an exploded subscript already sits on
+                # its own indented line; add one element at the element indent.
+                marker = b"    NoExplicitNull,\n    " if exploded else b", NoExplicitNull"
+                edits.append((closing, closing, marker))
+                replacements = [(first, widened.encode())]
+            else:
+                replacements = [(annotation, f"Annotated[{widened}, NoExplicitNull]".encode())]
+            for part, replacement in (*replacements, (node.value, b"None")):
                 edits.append(
                     (
                         offsets[part.lineno - 1] + part.col_offset,
@@ -3569,7 +3980,8 @@ def fix_optional_boolean_literal_defaults() -> None:
         if edits:
             for start, end, replacement in sorted(edits, reverse=True):
                 source = source[:start] + replacement + source[end:]
-            py_file.write_bytes(source)
+            text = _ensure_typing_import(source.decode(), "Annotated")
+            py_file.write_text(_ensure_no_explicit_null_import(text))
             print(
                 f"  {py_file.relative_to(OUTPUT_DIR)}: fixed {len(edits) // 2} boolean const field(s)"
             )
@@ -4005,9 +4417,7 @@ def fix_trusted_match_runtime_validators() -> None:
         print("  trusted_match/identity_match_response.py response class not found")
         return
     response_class = response_class_match.group(1)
-    source = (
-        source.rstrip()
-        + f"""
+    source = source.rstrip() + f"""
 
     @model_validator(mode='after')
     def _validate_tmpx_provider_ids(self) -> {response_class}:
@@ -4022,7 +4432,6 @@ def fix_trusted_match_runtime_validators() -> None:
             raise ValueError('tmpx_providers keys must be valid provider_id values')
         return self
 """
-    )
     identity_match_response.write_text(source.rstrip() + "\n")
     print("  trusted_match/identity_match_response.py: added runtime validators")
 
@@ -4857,9 +5266,7 @@ def restore_flattened_contract_field_types() -> None:
 
     if "@model_validator(mode='before')" not in source:
         source = ensure_pydantic_import(source, "model_validator")
-        source = (
-            source.rstrip()
-            + """
+        source = source.rstrip() + """
 
     @model_validator(mode='before')
     @classmethod
@@ -4874,7 +5281,6 @@ def restore_flattened_contract_field_types() -> None:
                 )
         return data
 """
-        )
     representation_target.write_text(source)
     print("  core/creative_representation.py: restored canonical format contract")
 
@@ -4907,9 +5313,7 @@ def enforce_transformer_output_contract() -> None:
     if "class Transformer(" not in source:
         raise RuntimeError("transformer.py: Transformer class not found")
     source = ensure_pydantic_import(source, "model_validator")
-    target.write_text(
-        source.rstrip()
-        + """
+    target.write_text(source.rstrip() + """
 
     @model_validator(mode='after')
     def _require_output_format_declaration(self) -> Transformer:
@@ -4924,8 +5328,7 @@ def enforce_transformer_output_contract() -> None:
                 'one of output_capability_ids or deprecated output_format_ids is required'
             )
         return self
-"""
-    )
+""")
     print("  core/transformer.py: enforced output declaration requirement")
 
 
@@ -5525,11 +5928,16 @@ def restore_response_variant_aliases() -> None:
             )
             if inherits_protocol_envelope:
                 self.needs_protocol_envelope = True
-            lines = [f"class {class_name}({bases}):"]
-            if is_submitted:
-                lines.append("    model_config = ConfigDict(extra='allow', validate_default=True)")
-            else:
-                lines.append("    model_config = ConfigDict(extra='allow')")
+            # Submitted arms once paired ``validate_default=True`` with
+            # ``use_enum_values`` so the ``status`` default came out as its
+            # value; the enum is a ``StrEnum`` now and the default is already
+            # the literal's member. Validating defaults would also run every
+            # inherited ``= None`` default through ``NoExplicitNull`` (#1547),
+            # which refuses it, so the arms take the base's default policy.
+            lines = [
+                f"class {class_name}({bases}):",
+                "    model_config = ConfigDict(extra='allow')",
+            ]
             is_sync_media_buy_success = self.base in {
                 "CreateMediaBuyResponse",
                 "UpdateMediaBuyResponse",
@@ -5847,8 +6255,7 @@ def fix_verify_brand_claim_models() -> None:
     bulk_response = OUTPUT_DIR / "brand" / "verify_brand_claims_response.py"
 
     if request.exists() and "claim_type:" not in request.read_text():
-        request.write_text(
-            """# generated by datamodel-codegen:
+        request.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_request.json
 
 from __future__ import annotations
@@ -5880,13 +6287,11 @@ class VerifyBrandClaimRequest(AdcpVersionEnvelope):
         dict[str, Any],
         Field(description='Claim payload. Shape varies by claim_type.'),
     ]
-"""
-        )
+""")
         print("  brand/verify_brand_claim_request.py: restored claim fields")
 
     if response.exists() and "VerifyBrandClaimSuccessResponse" not in response.read_text():
-        response.write_text(
-            """# generated by datamodel-codegen:
+        response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -5945,8 +6350,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claim_response.py: restored response arms")
 
     response_schema = SCHEMA_DIR / "brand" / "verify-brand-claim-response.json"
@@ -5955,8 +6359,7 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and response_schema.exists()
         and '"signed_response"' in response_schema.read_text()
     ):
-        response.write_text(
-            """# generated by datamodel-codegen:
+        response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -6107,8 +6510,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claim_response.py: restored signed response fields")
 
     bulk_response_schema = SCHEMA_DIR / "brand" / "verify-brand-claims-response.json"
@@ -6117,8 +6519,7 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and bulk_response_schema.exists()
         and '"signed_response"' in bulk_response_schema.read_text()
     ):
-        bulk_response.write_text(
-            """# generated by datamodel-codegen:
+        bulk_response.write_text("""# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claims_response.json
 
 from __future__ import annotations
@@ -6301,8 +6702,7 @@ class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErrorResponse
-"""
-        )
+""")
         print("  brand/verify_brand_claims_response.py: restored signed response fields")
 
     if bulk_response.exists():
@@ -6834,9 +7234,7 @@ def fix_legacy_purchase_accepted_losses() -> None:
     )
     validator_marker = "    def _accepted_losses_match_schema("
     if validator_marker not in fixed and "field_validator" in fixed:
-        fixed = (
-            fixed.rstrip()
-            + """
+        fixed = fixed.rstrip() + """
 
 
     @field_validator('selected_product_ids')
@@ -6864,7 +7262,6 @@ def fix_legacy_purchase_accepted_losses() -> None:
             raise ValueError('accepted_losses must include the required compatibility losses')
         return values
 """
-        )
     if fixed != source:
         target.write_text(fixed)
         print("  media_buy/legacy_purchase_continuation_input.py: narrowed accepted_losses")
@@ -6995,9 +7392,7 @@ def enforce_change_term_runtime_constraints() -> None:
         )
         class_start = source.find("class MediaBuyChangeTerm(AdCPBaseModel):")
         if class_start >= 0 and "def _validate_constraint_action" not in source[class_start:]:
-            source = (
-                source.rstrip()
-                + """
+            source = source.rstrip() + """
 
     @model_validator(mode='after')
     def _validate_constraint_action(self) -> MediaBuyChangeTerm:
@@ -7017,9 +7412,7 @@ def enforce_change_term_runtime_constraints() -> None:
         if action not in allowed.get(kind, set()):
             raise ValueError('constraint kind is incompatible with action')
         return self
-"""
-                + "\n"
-            )
+""" + "\n"
             term_path.write_text(source)
             print("  media_buy/change_term.py: restored constraint/action compatibility")
 
@@ -7032,9 +7425,7 @@ def enforce_change_term_runtime_constraints() -> None:
         )
         class_start = source.find("class CommercialTerms(AdCPBaseModel):")
         if class_start >= 0 and "def _validate_change_term_set" not in source[class_start:]:
-            source = (
-                source.rstrip()
-                + """
+            source = source.rstrip() + """
 
     @model_validator(mode='after')
     def _validate_change_term_set(self) -> CommercialTerms:
@@ -7083,9 +7474,7 @@ def enforce_change_term_runtime_constraints() -> None:
             ):
                 raise ValueError('change-term earliest effective time exceeds latest time')
         return self
-"""
-                + "\n"
-            )
+""" + "\n"
             terms_path.write_text(source)
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
@@ -7602,6 +7991,368 @@ def insert_task_message_markers() -> None:
     print(f"  marked {len(wanted)} task-message classes across {len(by_module)} modules")
 
 
+# ---------------------------------------------------------------------------
+# #742: open asset unions, emitted where the arms are declared.
+#
+# ``core/format.py`` generates a CLOSED discriminated union per asset slot, and
+# the spec requires a consumer to keep an unrecognised ``asset_type`` rather
+# than fail the whole ``list_creative_formats`` response. So each slot gains one
+# fallback arm, and the field carries the open union instead.
+#
+# This used to be a runtime patch: ``src/adcp/types/aliases.py`` declared the
+# fallback class, the union and a frozenset of known ``asset_type`` values by
+# hand, and ``_forward_compat._apply_forward_compat()`` rewrote
+# ``Format.assets`` and the repeatable group's ``assets`` over the generated
+# annotation at import time. The declaration is what broke: the two frozensets
+# held 14 and 12 members beside a generated union of 21 and 21, and the callable
+# discriminator reads the frozenset BEFORE pydantic reaches the arms, so seven
+# individual asset types the pinned schema declares (``zip``, ``display_tag``,
+# ``published_post``, ``card``, ``pixel_tracker``, ``vast_tracker``,
+# ``daast_tracker``) and nine group types parsed as the unknown arm with their
+# typed fields in ``__pydantic_extra__``, while generated classes for every one
+# of them sat unused.
+#
+# Emitting here removes the declaration rather than deriving it: the generator
+# knows each arm's ``asset_type`` literal because it emitted that literal, so a
+# schema that adds an asset type adds its class AND its tag in the same run.
+
+
+class OpenAssetUnion(NamedTuple):
+    """One asset slot's generated union, plus the fallback arm the spec needs."""
+
+    #: The union's name in the generated module.
+    alias: str
+    #: The base class whose direct subclasses are the arms.
+    base: str
+    #: The fallback arm's class name.
+    fallback: str
+    #: The callable discriminator's function name.
+    discriminator: str
+    #: The class carrying the field whose list element type becomes the alias.
+    #: ``None`` stands for the repeatable-group class, derived rather than named
+    #: because the generator renumbers it (see
+    #: :func:`restore_format_asset_numbered_aliases`).
+    carrier: str | None
+    #: The field on that class.
+    carried_field: str
+    #: Whether the repeatable-group class is itself an arm of this union.
+    carries_group_arm: bool
+    doc: str
+
+
+#: The open asset unions, in emission order. Each is written into
+#: ``core/format.py`` ahead of the class that carries it, so the alias exists
+#: before pydantic builds that class.
+_OPEN_ASSET_UNIONS: tuple[OpenAssetUnion, ...] = (
+    # The group slots come first: the repeatable group carries them, and the
+    # individual union below has that same group class as one of its arms.
+    OpenAssetUnion(
+        alias="GroupFormatAssetUnion",
+        base="BaseGroupAsset",
+        fallback="UnknownGroupAsset",
+        discriminator="_group_asset_discriminator",
+        carrier=None,
+        carried_field="assets",
+        carries_group_arm=False,
+        doc=(
+            "Open discriminated union for the slots inside a repeatable asset group.\n\n"
+            "The generated union closes over the group asset classes; this adds the\n"
+            "fallback arm an unrecognised ``asset_type`` needs."
+        ),
+    ),
+    OpenAssetUnion(
+        alias="FormatAssetUnion",
+        base="BaseIndividualAsset",
+        fallback="UnknownFormatAsset",
+        discriminator="_format_asset_discriminator",
+        carrier="Format",
+        carried_field="assets",
+        carries_group_arm=True,
+        doc=(
+            "Open discriminated union for ``Format.assets``.\n\n"
+            "The generated union closes over the individual asset classes plus the\n"
+            "repeatable group; this adds the fallback arm an unrecognised\n"
+            "``asset_type`` needs."
+        ),
+    ),
+)
+
+
+def _repeatable_group_class(tree: ast.Module) -> str:
+    """The generated class whose ``item_type`` discriminator is the group.
+
+    Derived for the same reason :func:`restore_format_asset_numbered_aliases`
+    derives it: the generator renumbers this class (``Assets94`` once, now
+    ``Assets29``), so naming it here would go stale on a schema refresh.
+    """
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for statement in node.body:
+            if not isinstance(statement, ast.AnnAssign):
+                continue
+            if not isinstance(statement.target, ast.Name) or statement.target.id != "item_type":
+                continue
+            default_is_group = (
+                isinstance(statement.value, ast.Constant)
+                and statement.value.value == "repeatable_group"
+            )
+            annotation_is_group = (
+                _extract_single_literal_value(statement.annotation) == "repeatable_group"
+            )
+            if default_is_group or annotation_is_group:
+                return node.name
+    raise RuntimeError(
+        "core/format.py: no class declares item_type='repeatable_group', so the "
+        "asset unions have no group arm and no group container"
+    )
+
+
+def _asset_union_arms(tree: ast.Module, base: str) -> list[tuple[str, str]]:
+    """``(class name, asset_type literal)`` for every direct subclass of ``base``.
+
+    Read off the generated source in declaration order. A ``Tag`` must be unique
+    within a union, so a duplicate literal is refused rather than silently
+    dropping whichever arm came second.
+    """
+    arms: list[tuple[str, str]] = []
+    seen: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if base not in {ast.unparse(parent) for parent in node.bases}:
+            continue
+        for statement in node.body:
+            if not isinstance(statement, ast.AnnAssign):
+                continue
+            if not isinstance(statement.target, ast.Name) or statement.target.id != "asset_type":
+                continue
+            literal = _extract_single_literal_value(statement.annotation)
+            if not isinstance(literal, str):
+                continue
+            if literal in seen:
+                raise RuntimeError(
+                    f"core/format.py: asset_type {literal!r} is declared by both "
+                    f"{seen[literal]} and {node.name}; a discriminated union cannot "
+                    "tag two arms the same"
+                )
+            seen[literal] = node.name
+            arms.append((node.name, literal))
+    if not arms:
+        raise RuntimeError(f"core/format.py: no subclass of {base} declares an asset_type")
+    return arms
+
+
+def _screaming_snake(class_name: str) -> str:
+    """``BaseIndividualAsset`` -> ``BASE_INDIVIDUAL_ASSET``."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).upper()
+
+
+def _render_open_asset_union(
+    union: OpenAssetUnion, arms: list[tuple[str, str]], group_class: str
+) -> str:
+    """The fallback class, its vocabulary, its discriminator and the union."""
+    known = "".join(f"        {literal!r},\n" for _name, literal in arms)
+    tagged = [f"Annotated[{name}, Tag({literal!r})]" for name, literal in arms]
+    if union.carries_group_arm:
+        tagged.append(f"Annotated[{group_class}, Tag('repeatable_group')]")
+    tagged.append(f"Annotated[{union.fallback}, Tag('_unknown')]")
+    # The first arm carries no leading ``|``, matching the generated layout, and
+    # the last carries the comma that closes the Annotated argument list.
+    body = f"    {tagged[0]}\n" + "".join(f"    | {arm}\n" for arm in tagged[1:-1])
+    body += f"    | {tagged[-1]},\n"
+    read_item_type = group_route = ""
+    if union.carries_group_arm:
+        read_item_type = (
+            "    item_type = (\n"
+            "        value.get('item_type', 'individual')\n"
+            "        if isinstance(value, dict)\n"
+            "        else getattr(value, 'item_type', 'individual')\n"
+            "    )\n"
+        )
+        group_route = "    if item_type == 'repeatable_group':\n        return 'repeatable_group'\n"
+    vocabulary = f"_KNOWN_{_screaming_snake(union.base)}_TYPES"
+    return f'''class {union.fallback}({union.base}):
+    """Fallback arm for an ``asset_type`` outside this pin's vocabulary.
+
+    A response carrying an asset type defined after this SDK's pin parses as
+    this class instead of failing, which would zero out every format in the
+    response. The structural fields are still validated; the type-specific ones
+    are kept in ``__pydantic_extra__``. Read them via
+    ``asset.__pydantic_extra__ or {{}}``.
+
+    ``extra='allow'`` is deliberate and not inherited from the strict-validation
+    policy on ``AdCPBaseModel``: dropping or refusing the unknown fields defeats
+    the whole purpose of the arm. Read path only -- a request keeps its closed
+    ``Literal`` arms.
+    """
+
+    model_config = ConfigDict(extra='allow')
+    asset_type: str
+
+
+#: The ``asset_type`` values this pin has a class for. Derived from the arms
+#: above, so a schema that adds a type adds its class AND its tag together.
+{vocabulary}: frozenset[str] = frozenset(
+    {{
+{known}    }}
+)
+
+
+def {union.discriminator}(value: Any) -> str:
+    """Route a wire asset to its ``Tag``, or to the fallback."""
+{read_item_type}{group_route}    asset_type = (
+        value.get('asset_type', '')
+        if isinstance(value, dict)
+        else getattr(value, 'asset_type', '')
+    )
+    if isinstance(asset_type, str) and asset_type in {vocabulary}:
+        return asset_type
+    return '_unknown'
+
+
+{union.alias} = Annotated[
+{body}    Discriminator({union.discriminator}),
+]
+"""{union.doc}
+"""'''
+
+
+def _module_union_aliases(tree: ast.Module) -> dict[str, ast.AST]:
+    """Top-level ``Name = <annotation>`` bindings, so a union alias can be followed."""
+    return {
+        node.targets[0].id: node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+    }
+
+
+def _union_class_names(node: ast.AST, aliases: dict[str, ast.AST]) -> set[str]:
+    """Every class name a possibly-aliased union annotation resolves to.
+
+    ``Format.assets`` spells its union inline; the repeatable group reaches one
+    through a generated ``Assets30 = Annotated[A | B, Field(discriminator=...)]``
+    alias, so the alias is followed rather than counted as an arm.
+    """
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _union_class_names(node.left, aliases) | _union_class_names(node.right, aliases)
+    if isinstance(node, ast.Subscript) and _subscript_base_name(node) == "Annotated":
+        inner = _first_subscript_arg(node)
+        return _union_class_names(inner, aliases) if inner is not None else set()
+    if isinstance(node, ast.Name):
+        if node.id in aliases:
+            return _union_class_names(aliases[node.id], aliases)
+        return {node.id}
+    return {ast.unparse(node)}
+
+
+def _carry_open_asset_union(
+    content: str, union: OpenAssetUnion, class_name: str, expected: set[str]
+) -> str:
+    """Point the carrying field at the alias, after checking what it carries now.
+
+    The membership check is the guard, and it is derived rather than declared:
+    the field's current element union must resolve to exactly the arm set the
+    alias was just built from. A schema refresh that adds an asset type changes
+    both sides together and passes; one that reshapes the field, or that adds an
+    arm the base does not own, fails here rather than leaving the field closed.
+    """
+    field_name = union.carried_field
+    block = _find_class_field_block(content, class_name, field_name)
+    if block is None:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} is not declared, so "
+            f"{union.alias} has nothing to open"
+        )
+    start, end = block
+    annotation = content[start:end]
+    element = re.search(r"list\[(.*?)\]\s*(?:\|\s*None)?,", annotation, re.DOTALL)
+    if element is None:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} is not a list annotation "
+            f"({annotation.strip()[:80]!r}); {union.alias} assumes it is"
+        )
+    aliases = _module_union_aliases(ast.parse(content))
+    # Parenthesized: a generated union spans lines, and the continuation lines
+    # are indented, which bare ``ast.parse`` reads as an IndentationError.
+    carried = _union_class_names(
+        ast.parse(f"({element.group(1).strip()})", mode="eval").body, aliases
+    )
+    if carried != expected:
+        raise RuntimeError(
+            f"core/format.py: {class_name}.{field_name} and {union.alias} disagree, so "
+            "the field would not be opened over the classes the union covers. "
+            f"Carried but not an arm of the union: {sorted(carried - expected)}. "
+            f"An arm of the union but not carried: {sorted(expected - carried)}. "
+            f"({len(carried)} carried, {len(expected)} derived.)"
+        )
+    opened = annotation[: element.start(1)] + union.alias + annotation[element.end(1) :]
+    return content[:start] + opened + content[end:]
+
+
+def _ensure_module_import(content: str, statement: str) -> str:
+    """Write ``statement`` ahead of the module's first class, once.
+
+    The generated modules carry several import blocks, written by codegen and by
+    the passes above, so there is no single block to extend. Ahead of the first
+    class is after all of them and before any use.
+    """
+    if statement in content:
+        return content
+    source, replaced = re.subn(
+        r"^class ", f"{statement}\n\n\nclass ", content, count=1, flags=re.MULTILINE
+    )
+    if replaced != 1:
+        raise RuntimeError(f"no class to place {statement!r} ahead of")
+    return source
+
+
+def emit_open_asset_unions() -> None:
+    """Write each :data:`_OPEN_ASSET_UNIONS` definition into ``core/format.py``.
+
+    Raises when the module, a base, or an anchor class is missing: an asset union
+    that silently failed to open would turn every unrecognised asset type into a
+    whole-response validation failure, which is the thing it exists to prevent.
+    """
+    print("Emitting the open asset unions into core/format.py...")
+
+    path = OUTPUT_DIR / "core" / "format.py"
+    if not path.exists():
+        raise RuntimeError("core/format.py does not exist; the asset unions have no home")
+    content = path.read_text()
+    for union in _OPEN_ASSET_UNIONS:
+        tree = ast.parse(content)
+        group_class = _repeatable_group_class(tree)
+        arms = _asset_union_arms(tree, union.base)
+        # The carrying class is also where the alias is emitted: the name has to
+        # exist before pydantic builds that class.
+        class_name = union.carrier or group_class
+        anchor = re.compile(rf"^class {re.escape(class_name)}\b", re.MULTILINE)
+        match = anchor.search(content)
+        if match is None:
+            raise RuntimeError(
+                f"core/format.py: no 'class {class_name}' to emit {union.alias} ahead of"
+            )
+        content = (
+            content[: match.start()]
+            + _render_open_asset_union(union, arms, group_class)
+            + "\n\n\n"
+            + content[match.start() :]
+        )
+        expected = {name for name, _literal in arms}
+        if union.carries_group_arm:
+            expected.add(group_class)
+        content = _carry_open_asset_union(content, union, class_name, expected)
+        print(
+            f"  ✓ {union.alias}: {len(arms)} arm(s) plus the fallback, carried by "
+            f"{class_name}.{union.carried_field}"
+        )
+    content = _ensure_module_import(content, "from pydantic import Discriminator, Tag")
+    path.write_text(content)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -7627,6 +8378,11 @@ def main(argv: list[str] | None = None) -> int:
     print("Applying post-generation fixes...")
 
     fixes = [
+        # First: every later fix reads the field text the generator produced
+        # on the pinned flags, and this pass restores exactly that text (the
+        # mark's keyword is the only thing the generator added) plus the
+        # ``NoExplicitNull`` element it appends to a marked field.
+        point_omittable_fields_at_no_explicit_null,
         add_model_validator_to_product,
         fix_preview_render_self_reference,
         fix_brand_manifest_references,
@@ -7697,10 +8453,17 @@ def main(argv: list[str] | None = None) -> int:
         annotate_registry_track_verdict,
         preserve_geo_place_system_map_keys,
         preserve_format_reference_agent_url_wire_string,
+        # After every pass that adds a validator typed ``AnyUrl`` and before
+        # the import cleanups, which would read the names this pass drops.
+        preserve_wire_text_on_normalizing_fields,
         insert_task_message_markers,
         point_integer_fields_at_the_schema_integer_type,
         remove_imports_shadowed_by_a_local_class,
         remove_unused_pydantic_field_imports,
+        # After the import-cleanup passes, which would otherwise read the
+        # import this one adds as unused -- nothing references the name at the
+        # moment they run.
+        emit_open_asset_unions,
         # After every pass that can add, rename or remove a class: the
         # ``__all__`` it writes has to name the final set.
         declare_root_schema_module_exports,

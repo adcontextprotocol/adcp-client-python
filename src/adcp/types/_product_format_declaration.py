@@ -43,7 +43,9 @@ def check_declaration_rules(data: Any, *, schema_name: str) -> Any:
 
     if isinstance(data, BaseModel):
         # Defaults that were never supplied are absent on the wire. Explicit
-        # nulls retain their presence: root rules test required, not truthiness.
+        # nulls retain their presence where the schema admits ``null``: root
+        # rules test required, not truthiness. A ``NoExplicitNull`` field never
+        # emits one (#1587).
         document = data.model_dump(mode="json", exclude_unset=True, exclude_none=False)
     elif isinstance(data, dict):
         document = data

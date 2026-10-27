@@ -80,6 +80,7 @@ from adcp.decisioning.webhook_emit import (
     _extract_push_operation_id,
     emit_terminal_completion_webhook,
 )
+from adcp.exceptions import ADCPTaskError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -709,6 +710,30 @@ def _internal_error_message(method_name: str, exc: BaseException) -> str:
 def _exception_cause_details(exc: BaseException) -> dict[str, Any]:
     """Return the shared sanitized exception-type breadcrumb."""
     return {"caused_by": {"type": type(exc).__name__}}
+
+
+def _task_error_to_adcp_error(exc: ADCPTaskError) -> AdcpError:
+    """Project an AdCP-typed task error to its own wire error.
+
+    ``IdempotencyStore.wrap`` raises
+    :class:`~adcp.exceptions.IdempotencyConflictError` (an
+    ``ADCPTaskError``) for a reused key. It is a protocol answer, not an
+    internal failure, so it keeps its code and recovery. The field
+    extraction is the one ``serve()`` applies to the same exceptions, so
+    both paths answer with the same code, message, recovery, field,
+    suggestion and sanitized details.
+    """
+    from adcp.server.translate import _extract_structured_fields
+
+    code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(exc)
+    return AdcpError(
+        code,
+        message=message,
+        recovery=typing.cast(Any, recovery),
+        field=field,
+        suggestion=suggestion,
+        details=details,
+    )
 
 
 def _internal_error_details(exc: BaseException) -> dict[str, Any]:
@@ -1511,7 +1536,9 @@ async def _invoke_platform_method(
     allocate a task_id, kick off the handoff fn, and project the
     Submitted envelope.
 
-    Wraps any non-:class:`AdcpError` exception to
+    Projects an :class:`~adcp.exceptions.ADCPTaskError` (for example
+    ``IdempotencyConflictError`` from ``IdempotencyStore.wrap``) to its own
+    code and recovery. Wraps any other non-:class:`AdcpError` exception to
     ``AdcpError("INTERNAL_ERROR", recovery="terminal")`` so the wire
     response never leaks a stack trace. Adopters get the original
     exception logged via the framework's observability hooks (the
@@ -1655,6 +1682,14 @@ async def _invoke_platform_method(
         if on_failure is not None:
             await _safe_on_failure_call(on_failure, exc, method_name)
         raise
+    except ADCPTaskError as exc:
+        # AdCP-typed task errors (IdempotencyConflictError from
+        # ``IdempotencyStore.wrap``, account errors) carry their own wire
+        # code and recovery; never collapse them to INTERNAL_ERROR.
+        wrapped = _task_error_to_adcp_error(exc)
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, wrapped, method_name)
+        raise wrapped from exc
     except TypeError as exc:
         # Most likely an arg_projector or extra_kwargs signature-drift bug.
         # Bare INTERNAL_ERROR would hide the cause; project to
@@ -2210,12 +2245,11 @@ async def _project_handoff(
     fn = handoff._fn
 
     # Extract the buyer's ``context`` extension from the original
-    # request and lock it onto the TaskRecord at issue-time. The
-    # registry surfaces it at the top level of ``tasks/get`` reads
-    # (sibling of ``result`` / ``error`` per
-    # ``schemas/cache/core/tasks_get_response.json``). Capturing once
-    # at issue-time means the terminal-state helpers (_fail,
-    # registry.complete) never need to know about request-side
+    # request and lock it onto the TaskRecord at issue-time.
+    # ``tasks/get`` echoes it inside ``result`` (the original task's
+    # response); the poll's top-level ``context`` is the poll's own.
+    # Capturing once at issue-time means the terminal-state helpers
+    # (_fail, registry.complete) never need to know about request-side
     # context — keeps the wire-shape boundary in one place.
     issue_kwargs: dict[str, Any] = {
         "account_id": ctx.account.id,
@@ -2254,14 +2288,12 @@ async def _project_handoff(
         registry.fail — the buyer needs the failure visible via
         tasks/get regardless of hook outcomes.
 
-        Note: the request's ``context`` extension lands on the
-        ``tasks/get`` response at the top level (sibling of
-        ``error``), not inside the ``adcp_error`` envelope — see
-        :meth:`TaskRecord.to_dict` and the
-        ``schemas/cache/core/tasks_get_response.json``
-        ``TasksGetResponse.context`` field. The context is captured
-        once at ``registry.issue()`` time below; ``_fail`` doesn't
-        touch it.
+        Note: the request's ``context`` extension is echoed in the
+        ``tasks/get`` ``result`` (sibling of ``adcp_error``), not inside
+        the ``adcp_error`` envelope — see
+        :func:`adcp.decisioning.task_queries.project_task`. The context
+        is captured once at ``registry.issue()`` time below; ``_fail``
+        doesn't touch it.
         """
         if on_failure is not None:
             try:
@@ -2303,6 +2335,9 @@ async def _project_handoff(
                 )
         except AdcpError as exc:
             await _fail(exc)
+            return
+        except ADCPTaskError as exc:
+            await _fail(_task_error_to_adcp_error(exc))
             return
         except Exception as exc:
             logger.exception(
@@ -2379,12 +2414,10 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
-        # ``request.context`` echo lands at the top level of the
-        # ``tasks/get`` response (sibling of ``result``), not inside
-        # the typed result body. ``TaskRecord.request_context`` was
-        # captured at ``registry.issue()`` time and ``to_dict()``
-        # surfaces it under the top-level ``context`` key; nothing to
-        # do here on the result path.
+        # ``request.context`` is echoed into ``result`` at ``tasks/get``
+        # projection time (``project_task``), from
+        # ``TaskRecord.request_context`` captured at ``registry.issue()``;
+        # nothing to do here on the result path.
         await registry.complete(task_id, persisted)
         # Terminal completion webhook (spec MUST when push config present).
         # Fired AFTER registry.complete so the buyer's tasks/get poll and
@@ -2491,8 +2524,8 @@ async def _project_workflow_handoff(
     fn = handoff._fn
 
     # Same context-echo capture as :func:`_project_handoff`: the
-    # request's ``context`` extension lives on the TaskRecord and
-    # surfaces at the top level of ``tasks/get`` reads (#563). The
+    # request's ``context`` extension lives on the TaskRecord and is
+    # echoed in the ``tasks/get`` ``result`` (#563, #1574). The
     # WorkflowHandoff path persists the task and immediately returns
     # — the adopter's enqueue fn does not write to the registry — so
     # context capture must happen here at issue-time too.

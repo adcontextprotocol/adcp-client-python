@@ -16,9 +16,8 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
-
-from adcp.reporting.ledger import PgReportingLedgerStore
-from adcp.reporting.ledger.change_feed import (
+from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage.ledger.change_feed import (
     ReportingChangeCursorExpiredError,
     encode_reporting_change_cursor_v1,
 )

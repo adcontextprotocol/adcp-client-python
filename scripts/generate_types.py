@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -953,6 +954,174 @@ def flatten_root_object_validation_union(schema: dict, schema_path: Path) -> dic
     return schema
 
 
+#: Pre-generation mark on an optional property whose schema does not admit
+#: ``null``. The generator carries it into ``Field(json_schema_extra=...)``
+#: (``--field-extra-keys``), and ``post_generate_fixes.point_omittable_fields_at_no_explicit_null``
+#: turns that into the ``adcp.types.base.NoExplicitNull`` annotation. The key
+#: exists only in the temporary generator input; the shipped schemas never
+#: carry it.
+NO_EXPLICIT_NULL_KEY = "x-adcp-no-explicit-null"
+
+
+def _file_uri_resource(path: Path):
+    """Load *path* as a ``referencing`` resource addressed by its file URI.
+
+    The flattened tree spells every cross-file ``$ref`` as a relative path
+    (``../core/account_ref.json``). Addressing each document by its own file
+    URI, rather than the canonical ``$id`` the bundle declares, makes those
+    paths resolve against the tree the generator actually reads.
+    """
+    from referencing import Resource
+    from referencing.jsonschema import DRAFT7
+
+    with open(path) as f:
+        contents = json.load(f)
+    if isinstance(contents, dict):
+        contents["$id"] = path.resolve().as_uri()
+    return Resource.from_contents(contents, default_specification=DRAFT7)
+
+
+def _property_admits_null(validator, node: dict[str, Any]) -> bool:
+    """Whether the schema *node* accepts JSON ``null``, as the bundled validator decides.
+
+    A node that states its own ``type`` (or ``enum`` / ``const``) answers by
+    inspection — that is the overwhelming majority, and it is exactly what the
+    validator's ``type`` keyword would check. Every other spelling — a
+    ``$ref``, ``anyOf``/``oneOf``/``allOf``/``not``, a conditional, a bare
+    object with no ``type`` — goes to the validator itself, so the model and
+    the JSON-Schema arm reach one verdict without this pass re-deriving the
+    keyword semantics. (On CI the validator path dominated the run: every
+    ``$ref`` re-read its target, and 74k properties took minutes.)
+    """
+    declared = node.get("type")
+    composes = any(key in node for key in ("$ref", "anyOf", "oneOf", "allOf", "not", "if"))
+    if not composes:
+        if isinstance(declared, str):
+            return declared == "null"
+        if isinstance(declared, list):
+            return "null" in declared
+        if "enum" in node and isinstance(node["enum"], list):
+            return None in node["enum"]
+        if "const" in node:
+            return node["const"] is None
+    return bool(validator.evolve(schema=node).is_valid(None))
+
+
+def _required_names(node: Any, resolver, seen: frozenset[str] = frozenset()) -> set[str]:
+    """Every property *node* requires, including through ``allOf`` and ``$ref``.
+
+    A branch that composes a base schema (``allOf: [{"$ref": ...}]``) and
+    restates one of its properties leaves ``required`` to the base. The
+    generator merges the two and renders the field required; grading the
+    restated property as optional would mark it, and the mark alone is what
+    makes the generator stop merging it (#1547). So a property any composed
+    schema requires is not optional here either.
+    """
+    if not isinstance(node, dict):
+        return set()
+    required = set(node.get("required", []) if isinstance(node.get("required"), list) else [])
+    ref = node.get("$ref")
+    if isinstance(ref, str) and ref not in seen:
+        resolved = resolver.lookup(ref)
+        required |= _required_names(resolved.contents, resolved.resolver, seen | {ref})
+    for arm in node.get("allOf", []) if isinstance(node.get("allOf"), list) else []:
+        required |= _required_names(arm, resolver, seen)
+    return required
+
+
+def _mark_no_explicit_null(node: Any, validator, resolver, counter: list[int]) -> None:
+    if isinstance(node, list):
+        for item in node:
+            _mark_no_explicit_null(item, validator, resolver, counter)
+        return
+    if not isinstance(node, dict):
+        return
+    properties = node.get("properties")
+    if isinstance(properties, dict):
+        required_names = _required_names(node, resolver)
+        for name, property_schema in properties.items():
+            if name in required_names or not isinstance(property_schema, dict):
+                continue
+            if not _property_admits_null(validator, property_schema):
+                property_schema[NO_EXPLICIT_NULL_KEY] = True
+                counter[0] += 1
+    for key, value in node.items():
+        if key == NO_EXPLICIT_NULL_KEY:
+            continue
+        _mark_no_explicit_null(value, validator, resolver, counter)
+
+
+def mark_no_explicit_null_properties(temp_dir: Path) -> int:
+    """Mark every optional property whose schema refuses an explicit ``null``.
+
+    JSON Schema separates two things the generator conflates: a property
+    outside ``required`` may be *absent*, and ``null`` is a valid *value* only
+    where the declared type admits it. The generator renders both as
+    ``T | None = None``, so without this pass the model accepts
+    ``{"creatives": null}`` where the bundled schema — and so the SDK's own
+    ``validate_request`` — reports a ``type`` error (#1547).
+
+    This runs over the whole flattened tree once every file is written, so a
+    ``$ref`` resolves to the document the generator will read. Each property
+    is graded by the same ``jsonschema`` validator the bundled arm uses, and
+    a property it says cannot be ``null`` is marked with
+    :data:`NO_EXPLICIT_NULL_KEY`. A property whose schema admits ``null`` is
+    left alone and keeps accepting it. Returns the number of marked properties.
+    """
+    from jsonschema.validators import validator_for
+    from referencing import Registry
+
+    def retrieve(uri: str):
+        from urllib.parse import urlparse
+        from urllib.request import url2pathname
+
+        parsed = urlparse(uri)
+        if parsed.scheme == "file":
+            return _file_uri_resource(Path(url2pathname(parsed.path)))
+        # The references in PRESERVE_CANONICAL_URL_REFS keep their canonical
+        # URL; the generator reads those from a mirror of the same cache, and
+        # this pass reads them from the flattened tree the mirror was built from.
+        canonical = re.fullmatch(r"https://adcontextprotocol\.org/schemas/[^/]+/(.+)", uri)
+        if canonical is None:
+            raise LookupError(uri)
+        relative = Path(*(part.replace("-", "_") for part in Path(canonical.group(1)).parts))
+        return _file_uri_resource(temp_dir / relative)
+
+    # Every document in the tree, keyed by its file URI, so a ``$ref`` never
+    # retrieves from disk: a validator built per file starts from this one
+    # registry rather than re-reading each target it reaches.
+    registry = Registry(retrieve=retrieve).with_resources(
+        (path.resolve().as_uri(), _file_uri_resource(path))
+        for path in sorted(temp_dir.rglob("*.json"))
+    )
+    marked = 0
+    for schema_file in sorted(temp_dir.rglob("*.json")):
+        with open(schema_file) as f:
+            schema = json.load(f)
+        if not isinstance(schema, dict):
+            continue
+        # Validate with a copy addressed by file URI; write the original back,
+        # so the mark is the only thing this pass adds to the generator input.
+        document = copy.deepcopy(schema)
+        document["$id"] = schema_file.resolve().as_uri()
+        with warnings.catch_warnings():
+            # A few root documents name themselves rather than a metaschema in
+            # ``$schema``; jsonschema grades those with its latest draft and
+            # says so. The verdict on ``null`` is the same under every draft.
+            warnings.simplefilter("ignore", DeprecationWarning)
+            validator_class = validator_for(document)
+        validator = validator_class(document, registry=registry)
+        resolver = registry.resolver(base_uri=document["$id"])
+        counter = [0]
+        _mark_no_explicit_null(schema, validator, resolver, counter)
+        if counter[0]:
+            with open(schema_file, "w") as f:
+                json.dump(schema, f, indent=2)
+            marked += counter[0]
+    print(f"  Marked {marked} optional properties that refuse an explicit null")
+    return marked
+
+
 def flatten_schemas(temp_dir: Path):
     """
     Copy schemas to temp directory, preserving directory structure.
@@ -1047,6 +1216,7 @@ def flatten_schemas(temp_dir: Path):
         print(f"  {rel_path}")
 
     count = len(schema_files)
+    mark_no_explicit_null_properties(temp_dir)
     if _VERSION_ENVELOPE_NORMALIZED > _VERSION_ENVELOPE_NORMALIZED_CEILING:
         raise ValueError(
             f"version-envelope normalization rewrote {_VERSION_ENVELOPE_NORMALIZED} schemas, "
@@ -1161,6 +1331,11 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--set-default-enum-member",
         "--enum-field-as-literal",
         "one",
+        # Carry the optional-but-not-nullable mark set by
+        # ``mark_no_explicit_null_properties`` into ``Field(json_schema_extra=...)``,
+        # where the post-generation pass turns it into ``NoExplicitNull``.
+        "--field-extra-keys",
+        NO_EXPLICIT_NULL_KEY,
         "--allow-remote-refs",
     ]
 

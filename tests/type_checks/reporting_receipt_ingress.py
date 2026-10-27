@@ -2,13 +2,13 @@
 
 from typing import Any
 
+from adcp_reporting_storage import PgReportingReceiptStore
 from typing_extensions import assert_type
 
 from adcp.reporting.ledger import ReportingDeliveryPrincipal
 from adcp.reporting.materializer import ReportingMaterializerStore
 from adcp.reporting.receipts import (
     InMemoryReportingReceiptStore,
-    PgReportingReceiptStore,
     ReceiptAccountResolver,
     ReportingReceiptBatchStore,
     ReportingReceiptBoundary,

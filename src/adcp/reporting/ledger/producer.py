@@ -75,6 +75,9 @@ from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
     ReportingLedgerStore,
+    ReportingRowStagingStore,
+    ReportingSourcePublicationStore,
+    ReportingWorkerRetryPolicy,
     RestatementCheckpointStore,
     RetryScheduleEntry,
     RetryScheduleStore,
@@ -454,11 +457,9 @@ class ReportingProducer:
         deadlocks and lock timeouts at most twice, after rollback and fenced
         release. Each retry must acquire a new lease; other failures propagate.
         """
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
-
         retryable = (
-            self._store._worker_lock_errors()
-            if isinstance(self._store, PgReportingLedgerStore)
+            self._store.worker_lock_errors()
+            if isinstance(self._store, ReportingWorkerRetryPolicy)
             else ()
         )
         for attempt in range(3):
@@ -1542,10 +1543,11 @@ class ReportingProducer:
         if not isinstance(self._source, ReportingProductionSource):
             yield None
             return
-        publication = getattr(self._store, "_source_publication", None)
-        if publication is None:
+        if not isinstance(self._store, ReportingSourcePublicationStore):
             raise TypeError("production source publication requires an SDK account lock")
-        async with publication(configuration.account_id, seals=seals) as publish_seal:
+        async with self._store.source_publication(
+            configuration.account_id, seals=seals
+        ) as publish_seal:
             self._check_source_authorization(configuration, offering_id, admitted_constituents)
             yield publish_seal
 
@@ -1863,15 +1865,15 @@ class ReportingProducer:
             revision = verified_publication(self._revision_verifier, obligation, revision, rows)
         # An object-bound revision uploads its chunks before the ledger transaction,
         # never inside it, so a slow store cannot hold the account lock.
-        stage = getattr(self._store, "stage_revision_rows", None)
-        staged = bool(await stage(revision, rows)) if stage is not None else False
+        staging = self._store if isinstance(self._store, ReportingRowStagingStore) else None
+        staged = staging is not None and bool(await staging.stage_revision_rows(revision, rows))
         try:
             committed = await self._commit_publication(
                 obligation, manifest, revision, rows, finality, now, acquisition
             )
         finally:
-            if staged:
-                self._store.discard_staged_revision_rows(revision)  # type: ignore[attr-defined]
+            if staged and staging is not None:
+                staging.discard_staged_revision_rows(revision)
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 

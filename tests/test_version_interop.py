@@ -199,17 +199,9 @@ class TestHandlerVersionInterop:
 class TestVersionNegotiationDesign:
     """Tests documenting the SDK's version negotiation design.
 
-    Version negotiation is INTENTIONALLY delegated to consumers. The SDK provides:
-    - All tool methods (V2 and V3)
-    - get_adcp_capabilities() for capability discovery
-    - TaskResult wrapping for transparent error handling
-
-    The SDK does NOT provide:
-    - Automatic version detection/fallback
-    - Feature compatibility mapping
-    - Retry logic for missing tools
-
-    Consumers implement their own negotiation strategy using these primitives.
+    The SDK negotiates minor releases within AdCP 3 and translates at the
+    client/server boundary. Pre-3 compatibility remains an explicit legacy
+    surface. Missing tools do not trigger retries of mutating operations.
     """
 
     def test_task_result_wraps_errors_transparently(self):

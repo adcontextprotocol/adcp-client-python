@@ -79,6 +79,22 @@ so that merges in either direction never change the other line's release flow:
   to `main`'s releases, and adopters opt in with `pip install --pre adcp` or
   `adcp==10.0.0a0`.
 
+- `next` releases `adcp` only. The `adcp-reporting-storage` component
+  (`packages/adcp-reporting-storage`, see `docs/releasing.md`) is released from
+  `main`: next's config has no storage package and excludes its path from the
+  root, the normalizer accepts no storage release PR into `next`, and
+  `release-publish.yml` refuses `package=adcp-reporting-storage` unless it runs
+  from `main`. On `next` the storage package's `adcp` range is
+  `adcp>=9.0.0bN,<11` so the workspace still installs once `next` cuts
+  `10.0.0aN`; when a merge from `main` moves the floor, take `main`'s floor and
+  keep `<11`.
+- `main`'s companion gate (`scripts/check_companion_releases.py`, #1605) runs
+  in `release-publish.yml` only for a publish from `main`. It refuses a stable
+  `adcp` release that no published `adcp-reporting-storage` release installs
+  with. A `next` pre-release is opt-in (`pip install --pre adcp`) and the
+  storage distribution's adcp-10 release is cut from `main` at ratification,
+  so the gate would only block every `next` release until then.
+
 One-time setup: add `next` to the `release-publish` environment's deployment
 branches (GitHub Settings → Environments). The PyPI Trusted Publisher needs no
 change, because it is bound to the `release-publish.yml` file name and the
@@ -126,16 +142,19 @@ When the draft spec that `next` tracks is ratified:
 3. On `next`, delete `.github/workflows/release-please-next.yml`,
    `release-please-config.next.json`, `.release-please-manifest.next.json`,
    and `CHANGELOG.next.md`. Set `pyproject.toml`'s version back to `main`'s.
-4. Pick `main`'s first version of the new major. Commit it on `next` as a
+4. Narrow `packages/adcp-reporting-storage`'s `adcp` range to the new major
+   (`adcp>=10.0.0,<11`, or the first 10 pre-release `main` will publish) and
+   plan that package's adcp-10 release from `main`.
+5. Pick `main`'s first version of the new major. Commit it on `next` as a
    conventional commit that ends with a `Release-As:` footer, for example
    `Release-As: 10.0.0` or `Release-As: 10.0.0-beta.0`, and update
    `release-please-config.json`'s channel to match (see `docs/releasing.md`).
    This must be the newest `Release-As:` commit. Release-please uses the
    newest footer it finds, so it overrides `next`'s earlier
    `Release-As: 10.0.0-alpha.0`.
-5. If the 9.x line still needs fixes, create `release/9.x` from `main`, with
+6. If the 9.x line still needs fixes, create `release/9.x` from `main`, with
    its own release-please workflow like `release/8.x`'s.
-6. Open a PR from `next` into `main` and merge it with **Create a merge
+7. Open a PR from `next` into `main` and merge it with **Create a merge
    commit**, so `next`'s history (and the `-s ours` merges above) stays intact.
-7. Reset `next` to `main` (or delete it and recreate it when the next draft
+8. Reset `next` to `main` (or delete it and recreate it when the next draft
    spec starts).

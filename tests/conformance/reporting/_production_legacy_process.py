@@ -1,5 +1,17 @@
 """Executed by the real historical binary: incompatible C writers fail closed."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import asyncio
 import json
 import sys
@@ -11,15 +23,28 @@ from pathlib import Path
 async def main(settings):
     import hashlib
 
+    if _storage_split():  # wheels before the storage split (#1510)
+        import adcp.reporting.materializer.pg as materializer
+    else:
+        import adcp_reporting_storage.materializer.pg as materializer
+    if _storage_split():  # wheels before the storage split (#1510)
+        import adcp.reporting.outbox.status_pg as implementation
+    else:
+        import adcp_reporting_storage.outbox.status_pg as implementation
+
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.feed import PgReportingFeedStore
+    else:
+        from adcp_reporting_storage import PgReportingFeedStore
+    if _storage_split():  # wheels before the storage split (#1510)
+        from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
+    else:
+        from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
     from psycopg_pool import AsyncConnectionPool
     from pydantic import TypeAdapter
 
-    import adcp.reporting.materializer.pg as materializer
-    import adcp.reporting.outbox.status_pg as implementation
-    from adcp.reporting.feed import PgReportingFeedStore
     from adcp.reporting.materializer import ReportingVerificationKey
     from adcp.reporting.materializer.work import ReportingMaterializerLease
-    from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
 
     path = Path(implementation.__file__).resolve()
     assert path.is_relative_to(Path(sys.prefix))

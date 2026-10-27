@@ -42,3 +42,17 @@ BearerTokenAuthMiddleware(
 
 unauthorized = PrincipalResolverError(401)
 forbidden = PrincipalResolverError(403)
+
+# A stable machine-readable code answers 403 {"error": "identity_org_mismatch"}.
+coded = PrincipalResolverError(403, code="identity_org_mismatch")
+coded_unauthenticated = PrincipalResolverError(401, code="identity_required")
+code: str | None = coded.code
+
+
+def resolve_with_code(request: AuthRequest) -> Principal | None:
+    if request.state.get("verified_proxy_org") != request.headers.get("x-org"):
+        raise PrincipalResolverError(403, code="identity_org_mismatch")
+    return None
+
+
+BearerTokenAuth(validate_token=lambda token: None, resolve_principal=resolve_with_code)

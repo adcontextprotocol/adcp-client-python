@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import rights_terms as rights_terms_1
@@ -28,7 +29,7 @@ class UpdateRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope)
     )
     rights_constraint: Any | None = None
     paused: bool | None = None
-    implementation_date: AwareDatetime | None = None
+    implementation_date: WireDatetime | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 

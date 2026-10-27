@@ -78,17 +78,17 @@ Custom ledger stores must implement `RetryScheduleStore`, or provide a durable
 store with no shared retry state to avoid silently retrying on every replica.
 
 For deployments managed by a migration tool, the standalone migration is
-[`reporting_ledger_account_generations.sql`](../src/adcp/reporting/ledger/reporting_ledger_account_generations.sql).
+[`reporting_ledger_account_generations.sql`](../packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_ledger_account_generations.sql).
 It upgrades an existing beta.15 ledger by itself, including in autocommit mode.
 For a combined bootstrap and upgrade, run all five bundled files in one transaction:
 
 ```sh
 psql "$REPORTING_DATABASE_URL" --set=ON_ERROR_STOP=1 --single-transaction \
-  -f src/adcp/reporting/ledger/reporting_ledger.sql \
-  -f src/adcp/reporting/ledger/reporting_ledger_account_generations.sql \
-  -f src/adcp/reporting/ledger/reporting_ledger_obligation_currency.sql \
-  -f src/adcp/reporting/ledger/reporting_ledger_reconciliation.sql \
-  -f src/adcp/reporting/ledger/reporting_notification_outbox.sql
+  -f packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_ledger.sql \
+  -f packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_ledger_account_generations.sql \
+  -f packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_ledger_obligation_currency.sql \
+  -f packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_ledger_reconciliation.sql \
+  -f packages/adcp-reporting-storage/src/adcp_reporting_storage/ledger/reporting_notification_outbox.sql
 ```
 
 Use the ledger's existing `search_path` and a role that owns its tables. All

@@ -5,17 +5,12 @@ from dataclasses import replace
 from datetime import timedelta
 
 import pytest
+from adcp_reporting_storage import PgReportingLedgerStore, PgStatusNotificationStore
+from adcp_reporting_storage.outbox.status_schema import validate_status_schema
 
-from adcp.reporting.ledger import (
-    PgReportingLedgerStore,
-    derive_period,
-)
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.outbox import (
-    PgStatusNotificationStore,
-    ReportingNotificationError,
-)
-from adcp.reporting.outbox.status_schema import validate_status_schema
+from adcp.reporting.ledger import derive_period
+from adcp.reporting.outbox import ReportingNotificationError
 
 from . import test_reporting_status_projection_contract as _contract
 from ._generation_support import (
@@ -241,7 +236,7 @@ async def test_baseline_serializes_a_mutation_immediately_before_and_after_its_h
     ],
 )
 async def test_status_manifest_damage_fails_only_its_owned_feature(damage):
-    from adcp.reporting.outbox._schema import validate_schema
+    from adcp_reporting_storage.outbox._schema import validate_schema
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         status = PgStatusNotificationStore(PgReportingLedgerStore(pool=pool, notifications=True))

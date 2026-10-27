@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl, WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account as account_1
@@ -37,8 +38,8 @@ class Creative(AdcpVersionEnvelope):
     errors: list[error_1.Error] | None = None
     warnings: list[str] | None = None
     macro_resolution_results: list[macro_resolution_result_1.MacroResolutionResult] | None = None
-    preview_url: AnyUrl | None = None
-    expires_at: AwareDatetime | None = None
+    preview_url: WireAnyUrl | None = None
+    expires_at: WireDatetime | None = None
     assigned_to: list[str] | None = None
     assignment_errors: dict[Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')], str] | None = None
 
@@ -60,7 +61,7 @@ class SyncCreativesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
 
 
 class SyncCreativesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
     message: Annotated[str, StringConstraints(max_length=2000)] | None = None

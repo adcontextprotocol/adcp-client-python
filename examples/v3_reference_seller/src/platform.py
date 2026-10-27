@@ -1768,7 +1768,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         advertiser_id = ctx.account.metadata["advertiser_id"]
         results: list[SyncCreativeResult] = []
         client = self._client(ctx)
-        for creative in req.creatives:
+        for creative in req.creatives or []:
             # Re-sync of a known creative_id is a no-op upload — the
             # upstream's idempotency table is keyed on body-fingerprint
             # and rejects same-key/different-body with 409. The spec

@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
@@ -23,8 +24,8 @@ class ProvidePerformanceFeedbackResponse1(AdcpResponse, AdcpVersionEnvelope, Pro
     feedback_id: Annotated[str, StringConstraints(min_length=1)] | None = None
     application_status: Literal['accepted', 'applied', 'not_applied'] | None = None
     status_reason: Annotated[str, StringConstraints(max_length=500)] | None = None
-    received_at: AwareDatetime | None = None
-    applied_at: AwareDatetime | None = None
+    received_at: WireDatetime | None = None
+    applied_at: WireDatetime | None = None
     sandbox: bool | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

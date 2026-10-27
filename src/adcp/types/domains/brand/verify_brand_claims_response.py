@@ -8,8 +8,8 @@ from adcp.types.base import AdcpResponse
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel
-from pydantic import AnyUrl, ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, WireAnyUrl
+from pydantic import ConfigDict, Field, RootModel
 
 from ..core import context as context_1
 from ..core import error as error_1
@@ -103,7 +103,7 @@ class VerifyBrandClaimsPayload(AdCPBaseModel):
         ),
     ]
     agent_url: Annotated[
-        AnyUrl,
+        WireAnyUrl,
         Field(
             description='Canonical URL of the responding brand agent entry whose response-signing key verifies this envelope.'
         ),

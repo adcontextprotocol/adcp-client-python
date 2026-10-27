@@ -300,13 +300,14 @@ async def test_complete_receipt_chain_rejects_damage_with_one_apparent_leaf(faul
     "fault", ["fork", "cycle", "gap", "cross_target", "accepted_predecessor", "disconnected_cycle"]
 )
 async def test_literal_sql_blocks_forks_and_detects_damaged_existing_chains(fault):
+    from adcp_reporting_storage.ledger.delivery_pg import _IDENTITY_COLUMNS
+
     from adcp.reporting.ledger._delivery_state import (
         change_id,
         fingerprint,
         payload,
         storage_identity,
     )
-    from adcp.reporting.ledger.delivery_pg import _IDENTITY_COLUMNS
 
     from ._generation_support import NOW
 
@@ -561,13 +562,14 @@ async def test_complete_adjustment_receipt_chain_rejects_damage(fault):
 async def test_literal_sql_blocks_damaged_adjustment_chains(fault):
     from contextlib import nullcontext
 
+    from adcp_reporting_storage.ledger.delivery_pg import _IDENTITY_COLUMNS
+
     from adcp.reporting.ledger._delivery_state import (
         change_id,
         fingerprint,
         payload,
         storage_identity,
     )
-    from adcp.reporting.ledger.delivery_pg import _IDENTITY_COLUMNS
 
     from ._generation_support import NOW
 

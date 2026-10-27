@@ -12,7 +12,7 @@ writes the same tables and the same bytes, so chunks written by either SDK verif
 ## Enable it
 
 ```python
-from adcp.reporting.ledger import PgReportingLedgerStore, ReportingRowStorageOptionsV1
+from adcp_reporting_storage import PgReportingLedgerStore, ReportingRowStorageOptionsV1
 
 store = PgReportingLedgerStore(
     pool=pool,
@@ -56,11 +56,22 @@ To install everything this guide uses while developing: `pip install -e '.[dev,p
 
 ## Layout notes
 
-`adcp_reporting_row_sets` is the side table that records where a revision's rows live until the shared Core layout
-(persistence Stage 3). It matches the JavaScript table column for column except that `obligation_id` has no
+`adcp_reporting_row_sets` is the side table that records where a revision's rows live.
+It matches the JavaScript table column for column except that `obligation_id` has no
 foreign key: Python obligations live in `reporting_obligations`, not in the JavaScript
 `adcp_reporting_obligations` table. If the JavaScript migration created the table first, `ready_row_storage`
-refuses with the constraint name; apply this migration first, or drop that constraint.
+refuses with the constraint name and a schema-qualified, quoted statement to remove it.
+Apply the Python migration first, or, for an existing database with Python as its writer,
+remove the JavaScript foreign key before running readiness again. The default constraint name is:
+
+```sql
+ALTER TABLE adcp_reporting_row_sets
+    DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;
+```
+
+Run this in the ledger schema. Use the exact statement from the refusal if the schema or
+constraint has a different name. This removes the cross-SDK foreign key; row integrity
+continues to be verified against the stored digests.
 
 A revision written before protocol-shape control totals (see the release notes) has a binding over `{name, value}`
 pairs. Its row set records the rows-only digest profile `rows_v1`, and its pair binding is verified against the
@@ -112,13 +123,13 @@ configuration the allowlist: the database records which binding each revision us
 can never point reads or writes at a destination the host did not configure.
 
 ```python
-from adcp.reporting.ledger import (
+from adcp_reporting_storage import (
     PgReportingLedgerStore,
     ReportingObjectRowBindingV1,
     ReportingPostgresRowBindingV1,
     ReportingRowStorageOptionsV1,
+    create_filesystem_reporting_row_object_provider_v1,
 )
-from adcp.reporting.ledger.row_storage_object import create_filesystem_reporting_row_object_provider_v1
 
 store = PgReportingLedgerStore(
     pool=pool,
@@ -195,19 +206,19 @@ await store.create_schema()
 ### Cloud providers
 
 Cloud providers wrap official clients that the host constructs with its own credentials, so the extras only need to
-be installed where those clients are created: `pip install 'adcp[reporting-gcs]'`, `'adcp[reporting-s3]'` or
-`'adcp[reporting-azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
+be installed where those clients are created: `pip install 'adcp-reporting-storage[gcs]'`, `'adcp-reporting-storage[s3]'` or
+`'adcp-reporting-storage[azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
 `credential_ref` names one of the clients you injected; an unknown reference fails `UNSAFE_BINDING`. Provider errors
 surface only as stable `ReportingRowStoreError` codes. Row buckets are separate from Managed Delivery buckets. A
 native version always identifies exactly one write, and every read and delete is pinned to it. An ETag is never
 enough, because an identical upload re-created at the same key has the same ETag and a delayed delete would remove
 the replacement.
 
-**Google Cloud Storage** (`adcp.reporting.ledger.row_storage_gcs`):
+**Google Cloud Storage** (`adcp_reporting_storage.ledger.row_storage_gcs`):
 
 ```python
 from google.cloud import storage
-from adcp.reporting.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
 
 gcs = create_gcs_reporting_row_object_provider_v1(
     storage=storage.Client(),  # keyless credentials: workload identity or ADC
@@ -225,11 +236,11 @@ gcs = create_gcs_reporting_row_object_provider_v1(
   retention-driven deletion in the ledger, not in bucket lifecycle.
 - The client needs `storage.buckets.get` for the probe plus object create, get and delete.
 
-**Amazon S3 and S3-compatible stores** (`adcp.reporting.ledger.row_storage_s3`):
+**Amazon S3 and S3-compatible stores** (`adcp_reporting_storage.ledger.row_storage_s3`):
 
 ```python
 import boto3
-from adcp.reporting.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
 
 s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region_name="us-east-1"))
 # ReportingObjectRowBindingV1(provider="s3", location={"bucket": "acme-adcp-rows", "region": "us-east-1"}, ...)
@@ -252,12 +263,12 @@ s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region
 - The client needs `s3:ListBucket`, `s3:GetLifecycleConfiguration`, `s3:GetBucketVersioning`, object put and get,
   `s3:GetObjectVersion` and `s3:DeleteObjectVersion`. `s3:GetBucketPolicyStatus` is optional.
 
-**Azure Blob Storage** (`adcp.reporting.ledger.row_storage_azure`):
+**Azure Blob Storage** (`adcp_reporting_storage.ledger.row_storage_azure`):
 
 ```python
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from adcp.reporting.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
+from adcp_reporting_storage.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
 
 azure = create_azure_blob_reporting_row_object_provider_v1(
     client=BlobServiceClient("https://acmerows.blob.core.windows.net", credential=DefaultAzureCredential())
@@ -302,7 +313,9 @@ A period qualifies once the later of its period end and its newest revision or a
 `ledger_record_retention_days` is the generation's `status_retention_days`; a shorter value is ignored, because a row
 retention shorter than the advertised window is non-conformant.
 
-Python keeps revision headers and their records until the shared Core layout (persistence Stage 3). A pruned row set
+Python keeps revision headers and their records. Record retirement refuses periods with protected reconciliation
+or audit evidence, so production periods carrying those records remain retained; row-byte pruning still runs.
+A pruned row set
 stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
@@ -346,12 +359,13 @@ either verify in the other. Three things must match between the two deployments:
 - **The same binding definitions.** A binding's identity digest is `sha256(JCS([kind, provider, identity_config]))`
   over the names the JavaScript SDK uses (`location`, `prefix`, `keyTemplate`), so an object binding that differs in
   location, prefix or key template is a different binding and is refused rather than silently redirected.
-- **The row-storage migration applied by this SDK first**, because the JavaScript `adcp_reporting_row_sets` has a
-  foreign key to its own obligations table that Python obligations can never satisfy. See "Layout notes".
+- **The row-storage migration applied by this SDK first**, or the JavaScript foreign key removed with
+  `ALTER TABLE adcp_reporting_row_sets DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;`
+  in the ledger schema. Python obligations cannot satisfy that foreign key. See "Layout notes" for renamed constraints.
 
-Until the shared Core layout (persistence Stage 3) each SDK keeps its own revision headers, so what is shared today
+Each SDK keeps its own revision headers, so what is shared today
 is the row sets: JavaScript-written row sets verify through `ReportingRowStorageV1.find` and `read_all` here, and the
-other way around.
+other way around. A shared Core layout is no longer planned; keep one writer SDK per ledger database.
 
 The acceptance test runs both SDKs against one PostgreSQL schema and one filesystem bucket root, in both directions:
 
@@ -360,10 +374,13 @@ ADCP_JS_SDK_DIR=/path/to/adcp-client ADCP_PG_TEST_URL=postgresql://... \
     pytest tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
 ```
 
-It needs Node and a built `adcp-client` checkout (`npm ci && npm run build`); without them it skips. The rows each SDK
-wrote are committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
-`ADCP_UPDATE_INTEROP_FIXTURES=1`), and the replay tests load them into a fresh database and bucket and verify them
-here, so Python CI does not need Node. The JavaScript SDK can replay `python-written.json` the same way.
+It needs Node and a built `adcp-client` checkout (`npm ci && npm run build && npm run build --workspace
+packages/reporting-storage`, since SDK 16 ships the row storage as `@adcp/reporting-storage`). Locally it skips without
+them; CI runs it with `ADCP_REQUIRE_JS_INTEROP=1`, so a missing build fails the lane. The rows each SDK wrote are
+committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
+`scripts/regenerate_row_storage_interop_fixtures.py`), and the replay tests load them into a fresh database and bucket
+and verify them here, so Python CI does not need Node. A replay test fails, rather than skips, when a fixture is
+missing. The JavaScript SDK has no replay of `python-written.json`; the live test is what proves that direction.
 
 ## Host change feed and consumers
 

@@ -242,7 +242,7 @@ async def test_scoped_listing_filters_cursor_and_not_found(registry: Any) -> Non
 
         async def missing_error(task_id: str) -> dict[str, Any]:
             with pytest.raises(AdcpError) as caught:
-                await caller({"task_id": task_id})
+                await caller({"adcp_version": "3.2", "task_id": task_id})
             return caught.value.to_wire()
 
         missing = await missing_error("absent")
@@ -328,10 +328,10 @@ async def test_minimal_third_party_registry_boots_and_expiry_is_hidden() -> None
         errors = []
         for reference in (task, "absent"):
             with pytest.raises(AdcpError) as caught:
-                await caller({"task_id": reference})
+                await caller({"adcp_version": "3.2", "task_id": reference})
             errors.append(caught.value.to_wire())
         assert errors[0] == errors[1]
-        assert (await create_tool_caller(handler, "list_tasks")({}))["error"][
+        assert (await create_tool_caller(handler, "list_tasks")({"adcp_version": "3.2"}))["error"][
             "code"
         ] == "NOT_SUPPORTED"
     finally:
@@ -358,8 +358,152 @@ async def test_account_resolution_precedes_registry_reads() -> None:
         reg.list = listing
         for tool, params in (("get_task_status", {"task_id": "probe"}), ("list_tasks", {})):
             with pytest.raises(AdcpError, match="PERMISSION_DENIED"):
-                await create_tool_caller(handler, tool)(params)
+                await create_tool_caller(handler, tool)({"adcp_version": "3.2", **params})
         read.assert_not_awaited()
         listing.assert_not_awaited()
     finally:
         executor.shutdown()
+
+
+class QuietSeller(Seller):
+    """Hands off a task that never reports progress."""
+
+    async def work(self, ctx: Any) -> dict[str, Any]:
+        self.started.set()
+        await self.finish.wait()
+        if self.failed:
+            raise AdcpError("INTERNAL_ERROR", message="Background failed", recovery="terminal")
+        return {"products": [], "cache_scope": "account", "status": "completed"}
+
+
+async def _call(client: Any, transport: str, tool: str, arguments: dict[str, Any]) -> Any:
+    if transport == "a2a":
+        response = await client.post(
+            "/",
+            json={
+                "jsonrpc": "2.0",
+                "id": secrets.token_hex(4),
+                "method": "message/send",
+                "params": {
+                    "message": {
+                        "messageId": secrets.token_hex(8),
+                        "role": "user",
+                        "parts": [
+                            {"kind": "data", "data": {"skill": tool, "parameters": arguments}}
+                        ],
+                    }
+                },
+            },
+        )
+    else:
+        response = await client.post(
+            "/mcp/",
+            headers={"accept": "application/json, text/event-stream"},
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": tool, "arguments": arguments},
+            },
+        )
+    assert response.status_code == 200, response.text
+    return rpc_data(response)
+
+
+CREATE_CONTEXT = {"origin": "get_products", "attempt": 1, "nil": None}
+POLL_CONTEXT = {"origin": "poll", "seq": 2}
+
+
+@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("transport", ["mcp", "a2a"])
+async def test_poll_echoes_its_own_context_and_result_echoes_the_creating_one(
+    registry: Any, failed: bool, transport: str
+) -> None:
+    """#1574: a poll's ``context`` is its own; the task's is inside ``result``."""
+    from adcp.validation.schema_validator import validate_response
+
+    seller = QuietSeller()
+    seller.failed = failed
+    async with build_test_client(
+        seller,
+        registry=registry,
+        validate_at_init=False,
+        stateless_http=True,
+        validation=None,
+        transport=transport,
+    ) as client:
+        issued = await _call(
+            client,
+            transport,
+            "get_products",
+            {
+                "brief": "Test",
+                "buying_mode": "brief",
+                "account": {"account_id": "acct_1"},
+                "context": CREATE_CONTEXT,
+            },
+        )
+        assert issued["context"] == CREATE_CONTEXT
+        task_id = issued["task_id"]
+        await asyncio.wait_for(seller.started.wait(), 5)
+
+        working = await _call(
+            client,
+            transport,
+            "get_task_status",
+            {"task_id": task_id, "context": POLL_CONTEXT},
+        )
+        assert working.get("status") in {"submitted", "working"}, working
+        assert working["context"] == POLL_CONTEXT
+        assert "progress" not in working
+        assert validate_response("tasks_get", working).valid
+
+        bare = await _call(client, transport, "get_task_status", {"task_id": task_id})
+        assert "context" not in bare
+
+        seller.finish.set()
+        for _ in range(100):
+            record = await registry.get(task_id)
+            if record["state"] in {"completed", "failed"}:
+                break
+            await asyncio.sleep(0.01)
+        terminal = await _call(
+            client,
+            transport,
+            "get_task_status",
+            {"task_id": task_id, "include_result": True, "context": POLL_CONTEXT},
+        )
+        assert terminal["status"] == ("failed" if failed else "completed")
+        assert terminal["context"] == POLL_CONTEXT
+        assert terminal["result"]["context"] == CREATE_CONTEXT
+        assert validate_response("tasks_get", terminal).valid
+        if not failed:
+            assert validate_response("get_products", terminal["result"]).valid
+
+        listed = await _call(
+            client,
+            transport,
+            "list_tasks",
+            {"filters": {"task_ids": [task_id]}, "context": POLL_CONTEXT},
+        )
+        assert listed["context"] == POLL_CONTEXT
+        assert "context" not in listed["tasks"][0]
+
+
+async def test_adopter_result_context_is_not_overwritten() -> None:
+    from adcp.decisioning.task_queries import project_task
+
+    record = {
+        "task_id": "t",
+        "task_type": "get_products",
+        "state": "completed",
+        "created_at": 0.0,
+        "updated_at": 0.0,
+        "progress": None,
+        "result": {"products": [], "context": {"set_by": "adopter"}},
+        "context": {"origin": "create"},
+    }
+    projected = project_task(record, include_result=True)
+    assert projected["result"]["context"] == {"set_by": "adopter"}
+    assert "context" not in projected
+    assert "progress" not in projected

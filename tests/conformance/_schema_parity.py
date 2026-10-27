@@ -565,15 +565,6 @@ def _is_numeric_string(value: Any) -> bool:
 #: on it. A predicate that matches nothing has been fixed, and the suite says
 #: to delete it — this set only shrinks.
 DECLARED: dict[str, Callable[[Divergence], bool]] = {
-    # The generator renders an optional property as ``X | None``, which
-    # conflates "may be absent" with "may be null". JSON Schema separates
-    # them: a property outside ``required`` may be absent, and ``null`` is
-    # valid only when the declared type admits it. Closing this needs a
-    # decision about whether AdCP intends optional properties to accept an
-    # explicit null; if it does, the schemas declare ``["string", "null"]``.
-    "optional_field_accepts_explicit_null": lambda d: (
-        d.direction == MODEL_ACCEPTS and d.mutation is None
-    ),
     # ``format: date-time`` and ``format: date`` become ``AwareDatetime`` and
     # ``date``, whose parsers read a number as a Unix timestamp and a numeric
     # string as one too. The schema requires an RFC 3339 string.

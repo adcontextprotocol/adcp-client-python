@@ -204,10 +204,11 @@ def build_mcp_error_result(
 
     The framework dispatcher returns this when a platform method raises a
     structured AdCP error. The result has ``isError=True`` AND
-    ``structuredContent={"adcp_error": {...}}`` on the same envelope —
-    matching the spec's transport-errors.mdx §MCP Binding shape that the
-    storyboard runner's ``/adcp_error/code`` JSON-pointer assertion
-    expects.
+    ``structuredContent={"adcp_error": {...}, "errors": [{...}]}`` on the
+    same envelope — the transport-errors.mdx §MCP Binding ``adcp_error``
+    plus the payload ``errors[]`` that L3 error handling says a fatal
+    failure SHOULD also carry (storyboards read both ``/adcp_error/code``
+    and ``errors[0].field``).
 
     The text fallback in ``content[]`` preserves human-readable display
     for clients that do not consume ``structuredContent`` (LLM tool-use
@@ -260,7 +261,9 @@ def build_mcp_error_result(
     if suggestion:
         text += f"\nSuggestion: {suggestion}"
 
-    structured: dict[str, Any] = {"adcp_error": adcp_error}
+    # A fatal failure populates both layers (L3 error handling): the payload
+    # carries the protocol-neutral ``errors[]`` and the envelope ``adcp_error``.
+    structured: dict[str, Any] = {"adcp_error": adcp_error, "errors": [dict(adcp_error)]}
     if params is not None:
         inject_context(params, structured)
 

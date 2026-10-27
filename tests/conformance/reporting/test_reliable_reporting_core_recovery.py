@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
+from adcp_reporting_storage import postgres_reliable_reporting_service
 
 from adcp.reporting.fixtures import redacted_capabilities
 from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingStatusCaller
@@ -86,7 +87,7 @@ async def core_factory(request: Any) -> AsyncIterator[tuple[ServiceFactory, date
             now = row[0]
 
             def postgres(**kwargs: Any) -> ReliableReportingService:
-                return ReliableReportingService.postgres(pool=pool, clock=lambda: now, **kwargs)
+                return postgres_reliable_reporting_service(pool=pool, clock=lambda: now, **kwargs)
 
             yield postgres, now
 

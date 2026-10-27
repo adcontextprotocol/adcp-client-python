@@ -599,7 +599,8 @@ response.raise_for_status()
 ```
 
 Notes:
-- Copy `config.operation_id` verbatim into every MCP webhook payload. Do not derive it from the task, media buy, or callback URL. Legacy persisted reporting registrations without one must be flagged or skipped until the buyer supplies it.
+- Copy `config.operation_id` verbatim into every MCP webhook payload. Do not derive it from the task, media buy, or callback URL.
+- For scheduled delivery reports to a stored `reporting_webhook`, use `sender.send_media_buy_delivery(registration=stored, task_id=..., result=report)` (or `create_media_buy_delivery_webhook_payload` with `deliver`). It echoes the registration's `operation_id` and `token`, and raises `ReportingWebhookOperationIdMissingError` for a legacy registration without one. Catch it, skip that send, and ask the buyer to update the registration. See `docs/webhooks/reporting-operation-id-3.2.md`.
 - `deliver` hashes/signs the exact bytes it POSTs for HMAC-SHA256; for Bearer it attaches the credential as `Authorization`. Either way, the signer and the wire cannot disagree.
 - `deliver` emits a `DeprecationWarning` on first use; migrate to `WebhookSender` for 4.0.
 - If your buyer relies on `config.token` echo, pass `token_field="push_token"` (pick a name you and the receiver agree on — there is no spec-defined field name).

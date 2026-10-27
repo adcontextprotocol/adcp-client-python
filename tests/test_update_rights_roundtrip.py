@@ -102,7 +102,7 @@ class TestUpdateRightsA2A:
     @pytest.mark.asyncio
     async def test_partial_update_reaches_wire(self) -> None:
         """Only the mutated fields travel to the adapter; rights_id is required."""
-        client = ADCPClient(_cfg())
+        client = ADCPClient(_cfg(), server_version="3.2")
         req = UpdateRightsRequest.model_validate(
             {
                 "idempotency_key": str(uuid.uuid4()),
@@ -141,7 +141,7 @@ class TestUpdateRightsA2A:
     async def test_response_parses_as_union_type(self) -> None:
         """UpdateRightsResponse is UpdateRightsResponse1 | UpdateRightsResponse2
         — the client's _parse_response must dispatch through the Union."""
-        client = ADCPClient(_cfg())
+        client = ADCPClient(_cfg(), server_version="3.2")
         req = UpdateRightsRequest.model_validate(
             {
                 "idempotency_key": str(uuid.uuid4()),

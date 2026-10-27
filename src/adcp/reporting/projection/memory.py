@@ -78,8 +78,10 @@ class InMemoryReportingProjectionOutbox(InMemoryReportingStatusOutbox):
 class InMemoryReportingProjectionStore(InMemoryReportingFeedStore):
     """Reference semantics, never a production durability claim."""
 
-    _projection_read_policy: dict[str, Any]
-    _projection_read_escalation: ReportingDeliveryEscalation | None
+    # Replaced (never mutated) by the status projection that reads this store;
+    # present from construction so the production store protocol matches.
+    projection_read_policy: dict[str, Any] = {}
+    projection_read_escalation: ReportingDeliveryEscalation | None = None
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -170,8 +172,8 @@ class InMemoryReportingStatusProjection(InMemoryStatusNotificationStore):
         if ledger._status_notification_state is None:
             ledger._status_notification_state = _StatusMemoryState()
         self.outbox = InMemoryReportingProjectionOutbox(ledger)
-        ledger._projection_read_policy = self.policy
-        ledger._projection_read_escalation = escalation
+        ledger.projection_read_policy = self.policy
+        ledger.projection_read_escalation = escalation
 
     def _enqueue_status(self, event: ReportingDomainEvent) -> None:
         self.outbox._state.enqueue(event)

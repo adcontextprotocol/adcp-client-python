@@ -1,5 +1,17 @@
 """B2.4 shared execution: actual stores, no forged readiness certificate."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 from contextlib import asynccontextmanager
 
 import pytest
@@ -25,10 +37,16 @@ async def projection_harness(backend, *, notifications=False, feedback=False, ow
         )
         yield h
     else:
-        from adcp.reporting.projection.pg import (
-            PgReportingProjectionStore,
-            PgReportingStatusProjection,
-        )
+        if _storage_split():  # wheels before the storage split (#1510)
+            from adcp.reporting.projection.pg import (
+                PgReportingProjectionStore,
+                PgReportingStatusProjection,
+            )
+        else:
+            from adcp_reporting_storage.projection.pg import (
+                PgReportingProjectionStore,
+                PgReportingStatusProjection,
+            )
 
         async with isolated_reporting_pool(autocommit=True) as pool:
             store = PgReportingProjectionStore(pool=pool, notifications=notifications)

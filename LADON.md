@@ -32,6 +32,17 @@ without an open-union escape hatch, or changing the discriminator key on a model
 already on the wire is a `high` finding — adopter deserialization breaks the
 moment upstream adds a variant.
 
+The two asset unions are the exception to the file list: `FormatAssetUnion` and
+`GroupFormatAssetUnion`, their fallback arms and the `asset_type` vocabulary
+they route by are EMITTED into `src/adcp/types/domains/core/format.py` by
+`_OPEN_ASSET_UNIONS` in `scripts/post_generate_fixes.py`, and `aliases.py`
+re-exports them. Review a change to them there. A hand-written vocabulary beside
+a generated union is itself the `high` finding: the callable discriminator reads
+the vocabulary before pydantic reaches the arms, so a stale entry degrades a
+declared asset type to the fallback while its generated class sits unused — and
+counting arms does not detect it. Grade it with a parse-level check
+(`tests/test_forward_compat_assets.py::TestDeclaredAssetTypesAreNotDegraded`).
+
 ### Mandatory: type-system import layering
 
 Only `_generated.py`, `_eager.py`, `aliases.py`, `capabilities.py`, and
@@ -75,6 +86,30 @@ Disabling a test instead of fixing it, dropping a `ruff` rule without a stated
 reason, or silencing mypy with a blanket `# type: ignore` is a `high` finding.
 Specific codes (`# type: ignore[no-any-return]`) are fine — the blanket form is
 the problem.
+
+### Mandatory: every minor-release wire change has a pathway back
+
+Per adcontextprotocol/adcp DR-0032 and DR-0033, the SDK lets application code
+speak one AdCP release and translates for older counterparts. Minor releases
+are non-breaking and backward compatible: on 3.x now, and in each later
+major's own minors from 4.1 onward. Every PR that adds or changes support for a
+wire field, enum value, task, union variant or semantic rule in a minor release
+must also handle the previous minor of the same major, in one of four ways:
+
+- **Droppable:** older counterparts never see it. On a mutating request this
+  is allowed only if dropping it does not change spend, targeting, caps or
+  account identity.
+- **Moves:** it maps to an exact equivalent in the older release, implemented
+  in the SDK's version-translation layer for both directions that exist.
+- **Refused:** the call fails before sending, with a typed unsupported-feature
+  error.
+- **Identity-bearing:** it changes an account or resource key, and follows the
+  one-to-one reduction rule (never merge two buyer accounts into one seller
+  account).
+
+The PR includes a test for its pathway. Missing pathway handling or a missing test is `high`. A
+mutation-side field that is dropped when it should be refused is `high`.
+Translation that drops or rewrites a field without reporting it is `high`.
 
 ### Docs here are adopter-facing behavior
 

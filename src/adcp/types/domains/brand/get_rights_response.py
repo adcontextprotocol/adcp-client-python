@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, TypeAlias
 
-from pydantic import AnyUrl, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireAnyUrl
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import rights_pricing_option as rights_pricing_option_1
@@ -28,7 +29,7 @@ class ExclusivityStatus(AdcpVersionEnvelope):
 
 class PreviewAsset(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    url: AnyUrl
+    url: WireAnyUrl
     usage: str | None = None
 
 

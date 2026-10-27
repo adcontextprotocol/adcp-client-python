@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints, model_validator
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account as account_1
@@ -38,8 +39,8 @@ class CreateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
     account: account_1.Account | None = None
     invoice_recipient: business_entity_1.BusinessEntity | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    confirmed_at: AwareDatetime | None
-    creative_deadline: AwareDatetime | None = None
+    confirmed_at: WireDatetime | None
+    creative_deadline: WireDatetime | None = None
     revision: Annotated[int, Field(ge=1)]
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
     total_budget: Annotated[float, Field(ge=0)] | None = None
@@ -89,7 +90,7 @@ class CreateMediaBuyResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
 
 
 class CreateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
     message: Annotated[str, StringConstraints(max_length=2000)] | None = None

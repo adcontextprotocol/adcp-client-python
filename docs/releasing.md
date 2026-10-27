@@ -9,13 +9,11 @@ and reviews pass.
 Version-only bot release PRs, including betas, run interpreter compatibility
 checks and verify the metadata in their built wheel and sdist.
 
-SDK 9 is on the beta channel. The root package in
-`release-please-config.json` uses `versioning: prerelease`,
-`prerelease-type: beta`, and `prerelease: true`, so subsequent releases
-remain beta and GitHub marks them as prereleases. The adopting commit ends
-with `Release-As: 9.0.0-beta.1`; the release workflow normalizes that to
-`9.0.0b1` in `pyproject.toml` and on PyPI. Do not merge a release PR that
-proposes stable `9.0.0` while this beta channel is active.
+SDK 9 is on the stable channel. The 9.0.0 GA commit removed the
+`versioning: prerelease`, `prerelease-type: beta`, and `prerelease: true`
+keys from the root package in `release-please-config.json` and ended with
+`Release-As: 9.0.0`. Subsequent releases on `main` are stable 9.x versions.
+SDK 10 prereleases are cut from `next`.
 
 To choose an exact version, the squash commit that lands on `main` must
 end its body with a `Release-As: X.Y.Z` footer. The repository squashes with
@@ -36,9 +34,6 @@ screening, the explicit legacy projection boundary, and a constructible,
 generated branch union. Make any further public-name changes during beta and
 document the migration.
 
-At the reviewed GA exit, remove the three prerelease configuration keys,
-update the release-channel contract test, and select `Release-As: 9.0.0`.
-
 On the merge, Release Please creates the tag and GitHub release, then starts
 `release-publish.yml` on `main`. The publish workflow waits for successful CI on
 the **exact release commit**, builds the sdist and wheel once, and checks both
@@ -52,10 +47,47 @@ One-time setup:
   required reviewer and `main` as its deployment branch.
 - In PyPI → adcp → Publishing, add a Trusted Publisher for owner
   `adcontextprotocol`, repository `adcp-client-python`, workflow
-  `release-publish.yml`, and environment `release-publish`.
+  `release-publish.yml`, and environment `release-publish`. The
+  `adcp-reporting-storage` project needs the same (see below).
 - Keep the existing `IPR_APP_ID` and `IPR_APP_PRIVATE_KEY` secrets available to
   `release-please.yml`.
   The App needs repository contents and pull-request write access.
+
+## adcp-reporting-storage
+
+`packages/adcp-reporting-storage` is a second Release Please component
+(`separate-pull-requests` is on, so it gets its own release PR) that stays on
+the beta channel while `adcp` is stable. Its `adcp>=…,<10` floor must name a
+published `adcp` release that contains the split (9.0.0 or later); move it
+before merging the storage release PR. Its tags carry the component name
+(`adcp-reporting-storage-v0.1.0-beta.1`); the root keeps bare `vX.Y.Z` tags.
+Only commits that touch `packages/adcp-reporting-storage/` bump it, and the
+root package lists that path in `exclude-paths` (Release Please otherwise hands
+the root every commit), so a protocol fix in `adcp` does not release the storage
+package and a storage fix does not release `adcp`. A commit touching both trees
+counts for both. Keep storage changes out of a root `Release-As:` commit, or the
+storage package takes that version too. To release only one package, put its
+change in its own PR. Always squash-merge: the IPR policy maps each `main`
+commit to the PR whose merge commit it is, and a rebase merge leaves earlier
+commits with no such PR. Conventional-commit scopes are free text, but
+`feat(reporting-storage):` keeps the two changelogs readable.
+
+On a merge, `release-please.yml` queues `release-publish.yml` with
+`package=adcp-reporting-storage`; the workflow builds that package's sdist and
+wheel from `packages/adcp-reporting-storage` and publishes them through the same
+`release-publish` environment approval. The storage wheel pins
+`adcp>=9.0.0bN,<10`; publish the `adcp` release it depends on first.
+
+One-time setup, before the first storage release:
+
+- In PyPI, add a **pending** Trusted Publisher for a new project named
+  `adcp-reporting-storage` (owner `adcontextprotocol`, repository
+  `adcp-client-python`, workflow `release-publish.yml`, environment
+  `release-publish`). A pending publisher creates the project on first upload;
+  without it the publish job fails and the `adcp` release is unaffected.
+- The first release PR bumps `0.1.0-beta.0` (the manifest's bootstrap value,
+  never published) to `0.1.0-beta.1`. Check the PR's `pyproject.toml` version
+  was normalized to `0.1.0b1` the same way the root is.
 
 If publication fails, fix the cause and rerun `release-publish.yml` for the same
 release SHA and tag. PyPI will reject files it has already accepted; check its

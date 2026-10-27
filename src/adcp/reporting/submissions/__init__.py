@@ -2,8 +2,9 @@
 
 Public imports are additive and work without the optional PostgreSQL driver.
 The application supplies a trusted authorizer, a receipt client, and an explicit
-intent store. Use PgReportingSubmissionIntentStore for restart durability; the
-memory implementation is a volatile reference for tests. No checkpoint, seller
+intent store. Use ``PgReportingSubmissionIntentStore`` from ``adcp_reporting_storage``
+for restart durability; the memory implementation is a volatile reference for tests.
+No checkpoint, seller
 service, consumer-status, or client.reporting facade behavior is changed.
 
 Rollout: use a dedicated buyer schema/pool; explicitly call create_schema before
@@ -25,7 +26,6 @@ from adcp.reporting.submissions.models import (
     ReportingSubmissionScope,
     prepare_reporting_receipt_submission,
 )
-from adcp.reporting.submissions.pg import PgReportingSubmissionIntentStore
 from adcp.reporting.submissions.store import (
     InMemoryReportingSubmissionIntentStore,
     ReportingSubmissionIntentStore,
@@ -38,7 +38,6 @@ from adcp.reporting.submissions.submit import (
 
 __all__ = [
     "InMemoryReportingSubmissionIntentStore",
-    "PgReportingSubmissionIntentStore",
     "ReportingReceiptFailureCode",
     "ReportingReceiptOutcome",
     "ReportingReceiptSubmission",

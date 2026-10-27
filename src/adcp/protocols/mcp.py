@@ -1157,6 +1157,11 @@ class MCPAdapter(ProtocolAdapter):
         return result
 
     async def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+        request = await self._prepare_outgoing_request(tool_name, params)
+        result = await self._call_mcp_tool_wire(tool_name, request.payload)
+        return self._finish_incoming_result(tool_name, result, request)
+
+    async def _call_mcp_tool_wire(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
         """Call a tool using MCP protocol."""
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
@@ -1169,7 +1174,6 @@ class MCPAdapter(ProtocolAdapter):
         # Apply per-instance envelope enrichment (e.g. adcp_version pin).
         # Runs after idempotency injection so the enriched dict is the
         # one that's validated and sent.
-        params = self._enrich_outgoing_params(params)
         assert_reporting_request_supported(tool_name, params)
 
         try:
@@ -1181,11 +1185,7 @@ class MCPAdapter(ProtocolAdapter):
                     tool_name,
                     params,
                     self.request_validation_mode,
-                    version=(
-                        params.get("adcp_version")
-                        if isinstance(params.get("adcp_version"), str)
-                        else None
-                    ),
+                    version=self._request_version(params),
                 )
             except SchemaValidationError as exc:
                 return TaskResult[Any](
@@ -1231,14 +1231,15 @@ class MCPAdapter(ProtocolAdapter):
                     idempotency_key=idempotency_key,
                 )
                 trace_meta = mcp_trace_meta()
-                if trace_meta is None:
-                    result = await session.call_tool(tool_name, params)
-                else:
-                    result = await session.call_tool(
-                        tool_name,
-                        params,
-                        meta=cast("RequestParamsMeta", trace_meta),
-                    )
+                with self._outgoing_signing_scope(tool_name, params):
+                    if trace_meta is None:
+                        result = await session.call_tool(tool_name, params)
+                    else:
+                        result = await session.call_tool(
+                            tool_name,
+                            params,
+                            meta=cast("RequestParamsMeta", trace_meta),
+                        )
             except (Exception, asyncio.CancelledError) as exc:
                 # CancelledError is listed because that is how a limiter abort
                 # reaches this await: it raises inside MCP's writer task, which
@@ -1367,7 +1368,7 @@ class MCPAdapter(ProtocolAdapter):
             # the data unchanged; off short-circuits without invoking the
             # validator. Never raises — mirrors the existing contract where
             # response-side failures surface as TaskStatus.FAILED.
-            response_version = (
+            response_version = self._request_version(params) or (
                 data_to_return.get("adcp_version")
                 if isinstance(data_to_return, dict)
                 and isinstance(data_to_return.get("adcp_version"), str)

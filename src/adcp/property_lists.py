@@ -92,6 +92,7 @@ class MCPPropertyListFetcher:
     def _create_client(self, agent_url: str, auth_token: str | None) -> Any:
         import httpx2
 
+        from adcp._version import resolve_adcp_version
         from adcp.client import ADCPClient
         from adcp.signing import build_async_ip_pinned_transport2
         from adcp.types.core import AgentConfig, Protocol
@@ -117,6 +118,10 @@ class MCPPropertyListFetcher:
             ),
             httpx_client_factory=pinned_factory,
             account_policy="off",
+            # Shared-list credentials authorize this task alone. Keep the
+            # reference's existing SDK contract without a discovery request
+            # that the issuer must reject for the scoped bearer credential.
+            server_version=resolve_adcp_version(None),
         )
 
     async def resolve(self, ref: Any) -> ResolvedPropertyList:

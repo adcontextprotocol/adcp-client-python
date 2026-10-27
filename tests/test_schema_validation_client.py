@@ -52,6 +52,7 @@ class TestMCPAdapterHooks:
     async def test_strict_request_blocks_call_before_transport(self) -> None:
         client = ADCPClient(
             _agent_config(),
+            server_version="3.2",
             validation=ValidationHookConfig(requests="strict"),
         )
         session = MagicMock()
@@ -70,6 +71,7 @@ class TestMCPAdapterHooks:
     async def test_strict_response_fails_task_on_drift(self) -> None:
         client = ADCPClient(
             _agent_config(),
+            server_version="3.2",
             validation=ValidationHookConfig(requests="off", responses="strict"),
         )
 
@@ -99,6 +101,7 @@ class TestMCPAdapterHooks:
     async def test_off_mode_skips_validator(self) -> None:
         client = ADCPClient(
             _agent_config(),
+            server_version="3.2",
             validation=ValidationHookConfig(requests="off", responses="off"),
         )
 

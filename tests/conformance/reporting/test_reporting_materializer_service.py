@@ -59,7 +59,7 @@ async def test_cancellation_and_restart_never_allocate_a_new_external_identity(
 async def test_service_heartbeat_keeps_long_io_alive_with_size_one_postgres_pool(
     stage, tmp_path, monkeypatch
 ):
-    from adcp.reporting.materializer import PgReportingMaterializerStore
+    from adcp_reporting_storage import PgReportingMaterializerStore
 
     async with durable_harness("postgres", notifications=True) as h:
         from psycopg_pool import AsyncConnectionPool

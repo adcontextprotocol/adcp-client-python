@@ -79,8 +79,8 @@ def create_media_buy_response1_packages(response: CreateMediaBuyResponse1) -> li
 
 
 def sync_creatives_request_creatives(request: SyncCreativesRequest) -> list[str]:
-    assert_type(request.creatives, list[CreativeAsset])
-    return [asset.creative_id for asset in request.creatives]
+    assert_type(request.creatives, list[CreativeAsset] | None)
+    return [asset.creative_id for asset in request.creatives or []]
 
 
 def list_creatives_response_creatives(response: ListCreativesResponse) -> list[str]:

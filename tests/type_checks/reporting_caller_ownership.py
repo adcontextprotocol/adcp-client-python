@@ -3,6 +3,16 @@
 from datetime import datetime
 from typing import Any
 
+from adcp_reporting_storage.migration import (
+    ReportingOwnershipBackfill,
+    backfill_legacy_reporting,
+    legacy_generation_digest,
+    migrate_legacy_reporting,
+    replace_empty_legacy_reporting,
+    replace_empty_legacy_reporting_sync,
+    replace_empty_owned_reporting,
+    replace_empty_owned_reporting_sync,
+)
 from typing_extensions import assert_type
 
 from adcp.reporting.ledger import (
@@ -12,13 +22,6 @@ from adcp.reporting.ledger import (
     ReportingConfigurationGenerationKey,
     ReportingLedgerStore,
     ReportingStatusCaller,
-)
-from adcp.reporting.migration import (
-    ReportingOwnershipBackfill,
-    backfill_legacy_reporting,
-    legacy_generation_digest,
-    migrate_legacy_reporting,
-    replace_empty_legacy_reporting,
 )
 
 
@@ -42,6 +45,7 @@ async def ownership(
         connection, archive_schema="adcp_reporting_quarantine_release", workers_stopped=True
     )
     await replace_empty_legacy_reporting(connection)
+    await replace_empty_owned_reporting(connection)
     digest = await legacy_generation_digest(
         connection,
         archive_schema="adcp_reporting_quarantine_release",
@@ -65,3 +69,9 @@ async def ownership(
         mapping=mapping,
         workers_stopped=True,
     )
+
+
+def alembic_revision(bind: Any) -> None:
+    """Sync variants run inside a migration framework's transaction."""
+    replace_empty_legacy_reporting_sync(bind)
+    replace_empty_owned_reporting_sync(bind)

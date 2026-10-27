@@ -8,7 +8,8 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
+from adcp.types.base import WireDatetime
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import brand_ref as brand_ref_1
@@ -51,7 +52,7 @@ class Audience(AdcpVersionEnvelope):
     matched_count: Annotated[int, Field(ge=0)] | None = None
     effective_match_rate: Annotated[float, Field(ge=0, le=1)] | None = None
     match_breakdown: Annotated[list[MatchBreakdown], Field(min_length=1)] | None = None
-    last_synced_at: AwareDatetime | None = None
+    last_synced_at: WireDatetime | None = None
     source: Source | None = None
     minimum_size: Annotated[int, Field(ge=1)] | None = None
     errors: list[error_1.Error] | None = None
@@ -73,7 +74,7 @@ class SyncAudiencesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
 
 
 class SyncAudiencesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', validate_default=True)
+    model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
     message: Annotated[str, StringConstraints(max_length=2000)] | None = None

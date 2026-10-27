@@ -1,5 +1,17 @@
 """Build and inspect actual production distributions; fixtures never alias SDK source."""
 
+import importlib.util as _importlib_util
+
+
+def _storage_split():
+    """True when the adcp on sys.path predates the storage split (#1510).
+
+    Its stores still live in adcp.reporting and the storage package must not
+    be used. Evaluated at each import, after the script has set up sys.path.
+    """
+    return _importlib_util.find_spec("adcp.reporting.ledger.pg") is not None
+
+
 import hashlib
 import json
 import os
@@ -9,7 +21,13 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-from .test_reporting_notification_packaging import ROOT, run_step
+from .test_reporting_notification_packaging import (
+    ROOT,
+    STORAGE_SRC,
+    run_step,
+    storage_distribution,
+    storage_source,
+)
 
 ASSETS = (
     "ledger/reporting_materializer.sql",
@@ -107,32 +125,51 @@ def production_modules():
             "types/domains/bundled/protocol/get_adcp_capabilities_response.py",
         )
     ]
-    return {
-        "adcp."
-        + str(p.relative_to(ROOT / "src/adcp"))
-        .removesuffix(".py")
-        .replace("/", ".")
-        .removesuffix(".__init__"): hashlib.sha256(p.read_bytes())
-        .hexdigest()
-        for p in paths
-    }
+    modules = {}
+    for p in paths:
+        relative = p.relative_to(ROOT / "src/adcp")
+        if not p.exists() and str(relative).startswith("reporting/"):
+            # The PostgreSQL stores moved to the storage distribution (#1510).
+            p = STORAGE_SRC / relative.relative_to("reporting")
+            name = "adcp_reporting_storage." + str(relative.relative_to("reporting"))
+        else:
+            name = "adcp." + str(relative)
+        modules[name.removesuffix(".py").replace("/", ".").removesuffix(".__init__")] = (
+            hashlib.sha256(p.read_bytes()).hexdigest()
+        )
+    return modules
 
 
 def inspect_distribution(wheel, source):
+    """Check both wheels of a current build; the stores and DDL are in the storage wheel."""
     modules = production_modules()
-    assets = {name: (ROOT / "src/adcp/reporting" / name).read_bytes() for name in ASSETS}
-    with zipfile.ZipFile(wheel) as archive, tarfile.open(source) as sdist:
+    assets = {name: (STORAGE_SRC / name).read_bytes() for name in ASSETS}
+    with (
+        zipfile.ZipFile(wheel) as archive,
+        tarfile.open(source) as sdist,
+        zipfile.ZipFile(storage_distribution(wheel)) as storage_archive,
+        tarfile.open(storage_source(wheel)) as storage_sdist,
+    ):
         prefix = sdist.getnames()[0].split("/")[0]
+        storage_prefix = storage_sdist.getnames()[0].split("/")[0]
         for name, digest in modules.items():
             member = name.replace(".", "/") + ".py"
-            if member not in archive.namelist():
+            zipped, tarred, tar_prefix = archive, sdist, prefix
+            if name.startswith("adcp_reporting_storage."):
+                zipped, tarred, tar_prefix = storage_archive, storage_sdist, storage_prefix
+            if member not in zipped.namelist():
                 member = name.replace(".", "/") + "/__init__.py"
-            raw = archive.read(member)
+            raw = zipped.read(member)
             assert hashlib.sha256(raw).hexdigest() == digest
-            assert sdist.extractfile(f"{prefix}/src/{member}").read() == raw
+            assert tarred.extractfile(f"{tar_prefix}/src/{member}").read() == raw
         for name, raw in assets.items():
-            assert archive.read("adcp/reporting/" + name) == raw
-            assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
+            assert storage_archive.read("adcp_reporting_storage/" + name) == raw
+            assert (
+                storage_sdist.extractfile(
+                    f"{storage_prefix}/src/adcp_reporting_storage/{name}"
+                ).read()
+                == raw
+            )
         for version in RETAINED_SCHEMA_VERSIONS:
             for path in sorted((ROOT / "src/adcp/_compliance" / version).rglob("*")):
                 if path.is_file():

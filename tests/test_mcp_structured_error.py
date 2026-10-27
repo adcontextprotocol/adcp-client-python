@@ -67,6 +67,24 @@ class TestBuildMcpErrorResultShape:
         assert "no such buy" in result.content[0].text
 
 
+class TestBuildMcpErrorResultErrorsArray:
+    """A fatal failure fills payload ``errors[]`` and envelope ``adcp_error`` (#1558)."""
+
+    def test_errors_array_mirrors_adcp_error(self):
+        exc = DecisioningAdcpError(
+            "INVALID_REQUEST", message="unknown signal", field="packages[0].targeting_overlay"
+        )
+        structured = build_mcp_error_result(exc).structured_content
+        assert structured["errors"] == [structured["adcp_error"]]
+        assert structured["errors"][0]["field"] == "packages[0].targeting_overlay"
+
+    def test_errors_array_is_not_the_same_object_as_adcp_error(self):
+        structured = build_mcp_error_result(
+            DecisioningAdcpError("INTERNAL_ERROR")
+        ).structured_content
+        assert structured["errors"][0] is not structured["adcp_error"]
+
+
 class TestBuildMcpErrorResultOptionalFields:
     """Optional fields populate when present, omit when absent."""
 

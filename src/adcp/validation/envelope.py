@@ -166,6 +166,16 @@ def resolve_requested_adcp_version(
     Unsupported explicit claims, or an unnegotiated request whose default is
     not in ``supported``, raise :class:`UnsupportedVersionError`, just like
     :func:`detect_wire_version`.
+
+    Call it on the raw wire payload, before server dispatch. Inside a server
+    handler, ``params`` have already been upgraded to the SDK's latest minor,
+    so this returns the converted (served) version: a buyer's explicit
+    ``adcp_version: "3.1"`` reads back as ``"3.2"``. Major-only and
+    unversioned payloads still resolve to ``"3.0"`` here, but their shapes
+    are upgraded too. To branch on the version the buyer negotiated, read
+    :attr:`adcp.server.ToolContext.resolved_adcp_version` instead. Handlers
+    answer in the latest shapes either way; the SDK converts the response
+    down to the buyer's version. See ``docs/cross-version-conversion.md``.
     """
     resolved = detect_wire_version(payload, supported=supported)
     if resolved is not None:

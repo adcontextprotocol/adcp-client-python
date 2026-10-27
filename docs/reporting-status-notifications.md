@@ -2,7 +2,7 @@
 
 This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
 
-Install `adcp[pg]` and mount the optional status lifecycle to publish
+Install `adcp-reporting-storage[pg]` and mount the optional status lifecycle to publish
 `reporting.status_changed`. `get_reporting_status` remains authoritative. C
 supports Core status; Managed/Reconciled materialization and receipt expiry
 clocks remain in D. An account with destination bindings cannot advertise C
@@ -104,7 +104,7 @@ wire flags.
 `ReportingLedgerStore` and `ReportingNotificationOutbox` implementations retain
 their structural contracts. Pure types and memory implementations import without
 PostgreSQL. PostgreSQL exports load lazily and construction without the extra
-raises an actionable `adcp[pg]` installation hint.
+raises an actionable `adcp-reporting-storage[pg]` installation hint.
 
 `PgStatusNotificationStore.create_schema()` executes the six existing ledger/A/B
 steps plus `reporting_status_notifications.sql` and

@@ -1,4 +1,4 @@
-"""All public exports work without optional drivers; concrete PG classes are lazy."""
+"""All public exports work without optional drivers; the PostgreSQL stores explain their extra."""
 
 import subprocess
 import sys
@@ -6,7 +6,15 @@ import sys
 import pytest
 
 
-@pytest.mark.parametrize("module", ["adcp.reporting.production", "adcp.reporting.projection"])
+@pytest.mark.parametrize(
+    "module",
+    [
+        "adcp.reporting.production",
+        "adcp.reporting.projection",
+        "adcp_reporting_storage",
+        "adcp_reporting_storage.production",
+    ],
+)
 @pytest.mark.parametrize("drivers", [False, True])
 def test_public_exports_and_optional_database_drivers(module, drivers):
     script = """
@@ -19,21 +27,25 @@ if not drivers:
                 raise ModuleNotFoundError(fullname)
     sys.meta_path.insert(0, NoDrivers())
 module = importlib.import_module(sys.argv[1])
-assert len(module.__all__) == len(set(module.__all__))
+exports = getattr(module, '__all__', [])
+assert len(exports) == len(set(exports))
 assert module.__name__ + '.pg' not in sys.modules
-for name in module.__all__:
+for name in exports:
     assert getattr(module, name) is not None, name
 if not drivers:
     assert 'psycopg' not in sys.modules
     assert 'psycopg_pool' not in sys.modules
-    name = ('PgReportingProductionStore' if module.__name__.endswith('production')
-            else 'PgReportingProjectionStore')
-    try:
-        getattr(module, name)(pool=object())
-    except ImportError as error:
-        assert 'pg' in str(error)
-    else:
-        raise AssertionError('PG store constructed without its driver')
+    # The stores moved to adcp-reporting-storage; adcp no longer binds them.
+    for name in ('PgReportingProductionStore', 'PgReportingProjectionStore'):
+        assert not hasattr(module, name) or module.__name__.startswith('adcp_reporting_storage')
+    if module.__name__ == 'adcp_reporting_storage':
+        try:
+            module.PgReportingProductionStore(pool=object())
+        except ImportError as error:
+            assert 'adcp-reporting-storage[pg]' in str(error), str(error)
+        else:
+            raise AssertionError('PG store constructed without its driver')
+        assert 'psycopg' not in sys.modules
 try:
     getattr(module, 'NoSuchReportingExport')
 except AttributeError:

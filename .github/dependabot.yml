@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Frozen JavaScript SDK release candidates for the reporting interop replay.
+  # Each lockfile pins a historical release whose installed bytes the interop
+  # matrix verifies, so a bump breaks the control instead of fixing anything.
+  # The ignore rule also applies to Dependabot security updates.
+  - package-ecosystem: npm
+    directories:
+      - "/scripts/ci/reporting_interop/npm/*"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"

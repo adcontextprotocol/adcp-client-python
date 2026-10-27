@@ -101,7 +101,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull, inherit_field
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -109,6 +109,9 @@ from adcp.types.domains.core.creative_manifest import (
     CreativeManifest as _CanonicalCreativeManifestWire,
 )
 from adcp.types.domains.core.creative_variant import CreativeVariant as _LegacyCreativeVariant
+from adcp.types.domains.core.format_id import (
+    FormatReferenceStructuredObject as _LegacyFormatReference,
+)
 from adcp.types.domains.core.macro_resolution_capability import MacroProcessingCapability
 from adcp.types.domains.core.package import Package as _LegacyPackage
 from adcp.types.domains.core.placement import Placement as _LegacyPlacement
@@ -318,9 +321,20 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
     """Find functional serializers, including ones inside container annotations."""
     if isinstance(annotation, (PlainSerializer, WrapSerializer)):
         return True
+    if annotation is NoExplicitNull or annotation is _REFUSE_JSON_NULL:
+        # Either half of the marker. Its only serialization effect is to leave a
+        # ``None`` off the dump, which is what the default dump already does.
+        return False
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
-        if not is_adcp_model and getattr(annotation, "__module__", "").split(".")[0] != "pydantic":
+        module = getattr(annotation, "__module__", "")
+        # The wire-preserving scalars (#1610) serialize to themselves in
+        # python mode, so a stored value is what the default dump reads.
+        if (
+            not is_adcp_model
+            and module.split(".")[0] != "pydantic"
+            and module != "adcp.types._wire"
+        ):
             return True
     return any(_has_boundary_serialization_metadata(item) for item in get_args(annotation))
 
@@ -352,7 +366,9 @@ def _direct_boundary_fields(cls: type[AdCPBaseModel]) -> frozenset[str] | None:
     for name, field in cls.model_fields.items():
         if field.exclude:
             continue
-        if field.exclude_if is not None or _has_boundary_serialization_metadata(field.annotation):
+        if field.exclude_if is not None and field.exclude_if is not NoExplicitNull.exclude_if:
+            return None
+        if _has_boundary_serialization_metadata(field.annotation):
             return None
         if any(_has_boundary_serialization_metadata(item) for item in field.metadata):
             return None
@@ -542,11 +558,17 @@ def _legacy_creative_identity_path(
     return None
 
 
+#: Every property a legacy format reference declares, derived from the model so
+#: a parameter added to ``core/format-id.json`` (as ``pixel_ratio`` was) is
+#: recognised without being named here.
+_LEGACY_FORMAT_REFERENCE_KEYS = frozenset(_LegacyFormatReference.model_fields)
+
+
 def _looks_like_legacy_format_tuple(schema: dict[str, Any], properties: dict[str, Any]) -> bool:
     keys = set(properties)
     title = str(schema.get("title", "")).lower()
     return {"agent_url", "id"} <= keys and (
-        "format" in title or keys <= {"agent_url", "id", "width", "height", "duration_ms"}
+        "format" in title or keys <= _LEGACY_FORMAT_REFERENCE_KEYS
     )
 
 
@@ -739,18 +761,12 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         return schema
 
 
-def _inherit(source: type[AdCPBaseModel], name: str) -> Any:
-    """Return a copy of ``source``'s ``name`` field for a retyped redeclaration.
-
-    A canonical model that narrows an inherited field's *annotation* still wants
-    the generated field's constraints, description and default. Redeclaring with
-    this as the assigned value keeps every one of them, where a bare ``Field()``
-    would silently drop ``min_length`` and friends. The return type is ``Any``
-    because a ``FieldInfo`` is what pydantic expects on the right-hand side of an
-    annotated field declaration — the same reason ``Field()`` itself is ``Any``.
-    """
-
-    return copy.deepcopy(source.model_fields[name])
+#: :func:`adcp.types.base.inherit_field`, under the name this module has used
+#: since #1548. Every redeclaration of a generated field below goes through it:
+#: a bare ``Field(...)`` drops the generated description, constraints and
+#: never-null marker (#1620), and ``tests/test_redeclared_fields_inherit.py``
+#: fails on one that does.
+_inherit = inherit_field
 
 
 _CanonicalParamsT = TypeVar("_CanonicalParamsT", bound=AdCPBaseModel)
@@ -909,7 +925,7 @@ class Placement(_LegacyPlacement, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIdSequence = Field(default=None, init=False)
 
-    format_options: list[Format] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
+    format_options: list[Format] | None = _inherit(_LegacyPlacement, "format_options")  # type: ignore[assignment]
 
 
 class Product(_LegacyProduct, CanonicalBoundaryModel):
@@ -918,11 +934,11 @@ class Product(_LegacyProduct, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
-    format_options: list[Format] = Field(  # type: ignore[assignment]
-        min_length=1, description="Canonical creative formats accepted by this product."
+    format_options: list[Format] = _inherit(  # type: ignore[assignment]
+        _LegacyProduct, "format_options", required=True
     )
-    placements: list[Placement] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
-    pricing_options: list[CanonicalPricingOption] = Field(min_length=1)
+    placements: list[Placement] | None = _inherit(_LegacyProduct, "placements")  # type: ignore[assignment]
+    pricing_options: list[CanonicalPricingOption] = _inherit(_LegacyProduct, "pricing_options")
 
 
 class CreativeAsset(_CanonicalCreativeWire, CanonicalBoundaryModel):
@@ -938,7 +954,7 @@ class CreativeAsset(_CanonicalCreativeWire, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_id: _RemovedFormatId = Field(default=None, init=False)
 
-    format_kind: str
+    format_kind: str = _inherit(_CanonicalCreativeWire, "format_kind", required=True)
 
 
 class Creative(_CanonicalListedCreative, CanonicalBoundaryModel):
@@ -952,7 +968,7 @@ class Creative(_CanonicalListedCreative, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_id: _RemovedFormatId = Field(default=None, init=False)
 
-    format_kind: str
+    format_kind: str = _inherit(_CanonicalListedCreative, "format_kind", required=True)
 
 
 class CreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
@@ -990,7 +1006,7 @@ class CreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
 class CreativeVariant(_LegacyCreativeVariant, CanonicalBoundaryModel):
     """Canonical creative variant whose manifest is the canonical manifest."""
 
-    manifest: CreativeManifest | None = None
+    manifest: CreativeManifest | None = _inherit(_LegacyCreativeVariant, "manifest")
 
 
 class _DeliveryCreativeManifest(_CanonicalCreativeManifestWire, CanonicalBoundaryModel):
@@ -1087,7 +1103,7 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
-    creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)
+    creatives: list[CreativeAsset] | None = _inherit(_LegacyPackageRequest, "creatives")
 
     @model_validator(mode="after")
     def _validate_format_params(self) -> PackageRequest:
@@ -1102,7 +1118,7 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
 class PackageUpdate(_LegacyPackageUpdate, CanonicalBoundaryModel):
     """Canonical package update; creatives are canonical assets."""
 
-    creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
+    creatives: list[CreativeAsset] | None = _inherit(_LegacyPackageUpdate, "creatives")  # type: ignore[assignment]
 
 
 class Package(_LegacyPackage, CanonicalBoundaryModel):
@@ -1117,7 +1133,7 @@ class Package(_LegacyPackage, CanonicalBoundaryModel):
 class GetProductsRequest(_LegacyGetProductsRequest, CanonicalBoundaryModel):
     """Canonical discovery request with legacy response-field selection rejected."""
 
-    filters: ProductFilters | None = None
+    filters: ProductFilters | None = _inherit(_LegacyGetProductsRequest, "filters")
 
     @field_validator("fields")
     @classmethod
@@ -1134,21 +1150,23 @@ class GetProductsRequest(_LegacyGetProductsRequest, CanonicalBoundaryModel):
 class GetProductsResponse(_LegacyGetProductsResponse, CanonicalBoundaryModel):
     """Canonical discovery response; products are canonical products."""
 
-    products: list[Product] | None = None  # type: ignore[assignment]
+    products: list[Product] | None = _inherit(  # type: ignore[assignment]
+        _LegacyGetProductsResponse, "products"
+    )
 
 
 class CreateMediaBuyRequest(_LegacyCreateMediaBuyRequest, CanonicalBoundaryModel):
     """Canonical create request; packages are canonical package requests."""
 
-    packages: list[PackageRequest] | None = None
+    packages: list[PackageRequest] | None = _inherit(_LegacyCreateMediaBuyRequest, "packages")
 
 
 class UpdateMediaBuyRequest(_LegacyUpdateMediaBuyRequest, CanonicalBoundaryModel):
     """Canonical update request; both package lists are canonical."""
 
-    packages: list[PackageUpdate] | None = None
-    new_packages: list[PackageRequest] | None = Field(  # type: ignore[assignment]
-        default=None, min_length=1
+    packages: list[PackageUpdate] | None = _inherit(_LegacyUpdateMediaBuyRequest, "packages")
+    new_packages: list[PackageRequest] | None = _inherit(  # type: ignore[assignment]
+        _LegacyUpdateMediaBuyRequest, "new_packages"
     )
 
 
@@ -1219,13 +1237,15 @@ UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | Upd
 class SyncCreativesRequest(_LegacySyncCreativesRequest, CanonicalBoundaryModel):
     """Canonical creative sync request; creatives are canonical assets."""
 
-    creatives: list[CreativeAsset] = Field(min_length=1)  # type: ignore[assignment]
+    # Requiredness is version-specific: AdCP 3.2 permits assignment-only syncs,
+    # so optionality, like the item bounds, comes from the generated parent.
+    creatives: list[CreativeAsset] | None = _inherit(_LegacySyncCreativesRequest, "creatives")  # type: ignore[assignment]
 
 
 class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):
     """Canonical creative read request with legacy field selection rejected."""
 
-    filters: CreativeFilters | None = None
+    filters: CreativeFilters | None = _inherit(_LegacyListCreativesRequest, "filters")
 
     @field_validator("fields")
     @classmethod
@@ -1242,7 +1262,7 @@ class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):
 class ListCreativesResponse(_LegacyListCreativesResponse, CanonicalBoundaryModel):
     """Canonical creative listing; rows are canonical listed creatives."""
 
-    creatives: list[Creative]
+    creatives: list[Creative] = _inherit(_LegacyListCreativesResponse, "creatives")
 
 
 class MediaBuyPackage(_LegacyMediaBuyPackage, CanonicalBoundaryModel):
@@ -1257,13 +1277,13 @@ class MediaBuyPackage(_LegacyMediaBuyPackage, CanonicalBoundaryModel):
 class MediaBuy(_LegacyMediaBuy, CanonicalBoundaryModel):
     """Canonical media buy; packages are canonical package rows."""
 
-    packages: Sequence[MediaBuyPackage]
+    packages: Sequence[MediaBuyPackage] = _inherit(_LegacyMediaBuy, "packages")
 
 
 class GetMediaBuysResponse(_LegacyGetMediaBuysResponse, CanonicalBoundaryModel):
     """Canonical media-buy listing; rows are canonical media buys."""
 
-    media_buys: Sequence[MediaBuy]
+    media_buys: Sequence[MediaBuy] = _inherit(_LegacyGetMediaBuysResponse, "media_buys")
 
 
 class GetMediaBuyDeliveryResponse(_LegacyGetMediaBuyDeliveryResponse, CanonicalBoundaryModel):
@@ -1273,7 +1293,9 @@ class GetMediaBuyDeliveryResponse(_LegacyGetMediaBuyDeliveryResponse, CanonicalB
 class GetCreativeDeliveryResponse(_LegacyGetCreativeDeliveryResponse, CanonicalBoundaryModel):
     """Canonical creative delivery response; rows are the read-back delivery creatives."""
 
-    creatives: Sequence[DeliveryCreative]
+    creatives: Sequence[DeliveryCreative] = _inherit(
+        _LegacyGetCreativeDeliveryResponse, "creatives"
+    )
 
 
 PRIMARY_CANONICAL_MODELS: tuple[type[CanonicalBoundaryModel], ...] = (

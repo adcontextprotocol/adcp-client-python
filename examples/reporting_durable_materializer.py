@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import asyncio
 
+from adcp_reporting_storage import PgReportingMaterializerStore
+
 from adcp.reporting.materializer import (
-    PgReportingMaterializerStore,
     ReportingDestinationIO,
     ReportingDestinationResolver,
     ReportingDestinationWriter,

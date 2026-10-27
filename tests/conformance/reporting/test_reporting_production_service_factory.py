@@ -1,3 +1,5 @@
+from adcp_reporting_storage import postgres_reliable_reporting_service
+
 """Adapter registration builds a durable source and the actual production graph."""
 
 import asyncio
@@ -8,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
+from adcp_reporting_storage.inline_storage import PgReportingSealStore, PgReportingStagingStore
 
 from adcp.decisioning.capabilities import Account as AccountCapabilities
 from adcp.reporting import (
@@ -20,7 +23,6 @@ from adcp.reporting import (
 )
 from adcp.reporting.fixtures import redacted_capabilities, redacted_snapshot_request
 from adcp.reporting.inline_source import InMemorySealStore, InMemoryStagingStore
-from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
 from adcp.reporting.ledger import ProducerOfferings, ReportingDestinationBinding
 from adcp.reporting.materializer import ReportingRevisionVerifierRegistry
 from adcp.reporting.materializer.contracts import ReportingWriterCapability, ReportingWriterError
@@ -53,7 +55,7 @@ async def test_postgres_factory_replays_source_after_restart_without_refetch(aut
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         request = redacted_snapshot_request()
         clock = DeterministicReportingClock(request.period.source_read_cutoff_at)
-        first = ReliableReportingService.postgres(
+        first = postgres_reliable_reporting_service(
             pool=pool, account_context=_account_context, clock=clock
         )
         adapter = ScriptedReportingAdapter(redacted_capabilities(), [_rows(9)])
@@ -67,7 +69,7 @@ async def test_postgres_factory_replays_source_after_restart_without_refetch(aut
         finally:
             await first.close()
 
-        restarted = ReliableReportingService.postgres(
+        restarted = postgres_reliable_reporting_service(
             pool=pool, account_context=_account_context, clock=clock
         )
         empty = ScriptedReportingAdapter(redacted_capabilities())
@@ -100,7 +102,7 @@ async def test_postgres_factory_replays_source_after_restart_without_refetch(aut
 
 async def test_postgres_factory_preserves_explicit_source_store_overrides():
     async with isolated_reporting_pool() as pool:
-        service = ReliableReportingService.postgres(pool=pool, account_context=_account_context)
+        service = postgres_reliable_reporting_service(pool=pool, account_context=_account_context)
         staging, seals = InMemoryStagingStore(), InMemorySealStore()
         registered = service.sources.register(
             "gam", ScriptedReportingAdapter(redacted_capabilities()), staging=staging, seals=seals
@@ -297,7 +299,7 @@ async def factory_harness(
             **notification_inputs,
         )
         factory = (
-            ReliableReportingService.memory if pool is None else ReliableReportingService.postgres
+            ReliableReportingService.memory if pool is None else postgres_reliable_reporting_service
         )
         h.service = factory(
             account_context=context,

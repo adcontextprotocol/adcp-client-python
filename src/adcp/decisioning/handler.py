@@ -1216,9 +1216,12 @@ def _to_store_dict(value: Any, *, patch: bool = False) -> Any:
     cosmetic:
 
     * ``patch=True`` (a caller-supplied mutation input) uses
-      ``exclude_unset=True``. Explicit nulls survive, because the merge
-      contract below treats ``None`` as "clear this field" — but fields the
-      caller never mentioned are *dropped*. Dumping them as ``None`` handed
+      ``exclude_unset=True``. Explicit nulls survive where the schema admits
+      ``null``, because the merge contract below treats ``None`` as "clear
+      this field" — but fields the caller never mentioned are *dropped*. A
+      field whose schema admits no ``null`` (``NoExplicitNull``) never emits
+      one, whatever ``exclude_none`` says (#1587): ``null`` is not a valid
+      clear there, so a ``None`` on it reads as "not mentioned". Dumping them as ``None`` handed
       the adopter store a patch asserting "clear every targeting dimension,
       remove the aggregate frequency cap, drop every package budget", none of
       which the caller asked for. Per ``core/targeting-input.json``, omission

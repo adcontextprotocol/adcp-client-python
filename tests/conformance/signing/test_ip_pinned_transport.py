@@ -377,7 +377,10 @@ def test_real_tls_handshake_still_validates_hostname() -> None:
     # machines. The intent is "handshake didn't reject", not speed.
     with httpx.Client(transport=transport, timeout=60.0) as client:
         response = client.get("https://example.com/")
-    assert response.status_code == 200
+    # Any HTTP response proves the handshake and hostname check passed (a
+    # certificate mismatch raises before a response exists). The origin's
+    # own status is not under test: example.com intermittently answers 503.
+    assert 100 <= response.status_code < 600
 
 
 @pytest.mark.skipif(not _internet_ok(), reason="no outbound internet")
