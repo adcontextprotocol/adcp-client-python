@@ -149,3 +149,39 @@ old keys through `decryption_keys={"old-key-id": old_key}`. Existing rows retain
 their original key ID and remain readable and deduplicated. Retain each old key
 until all rows encrypted under it have been purged. Unknown key IDs or wrong key
 material quarantine rows; restoring a key does not automatically release them.
+
+## Synchronous business transactions
+
+A seller whose business writes run on a synchronous driver uses
+`enqueue_prepared_sync` with the same arguments. It accepts a psycopg 3
+`Connection`, a psycopg2 `connection`, or a SQLAlchemy `Connection` on either
+driver, and shares every check, the encryption and the duplicate-binding rule
+with `enqueue_prepared`. The worker is unchanged: it stays async, on the pool
+you passed to the constructor, and delivers rows written by either method.
+
+```python
+from sqlalchemy.orm import Session
+
+with Session(engine) as session, session.begin():
+    account.status = "active"
+    outbox.enqueue_prepared_sync(
+        session.connection(),  # the unit of work's connection
+        prepared,
+        notification_type="account.status_changed",
+        account_id="acct_1",
+        caller_scope_id="seller-tenant-1",
+    )
+# Commit publishes the account change and its notification together;
+# a rollback publishes neither.
+```
+
+The connection must be inside a transaction, or the call raises `ValueError`
+before any SQL:
+
+| Connection | Accepted when |
+| --- | --- |
+| psycopg 3 `Connection` | The session is in a transaction block: after a statement on a non-autocommit connection, or inside `conn.transaction()`. Same rule as `enqueue_prepared`. |
+| psycopg2 `connection` | The session is in a transaction block: after a statement with `autocommit` off. psycopg2 opens the block on the first statement, so a fresh connection is refused. |
+| SQLAlchemy `Connection` | `conn.in_transaction()` is true (`engine.begin()`, `conn.begin()`, `session.connection()` inside `session.begin()`) and the isolation level is not `AUTOCOMMIT`. SQLAlchemy starts the driver transaction on the first statement, so the notification may be the first write. |
+
+Any other object, including a psycopg `AsyncConnection`, raises `TypeError`.

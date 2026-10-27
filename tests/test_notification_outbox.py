@@ -109,3 +109,18 @@ def test_constructor_without_pg_preserves_install_hint(monkeypatch: pytest.Monke
         PgNotificationOutbox(**config)
     assert isinstance(error.value.__cause__, ImportError)
     config["pool"].connection.assert_not_called()
+
+
+@pytest.mark.usefixtures("pg_constructor")
+def test_sync_enqueue_rejects_unsupported_connection_before_sql() -> None:
+    outbox = PgNotificationOutbox(**options())
+    prepared = WebhookSender.prepare_raw(
+        url="https://buyer.example/hooks",
+        payload={"notification_type": "extension.changed"},
+    )
+    conn = MagicMock()
+    with pytest.raises(TypeError, match="psycopg Connection"):
+        outbox.enqueue_prepared_sync(
+            conn, prepared, notification_type="extension.changed", caller_scope_id="caller"
+        )
+    assert conn.mock_calls == []

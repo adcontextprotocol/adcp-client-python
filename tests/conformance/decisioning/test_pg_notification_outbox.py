@@ -12,7 +12,8 @@ import json
 import logging
 import os
 import secrets
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager
 from typing import Any, NoReturn
 from unittest.mock import AsyncMock, MagicMock
 
@@ -827,3 +828,252 @@ async def test_worker_failure_diagnostics_preserve_recovery(
     else:
         assert stored["state"] == "delivered"
         assert stored["attempt_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# enqueue_prepared_sync: psycopg 3, psycopg2 and SQLAlchemy (issue #1607)
+# ---------------------------------------------------------------------------
+
+SYNC_DRIVERS = ["psycopg", "psycopg2", "sqlalchemy+psycopg", "sqlalchemy+psycopg2"]
+
+
+def _sqlalchemy_engine(driver: str) -> Any:
+    sqlalchemy = pytest.importorskip("sqlalchemy")
+    if driver.endswith("psycopg2"):
+        pytest.importorskip("psycopg2")
+    assert TEST_URL is not None
+    url = TEST_URL.replace("postgresql://", f"postgresql+{driver.split('+')[1]}://", 1)
+    return sqlalchemy.create_engine(url, poolclass=sqlalchemy.pool.NullPool)
+
+
+@contextmanager
+def business_transaction(driver: str, business_table: str) -> Iterator[Any]:
+    """Open the driver's transaction, write a business row, yield the connection.
+
+    Commits on normal exit and rolls back when the body raises, so the
+    notification shares the business write's fate.
+    """
+    write = f"INSERT INTO {business_table} (id) VALUES (%s)"
+    if driver == "psycopg":
+        import psycopg
+
+        with psycopg.connect(TEST_URL) as conn, conn.transaction():
+            conn.execute(write, ("acct_1",))
+            yield conn
+    elif driver == "psycopg2":
+        psycopg2 = pytest.importorskip("psycopg2")
+        conn = psycopg2.connect(TEST_URL)
+        try:
+            with conn, conn.cursor() as cursor:  # commits, or rolls back on error
+                cursor.execute(write, ("acct_1",))
+                yield conn
+        finally:
+            conn.close()
+    else:
+        engine = _sqlalchemy_engine(driver)
+        try:
+            with engine.begin() as conn:
+                conn.exec_driver_sql(write, ("acct_1",))
+                yield conn
+        finally:
+            engine.dispose()
+
+
+def enqueue_sync(
+    outbox: PgNotificationOutbox, conn: Any, value: PreparedWebhook | None = None
+) -> int:
+    return outbox.enqueue_prepared_sync(
+        conn,
+        value or prepared(),
+        notification_type="principal.changed",
+        caller_scope_id="caller_1",
+    )
+
+
+@pytest.fixture
+def business_table(stack: tuple[Any, ...]) -> Iterator[str]:
+    import psycopg
+
+    name = "test_business_" + secrets.token_hex(6)
+    with psycopg.connect(TEST_URL, autocommit=True) as conn:
+        conn.execute(f"CREATE TABLE {name} (id text PRIMARY KEY)")
+        try:
+            yield name
+        finally:
+            conn.execute(f"DROP TABLE {name}")
+
+
+def business_rows(table: str) -> int:
+    import psycopg
+
+    with psycopg.connect(TEST_URL, autocommit=True) as conn:
+        found = conn.execute(f"SELECT count(*) FROM {table}").fetchone()
+        assert found is not None
+        return int(found[0])
+
+
+@pytest.mark.parametrize("driver", SYNC_DRIVERS)
+async def test_sync_enqueue_commits_with_business_write_and_async_worker_delivers(
+    stack: tuple[Any, ...], business_table: str, driver: str
+) -> None:
+    pool, outbox, sender = stack
+    value = prepared()
+    with business_transaction(driver, business_table) as conn:
+        row_id = enqueue_sync(outbox, conn, value)
+        # Another connection cannot see the uncommitted row.
+        assert not await outbox.process_one()
+    assert business_rows(business_table) == 1
+    stored = await row(pool, outbox, row_id)
+    assert stored["state"] == "pending"
+    restarted = PgNotificationOutbox(
+        pool=pool,
+        sender=sender,
+        encryption_key=b"x" * 32,
+        delivery_retry_horizon_seconds=86400,
+        table=outbox._table,
+    )
+    assert await restarted.process_one()
+    assert (await row(pool, outbox, row_id))["state"] == "delivered"
+    assert sender.send_prepared.call_args.args[0] == value
+
+
+@pytest.mark.parametrize("driver", SYNC_DRIVERS)
+async def test_sync_enqueue_rolls_back_with_business_write(
+    stack: tuple[Any, ...], business_table: str, driver: str
+) -> None:
+    pool, outbox, sender = stack
+    with pytest.raises(RuntimeError, match="rollback"):
+        with business_transaction(driver, business_table) as conn:
+            enqueue_sync(outbox, conn)
+            raise RuntimeError("rollback")
+    assert business_rows(business_table) == 0
+    assert not await outbox.process_one()
+    sender.send_prepared.assert_not_called()
+
+
+@pytest.mark.parametrize("driver", SYNC_DRIVERS)
+async def test_sync_enqueue_shares_the_async_binding(
+    stack: tuple[Any, ...], business_table: str, driver: str
+) -> None:
+    pool, outbox, _ = stack
+    async_id = await enqueue(pool, outbox, caller="caller_1")
+    changed = PreparedWebhook(
+        url=URL, idempotency_key=KEY, body=prepared().body, extra_headers={"X-New": "different"}
+    )
+    with business_transaction(driver, business_table) as conn:
+        assert enqueue_sync(outbox, conn) == async_id
+        assert enqueue_sync(outbox, conn) == async_id
+        with pytest.raises(ValueError, match="different immutable"):
+            enqueue_sync(outbox, conn, changed)
+        # The failed check leaves the transaction usable on every driver.
+        assert enqueue_sync(outbox, conn) == async_id
+
+
+async def test_sync_enqueue_refuses_psycopg_outside_a_transaction(
+    stack: tuple[Any, ...],
+) -> None:
+    import psycopg
+
+    _, outbox, _ = stack
+    with psycopg.connect(TEST_URL, autocommit=True) as conn:
+        with pytest.raises(ValueError, match="open business transaction"):
+            enqueue_sync(outbox, conn)
+        # A transaction block is accepted even on an autocommit connection.
+        with conn.transaction():
+            assert enqueue_sync(outbox, conn)
+    with psycopg.connect(TEST_URL) as conn:
+        # Non-autocommit but no statement yet: no transaction block is open.
+        with pytest.raises(ValueError, match="open business transaction"):
+            enqueue_sync(outbox, conn)
+        conn.rollback()
+
+
+async def test_sync_enqueue_refuses_psycopg2_outside_a_transaction(
+    stack: tuple[Any, ...],
+) -> None:
+    psycopg2 = pytest.importorskip("psycopg2")
+    _, outbox, sender = stack
+    conn = psycopg2.connect(TEST_URL)
+    try:
+        conn.autocommit = True
+        with pytest.raises(ValueError, match="open business transaction"):
+            enqueue_sync(outbox, conn)
+        conn.autocommit = False
+        # psycopg2 begins a transaction on the first statement; before it, none is open.
+        with pytest.raises(ValueError, match="open business transaction"):
+            enqueue_sync(outbox, conn)
+        conn.rollback()
+    finally:
+        conn.close()
+    assert not await outbox.process_one()
+    sender.send_prepared.assert_not_called()
+
+
+@pytest.mark.parametrize("driver", ["sqlalchemy+psycopg", "sqlalchemy+psycopg2"])
+async def test_sync_enqueue_sqlalchemy_transaction_detection(
+    stack: tuple[Any, ...], driver: str
+) -> None:
+    from sqlalchemy.orm import Session
+
+    pool, outbox, sender = stack
+    engine = _sqlalchemy_engine(driver)
+    try:
+        with engine.connect() as conn:
+            # Autobegin has not started a transaction yet.
+            with pytest.raises(ValueError, match="open business transaction"):
+                enqueue_sync(outbox, conn)
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            with conn.begin():
+                assert conn.in_transaction()
+                with pytest.raises(ValueError, match="open business transaction"):
+                    enqueue_sync(outbox, conn)
+        # SQLAlchemy begins the driver transaction lazily: enqueue may come first.
+        with engine.begin() as conn:
+            first = enqueue_sync(outbox, conn)
+        # An ORM unit of work passes session.connection().
+        with Session(engine) as session, session.begin():
+            assert enqueue_sync(outbox, session.connection()) == first
+    finally:
+        engine.dispose()
+    assert (await row(pool, outbox, first))["state"] == "pending"
+    assert await outbox.process_one()
+    assert sender.send_prepared.call_count == 1
+
+
+async def test_sync_enqueue_rejects_unsupported_connections(stack: tuple[Any, ...]) -> None:
+    pool, outbox, _ = stack
+    async with pool.connection() as conn:
+        async with conn.transaction():
+            with pytest.raises(TypeError, match="use enqueue_prepared"):
+                enqueue_sync(outbox, conn)
+    with pytest.raises(TypeError, match="psycopg Connection"):
+        enqueue_sync(outbox, object())
+
+
+async def test_enqueue_ignores_dict_row_factories(stack: tuple[Any, ...]) -> None:
+    """Adopter connections that default to dict rows still enqueue and dedupe."""
+    import psycopg
+    from psycopg.rows import dict_row
+
+    pool, outbox, _ = stack
+    async with await psycopg.AsyncConnection.connect(TEST_URL, row_factory=dict_row) as conn:
+        async with conn.transaction():
+            first = await outbox.enqueue_prepared(
+                conn, prepared(), notification_type="principal.changed", caller_scope_id="caller_1"
+            )
+            again = await outbox.enqueue_prepared(
+                conn, prepared(), notification_type="principal.changed", caller_scope_id="caller_1"
+            )
+    assert again == first
+    with psycopg.connect(TEST_URL, row_factory=dict_row) as conn, conn.transaction():
+        assert enqueue_sync(outbox, conn) == first
+    psycopg2 = pytest.importorskip("psycopg2")
+    extras = pytest.importorskip("psycopg2.extras")
+
+    conn2 = psycopg2.connect(TEST_URL, cursor_factory=extras.RealDictCursor)
+    try:
+        with conn2, conn2.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            assert enqueue_sync(outbox, conn2) == first
+    finally:
+        conn2.close()
