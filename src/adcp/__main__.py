@@ -227,6 +227,8 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "update_media_buy": ("update_media_buy", _ta(UpdateMediaBuyRequest)),
         "get_media_buy_delivery": ("get_media_buy_delivery", _ta(gen.GetMediaBuyDeliveryRequest)),
         "get_media_buys": ("get_media_buys", _ta(gen.GetMediaBuysRequest)),
+        "list_collections": ("list_collections", _ta(gen.ListCollectionsRequest)),
+        "list_proposals": ("list_proposals", _ta(gen.ListProposalsRequest)),
         # Signals
         "get_signals": ("get_signals", _ta(gen.GetSignalsRequest)),
         "activate_signal": ("activate_signal", _ta(gen.ActivateSignalRequest)),

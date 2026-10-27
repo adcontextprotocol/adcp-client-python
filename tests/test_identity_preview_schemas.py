@@ -1,15 +1,11 @@
-"""Regression tests for the pinned AdCP 3.3 identity preview schemas and types."""
+"""Regression tests for the AdCP 3.3 identity schemas and their generated types."""
 
 from __future__ import annotations
 
-import hashlib
 import json
-from importlib.resources import files
-from pathlib import Path
 from typing import Any
 
 import pytest
-from jsonschema import Draft7Validator, FormatChecker
 from pydantic import ValidationError
 
 from adcp.server.base import ToolContext
@@ -35,21 +31,21 @@ from adcp.types.experimental_identity import (
     PrincipalRelationshipStatus,
     TrustRecord,
 )
+from adcp.validation.schema_loader import get_named_schema_document, get_named_validator
 
-SCHEMAS = Path(str(files("adcp.signing").joinpath("_identity_schemas")))
 ORIGIN = "https://buyer.platform.com"
 IDENTITY = PrincipalIdentity(ORIGIN, "buyer_agent")
 
 
-def bundle() -> dict[str, Any]:
-    return json.loads((SCHEMAS / "bundle.json").read_text())
+def schema(schema_path: str) -> dict[str, Any]:
+    document = get_named_schema_document(schema_path)
+    assert document is not None, f"the pinned bundle does not declare {schema_path}"
+    return document
 
 
 def errors(value: Any, schema_path: str) -> list[str]:
-    key = schema_path.removesuffix(".json").replace("/", "_").replace("-", "_")
-    definitions = bundle()["definitions"]
-    schema = {"$ref": f"#/definitions/{key}", "definitions": definitions}
-    validator = Draft7Validator(schema, format_checker=FormatChecker())
+    validator = get_named_validator(schema_path)
+    assert validator is not None, f"the pinned bundle does not declare {schema_path}"
     return [error.message for error in validator.iter_errors(value)]
 
 
@@ -67,18 +63,17 @@ def trust_record(posture: dict[str, Any], *, record_level: bool) -> dict[str, An
 
 
 def test_relationship_status_is_its_own_enum_with_pending_approval():
-    definitions = bundle()["definitions"]
-    assert definitions["enums_principal_relationship_status"]["enum"] == [
+    assert schema("enums/principal-relationship-status.json")["enum"] == [
         "pending_approval",
         "active",
         "suspended",
         "blocked",
     ]
-    assert definitions["core_principal_relationship"]["properties"]["status"] == {
-        "$ref": "#/definitions/enums_principal_relationship_status",
-        "description": "Current state of the relationship.",
-    }
-    assert definitions["core_principal_relationship"]["x-added-in"] == "3.3.0"
+    relationship = schema("core/principal-relationship.json")
+    status = relationship["properties"]["status"]
+    assert status["$ref"].endswith("enums/principal-relationship-status.json")
+    assert status["description"] == "Current state of the relationship."
+    assert relationship["x-added-in"] == "3.3.0"
 
 
 def test_pending_approval_accepted_and_pending_rejected():
@@ -158,23 +153,22 @@ def test_profiles_adcp_onboarding_validates_on_record_and_agent(record_level):
 
 
 def test_buyer_and_seller_postures_share_one_mode_enum():
-    definitions = bundle()["definitions"]
-    assert "enums_buyer_onboarding_mode" not in definitions
-    assert definitions["enums_agent_onboarding_mode"]["enum"] == [
+    assert get_named_schema_document("enums/buyer-onboarding-mode.json") is None
+    assert schema("enums/agent-onboarding-mode.json")["enum"] == [
         "open",
         "application",
         "invite_only",
     ]
-    mode_ref = {"$ref": "#/definitions/enums_agent_onboarding_mode"}
-    assert definitions["core_buyer_onboarding_posture"]["properties"]["mode"] == mode_ref
-    assert definitions["core_agent_onboarding_tier"]["properties"]["mode"] == mode_ref
+    for path in ("core/buyer-onboarding-posture.json", "core/agent-onboarding-tier.json"):
+        mode_ref = schema(path)["properties"]["mode"]["$ref"]
+        assert mode_ref.endswith("enums/agent-onboarding-mode.json"), (path, mode_ref)
     assert errors({"mode": "considers_unsolicited"}, "core/buyer-onboarding-posture.json")
     assert BuyerOnboardingPosture(mode="invite_only").mode is AgentOnboardingMode.invite_only
 
 
 @pytest.mark.parametrize("record_level", [False, True])
 def test_agent_identity_requirement_kind_rejected(record_level):
-    kinds = bundle()["definitions"]["enums_agent_onboarding_requirement_kind"]["enum"]
+    kinds = schema("enums/agent-onboarding-requirement-kind.json")["enum"]
     assert "agent_identity" not in kinds
     posture = {"mode": "application", "requirements": [{"kind": "agent_identity"}]}
     assert errors(posture, "core/buyer-onboarding-posture.json")
@@ -193,9 +187,8 @@ def test_agent_identity_requirement_kind_rejected(record_level):
 
 
 def test_documentation_url_is_no_longer_a_declared_field():
-    definitions = bundle()["definitions"]
-    for key in ("core_agent_onboarding", "core_buyer_onboarding_posture"):
-        assert "documentation_url" not in definitions[key]["properties"]
+    for path in ("core/agent-onboarding.json", "core/buyer-onboarding-posture.json"):
+        assert "documentation_url" not in schema(path)["properties"]
     assert "documentation_url" not in AgentOnboarding.model_fields
     assert "documentation_url" not in BuyerOnboardingPosture.model_fields
     # The postures stay open to extension (additionalProperties: true upstream), so a
@@ -219,7 +212,7 @@ def test_aao_verified_uses_verified_specialisms():
         "verified_specialisms": ["sales-guaranteed"],
         "adcp_version": "3.3",
     }
-    properties = bundle()["definitions"]["core_agent_onboarding_requirement"]["properties"]
+    properties = schema("core/agent-onboarding-requirement.json")["properties"]
     assert "verified_specialisms" in properties
     assert "specialisms" not in properties
     assert errors(requirement, "core/agent-onboarding-requirement.json") == []
@@ -276,29 +269,3 @@ async def test_requirement_kind_conditionals_reject_missing_role_or_id(requireme
 )
 def test_requirement_kind_conditionals_accept_complete_requirements(requirement):
     assert errors(requirement, "core/agent-onboarding-requirement.json") == []
-
-
-# provenance ---------------------------------------------------------------
-
-
-def _git_blob_id(data: bytes) -> str:
-    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
-
-
-def test_upstream_lists_exactly_the_pinned_schema_files():
-    upstream = json.loads((SCHEMAS / "UPSTREAM.json").read_text())
-    present = {
-        path.relative_to(SCHEMAS).as_posix()
-        for path in SCHEMAS.rglob("*.json")
-        if path.name not in {"UPSTREAM.json", "bundle.json"}
-    }
-    assert set(upstream["sources"]) == present
-    # Every file comes verbatim from adcp main at one commit; nothing is composed.
-    assert upstream["branch"] == "main"
-    assert len(upstream["commit"]) == 40
-    int(upstream["commit"], 16)
-    assert "composition" not in upstream
-    for path, source in upstream["sources"].items():
-        assert source["commit"] == upstream["commit"]
-        assert source["path"] == f"static/schemas/source/{path}"
-        assert source["blob"] == _git_blob_id((SCHEMAS / path).read_bytes()), path

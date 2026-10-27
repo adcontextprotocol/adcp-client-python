@@ -936,7 +936,13 @@ class MediaBuyLifecycleCoordinator:
     def _legacy_list_request(self, request: ListProductsRequest) -> JsonObject:
         value = request.model_dump(mode="json", exclude_none=True)
         criteria = _mapping(value.get("criteria"))
-        unsupported = set(criteria) - {"offer_filters"}
+        # product_ids_exclusive (3.3) carries a schema default of false that
+        # the dumped model materializes; only a true value asks for anything.
+        unsupported = {
+            key
+            for key, field in criteria.items()
+            if key != "offer_filters" and not (key == "product_ids_exclusive" and field is False)
+        }
         if unsupported:
             raise self._unsupported(
                 "list_products",

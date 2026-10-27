@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from adcp import ADCPClient
+from adcp._version import resolve_adcp_version
 from adcp.compat.versions import CONVERSION_METADATA_KEY
 from adcp.exceptions import ADCPError
 from adcp.server.responses import capabilities_response
@@ -324,4 +325,4 @@ def test_known_legacy_webhook_upgrades_product_envelope_without_public_cache_ass
     assert result.success, result.error
     assert result.data.status == "completed"
     assert result.data.cache_scope == "account"
-    assert result.data.adcp_version == "3.2"
+    assert result.data.adcp_version == resolve_adcp_version(None)

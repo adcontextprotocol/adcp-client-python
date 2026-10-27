@@ -1742,6 +1742,27 @@ def _composing_root_spec(source: str, node: ast.ClassDef) -> _ComposingRootSpec 
         None,
     )
     body = [stmt for stmt in node.body if not _is_docstring(stmt)]
+    # A root whose pattern needs lookaround is generated with
+    # ``model_config = ConfigDict(regex_engine="python-re")`` before the field;
+    # the scalar keeps that engine as a core-schema constraint.
+    extra_constraints: list[tuple[str, str]] = []
+    if (
+        len(body) == 2
+        and isinstance(body[0], ast.Assign)
+        and len(body[0].targets) == 1
+        and isinstance(body[0].targets[0], ast.Name)
+        and body[0].targets[0].id == "model_config"
+        and isinstance(body[0].value, ast.Call)
+        and isinstance(body[0].value.func, ast.Name)
+        and body[0].value.func.id == "ConfigDict"
+        and not body[0].value.args
+        and [keyword.arg for keyword in body[0].value.keywords] == ["regex_engine"]
+        and isinstance(body[0].value.keywords[0].value, ast.Constant)
+        and body[0].value.keywords[0].value.value == "python-re"
+    ):
+        extra_constraints.append(("regex_engine", repr("python-re")))
+        body = body[1:]
+
     if len(body) != 1:
         return None
     field = body[0]
@@ -2213,6 +2234,27 @@ def _scalar_root_spec(source: str, node: ast.ClassDef, scalar: str) -> _ScalarRo
         docstring = ast.get_source_segment(source, body[0].value)
         body = body[1:]
 
+    # A root whose pattern needs lookaround is generated with
+    # ``model_config = ConfigDict(regex_engine="python-re")`` before the field;
+    # the scalar keeps that engine as a core-schema constraint.
+    extra_constraints: list[tuple[str, str]] = []
+    if (
+        len(body) == 2
+        and isinstance(body[0], ast.Assign)
+        and len(body[0].targets) == 1
+        and isinstance(body[0].targets[0], ast.Name)
+        and body[0].targets[0].id == "model_config"
+        and isinstance(body[0].value, ast.Call)
+        and isinstance(body[0].value.func, ast.Name)
+        and body[0].value.func.id == "ConfigDict"
+        and not body[0].value.args
+        and [keyword.arg for keyword in body[0].value.keywords] == ["regex_engine"]
+        and isinstance(body[0].value.keywords[0].value, ast.Constant)
+        and body[0].value.keywords[0].value.value == "python-re"
+    ):
+        extra_constraints.append(("regex_engine", repr("python-re")))
+        body = body[1:]
+
     if len(body) != 1:
         return None
     field = body[0]
@@ -2269,7 +2311,7 @@ def _scalar_root_spec(source: str, node: ast.ClassDef, scalar: str) -> _ScalarRo
         name=node.name,
         base=_SCALAR_BASES[scalar],
         docstring=docstring,
-        constraints=constraints,
+        constraints=constraints + extra_constraints,
         documentation=documentation,
         start_line=node.lineno,
         end_line=node.end_lineno or node.lineno,

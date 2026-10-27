@@ -12,11 +12,13 @@ from adcp.types.base import WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
+from ..core import audience_size as audience_size_1
 from ..core import brand_ref as brand_ref_1
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..enums import audience_match_rate_basis as audience_match_rate_basis_1
 from ..enums import audience_status as audience_status_1
 from ..enums import match_id_type as match_id_type_1
 from ..enums import task_status as task_status_1
@@ -44,6 +46,7 @@ class Audience(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     audience_id: str
     name: str | None = None
+    platform_id: str | None = None
     seller_id: str | None = None
     action: Literal['created', 'updated', 'unchanged', 'deleted', 'failed']
     status: audience_status_1.AudienceStatus | None = None
@@ -51,6 +54,9 @@ class Audience(AdcpVersionEnvelope):
     total_uploaded_count: Annotated[int, Field(ge=0)] | None = None
     matched_count: Annotated[int, Field(ge=0)] | None = None
     effective_match_rate: Annotated[float, Field(ge=0, le=1)] | None = None
+    match_rate_basis: audience_match_rate_basis_1.AudienceMatchRateBasis | None = None
+    audience_size: audience_size_1.AudienceSize | None = None
+    targetable_size: audience_size_1.AudienceSize | None = None
     match_breakdown: Annotated[list[MatchBreakdown], Field(min_length=1)] | None = None
     last_synced_at: WireDatetime | None = None
     source: Source | None = None

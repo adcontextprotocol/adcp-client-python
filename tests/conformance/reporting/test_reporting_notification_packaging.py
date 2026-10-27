@@ -362,7 +362,9 @@ def built_distribution(tmp_path_factory, request):
     )
     pin = (ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
     current = pin if "-" in pin else ".".join(pin.split(".")[:2])
-    for version in dict.fromkeys(("3.0", "3.1", "3.1.15", current)):
+    # The same bundles setup.py's build_py copies into a wheel: the historical
+    # 3.0 / 3.1 / 3.1.15 inputs, the 3.2 contract and the current pin.
+    for version in dict.fromkeys(("3.0", "3.1", "3.1.15", "3.2", current)):
         shutil.copytree(
             ROOT / "schemas" / "cache" / version, project / "schemas" / "cache" / version
         )

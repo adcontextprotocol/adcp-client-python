@@ -13,7 +13,7 @@ A domain root carries the names that domain declares exactly once. For the
 rest, import from the schema's own module, as the last two lines do.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ DOMAINS = (
     "registries",
     "signals",
     "sponsored_intelligence",
+    "trust",
     "trusted_match",
 )
 

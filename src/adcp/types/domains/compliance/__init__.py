@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -18,15 +18,20 @@ from __future__ import annotations
 
 from adcp.types.domains.compliance.comply_test_controller_request import (
     Account,
+    Action,
     AdvanceTo,
     Arm,
     ComplyTestControllerRequest,
+    InstallmentDeliveryItem,
+    InstallmentPropertyDeliveryItem,
     Kind,
     Metric,
+    Mutation,
     NotYetMeasurableVendorMetric,
     NotYetMeasurableVendorMetricsByPackageItem,
     Operation,
     Params,
+    PropertyDeliveryItem,
     PurgeKind,
     ReachWindow,
     ReportedSpend,
@@ -61,6 +66,7 @@ from adcp.types.domains.compliance.task_completion_data import ComplianceTaskCom
 # Explicit exports
 __all__ = [
     "Account",
+    "Action",
     "AdvanceTo",
     "Arm",
     "AttestationMode",
@@ -80,13 +86,17 @@ __all__ = [
     "Forced",
     "GetCreativeFeaturesComplianceCompletion",
     "IdentifierMatchProof",
+    "InstallmentDeliveryItem",
+    "InstallmentPropertyDeliveryItem",
     "Kind",
     "Method",
     "Metric",
+    "Mutation",
     "NotYetMeasurableVendorMetric",
     "NotYetMeasurableVendorMetricsByPackageItem",
     "Operation",
     "Params",
+    "PropertyDeliveryItem",
     "PurgeKind",
     "Purpose",
     "ReachWindow",

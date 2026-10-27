@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from adcp._version import resolve_adcp_version
 from adcp.exceptions import ADCPTaskError
 from adcp.server.a2a_server import ADCPAgentExecutor
 from adcp.server.base import ADCPHandler, ToolContext
@@ -135,4 +136,9 @@ async def test_version_envelope_survives_unknown_field_policy(
     if policy == "strip":
         payload["nonsense_field"] = "remove me"
     await caller(payload)
-    assert handler.received == [{"buying_mode": "brief", "brief": "ads", **envelope}]
+    # A release-precision claim reaches the handler upgraded to the SDK's
+    # served release; a major-only claim stays on the 3.0 contract.
+    upgraded = (
+        {"adcp_version": resolve_adcp_version(None)} if "adcp_version" in envelope else envelope
+    )
+    assert handler.received == [{"buying_mode": "brief", "brief": "ads", **upgraded}]

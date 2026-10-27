@@ -278,6 +278,16 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def list_collections(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List collection cards (AdCP 3.3)."""
+        pass
+
+    @abstractmethod
+    async def list_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List open opportunities and proposals (AdCP 3.3)."""
+        pass
+
+    @abstractmethod
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         pass

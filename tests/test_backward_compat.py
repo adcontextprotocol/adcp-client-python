@@ -140,7 +140,7 @@ class TestBrandIdentity:
         brand = BrandIdentity(id="acme", names=[{"en": "Acme"}])
         assert brand.id.root == "acme"
         assert brand.names[0].root == {"en": "Acme"}
-        assert len(BrandIdentity.model_fields) == 29
+        assert len(BrandIdentity.model_fields) == 30
 
     def test_brand_identity_field_contract_and_collision_separation(self):
         from adcp.types import BrandIdentity
@@ -163,6 +163,7 @@ class TestBrandIdentity:
             "colors",
             "fonts",
             "tone",
+            "prohibited_terms",
             "tagline",
             "assets",
             "properties",

@@ -38,7 +38,11 @@ import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
-from adcp._version import resolve_adcp_version
+from adcp._version import (
+    is_adcp_version_at_least,
+    resolve_adcp_version,
+    resolve_adcp_version_alias,
+)
 from adcp.decisioning._get_products_helpers import _project_product_fields
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
@@ -504,6 +508,7 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-fixed-rate": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-dooh": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-exchange": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
@@ -1492,9 +1497,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # ``None`` resolves to the protocol version bundled with this SDK, so
         # every PlatformHandler has a concrete pin for schema discovery and
         # unnegotiated dispatch.
-        self._adcp_version = resolve_adcp_version(adcp_version)
-        from adcp.server.version_policy import resolve_supported_versions
+        from adcp.server.version_policy import default_adcp_version, resolve_supported_versions
 
+        self._adcp_version = resolve_adcp_version(
+            default_adcp_version(adcp_version, supported_versions)
+        )
         self._supported_adcp_versions = resolve_supported_versions(
             supported_versions, adcp_version=self._adcp_version
         )
@@ -2136,7 +2143,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 and self._extract_auth_info(capability_ctx) is not None
             )
             if (
-                capability_version.startswith("3.2")
+                is_adcp_version_at_least(resolve_adcp_version_alias(capability_version), "3.2")
                 and hasattr(self._platform, "proposal_manager_for_tenant")
                 and can_resolve_manager
             ):

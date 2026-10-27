@@ -1,141 +1,120 @@
-"""Opt-in types for the pinned AdCP 3.3 identity schemas, independent of the wire pin.
+"""Opt-in names for the experimental AdCP 3.3 agent-identity surface.
 
-The schemas are pinned to one adcp main commit (see
-adcp/signing/_identity_schemas/UPSTREAM.json). Seller and buyer onboarding
-postures share one mode enum, AgentOnboardingMode (open, application,
-invite_only). The buyer posture is published only in trust.json, at
-profiles.adcp.onboarding on the record or on an agent entry. relationship on
-get_principal is 3.3-only; its status is PrincipalRelationshipStatus.
+Every model here is the generated 3.3 type under the name this module has
+exported since the identity preview (#1502). The preview vendored the identity
+schemas from adcp main while the wire pin was 3.2; the 3.3.0-beta.0 bundle
+declares the same schemas, so the private preview tree and its generator are
+retired and nothing is composed locally any more.
 
-Regenerate the private models with scripts/generate_identity_preview.py.
-Validate trust records with adcp.signing.validate_trust_record: origin ownership
-and one-agent-per-origin are behavioral constraints, beyond generated types.
+Seller and buyer onboarding postures share one mode enum, AgentOnboardingMode
+(open, application, invite_only). The buyer posture is published only in
+trust.json, at profiles.adcp.onboarding on the record or on an agent entry.
+relationship on get_principal is 3.3-only; its status is
+PrincipalRelationshipStatus.
+
+Validate trust records with adcp.signing.validate_trust_record: origin
+ownership and one-agent-per-origin are behavioral constraints, beyond the
+generated types.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, RootModel
 
-from adcp.types._identity_preview import (
-    Agent as TrustAgent,
-)
-from adcp.types._identity_preview import (
-    CoreAgentOnboarding as AgentOnboarding,
-)
-from adcp.types._identity_preview import (
-    CoreAgentOnboardingRequirement as AgentOnboardingRequirement,
-)
-from adcp.types._identity_preview import (
-    CoreAgentOnboardingTier as AgentOnboardingTier,
-)
-from adcp.types._identity_preview import (
-    CoreBuyerOnboardingPosture as BuyerOnboardingPosture,
-)
-from adcp.types._identity_preview import (
-    CorePrincipalRelationship as PrincipalRelationship,
-)
-from adcp.types._identity_preview import (
-    EnumsAgentOnboardingMode as AgentOnboardingMode,
-)
-from adcp.types._identity_preview import (
-    EnumsAgentOnboardingRequirementKind as AgentOnboardingRequirementKind,
-)
-from adcp.types._identity_preview import (
-    EnumsPrincipalRelationshipStatus as PrincipalRelationshipStatus,
-)
-from adcp.types._identity_preview import (
-    Grant as TrustGrant,
-)
-from adcp.types._identity_preview import (
-    TrustV1Trust as TrustRecord,
-)
 from adcp.types.base import inherit_field
-from adcp.types.domains.core.principal_changed_webhook import (
-    PrincipalChangedWebhook as _PrincipalChangedWebhook,
+from adcp.types.domains.core.agent_onboarding import (
+    AgentOnboardingPosture as _AgentOnboardingPosture,
 )
-from adcp.types.domains.core.principal_changed_webhook import (
-    Reason as _PrincipalChangedReason,
+from adcp.types.domains.core.agent_onboarding_requirement import (
+    AgentOnboardingRequirement as _AgentOnboardingRequirement,
 )
+from adcp.types.domains.core.agent_onboarding_tier import (
+    AgentOnboardingTier as _AgentOnboardingTier,
+)
+from adcp.types.domains.core.buyer_onboarding_posture import (
+    BuyerOnboardingPosture as _BuyerOnboardingPosture,
+)
+from adcp.types.domains.core.principal_changed_webhook import PrincipalChangedWebhook
+from adcp.types.domains.core.principal_relationship import PrincipalRelationship
+from adcp.types.domains.enums.agent_onboarding_mode import AgentOnboardingMode
+from adcp.types.domains.enums.agent_onboarding_requirement_kind import (
+    AgentOnboardingRequirementKind,
+)
+from adcp.types.domains.enums.billing_party import BillingParty
+from adcp.types.domains.enums.principal_relationship_status import PrincipalRelationshipStatus
 from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     Account as _Account,
 )
 from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     GetAdcpCapabilitiesResponse as _GetAdcpCapabilitiesResponse,
 )
-from adcp.types.domains.protocol.get_adcp_capabilities_response import (
-    RequestSigning as _RequestSigning,
-)
+from adcp.types.domains.protocol.get_adcp_capabilities_response import RequestSigning
 from adcp.types.domains.protocol.get_principal_response import (
-    GetPrincipalResponse as _GetPrincipalResponse,
-)
-from adcp.types.domains.protocol.get_principal_response import (
-    PrincipalCurrentResult as _PrincipalCurrentResult,
-)
-from adcp.types.domains.protocol.get_principal_response import (
+    GetPrincipalResponse,
+    PrincipalCurrentResult,
     PrincipalReadFailedResult,
+    PrincipalRecognizedResult,
+    PrincipalUnconfiguredResult,
 )
-from adcp.types.domains.protocol.get_principal_response import (
-    PrincipalRecognizedResult as _PrincipalRecognizedResult,
-)
-from adcp.types.domains.protocol.get_principal_response import (
-    PrincipalUnconfiguredResult as _PrincipalUnconfiguredResult,
-)
+from adcp.types.domains.trust.v1.trust import Agent as TrustAgent
+from adcp.types.domains.trust.v1.trust import Grant as TrustGrant
+from adcp.types.domains.trust.v1.trust import TrustJson
+
+# ``enums/agent-onboarding-requirement-kind.json`` is ``x-extensible``: a
+# seller may advertise a requirement kind this SDK does not know, and a reader
+# keeps such advisory requirements rather than refusing the whole posture
+# (``adcp.signing.trust``). The generated enum is closed, so the capability
+# readers below redeclare ``kind`` open, as the identity preview did, and each
+# redeclaration inherits its generated field (#1620).
+_OpenRequirementKind = Annotated[
+    AgentOnboardingRequirementKind | str, Field(union_mode="left_to_right")
+]
+_requirement_kind = inherit_field(_AgentOnboardingRequirement, "kind", required=True)
+_tier_requirements = inherit_field(_AgentOnboardingTier, "requirements")
+_buyer_requirements = inherit_field(_BuyerOnboardingPosture, "requirements")
+_posture_sandbox = inherit_field(_AgentOnboardingPosture, "sandbox")
+_posture_billing = inherit_field(_AgentOnboardingPosture, "billing")
+_account_agent_onboarding = inherit_field(_Account, "agent_onboarding")
+_capabilities_account = inherit_field(_GetAdcpCapabilitiesResponse, "account")
+
+
+class AgentOnboardingRequirement(_AgentOnboardingRequirement):
+    """An onboarding requirement whose ``kind`` keeps an unknown extensible value."""
+
+    kind: _OpenRequirementKind = _requirement_kind  # type: ignore[assignment]
+
+
+class AgentOnboardingTier(_AgentOnboardingTier):
+    requirements: list[AgentOnboardingRequirement] | None = _tier_requirements  # type: ignore[assignment]
+
+
+class BuyerOnboardingPosture(_BuyerOnboardingPosture):
+    requirements: list[AgentOnboardingRequirement] | None = _buyer_requirements  # type: ignore[assignment]
+
+
+class AgentOnboarding(_AgentOnboardingPosture):
+    sandbox: AgentOnboardingTier | None = (
+        _posture_sandbox  # pyright: ignore[reportIncompatibleVariableOverride]
+    )
+    billing: dict[BillingParty, AgentOnboardingTier] | None = _posture_billing  # type: ignore[assignment]
 
 
 class AccountCapabilities(_Account):
-    agent_onboarding: AgentOnboarding | None = None
-
-
-class RequestSigning(_RequestSigning):
-    """Draft accepted transport profiles; omission means the legacy profile only."""
-
-    profiles: list[str] | None = None
+    agent_onboarding: AgentOnboarding | None = (
+        _account_agent_onboarding  # pyright: ignore[reportIncompatibleVariableOverride]
+    )
 
 
 class GetAdcpCapabilitiesResponse(_GetAdcpCapabilitiesResponse):
-    # Pyright treats mutable Pydantic fields as invariant even for subclasses.
-    # Each redeclaration inherits the generated field (description, never-null
-    # marker) and only narrows its annotation (#1620).
-    account: AccountCapabilities | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
-        inherit_field(_GetAdcpCapabilitiesResponse, "account")
-    )
-    request_signing: (  # pyright: ignore[reportIncompatibleVariableOverride]
-        RequestSigning | None
-    ) = inherit_field(_GetAdcpCapabilitiesResponse, "request_signing")
-
-
-class PrincipalUnconfiguredResult(_PrincipalUnconfiguredResult):
-    relationship: PrincipalRelationship | None = None
-
-
-class PrincipalRecognizedResult(_PrincipalRecognizedResult):
-    relationship: PrincipalRelationship | None = None
-
-
-class PrincipalCurrentResult(_PrincipalCurrentResult):
-    relationship: PrincipalRelationship | None = None
-
-
-class GetPrincipalResponse(_GetPrincipalResponse):
-    result: (  # pyright: ignore[reportIncompatibleVariableOverride]
-        PrincipalUnconfiguredResult
-        | PrincipalRecognizedResult
-        | PrincipalCurrentResult
-        | PrincipalReadFailedResult
+    account: AccountCapabilities | None = (
+        _capabilities_account  # pyright: ignore[reportIncompatibleVariableOverride]
     )
 
 
-_DraftPrincipalChangedReason = (
-    _PrincipalChangedReason | Literal["relationship_changed", "relationship_expiring"]
-)
-_draft_principal_changed_reason = inherit_field(_PrincipalChangedWebhook, "reason", required=True)
-
-
-class PrincipalChangedWebhook(_PrincipalChangedWebhook):
-    # Draft webhook reasons intentionally expand the stable response enum.
-    reason: _DraftPrincipalChangedReason = _draft_principal_changed_reason  # type: ignore[assignment]
+class TrustRecord(RootModel[TrustJson]):
+    """A parsed trust.json: a hosted pointer or an organization's record."""
 
 
 class GrantAbsentDetails(BaseModel):
@@ -156,6 +135,7 @@ __all__ = [
     "GrantAbsentDetails",
     "PrincipalChangedWebhook",
     "PrincipalCurrentResult",
+    "PrincipalReadFailedResult",
     "PrincipalRecognizedResult",
     "PrincipalRelationship",
     "PrincipalRelationshipStatus",

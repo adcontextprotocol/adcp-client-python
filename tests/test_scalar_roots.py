@@ -47,6 +47,8 @@ _ALLOWED_CONSTRAINTS = {
     "le",
     "lt",
     "multiple_of",
+    # pydantic-core engine selection for patterns with lookaround
+    "regex_engine",
 }
 _ALLOWED_DOCUMENTATION = {"title", "description", "examples"}
 

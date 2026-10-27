@@ -25,9 +25,11 @@ from typing import Any, cast
 import pytest
 from pydantic import BaseModel
 
+from adcp._version import _read_packaged_version
 from adcp.types.base import AdcpRequest, AdcpResponse, _AdcpMessage
 from adcp.types.domains.core.protocol_envelope import ProtocolEnvelope
 from adcp.types.domains.core.version_envelope import AdcpVersionEnvelope
+from adcp.validation.version import resolve_bundle_key
 from scripts.generate_types import normalize_version_envelope_composition
 from scripts.post_generate_fixes import OUTPUT_DIR, SCHEMA_DIR
 from scripts.task_message_lattice import task_message_roots
@@ -44,7 +46,8 @@ _REQUEST_VERSION_RESIDUE = frozenset({"creative/validate-input-request.json"})
 # their submitted arm is a bare ``$ref`` to ``core/compact-task-submitted.json``, so moving
 # the stubs into a root ``allOf`` would delete the field from that arm rather than relocate
 # it (see ``_has_bare_ref_root_arm``). Normalizing them would not have changed this residue
-# anyway -- the submitted arm gains no ancestry either way, so the all-arms answer is 70/77
+# anyway -- the submitted arm gains no ancestry either way, so the all-arms answer is 70/79
+# (3.3 adds the two open-opportunity responses to the residue).
 # with or without. Upstream: adcp#7892 plus the commitment / compact-task-submitted
 # components, which is upstream ask four.
 _RESPONSE_VERSION_RESIDUE = frozenset(
@@ -53,13 +56,15 @@ _RESPONSE_VERSION_RESIDUE = frozenset(
         "media-buy/buy-products-response.json",
         "media-buy/control-media-buy-response.json",
         "media-buy/decline-proposals-response.json",
+        "media-buy/list-collections-response.json",
         "media-buy/list-products-response.json",
+        "media-buy/list-proposals-response.json",
         "media-buy/refine-proposals-response.json",
         "media-buy/request-proposals-response.json",
     }
 )
 
-# These ten declare NO protocol-envelope fields of their own, against the envelope's own
+# These twelve declare NO protocol-envelope fields of their own, against the envelope's own
 # "The ``status`` field is REQUIRED on every task response envelope". There is nothing
 # equivalent to lift, so unlike the version envelope this one cannot be normalized by
 # equivalence: composing it would change what validates. Upstream's to fix.
@@ -72,7 +77,9 @@ _RESPONSE_PROTOCOL_RESIDUE = frozenset(
         "media-buy/buy-products-response.json",
         "media-buy/control-media-buy-response.json",
         "media-buy/decline-proposals-response.json",
+        "media-buy/list-collections-response.json",
         "media-buy/list-products-response.json",
+        "media-buy/list-proposals-response.json",
         "media-buy/refine-proposals-response.json",
         "media-buy/request-proposals-response.json",
     }
@@ -81,7 +88,11 @@ _RESPONSE_PROTOCOL_RESIDUE = frozenset(
 #: (task, kind, schema path, the root classes the message validates into)
 _TaskMessage = tuple[str, str, str, tuple[type[BaseModel], ...]]
 
-_VERSION_ENVELOPE_REF = "https://adcontextprotocol.org/schemas/3.2.4/core/version-envelope.json"
+# The pinned bundle's canonical schema base: a prerelease keeps its full identifier.
+_SCHEMA_BASE = (
+    f"https://adcontextprotocol.org/schemas/{resolve_bundle_key(_read_packaged_version())}"
+)
+_VERSION_ENVELOPE_REF = f"{_SCHEMA_BASE}/core/version-envelope.json"
 
 
 def _module_name(path: Path) -> str:
@@ -89,7 +100,7 @@ def _module_name(path: Path) -> str:
 
 
 def _task_message_classes() -> list[_TaskMessage]:
-    """(task, kind, schema path, root classes) for all 77 registered tasks, both directions.
+    """(task, kind, schema path, root classes) for all 79 registered tasks, both directions.
 
     Resolved exactly the way the marker-insertion pass resolves it -- same registry, same
     provenance header, same root-class rule -- so this grades the generated tree rather
@@ -122,9 +133,9 @@ def _residue(rows: list[_TaskMessage], kind: str, ancestor: type[BaseModel]) -> 
 
 
 def test_registry_covers_every_task_in_both_directions(task_messages: list[_TaskMessage]) -> None:
-    """77 tasks, each with one request and one response, all resolving to real classes."""
-    assert len(task_messages) == 154, "the pinned bundle registers 77 tasks"
-    assert sum(1 for _, kind, _, _ in task_messages if kind == "request") == 77
+    """79 tasks, each with one request and one response, all resolving to real classes."""
+    assert len(task_messages) == 158, "the pinned bundle registers 79 tasks"
+    assert sum(1 for _, kind, _, _ in task_messages if kind == "request") == 79
     assert all(classes for *_, classes in task_messages)
 
 
@@ -175,7 +186,7 @@ def test_markers_are_plain_classes_with_no_fields() -> None:
 
 
 def test_task_request_version_envelope_residue_is_pinned(task_messages: list[_TaskMessage]) -> None:
-    """76 of 77 task requests descend from AdcpVersionEnvelope; the residue is one schema."""
+    """78 of 79 task requests descend from AdcpVersionEnvelope; the residue is one schema."""
     residue = _residue(task_messages, "request", AdcpVersionEnvelope)
     assert residue == _REQUEST_VERSION_RESIDUE, (
         "version-envelope residue moved. Newly missing: "
@@ -402,16 +413,14 @@ def test_version_normalization_refuses_a_schema_whose_arm_is_a_bare_ref() -> Non
     fields to 9 and ``RequestProposalsResponse4`` from 16 to 15, both losing
     ``adcp_version`` -- and both carry ``extra: forbid``, so a seller echoing the version on
     the submitted arm would have been REJECTED where it previously validated. The two
-    schemas are refused instead, and the all-arms ancestry is 70/77 either way because that
+    schemas are refused instead, and the all-arms ancestry is 70/79 either way because that
     submitted arm gains no ancestry from the rewrite.
     """
     with_ref_arm = {
         "type": "object",
         "anyOf": [
             {"required": ["results"]},
-            {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.4/core/compact-task-submitted.json"
-            },
+            {"$ref": f"{_SCHEMA_BASE}/core/compact-task-submitted.json"},
         ],
         "properties": {
             "adcp_version": {"$ref": f"{_VERSION_ENVELOPE_REF}#/properties/adcp_version"}

@@ -9,6 +9,7 @@ from dataclasses import replace
 
 import pytest
 
+from adcp._version import resolve_adcp_version
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.feed import ReportingFeedError
 
@@ -78,5 +79,5 @@ async def test_legacy_unversioned_walk_survives_activation_and_current_protocol(
         )
         assert newer.snapshot_id != snapshot.snapshot_id
         assert newer.after == snapshot.through
-        assert json.loads(newer.filters_json)["adcp_version"] == "3.2"
+        assert json.loads(newer.filters_json)["adcp_version"] == resolve_adcp_version(None)
         assert newer.representation_version == 2

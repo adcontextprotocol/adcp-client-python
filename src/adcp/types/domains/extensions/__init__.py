@@ -10,13 +10,14 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
 from __future__ import annotations
 
+from adcp.types.domains.extensions.adcp import AdcpOwnedExtensions
 from adcp.types.domains.extensions.extension_meta import AdcpExtensionFileSchema
 
 # Explicit exports
-__all__ = ["AdcpExtensionFileSchema"]
+__all__ = ["AdcpExtensionFileSchema", "AdcpOwnedExtensions"]

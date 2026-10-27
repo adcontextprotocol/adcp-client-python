@@ -15,12 +15,14 @@ from .test_reporting_notification_packaging import run_step, storage_distributio
 __all__ = ["b1_wheels", "built_distribution"]
 
 
-def test_installed_schema_input_retains_only_current_3_2():
+def test_installed_schema_input_retains_only_the_current_pin():
     from adcp.validation import schema_loader
 
     schemas = production_schema_hashes()
     pinned = schema_loader._sdk_pinned_bundle_key()
-    assert pinned == "3.2"
+    # A prerelease pin keeps its full identifier as the bundle key; the 3.2
+    # cache is a preview bundle for negotiation, not a production schema input.
+    assert pinned == "3.3.0-beta.0"
     assert_installed_schema_keys(schemas, pinned)
     with pytest.raises(AssertionError):
         assert_installed_schema_keys({}, pinned)

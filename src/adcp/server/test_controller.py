@@ -115,6 +115,12 @@ SCENARIOS = [
     "force_session_status",
     "simulate_delivery",
     "simulate_budget_spend",
+    # AdCP 3.3.0-beta.0 scenarios: provisional buys, later proposals, holds,
+    # and definition-pin drift.
+    "force_media_buy_confirmation",
+    "simulate_later_proposal",
+    "force_hold_unavailable",
+    "definition_pin_probe",
     # seed_* scenarios pre-populate storyboard fixtures (AdCP 3.0.1)
     "seed_product",
     "seed_pricing_option",
@@ -473,13 +479,79 @@ class TestControllerStore:
         vendor_metric_values_by_package: dict[str, list[dict[str, Any]]] | None = None,
         not_yet_measurable_vendor_metrics: list[dict[str, Any]] | None = None,
         not_yet_measurable_vendor_metrics_by_package: dict[str, list[dict[str, Any]]] | None = None,
+        property_delivery: list[dict[str, Any]] | None = None,
+        installment_delivery: list[dict[str, Any]] | None = None,
+        installment_property_delivery: list[dict[str, Any]] | None = None,
         *,
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Simulate delivery metrics for a media buy.
 
+        ``property_delivery``, ``installment_delivery`` and
+        ``installment_property_delivery`` (AdCP 3.3) carry the property-grain,
+        installment and installment-by-property rows the seller reports under
+        ``supports_property_breakdown`` /
+        ``supports_installment_property_breakdown``.
+
         Returns:
             {"simulated": {...}, "cumulative": {...} | None}
+        """
+        raise NotImplementedError
+
+    async def force_media_buy_confirmation(
+        self,
+        action: str,
+        media_buy_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Hold the next ``create_media_buy`` provisional, or confirm a held buy (AdCP 3.3).
+
+        ``action`` is ``hold`` (the next created buy keeps ``confirmed_at: null``
+        and stays ``pending_start``) or ``confirm`` (``media_buy_id`` becomes
+        committed).
+        """
+        raise NotImplementedError
+
+    async def simulate_later_proposal(
+        self,
+        account_id: str,
+        opportunity_id: str,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Create one later proposal now for an open opportunity (AdCP 3.3).
+
+        The seller creates the proposal as it would after the creating task
+        completed, including the ``proposal.created`` notification.
+        """
+        raise NotImplementedError
+
+    async def force_hold_unavailable(
+        self,
+        proposal_id: str,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Make a proposal's hold unavailable, so the next hold request is refused (AdCP 3.3)."""
+        raise NotImplementedError
+
+    async def definition_pin_probe(
+        self,
+        operation: str,
+        product_id: str | None = None,
+        proposal_id: str | None = None,
+        ref_kind: str | None = None,
+        mutation: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Prepare definition-pin state, or mutate a pinned definition (AdCP 3.3).
+
+        ``prepare`` seeds ``product_id`` with pinnable definitions.
+        ``mutate_definition`` changes the definition behind the first pin of
+        ``ref_kind`` in ``proposal_id``: a ``material`` mutation changes the
+        pinned projection (its ``content_digest`` moves); ``cosmetic`` does not.
         """
         raise NotImplementedError
 
@@ -1310,6 +1382,43 @@ async def _handle_test_controller(
                 method_kwargs["result"] = result_value
         elif scenario == "simulate_delivery":
             _require_scenario_params(scenario_params, "media_buy_id")
+        elif scenario == "force_media_buy_confirmation":
+            _require_scenario_params(scenario_params, "action")
+            action = scenario_params["action"]
+            if action not in {"hold", "confirm"}:
+                return _controller_error("INVALID_PARAMS", "action must be 'hold' or 'confirm'")
+            if action == "confirm":
+                _require_scenario_params(scenario_params, "media_buy_id")
+        elif scenario == "simulate_later_proposal":
+            _require_scenario_params(scenario_params, "account_id", "opportunity_id")
+        elif scenario == "force_hold_unavailable":
+            _require_scenario_params(scenario_params, "proposal_id")
+        elif scenario == "definition_pin_probe":
+            _require_scenario_params(scenario_params, "operation")
+            operation = scenario_params["operation"]
+            if operation == "prepare":
+                _require_scenario_params(scenario_params, "product_id")
+                forbidden = {"proposal_id", "ref_kind", "mutation"} & set(scenario_params)
+                if forbidden:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        f"{sorted(forbidden)[0]} is not allowed for the prepare operation",
+                    )
+            elif operation == "mutate_definition":
+                _require_scenario_params(scenario_params, "proposal_id", "ref_kind", "mutation")
+                if "product_id" in scenario_params:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "product_id is not allowed for the mutate_definition operation",
+                    )
+                if scenario_params["mutation"] not in {"material", "cosmetic"}:
+                    return _controller_error(
+                        "INVALID_PARAMS", "mutation must be 'material' or 'cosmetic'"
+                    )
+            else:
+                return _controller_error(
+                    "INVALID_PARAMS", "Unsupported definition_pin_probe operation"
+                )
         elif scenario == "simulate_budget_spend":
             _require_scenario_params(scenario_params, "spend_percentage")
         elif scenario == "seed_account":

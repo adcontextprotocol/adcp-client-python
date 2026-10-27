@@ -80,8 +80,15 @@ async def scope_fixture(backend, root):
         save()
         return {"accounts": accounts}
 
+    # The scope conversation is a 3.2 one: its fixtures and the 3.2.1-pinned
+    # public client speak that release, and a production mount serves exactly
+    # the release it is pinned to.
     async with production_harness(
-        backend, root / "destination.sqlite", count=0, account_handler=account_task
+        backend,
+        root / "destination.sqlite",
+        count=0,
+        account_handler=account_task,
+        adcp_version="3.2",
     ) as h:
         selected.update(h=h, accepted={})
         requests = {}
@@ -131,6 +138,7 @@ async def exact_fixture(backend, root, count):
         source_publication=True,
         reconciled=True,
         poll_seconds=0.02,
+        adcp_version="3.2",
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)
         for _ in range(600):

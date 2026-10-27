@@ -18,6 +18,7 @@ from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import asset_content_type as asset_content_type_1
 from ..enums import right_use as right_use_1
+from ..enums import talent_role as talent_role_1
 
 
 class House(AdcpVersionEnvelope):
@@ -109,6 +110,15 @@ class Rights(AdcpVersionEnvelope):
     content_restrictions: list[str] | None = None
 
 
+class Collection(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    publisher_domain: Annotated[str, StringConstraints(pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$')]
+    collection_id: str
+    name: str
+    role: talent_role_1.TalentRole | None = None
+    seller_agent_url: WireAnyUrl | None = None
+
+
 class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     brand_id: str
@@ -126,7 +136,8 @@ class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvel
     voice_synthesis: VoiceSynthesis | None = None
     assets: list[Asset] | None = None
     rights: Rights | None = None
-    available_fields: list[Literal['description', 'industries', 'keller_type', 'logos', 'colors', 'fonts', 'visual_guidelines', 'tone', 'tagline', 'voice_synthesis', 'assets', 'rights']] | None = None
+    collections: list[Collection] | None = None
+    available_fields: list[Literal['description', 'industries', 'keller_type', 'logos', 'colors', 'fonts', 'visual_guidelines', 'tone', 'tagline', 'voice_synthesis', 'assets', 'rights', 'collections']] | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
@@ -146,6 +157,7 @@ __all__ = [
     'GetBrandIdentityResponse1',
     'GetBrandIdentityResponse2',
     'Asset',
+    'Collection',
     'Colors',
     'File',
     'FontRole2',

@@ -305,7 +305,9 @@ def test_catalog_type_not_signal_catalog_type():
 
 def test_universal_macro_catalog_values():
     """UniversalMacro contains catalog-context macros added in schema sync."""
-    from adcp.types._generated import UniversalMacro
+    # Since AdCP 3.3 UniversalMacro is a union of the closed enum and the
+    # GDPR_CONSENT_<gvl_id> pattern; the enum arm is UniversalMacro3.
+    from adcp.types._generated import UniversalMacro3 as UniversalMacro
 
     catalog_macros = {
         "CATALOG_ID",

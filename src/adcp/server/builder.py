@@ -32,6 +32,8 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     # Media buy
     "get_products": "media_buy",
     "list_products": "media_buy",
+    "list_collections": "media_buy",
+    "list_proposals": "media_buy",
     "request_proposals": "media_buy",
     "refine_proposals": "media_buy",
     "decline_proposals": "media_buy",

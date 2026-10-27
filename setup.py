@@ -15,7 +15,11 @@ _CURRENT_SCHEMA_BUNDLE = (
     if "-" in _PINNED_ADCP_VERSION
     else ".".join(_PINNED_ADCP_VERSION.split(".")[:2])
 )
-_BUNDLED_SCHEMA_VERSIONS = tuple(dict.fromkeys(("3.0", "3.1", "3.1.15", _CURRENT_SCHEMA_BUNDLE)))
+# 3.2 stays installed beside the 3.3 pin: it is the stable contract the SDK
+# negotiates and translates with, and the preview bundle the sync keeps synced.
+_BUNDLED_SCHEMA_VERSIONS = tuple(
+    dict.fromkeys(("3.0", "3.1", "3.1.15", "3.2", _CURRENT_SCHEMA_BUNDLE))
+)
 
 
 class BuildPy(_build_py):

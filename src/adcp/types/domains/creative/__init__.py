@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -131,10 +131,12 @@ from adcp.types.domains.creative.sync_creatives_request import (
     AssignmentOperations1,
     AssignmentOperations2,
     AssignmentOperations3,
+    AssignmentOperations4,
     PlacementId,
     SyncCreativesRequest,
 )
 from adcp.types.domains.creative.sync_creatives_response import (
+    Merge,
     SyncCreativesResponse,
     SyncCreativesResponse1,
     SyncCreativesResponse2,
@@ -168,6 +170,7 @@ __all__ = [
     "AssignmentOperations1",
     "AssignmentOperations2",
     "AssignmentOperations3",
+    "AssignmentOperations4",
     "AssignmentProjection",
     "Assignments",
     "ChangeKind",
@@ -208,6 +211,7 @@ __all__ = [
     "ListTransformersRequestCreativeAgent",
     "ListTransformersResponseCreativeAgent",
     "LocalizationUnavailable",
+    "Merge",
     "OutputCapabilityId",
     "Pagination",
     "PlacementId",

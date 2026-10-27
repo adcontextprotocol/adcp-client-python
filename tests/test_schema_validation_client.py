@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from adcp import ADCPClient, ValidationHookConfig
+from adcp._version import resolve_adcp_version
 from adcp.types import AgentConfig, Protocol
 
 
@@ -101,7 +102,8 @@ class TestMCPAdapterHooks:
     async def test_off_mode_skips_validator(self) -> None:
         client = ADCPClient(
             _agent_config(),
-            server_version="3.2",
+            # The served release: no version conversion touches the response.
+            server_version=resolve_adcp_version(None),
             validation=ValidationHookConfig(requests="off", responses="off"),
         )
 

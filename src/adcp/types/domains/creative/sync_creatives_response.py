@@ -21,6 +21,7 @@ from ..core import ext as ext_1
 from ..core import macro_resolution_result as macro_resolution_result_1
 from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import creative_action as creative_action_1
+from ..enums import creative_approval_status as creative_approval_status_1
 from ..enums import creative_status as creative_status_1
 from ..enums import task_status as task_status_1
 
@@ -44,10 +45,19 @@ class Creative(AdcpVersionEnvelope):
     assignment_errors: dict[Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')], str] | None = None
 
 
+class Merge(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    creative_id: Annotated[str, StringConstraints(min_length=1)]
+    package_id: Annotated[str, StringConstraints(min_length=1)]
+    merged_creative_id: Annotated[str, StringConstraints(min_length=1)]
+    approval_status: creative_approval_status_1.CreativeApprovalStatus
+
+
 class SyncCreativesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     dry_run: bool | None = None
     creatives: list[Creative]
+    merges: list[Merge] | None = None
     sandbox: bool | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -79,4 +89,5 @@ __all__ = [
     'SyncCreativesResponse2',
     'SyncCreativesResponse3',
     'Creative',
+    'Merge',
 ]
