@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 import yaml
-from pathlib import Path
 
 from scripts.normalize_pyproject_prerelease import pep440_prerelease
 
@@ -77,12 +77,13 @@ def test_storage_distribution_version_matches_its_manifest_entry() -> None:
     assert config["packages"]["."]["exclude-paths"] == ["packages/adcp-reporting-storage"]
 
 
-def test_release_please_keeps_next_on_the_alpha_channel() -> None:
-    """The next draft-spec line releases only ``10.0.0-alpha.N`` pre-releases.
+def test_release_please_keeps_next_on_the_beta_channel() -> None:
+    """The next line releases only ``10.0.0-beta.N`` pre-releases.
 
-    The adopting commit on next ends with ``Release-As: 10.0.0-alpha.0``;
-    later commits increment the alpha number. next's workflow uses its own
-    config and manifest so that merging main into next never changes them.
+    The channel switch commit on next ends with ``Release-As: 10.0.0-beta.0``
+    (it superseded the alpha proposal, #1533); later commits increment the
+    beta number. next's workflow uses its own config and manifest so that
+    merging main into next never changes them.
     """
     config_path = ROOT / "release-please-config.next.json"
     if not config_path.exists():
@@ -90,7 +91,7 @@ def test_release_please_keeps_next_on_the_alpha_channel() -> None:
     config = json.loads(config_path.read_text())
     package = config["packages"]["."]
     assert package["versioning"] == "prerelease"
-    assert package["prerelease-type"] == "alpha"
+    assert package["prerelease-type"] == "beta"
     assert package["prerelease"] is True
     assert package["changelog-path"] != "CHANGELOG.md"
     workflow = (ROOT / ".github/workflows/release-please-next.yml").read_text()
@@ -98,16 +99,25 @@ def test_release_please_keeps_next_on_the_alpha_channel() -> None:
     assert "config-file: release-please-config.next.json" in workflow
     assert "manifest-file: .release-please-manifest.next.json" in workflow
     assert "--target-branch next" in workflow
-    assert "release-publish.yml --ref next -f package=adcp" in workflow
-    # next releases adcp only. The adcp-reporting-storage component is
-    # released from main; storage-only commits stay out of next's changelog.
-    assert set(config["packages"]) == {"."}
+    assert "release-publish.yml --ref next -f package=adcp -f" in workflow
+    # next releases SDK 10's adcp and its adcp-reporting-storage companion as
+    # two components, like main: storage-only commits stay out of adcp's
+    # changelog and each component has its own release PR and publish run.
+    assert set(config["packages"]) == {".", "packages/adcp-reporting-storage"}
     assert package["exclude-paths"] == ["packages/adcp-reporting-storage"]
-    assert "package=adcp-reporting-storage" not in workflow
-    # The companion gate (#1605) keeps a stable adcp release on main from
-    # stranding storage adopters. next's pre-releases are opt-in and the
-    # storage distribution's adcp-10 release is cut from main at ratification,
-    # so the gate does not run for a next publish.
+    storage = config["packages"]["packages/adcp-reporting-storage"]
+    assert storage["component"] == storage["package-name"] == "adcp-reporting-storage"
+    assert storage["versioning"] == "prerelease"
+    assert storage["prerelease-type"] == "beta"
+    assert storage["prerelease"] is True
+    assert storage["include-component-in-tag"] is True
+    assert storage["changelog-path"] != "CHANGELOG.md"
+    assert config["separate-pull-requests"] is True
+    assert "release-publish.yml --ref next -f package=adcp-reporting-storage" in workflow
+    manifest = json.loads((ROOT / ".release-please-manifest.next.json").read_text())
+    assert set(manifest) == {".", "packages/adcp-reporting-storage"}
+    # The companion gate (#1605) runs for every adcp publish, on next too: the
+    # 10.0.0-beta.0 publish needs next's storage pre-release on PyPI first.
     publisher = yaml.load(
         (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
     )
@@ -117,7 +127,9 @@ def test_release_please_keeps_next_on_the_alpha_channel() -> None:
         if "check_companion_releases.py" in step.get("run", "")
     ]
     assert len(companion_steps) == 1
-    assert companion_steps[0]["if"] == "inputs.package == 'adcp' && github.ref == 'refs/heads/main'"
+    assert companion_steps[0]["if"] == "inputs.package == 'adcp'"
+    gate = publisher["jobs"]["build"]["steps"][1]["run"]
+    assert 'adcp-reporting-storage) [[ "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]]' in gate
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:

@@ -30,8 +30,8 @@ _PEP440_LABELS = {
 _REPOSITORY = "adcontextprotocol/adcp-client-python"
 # Release Please head branch -> the pyproject.toml that branch's component
 # versions, by the branch each release line targets. ``main`` cuts the current
-# major and the ``adcp-reporting-storage`` distribution; ``next`` cuts
-# draft-spec ``adcp`` pre-releases only (see RELEASING.md).
+# major and the ``adcp-reporting-storage`` distribution; ``next`` cuts SDK 10
+# pre-releases of both (see RELEASING.md).
 _RELEASE_BRANCHES = {
     "main": {
         "release-please--branches--main": "pyproject.toml",
@@ -43,6 +43,9 @@ _RELEASE_BRANCHES = {
     "next": {
         "release-please--branches--next": "pyproject.toml",
         "release-please--branches--next--components--adcp": "pyproject.toml",
+        "release-please--branches--next--components--adcp-reporting-storage": (
+            "packages/adcp-reporting-storage/pyproject.toml"
+        ),
     },
 }
 

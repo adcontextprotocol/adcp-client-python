@@ -170,6 +170,39 @@ def test_release_pr_normalization_accepts_the_next_release_line(
     )
 
 
+def test_release_pr_normalization_accepts_the_next_storage_release_pr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict | None]] = []
+    branch = "release-please--branches--next--components--adcp-reporting-storage"
+
+    def github(path: str, token: str, *, body: dict | None = None) -> dict:
+        calls.append((path, body))
+        if path == "pulls/7":
+            return {
+                "base": {"ref": "next", "repo": {"full_name": normalizer._REPOSITORY}},
+                "head": {"ref": branch, "repo": {"full_name": normalizer._REPOSITORY}},
+            }
+        if path.startswith("contents/packages/adcp-reporting-storage/pyproject.toml?ref="):
+            return {
+                "content": base64.b64encode(b'[project]\nversion = "0.2.0-beta.0"\n').decode(),
+                "sha": "blob",
+            }
+        return {}
+
+    monkeypatch.setattr(normalizer, "_github", github)
+    normalizer.normalize_release_prs([{"number": 7}], "app-token", "next")
+    assert calls[-1] == (
+        "contents/packages/adcp-reporting-storage/pyproject.toml",
+        {
+            "message": "chore: normalize prerelease version to PEP 440",
+            "content": base64.b64encode(b'[project]\nversion = "0.2.0b0"\n').decode(),
+            "sha": "blob",
+            "branch": branch,
+        },
+    )
+
+
 @pytest.mark.parametrize(
     ("target", "base", "head"),
     [
@@ -178,8 +211,8 @@ def test_release_pr_normalization_accepts_the_next_release_line(
         ("next", "main", "release-please--branches--main--components--adcp"),
         # A next-targeted PR from main's release branch is not next's release PR.
         ("next", "next", "release-please--branches--main--components--adcp"),
-        # next does not release the adcp-reporting-storage distribution.
-        ("next", "next", "release-please--branches--next--components--adcp-reporting-storage"),
+        # main's storage release branch is not next's storage release PR.
+        ("next", "next", "release-please--branches--main--components--adcp-reporting-storage"),
     ],
 )
 def test_release_pr_normalization_refuses_cross_line_prs(
