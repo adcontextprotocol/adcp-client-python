@@ -5,7 +5,7 @@
       "package-name": "adcp",
       "changelog-path": "CHANGELOG.next.md",
       "versioning": "prerelease",
-      "prerelease-type": "alpha",
+      "prerelease-type": "beta",
       "prerelease": true,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
@@ -13,13 +13,41 @@
       "exclude-paths": [
         "packages/adcp-reporting-storage"
       ]
+    },
+    "packages/adcp-reporting-storage": {
+      "release-type": "python",
+      "package-name": "adcp-reporting-storage",
+      "component": "adcp-reporting-storage",
+      "changelog-path": "CHANGELOG.next.md",
+      "versioning": "prerelease",
+      "prerelease-type": "beta",
+      "prerelease": true,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "include-component-in-tag": true
     }
   },
   "changelog-sections": [
-    {"type": "feat", "section": "Features"},
-    {"type": "fix", "section": "Bug Fixes"},
-    {"type": "perf", "section": "Performance Improvements"},
-    {"type": "revert", "section": "Reverts"},
-    {"type": "deps", "section": "Dependencies"}
-  ]
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance Improvements"
+    },
+    {
+      "type": "revert",
+      "section": "Reverts"
+    },
+    {
+      "type": "deps",
+      "section": "Dependencies"
+    }
+  ],
+  "separate-pull-requests": true
 }

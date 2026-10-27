@@ -2,9 +2,9 @@ name: Release Please (next)
 
 # Draft-spec line copy of main's release-please.yml. It runs from next only,
 # opens release PRs against next with next's own config and manifest, and
-# queues next's copy of release-publish.yml. Releases are 10.0.0-alpha.N
-# pre-releases of adcp only: the adcp-reporting-storage component is released
-# from main, and next's config excludes its path. main's release flow, config,
+# queues next's copy of release-publish.yml. Releases are 10.0.0-beta.N
+# pre-releases of adcp and 0.2.0-beta.N pre-releases of adcp-reporting-storage
+# (SDK 10's companion), each from its own component. main's release flow, config,
 # and manifest are unchanged; this file and next's config and manifest are
 # inert on main and are removed when next merges into main at ratification.
 # See RELEASING.md.
@@ -55,10 +55,17 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PROPOSAL_PRS: ${{ steps.release.outputs.prs }}
-      - name: Queue publication for the created release
+      - name: Queue publication for the created adcp release
         if: steps.release.outputs.release_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
         run: gh workflow run release-publish.yml --ref next -f package=adcp -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"
+      - name: Queue publication for the created adcp-reporting-storage release
+        if: steps.release.outputs['packages/adcp-reporting-storage--release_created'] == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs['packages/adcp-reporting-storage--sha'] }}
+          RELEASE_TAG: ${{ steps.release.outputs['packages/adcp-reporting-storage--tag_name'] }}
+        run: gh workflow run release-publish.yml --ref next -f package=adcp-reporting-storage -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"

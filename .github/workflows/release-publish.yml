@@ -58,8 +58,8 @@ jobs:
           # adcp tags are vX.Y.Z; the storage component tags carry its name.
           case "$PACKAGE" in
             adcp) [[ "$RELEASE_TAG" =~ ^v[0-9] ]] ;;
-            # Only main releases the storage component; next cuts adcp alphas.
-            adcp-reporting-storage) [[ "$GITHUB_REF_NAME" = main && "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]] ;;
+            # main releases the SDK 9 storage line; next releases its SDK 10 beta.
+            adcp-reporting-storage) [[ "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]] ;;
             *) echo "unknown package $PACKAGE" >&2; exit 1 ;;
           esac
           test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_SHA"
@@ -77,11 +77,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      # Only main's stable adcp releases are gated on the companions: next cuts
-      # adcp pre-releases that adopters opt into with --pre, and the storage
-      # distribution's adcp-10 release is cut from main at ratification.
+      # Every adcp release, on main and on next, needs a published companion
+      # that installs with it: next publishes its own adcp-reporting-storage
+      # pre-release (0.2.0-beta.N, adcp>=9.0.0,<11) before the first 10.0.0-beta.
       - name: Require installable companion distributions for an adcp release
-        if: inputs.package == 'adcp' && github.ref == 'refs/heads/main'
+        if: inputs.package == 'adcp'
         run: |
           python -m pip install packaging
           version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
