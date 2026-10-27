@@ -220,9 +220,13 @@ from adcp.decisioning.state import (
 )
 from adcp.decisioning.state_machines import (
     CREATIVE_ASSET_TRANSITIONS,
+    MEDIA_BUY_TERMINAL_STATUSES,
     MEDIA_BUY_TRANSITIONS,
+    OBSERVED_MEDIA_BUY_TRANSITIONS,
     assert_creative_transition,
     assert_media_buy_transition,
+    is_observable_media_buy_transition,
+    is_terminal_media_buy_status,
 )
 from adcp.decisioning.task_registry import (
     InMemoryTaskRegistry,
@@ -412,6 +416,7 @@ __all__ = [
     "InMemoryMockAdServer",
     "InMemoryTaskRegistry",
     "ListableTaskRegistry",
+    "MEDIA_BUY_TERMINAL_STATUSES",
     "MEDIA_BUY_TRANSITIONS",
     "MaybeAsync",
     "MediaBuyNotFoundError",
@@ -422,6 +427,7 @@ __all__ = [
     "MockProposalManager",
     "NoAuth",
     "OAuthCredential",
+    "OBSERVED_MEDIA_BUY_TRANSITIONS",
     "OwnedSignalsPlatform",
     "PermissionDeniedError",
     "PgProposalStore",
@@ -507,7 +513,9 @@ __all__ = [
     "assert_sandbox_account",
     "get_account_mode",
     "get_mock_upstream_url",
+    "is_observable_media_buy_transition",
     "is_sandbox_or_mock_account",
+    "is_terminal_media_buy_status",
     "bearer_only_registry",
     "compose_method",
     "create_adcp_server_from_platform",
