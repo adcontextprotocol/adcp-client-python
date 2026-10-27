@@ -230,7 +230,9 @@ from adcp.signing.errors import (
     signature_challenge,
 )
 from adcp.signing.etld import (
+    PSL_SNAPSHOT,
     BrandDomainValidationError,
+    PublicSuffixListSnapshot,
     host_from,
     is_development_brand_domain,
     registrable_domain,
@@ -565,6 +567,8 @@ __all__ = [
     "build_ip_pinned_transport2",
     "build_signature_base",
     "BrandDomainValidationError",
+    "PSL_SNAPSHOT",
+    "PublicSuffixListSnapshot",
     "canonicalize_authority",
     "canonicalize_target_uri",
     "check_key_origin_consistency",

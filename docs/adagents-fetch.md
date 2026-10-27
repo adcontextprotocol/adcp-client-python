@@ -55,7 +55,7 @@ See the executable strict typing example in
 On a direct manifest 404, MANAGERDOMAIN discovery follows a manual HTTPS ads.txt
 redirect walk. The [IAB ads.txt 1.1 access method, section 3.1](https://dev.iabtechlab.com/wp-content/uploads/2022/04/Ads.txt-1.1.pdf)
 defines the root domain using the PSL and requires the single off-domain
-location to be terminal. The SDK uses its bundled ICANN and PRIVATE PSL, so
+location to be terminal. The SDK uses its pinned ICANN and PRIVATE PSL snapshot (`adcp.signing.PSL_SNAPSHOT`), so
 `publisher.co.uk` and `attacker.co.uk`, or separate `github.io` tenants, have
 different roots. Unknown publisher roots are refused when a redirect needs
 root-domain accounting.
