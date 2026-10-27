@@ -19,7 +19,7 @@
       "type": "array",
       "description": "Optional publisher-attested public signing keys for this agent. Use these as the trust anchor for verifying signed agent responses instead of relying on key discovery from the agent domain alone.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.4/core/agent-signing-key.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.7/core/agent-signing-key.json"
       },
       "minItems": 1
     },
@@ -27,7 +27,7 @@
       "type": "array",
       "description": "X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base \u2014 read replicas encrypt with this public key, only the master can decrypt.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.4/core/agent-encryption-key.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.7/core/agent-encryption-key.json"
       },
       "minItems": 1
     },

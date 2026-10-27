@@ -66,7 +66,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: Schemas that carry a digest or signature computed over their own declared
 #: fields (or over a declared sub-object), read off the bundle's descriptions
-#: at pin 3.2.4. A model for any of these must dump exactly what it parsed:
+#: at pin 3.2.7. A model for any of these must dump exactly what it parsed:
 #: ``digest(model.model_dump(mode="json")) == model.<digest>``.
 DIGEST_COVERED: frozenset[str] = frozenset(
     {
