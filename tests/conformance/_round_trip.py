@@ -176,6 +176,16 @@ class Difference:
         return f"{where}: {self.kind} {self.before!r} -> {self.after!r}"
 
 
+#: Exceptions a generated model has been seen to raise from inside validation
+#: instead of reporting a ``ValidationError``: a constraint applied to an arm
+#: that cannot carry it (#1616). A refusal recorded under one of these class
+#: names is a model defect, never a schema disagreement.
+RAISED_OUTSIDE_VALIDATION: tuple[type[Exception], ...] = (TypeError, ValueError)
+RAISED_OUTSIDE_VALIDATION_NAMES: frozenset[str] = frozenset(
+    exc.__name__ for exc in RAISED_OUTSIDE_VALIDATION
+)
+
+
 @dataclass(frozen=True)
 class Refusal:
     """A schema-valid document the model does not accept."""
@@ -704,9 +714,10 @@ def round_trip(
             frozenset(error["type"] for error in exc.errors()),
             "; ".join(f"{'/'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()[:3]),
         )
-    except (TypeError, ValueError) as exc:
+    except RAISED_OUTSIDE_VALIDATION as exc:
         # A model whose validator raises rather than refuses is a defect of
-        # its own; the sweep records it and moves on.
+        # its own (#1616); the sweep records it under the exception's class
+        # name, which ``test_wire_round_trip`` forbids, and moves on.
         return [], Refusal(
             document.schema, document.name, frozenset({type(exc).__name__}), str(exc)[:200]
         )
