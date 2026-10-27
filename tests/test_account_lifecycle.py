@@ -820,3 +820,128 @@ async def test_default_policy_does_not_warn_for_list_accounts():
     with _warnings.catch_warnings():
         _warnings.simplefilter("error")
         await client.list_accounts(ListAccountsRequest(account=KEY))
+
+
+# ---------------------------------------------------------------------------
+# AdCP 3.3 account.stable_account_id: seller resolves {account_id} (#1478)
+# ---------------------------------------------------------------------------
+
+
+def _auth(principal):
+    from adcp.decisioning import ApiKeyCredential, AuthInfo
+
+    return AuthInfo(
+        kind="api_key",
+        key_id=f"kid-{principal}",
+        principal=principal,
+        credential=ApiKeyCredential(kind="api_key", key_id=f"kid-{principal}"),
+    )
+
+
+def _stable_id_store():
+    """Accounts keyed by natural key and by id, owned by the provisioning principal."""
+    by_key = {}
+    by_id = {}
+
+    def loader(key, auth):
+        account = by_key.get(account_key(key))
+        return account if account is not None and by_id[account.id][1] == auth.principal else None
+
+    def loader_by_id(account_id, auth):
+        entry = by_id.get(account_id)
+        return entry[0] if entry is not None and entry[1] == auth.principal else None
+
+    def provision(request, ctx=None):
+        key = request.accounts[0].model_dump(mode="json", exclude_none=True)
+        key.pop("billing", None)
+        account = Account(id="acc_1", metadata={"writes": []})
+        by_key[account_key(key)] = account
+        by_id[account.id] = (account, ctx.auth_info.principal)
+        return [
+            SyncAccountsResultRow(
+                brand=key["brand"],
+                operator=key["operator"],
+                action="created",
+                status="active",
+                account_id=account.id,
+            )
+        ]
+
+    store = NaturalKeyAccounts(loader, upsert_request=provision, loader_by_id=loader_by_id)
+    return store, provision
+
+
+@pytest.mark.asyncio
+async def test_account_id_and_natural_key_resolve_to_the_same_account():
+    store, provision = _stable_id_store()
+    assert store.resolves_account_ids is True
+    owner = _auth("buyer-a")
+    provision(
+        SyncAccountsRequest.model_validate(
+            {
+                "idempotency_key": "00000000-0000-4000-8000-000000000001",
+                "accounts": [{**KEY, "billing": "agent"}],
+            }
+        ),
+        type("Ctx", (), {"auth_info": owner})(),
+    )
+    by_key = await store.resolve(KEY, owner)
+    by_id = await store.resolve({"account_id": "acc_1"}, owner)
+    assert by_key is by_id
+    by_key.metadata["writes"].append("under natural key")
+    assert by_id.metadata["writes"] == ["under natural key"]
+
+
+@pytest.mark.asyncio
+async def test_account_id_never_crosses_principals():
+    store, provision = _stable_id_store()
+    provision(
+        SyncAccountsRequest.model_validate(
+            {
+                "idempotency_key": "00000000-0000-4000-8000-000000000001",
+                "accounts": [{**KEY, "billing": "agent"}],
+            }
+        ),
+        type("Ctx", (), {"auth_info": _auth("buyer-a")})(),
+    )
+    with pytest.raises(AdcpError) as error:
+        await store.resolve({"account_id": "acc_1"}, _auth("buyer-b"))
+    assert error.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_account_id_loader_returning_another_account_is_a_miss():
+    store = NaturalKeyAccounts(
+        lambda key, auth: None, loader_by_id=lambda account_id, auth: Account(id="other")
+    )
+    with pytest.raises(AdcpError) as error:
+        await store.resolve({"account_id": "acc_1"}, None)
+    assert error.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_account_id_is_not_found_without_loader_by_id():
+    store = NaturalKeyAccounts(lambda key, auth: pytest.fail("natural loader must not run"))
+    assert store.resolves_account_ids is False
+    with pytest.raises(AdcpError) as error:
+        await store.resolve({"account_id": "acc_1"}, None)
+    assert error.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_handler_serves_discovery_by_account_id(executor):
+    async def loader_by_id(account_id, auth):
+        return Account(id="provisioned") if account_id == "provisioned" else None
+
+    handler = make_handler(
+        NaturalKeyAccounts(lambda key, auth: None, loader_by_id=loader_by_id), executor=executor
+    )
+    response = await handler.get_products(
+        GetProductsRequest(buying_mode="wholesale", account={"account_id": "provisioned"})
+    )
+    assert response.products == []
+    with pytest.raises(AdcpError) as error:
+        await handler.get_products(
+            GetProductsRequest(buying_mode="wholesale", account={"account_id": "unknown"})
+        )
+    assert error.value.code == "ACCOUNT_NOT_FOUND"

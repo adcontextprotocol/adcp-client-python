@@ -152,6 +152,27 @@ receives the full `SyncAccountsRequest` and `ctx=ResolveContext`; it handles
 billing, dry runs, persistence, and returns `SyncAccountsResultRow` entries.
 Discovery never calls the provisioning callback.
 
+AdCP 3.3 sellers SHOULD return `account_id` from `sync_accounts`, and a seller
+that accepts it on every account-scoped task and never changes it declares
+`account.stable_account_id`. Pass `loader_by_id` to resolve
+`{"account_id": ...}` references:
+
+```python
+store = NaturalKeyAccounts(
+    loader=load_provisioned_account,
+    loader_by_id=load_account_by_id,
+    upsert_request=sync_account_request,
+)
+```
+
+`loader_by_id` receives `(account_id, auth_info)`. Like `loader`, it must
+search only accounts the caller may operate, so an id never resolves across
+principals, and it returns `None` on a miss. Both references must reach the
+same account: return the `Account` whose `id` is the `account_id` your
+`upsert_request` returned, and never change it. The store treats an account
+with any other `id` as a miss. Without `loader_by_id`, an `account_id`
+reference returns `ACCOUNT_NOT_FOUND`.
+
 Custom stores may implement `AccountStoreResolveForTask.resolve_for_task(ref,
 ctx)`. The framework prefers that hook and provides `ctx.tool_name`,
 `ctx.auth_info`, `ctx.agent`, and `ctx.is_provisioning`. Lazy account creation
