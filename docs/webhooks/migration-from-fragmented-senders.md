@@ -224,8 +224,8 @@ await supervisor.deliver(WebhookDeliveryRequest(url=..., payload=..., ...))
 
 The in-memory supervisor handles retry policy and circuit-breaker state per buyer,
 but it is process-local and cannot support the AdCP 3.2 retry-horizon capability.
-`PgWebhookDeliverySupervisor` persists pending attempts but removes
-final rows, so it also does not satisfy the beta.5 retention or atomic terminal
+[`PgWebhookDeliverySupervisor`](pg-delivery-supervisor.md) persists pending
+attempts but removes final rows, so it also does not satisfy the beta.5 retention or atomic terminal
 state/outbox contract. Use these APIs for explicit best-effort delivery only.
 For framework-managed task webhooks, pair `PgTaskWebhookOutbox` with
 `PgTaskRegistry` on the same pool, supply a stable 32-byte outbox encryption
