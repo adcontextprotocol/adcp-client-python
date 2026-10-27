@@ -1,6 +1,6 @@
 """AdCP 3.2.1 stays an immutable, verifiable historical release after 3.2.4 adoption.
 
-3.2.4 is the live default (see ``test_adcp_3_2_4_adoption``). The shared ``3.2`` schema
+3.2.4 is the live default (see ``test_adcp_3_2_4_historical``). The shared ``3.2`` schema
 cache now holds the signed 3.2.4 bytes, so only the release-scoped, never-overwritten
 assets are checked here: the audited pin, the packaged compliance provenance and its files.
 """

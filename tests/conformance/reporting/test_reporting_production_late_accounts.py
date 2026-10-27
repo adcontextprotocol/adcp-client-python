@@ -126,7 +126,9 @@ def client_for(uri, account):
             auth_header="Authorization",
             auth_type="bearer",
         ),
-        adcp_version="3.2.1",
+        # The SDK's own pin: a production mount serves exactly the release it
+        # is pinned to, and this scenario is about late accounts, not a 3.2
+        # conversation (the scope harness keeps that one pinned to 3.2).
     )
 
 

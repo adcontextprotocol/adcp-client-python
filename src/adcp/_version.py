@@ -27,7 +27,7 @@ import re
 # Release-precision versions this SDK can speak. Patch-level pinning is
 # intentionally absent — patches don't change the wire contract by
 # definition, so making them part of the pin is a category error.
-COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2")
+COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2", "3.3")
 
 # Explicit compatibility bridge for buyers shipped with adcp 8.0.0rc3.
 # rc.7 requests remain valid under the additive 3.2.1 contract. Other

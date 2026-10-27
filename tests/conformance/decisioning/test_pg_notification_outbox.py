@@ -180,9 +180,11 @@ async def enqueue(
             )
 
 
-async def test_experimental_principal_notification_is_opt_in_through_durable_replay(
+async def test_principal_relationship_notification_replays_through_the_stable_outbox(
     stack: tuple[Any, PgNotificationOutbox, MagicMock],
 ) -> None:
+    # AdCP 3.3 declares the relationship reasons, so the stable outbox accepts
+    # them without the experimental identity opt-in and replays them durably.
     pool, stable_outbox, sender = stack
     value = WebhookSender.prepare_principal_changed(
         url=URL,
@@ -195,22 +197,10 @@ async def test_experimental_principal_notification_is_opt_in_through_durable_rep
             "changed_at": AT,
             "reason": "relationship_changed",
         },
-        experimental_agent_identity=True,
     )
-    with pytest.raises(ValueError, match="schema validation"):
-        await enqueue(pool, stable_outbox, value)
-    preview_outbox = PgNotificationOutbox(
-        pool=pool,
-        sender=sender,
-        encryption_key=b"x" * 32,
-        delivery_retry_horizon_seconds=86400,
-        table=stable_outbox._table,
-        experimental_agent_identity=True,
-    )
-    await enqueue(pool, preview_outbox, value)
-    assert await preview_outbox.process_one()
+    await enqueue(pool, stable_outbox, value)
+    assert await stable_outbox.process_one()
     sent = sender.send_prepared.await_args
-    assert sent.kwargs["experimental_agent_identity"] is True
     assert sent.args[0].body == value.body
 
 

@@ -237,7 +237,9 @@ async def test_get_products():
         result = await client.get_products(request)
 
         # Verify adapter method was called
-        mock_get.assert_called_once_with({"brief": "test campaign", "buying_mode": "brief"})
+        mock_get.assert_called_once_with(
+            {"brief": "test campaign", "buying_mode": "brief", "include_collections": False}
+        )
         # Verify parsing was called with correct type
         mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
         # Verify final result
@@ -378,6 +380,7 @@ async def test_get_products_wholesale_versions_sent_and_parsed():
     mock_get.assert_called_once_with(
         {
             "buying_mode": "wholesale",
+            "include_collections": False,
             "pagination": {"max_results": 25},
             "if_wholesale_feed_version": "wf_1",
             "if_pricing_version": "pr_1",
@@ -973,8 +976,8 @@ async def test_multi_agent_parallel_execution():
         results = await client.get_products(request)
 
         # Verify both agents' get_products method was called
-        mock1.assert_called_once_with({"buying_mode": "wholesale"})
-        mock2.assert_called_once_with({"buying_mode": "wholesale"})
+        mock1.assert_called_once_with({"buying_mode": "wholesale", "include_collections": False})
+        mock2.assert_called_once_with({"buying_mode": "wholesale", "include_collections": False})
 
         # Verify results from both agents
         assert len(results) == 2

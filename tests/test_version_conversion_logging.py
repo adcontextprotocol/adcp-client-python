@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from adcp import ADCPClient
+from adcp._version import resolve_adcp_version
 from adcp.compat.versions import (
     CONVERSION_METADATA_KEY,
     ConversionLoss,
@@ -55,6 +56,10 @@ def _product(index: int) -> dict[str, Any]:
     return product
 
 
+#: The release this SDK serves by default.
+LATEST = resolve_adcp_version(None)
+
+
 def _records(caplog: pytest.LogCaptureFixture, level: int) -> list[logging.LogRecord]:
     return [r for r in caplog.records if r.name == _LOGGER and r.levelno == level]
 
@@ -87,7 +92,7 @@ async def test_seller_answering_an_older_buyer_logs_one_summary_not_a_warning_pe
     assert len(debug) == 150
     (summary,) = _records(caplog, logging.INFO)
     message = summary.getMessage()
-    assert "get_products 3.2 -> 3.1 dropped 150 field(s)" in message
+    assert f"get_products {LATEST} -> 3.1 dropped 150 field(s)" in message
     assert message.endswith(
         "/products/*/audience_evidence, "
         "/products/*/included_signals/*/demographic_predicate, "
@@ -192,7 +197,10 @@ async def test_buyer_side_conversion_keeps_a_warning_per_loss(
         )
     )
     assert result.success, result.error
-    (warning,) = _records(caplog, logging.WARNING)
-    assert "dropped /brand/countries" in warning.getMessage()
+    # include_collections (3.3, schema default false) is dropped on the way to
+    # 3.1 beside the brand loss; each loss keeps its own warning.
+    warnings = [record.getMessage() for record in _records(caplog, logging.WARNING)]
+    assert any("dropped /brand/countries" in message for message in warnings)
     assert _records(caplog, logging.INFO) == []
-    assert result.metadata[CONVERSION_METADATA_KEY]["losses"][0]["pointer"] == "/brand/countries"
+    pointers = {loss["pointer"] for loss in result.metadata[CONVERSION_METADATA_KEY]["losses"]}
+    assert "/brand/countries" in pointers

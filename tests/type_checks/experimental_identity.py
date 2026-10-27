@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from typing_extensions import assert_type
 
 from adcp.server.signed_requests import RequestSignatureVerification
@@ -14,6 +12,7 @@ from adcp.signing import (
     WbaSignerKeyResolver,
 )
 from adcp.types.domains.core.principal_changed_webhook import Reason
+from adcp.types.domains.protocol.get_adcp_capabilities_response import Profile
 from adcp.types.domains.protocol.get_principal_response import PrincipalReadFailedResult
 from adcp.types.experimental_identity import (
     AccountCapabilities,
@@ -54,7 +53,7 @@ def onboarding_message(response: GetAdcpCapabilitiesResponse) -> str | None:
     assert_type(response.account, AccountCapabilities | None)
     assert_type(response.request_signing, RequestSigning | None)
     if response.request_signing is not None:
-        assert_type(response.request_signing.profiles, list[str] | None)
+        assert_type(response.request_signing.profiles, list[Profile] | None)
     if response.account is None or response.account.agent_onboarding is None:
         return None
     return response.account.agent_onboarding.message
@@ -66,7 +65,7 @@ def requirement_kind(requirement: AgentOnboardingRequirement) -> str:
 
 
 def webhook_reason(event: PrincipalChangedWebhook) -> str:
-    assert_type(event.reason, Reason | Literal["relationship_changed", "relationship_expiring"])
+    assert_type(event.reason, Reason)
     return event.reason
 
 

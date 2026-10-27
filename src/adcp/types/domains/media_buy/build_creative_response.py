@@ -148,6 +148,7 @@ class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     vendor_cost: Annotated[float, Field(ge=0)] | None = None
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
     consumption: creative_consumption_1.CreativeConsumption | None = None
+    errors: list[error_1.Error] | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
@@ -170,6 +171,7 @@ class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     vendor_cost: Annotated[float, Field(ge=0)] | None = None
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
     consumption: creative_consumption_1.CreativeConsumption | None = None
+    errors: list[error_1.Error] | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 

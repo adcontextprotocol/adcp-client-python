@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -74,7 +74,7 @@ from adcp.types.domains.sponsored_intelligence.si_sponsored_context_receipt impo
     HostReceipt,
     SiSponsoredContextReceipt,
     Status,
-    Status46,
+    Status45,
 )
 from adcp.types.domains.sponsored_intelligence.si_terminate_session_request import (
     Reason,
@@ -134,7 +134,7 @@ __all__ = [
     "SiUiElement",
     "StandardEnum",
     "Status",
-    "Status46",
+    "Status45",
     "TerminationContext",
     "Timing",
     "TransactionIntent",

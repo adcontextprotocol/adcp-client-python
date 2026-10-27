@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -36,6 +36,7 @@ from adcp.types.domains.brand.creative_approval_response import (
 from adcp.types.domains.brand.get_brand_identity_request import Field1, GetBrandIdentityRequest
 from adcp.types.domains.brand.get_brand_identity_response import (
     Asset,
+    Collection,
     Colors,
     File,
     FontRole2,
@@ -133,6 +134,7 @@ __all__ = [
     "ClaimEntry2",
     "ClaimEntry3",
     "ClaimEntry4",
+    "Collection",
     "Colors",
     "CreativeApprovalRequest",
     "CreativeApprovalResponse",

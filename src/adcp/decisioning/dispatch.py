@@ -164,6 +164,8 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
         "sales-catalog-driven",
         "sales-dooh",
         "sales-exchange",
+        # AdCP 3.3.0-beta.0 adds the fixed-price, non-guaranteed seller specialism.
+        "sales-fixed-rate",
         "sales-guaranteed",
         "sales-non-guaranteed",
         "sales-proposal-mode",
@@ -225,6 +227,17 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
         }
     ),
     "sales-broadcast-tv": frozenset(
+        {
+            "get_products",
+            "create_media_buy",
+            "update_media_buy",
+            "sync_creatives",
+            "get_media_buy_delivery",
+        }
+    ),
+    # AdCP 3.3: fixed-price, non-guaranteed sellers in any medium share the
+    # sales surface.
+    "sales-fixed-rate": frozenset(
         {
             "get_products",
             "create_media_buy",
@@ -483,6 +496,7 @@ RECOMMENDED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": _SALES_RECOMMENDED,
     "sales-guaranteed": _SALES_RECOMMENDED,
     "sales-broadcast-tv": _SALES_RECOMMENDED,
+    "sales-fixed-rate": _SALES_RECOMMENDED,
     "sales-dooh": _SALES_RECOMMENDED,
     "sales-social": _SALES_RECOMMENDED,
     "sales-exchange": _SALES_RECOMMENDED,

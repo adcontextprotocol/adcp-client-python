@@ -640,8 +640,11 @@ async def test_capability_discovery_projects_manager_refinement() -> None:
         legacy = await handler.get_adcp_capabilities({}, ToolContext(resolved_adcp_version="3.1"))
 
     assert "refine_proposals" in response["media_buy"]["lifecycle_tools"]
+    # hold_extension carries a schema default (false) since AdCP 3.3, so the
+    # projected refinement capability declares it.
     assert response["media_buy"]["proposal_refinement"] == {
-        "supported_dimensions": ["total_budget"]
+        "supported_dimensions": ["total_budget"],
+        "hold_extension": False,
     }
     assert "refine_proposals" not in legacy["media_buy"].get("lifecycle_tools", [])
     assert "proposal_refinement" not in legacy["media_buy"]
@@ -678,7 +681,10 @@ async def test_authenticated_capability_discovery_projects_tenant_manager_refine
         response = await handler.get_adcp_capabilities({}, context)
 
     assert "refine_proposals" in response["media_buy"]["lifecycle_tools"]
-    assert response["media_buy"]["proposal_refinement"] == {"supported_dimensions": ["cpm"]}
+    assert response["media_buy"]["proposal_refinement"] == {
+        "supported_dimensions": ["cpm"],
+        "hold_extension": False,
+    }
 
 
 @pytest.mark.parametrize(

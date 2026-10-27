@@ -17,7 +17,7 @@ A nested name that two error-details schemas both define carries the
 defining file in its name (``ScopeFromRateLimited``) instead of a bare one.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:15 UTC
+Generation date: 2026-10-26 23:56:51 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -56,6 +56,8 @@ from adcp.types.domains.core.sla_window import SlaWindow
 from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedReason
 from adcp.types.domains.enums.billing_party import BillingParty
 from adcp.types.domains.enums.catalog_type import CatalogType
+from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
+from adcp.types.domains.enums.definition_pin_ref_kind import DefinitionPinReferenceKind
 from adcp.types.domains.enums.event_type import EventType
 from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
 from adcp.types.domains.enums.macro_mapping_status import MacroMappingStatus
@@ -65,7 +67,7 @@ from adcp.types.domains.enums.macro_resolver import MacroProcessingActor
 from adcp.types.domains.enums.media_buy_action_mode import MediaBuyActionMode
 from adcp.types.domains.enums.media_buy_valid_action import MediaBuyValidAction
 from adcp.types.domains.enums.seller_policy_decline_reason import SellerPolicyDeclineReason
-from adcp.types.domains.enums.universal_macro import UniversalMacro
+from adcp.types.domains.enums.universal_macro import UniversalMacro, UniversalMacro3
 from adcp.types.domains.enums.vast_version import VastVersion
 from adcp.types.domains.error_details.accessibility_violation import (
     AccessibilityViolationDetails,
@@ -76,7 +78,10 @@ from adcp.types.domains.error_details.accessibility_violation import (
 from adcp.types.domains.error_details.account_moved import AccountMovedDetails
 from adcp.types.domains.error_details.account_setup_required import AccountSetupRequiredDetails
 from adcp.types.domains.error_details.action_not_allowed import ActionNotAllowedDetails
-from adcp.types.domains.error_details.agent_permission_denied import AgentPermissionDeniedDetails
+from adcp.types.domains.error_details.agent_permission_denied import (
+    AgentPermissionDeniedDetails,
+    Reason as ReasonFromAgentPermissionDenied,
+)
 from adcp.types.domains.error_details.audience_too_small import AudienceTooSmallDetails
 from adcp.types.domains.error_details.authorization_required import AuthorizationRequiredDetails
 from adcp.types.domains.error_details.billing_not_permitted_for_agent import (
@@ -88,6 +93,10 @@ from adcp.types.domains.error_details.billing_not_supported import (
 )
 from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
 from adcp.types.domains.error_details.conflict import ConflictDetails
+from adcp.types.domains.error_details.creative_merge_rejected import (
+    CreativeMergeRejectedDetails,
+    Rejection,
+)
 from adcp.types.domains.error_details.creative_rejected import CreativeRejectedDetails
 from adcp.types.domains.error_details.creative_representation_unresolved import (
     CreativeRepresentationUnresolvedDetails,
@@ -97,7 +106,7 @@ from adcp.types.domains.error_details.creative_revision_content_mismatch import 
 )
 from adcp.types.domains.error_details.execution_requirement_unmet import (
     ExecutionRequirementUnmetDetails,
-    Reason,
+    Reason as ReasonFromExecutionRequirementUnmet,
     UnmetRequirement,
 )
 from adcp.types.domains.error_details.governance_agent_not_accepted import (
@@ -111,6 +120,9 @@ from adcp.types.domains.error_details.rate_limited import (
     RateLimitedDetails,
     Scope as ScopeFromRateLimited,
 )
+from adcp.types.domains.error_details.reference_definition_changed import (
+    ReferenceDefinitionChangedDetails,
+)
 from adcp.types.domains.error_details.requote_required import (
     EnvelopeField,
     EnvelopeField1,
@@ -123,8 +135,12 @@ from adcp.types.domains.error_details.stale_response import (
     Upstream,
 )
 from adcp.types.domains.error_details.unsupported_refinement_dimension import (
-    SupportedDimension,
+    SupportedDimension as SupportedDimensionFromUnsupportedRefinementDimension,
     UnsupportedRefinementDimensionDetails,
+)
+from adcp.types.domains.error_details.unsupported_targeting_dimension import (
+    SupportedDimension as SupportedDimensionFromUnsupportedTargetingDimension,
+    UnsupportedTargetingDimensionDetails,
 )
 from adcp.types.domains.error_details.vast_version_mismatch import (
     DocumentRole,
@@ -180,9 +196,12 @@ __all__ = [
     "ConflictDetails",
     "Connection",
     "ConnectionType",
+    "CreativeMergeRejectedDetails",
+    "CreativeMergeRejectionReason",
     "CreativeRejectedDetails",
     "CreativeRepresentationUnresolvedDetails",
     "CreativeRevisionContentMismatchDetails",
+    "DefinitionPinReferenceKind",
     "DocumentRole",
     "DownstreamConnectionRequirement",
     "EnvelopeField",
@@ -219,8 +238,11 @@ __all__ = [
     "ProductExecutionRequirement2",
     "ProductExecutionRequirement3",
     "RateLimitedDetails",
-    "Reason",
+    "ReasonFromAgentPermissionDenied",
+    "ReasonFromExecutionRequirementUnmet",
     "Recovery",
+    "ReferenceDefinitionChangedDetails",
+    "Rejection",
     "RepresentationRejection",
     "RequoteRequiredDetails",
     "ResourceRef",
@@ -232,14 +254,17 @@ __all__ = [
     "StaleResponseDetails",
     "StatusFromDownstreamConnectionRequirement",
     "StatusFromMacroResolutionResult",
-    "SupportedDimension",
+    "SupportedDimensionFromUnsupportedRefinementDimension",
+    "SupportedDimensionFromUnsupportedTargetingDimension",
     "SupportedMajor",
     "SupportedVersion",
     "Task",
     "UnavailableBehavior",
     "UniversalMacro",
+    "UniversalMacro3",
     "UnmetRequirement",
     "UnsupportedRefinementDimensionDetails",
+    "UnsupportedTargetingDimensionDetails",
     "Upstream",
     "VastVersion",
     "VastVersionMismatchDetails",

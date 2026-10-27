@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from adcp import ADCPClient
+from adcp._version import get_supported_adcp_versions, resolve_adcp_version
 from adcp.canonical_formats import CreativeDialect
 from adcp.compat.versions import (
     CONVERSION_METADATA_KEY,
@@ -489,6 +490,11 @@ def test_old_account_responses_never_become_publicly_cacheable(request_payload) 
     assert result.payload["cache_scope"] == "account"
 
 
+#: The release this SDK serves by default: the exact pre-release while the
+#: pin is one, else the stable line.
+LATEST = resolve_adcp_version(None)
+
+
 @pytest.mark.parametrize("protocol", [Protocol.MCP, Protocol.A2A])
 async def test_client_converts_at_both_transport_boundaries(protocol: Protocol) -> None:
     client = ADCPClient(
@@ -535,10 +541,12 @@ async def test_client_converts_at_both_transport_boundaries(protocol: Protocol) 
     assert params["adcp_version"] == "3.1"
     assert params["brand"] == {"domain": "example.com"}
     assert result.success, result.error
-    assert result.data.adcp_version == "3.2"
+    assert result.data.adcp_version == LATEST
     report = result.metadata[CONVERSION_METADATA_KEY]
     assert report["wire_version"] == "3.1"
-    assert report["losses"][0]["pointer"] == "/brand/countries"
+    # 3.3 fields the request carries by default (include_collections) are
+    # dropped first on the way down to 3.1; the brand loss is still recorded.
+    assert "/brand/countries" in {loss["pointer"] for loss in report["losses"]}
 
 
 @pytest.mark.parametrize("version", ["3.0", "3.1"])
@@ -549,11 +557,11 @@ async def test_server_handlers_receive_latest_and_respond_to_old_wire(version: s
         adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
 
         async def get_products(self, params: dict[str, Any], context: ToolContext):
-            assert params.get("adcp_version", "3.2") == "3.2"
+            assert params.get("adcp_version", LATEST) == LATEST
             assert context.resolved_adcp_version == version
             # Documented 9.0 contract: params read back as the served
             # version; only the context carries an explicit 3.1 claim.
-            assert resolve_requested_adcp_version(params) == ("3.0" if version == "3.0" else "3.2")
+            assert resolve_requested_adcp_version(params) == ("3.0" if version == "3.0" else LATEST)
             contexts.append(context)
             return {"products": [], "status": "completed", "cache_scope": "public"}
 
@@ -619,9 +627,9 @@ async def test_unversioned_server_discovery_retains_supported_versions(selected)
     )
     response = await caller({}, context)
     assert response["adcp"]["supported_versions"] == (
-        list(selected) if selected else ["3.0", "3.1", "3.2", "3.2-rc.7"]
+        list(selected) if selected else list(get_supported_adcp_versions())
     )
-    assert context.resolved_adcp_version == ("3.1" if selected else "3.2")
+    assert context.resolved_adcp_version == ("3.1" if selected else LATEST)
 
 
 async def test_mcp_discovery_wire_validation_and_concurrent_call_versions() -> None:
@@ -683,7 +691,7 @@ async def test_mcp_discovery_wire_validation_and_concurrent_call_versions() -> N
         "3.1",
         "3.0",
     ]
-    assert all(result.data.adcp_version == "3.2" for result in results)
+    assert all(result.data.adcp_version == LATEST for result in results)
     assert session.call_tool.call_count == 3
 
 

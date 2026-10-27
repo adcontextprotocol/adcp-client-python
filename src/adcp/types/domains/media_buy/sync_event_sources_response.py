@@ -32,6 +32,7 @@ class EventSource(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     event_source_id: str
     name: str | None = None
+    platform_id: str | None = None
     seller_id: str | None = None
     event_types: list[event_type_1.EventType] | None = None
     value_currencies: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]], Field(min_length=1)] | None = None
@@ -39,7 +40,8 @@ class EventSource(AdcpVersionEnvelope):
     surface: event_surface_1.EventSurface | None = None
     managed_by: Literal['buyer', 'seller'] | None = None
     setup: Setup | None = None
-    action: Literal['created', 'updated', 'unchanged', 'deleted', 'failed']
+    action: Literal['created', 'updated', 'unchanged', 'deleted', 'archived', 'failed']
+    archived: bool | None = None
     health: event_source_health_1.EventSourceHealth | None = None
     errors: list[error_1.Error] | None = None
     ext: ext_1.ExtensionObject | None = None

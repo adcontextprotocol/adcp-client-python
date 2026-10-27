@@ -75,6 +75,10 @@ def signing_profile_for_adcp_version(adcp_version: str) -> SigningProfileVersion
     if len(parts) < 2:
         raise ValueError(f"invalid AdCP version for request signing: {adcp_version!r}")
     profile = f"{parts[0]}.{parts[1]}"
+    if parts[0] == "3" and parts[1].isdigit() and int(parts[1]) > 2:
+        # AdCP 3.3 keeps the 3.2 RFC 9421 profile (deprecated, supported
+        # through 3.x); Web Bot Auth is selected separately by agent_origin.
+        profile = "3.2"
     if profile not in {"3.0", "3.1", "3.2"}:
         raise ValueError(f"AdCP {adcp_version!r} has no supported request-signing profile")
     return profile  # type: ignore[return-value]

@@ -28,7 +28,10 @@ def test_resolve_server_version_current_major_pin() -> None:
         warnings.simplefilter("error")  # any warning would fail
         assert _resolve_server_version("3.0") == "3.0"
         assert _resolve_server_version("3.0.7") == "3.0"
-        assert _resolve_server_version("3.1.0-beta.1") == "3.1.0-beta.1"
+        # A 3.x pin is kept at wire (release) precision, never as a bundle
+        # key: a prerelease pin is echoed and negotiated as the peer spells it.
+        assert _resolve_server_version("3.1.0-beta.1") == "3.1-beta.1"
+        assert _resolve_server_version("3.3.0-beta.0") == "3.3-beta.0"
 
 
 def test_resolve_server_version_legacy_emits_deprecation_warning() -> None:

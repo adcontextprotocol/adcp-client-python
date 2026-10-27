@@ -276,9 +276,18 @@ def _object_instances(node: Any, resolver: Any, depth: int, budget: int) -> list
 
 def _array_instances(node: Any, resolver: Any, depth: int, budget: int) -> list[Any]:
     minimum = node.get("minItems")
-    if not minimum:
-        return [[]]
     items = node.get("items")
+    if not minimum:
+        # The empty array first; then one element, so a conditional that an
+        # empty array triggers (``if: {maxItems: 0} then: {required: [...]}``,
+        # as on decline_proposals since 3.3) has a candidate that avoids it.
+        out: list[Any] = [[]]
+        if isinstance(items, dict) and budget > 1:
+            try:
+                out += [[value] for value in instances(items, resolver, depth + 1, 1)[:1]]
+            except UnsynthesizableError:
+                pass
+        return out
     if isinstance(items, list):
         return [[instances(entry, resolver, depth + 1, budget)[0] for entry in items]]
     values = instances(items or {"type": "string"}, resolver, depth + 1, budget)

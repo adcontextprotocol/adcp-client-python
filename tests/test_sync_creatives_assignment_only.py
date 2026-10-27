@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from adcp._version import resolve_adcp_version
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
 from adcp.types import CreativeAsset, PackageRequest, PackageUpdate, SyncCreativesRequest
@@ -16,7 +17,8 @@ from adcp.types.domains.media_buy.package_update import PackageUpdate as _Legacy
 from adcp.validation import ValidationHookConfig, get_schema, validate_request
 
 _BASE = {
-    "adcp_version": "3.2",
+    # The served release: the handler reads the request back unconverted.
+    "adcp_version": resolve_adcp_version(None),
     "idempotency_key": "assignment-only-sync-0001",
     "account": {"account_id": "acct_1"},
 }

@@ -8,19 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import json
 import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from functools import lru_cache
-from importlib.resources import files
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol
 from urllib.parse import urlsplit
 
 import httpx
-from jsonschema import Draft7Validator, FormatChecker
 
 from adcp.signing._bounded_http import async_read_limited_bytes
 from adcp.signing._strict_json import StrictJsonError, parse_strict_json
@@ -161,22 +158,30 @@ def _validate_fetch_target(url: str) -> None:
         raise TrustRecordError("invalid trust fetch target") from exc
 
 
-@lru_cache(maxsize=1)
-def identity_schema_bundle() -> dict[str, Any]:
-    return cast(
-        dict[str, Any],
-        json.loads(files("adcp.signing").joinpath("_identity_schemas/bundle.json").read_text()),
-    )
-
-
 def validate_identity_value(value: Mapping[str, Any], schema_path: str) -> None:
-    """Validate wire conditionals against the offline, pinned preview schemas."""
-    key = schema_path.removesuffix(".json").replace("/", "_").replace("-", "_")
-    bundle = identity_schema_bundle()
-    schema = {"$ref": f"#/definitions/{key}", "definitions": bundle["definitions"]}
-    errors = list(Draft7Validator(schema, format_checker=FormatChecker()).iter_errors(value))
-    if errors:
+    """Validate wire conditionals against the pinned, signed AdCP bundle.
+
+    ``schema_path`` is relative to the bundle root (``"trust/v1/trust.json"``).
+    The identity schemas ship in the SDK's own schema bundle since the 3.3
+    pin, so there is no separate preview tree to drift from it.
+    """
+    from adcp.validation.schema_loader import get_named_validator
+
+    validator = get_named_validator(schema_path)
+    if validator is None:
+        raise RuntimeError(f"the pinned AdCP bundle does not declare {schema_path}")
+    if any(True for _ in validator.iter_errors(value)):
         raise TrustRecordError("value does not conform to the experimental identity schema")
+
+
+@lru_cache(maxsize=1)
+def _known_requirement_kinds() -> frozenset[str]:
+    from adcp.validation.schema_loader import get_named_schema_document
+
+    document = get_named_schema_document("enums/agent-onboarding-requirement-kind.json")
+    if document is None or not isinstance(document.get("enum"), list):
+        raise RuntimeError("the pinned AdCP bundle does not declare the requirement kinds")
+    return frozenset(str(kind) for kind in document["enum"])
 
 
 def validate_trust_record(document: Mapping[str, Any], *, operator_domain: str) -> dict[str, Any]:
@@ -219,9 +224,7 @@ def _validate_trust_record(
 def _trust_reader_schema_document(document: Mapping[str, Any]) -> Mapping[str, Any]:
     """Keep unknown advisory requirements without relaxing authority-bearing fields."""
     schema_document = copy.deepcopy(dict(document))
-    known_kinds = identity_schema_bundle()["definitions"][
-        "enums_agent_onboarding_requirement_kind"
-    ]["enum"]
+    known_kinds = _known_requirement_kinds()
 
     def preserve_posture(profiles: Any) -> None:
         if not isinstance(profiles, dict):

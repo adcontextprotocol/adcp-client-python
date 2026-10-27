@@ -241,7 +241,7 @@ def plain_scalar(value: Any) -> Any:
 
 #: Core-schema keywords the rewriter may move into ``_constraints``.
 CONSTRAINT_KEYWORDS: frozenset[str] = frozenset(
-    {"pattern", "min_length", "max_length", "ge", "gt", "le", "lt", "multiple_of"}
+    {"pattern", "min_length", "max_length", "ge", "gt", "le", "lt", "multiple_of", "regex_engine"}
 )
 
 #: JSON Schema keywords the rewriter may move into ``_json_schema_extra``.

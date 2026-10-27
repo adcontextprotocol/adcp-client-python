@@ -60,6 +60,7 @@ from adcp.types.domains.enums.creative_sort_field import CreativeSortField
 from adcp.types.domains.enums.delivery_type import DeliveryType
 from adcp.types.domains.enums.disclosure_persistence import DisclosurePersistence
 from adcp.types.domains.enums.disclosure_position import DisclosurePosition
+from adcp.types.domains.enums.media_buy_lineage_reason import MediaBuyLineageReason
 from adcp.types.domains.enums.media_buy_status import MediaBuyStatus
 from adcp.types.domains.enums.media_buy_valid_action import MediaBuyValidAction
 from adcp.types.domains.enums.pacing import Pacing
@@ -327,6 +328,7 @@ def _apply_coercion() -> None:
     # Apply coercion to CreateMediaBuyRequest
     # - packages: Sequence[PackageRequest] (accepts subclass instances)
     # - advertiser_industry: AdvertiserIndustry | str | None
+    # - lineage_reason: MediaBuyLineageReason | str | None
     # - pacing: Pacing | str | None
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
@@ -342,6 +344,13 @@ def _apply_coercion() -> None:
         CreateMediaBuyRequest,
         "advertiser_industry",
         Annotated[AdvertiserIndustry | None, BeforeValidator(coerce_to_enum(AdvertiserIndustry))],
+    )
+    _patch_field_annotation(
+        CreateMediaBuyRequest,
+        "lineage_reason",
+        Annotated[
+            MediaBuyLineageReason | None, BeforeValidator(coerce_to_enum(MediaBuyLineageReason))
+        ],
     )
     _patch_field_annotation(
         CreateMediaBuyRequest,

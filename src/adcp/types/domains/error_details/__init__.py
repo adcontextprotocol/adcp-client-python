@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -34,6 +34,10 @@ from adcp.types.domains.error_details.billing_not_permitted_for_agent import (
 from adcp.types.domains.error_details.billing_not_supported import BillingNotSupportedDetails
 from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
 from adcp.types.domains.error_details.conflict import ConflictDetails
+from adcp.types.domains.error_details.creative_merge_rejected import (
+    CreativeMergeRejectedDetails,
+    Rejection,
+)
 from adcp.types.domains.error_details.creative_rejected import CreativeRejectedDetails
 from adcp.types.domains.error_details.creative_representation_unresolved import (
     CreativeRepresentationUnresolvedDetails,
@@ -43,7 +47,6 @@ from adcp.types.domains.error_details.creative_revision_content_mismatch import 
 )
 from adcp.types.domains.error_details.execution_requirement_unmet import (
     ExecutionRequirementUnmetDetails,
-    Reason,
     UnmetRequirement,
 )
 from adcp.types.domains.error_details.governance_agent_not_accepted import (
@@ -54,6 +57,9 @@ from adcp.types.domains.error_details.governance_agent_not_accepted import (
 from adcp.types.domains.error_details.macro_resolution_failed import MacroResolutionFailedDetails
 from adcp.types.domains.error_details.policy_violation import Origin, PolicyViolationDetails
 from adcp.types.domains.error_details.rate_limited import RateLimitedDetails
+from adcp.types.domains.error_details.reference_definition_changed import (
+    ReferenceDefinitionChangedDetails,
+)
 from adcp.types.domains.error_details.requote_required import (
     EnvelopeField,
     EnvelopeField1,
@@ -66,8 +72,10 @@ from adcp.types.domains.error_details.stale_response import (
     Upstream,
 )
 from adcp.types.domains.error_details.unsupported_refinement_dimension import (
-    SupportedDimension,
     UnsupportedRefinementDimensionDetails,
+)
+from adcp.types.domains.error_details.unsupported_targeting_dimension import (
+    UnsupportedTargetingDimensionDetails,
 )
 from adcp.types.domains.error_details.vast_version_mismatch import (
     DocumentRole,
@@ -103,6 +111,7 @@ __all__ = [
     "BudgetTooLowDetails",
     "Codes",
     "ConflictDetails",
+    "CreativeMergeRejectedDetails",
     "CreativeRejectedDetails",
     "CreativeRepresentationUnresolvedDetails",
     "CreativeRevisionContentMismatchDetails",
@@ -122,15 +131,16 @@ __all__ = [
     "OriginalError",
     "PolicyViolationDetails",
     "RateLimitedDetails",
-    "Reason",
     "Recovery",
+    "ReferenceDefinitionChangedDetails",
+    "Rejection",
     "RequoteRequiredDetails",
     "StaleResponseDetails",
-    "SupportedDimension",
     "SupportedMajor",
     "SupportedVersion",
     "UnmetRequirement",
     "UnsupportedRefinementDimensionDetails",
+    "UnsupportedTargetingDimensionDetails",
     "Upstream",
     "VastVersionMismatchDetails",
     "VastVersionMismatchDetails1",

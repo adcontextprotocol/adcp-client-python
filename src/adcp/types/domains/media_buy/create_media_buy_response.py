@@ -94,6 +94,7 @@ class CreateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
     message: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    expected_confirmation_at: WireDatetime | None = None
     errors: list[error_1.Error] | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

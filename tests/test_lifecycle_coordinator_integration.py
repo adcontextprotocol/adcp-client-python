@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from adcp import ADCPClient
+from adcp._version import normalize_to_release_precision, resolve_adcp_version
 from adcp.compat import (
     InMemoryCompatibilityContinuationStore,
     LegacyPurchaseCoordinator,
@@ -57,10 +58,9 @@ class _LifecycleHandler(ADCPHandler[Any]):
             "adcp_version": self.version,
             "idempotency": {"supported": False},
         }
-        # The packaged prerelease normalizes its release-precision pin before
-        # comparing; let the helper supply its canonical supported-version set.
-        if not self.version.startswith("3.2"):
-            capability_kwargs["supported_versions"] = [self.version]
+        # The fake seller speaks exactly its own release line; the helper's
+        # default set would also advertise the SDK's newer 3.3 pre-release.
+        capability_kwargs["supported_versions"] = [normalize_to_release_precision(self.version)]
         response = capabilities_response(["media_buy"], **capability_kwargs)
         response["account"] = {
             "supported_billing": ["operator"],
@@ -329,7 +329,7 @@ async def test_established_route_negotiates_old_response_through_real_boundary(
 
     assert lifecycle.negotiated_version == seller_version
     assert listing.compatibility.lifecycle is MediaBuyLifecycle.ESTABLISHED
-    assert listing.raw.data.adcp_version == "3.2"
+    assert listing.raw.data.adcp_version == resolve_adcp_version(None)
     assert listing.raw.metadata["adcp_version_conversion"]["wire_version"] == seller_version
     assert purchase.success
     routed = [name for name, _ in handler.calls]

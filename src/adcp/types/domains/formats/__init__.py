@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -47,6 +47,7 @@ from adcp.types.domains.formats.canonical.coordinated_placements import (
     Components7,
     Components8,
     Components9,
+    Container1,
     ImageFormat1,
     Params,
     Params10,
@@ -128,6 +129,7 @@ __all__ = [
     "Components8",
     "Components9",
     "CompositionModel",
+    "Container1",
     "ImageFormat1",
     "Params",
     "Params10",

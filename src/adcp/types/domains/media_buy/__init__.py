@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -227,6 +227,7 @@ from adcp.types.domains.media_buy.get_media_buy_delivery_request import (
 )
 from adcp.types.domains.media_buy.get_media_buy_delivery_response import (
     AggregatedTotals,
+    BreakPosition,
     ByAudienceItem,
     ByDemographicItem,
     ByDevicePlatformItem,
@@ -264,7 +265,7 @@ from adcp.types.domains.media_buy.get_products_async_response_submitted import G
 from adcp.types.domains.media_buy.get_products_async_response_working import GetProductsWorking
 from adcp.types.domains.media_buy.get_products_rejected import GetProductsRejected
 from adcp.types.domains.media_buy.get_products_request import (
-    Action9,
+    Action10,
     BuyingMode,
     Field1,
     Fields,
@@ -304,6 +305,19 @@ from adcp.types.domains.media_buy.legacy_purchase_continuation_input import (
     CompatibilityPurchaseCoordinatorInput,
     SelectedProductId,
 )
+from adcp.types.domains.media_buy.list_collections_request import (
+    Filters,
+    GenresExcludeItem,
+    GenresIncludeItem,
+    ListCollectionsRequest,
+    Platform,
+    TalentItem,
+)
+from adcp.types.domains.media_buy.list_collections_response import (
+    ListCollectionsResponse,
+    ListCollectionsResponse1,
+    ListCollectionsResponse2,
+)
 from adcp.types.domains.media_buy.list_creative_formats_request import ListCreativeFormatsRequest
 from adcp.types.domains.media_buy.list_creative_formats_response import (
     CreativeAgent,
@@ -315,6 +329,17 @@ from adcp.types.domains.media_buy.list_products_response import (
     ListProductsResponse,
     ListProductsResponse1,
     ListProductsResponse2,
+)
+from adcp.types.domains.media_buy.list_proposals_request import (
+    ListProposalsRequest,
+    MediaBuyId,
+    OpportunityId,
+    ProposalId,
+)
+from adcp.types.domains.media_buy.list_proposals_response import (
+    CloseReason,
+    ListProposalsResponse,
+    Origin,
 )
 from adcp.types.domains.media_buy.log_event_request import LogEventRequest
 from adcp.types.domains.media_buy.log_event_response import (
@@ -332,7 +357,7 @@ from adcp.types.domains.media_buy.media_buy_commitment_response import (
 from adcp.types.domains.media_buy.media_buy_delivery_webhook_result import (
     MediaBuyDeliveryWebhookResult,
 )
-from adcp.types.domains.media_buy.outcome_target import Goal, Goal1, OutcomeTarget
+from adcp.types.domains.media_buy.outcome_target import Goal, Goal1, Goal2, OutcomeTarget
 from adcp.types.domains.media_buy.package_control import PackageControl
 from adcp.types.domains.media_buy.package_request import (
     CommittedMetrics,
@@ -353,7 +378,7 @@ from adcp.types.domains.media_buy.product_fields import ProductResponseField, Pr
 from adcp.types.domains.media_buy.product_purchase import ProductPurchase
 from adcp.types.domains.media_buy.product_purchase_input import ProductPurchaseInput
 from adcp.types.domains.media_buy.product_refinement import (
-    Action11,
+    Action12,
     ProductRefinementRequests,
     ProductRefinementRequests1,
     ProductRefinementRequests2,
@@ -373,10 +398,12 @@ from adcp.types.domains.media_buy.proposal_refinement import (
     Constraints5,
     Constraints6,
     Constraints7,
+    Constraints8,
     Cpm,
     Flight,
     Impressions,
     ProposalRefinement,
+    ProposalRefinement10,
     ProposalRefinement2,
     ProposalRefinement3,
     ProposalRefinement4,
@@ -408,11 +435,14 @@ from adcp.types.domains.media_buy.refine_proposals_request import (
     Refinements,
 )
 from adcp.types.domains.media_buy.refine_proposals_response import (
-    Proposal2,
+    DriftedPin,
+    Hold,
     Proposal3,
     Proposal4,
     Proposal5,
     Proposal6,
+    Proposal7,
+    ProposalInitiator,
     ProposalKind,
     RefineProposalsResponse,
     RefineProposalsResponse1,
@@ -569,8 +599,8 @@ __all__ = [
     "AcceptancePolicyRequirement9",
     "AcceptancePolicyRule",
     "AcceptedLoss",
-    "Action11",
-    "Action9",
+    "Action10",
+    "Action12",
     "AdvertiserJurisdiction",
     "AffectedPackageId",
     "AggregatedTotals",
@@ -581,6 +611,7 @@ __all__ = [
     "AudienceType",
     "Authentication",
     "BatchFrequency",
+    "BreakPosition",
     "BuildCreativeInputRequired",
     "BuildCreativeRequest",
     "BuildCreativeResponse",
@@ -619,6 +650,7 @@ __all__ = [
     "CatalogItem",
     "CatalogItemRef",
     "ChangeKind",
+    "CloseReason",
     "CommercialTerms",
     "CommittedMetrics",
     "CommittedMetrics1",
@@ -633,6 +665,7 @@ __all__ = [
     "Constraints5",
     "Constraints6",
     "Constraints7",
+    "Constraints8",
     "ControlMediaBuyInputRequired",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
@@ -672,6 +705,7 @@ __all__ = [
     "DeviceType",
     "Dimension",
     "Disposition",
+    "DriftedPin",
     "Estimate",
     "Eval",
     "ExcludedBy",
@@ -680,9 +714,12 @@ __all__ = [
     "Field1",
     "Fields",
     "FilterDiagnostics",
+    "Filters",
     "Flight",
     "Format",
     "FormatId",
+    "GenresExcludeItem",
+    "GenresIncludeItem",
     "Geo",
     "GetMediaBuyDeliveryRequest",
     "GetMediaBuyDeliveryResponse",
@@ -698,7 +735,9 @@ __all__ = [
     "GetReportingStatusResponse",
     "Goal",
     "Goal1",
+    "Goal2",
     "HistoryItem",
+    "Hold",
     "Impressions",
     "IncompleteItem3",
     "IncompleteItem5",
@@ -717,12 +756,18 @@ __all__ = [
     "Keyword",
     "KeywordTargetsAddItem",
     "KeywordTargetsRemoveItem",
+    "ListCollectionsRequest",
+    "ListCollectionsResponse",
+    "ListCollectionsResponse1",
+    "ListCollectionsResponse2",
     "ListCreativeFormatsRequest",
     "ListCreativeFormatsResponse",
     "ListProductsRequest",
     "ListProductsResponse",
     "ListProductsResponse1",
     "ListProductsResponse2",
+    "ListProposalsRequest",
+    "ListProposalsResponse",
     "LogEventRequest",
     "LogEventResponse",
     "LogEventResponse1",
@@ -743,11 +788,14 @@ __all__ = [
     "MediaBuyCommitmentResponse2",
     "MediaBuyCommitmentResponse3",
     "MediaBuyDeliveryWebhookResult",
+    "MediaBuyId",
     "Mode",
     "Money",
     "NegativeKeywordsAddItem",
     "NegativeKeywordsRemoveItem",
     "ObligationCounts",
+    "OpportunityId",
+    "Origin",
     "OutcomeTarget",
     "Package",
     "PackageControl",
@@ -757,6 +805,7 @@ __all__ = [
     "PerLeaf",
     "Period",
     "Placement",
+    "Platform",
     "PolicyRef",
     "Preview",
     "Preview2",
@@ -774,15 +823,18 @@ __all__ = [
     "ProductRefinementRequests4",
     "ProductResponseField",
     "ProductResponseFields",
-    "Proposal2",
     "Proposal3",
     "Proposal4",
     "Proposal5",
     "Proposal6",
+    "Proposal7",
     "ProposalBudgetConstraint",
     "ProposalDecline",
+    "ProposalId",
+    "ProposalInitiator",
     "ProposalKind",
     "ProposalRefinement",
+    "ProposalRefinement10",
     "ProposalRefinement2",
     "ProposalRefinement3",
     "ProposalRefinement4",
@@ -894,6 +946,7 @@ __all__ = [
     "SyncReportingStatusRequest",
     "SyncReportingStatusResponse",
     "Tag",
+    "TalentItem",
     "TargetCapabilityId",
     "TotalBudgetGuidance",
     "UnsatisfiedConstraint",

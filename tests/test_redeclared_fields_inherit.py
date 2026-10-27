@@ -47,6 +47,11 @@ ALLOWED: dict[tuple[str, str], str] = {
         "write-only projection: excluded from every dump, any value refused; the generated "
         "min_length would raise on the only value it ever holds (None)"
     ),
+    ("adcp.types.experimental_identity.AgentOnboardingRequirement", "kind"): (
+        "the schema enum is x-extensible and readers keep unknown advisory kinds, so the "
+        "required field widens to `enum | str`; its only added metadata is the "
+        "left_to_right union mode that still parses a known kind as the enum member"
+    ),
 }
 
 

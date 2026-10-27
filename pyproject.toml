@@ -254,8 +254,6 @@ namespaces = true
 
 [tool.setuptools.package-data]
 adcp = [
-    "signing/_identity_schemas/**/*.json",
-    "signing/_identity_schemas/*.json",
     "signing/_psl/public_suffix_list.dat",
     "py.typed",
     "types/*.pyi",
@@ -277,6 +275,7 @@ adcp = [
     "_schemas/3.1/**/*.json",
     "_schemas/3.1.15/**/*.json",
     "_schemas/3.2/**/*.json",
+    "_schemas/3.3.0-beta.0/**/*.json",
     # Exact signed compliance inputs plus their immutable release provenance.
     "_compliance/3.2.1/**/*.json",
     "_compliance/3.2.1/**/*.jsonl",
@@ -286,6 +285,10 @@ adcp = [
     "_compliance/3.2.4/**/*.jsonl",
     "_compliance/3.2.4/**/*.yaml",
     "_compliance/3.2.4/**/*.md",
+    "_compliance/3.3.0-beta.0/**/*.json",
+    "_compliance/3.3.0-beta.0/**/*.jsonl",
+    "_compliance/3.3.0-beta.0/**/*.yaml",
+    "_compliance/3.3.0-beta.0/**/*.md",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each
@@ -317,7 +320,6 @@ extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/domains/|/types/v3[0
 line-length = 100
 target-version = "py310"
 extend-exclude = [
-    "src/adcp/types/_identity_preview.py",
     "src/adcp/types/_generated.py",
     # datamodel-code-generator output; regenerate with
     # scripts/vendor_reporting_status_preview.py rather than hand-editing.

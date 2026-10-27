@@ -1522,6 +1522,14 @@ class MCPAdapter(ProtocolAdapter):
         """Get media buys with status, creative approval state, and optional delivery snapshots."""
         return await self._call_mcp_tool("get_media_buys", params)
 
+    async def list_collections(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List collection cards (AdCP 3.3)."""
+        return await self._call_mcp_tool("list_collections", params)
+
+    async def list_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List open opportunities and proposals (AdCP 3.3)."""
+        return await self._call_mcp_tool("list_proposals", params)
+
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         return await self._call_mcp_tool("get_signals", params)

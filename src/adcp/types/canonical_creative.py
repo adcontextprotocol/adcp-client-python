@@ -87,6 +87,7 @@ from pydantic import (
     GetJsonSchemaHandler,
     PlainSerializer,
     PrivateAttr,
+    RootModel,
     SerializerFunctionWrapHandler,
     WithJsonSchema,
     WrapSerializer,
@@ -101,6 +102,7 @@ from adcp.types._product_format_declaration import (
     PRODUCT_FORMAT_DECLARATION_SCHEMA,
     check_declaration_rules,
 )
+from adcp.types._scalar import _ScalarRoot
 from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull, inherit_field
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
@@ -325,6 +327,15 @@ def _has_boundary_serialization_metadata(annotation: Any) -> bool:
         # Either half of the marker. Its only serialization effect is to leave a
         # ``None`` off the dump, which is what the default dump already does.
         return False
+    if isinstance(annotation, type):
+        if issubclass(annotation, _ScalarRoot):
+            # Scalar roots (#1286) are their own Python scalar: the dump reads
+            # the stored value, as the direct scan does.
+            return False
+        if issubclass(annotation, RootModel):
+            # A root model dumps as its root; only the root's own serializers
+            # could differ from the stored value (UniversalMacro since 3.3).
+            return _has_boundary_serialization_metadata(annotation.model_fields["root"].annotation)
     if hasattr(annotation, "__get_pydantic_core_schema__"):
         is_adcp_model = isinstance(annotation, type) and issubclass(annotation, AdCPBaseModel)
         module = getattr(annotation, "__module__", "")
@@ -380,6 +391,9 @@ def _is_direct_boundary_value(value: Any, active: set[int] | None = None) -> boo
     """Other models and Python objects need Pydantic's conversion before scanning."""
     if value is None or isinstance(value, (str, int, float, bool, AnyUrl, AdCPBaseModel)):
         return True
+    if isinstance(value, RootModel):
+        # Dumps as its root (a universal macro since 3.3): scan what it wraps.
+        return _is_direct_boundary_value(value.root, active)
     if not isinstance(value, (dict, list, tuple)):
         return False
     active = set() if active is None else active

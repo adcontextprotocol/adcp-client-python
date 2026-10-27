@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-26 23:56:31 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -27,13 +27,19 @@ from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
 from adcp.types.domains.enums.advertiser_industry import AdvertiserIndustry
 from adcp.types.domains.enums.age_determination_basis import AgeDeterminationBasis
 from adcp.types.domains.enums.age_verification_method import AgeVerificationMethod
+from adcp.types.domains.enums.agent_onboarding_mode import AgentOnboardingMode
+from adcp.types.domains.enums.agent_onboarding_requirement_kind import (
+    AgentOnboardingRequirementKind,
+)
 from adcp.types.domains.enums.assessment_status import AssessmentStatus
 from adcp.types.domains.enums.asset_content_type import AssetContentType
 from adcp.types.domains.enums.attestation_claim import AttestationClaim
 from adcp.types.domains.enums.attribution_methodology import AttributionMethodology
 from adcp.types.domains.enums.attribution_model import AttributionModel
 from adcp.types.domains.enums.audience_evidence_methodology import AudienceEvidenceMethodology
+from adcp.types.domains.enums.audience_match_rate_basis import AudienceMatchRateBasis
 from adcp.types.domains.enums.audience_resolution_method import AudienceResolutionMethod
+from adcp.types.domains.enums.audience_size_precision import AudienceSizePrecision
 from adcp.types.domains.enums.audience_source import AudienceSource
 from adcp.types.domains.enums.audience_status import AudienceStatus
 from adcp.types.domains.enums.audience_subject_type import AudienceSubjectType
@@ -69,6 +75,7 @@ from adcp.types.domains.enums.creative_agent_capability import CreativeAgentCapa
 from adcp.types.domains.enums.creative_approval_status import CreativeApprovalStatus
 from adcp.types.domains.enums.creative_event_reason_code import CreativeEventReasonCode
 from adcp.types.domains.enums.creative_identifier_type import CreativeIdentifierType
+from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
 from adcp.types.domains.enums.creative_quality import CreativeQuality
 from adcp.types.domains.enums.creative_selection_strategy import CreativeSelectionStrategy
 from adcp.types.domains.enums.creative_sort_field import CreativeSortField
@@ -77,8 +84,12 @@ from adcp.types.domains.enums.ctv_ad_experience import CtvAdExperience
 from adcp.types.domains.enums.daast_tracking_event import DaastTrackingEvent
 from adcp.types.domains.enums.daast_version import DaastVersion
 from adcp.types.domains.enums.day_of_week import DayOfWeek
+from adcp.types.domains.enums.daypart_time_granularity import DaypartTimeGranularity
 from adcp.types.domains.enums.daypart_timezone_mode import DaypartTimezoneMode
+from adcp.types.domains.enums.definition_pin_ref_kind import DefinitionPinReferenceKind
 from adcp.types.domains.enums.delegation_authority import DelegationAuthority
+from adcp.types.domains.enums.delivery_projection_basis import DeliveryProjectionBasis
+from adcp.types.domains.enums.delivery_projection_end_state import DeliveryProjectionEndState
 from adcp.types.domains.enums.delivery_recipient_cloud import DeliveryRecipientCloud
 from adcp.types.domains.enums.delivery_status import DeliveryStatus
 from adcp.types.domains.enums.delivery_type import DeliveryType
@@ -126,6 +137,7 @@ from adcp.types.domains.enums.indicator_type import IndicatorType
 from adcp.types.domains.enums.installment_status import InstallmentStatus
 from adcp.types.domains.enums.javascript_module_type import JavascriptModuleType
 from adcp.types.domains.enums.landing_page_requirement import LandingPageRequirement
+from adcp.types.domains.enums.later_proposal_reason import LaterProposalReason
 from adcp.types.domains.enums.legacy_postal_system import CountryFusedPostalCodeSystem
 from adcp.types.domains.enums.lift_dimension import LiftDimension
 from adcp.types.domains.enums.logo_slot import LogoSlot
@@ -144,6 +156,7 @@ from adcp.types.domains.enums.media_buy_frequency_cap_control_mode import (
     MediaBuyFrequencyCapControlMode,
 )
 from adcp.types.domains.enums.media_buy_health import MediaBuyHealth
+from adcp.types.domains.enums.media_buy_lineage_reason import MediaBuyLineageReason
 from adcp.types.domains.enums.media_buy_status import MediaBuyStatus
 from adcp.types.domains.enums.media_buy_valid_action import MediaBuyValidAction
 from adcp.types.domains.enums.metric_scope import MetricScope
@@ -167,15 +180,18 @@ from adcp.types.domains.enums.preview_output_format import PreviewOutputFormat
 from adcp.types.domains.enums.pricing_model import PricingModel
 from adcp.types.domains.enums.pricing_structure import PricingStructure
 from adcp.types.domains.enums.principal_kind import PrincipalKind
+from adcp.types.domains.enums.principal_relationship_status import PrincipalRelationshipStatus
 from adcp.types.domains.enums.production_quality import ProductionQuality
 from adcp.types.domains.enums.property_type import PropertyType
 from adcp.types.domains.enums.proposal_decline_reason import ProposalDeclineReason
+from adcp.types.domains.enums.proposal_disposition import ProposalDisposition
 from adcp.types.domains.enums.proposal_refinement_reason import ProposalRefinementReason
 from adcp.types.domains.enums.proposal_status import ProposalStatus
 from adcp.types.domains.enums.publisher_identifier_types import PublisherIdentifierTypes
 from adcp.types.domains.enums.purchase_type import PurchaseType
 from adcp.types.domains.enums.reach_aggregation import ReachAggregation
 from adcp.types.domains.enums.reach_unit import ReachUnit
+from adcp.types.domains.enums.reporting_custody import ReportingCustody
 from adcp.types.domains.enums.reporting_destination_setup_state import (
     ReportingDestinationSetupState,
 )
@@ -196,6 +212,7 @@ from adcp.types.domains.enums.seller_policy_decline_reason import SellerPolicyDe
 from adcp.types.domains.enums.si_session_status import SiSessionStatus
 from adcp.types.domains.enums.signal_catalog_type import SignalAvailabilityType, SignalCatalogType
 from adcp.types.domains.enums.signal_source import SignalSource
+from adcp.types.domains.enums.signal_status import SignalStatus
 from adcp.types.domains.enums.signal_value_type import SignalValueType
 from adcp.types.domains.enums.snapshot_unavailable_reason import SnapshotUnavailableReason
 from adcp.types.domains.enums.social_placement_surface import SocialPlacementSurface
@@ -204,6 +221,7 @@ from adcp.types.domains.enums.sort_metric import SortMetric
 from adcp.types.domains.enums.special_category import SpecialCategory
 from adcp.types.domains.enums.specialism import AdcpSpecialism
 from adcp.types.domains.enums.sponsored_placement_type import SponsoredPlacementType
+from adcp.types.domains.enums.spot_status import SpotStatus
 from adcp.types.domains.enums.talent_role import TalentRole
 from adcp.types.domains.enums.task_status import TaskStatus
 from adcp.types.domains.enums.task_type import TaskType
@@ -212,7 +230,11 @@ from adcp.types.domains.enums.tracker_firing_path import TrackerFiringPath
 from adcp.types.domains.enums.transport_mode import TransportMode
 from adcp.types.domains.enums.travel_time_unit import TravelTimeUnit
 from adcp.types.domains.enums.uid_type import UidType
-from adcp.types.domains.enums.universal_macro import UniversalMacro
+from adcp.types.domains.enums.universal_macro import (
+    UniversalMacro,
+    UniversalMacro3,
+    UniversalMacro4,
+)
 from adcp.types.domains.enums.update_frequency import UpdateFrequency
 from adcp.types.domains.enums.url_asset_type import UrlAssetType
 from adcp.types.domains.enums.validation_mode import ValidationMode
@@ -228,6 +250,7 @@ from adcp.types.domains.enums.watermark_media_type import WatermarkMediaType
 from adcp.types.domains.enums.wcag_level import WcagLevel
 from adcp.types.domains.enums.webhook_response_type import WebhookResponseType
 from adcp.types.domains.enums.webhook_security_method import WebhookSecurityMethod
+from adcp.types.domains.enums.webhook_signing_profile import WebhookSigningProfile
 
 # Explicit exports
 __all__ = [
@@ -241,13 +264,17 @@ __all__ = [
     "AdvertiserIndustry",
     "AgeDeterminationBasis",
     "AgeVerificationMethod",
+    "AgentOnboardingMode",
+    "AgentOnboardingRequirementKind",
     "AssessmentStatus",
     "AssetContentType",
     "AttestationClaim",
     "AttributionMethodology",
     "AttributionModel",
     "AudienceEvidenceMethodology",
+    "AudienceMatchRateBasis",
     "AudienceResolutionMethod",
+    "AudienceSizePrecision",
     "AudienceSource",
     "AudienceStatus",
     "AudienceSubjectType",
@@ -284,6 +311,7 @@ __all__ = [
     "CreativeApprovalStatus",
     "CreativeEventReasonCode",
     "CreativeIdentifierType",
+    "CreativeMergeRejectionReason",
     "CreativeMotionLevel",
     "CreativeQuality",
     "CreativeSelectionStrategy",
@@ -293,8 +321,12 @@ __all__ = [
     "DaastTrackingEvent",
     "DaastVersion",
     "DayOfWeek",
+    "DaypartTimeGranularity",
     "DaypartTimezoneMode",
+    "DefinitionPinReferenceKind",
     "DelegationAuthority",
+    "DeliveryProjectionBasis",
+    "DeliveryProjectionEndState",
     "DeliveryRecipientCloud",
     "DeliveryStatus",
     "DeliveryType",
@@ -341,6 +373,7 @@ __all__ = [
     "InstallmentStatus",
     "JavascriptModuleType",
     "LandingPageRequirement",
+    "LaterProposalReason",
     "LiftDimension",
     "LogoSlot",
     "MacroDialectFamily",
@@ -356,6 +389,7 @@ __all__ = [
     "MediaBuyActionMode",
     "MediaBuyFrequencyCapControlMode",
     "MediaBuyHealth",
+    "MediaBuyLineageReason",
     "MediaBuyStatus",
     "MediaBuyValidAction",
     "MediaChannel",
@@ -380,16 +414,19 @@ __all__ = [
     "PricingModel",
     "PricingStructure",
     "PrincipalKind",
+    "PrincipalRelationshipStatus",
     "ProductionQuality",
     "PropertyIdentifierTypes",
     "PropertyType",
     "ProposalDeclineReason",
+    "ProposalDisposition",
     "ProposalRefinementReason",
     "ProposalStatus",
     "PublisherIdentifierTypes",
     "PurchaseType",
     "ReachAggregation",
     "ReachUnit",
+    "ReportingCustody",
     "ReportingDestinationSetupState",
     "ReportingFinality",
     "ReportingFrequency",
@@ -406,6 +443,7 @@ __all__ = [
     "SignalAvailabilityType",
     "SignalCatalogType",
     "SignalSource",
+    "SignalStatus",
     "SignalValueType",
     "SnapshotUnavailableReason",
     "SocialPlacementSurface",
@@ -413,6 +451,7 @@ __all__ = [
     "SortMetric",
     "SpecialCategory",
     "SponsoredPlacementType",
+    "SpotStatus",
     "TalentRole",
     "TaskStatus",
     "TaskType",
@@ -423,6 +462,8 @@ __all__ = [
     "TravelTimeUnit",
     "UidType",
     "UniversalMacro",
+    "UniversalMacro3",
+    "UniversalMacro4",
     "UpdateFrequency",
     "UrlAssetType",
     "ValidationMode",
@@ -438,4 +479,5 @@ __all__ = [
     "WcagLevel",
     "WebhookResponseType",
     "WebhookSecurityMethod",
+    "WebhookSigningProfile",
 ]

@@ -1164,6 +1164,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         criteria = req.criteria.model_dump(mode="json", exclude_none=True) if req.criteria else {}
         product_ids = criteria.pop("product_ids", None)
         criteria.pop("outcome_target", None)
+        # product_ids_exclusive (AdCP 3.3) carries a schema default of false
+        # that the dumped model materializes; only a true value constrains.
+        if criteria.get("product_ids_exclusive") is False:
+            criteria.pop("product_ids_exclusive")
         if criteria:
             raise AdcpError(
                 "INVALID_REQUEST",

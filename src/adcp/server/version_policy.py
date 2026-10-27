@@ -11,6 +11,32 @@ from adcp.validation.envelope import SUPPORTED_WIRE_VERSIONS
 from adcp.validation.schema_loader import list_validator_keys
 
 
+def default_adcp_version(
+    adcp_version: str | None, supported_versions: Sequence[str] | None
+) -> str | None:
+    """The pin to resolve when a server restricts ``supported_versions``.
+
+    An explicit ``adcp_version`` is returned as given. Otherwise, when the
+    adopter lists the wire versions the server serves, the newest listed
+    release is the pin: a server restricted to ``["3.2"]`` serves 3.2 even
+    while the SDK's own default pin is a newer line. ``None`` keeps the SDK
+    default when nothing is restricted.
+    """
+    if adcp_version is not None or not supported_versions:
+        return adcp_version
+    from adcp._version import is_adcp_version_at_least
+
+    newest: str | None = None
+    for version in supported_versions:
+        try:
+            release = resolve_adcp_version_alias(normalize_to_release_precision(version))
+        except ValueError:
+            continue
+        if newest is None or is_adcp_version_at_least(release, newest):
+            newest = release
+    return newest
+
+
 def resolve_supported_versions(
     supported_versions: Sequence[str] | None,
     *,

@@ -68,10 +68,12 @@ from adcp.types import (
     ListAccountChangesRequest,
     ListAccountsRequest,
     ListCollectionListsRequest,
+    ListCollectionsRequest,
     ListContentStandardsRequest,
     ListCreativesRequest,
     ListProductsRequest,
     ListPropertyListsRequest,
+    ListProposalsRequest,
     ListTasksRequest,
     ListTransformersRequest,
     LogEventRequest,
@@ -508,6 +510,24 @@ class ADCPHandler(ABC, Generic[TContext]):
         Override this to provide media buy listing functionality.
         """
         return self._not_supported("get_media_buys")
+
+    async def list_collections(
+        self, params: ListCollectionsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_lists``).
+
+        Override this to serve collection cards.
+        """
+        return self._not_supported("list_collections")
+
+    async def list_proposals(
+        self, params: ListProposalsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """List open opportunities and proposals (AdCP 3.3, experimental).
+
+        Override this to serve ``media_buy.open_opportunities``.
+        """
+        return self._not_supported("list_proposals")
 
     # ========================================================================
     # Signal Operations

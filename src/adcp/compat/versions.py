@@ -88,6 +88,61 @@ def _release(version: str) -> str:
     return resolve_adcp_version_alias(normalize_to_release_precision(version))
 
 
+_LINE = re.compile(r"^(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$")
+
+
+def _line(version: str) -> tuple[int, int] | None:
+    """``(major, minor)`` of a release-precision version, prerelease or not."""
+    match = _LINE.match(version)
+    return (int(match[1]), int(match[2])) if match else None
+
+
+def _wire_for_line(major: int, minor: int) -> str:
+    """The release-precision value this SDK serves for a minor line.
+
+    A line whose packaged spec is a prerelease (``3.3-beta.0`` on the 3.3
+    line) is spoken, converted and validated as that exact prerelease: its
+    schemas are the only 3.3 contract this wheel ships. Every other line is
+    its stable release.
+    """
+    stable = f"{major}.{minor}"
+    for supported in get_supported_adcp_versions():
+        release = _release(supported)
+        if "-" in release and release.split("-", 1)[0] == stable:
+            return release
+    return stable
+
+
+def _convertible(version: str) -> tuple[int, int] | None:
+    """The line of ``version`` when a converter exists for it.
+
+    Stable releases of the SDK's major convert. A prerelease converts only
+    when it is the one this SDK serves for its line; any other prerelease
+    keeps its own schema contract and is never inferred.
+    """
+    line = _line(version)
+    if line is None:
+        return None
+    if "-" in version and version != _wire_for_line(*line):
+        return None
+    return line
+
+
+def is_convertible_version(version: str) -> bool:
+    """Whether minor-release translation applies to ``version``.
+
+    Stable releases of the SDK's major convert, as does the exact prerelease
+    the SDK serves for a line (``3.3-beta.0`` while the pin is that beta).
+    Any other prerelease keeps its own schema contract and gates: the
+    translators must not guess prerelease semantics.
+    """
+    try:
+        release = _release(version)
+    except ValueError:
+        return False
+    return _convertible(release) is not None
+
+
 def negotiate_version(supported: list[str], *, maximum: str) -> str:
     """Select the highest common release, bounded by this call's pin.
 
@@ -915,17 +970,17 @@ def _convert_payload(
         if direction != "request" and "adcp_version" in result:
             result["adcp_version"] = target_version
         return ConversionResult(result)
-    source_parts = source_version.split(".")
-    target_parts = target_version.split(".")
-    if source_parts[0] != target_parts[0] or "-" in source_version or "-" in target_version:
+    source_line, target_line = _convertible(source_version), _convertible(target_version)
+    if source_line is None or target_line is None or source_line[0] != target_line[0]:
         raise ADCPFeatureUnsupportedError(
             [f"No AdCP converter from {source_version} to {target_version}"]
         )
-    minor, end = int(source_parts[1]), int(target_parts[1])
+    major, minor = source_line
+    end = target_line[1]
     step = 1 if end > minor else -1
     while minor != end:
-        source = f"{source_parts[0]}.{minor}"
-        target = f"{source_parts[0]}.{minor + step}"
+        source = _wire_for_line(major, minor)
+        target = _wire_for_line(major, minor + step)
         source_schema = _schema(tool, direction, source)
         target_schema = _schema(tool, direction, target)
         from adcp.compat.governance import convert_governance_fields
@@ -1000,7 +1055,14 @@ def _convert_payload(
         if direction == "request":
             result["adcp_major_version"] = 3
     elif direction != "request" or "adcp_version" in payload:
-        result["adcp_version"] = target_version
+        if direction == "request" or _admits_version_envelope(
+            tool, direction, target_version, result
+        ):
+            result["adcp_version"] = target_version
+        else:
+            # A 3.2 response that composes no version envelope (list_products)
+            # refuses the member outright; 3.3 added it there.
+            result.pop("adcp_version", None)
     if direction != "request":
         _convert_embedded_results(
             tool, result, source_version, target_version, losses, require_valid_target
@@ -1008,6 +1070,17 @@ def _convert_payload(
     if step < 0 and require_valid_target:
         _require_target_valid(tool, direction, payload, result, source_version, target_version)
     return ConversionResult(result, tuple(losses))
+
+
+def _admits_version_envelope(
+    tool: str, direction: Direction, version: str, payload: dict[str, Any]
+) -> bool:
+    """Whether ``version``'s contract for this message admits ``adcp_version``."""
+    schema = _schema(tool, direction, version)
+    view = _view(schema, payload, schema)
+    if "adcp_version" in view["properties"]:
+        return True
+    return view.get("additionalProperties", True) is not False
 
 
 def _require_target_valid(

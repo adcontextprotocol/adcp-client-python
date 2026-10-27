@@ -2051,9 +2051,11 @@ def test_rfc9421_deprecation_warns_only_once_33_is_advertised(monkeypatch):
             SigningConfig(private_key=load_private_key_pem(pem), key_id="legacy-key")
         return [w for w in caught if issubclass(w.category, DeprecationWarning)]
 
-    assert not build()
-    monkeypatch.setattr("adcp._version.COMPATIBLE_ADCP_VERSIONS", ("3.2", "3.3"))
+    # SDK 10 pins AdCP 3.3, which deprecates the RFC 9421 profiles, so the
+    # legacy signer and verifier warn by default; a 3.2-only build is silent.
     assert len(build()) == 2
+    monkeypatch.setattr("adcp._version.COMPATIBLE_ADCP_VERSIONS", ("3.0", "3.1", "3.2"))
+    assert not build()
 
 
 # ---------------------------------------------------------------------------

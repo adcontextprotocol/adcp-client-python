@@ -274,9 +274,11 @@ def create_adcp_server_from_platform(
     # D5: executor / thread_pool_size mutually exclusive.
     # Validate before allocating a framework-owned executor so a bad public
     # pin cannot leak a worker pool during construction.
-    resolved_adcp_version = resolve_adcp_version(adcp_version)
-    from adcp.server.version_policy import resolve_supported_versions
+    from adcp.server.version_policy import default_adcp_version, resolve_supported_versions
 
+    resolved_adcp_version = resolve_adcp_version(
+        default_adcp_version(adcp_version, supported_versions)
+    )
     supported_versions = resolve_supported_versions(
         supported_versions, adcp_version=resolved_adcp_version
     )

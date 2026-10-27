@@ -64,6 +64,7 @@ from adcp.compat.versions import (
     ConversionLoss,
     ConversionResult,
     convert_payload,
+    is_convertible_version,
     negotiate_version,
 )
 from adcp.exceptions import (
@@ -152,10 +153,14 @@ from adcp.types import (
     ListAccountChangesResponse,
     ListAccountsRequest,
     ListAccountsResponse,
+    ListCollectionsRequest,
+    ListCollectionsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     ListProductsRequest,
     ListProductsResponse,
+    ListProposalsRequest,
+    ListProposalsResponse,
     LogEventRequest,
     LogEventResponse,
     Product,
@@ -716,6 +721,11 @@ def _resolve_server_version(pin: str | None) -> str | None:
     if pin is None:
         return None
     normalized = resolve_bundle_key(pin)
+    if normalized not in LEGACY_ADAPTER_VERSIONS:
+        # A 3.x pin is a wire value: release precision, so a prerelease pin
+        # (3.3.0-beta.0) negotiates and is echoed as 3.3-beta.0, never as its
+        # bundle key.
+        normalized = normalize_to_release_precision(pin)
     if normalized in LEGACY_ADAPTER_VERSIONS:
         import warnings as _warnings
 
@@ -1103,9 +1113,10 @@ class ADCPClient:
         declared_peer = self._server_version or maximum
         if not str(declared_peer).startswith("3."):
             return ConversionResult(self.adapter._enrich_outgoing_params(params))
-        if "-" in str(declared_peer) and declared_peer != "3.2-rc.7":
+        if not is_convertible_version(str(declared_peer)):
             # Historical prerelease pins keep their exact contract and gates;
             # minor-release translators must not guess prerelease semantics.
+            # The SDK's own served prerelease (3.3-beta.0) negotiates like its line.
             return ConversionResult(self.adapter._enrich_outgoing_params(params))
         if self._server_version is not None:
             target = negotiate_version([self._server_version], maximum=maximum)
@@ -2568,6 +2579,34 @@ class ADCPClient:
         return cast(
             TaskResult[ListProductsResponse],
             await self._execute_typed_task("list_products", request, ListProductsResponse),
+        )
+
+    @_task_options_method
+    async def list_collections(
+        self,
+        request: ListCollectionsRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[ListCollectionsResponse]:
+        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_lists``)."""
+        return cast(
+            TaskResult[ListCollectionsResponse],
+            await self._execute_typed_task("list_collections", request, ListCollectionsResponse),
+        )
+
+    @_task_options_method
+    async def list_proposals(
+        self,
+        request: ListProposalsRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[ListProposalsResponse]:
+        """List open opportunities and proposals (AdCP 3.3, experimental)."""
+        return cast(
+            TaskResult[ListProposalsResponse],
+            await self._execute_typed_task("list_proposals", request, ListProposalsResponse),
         )
 
     @_task_options_method
@@ -6379,6 +6418,8 @@ class ADCPClient:
             # Core operations
             "get_products": GetProductsResponse,
             "list_products": ListProductsResponse,
+            "list_collections": ListCollectionsResponse,
+            "list_proposals": ListProposalsResponse,
             "request_proposals": RequestProposalsResponse,
             "refine_proposals": RefineProposalsResponse,
             "decline_proposals": DeclineProposalsResponse,
@@ -7325,6 +7366,24 @@ class ADCPMultiAgentClient:
 
         return await _gather_agent_results(
             *(agent.list_products(request) for agent in self.agents.values())
+        )
+
+    async def list_collections(
+        self, request: ListCollectionsRequest
+    ) -> list[TaskResult[ListCollectionsResponse]]:
+        """List collection cards across all agents."""
+
+        return await _gather_agent_results(
+            *(agent.list_collections(request) for agent in self.agents.values())
+        )
+
+    async def list_proposals(
+        self, request: ListProposalsRequest
+    ) -> list[TaskResult[ListProposalsResponse]]:
+        """List open opportunities and proposals across all agents."""
+
+        return await _gather_agent_results(
+            *(agent.list_proposals(request) for agent in self.agents.values())
         )
 
     async def request_proposals(

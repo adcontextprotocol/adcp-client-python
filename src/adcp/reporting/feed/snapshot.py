@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
+from adcp._version import get_supported_adcp_versions, is_adcp_version_at_least
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import aware_utc
 from adcp.reporting.feed.errors import ReportingFeedError
@@ -44,6 +45,23 @@ GlobalKey = tuple[int, int, str, str]
 
 def _digest(value: Any) -> str:
     return hashlib.sha256(canonical_json_utf8_v1(value)).hexdigest()
+
+
+def _is_versioned_feed_release(version: object) -> bool:
+    """Whether ``version`` is a served release that binds its feed rendering.
+
+    Versioned feed snapshots began with 3.2-rc.6. Every release this SDK
+    serves from there on (3.2's candidates, 3.2 and the current pin) is a
+    marker an unversioned v1 walk may continue under.
+    """
+    if not isinstance(version, str):
+        return False
+    try:
+        return version in get_supported_adcp_versions() and is_adcp_version_at_least(
+            version, "3.2-rc.6"
+        )
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -254,11 +272,12 @@ class StoredFeedSnapshot:
                 snapshot.representation_version == 1
                 and snapshot.ownership_mode == "absent"
                 and "adcp_version" not in captured_filters
-                and proposed_filters.get("adcp_version") in {"3.2-rc.6", "3.2-rc.7", "3.2"}
+                and _is_versioned_feed_release(proposed_filters.get("adcp_version"))
             ):
                 # Integrated parents persisted unversioned v1 filters. Their
                 # immutable representation has no complete-summary forecast;
-                # the rc.6/rc.7/3.2 marker must not invalidate those original walks.
+                # the version marker a current buyer sends (rc.6, rc.7, 3.2 or
+                # any later served release) must not invalidate those walks.
                 # Caller, position and signature were verified above. Every
                 # previously bound semantic filter must still match exactly.
                 proposed_filters.pop("adcp_version")
