@@ -816,14 +816,16 @@ async def test_a2a_signed_skill_populates_caller_identity() -> None:
 @pytest.mark.asyncio
 async def test_a2a_unparseable_message_fails_closed() -> None:
     """A body the A2A parser rejects must not skip enforcement: dispatch has
-    recovery paths that can still find an operation in it."""
+    recovery paths that can still find an operation in it. Since the A2A
+    operation-resolution erratum (security.mdx rule 1) an unresolvable body is
+    ``request_body_malformed``, not ``request_signature_required``."""
     body = _a2a_send("get_products")
     body["params"]["message"]["parts"].append({"kind": "data", "data": {"x": float("nan")}})
     app = _both_app(_Recording(), _config())
     response = await _post(
         app, "/", json.dumps(body).encode(), {"content-type": "application/json"}
     )
-    _assert_rejected(response, "request_signature_required")
+    _assert_rejected(response, "request_body_malformed")
 
 
 @pytest.mark.asyncio
@@ -834,7 +836,8 @@ async def test_a2a_message_without_skill_fails_closed() -> None:
     response = await _post(
         app, "/", json.dumps(body).encode(), {"content-type": "application/json"}
     )
-    _assert_rejected(response, "request_signature_required")
+    # A text-only message does not resolve to an operation (rule 1).
+    _assert_rejected(response, "request_body_malformed")
 
 
 @pytest.mark.asyncio

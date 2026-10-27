@@ -50,8 +50,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from adcp.server._size_limit import make_replay_receive
+from adcp.signing._strict_json import StrictJsonError, body_is_empty, parse_strict_json
 from adcp.signing.bindings import OriginBindingResolver
 from adcp.signing.errors import (
+    REQUEST_BODY_MALFORMED,
     REQUEST_SIGNATURE_HEADER_MALFORMED,
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_REQUIRED,
@@ -479,10 +481,11 @@ class RequestSignatureVerification:
         """Signing posture for a JSON-RPC ``method`` / AdCP ``operation``.
 
         Precedence is ``required`` > ``warn`` > ``supported`` across both
-        namespaces. An ``opaque`` request — batch, unparseable body, or an A2A
-        message whose skill cannot be determined — is ``required`` whenever
-        anything is required, so a mutation cannot slip past enforcement
-        inside an envelope the verifier cannot read.
+        namespaces. An ``opaque`` MCP request (batch or unparseable body) is
+        ``required`` whenever anything is required, so a mutation cannot slip
+        past enforcement inside an envelope the verifier cannot read. An A2A
+        request that does not resolve to exactly one operation never reaches
+        this lookup: it is rejected with ``request_body_malformed``.
         """
         if opaque:
             if self.required_for or self.protocol_methods_required_for:
@@ -508,24 +511,51 @@ class _Target:
     operation: str | None = None
     opaque: bool = False
     a2a_parsed: Any = None
+    #: The body does not resolve to exactly one operation (security.mdx
+    #: "Operation resolution over A2A", rule 1 and the hardening clauses).
+    #: Rejected with ``request_body_malformed`` before any capability list or
+    #: signature header is consulted, whether or not the request is signed.
+    malformed: bool = False
 
 
 _OPAQUE = _Target(opaque=True)
+_MALFORMED = _Target(malformed=True)
 
 
 def _jsonrpc_target(
-    body: bytes, transport: str, message_parser: Any, *, parse_skill: bool
+    body: bytes,
+    transport: str,
+    message_parser: Any,
+    *,
+    parse_skill: bool,
+    path: str = "",
 ) -> _Target:
     """Classify a request body by JSON-RPC ``method`` and AdCP operation.
 
-    The operation is ``params.name`` for MCP ``tools/call`` and the parsed
-    skill for A2A message sends (parsed only when ``parse_skill``; the
-    operation namespace matters only if something in it is required or
-    warned). Anything the verifier cannot read is opaque.
+    The body is parsed strictly first (:func:`parse_strict_json`): duplicate
+    object keys are detected after JSON string decoding, so ``"skill"`` and
+    ``"sk\\u0069ll"`` collide, and such a body is ``malformed`` on both legs.
+
+    On A2A the operation is resolved by
+    :func:`adcp.server.a2a_server.resolve_a2a_operation` on every POST: a
+    batch, a missing ``method``, a case-variant member name, a Part that
+    breaks the shape rules, or a message that does not carry exactly one
+    DataPart with a non-empty string ``skill`` is ``malformed``. The
+    configured dispatcher parser additionally runs when ``parse_skill`` so its
+    result can be handed to the executor; it never decides the operation.
+
+    On MCP the operation is ``params.name`` for ``tools/call``; a body the
+    verifier cannot otherwise read is opaque.
     """
+    if transport == "a2a":
+        return _a2a_target(body, message_parser, parse_skill=parse_skill, path=path)
+    if body_is_empty(body):
+        return _OPAQUE
     try:
-        payload = json.loads(body) if body else None
-    except ValueError:
+        payload = parse_strict_json(body)
+    except StrictJsonError as exc:
+        if exc.reason == "duplicate_key":
+            return _MALFORMED
         return _OPAQUE
     if not isinstance(payload, dict):
         return _OPAQUE
@@ -535,30 +565,54 @@ def _jsonrpc_target(
             # A JSON-RPC response (e.g. an MCP elicitation reply) invokes nothing.
             return _Target()
         return _OPAQUE
-    if transport == "mcp":
-        if method != "tools/call":
-            return _Target(method=method)
-        params = payload.get("params")
-        name = params.get("name") if isinstance(params, dict) else None
-        return _Target(method=method, operation=name) if isinstance(name, str) else _OPAQUE
-
-    if method not in _A2A_MESSAGE_METHODS or not parse_skill:
+    if method != "tools/call":
         return _Target(method=method)
+    params = payload.get("params")
+    name = params.get("name") if isinstance(params, dict) else None
+    return _Target(method=method, operation=name) if isinstance(name, str) else _OPAQUE
 
-    from adcp.server.a2a_server import parse_a2a_jsonrpc_skill
 
+def _a2a_target(body: bytes, message_parser: Any, *, parse_skill: bool, path: str) -> _Target:
+    from adcp.server.a2a_server import (
+        A2AOperationResolutionError,
+        is_a2a_http_json_message_path,
+        parse_a2a_jsonrpc_skill,
+        resolve_a2a_operation,
+    )
+
+    try:
+        payload = parse_strict_json(body)
+        method, operation = resolve_a2a_operation(
+            payload, http_json=is_a2a_http_json_message_path(path)
+        )
+    except (StrictJsonError, A2AOperationResolutionError) as exc:
+        # Coarse reason only: no body bytes or member names reach the log.
+        logger.info("a2a operation resolution rejected", extra={"reason": str(exc)})
+        return _MALFORMED
+    if operation is None or not parse_skill or method is None:
+        return _Target(method=method, operation=operation)
     try:
         parsed = parse_a2a_jsonrpc_skill(payload, message_parser)
     except Exception:
-        # Fail closed: dispatch has recovery paths that can still find an
-        # operation in a body the parser rejected. Log coarsely — parser
-        # errors can embed payload text.
+        # The operation is already resolved; the executor re-parses and
+        # refuses to dispatch anything other than ``operation``. Parser errors
+        # can embed payload text, so log coarsely.
         logger.info("a2a signed-request parse rejected", extra={"reason": "invalid_message"})
-        return _OPAQUE
-    skill, _params = parsed
-    if not isinstance(skill, str) or not skill:
-        return _OPAQUE
-    return _Target(method=method, operation=skill, a2a_parsed=parsed)
+        return _Target(method=method, operation=operation)
+    return _Target(method=method, operation=operation, a2a_parsed=parsed)
+
+
+def _stash_a2a_target(scope: Any, target: _Target) -> None:
+    """Hand the gate's resolution to the A2A executor through the scope."""
+    from adcp.server.a2a_server import (
+        _A2A_PARSED_REQUEST_SCOPE_KEY,
+        _A2A_RESOLVED_OPERATION_SCOPE_KEY,
+    )
+
+    if target.operation is not None:
+        scope[_A2A_RESOLVED_OPERATION_SCOPE_KEY] = target.operation
+    if target.a2a_parsed is not None:
+        scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = target.a2a_parsed
 
 
 def _header(scope: Mapping[str, Any], name: bytes) -> str | None:
@@ -646,8 +700,23 @@ class SignedRequestVerificationMiddleware:
             await self._app(scope, receive, send)
             return
 
+        path = str(scope.get("path", ""))
         existing = scope.get(VERIFIED_SIGNER_SCOPE_KEY)
         if isinstance(existing, VerifiedSigner):
+            if (
+                self._transport == "a2a"
+                and _jsonrpc_target(
+                    json.dumps(existing.parsed_body).encode(),
+                    self._transport,
+                    self._message_parser,
+                    parse_skill=False,
+                    path=path,
+                ).malformed
+            ):
+                # Operation resolution applies to every POST, however the
+                # signature was verified.
+                await self._reject_malformed(send)
+                return
             # A seller's own verify_starlette_request already claimed the
             # nonce, so re-verifying would reject the request as replayed.
             # Its identity is trusted only if the seller named the agent;
@@ -668,7 +737,7 @@ class SignedRequestVerificationMiddleware:
                         return
                     body = json.dumps(existing.parsed_body).encode()
                     target = _jsonrpc_target(
-                        body, self._transport, self._message_parser, parse_skill=True
+                        body, self._transport, self._message_parser, parse_skill=True, path=path
                     )
                     await self._serve_verified_wba(scope, receive, send, (existing,), body, target)
                     return
@@ -711,13 +780,17 @@ class SignedRequestVerificationMiddleware:
         body = b"".join(chunks)
         replay = make_replay_receive(chunks, receive=receive)
 
+        # Operation resolution runs first in the pre-check: before the
+        # capability lists, the signature-header pair checks, and any bearer
+        # fallback (security.mdx, "Operation resolution over A2A", rule 4).
         target = _jsonrpc_target(
-            body, self._transport, self._message_parser, parse_skill=self._parse_skill
+            body, self._transport, self._message_parser, parse_skill=self._parse_skill, path=path
         )
-        if target.a2a_parsed is not None:
-            from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
-
-            scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = target.a2a_parsed
+        if target.malformed:
+            await self._reject_malformed(send)
+            return
+        if self._transport == "a2a":
+            _stash_a2a_target(scope, target)
         posture = self._config.posture_for(target.method, target.operation, opaque=target.opaque)
         label = target.operation or target.method or ""
 
@@ -1044,16 +1117,20 @@ class SignedRequestVerificationMiddleware:
         from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS
 
         error = _service_unavailable("Signer identity is temporarily unavailable")
-        target = _jsonrpc_target(body, self._transport, self._message_parser, parse_skill=True)
+        target = _jsonrpc_target(
+            body,
+            self._transport,
+            self._message_parser,
+            parse_skill=True,
+            path=str(scope.get("path", "")),
+        )
         if not self._defer_authorization_errors or not any(
             tool["name"] == target.operation for tool in ADCP_TOOL_DEFINITIONS
         ):
             await _authorization_error_response(error)(scope, receive, send)
             return
-        if target.a2a_parsed is not None:
-            from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
-
-            scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = target.a2a_parsed
+        if self._transport == "a2a":
+            _stash_a2a_target(scope, target)
         scope.pop(VERIFIED_SIGNER_SCOPE_KEY, None)
         scope.pop(_FRAMEWORK_VERIFIED_SCOPE_KEY, None)
         state = scope.setdefault("state", {})
@@ -1107,7 +1184,13 @@ class SignedRequestVerificationMiddleware:
             self._transport,
             self._message_parser,
             parse_skill=True,
+            path=str(scope.get("path", "")),
         )
+        if target.malformed:
+            await self._reject_malformed(send)
+            return
+        if self._transport == "a2a":
+            _stash_a2a_target(scope, target)
         raw_method = (
             signer.parsed_body.get("method") if isinstance(signer.parsed_body, Mapping) else None
         )
@@ -1152,6 +1235,20 @@ class SignedRequestVerificationMiddleware:
             current_verified_signer.reset(token)
             current_wba_authorization_error.reset(error_token)
             current_wba_spend_committing.reset(spend_token)
+
+    @classmethod
+    async def _reject_malformed(cls, send: Any) -> None:
+        """``request_body_malformed`` at the pre-check: the body does not
+        resolve to exactly one operation. A transport-taxonomy ``401``,
+        whether or not the request is signed."""
+        await cls._reject(
+            send,
+            SignatureVerificationError(
+                REQUEST_BODY_MALFORMED,
+                step=0,
+                message="request does not resolve to exactly one operation",
+            ),
+        )
 
     @staticmethod
     async def _reject(

@@ -159,6 +159,234 @@ def _get_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
 
 _A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
 _A2A_PARSED_REQUEST_SCOPE_KEY = "adcp.a2a_parsed_request"
+#: The AdCP operation the signature gate resolved from the raw body
+#: (security.mdx "Operation resolution over A2A", rule 3). The executor
+#: refuses to dispatch anything else.
+_A2A_RESOLVED_OPERATION_SCOPE_KEY = "adcp.a2a_resolved_operation"
+
+# ---------------------------------------------------------------------------
+# Operation resolution over A2A (AdCP 3.3 security.mdx, hardening at MUST)
+# ---------------------------------------------------------------------------
+
+A2A_MESSAGE_METHODS = frozenset(
+    {"message/send", "message/stream", "SendMessage", "SendStreamingMessage"}
+)
+"""JSON-RPC methods that carry an AdCP invocation (A2A 0.3 and 1.0 names).
+
+Matched by exact, case-sensitive equality: ``sendmessage`` is not one of them.
+"""
+
+# HTTP+JSON binding paths that carry a message (``POST …/message:send``).
+_A2A_HTTP_JSON_MESSAGE_SUFFIXES = ("/message:send", "/message:stream")
+
+# Member names the resolver reads at each level. An object carrying a case
+# variant of one of these (``Skill``, ``Parts``) is rejected, because some
+# decoders match member names case-insensitively and would read the variant.
+_ENVELOPE_MEMBERS = frozenset({"jsonrpc", "id", "method", "params"})
+_PARAMS_MEMBERS = frozenset({"message", "configuration", "metadata", "tenant"})
+_MESSAGE_MEMBERS = frozenset(
+    {
+        "kind",
+        "messageId",
+        "role",
+        "parts",
+        "metadata",
+        "extensions",
+        "referenceTaskIds",
+        "taskId",
+        "contextId",
+    }
+)
+_PART_MEMBERS = frozenset(
+    {"kind", "text", "data", "raw", "url", "file", "filename", "mediaType", "metadata"}
+)
+_DATA_MEMBERS = frozenset({"skill", "input", "parameters"})
+# A2A 1.0 Part content is a oneof of ``text``/``data``/``raw``/``url``; A2A 0.3
+# Parts carry ``text``/``data``/``file``. ``raw``/``url``/``file`` are FileParts.
+_PART_CONTENT_MEMBERS = ("text", "data", "raw", "url", "file")
+_FILE_PART_MEMBERS = frozenset({"raw", "url", "file"})
+
+
+class A2AOperationResolutionError(ValueError):
+    """An A2A request does not resolve to exactly one AdCP operation.
+
+    The signature gate answers this with ``request_body_malformed``. ``reason``
+    is a coarse, fixed string; no body bytes or member names are carried, so a
+    rejected request cannot push attacker-chosen bytes into logs.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _reject_case_variants(obj: dict[str, Any], recognized: frozenset[str]) -> None:
+    folded = {name.casefold(): name for name in recognized}
+    for key in obj:
+        if key not in recognized and key.casefold() in folded:
+            raise A2AOperationResolutionError("case_variant_member")
+
+
+def _resolve_message_skill(container: Any) -> str:
+    """Resolve the invocation ``skill`` from ``{"message": {...}, ...}``."""
+    if not isinstance(container, dict):
+        raise A2AOperationResolutionError("params_not_object")
+    _reject_case_variants(container, _PARAMS_MEMBERS)
+    message = container.get("message")
+    if not isinstance(message, dict):
+        raise A2AOperationResolutionError("message_not_object")
+    _reject_case_variants(message, _MESSAGE_MEMBERS)
+    parts = message.get("parts")
+    if not isinstance(parts, list):
+        raise A2AOperationResolutionError("parts_not_array")
+
+    invocation: Any = None
+    data_parts = 0
+    for part in parts:
+        if not isinstance(part, dict):
+            raise A2AOperationResolutionError("part_not_object")
+        _reject_case_variants(part, _PART_MEMBERS)
+        content = [name for name in _PART_CONTENT_MEMBERS if name in part]
+        if len(content) != 1:
+            raise A2AOperationResolutionError("part_content_count")
+        member = content[0]
+        if member in _FILE_PART_MEMBERS:
+            raise A2AOperationResolutionError("file_part")
+        if "kind" in part and part["kind"] != member:
+            raise A2AOperationResolutionError("part_kind_mismatch")
+        if member == "data":
+            data_parts += 1
+            invocation = part["data"]
+    if data_parts != 1:
+        raise A2AOperationResolutionError("data_part_count")
+    if not isinstance(invocation, dict):
+        raise A2AOperationResolutionError("data_not_object")
+    _reject_case_variants(invocation, _DATA_MEMBERS)
+    skill = invocation.get("skill")
+    if not isinstance(skill, str) or not skill:
+        raise A2AOperationResolutionError("skill_missing")
+    return skill
+
+
+def is_a2a_http_json_message_path(path: str) -> bool:
+    """True for the A2A HTTP+JSON message paths (``…/message:send`` / ``:stream``)."""
+    return path.endswith(_A2A_HTTP_JSON_MESSAGE_SUFFIXES)
+
+
+def resolve_a2a_operation(
+    payload: Any, *, http_json: bool = False
+) -> tuple[str | None, str | None]:
+    """Resolve the AdCP operation of a strictly parsed A2A request body.
+
+    Implements security.mdx "Operation resolution over A2A" including the
+    clauses that are MUST from AdCP 3.3. ``payload`` must come from a parser
+    that rejects duplicate object keys after string decoding
+    (:func:`adcp.signing._strict_json.parse_strict_json`); this function
+    checks shape only.
+
+    Returns ``(method, operation)``. ``method`` is the JSON-RPC method
+    (``None`` on the HTTP+JSON binding). ``operation`` is the ``skill`` of the
+    Message's sole DataPart for a message-carrying method or path, and
+    ``None`` for any other method (``tasks/cancel``, ``GetTask``, a variant
+    spelling such as ``sendmessage``), which matches only
+    ``protocol_methods_*``.
+
+    Raises :class:`A2AOperationResolutionError` when the request does not
+    resolve to exactly one operation: a batch or any other non-object body, a
+    missing or non-string ``method``, a case variant of a recognized member,
+    a Part with zero or several content members, a FilePart, a ``kind`` that
+    disagrees with the Part's content, zero or several DataParts, non-object
+    ``data``, or a missing, non-string, or empty ``skill``.
+    """
+    if isinstance(payload, list):
+        # This verifier does not accept JSON-RPC batches, so it rejects them.
+        raise A2AOperationResolutionError("batch")
+    if not isinstance(payload, dict):
+        raise A2AOperationResolutionError("body_not_object")
+    if http_json:
+        return None, _resolve_message_skill(payload)
+    _reject_case_variants(payload, _ENVELOPE_MEMBERS)
+    method = payload.get("method")
+    if not isinstance(method, str):
+        raise A2AOperationResolutionError("method_missing")
+    if method not in A2A_MESSAGE_METHODS:
+        return method, None
+    return method, _resolve_message_skill(payload.get("params"))
+
+
+# ---------------------------------------------------------------------------
+# Task-continuation binding
+# ---------------------------------------------------------------------------
+
+#: ``Task.metadata`` member recording the operation a task was created for and
+#: a digest of the principal that created it. A ``message.taskId`` request is
+#: refused before handler entry unless both match.
+_TASK_BINDING_METADATA_KEY = "adcp_task_binding"
+
+
+def _principal_key(call_context: ServerCallContext | None) -> str | None:
+    """Stable, non-reversible key for the authenticated caller, or ``None``.
+
+    An unauthenticated caller has no principal to bind, so a task it creates
+    cannot be continued at all.
+    """
+    import hashlib
+
+    user = getattr(call_context, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    name = getattr(user, "user_name", "") or ""
+    if not name:
+        return None
+    tenant = getattr(call_context, "tenant", "") or ""
+    digest = hashlib.sha256(f"{tenant}\x00{name}".encode()).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _task_binding_metadata(
+    operation: str | None, call_context: ServerCallContext | None
+) -> dict[str, Any]:
+    binding: dict[str, Any] = {}
+    if operation:
+        binding["operation"] = operation
+    principal = _principal_key(call_context)
+    if principal is not None:
+        binding["principal"] = principal
+    return {_TASK_BINDING_METADATA_KEY: binding}
+
+
+def _task_binding(task: pb.Task) -> tuple[str | None, str | None]:
+    """``(operation, principal)`` recorded on ``task``; ``None`` where absent."""
+    if not task.HasField("metadata"):
+        return None, None
+    metadata: Any = MessageToDict(task.metadata)
+    binding = metadata.get(_TASK_BINDING_METADATA_KEY) if isinstance(metadata, dict) else None
+    if not isinstance(binding, dict):
+        return None, None
+    operation = binding.get("operation")
+    principal = binding.get("principal")
+    return (
+        operation if isinstance(operation, str) and operation else None,
+        principal if isinstance(principal, str) and principal else None,
+    )
+
+
+def _continuation_rejected() -> Exception:
+    from a2a.utils.errors import InvalidParamsError
+
+    # Raised before the active task is touched, so the original task's
+    # persisted state and result are left exactly as they were.
+    message = "Task continuation does not match the task's operation or principal"
+    return InvalidParamsError(
+        message=message,
+        data={
+            "adcp_error": {
+                "code": "INVALID_REQUEST",
+                "message": message,
+                "recovery": "correctable",
+            }
+        },
+    )
 
 
 class _OwnerCheckedRequestHandler(DefaultRequestHandler):
@@ -189,12 +417,46 @@ class _OwnerCheckedRequestHandler(DefaultRequestHandler):
     ) -> tuple[ActiveTask, RequestContext]:
         from a2a.utils.errors import TaskNotFoundError
 
+        if params.message.task_id:
+            await self._check_continuation_binding(params, call_context)
         active, request = await super()._setup_active_task(params, call_context)
         # An existing same-ID row in the caller's partition cannot retarget
         # the foreign active task, including its persistence/owner context.
         if not self._task_owner_matches(active, call_context):
             raise TaskNotFoundError
         return active, request
+
+    async def _check_continuation_binding(
+        self, params: pb.SendMessageRequest, call_context: ServerCallContext
+    ) -> None:
+        """Task-continuation binding (AdCP 3.3 security.mdx, hardening at MUST).
+
+        A ``message.taskId`` request is refused before handler entry unless
+        its resolved operation equals the operation the task was created for
+        and the caller is the principal that created it. A task with no
+        recorded binding (created outside this executor, or by an
+        unauthenticated caller) cannot be continued.
+        """
+        from a2a.utils.errors import TaskNotFoundError
+
+        task = await self.task_store.get(params.message.task_id, call_context)
+        if task is None:
+            raise TaskNotFoundError
+        bound_operation, bound_principal = _task_binding(task)
+        executor = self.agent_executor
+        operation = (
+            executor._continuation_operation(params, call_context)
+            if isinstance(executor, ADCPAgentExecutor)
+            else None
+        )
+        if (
+            bound_operation is None
+            or bound_principal is None
+            or operation != bound_operation
+            or _principal_key(call_context) != bound_principal
+        ):
+            logger.info("a2a task continuation rejected", extra={"reason": "binding_mismatch"})
+            raise _continuation_rejected()
 
     @validate_request_params
     async def on_cancel_task(
@@ -294,6 +556,15 @@ class _A2ARequestContextMiddleware:
             await self.app(scope, downstream_receive, send)
         finally:
             _A2A_REQUEST_CONTEXT.reset(token)
+
+
+def _gate_resolved_operation() -> str | None:
+    """The operation the signature gate resolved for this request, if it ran."""
+    request = _A2A_REQUEST_CONTEXT.get()
+    if request is None:
+        return None
+    resolved = request.scope.get(_A2A_RESOLVED_OPERATION_SCOPE_KEY)
+    return resolved if isinstance(resolved, str) else None
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
@@ -570,12 +841,35 @@ class ADCPAgentExecutor(AgentExecutor):
         """Execute an ADCP skill from an incoming A2A message."""
         skill_name, params = self._parse_request(context)
 
+        resolved = _gate_resolved_operation()
+        if resolved is not None and skill_name != resolved:
+            # Rule 3 ("one source, three uses"): the dispatcher must not run
+            # an operation other than the one the signature gate matched
+            # against its lists. Reject before handler entry.
+            from adcp.decisioning.types import AdcpError
+
+            logger.info("a2a dispatch rejected", extra={"reason": "operation_mismatch"})
+            await self._send_adcp_error(
+                event_queue,
+                context,
+                AdcpError(
+                    "INVALID_REQUEST",
+                    message="Message does not resolve to the operation the gate resolved",
+                    recovery="correctable",
+                ),
+                params,
+                skill_name=resolved,
+            )
+            return
+
         if skill_name is None:
             await self._send_error(event_queue, context, "No skill specified in message")
             return
 
         if skill_name not in self._tool_callers:
-            await self._send_error(event_queue, context, f"Unknown skill: {skill_name}", params)
+            await self._send_error(
+                event_queue, context, f"Unknown skill: {skill_name}", params, skill_name=skill_name
+            )
             return
 
         tool_context = self._build_tool_context(skill_name, context)
@@ -609,7 +903,11 @@ class ADCPAgentExecutor(AgentExecutor):
         except Exception:
             logger.exception("Error executing skill %s", skill_name)
             await self._send_error(
-                event_queue, context, f"Skill execution failed: {skill_name}", params
+                event_queue,
+                context,
+                f"Skill execution failed: {skill_name}",
+                params,
+                skill_name=skill_name,
             )
 
     async def _dispatch_with_middleware(
@@ -709,6 +1007,30 @@ class ADCPAgentExecutor(AgentExecutor):
     # ------------------------------------------------------------------
     # Message parsing
     # ------------------------------------------------------------------
+
+    def _continuation_operation(
+        self, params: pb.SendMessageRequest, call_context: ServerCallContext
+    ) -> str | None:
+        """The operation a ``message.taskId`` request would dispatch, or ``None``.
+
+        Parses with the same parser :meth:`execute` uses and caches the result
+        on the request scope, so a stateful parser still runs once. When the
+        signature gate resolved an operation the two must agree; otherwise the
+        continuation is unresolvable (``None``) and is refused.
+        """
+        context = RequestContext(call_context=call_context, request=params)
+        try:
+            skill, parsed_params = self._parse_request(context)
+        except Exception:
+            logger.info("a2a continuation parse rejected", extra={"reason": "invalid_message"})
+            return None
+        request = _A2A_REQUEST_CONTEXT.get()
+        if request is not None and skill is not None:
+            request.scope.setdefault(_A2A_PARSED_REQUEST_SCOPE_KEY, (skill, parsed_params))
+        resolved = _gate_resolved_operation()
+        if resolved is not None and skill != resolved:
+            return None
+        return skill
 
     def _parse_request(self, context: RequestContext) -> tuple[str | None, dict[str, Any]]:
         """Extract skill name and parameters from the A2A message.
@@ -837,6 +1159,7 @@ class ADCPAgentExecutor(AgentExecutor):
             state=pb.TaskState.TASK_STATE_COMPLETED,
             data=data,
             message=f"Completed {skill_name}",
+            operation=skill_name,
         )
         await event_queue.enqueue_event(task)
 
@@ -846,6 +1169,8 @@ class ADCPAgentExecutor(AgentExecutor):
         context: RequestContext,
         error_msg: str,
         params: dict[str, Any] | None = None,
+        *,
+        skill_name: str | None = None,
     ) -> None:
         """Publish a failed task for a failure with no AdCP error envelope.
 
@@ -865,6 +1190,7 @@ class ADCPAgentExecutor(AgentExecutor):
             state=pb.TaskState.TASK_STATE_FAILED,
             data=data or None,
             message=error_msg,
+            operation=skill_name,
         )
         await event_queue.enqueue_event(task)
 
@@ -943,6 +1269,7 @@ class ADCPAgentExecutor(AgentExecutor):
             state=pb.TaskState.TASK_STATE_FAILED,
             data=data,
             message=message,
+            operation=skill_name or None,
         )
         await event_queue.enqueue_event(task)
 
@@ -996,8 +1323,14 @@ def _make_task(
     state: int,
     data: dict[str, Any] | None = None,
     message: str | None = None,
+    operation: str | None = None,
 ) -> pb.Task:
-    """Build an a2a Task event from context and result data."""
+    """Build an a2a Task event from context and result data.
+
+    The task's metadata records ``operation`` and a digest of the creating
+    principal, which a later ``message.taskId`` continuation must match
+    (see :meth:`_OwnerCheckedRequestHandler._check_continuation_binding`).
+    """
     parts: list[pb.Part] = []
     if data is not None:
         parts.append(_make_data_part(data))
@@ -1013,12 +1346,16 @@ def _make_task(
             )
         )
 
-    return pb.Task(
+    task = pb.Task(
         id=context.task_id or str(uuid4()),
         context_id=context.context_id or str(uuid4()),
         status=pb.TaskStatus(state=state),  # type: ignore[arg-type]
         artifacts=artifacts,
     )
+    binding = _task_binding_metadata(operation, getattr(context, "call_context", None))
+    if binding[_TASK_BINDING_METADATA_KEY]:
+        ParseDict(binding, task.metadata)
+    return task
 
 
 # ------------------------------------------------------------------

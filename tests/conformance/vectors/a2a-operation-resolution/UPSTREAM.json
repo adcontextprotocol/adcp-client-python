@@ -1,0 +1,51 @@
+{
+  "repository": "adcontextprotocol/adcp",
+  "tag": "v3.3.0-beta.0",
+  "commit": "83ce75e5abddeacc3d6586d3d07b9fa5b0cd41fc",
+  "path": "dist/compliance/3.3.0-beta.0/test-vectors/request-signing/a2a/",
+  "extra_files": {
+    "keys.json": "dist/compliance/3.3.0-beta.0/test-vectors/request-signing/keys.json",
+    "UPSTREAM-README.md": "dist/compliance/3.3.0-beta.0/test-vectors/request-signing/README.md"
+  },
+  "vendored_on": "2026-10-26",
+  "renamed": {
+    "README.md": "UPSTREAM-README.md"
+  },
+  "sha256": {
+    "UPSTREAM-README.md": "836a4fb21483438c64d22cf5636eb633f803b65e1a9f165bfbfc27bac2a11699",
+    "keys.json": "67b4f32f72ad5aa0463b8f4d407f18fe3c22c0c52655ba47a5f2de89ae974edf",
+    "negative/001-unsigned-sendmessage-required.json": "674ba4996e3f0f9e9986f76c491ab7b46287edf1c005e2dd4c4f93e67c9f1310",
+    "negative/002-unsigned-message-send-v0-3-required.json": "44348d09d6e8cbda0fa6879697cffa9ac49462ff94a8ef898e4b91656cc6e3d6",
+    "negative/003-unsigned-sendstreamingmessage-required.json": "231ee619d5cb1bd6926b217df2a70016acc344d88136e63364592604d9ef7c8c",
+    "negative/004-duplicate-invocation-datapart.json": "4069645ad176211cdcea2d8945d3988f452c2e4a2a7f9155f4ceed937e418c7c",
+    "negative/005-signed-duplicate-invocation-datapart.json": "55bbdddbf464c80bb3ba4ebd30260a6ac72a447d59baecfa13353107354d0893",
+    "negative/006-missing-skill.json": "fe62c7bdc4178b67d1c68fa646affc5bd99f3b804dac5a434e58002bf1d8f191",
+    "negative/007-protocol-method-required-covers-sendmessage.json": "76eb486ab54c4f45f2e936015569cc83cf59ae7b2b0ff0447d9937bc7d47a827",
+    "negative/008-no-extension-header.json": "4e2477d924770862fefc62375365a9ed3bd676f31ea76f43f8bec669e5333689",
+    "negative/009-extra-non-invocation-datapart.json": "814d0f4de8b00e1a2f8f7985a75476031d4a6548490c364979c4df264a7048db",
+    "negative/010-filepart-present.json": "b8f80990b5317be12ba43f6b551d458457f4eaa7b53f7945bce7258af7e1c2bc",
+    "negative/011-part-with-text-and-data.json": "be036f1c5465098cd4c86ca91daa83198cb3db440e1536df13e85c15648021be",
+    "negative/012-non-object-data.json": "7be6f3e44f614475672ee03407a9b9919c183dc94a91eadf2cb9c111937eba6d",
+    "negative/013-v0-3-kind-mismatch.json": "dec1059a2e0a706ec6edaf2c80b97b7ea7d5009a7000260d61b89e621f638ce2",
+    "negative/014-duplicate-skill-key.json": "e4539c5fa4e91119c1ea7507cda06a7821dc581de3350e77556b79c0c1360518",
+    "negative/015-non-string-skill.json": "b91fc962f931d95edcadf9947e33b79319e361ea22b99ae946726200b67fa47e",
+    "negative/016-text-only-message.json": "f117da8a94fbe946721a7b1d6b34615cd28df05868a34c404498348fe3d2d9e9",
+    "negative/017-unsigned-message-stream-v0-3-required.json": "97d717345500daa0bf64970f3fc278ea6272d17aa045f0070dc58e2e25ddc94a",
+    "negative/018-unresolvable-with-lone-signature-header.json": "304b270ee60b1f9e376e46e49cb426076dc5a230ddc9a54126c9f8cb9e4513af",
+    "negative/019-raw-part-present.json": "51e8568bdcab39d284a7e2489cbc0f124e7e85ab8160b87c96890963a24e655e",
+    "negative/020-case-variant-member-name.json": "76dce165346d56809f3e9d57a7c3ce9078ed58e732ce794cf14f6589c9752d70",
+    "negative/021-escaped-duplicate-skill-key.json": "80d941dbc08c8dc1dc57e58ad3f93d3c0eccdf7e22cb09c2cf59fab4ba33a58b",
+    "negative/022-unsigned-http-json-message-send-required.json": "d3c72b41a26692bf6fd97230be87d9363a5d5958c4023e5496ff9f813fd0e3f7",
+    "negative/023-batch-body.json": "1793fbc791025815bfc7c277f1f15c6435a99f61b714d4b56e06ee17269a4adf",
+    "negative/024-duplicate-method-key.json": "3aca70700b98012643a62d8deb149ca8dd938d6714a4a4e9de4cb1f754c3bb6d",
+    "negative/025-missing-method.json": "d170c333791d69831881f4144f57ceb01030a8b5bba5836c6f5302cca03f68c3",
+    "negative/026-empty-skill.json": "a28c8fb10d686c91e16c89fa5df723a0ac38652879093381254a39b565400326",
+    "positive/001-signed-sendmessage-create-media-buy.json": "b6b8e2ea48044b153b763c8e451d20a3d1ee9e85a613a1efa55ac93c8f26a279",
+    "positive/002-signed-message-send-v0-3-create-media-buy.json": "c46400513befbabfb5d6d7221960ac93f97a839438a0deaa6f38212cccc69246",
+    "positive/003-unsigned-sendmessage-get-products-not-required.json": "8416fe226f4fef645aa06fb1791069cab42279a64d2d9c11ad6767ff3ee8f44d",
+    "positive/004-unsigned-decoy-text-and-metadata.json": "d2eb98530be25a67f5ac5befd1dbfe0e75c5da00d5988c34951368fd876572dd",
+    "positive/005-unsigned-alias-skill-not-in-lists.json": "f5b0d2878df767734cf69da017224f1ae2749a25f9f5ecb80ac0f84f340c58b5",
+    "positive/006-unsigned-message-send-v0-3-legacy-parameters.json": "6161d270b4fccc29b56e26208ca7ab8bb04dbfcb444e99b709ccb10b182b46fe",
+    "positive/007-unsigned-method-case-variant.json": "a59be4047a8e45abf502c8aa2cacae0c5112106d842875dfffd8d36bb5ac12e3"
+  }
+}
