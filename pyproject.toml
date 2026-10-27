@@ -260,6 +260,7 @@ namespaces = true
 adcp = [
     "signing/_identity_schemas/**/*.json",
     "signing/_identity_schemas/*.json",
+    "signing/_psl/public_suffix_list.dat",
     "py.typed",
     "types/*.pyi",
     "types/versioned_bases/*.pyi",

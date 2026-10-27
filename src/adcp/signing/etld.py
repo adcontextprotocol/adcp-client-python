@@ -12,11 +12,19 @@ counting because public suffixes are not regular — ``co.uk`` and
 ``s3.amazonaws.com`` are both single suffixes despite different label
 counts, and only a maintained PSL gets this right.
 
-**Network posture: the bundled PSL snapshot is authoritative.** The
-extractor is constructed with ``suffix_list_urls=()`` so a verifier never
-silently re-fetches the PSL during request processing — both for latency
-determinism and because cross-implementation conformance demands a pinned
-snapshot. Bumping the floor on ``tldextract`` is how we refresh.
+**The PSL snapshot is pinned and vendored.** AdCP requires eTLD+1 under
+"a pinned, dated Public Suffix List snapshot that includes the ICANN and
+PRIVATE sections" (``security.mdx`` R3a). The SDK reads its own copy,
+``_psl/public_suffix_list.dat``, never the snapshot bundled in whatever
+``tldextract`` version is installed, never a user cache, and never the
+network. :data:`PSL_SNAPSHOT` records the snapshot's upstream version,
+commit and SHA-256; the file is checked against that hash when first
+loaded, and a mismatch or unreadable file raises rather than falling back to
+another list. ``tldextract`` only parses the list. Refreshing the snapshot
+is a deliberate SDK change: replace the file and update
+:data:`PSL_SNAPSHOT`. The AdCP spec has not yet named a reference snapshot
+(adcontextprotocol/adcp#8409); this one is the list ``tldextract`` 5.4.0
+bundles, so pinning changed no result for the locked dependency set.
 
 **Failure-closed convention.** Inputs whose eTLD+1 cannot be derived (raw
 IP addresses, single-label hosts like ``localhost``, hosts that are
@@ -37,8 +45,11 @@ the same normalizer the JWKS, revocation, and key-origin checks use.
 
 from __future__ import annotations
 
+import hashlib
 import re
+from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import idna
@@ -161,6 +172,59 @@ def same_development_brand_domain(a: str, b: str) -> bool:
     return da is not None and da == db
 
 
+@dataclass(frozen=True)
+class PublicSuffixListSnapshot:
+    """Provenance of the Public Suffix List snapshot the SDK computes eTLD+1 with.
+
+    ``version`` and ``commit`` are the ``// VERSION:`` and ``// COMMIT:``
+    header lines publicsuffix.org stamps on the published list (the commit
+    is in github.com/publicsuffix/list). ``sha256`` is the hex digest of the
+    vendored file's exact bytes.
+    """
+
+    version: str
+    commit: str
+    sha256: str
+    source_url: str = "https://publicsuffix.org/list/public_suffix_list.dat"
+
+
+#: The pinned snapshot. Two verifiers on different snapshots can disagree on
+#: eTLD+1 for a suffix added between them, so compare this across
+#: implementations when they disagree on a binding.
+PSL_SNAPSHOT = PublicSuffixListSnapshot(
+    version="2025-04-07_15-51-09_UTC",
+    commit="5fc8d12c1624ddbc56a80e944aca151a8ee466a1",
+    sha256="b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38",
+)
+
+_PSL_PATH = Path(__file__).parent / "_psl" / "public_suffix_list.dat"
+
+
+@lru_cache(maxsize=1)
+def _pinned_psl_uri() -> str:
+    """Verify the vendored snapshot against :data:`PSL_SNAPSHOT` and return its URI."""
+    digest = hashlib.sha256(_PSL_PATH.read_bytes()).hexdigest()
+    if digest != PSL_SNAPSHOT.sha256:
+        raise RuntimeError(
+            f"vendored Public Suffix List {_PSL_PATH} does not match the pinned "
+            f"snapshot {PSL_SNAPSHOT.version} (sha256 {digest}, expected "
+            f"{PSL_SNAPSHOT.sha256})"
+        )
+    return _PSL_PATH.resolve().as_uri()
+
+
+def _pinned_extractor(*, include_psl_private_domains: bool) -> tldextract.TLDExtract:
+    # No cache directory and no fallback: the vendored file is the only
+    # list, and failing to read it raises instead of silently substituting
+    # tldextract's bundled snapshot or a cached download.
+    return tldextract.TLDExtract(
+        cache_dir=None,
+        suffix_list_urls=(_pinned_psl_uri(),),
+        fallback_to_snapshot=False,
+        include_psl_private_domains=include_psl_private_domains,
+    )
+
+
 @lru_cache(maxsize=1)
 def _extractor() -> tldextract.TLDExtract:
     """Process-singleton extractor with network refresh disabled.
@@ -178,11 +242,7 @@ def _extractor() -> tldextract.TLDExtract:
     binding against a vercel-hosted brand. ``include_psl_private_domains=True``
     closes that vector.
     """
-    return tldextract.TLDExtract(
-        suffix_list_urls=(),
-        fallback_to_snapshot=True,
-        include_psl_private_domains=True,
-    )
+    return _pinned_extractor(include_psl_private_domains=True)
 
 
 def host_from(value: str) -> str:
@@ -267,11 +327,7 @@ def registrable_domain(host_or_url: str) -> str | None:
 @lru_cache(maxsize=1)
 def _icann_extractor() -> tldextract.TLDExtract:
     """ICANN-section-only extractor, used to group hosted tenants for quotas."""
-    return tldextract.TLDExtract(
-        suffix_list_urls=(),
-        fallback_to_snapshot=True,
-        include_psl_private_domains=False,
-    )
+    return _pinned_extractor(include_psl_private_domains=False)
 
 
 def quota_key(host_or_url: str) -> str | None:
@@ -309,7 +365,9 @@ def same_registrable_domain(a: str, b: str) -> bool:
 
 
 __all__ = [
+    "PSL_SNAPSHOT",
     "BrandDomainValidationError",
+    "PublicSuffixListSnapshot",
     "host_from",
     "is_development_brand_domain",
     "quota_key",
