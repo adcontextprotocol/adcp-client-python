@@ -22,7 +22,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, model_validator
 
-from adcp.decisioning.state_machines import MEDIA_BUY_TRANSITIONS
+from adcp.decisioning.state_machines import MEDIA_BUY_TERMINAL_STATUSES, MEDIA_BUY_TRANSITIONS
 from adcp.decisioning.update_media_buy import (
     UNKNOWN_UPDATE_ACTION,
     UpdateMediaBuyMutation,
@@ -37,9 +37,7 @@ _TERM_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _NON_TERMINAL_STATUSES = frozenset(
     status for status, transitions in MEDIA_BUY_TRANSITIONS.items() if transitions
 )
-_TERMINAL_STATUSES = frozenset(
-    status for status, transitions in MEDIA_BUY_TRANSITIONS.items() if not transitions
-)
+_TERMINAL_STATUSES = MEDIA_BUY_TERMINAL_STATUSES
 
 _CONTROL_ACTIONS = frozenset(
     {
