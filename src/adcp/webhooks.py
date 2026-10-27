@@ -71,6 +71,8 @@ from adcp.types import (
 )
 from adcp.types.base import AdCPBaseModel
 from adcp.webhook_receiver import (
+    DEFAULT_MAX_WEBHOOK_BODY_BYTES,
+    InboundBodyRejectedError,
     LegacyHmacFallback,
     VerifiedSignerLike,
     WebhookKind,
@@ -78,6 +80,8 @@ from adcp.webhook_receiver import (
     WebhookPayload,
     WebhookReceiver,
     WebhookReceiverConfig,
+    check_inbound_body,
+    read_inbound_body,
 )
 from adcp.webhook_transport_hooks import TransportHook, apply_hooks
 
@@ -2199,6 +2203,11 @@ __all__ = [
     "WebhookPayload",
     "WebhookReceiver",
     "WebhookReceiverConfig",
+    # Receiver — inbound body bounds, before verification (AdCP 3.3)
+    "DEFAULT_MAX_WEBHOOK_BODY_BYTES",
+    "InboundBodyRejectedError",
+    "check_inbound_body",
+    "read_inbound_body",
     # Receiver — payload extraction (legacy helper)
     "extract_webhook_result_data",
     # Dedup / idempotency backends (re-exported so one import root suffices)

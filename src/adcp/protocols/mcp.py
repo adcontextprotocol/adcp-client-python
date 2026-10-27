@@ -67,11 +67,13 @@ _ALL_HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (
 import json
 
 from adcp import _idempotency
+from adcp._json_bounds import JsonBoundsError, check_json_bounds
 from adcp._response_limit import (
     DEFAULT_MAX_RESPONSE_BYTES,
     ResponseLimitPolicy,
     find_response_limit_error,
     install_response_limit,
+    json_bounds_error,
     resolve_max_response_bytes,
 )
 from adcp.compat.reporting_version import assert_reporting_request_supported
@@ -514,6 +516,33 @@ def _assert_text_within_budget(
     )
 
 
+def _loads_text_within_bounds(
+    text: str,
+    *,
+    limit: int | None,
+    agent_id: str | None,
+    agent_uri: str | None,
+) -> Any:
+    """``json.loads`` one ``content[].text`` item under the JSON parse bounds.
+
+    The item is a JSON document carried as a single string inside the
+    JSON-RPC response, so the transport's structural scan saw one string node
+    where this parse will build the whole AdCP response. It gets the same
+    depth and member bounds before ``json.loads`` runs (AdCP 3.3
+    ``security.mdx`` §Response Size Bounds item 6). ``limit=None`` — the
+    budget disabled — disables the parse bounds with it.
+
+    :raises ADCPResponseTooComplexError: the document exceeds a bound.
+    :raises json.JSONDecodeError: the document is within bounds but malformed.
+    """
+    if limit is not None:
+        try:
+            check_json_bounds(text)
+        except JsonBoundsError as exc:
+            raise json_bounds_error(exc, agent_id=agent_id, agent_uri=agent_uri) from None
+    return json.loads(text)
+
+
 def extract_adcp_success(
     result: Any,
     *,
@@ -531,15 +560,18 @@ def extract_adcp_success(
     2. ``structuredContent`` — if present and a non-array object that is NOT
        an ``adcp_error``-only payload, return it.
     3. Text fallback — iterate ``content[]`` in order; for each ``type='text'``
-       item, enforce ``max_response_bytes``, then ``json.loads`` and return
-       the result if it is a non-array object that is NOT ``adcp_error``-only.
+       item, enforce ``max_response_bytes`` and the JSON depth/member bounds,
+       then ``json.loads`` and return the result if it is a non-array object
+       that is NOT ``adcp_error``-only.
     4. No structured data found — return ``None``.
 
     ``max_response_bytes`` is the same per-call budget the transport enforces
     — see :func:`_assert_text_within_budget` for why it must not be tighter.
     ``None`` disables it, matching ``AgentConfig.max_response_bytes``.
 
-    :raises ADCPResponseTooLargeError: a text item exceeds the budget.
+    :raises ADCPResponseTooLargeError: a text item exceeds the budget, or
+        (as :class:`~adcp._response_limit.ADCPResponseTooComplexError`) the
+        JSON depth or member bound.
     """
     if _result_is_error(result):
         return None
@@ -556,7 +588,9 @@ def extract_adcp_success(
             text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
         )
         try:
-            parsed = json.loads(text)
+            parsed = _loads_text_within_bounds(
+                text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
+            )
         except (json.JSONDecodeError, ValueError):
             continue
         if isinstance(parsed, dict) and not (len(parsed) == 1 and "adcp_error" in parsed):
@@ -577,7 +611,9 @@ def extract_adcp_error(
     docs/building/operating/transport-errors.mdx. Only applies when
     ``isError`` is truthy. Returns a validated error object or ``None``.
 
-    :raises ADCPResponseTooLargeError: a text item exceeds the budget.
+    :raises ADCPResponseTooLargeError: a text item exceeds the budget, or
+        (as :class:`~adcp._response_limit.ADCPResponseTooComplexError`) the
+        JSON depth or member bound.
     """
     if not _result_is_error(result):
         return None
@@ -599,7 +635,9 @@ def extract_adcp_error(
             text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
         )
         try:
-            parsed = json.loads(text)
+            parsed = _loads_text_within_bounds(
+                text, limit=max_response_bytes, agent_id=agent_id, agent_uri=agent_uri
+            )
         except (json.JSONDecodeError, ValueError):
             continue
         if isinstance(parsed, dict):

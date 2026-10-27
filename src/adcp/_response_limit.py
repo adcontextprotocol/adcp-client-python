@@ -16,7 +16,14 @@ the A2A agent card, and SSE streams — flows through
   running total passes the budget;
 * additionally caps each individual SSE event, so a peer cannot slip a huge
   payload past the per-call budget by answering with
-  ``Content-Type: text/event-stream``.
+  ``Content-Type: text/event-stream``;
+* once those byte checks pass, bounds what the bytes will become: every JSON
+  body, and every SSE event's ``data``, is run through the counting scanner in
+  :mod:`adcp._json_bounds` (nesting depth 64, 100,000 aggregate object members
+  and array elements) as it streams, so an over-deep or over-wide document is
+  refused before the MCP or A2A SDK parses it (AdCP 3.3 ``security.mdx``
+  §Response Size Bounds item 6). The violation raises
+  :class:`ADCPResponseTooComplexError`, an :class:`ADCPResponseTooLargeError`.
 
 The cumulative budget is per call, which means per response *except* on a
 session-lifetime channel: a ``GET`` event-stream (MCP's standalone
@@ -40,6 +47,14 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import Any
 
+from adcp._json_bounds import (
+    MAX_JSON_DEPTH,
+    MAX_JSON_MEMBERS,
+    JsonBoundKind,
+    JsonBoundsError,
+    JsonBoundsScanner,
+    SseJsonBoundsScanner,
+)
 from adcp.exceptions import (
     ADCPError,
     ADCPProtocolError,
@@ -128,6 +143,90 @@ def validate_max_response_bytes(value: int | None, *, field: str) -> int | None:
     return value
 
 
+class ADCPResponseTooComplexError(ADCPResponseTooLargeError):
+    """An agent response exceeded the JSON depth or member bound.
+
+    A byte budget bounds ingress, not memory: a few MiB of densely nested
+    arrays is millions of JSON nodes. After the byte budget passes, every
+    response is held to a nesting depth of
+    :data:`~adcp._json_bounds.MAX_JSON_DEPTH` (64) and at most
+    :data:`~adcp._json_bounds.MAX_JSON_MEMBERS` (100,000) aggregate object
+    members and array elements, checked while the body streams and before
+    the MCP or A2A SDK parses it (AdCP 3.3 ``security.mdx`` §Response Size
+    Bounds item 6).
+
+    A subclass of :class:`~adcp.exceptions.ADCPResponseTooLargeError`, so a
+    handler for oversized responses catches it too. ``bound`` names the bound
+    that tripped: ``"depth"``, ``"members"``, or ``"encoding"`` for a body in
+    a non-UTF-8 encoding whose structure cannot be bounded. ``limit`` is that
+    bound and ``received`` the count that crossed it; both are 0 for
+    ``"encoding"``. Like its parent, it never carries any part of the body,
+    and retrying the same request will fail the same way.
+    """
+
+    def __init__(
+        self,
+        *,
+        bound: JsonBoundKind,
+        limit: int,
+        received: int,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        per_event: bool = False,
+        url: str | None = None,
+        detail: str | None = None,
+    ):
+        """Initialize response-too-complex error."""
+        self.bound: JsonBoundKind = bound
+        self.limit = limit
+        self.received = received
+        self.per_event = per_event
+        self.declared = False
+        self.url = url
+
+        subject = "Agent SSE event" if per_event else "Agent response"
+        if bound == "depth":
+            message = f"{subject} exceeds the JSON nesting depth bound of {limit}"
+        elif bound == "members":
+            message = (
+                f"{subject} exceeds the bound of {limit} JSON object members and array elements"
+            )
+        else:
+            message = f"{subject} is not UTF-8, so its JSON structure cannot be bounded"
+            if detail:
+                message = f"{message} ({detail})"
+        if url:
+            message = f"{message} from {url}"
+        suggestion = (
+            "Agent responses are untrusted input, so the SDK bounds their JSON\n"
+            "     structure before parsing. Ask the agent to paginate or return fewer\n"
+            "     fields; set max_response_bytes=None to remove response bounds entirely."
+        )
+        ADCPError.__init__(self, message, agent_id, agent_uri, suggestion)
+
+
+def json_bounds_error(
+    exc: JsonBoundsError,
+    *,
+    agent_id: str | None,
+    agent_uri: str | None,
+    per_event: bool = False,
+    url: str | None = None,
+    detail: str | None = None,
+) -> ADCPResponseTooComplexError:
+    """Translate a :class:`JsonBoundsError` into the typed client error."""
+    return ADCPResponseTooComplexError(
+        bound=exc.kind,
+        limit=exc.limit,
+        received=exc.observed,
+        agent_id=agent_id,
+        agent_uri=agent_uri,
+        per_event=per_event,
+        url=url,
+        detail=detail,
+    )
+
+
 _LIMIT_ERRORS = (ADCPResponseTooLargeError, ADCPResponseEncodingError)
 
 
@@ -210,8 +309,9 @@ class _DecodedCounter:
         self._encoding = encoding
         self._decoder: Any = None
         self._probe = bytearray()
-        # Only an SSE body needs the decoded bytes back, to find event
-        # boundaries. For everything else measuring is the whole job, so the
+        # The limiter collects the decoded bytes so the JSON-bounds scanner
+        # (and, for SSE, the event-boundary tracker) reads what the parser
+        # will. With collect=False measuring is the whole job, so the
         # expansion is counted and dropped instead of being copied out.
         self._collect = collect
 
@@ -312,6 +412,23 @@ def _safe_url(url: Any) -> str:
         return str(url)
 
 
+# Charsets whose bytes are the UTF-8 bytes the JSON scanner reads. An event
+# stream is decoded to text with its declared charset before it is parsed, so
+# anything else (utf-16, an EBCDIC code page) would hand the parser a document
+# whose structure the scanner never saw. JSON bodies are parsed from bytes
+# (json.loads, pydantic), which ignore the charset parameter.
+_SCANNABLE_CHARSETS = frozenset({"utf-8", "utf8", "us-ascii", "ascii"})
+
+
+def _charset(headers: Any) -> str | None:
+    content_type = headers.get("content-type") or ""
+    for param in content_type.split(";")[1:]:
+        name, _, value = param.partition("=")
+        if name.strip().lower() == "charset":
+            return value.strip().strip('"').lower()
+    return None
+
+
 def _declared_length(headers: Any) -> int | None:
     raw = headers.get("content-length")
     if raw is None:
@@ -344,6 +461,7 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
             cumulative: bool,
             report: Callable[[ADCPError], None],
             describe: Callable[[int, int, bool], ADCPResponseTooLargeError],
+            describe_bounds: Callable[[JsonBoundsError, bool], ADCPResponseTooLargeError],
         ) -> None:
             self._stream = stream
             self._limit = limit
@@ -352,12 +470,18 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
             self._cumulative = cumulative
             self._report = report
             self._describe = describe
+            self._describe_bounds = describe_bounds
 
         async def __aiter__(self) -> AsyncIterator[bytes]:
-            counter = _DecodedCounter(
-                encoding=self._encoding, limit=self._limit, collect=self._event_stream
-            )
+            # Decoded bytes are always collected: the JSON scanner has to read
+            # what the parser will read, not the compressed wire bytes.
+            counter = _DecodedCounter(encoding=self._encoding, limit=self._limit, collect=True)
             events = _EventSizeTracker() if self._event_stream else None
+            structure: JsonBoundsScanner | SseJsonBoundsScanner = (
+                SseJsonBoundsScanner(max_depth=MAX_JSON_DEPTH, max_members=MAX_JSON_MEMBERS)
+                if self._event_stream
+                else JsonBoundsScanner(max_depth=MAX_JSON_DEPTH, max_members=MAX_JSON_MEMBERS)
+            )
             async for chunk in self._stream:
                 decoded = counter.feed(chunk)
                 if events is not None and decoded:
@@ -375,6 +499,15 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
                         # Decoded bytes stayed small but the wire did not: the
                         # peer is padding a compressed stream.
                         self._fail(counter.raw_total, per_event=False)
+                # Byte budget first, then what the bytes become: the parse
+                # bounds run only on input the byte cap has already admitted.
+                if decoded:
+                    try:
+                        structure.feed(decoded)
+                    except JsonBoundsError as exc:
+                        error = self._describe_bounds(exc, self._event_stream)
+                        self._report(error)
+                        raise error from None
                 yield chunk
 
         def _fail(self, received: int, *, per_event: bool) -> None:
@@ -397,12 +530,14 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
             limit_provider: Callable[[bool], int | None],
             report: Callable[[ADCPError], None],
             describe: Callable[..., ADCPResponseTooLargeError],
+            describe_bounds: Callable[..., ADCPResponseTooLargeError],
             agent_id: str | None,
         ) -> None:
             self._inner = inner
             self._limit_provider = limit_provider
             self._report = report
             self._describe = describe
+            self._describe_bounds = describe_bounds
             self._agent_id = agent_id
 
         async def handle_async_request(self, request: Any) -> Any:
@@ -431,6 +566,18 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
                 self._report(error)
                 raise error
 
+            charset = _charset(headers)
+            if event_stream and charset is not None and charset not in _SCANNABLE_CHARSETS:
+                await self._discard(response)
+                not_utf8 = self._describe_bounds(
+                    JsonBoundsError("encoding", limit=0, observed=0),
+                    False,
+                    url=_safe_url(request.url),
+                    detail=f"event stream declares charset {charset[:32]!r}",
+                )
+                self._report(not_utf8)
+                raise not_utf8
+
             cumulative = not long_lived
 
             declared = _declared_length(headers)
@@ -454,6 +601,9 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
                     stream_limit, received, per_event=per_event, url=_safe_url(request.url)
                 )
 
+            def describe_bounds(exc: JsonBoundsError, per_event: bool) -> ADCPResponseTooLargeError:
+                return self._describe_bounds(exc, per_event, url=_safe_url(request.url))
+
             response.stream = _LimitedStream(
                 response.stream,
                 limit=limit,
@@ -462,6 +612,7 @@ def _limiting_transport_cls(httpx_module: Any) -> type:
                 cumulative=cumulative,
                 report=self._report,
                 describe=describe,
+                describe_bounds=describe_bounds,
             )
             return response
 
@@ -532,6 +683,28 @@ def _make_describe(
     return describe
 
 
+def _make_describe_bounds(
+    *, agent_id: str | None, agent_uri: str | None
+) -> Callable[..., ADCPResponseTooLargeError]:
+    def describe_bounds(
+        exc: JsonBoundsError,
+        per_event: bool,
+        *,
+        url: str | None = None,
+        detail: str | None = None,
+    ) -> ADCPResponseTooLargeError:
+        return json_bounds_error(
+            exc,
+            agent_id=agent_id,
+            agent_uri=agent_uri,
+            per_event=per_event,
+            url=url,
+            detail=detail,
+        )
+
+    return describe_bounds
+
+
 def unwrap_response_limit(transport: Any) -> Any:
     """Return the transport underneath the limiter, or ``transport`` itself.
 
@@ -570,6 +743,7 @@ def install_response_limit(
     instead, loudly enough that the gap is never silent.
     """
     describe = _make_describe(agent_id=policy.agent_id, agent_uri=policy.agent_uri)
+    describe_bounds = _make_describe_bounds(agent_id=policy.agent_id, agent_uri=policy.agent_uri)
     transport_cls = _limiting_transport_cls(httpx_module)
 
     def wrap(transport: Any) -> Any:
@@ -580,6 +754,7 @@ def install_response_limit(
             limit_provider=policy.limit_provider,
             report=policy.report,
             describe=describe,
+            describe_bounds=describe_bounds,
             agent_id=policy.agent_id,
         )
 
@@ -634,10 +809,12 @@ def install_response_limit(
 
 
 __all__ = [
+    "ADCPResponseTooComplexError",
     "DEFAULT_MAX_RESPONSE_BYTES",
     "ResponseLimitPolicy",
     "find_response_limit_error",
     "install_response_limit",
+    "json_bounds_error",
     "unwrap_response_limit",
     "reset_call_max_response_bytes",
     "resolve_max_response_bytes",
