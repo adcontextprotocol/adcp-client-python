@@ -23,6 +23,7 @@
         "adcp_major_version": {
           "type": "integer",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
           "minimum": 1,
           "maximum": 99
@@ -267,6 +268,7 @@
             "authentication": {
               "type": "object",
               "deprecated": true,
+              "x-removed-in": "4.0.0",
               "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification \u2014 signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook key is published at its brand.json `agents[]` `jwks_uri` using `adcp_use: \"request-signing\"` (deprecated `webhook-signing` keys remain accepted during the compatibility window); it does not override this selector and is only used when `authentication` is omitted. See docs/building/by-layer/L1/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
               "properties": {
                 "schemes": {
@@ -10384,6 +10386,7 @@
                     "authentication": {
                       "type": "object",
                       "deprecated": true,
+                      "x-removed-in": "4.0.0",
                       "description": "Legacy authentication selector. Same precedence and semantics as `push-notification-config.authentication` \u2014 presence opts the seller into Bearer or HMAC-SHA256 signing; absence selects the default RFC 9421 webhook profile keyed off the seller's brand.json `agents[]` JWKS. The same signed-registration downgrade-resistance rules apply to accounts[].notification_configs[].authentication. Deprecated; removed in AdCP 4.0. Credentials are write-only and MUST NOT be echoed on `list_accounts` reads.",
                       "properties": {
                         "schemes": {
@@ -12775,6 +12778,7 @@
           "valid_actions": {
             "type": "array",
             "deprecated": true,
+            "x-removed-in": "4.0.0",
             "description": "Flat-vocabulary actions the buyer can perform on this media buy in its current state. Eliminates the need for agents to internalize the state machine \u2014 the seller declares what is permitted right now. Deprecated in favor of `available_actions[]`, which carries mode, optional SLA, and a 3.2 change_term_id link. Sellers SHOULD populate both during the 3.x deprecation window; consumers MUST prefer `available_actions[]` when both are present. Removed in 4.0.",
             "items": {
               "$ref": "#/$defs/MediaBuyValidAction"
@@ -14567,6 +14571,7 @@
                 "format_ids": {
                   "type": "array",
                   "deprecated": true,
+                  "x-removed-in": "4.0.0",
                   "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Legacy named-format IDs supplied for this package on create_media_buy. Sellers SHOULD echo this field whenever the request included it, including dual-emission cases where another selector won precedence.",
                   "items": {
                     "title": "Format Reference (Structured Object)",
@@ -74385,6 +74390,7 @@
     "AuthenticationScheme": {
       "title": "Authentication Scheme",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "Legacy authentication schemes for the webhook auth block. Bearer: token sent in Authorization header. HMAC-SHA256: legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit the authentication block and use the RFC 9421 webhook signing profile (applicable on schemas where authentication is optional). Removed in AdCP 4.0.",
       "type": "string",
       "enum": [
@@ -76840,7 +76846,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-10-11T21:22:31.952Z",
+    "generatedAt": "2026-10-24T17:35:51.774Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

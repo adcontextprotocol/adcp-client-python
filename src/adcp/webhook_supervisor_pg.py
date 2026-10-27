@@ -68,6 +68,7 @@ accumulate and are never sent:
         task_id         TEXT        NOT NULL,
         task_type       TEXT,
         status_str      TEXT        NOT NULL DEFAULT 'pending',
+        delivery_state  TEXT        NOT NULL DEFAULT 'pending',
         result_json     TEXT,
         token           TEXT,
         sequence_key    TEXT,
@@ -77,11 +78,12 @@ accumulate and are never sent:
         created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
         idempotency_key TEXT,
         sent_body       BYTEA,
-        notification_type TEXT
+        notification_type TEXT,
+        operation_id    TEXT
     );
-    CREATE INDEX adcp_webhook_delivery_queue_work_idx
-        ON adcp_webhook_delivery_queue (status_str, scheduled_at)
-        WHERE status_str IN ('pending', 'retry');
+    CREATE INDEX adcp_webhook_delivery_queue_delivery_idx
+        ON adcp_webhook_delivery_queue (delivery_state, scheduled_at)
+        WHERE delivery_state IN ('pending', 'retry');
 
     -- adcp_webhook_delivery_log
     CREATE TABLE adcp_webhook_delivery_log (
@@ -110,9 +112,33 @@ accumulate and are never sent:
     CREATE INDEX adcp_webhook_delivery_log_task_id_idx
         ON adcp_webhook_delivery_log (task_id);
 
+``status_str`` is the task status sent in the payload (``completed``,
+``failed``, ...). ``delivery_state`` is the queue state the worker claims on
+(``pending`` or ``retry``).
+
+.. rubric:: Upgrading from 9.2.0 and earlier
+
+Before 9.2.1 ``status_str`` held both the task status and the queue state, so
+the worker never claimed a row ``send_mcp`` wrote (#1606). :meth:`create_schema`
+migrates an existing table in place::
+
+    ALTER TABLE adcp_webhook_delivery_queue
+        ADD COLUMN IF NOT EXISTS delivery_state TEXT NOT NULL DEFAULT 'pending';
+    CREATE INDEX IF NOT EXISTS adcp_webhook_delivery_queue_delivery_idx
+        ON adcp_webhook_delivery_queue (delivery_state, scheduled_at)
+        WHERE delivery_state IN ('pending', 'retry');
+    DROP INDEX IF EXISTS adcp_webhook_delivery_queue_work_idx;
+
+Every row already in the queue becomes ``pending`` and is delivered by the
+next worker poll with its original task status. Those rows were never claimed,
+so none of them has been sent before. Rows an older process enqueues during a
+rolling deploy take the same default and are delivered too, and an older
+worker never claims a row written by this version. Delete rows you do not want
+delivered before upgrading.
+
 .. rubric:: Stranded-job note
 
-Jobs remain in ``status_str = 'pending'`` (via rollback) if a worker
+Jobs keep their ``delivery_state`` (via rollback) if a worker
 process crashes mid-send. No separate recovery sweep is needed — the next
 worker poll picks them up automatically. Jobs that raised a Python exception
 on the final attempt are deleted from the queue and logged with
@@ -127,6 +153,7 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -251,10 +278,10 @@ class PgWebhookDeliverySupervisor:
         # Pre-format SQL at construction time to avoid per-call f-string overhead
         # and to bake in the validated table names once.
         self._sql_circuit_get = (
-            f"SELECT state, opened_at FROM {ct} WHERE breaker_key = %s"  # noqa: S608
+            f"SELECT state, opened_at FROM {ct} WHERE breaker_key = %s"  # noqa: S608  # nosec B608
         )
         self._sql_circuit_set_half_open = (
-            f"UPDATE {ct} SET state = 'half_open', success_count = 0, "  # noqa: S608
+            f"UPDATE {ct} SET state = 'half_open', success_count = 0, "  # noqa: S608  # nosec B608
             f"updated_at = now() WHERE breaker_key = %s AND state = 'open'"
         )
         # Atomic upsert: increment failure_count; open circuit when threshold crossed.
@@ -268,7 +295,7 @@ class PgWebhookDeliverySupervisor:
         # is byte-safe for static SQL emission.
         failure_t = int(self._circuit_policy.failure_threshold)
         self._sql_circuit_failure = (
-            f"INSERT INTO {ct} "  # noqa: S608
+            f"INSERT INTO {ct} "  # noqa: S608  # nosec B608
             f"(breaker_key, state, failure_count, success_count, updated_at) "
             f"VALUES (%s, 'closed', 1, 0, now()) "
             f"ON CONFLICT (breaker_key) DO UPDATE SET "
@@ -290,7 +317,7 @@ class PgWebhookDeliverySupervisor:
         # transitions to 'closed'.
         success_t = int(self._circuit_policy.success_threshold)
         self._sql_circuit_success = (
-            f"INSERT INTO {ct} "  # noqa: S608
+            f"INSERT INTO {ct} "  # noqa: S608  # nosec B608
             f"(breaker_key, state, failure_count, success_count, updated_at) "
             f"VALUES (%s, 'closed', 0, 0, now()) "
             f"ON CONFLICT (breaker_key) DO UPDATE SET "
@@ -304,23 +331,23 @@ class PgWebhookDeliverySupervisor:
             f"RETURNING state, success_count"
         )
         self._sql_enqueue = (
-            f"INSERT INTO {qt} "  # noqa: S608
+            f"INSERT INTO {qt} "  # noqa: S608  # nosec B608
             f"(breaker_key, url, task_id, task_type, status_str, result_json, "
             f"token, sequence_key, max_attempts, notification_type, operation_id) "
             f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
         )
         self._sql_poll = (
-            f"SELECT id, breaker_key, url, task_id, task_type, status_str, "  # noqa: S608
+            f"SELECT id, breaker_key, url, task_id, task_type, status_str, "  # noqa: S608  # nosec B608
             f"result_json, token, sequence_key, attempt_count, max_attempts, "
             f"idempotency_key, sent_body, notification_type, operation_id "
             f"FROM {qt} "
-            f"WHERE status_str IN ('pending', 'retry') AND scheduled_at <= now() "
+            f"WHERE delivery_state IN ('pending', 'retry') AND scheduled_at <= now() "
             f"ORDER BY scheduled_at LIMIT 1 FOR UPDATE SKIP LOCKED"
         )
-        self._sql_delete_job = f"DELETE FROM {qt} WHERE id = %s"  # noqa: S608
+        self._sql_delete_job = f"DELETE FROM {qt} WHERE id = %s"  # noqa: S608  # nosec B608
         self._sql_reschedule = (
-            f"UPDATE {qt} SET "  # noqa: S608
-            f"  status_str = 'retry', "
+            f"UPDATE {qt} SET "  # noqa: S608  # nosec B608
+            f"  delivery_state = 'retry', "
             f"  attempt_count = %s, "
             f"  scheduled_at = %s, "
             f"  sent_body = %s, "
@@ -328,7 +355,7 @@ class PgWebhookDeliverySupervisor:
             f"WHERE id = %s"
         )
         self._sql_log_insert = (
-            f"INSERT INTO {lt} "  # noqa: S608
+            f"INSERT INTO {lt} "  # noqa: S608  # nosec B608
             f"(queue_id, breaker_key, url, task_id, sequence_key, sequence_number, "
             f"attempt_number, max_attempts, outcome, http_status_code, error_message, "
             f"response_time_ms, occurred_at, will_retry, next_retry_at, task_type, "
@@ -370,6 +397,7 @@ class PgWebhookDeliverySupervisor:
                 task_id         TEXT        NOT NULL,
                 task_type       TEXT,
                 status_str      TEXT        NOT NULL DEFAULT 'pending',
+                delivery_state  TEXT        NOT NULL DEFAULT 'pending',
                 result_json     TEXT,
                 token           TEXT,
                 sequence_key    TEXT,
@@ -388,10 +416,23 @@ class PgWebhookDeliverySupervisor:
             # in the CREATE above) and an in-place add on pre-existing ones —
             # so a CREATE-only deployment and an upgrading one converge.
             f"ALTER TABLE {qt} ADD COLUMN IF NOT EXISTS operation_id TEXT",
+            # Queue state moved out of status_str, which holds the payload's
+            # task status (#1606). Before 9.2.1 the worker only claimed rows
+            # whose status_str was 'pending' or 'retry', so every row send_mcp
+            # wrote stayed unsent. The constant default makes every existing
+            # row deliverable, with its task status untouched. Those rows were
+            # never claimed, so delivering them now is their first attempt.
+            # Rows an older process inserts during a rolling deploy omit the
+            # column and take the same default; an older worker still claims
+            # on status_str and never sees a row written here.
+            f"ALTER TABLE {qt} ADD COLUMN IF NOT EXISTS delivery_state TEXT "
+            f"NOT NULL DEFAULT 'pending'",
             # Partial index on work-eligible rows; avoids scanning completed/in-flight rows.
-            f"""CREATE INDEX IF NOT EXISTS {qt}_work_idx
-                ON {qt} (status_str, scheduled_at)
-                WHERE status_str IN ('pending', 'retry')""",
+            f"""CREATE INDEX IF NOT EXISTS {qt}_delivery_idx
+                ON {qt} (delivery_state, scheduled_at)
+                WHERE delivery_state IN ('pending', 'retry')""",
+            # The pre-9.2.1 work index keyed on status_str; nothing claims on it now.
+            f"DROP INDEX IF EXISTS {qt}_work_idx",
             f"""CREATE TABLE IF NOT EXISTS {lt} (
                 id                BIGSERIAL   PRIMARY KEY,
                 queue_id          BIGINT,
@@ -517,7 +558,9 @@ class PgWebhookDeliverySupervisor:
                 async with self._pool.connection() as conn:
                     await conn.execute(self._sql_circuit_set_half_open, (bkey,))
 
-        status_str = status if isinstance(status, str) else str(status)
+        # Persist the wire value: str() of a non-str enum would store its
+        # repr, and the payload status must be the on-wire string.
+        status_str = status.value if isinstance(status, Enum) else str(status)
         result_json = json.dumps(result) if result is not None else None
 
         async with self._pool.connection() as conn:
@@ -619,8 +662,14 @@ class PgWebhookDeliverySupervisor:
             attempt_number = attempt_count + 1
             will_retry = attempt_number < max_attempts
 
-            # Deferred import avoids circular module dependency at package init.
+            # Deferred imports avoid a circular module dependency at package init.
             from adcp.webhook_sender import WebhookDeliveryResult  # noqa: PLC0415
+            from adcp.webhooks import generate_webhook_idempotency_key  # noqa: PLC0415
+
+            # A fresh send whose predecessor raised has no bytes to replay.
+            # Fix the key before sending and persist it on reschedule, so every
+            # attempt of this job carries the same idempotency_key.
+            ikey = idempotency_key or generate_webhook_idempotency_key()
 
             t0 = time.monotonic()
             occurred_at = datetime.now(UTC)
@@ -650,6 +699,7 @@ class PgWebhookDeliverySupervisor:
                         task_type=task_type,
                         result=result_obj,
                         operation_id=operation_id,
+                        idempotency_key=ikey,
                         token=token,
                     )
             except Exception as exc:
@@ -693,9 +743,12 @@ class PgWebhookDeliverySupervisor:
                 )
 
                 if will_retry:
-                    stored_body = delivery_result.sent_body if delivery_result is not None else None
+                    # A replay that raised keeps the bytes it was replaying.
+                    stored_body = (
+                        delivery_result.sent_body if delivery_result is not None else sent_body
+                    )
                     stored_ikey = (
-                        delivery_result.idempotency_key if delivery_result is not None else None
+                        delivery_result.idempotency_key if delivery_result is not None else ikey
                     )
                     await conn.execute(
                         self._sql_reschedule,

@@ -120,7 +120,7 @@ COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 # Keep the supported 3.1 validation cache on its signed maintenance release.
 # Generated Pydantic types and the primary SDK pin remain on 3.2.
 # Retain cache/3.1.15 for exact-source compatibility continuations.
-PREVIEW_VERSIONS: tuple[str, ...] = ("3.2.4", "3.1.27")
+PREVIEW_VERSIONS: tuple[str, ...] = ("3.2.7", "3.1.27")
 
 
 def get_target_adcp_version() -> str:

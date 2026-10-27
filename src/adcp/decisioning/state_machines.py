@@ -13,6 +13,14 @@ The helpers are deliberately small — adopters who need richer guards
 (e.g., role-based authorization on transitions) compose their own
 checks alongside these.
 
+Media buys have two graphs. :data:`MEDIA_BUY_TRANSITIONS` is the
+*requested* graph: what a handler may do when a buyer asks for a state
+change, enforced by :func:`assert_media_buy_transition`.
+:data:`OBSERVED_MEDIA_BUY_TRANSITIONS` is the *observed* graph: every
+move a seller may record when it mirrors status from its own platform.
+It is a strict superset, and it equals the full AdCP 3.2 published
+lifecycle graph.
+
 State enum values track the AdCP spec at
 ``schemas/cache/enums/media-buy-status.json`` and
 ``schemas/cache/enums/creative-status.json``.
@@ -28,9 +36,15 @@ from adcp.decisioning.types import AdcpError
 # Media buy state machine
 # ---------------------------------------------------------------------------
 
-#: Legal media-buy state transitions per the AdCP spec.
+#: Media-buy state transitions a handler may make on a buyer's request.
 #: Maps ``from_state`` → set of legal ``to_state`` values. Terminal
 #: states map to an empty frozenset.
+#:
+#: This is the *requested* graph that :func:`assert_media_buy_transition`
+#: enforces. It omits three published edges that follow from the
+#: seller's lifecycle rather than from a status a buyer asks for; see
+#: :data:`OBSERVED_MEDIA_BUY_TRANSITIONS` for recording what an ad
+#: server reports.
 MEDIA_BUY_TRANSITIONS: Mapping[str, frozenset[str]] = {
     # Approved but waiting on creatives — buyer attaches via sync_creatives.
     "pending_creatives": frozenset({"pending_start", "canceled", "rejected"}),
@@ -45,6 +59,99 @@ MEDIA_BUY_TRANSITIONS: Mapping[str, frozenset[str]] = {
     "canceled": frozenset(),
     "rejected": frozenset(),
 }
+
+
+#: Media-buy statuses with no outgoing transition: ``completed``,
+#: ``canceled``, and ``rejected``.
+#:
+#: Derived from :data:`MEDIA_BUY_TRANSITIONS`, so it cannot drift from
+#: the graph. AdCP 3.2 ``docs/media-buy/specification.mdx``, "Media Buy
+#: State Transitions": "Terminal states (``completed``, ``rejected``,
+#: ``canceled``) allow no further transitions."
+MEDIA_BUY_TERMINAL_STATUSES: frozenset[str] = frozenset(
+    status for status, legal in MEDIA_BUY_TRANSITIONS.items() if not legal
+)
+
+# Published AdCP 3.2 edges that MEDIA_BUY_TRANSITIONS leaves out. Each
+# follows from the seller's lifecycle (creative coverage completing after
+# the flight started, a latent create-time hold surfacing), never from a
+# status a buyer asks for.
+_PLATFORM_MEDIA_BUY_TRANSITIONS: Mapping[str, frozenset[str]] = {
+    # Creatives were assigned after the flight start: the buy becomes
+    # deliverable at once (or held, when it was created paused).
+    "pending_creatives": frozenset({"active", "paused"}),
+    # The flight start arrived on a buy created with ``paused: true``.
+    "pending_start": frozenset({"paused"}),
+}
+
+#: Every media-buy move a seller may record when it mirrors status from
+#: its own platform (ad server, OMS). Maps ``from_state`` → set of
+#: ``to_state`` values. A superset of :data:`MEDIA_BUY_TRANSITIONS`.
+#:
+#: The extra edges are published AdCP 3.2 edges that follow from the
+#: seller's lifecycle rather than from a status a buyer asks for:
+#:
+#: * ``pending_creatives → active``: ``docs/media-buy/media-buys/lifecycle.mdx``,
+#:   "Creative sync timing": after assignments cover the package, the buy
+#:   "moves to ``pending_start`` when the flight is in the future or
+#:   ``active`` when delivery can begin."
+#: * ``pending_creatives → paused`` and ``pending_start → paused``: the
+#:   same page's transition diagram ("sync_creatives assignment (buy
+#:   held)", "flight date reached (create held)"), and
+#:   ``docs/media-buy/specification.mdx``: a create-time hold is latent
+#:   while setup blockers are visible, and "once creatives are present
+#:   and the flight can start, the buy enters ``paused`` instead of
+#:   ``active``."
+#:
+#: The graph equals the one the ``@adcp/client`` storyboard runner's
+#: ``status.monotonic`` invariant enforces for AdCP 3.2, so a status
+#: history accepted here also passes that invariant.
+#:
+#: Terminal states stay terminal. A platform move out of ``completed``,
+#: ``canceled``, or ``rejected`` (an ad server reopening a finished
+#: order), or a move back to an earlier phase (``active →
+#: pending_start`` when the flight start is pushed later), has no edge
+#: in AdCP 3.2 and is not in this graph; ``status.monotonic`` rejects
+#: a buyer-visible history that contains one. A seller that sees one
+#: should keep the status it reports to buyers on the published graph
+#: and track the platform state separately.
+OBSERVED_MEDIA_BUY_TRANSITIONS: Mapping[str, frozenset[str]] = {
+    status: legal | _PLATFORM_MEDIA_BUY_TRANSITIONS.get(status, frozenset())
+    for status, legal in MEDIA_BUY_TRANSITIONS.items()
+}
+
+
+def is_terminal_media_buy_status(status: str) -> bool:
+    """Return whether ``status`` is a terminal media-buy status.
+
+    An unknown status returns ``False`` rather than raising, so an
+    adopter's internal pre-lifecycle statuses (``draft``,
+    ``pending_approval``) are simply non-terminal.
+
+    :param status: A media-buy status string or ``MediaBuyStatus`` member.
+    """
+    return status in MEDIA_BUY_TERMINAL_STATUSES
+
+
+def is_observable_media_buy_transition(from_state: str, to_state: str) -> bool:
+    """Return whether a seller may record ``from_state → to_state``.
+
+    Use when mirroring status from the seller's own platform, where the
+    move already happened and refusing it with ``INVALID_STATE`` would
+    only hide it. The check is against
+    :data:`OBSERVED_MEDIA_BUY_TRANSITIONS`, which adds the AdCP 3.2
+    published edges that no buyer request produces (``pending_creatives →
+    active``, ``pending_creatives → paused``, ``pending_start →
+    paused``) to :data:`MEDIA_BUY_TRANSITIONS`.
+
+    Returns ``False`` for an unknown status, for an unchanged status
+    (not a transition), and for any move out of a terminal status. For
+    a buyer's request, use :func:`assert_media_buy_transition` instead.
+
+    :param from_state: Status the seller last recorded.
+    :param to_state: Status the seller's platform now reports.
+    """
+    return to_state in OBSERVED_MEDIA_BUY_TRANSITIONS.get(from_state, frozenset())
 
 
 def assert_media_buy_transition(
@@ -199,7 +306,11 @@ def _details(
 
 __all__ = [
     "CREATIVE_ASSET_TRANSITIONS",
+    "MEDIA_BUY_TERMINAL_STATUSES",
     "MEDIA_BUY_TRANSITIONS",
+    "OBSERVED_MEDIA_BUY_TRANSITIONS",
     "assert_creative_transition",
     "assert_media_buy_transition",
+    "is_observable_media_buy_transition",
+    "is_terminal_media_buy_status",
 ]

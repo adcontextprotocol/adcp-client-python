@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "9.2.0"
+version = "9.3.0"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -289,6 +289,10 @@ adcp = [
     "_compliance/3.3.0-beta.0/**/*.jsonl",
     "_compliance/3.3.0-beta.0/**/*.yaml",
     "_compliance/3.3.0-beta.0/**/*.md",
+    "_compliance/3.2.7/**/*.json",
+    "_compliance/3.2.7/**/*.jsonl",
+    "_compliance/3.2.7/**/*.yaml",
+    "_compliance/3.2.7/**/*.md",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each

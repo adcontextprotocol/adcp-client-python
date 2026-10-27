@@ -24,6 +24,7 @@
         "adcp_major_version": {
           "type": "integer",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
           "minimum": 1,
           "maximum": 99
@@ -268,6 +269,7 @@
             "authentication": {
               "type": "object",
               "deprecated": true,
+              "x-removed-in": "4.0.0",
               "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification \u2014 signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook key is published at its brand.json `agents[]` `jwks_uri` using `adcp_use: \"request-signing\"` (deprecated `webhook-signing` keys remain accepted during the compatibility window); it does not override this selector and is only used when `authentication` is omitted. See docs/building/by-layer/L1/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
               "properties": {
                 "schemes": {
@@ -276,6 +278,7 @@
                   "items": {
                     "title": "Authentication Scheme",
                     "deprecated": true,
+                    "x-removed-in": "4.0.0",
                     "description": "Legacy authentication schemes for the webhook auth block. Bearer: token sent in Authorization header. HMAC-SHA256: legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit the authentication block and use the RFC 9421 webhook signing profile (applicable on schemas where authentication is optional). Removed in AdCP 4.0.",
                     "type": "string",
                     "enum": [
@@ -5099,6 +5102,7 @@
           "input_format_ids": {
             "type": "array",
             "deprecated": true,
+            "x-removed-in": "4.0.0",
             "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `list_transformers` instead \u2014 a transformer declares its own `input_format_ids`/`output_format_ids`, so build capability is a property of the transformer (the unit you select and that carries pricing), not a relationship hung on a format. Discover build capability via `list_transformers` (optionally filtered by `input_format_ids`/`output_format_ids`).\n\nMigration: sellers that expressed transform capability by hanging `input_format_ids` on a format SHOULD declare a transformer via `list_transformers` instead. Buyers SHOULD discover build capability via `list_transformers` rather than filtering formats.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* array of format IDs this format accepts as input creative manifests; when present, indicates this format can take existing creatives in these formats as input. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
             "items": {
               "title": "Format Reference (Structured Object)",
@@ -5160,6 +5164,7 @@
           "output_format_ids": {
             "type": "array",
             "deprecated": true,
+            "x-removed-in": "4.0.0",
             "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `list_transformers` instead \u2014 a transformer declares its own `output_format_ids`, so what a builder can produce is a property of the transformer, not a relationship hung on a format. Discover via `list_transformers`.\n\nMigration: sellers that expressed multi-output build capability (e.g. a multi-publisher template) by hanging `output_format_ids` on a format SHOULD declare a transformer via `list_transformers` instead.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* array of format IDs this format can produce as output; when present, indicates this format can build creatives in these output formats. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
             "items": {
               "title": "Format Reference (Structured Object)",
@@ -5503,6 +5508,7 @@
           "pricing_options": {
             "type": "array",
             "deprecated": true,
+            "x-removed-in": "4.0.0",
             "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `transformer.pricing_options` (via `list_transformers`) instead \u2014 pricing belongs on the transformer (the unit selected and billed), exactly as it belongs on a media-buy product. Once formats only describe output shape, format-level pricing is vestigial.\n\nMigration: transformation/generation agents that charged via `format.pricing_options` SHOULD move the same `vendor-pricing-option` entries onto the corresponding transformer. The applied option is echoed per-leaf on the build_creative response and reconciled via report_usage, unchanged.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* pricing options for this format, used by transformation/generation agents that charge per format adapted, per image generated, or per unit of work; present when the request included include_pricing=true and account. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
             "items": {
               "title": "Vendor Pricing Option",
@@ -5922,6 +5928,7 @@
           },
           "canonical_parameters": {
             "deprecated": true,
+            "x-removed-in": "4.0.0",
             "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `v1_format_ref` on the v2 `ProductFormatDeclaration` instead \u2014 the seller authors a v2 declaration (in `Product.format_options` or `creative.supported_formats`) and links it back to this v1 format via `v1_format_ref: { agent_url, id }`. The directional link from v2 \u2192 v1 is the same fact as `canonical_parameters` without the parallel-shape drift surface (v1 file and `canonical_parameters` were two declarations of the same thing; hand-authored, drifting silently).\n\nMigration: every seller currently authoring `canonical_parameters` SHOULD migrate to authoring a v2 declaration on the corresponding product (or capability) with `v1_format_ref` pointing back at this v1 format. v1 files become pure v1 again \u2014 no v2-shape mirroring.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* When `canonical` is set, this field carries the full ProductFormatDeclaration that the SDK projects this v1 format into. The `format_kind` MUST equal the `canonical` field value (validators enforce). When set, this is the authoritative source for SDK v1\u2192v2 projection \u2014 the registry's structural-match parameter inference is bypassed. SDKs reading 3.1 catalogs MUST continue to honor `canonical_parameters` when present; 4.0+ SDKs MAY reject the field. New code SHOULD NOT emit this field. Seller execution authority is never projected through this deprecated field, so tracker_execution_contract and tracker_execution_contract_digest are forbidden.\n\n**Drift contract (still normative while supported).** Hand-authored `canonical_parameters` MUST satisfy the *narrows* relation against this v1 format's `requirements` and `assets[*]` shape (see canonical-formats.mdx 'Narrows \u2014 formal definition'). SDKs that read this v1 file SHOULD lint-time check the equivalence at build/load and emit `FORMAT_PROJECTION_FAILED` if the two disagree.",
             "allOf": [
               {
@@ -33427,7 +33434,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-10-11T21:22:31.952Z",
+    "generatedAt": "2026-10-24T17:35:51.774Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

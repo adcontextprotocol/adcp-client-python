@@ -269,6 +269,7 @@ jobs:
                      tests/test_decisioning_lazy_pg_stores.py \
                      tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
                      tests/conformance/decisioning/test_pg_notification_outbox.py \
+                     tests/conformance/decisioning/test_pg_webhook_delivery_supervisor.py \
                      tests/test_notification_outbox.py \
                      tests/test_notification_outbox_artifacts.py \
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \

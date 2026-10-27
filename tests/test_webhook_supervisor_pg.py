@@ -224,9 +224,39 @@ class TestCreateSchema:
         sup = _make_supervisor(pool, _make_sender())
         await sup.create_schema()
 
-        # 7 statements: 3 tables + 1 ALTER (operation_id backfill on the
-        # queue table) + 3 indexes (1 partial + 2 standard)
-        assert conn.execute.call_count == 7
+        # 9 statements: 3 tables + 2 ALTERs (operation_id and delivery_state
+        # on the queue table) + 3 indexes (1 partial + 2 standard) + 1 DROP
+        # of the pre-9.2.1 status_str work index
+        assert conn.execute.call_count == 9
+
+    @pytest.mark.asyncio
+    async def test_existing_queue_rows_become_deliverable(self) -> None:
+        """Upgrading adds delivery_state with a constant 'pending' default (#1606).
+
+        A row a 9.2.0 send_mcp wrote holds its task status in status_str and
+        was never claimed; the default makes it claimable without touching
+        status_str, so the payload still carries the task status.
+        """
+        conn = AsyncMock()
+        conn.__aenter__ = AsyncMock(return_value=conn)
+        conn.__aexit__ = AsyncMock(return_value=False)
+        conn.execute = AsyncMock()
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(return_value=conn)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        pool = MagicMock()
+        pool.connection = MagicMock(return_value=ctx)
+
+        sup = _make_supervisor(pool, _make_sender())
+        await sup.create_schema()
+
+        sqls = [" ".join(call.args[0].split()) for call in conn.execute.call_args_list]
+        assert (
+            "ALTER TABLE adcp_webhook_delivery_queue ADD COLUMN IF NOT EXISTS "
+            "delivery_state TEXT NOT NULL DEFAULT 'pending'"
+        ) in sqls
+        assert not any("UPDATE" in s for s in sqls)
+        assert "DROP INDEX IF EXISTS adcp_webhook_delivery_queue_work_idx" in sqls
 
     @pytest.mark.asyncio
     async def test_each_statement_contains_table_name(self) -> None:
@@ -465,6 +495,27 @@ class TestWorkerSuccess:
         assert enqueue_params[-1] == "op-xyz-789"
 
     @pytest.mark.asyncio
+    async def test_enum_task_status_persisted_as_wire_value(self) -> None:
+        from adcp.types import GeneratedTaskStatus
+
+        conn_circuit = _make_conn(None)
+        conn_enqueue = _make_conn((8,))
+        sup = _make_supervisor(_make_pool(conn_circuit, conn_enqueue), _make_sender())
+        sup._worker_started = True
+
+        await sup.send_mcp(
+            url="https://b.example/wh",
+            task_id="t1",
+            status=GeneratedTaskStatus.input_required,
+            task_type="create_media_buy",
+            operation_id="op-1",
+        )
+        enqueue_sql, enqueue_params = conn_enqueue.execute.call_args.args
+        assert "delivery_state" not in enqueue_sql  # the column default makes it pending
+        assert enqueue_params[4] == "input-required"
+        assert type(enqueue_params[4]) is str
+
+    @pytest.mark.asyncio
     async def test_worker_replays_operation_id_to_sender(self) -> None:
         """The worker reads operation_id off the queue row and echoes it
         into the underlying WebhookSender.send_mcp call."""
@@ -510,7 +561,8 @@ class TestWorkerFailureAndRetry:
 
         sql_calls = [c.args[0] for c in conn.execute.call_args_list]
         # Should reschedule, not delete
-        assert any("status_str = 'retry'" in s for s in sql_calls)
+        assert any("delivery_state = 'retry'" in s for s in sql_calls)
+        assert not any("status_str =" in s for s in sql_calls)
         assert not any("DELETE FROM" in s for s in sql_calls)
 
     @pytest.mark.asyncio
@@ -529,7 +581,7 @@ class TestWorkerFailureAndRetry:
 
         sql_calls = [c.args[0] for c in conn.execute.call_args_list]
         assert any("DELETE FROM" in s for s in sql_calls)
-        assert not any("status_str = 'retry'" in s for s in sql_calls)
+        assert not any("delivery_state = 'retry'" in s for s in sql_calls)
 
     @pytest.mark.asyncio
     async def test_retry_uses_resend_when_sent_body_stored(self) -> None:
@@ -576,12 +628,89 @@ class TestWorkerFailureAndRetry:
         await sup._poll_and_process()
 
         sql_calls = conn.execute.call_args_list
-        reschedule_call = next((c for c in sql_calls if "status_str = 'retry'" in c.args[0]), None)
+        reschedule_call = next(
+            (c for c in sql_calls if "delivery_state = 'retry'" in c.args[0]), None
+        )
         assert reschedule_call is not None
         # sent_body and idempotency_key are positional params 3 and 4 (0-indexed)
         params = reschedule_call.args[1]
         assert params[2] == fail_result.sent_body  # sent_body
         assert params[3] == fail_result.idempotency_key  # idempotency_key
+
+    @pytest.mark.asyncio
+    async def test_exception_retry_resends_task_status_with_same_key(self) -> None:
+        """A send that raised is retried fresh with the task status and one key (#1606).
+
+        Before the fix the retry sent ``status="retry"`` (the queue state) and a
+        newly generated idempotency_key, so a receiver that had accepted the
+        first POST could not dedupe the second.
+        """
+        sender = _make_sender()
+        sender.send_mcp = AsyncMock(side_effect=ConnectionError("reset by peer"))
+        conn = _make_conn(
+            _queue_row(status_str="completed", attempt_count=0, max_attempts=3),
+            None,  # circuit_failure
+            None,  # reschedule
+            None,  # log_insert
+        )
+        sup = _make_supervisor(_make_pool(conn), sender)
+
+        assert await sup._poll_and_process() is True
+
+        first = sender.send_mcp.await_args.kwargs
+        assert first["status"] == "completed"
+        reschedule = next(
+            c for c in conn.execute.call_args_list if "delivery_state = 'retry'" in c.args[0]
+        )
+        _attempt, _at, stored_body, stored_ikey, _id = reschedule.args[1]
+        assert stored_body is None
+        assert stored_ikey == first["idempotency_key"]
+
+        retry_conn = _make_conn(
+            _queue_row(
+                status_str="completed",
+                attempt_count=1,
+                max_attempts=3,
+                idempotency_key=stored_ikey,
+            ),
+            None,  # delete_job
+            ("closed", 0),  # circuit_success
+            None,  # log_insert
+        )
+        sender.send_mcp = AsyncMock(return_value=_ok())
+        sup._pool = _make_pool(retry_conn)
+
+        assert await sup._poll_and_process() is True
+
+        retried = sender.send_mcp.await_args.kwargs
+        assert retried["status"] == "completed"
+        assert retried["idempotency_key"] == stored_ikey
+
+    @pytest.mark.asyncio
+    async def test_resend_that_raised_keeps_stored_bytes(self) -> None:
+        sender = _make_sender()
+        sender.resend = AsyncMock(side_effect=ConnectionError("reset by peer"))
+        stored_body = b'{"original":"payload"}'
+        conn = _make_conn(
+            _queue_row(
+                attempt_count=1,
+                max_attempts=3,
+                sent_body=stored_body,
+                idempotency_key="original-ikey",
+            ),
+            None,  # circuit_failure
+            None,  # reschedule
+            None,  # log_insert
+        )
+        sup = _make_supervisor(_make_pool(conn), sender)
+
+        await sup._poll_and_process()
+
+        reschedule = next(
+            c for c in conn.execute.call_args_list if "delivery_state = 'retry'" in c.args[0]
+        )
+        assert reschedule.args[1][2] == stored_body
+        assert reschedule.args[1][3] == "original-ikey"
 
 
 class TestWorkerCircuitState:
