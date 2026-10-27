@@ -18,6 +18,7 @@ from adcp.server.idempotency import MemoryBackend, WebhookDedupStore
 from adcp.signing import StaticJwksResolver, private_key_from_jwk
 from adcp.types.domains.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.webhooks import (
+    DEFAULT_MAX_WEBHOOK_BODY_BYTES,
     LegacyHmacFallback,
     LegacyWebhookHmacOptions,
     WebhookReceiver,
@@ -580,7 +581,8 @@ async def test_schema_invalid_payload_still_binds_delivery_key() -> None:
 @pytest.mark.asyncio
 async def test_oversized_body_rejected_before_signature_verification() -> None:
     receiver = _build_receiver()
-    body = b"x" * (10 * 1024 * 1024 + 1)
+    # AdCP 3.3: the 1 MB webhook payload limit governs (was 10 MiB).
+    body = b"x" * (DEFAULT_MAX_WEBHOOK_BODY_BYTES + 1)
 
     outcome = await receiver.receive(
         method="POST",
@@ -612,8 +614,11 @@ async def test_excessively_nested_payload_is_rejected_cleanly() -> None:
 
     outcome = await receiver.receive(method="POST", url=URL, headers=_sign_webhook(body), body=body)
 
-    assert outcome.rejection_reason == "payload_not_i_json"
-    assert outcome.http_status == 400
+    # AdCP 3.3 §Inbound body bounds: depth > 64 is refused with 413 before
+    # signature verification (was payload_not_i_json / 400 after it).
+    assert outcome.rejection_reason == "body_too_complex"
+    assert outcome.http_status == 413
+    assert outcome.sender_identity is None
 
 
 @pytest.mark.asyncio
