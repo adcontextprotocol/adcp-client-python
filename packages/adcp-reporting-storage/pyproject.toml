@@ -33,10 +33,10 @@ dependencies = [
     # ``adcp.reporting`` helpers, so the range is one major: a new ``adcp``
     # major means a new release here.
     #
-    # On the next draft-spec line the range also admits adcp 10 pre-releases so
-    # the workspace installs once next cuts 10.0.0aN. next never releases this
-    # distribution; at ratification its first adcp-10 release narrows the range
-    # to ``adcp>=10.0.0,<11`` (RELEASING.md, Ratification).
+    # On next this range also admits adcp 10 pre-releases: next releases this
+    # distribution as its SDK 10 companion (0.2.0-beta.N), and the workspace
+    # must still install while pyproject.toml carries main's version. At
+    # ratification the range narrows to ``adcp>=10.0.0,<11`` (RELEASING.md).
     "adcp>=9.0.0,<11",
     # RFC 8785 canonical JSON for row bodies and object keys; the same pin as adcp.
     "rfc8785>=0.1.4",
