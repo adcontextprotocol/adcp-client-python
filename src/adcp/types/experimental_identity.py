@@ -51,6 +51,7 @@ from adcp.types._identity_preview import (
 from adcp.types._identity_preview import (
     TrustV1Trust as TrustRecord,
 )
+from adcp.types.base import inherit_field
 from adcp.types.domains.core.principal_changed_webhook import (
     PrincipalChangedWebhook as _PrincipalChangedWebhook,
 )
@@ -95,12 +96,14 @@ class RequestSigning(_RequestSigning):
 
 class GetAdcpCapabilitiesResponse(_GetAdcpCapabilitiesResponse):
     # Pyright treats mutable Pydantic fields as invariant even for subclasses.
+    # Each redeclaration inherits the generated field (description, never-null
+    # marker) and only narrows its annotation (#1620).
     account: AccountCapabilities | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
-        None
+        inherit_field(_GetAdcpCapabilitiesResponse, "account")
     )
     request_signing: (  # pyright: ignore[reportIncompatibleVariableOverride]
         RequestSigning | None
-    ) = None
+    ) = inherit_field(_GetAdcpCapabilitiesResponse, "request_signing")
 
 
 class PrincipalUnconfiguredResult(_PrincipalUnconfiguredResult):
@@ -124,9 +127,15 @@ class GetPrincipalResponse(_GetPrincipalResponse):
     )
 
 
+_DraftPrincipalChangedReason = (
+    _PrincipalChangedReason | Literal["relationship_changed", "relationship_expiring"]
+)
+_draft_principal_changed_reason = inherit_field(_PrincipalChangedWebhook, "reason", required=True)
+
+
 class PrincipalChangedWebhook(_PrincipalChangedWebhook):
     # Draft webhook reasons intentionally expand the stable response enum.
-    reason: _PrincipalChangedReason | Literal["relationship_changed", "relationship_expiring"]  # type: ignore[assignment]
+    reason: _DraftPrincipalChangedReason = _draft_principal_changed_reason  # type: ignore[assignment]
 
 
 class GrantAbsentDetails(BaseModel):

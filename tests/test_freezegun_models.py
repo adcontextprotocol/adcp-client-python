@@ -138,6 +138,8 @@ def test_build_all_models_returns_after_a_generated_poc_alias_import() -> None:
     # second sys.modules key, which used to make the lazy-export walk spin
     # forever. A subprocess with a timeout turns a regression into a failure
     # instead of a hung CI job.
+    if importlib.util.find_spec("adcp.types.generated_poc") is None:
+        pytest.skip("adcp.types.generated_poc was removed in SDK 10 (#1536)")
     program = r"""
 import sys
 import warnings
