@@ -42,6 +42,7 @@ import asyncio
 import re
 import time
 import warnings
+import weakref
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
@@ -56,6 +57,7 @@ from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing._strict_json import parse_strict_json
 from adcp.signing.canonical import canonicalize_target_uri
 from adcp.signing.jwks import (
+    DEFAULT_JWKS_MAX_AGE_SECONDS,
     AsyncCachingJwksResolver,
     AsyncJwksFetcher,
     SSRFValidationError,
@@ -107,15 +109,78 @@ DEFAULT_MIN_COOLDOWN_SECONDS = 30.0
 DEFAULT_MAX_AGE_SECONDS = 900.0
 DEFAULT_MAX_STALE_SECONDS = 900.0
 DEFAULT_MAX_REDIRECTS = 3
+
+#: Total deadline for one brand.json resolution. It covers waiting for a
+#: fetch slot, connecting, every document-indirection hop, and reading each
+#: body, so a slow-drip origin cannot hold the verifier open (security.mdx,
+#: brand.json fetch budget: 10 s total).
 DEFAULT_BRAND_JSON_TIMEOUT_SECONDS = 10.0
 
-#: brand.json bodies are tiny by design (a single brand portfolio with a
-#: handful of agents). Cap at 256 KiB so a counterparty serving an
-#: adversarial multi-megabyte body can't OOM the verifier. Buffered
-#: into memory after read; no streaming-parse path. Larger legitimate
-#: brand directories (1000+ brands in a portfolio) would need a higher
-#: cap — file an issue if you hit it.
-DEFAULT_MAX_BRAND_JSON_BYTES = 256 * 1024
+#: Connect deadline for each brand.json hop (security.mdx: connect 5 s).
+DEFAULT_BRAND_JSON_CONNECT_TIMEOUT_SECONDS = 5.0
+
+#: ``MAX_BRAND_JSON_BYTES`` from security.mdx (AdCP 3.3): 2 MiB
+#: (2,097,152 bytes). Large brand houses with visual guidelines, colorways,
+#: and localized names exceed the 3.2 cap of 256 KiB. The cap counts decoded
+#: bytes while the body streams and closes the connection as soon as it is
+#: exceeded; content-encoded responses are refused rather than expanded. It is
+#: also the ceiling for ``max_body_bytes``, because verifiers MUST NOT read
+#: more. The JWKS and capabilities caps are separate and unchanged.
+DEFAULT_MAX_BRAND_JSON_BYTES = 2 * 1024 * 1024
+
+#: Maximum JSON nesting depth of a brand.json (security.mdx, AdCP 3.3). The
+#: top-level object is depth 1. The strict parse step rejects a deeper
+#: document as ``invalid_body``, which the verifier reports as
+#: ``request_signature_brand_json_malformed``, before anything reads it.
+MAX_BRAND_JSON_DEPTH = 32
+
+#: Ceiling on how long a failed brand.json refresh may hold off the next
+#: attempt. Negative results MUST NOT be cached for more than 60 s, so an
+#: operator fixing a misconfiguration is not locked out for a revocation
+#: cycle. A larger ``min_cooldown_seconds`` still paces successful refreshes.
+MAX_BRAND_JSON_NEGATIVE_CACHE_SECONDS = 60.0
+
+#: A successful snapshot never stays fresh longer than the JWKS revocation
+#: polling ceiling, whatever ``max_age_seconds`` says, so a stale brand.json
+#: cannot mask a key rotation.
+_MAX_BRAND_JSON_SUCCESS_TTL_SECONDS = DEFAULT_JWKS_MAX_AGE_SECONDS
+
+#: Bound on concurrent in-flight brand.json fetches per event loop. The spec
+#: requires verifiers to bound concurrent trust-root fetches now that each
+#: one may read 2 MiB. Waiting for a slot counts against the fetch's total
+#: deadline, so saturation fails fast rather than queueing without bound.
+_MAX_CONCURRENT_BRAND_JSON_FETCHES = 32
+
+_fetch_slots: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
+    weakref.WeakKeyDictionary()
+)
+_unweakrefable_loop_slot: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
+
+
+def _brand_json_fetch_slot() -> asyncio.Semaphore:
+    """Return the running loop's semaphore bounding concurrent brand.json fetches.
+
+    Asyncio primitives bind to one loop, so a single module-level semaphore
+    would break when the SDK is driven from more than one loop.
+    """
+    global _unweakrefable_loop_slot
+    loop = asyncio.get_running_loop()
+    try:
+        slot = _fetch_slots.get(loop)
+        if slot is None:
+            slot = asyncio.Semaphore(_MAX_CONCURRENT_BRAND_JSON_FETCHES)
+            _fetch_slots[loop] = slot
+        return slot
+    except TypeError:
+        # A loop implementation without weak-reference support: keep one
+        # semaphore for the most recent such loop.
+        if _unweakrefable_loop_slot is None or _unweakrefable_loop_slot[0] is not loop:
+            _unweakrefable_loop_slot = (
+                loop,
+                asyncio.Semaphore(_MAX_CONCURRENT_BRAND_JSON_FETCHES),
+            )
+        return _unweakrefable_loop_slot[1]
+
 
 #: Default ports stripped during URL canonicalization so loop detection
 #: and origin equality see the same string for ``https://x`` and
@@ -216,6 +281,11 @@ class _BrandJsonFetcher:
         clock: Callable[[], float] | None = None,
         _client_factory: _ClientFactory | None = None,
     ) -> None:
+        if not 0 < max_body_bytes <= DEFAULT_MAX_BRAND_JSON_BYTES:
+            raise ValueError(
+                f"max_body_bytes must be between 1 and {DEFAULT_MAX_BRAND_JSON_BYTES} "
+                "(MAX_BRAND_JSON_BYTES); verifiers must not read more"
+            )
         self._url = brand_json_url
         self._min_cooldown = min_cooldown_seconds
         self._max_age = max_age_seconds
@@ -268,7 +338,12 @@ class _BrandJsonFetcher:
         if snap is None:
             return True
         reference = max(snap.fetched_at, self._last_attempt_at or snap.fetched_at)
-        return self._clock() - reference >= self._min_cooldown
+        cooldown = self._min_cooldown
+        if self._last_error is not None:
+            # The last attempt failed: that negative result may hold off the
+            # next refresh for at most 60 s.
+            cooldown = min(cooldown, MAX_BRAND_JSON_NEGATIVE_CACHE_SECONDS)
+        return self._clock() - reference >= cooldown
 
     def can_serve_stale(self, snapshot: _BrandJsonSnapshot | None = None) -> bool:
         """Return whether an expired authorization snapshot is within grace."""
@@ -287,6 +362,10 @@ class _BrandJsonFetcher:
     @property
     def last_error(self) -> BrandJsonResolverError | None:
         return self._last_error
+
+    @property
+    def _success_ttl(self) -> float:
+        return min(self._max_age, _MAX_BRAND_JSON_SUCCESS_TTL_SECONDS)
 
     def clear(self) -> None:
         """Drop the cached snapshot. Next refresh will be unconditional."""
@@ -350,7 +429,7 @@ class _BrandJsonFetcher:
                 data=self._snapshot.data,
                 final_url=self._snapshot.final_url,
                 fetched_at=now,
-                expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
+                expires_at=now + _compute_lifetime(fetched.cache_control, self._success_ttl),
                 etag=fetched.etag or self._snapshot.etag,
             )
             return self._snapshot
@@ -363,7 +442,7 @@ class _BrandJsonFetcher:
             data=fetched.data,
             final_url=fetched.final_url,
             fetched_at=now,
-            expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
+            expires_at=now + _compute_lifetime(fetched.cache_control, self._success_ttl),
             etag=fetched.etag,
         )
         return self._snapshot
@@ -624,6 +703,45 @@ async def _fetch_brand_json(
     max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
     client_factory: _ClientFactory | None = None,
 ) -> _FetchedBrandJson:
+    """Fetch brand.json within its total deadline and the concurrency bound.
+
+    ``timeout_seconds`` is a wall-clock deadline over the whole resolution:
+    waiting for a fetch slot, connecting, every indirection hop, and reading
+    every body. httpx's own timeouts apply per operation, so a body trickled
+    a byte at a time would never trip them alone.
+    """
+
+    async def bounded() -> _FetchedBrandJson:
+        async with _brand_json_fetch_slot():
+            return await _fetch_brand_json_chain(
+                start_url=start_url,
+                current_etag=current_etag,
+                max_redirects=max_redirects,
+                allow_private=allow_private,
+                timeout_seconds=timeout_seconds,
+                max_body_bytes=max_body_bytes,
+                client_factory=client_factory,
+            )
+
+    try:
+        return await asyncio.wait_for(bounded(), timeout=timeout_seconds)
+    except asyncio.TimeoutError as exc:
+        raise BrandJsonResolverError(
+            "fetch_failed",
+            f"brand.json fetch exceeded its {timeout_seconds:g} s total deadline",
+        ) from exc
+
+
+async def _fetch_brand_json_chain(
+    *,
+    start_url: str,
+    current_etag: str | None,
+    max_redirects: int,
+    allow_private: bool,
+    timeout_seconds: float,
+    max_body_bytes: int,
+    client_factory: _ClientFactory | None,
+) -> _FetchedBrandJson:
     """Fetch brand.json from ``start_url``, following ``authoritative_location``
     and ``house`` redirect variants up to ``max_redirects`` hops.
 
@@ -642,9 +760,14 @@ async def _fetch_brand_json(
     fetch through an attacker-chosen egress. ``allow_private=False``
     (default) rejects RFC1918 / link-local / cloud-metadata IPs.
 
-    Body cap: each response is bounded to ``max_body_bytes`` (default
-    256 KiB). brand.json is small by design; an adversarial
-    multi-megabyte body is stopped during streaming, before JSON parsing.
+    Body cap: each response is bounded to ``max_body_bytes`` (default and
+    ceiling 2 MiB, ``MAX_BRAND_JSON_BYTES``). Bytes are counted while the
+    body streams and the connection is closed as soon as the count passes
+    the cap, before JSON parsing; a declared ``Content-Length`` over the cap
+    is refused up front. Content-encoded responses are refused (the request
+    sends ``Accept-Encoding: identity``), so the cap always counts decoded
+    bytes. The strict parse then rejects duplicate keys and any nesting
+    deeper than :data:`MAX_BRAND_JSON_DEPTH`.
 
     ``client_factory`` is the test seam — production callers pass
     ``None`` to use the IP-pinned client; tests inject a factory that
@@ -685,9 +808,13 @@ async def _fetch_brand_json(
                 raise BrandJsonResolverError(
                     "fetch_failed", f"brand.json URL failed SSRF check: {exc}"
                 ) from exc
+            fetch_timeout = httpx.Timeout(
+                timeout_seconds,
+                connect=min(DEFAULT_BRAND_JSON_CONNECT_TIMEOUT_SECONDS, timeout_seconds),
+            )
             client_cm = httpx.AsyncClient(
                 transport=transport,
-                timeout=timeout_seconds,
+                timeout=fetch_timeout,
                 follow_redirects=False,
                 trust_env=False,
             )
@@ -721,6 +848,12 @@ async def _fetch_brand_json(
                             raise BrandJsonResolverError(
                                 "invalid_body", f"brand.json {exc}"
                             ) from exc
+                        except ValueError as exc:
+                            # A content-encoded response, despite the
+                            # ``identity`` request; refused, never expanded.
+                            raise BrandJsonResolverError(
+                                "fetch_failed", f"brand.json {exc}", url=url
+                            ) from exc
 
                         try:
                             parsed = parse_strict_json(body)
@@ -728,6 +861,12 @@ async def _fetch_brand_json(
                             raise BrandJsonResolverError(
                                 "invalid_body", "brand.json response is not valid JSON"
                             ) from exc
+                        if _exceeds_nesting_depth(body, MAX_BRAND_JSON_DEPTH):
+                            raise BrandJsonResolverError(
+                                "invalid_body",
+                                "brand.json exceeds the maximum nesting depth of "
+                                f"{MAX_BRAND_JSON_DEPTH}",
+                            )
 
                         etag = response.headers.get("etag")
                         cache_control = response.headers.get("cache-control")
@@ -794,6 +933,32 @@ async def _fetch_brand_json(
         )
 
     raise BrandJsonResolverError("redirect_depth_exceeded", "brand.json redirect depth exceeded")
+
+
+#: A JSON string literal. Every opening quote in input that already parsed as
+#: JSON has its closing quote, so no match fails and the scan stays linear;
+#: :func:`_exceeds_nesting_depth` only receives such input.
+_JSON_STRING_RE = re.compile(rb'"(?:[^"\\]+|\\.)*"')
+_NON_CONTAINER_BYTES = bytes(b for b in range(256) if b not in b"[]{}")
+_BRACES_TO_BRACKETS = bytes.maketrans(b"{}", b"[]")
+
+
+def _exceeds_nesting_depth(body: bytes, max_depth: int) -> bool:
+    """Return True when ``body`` nests containers deeper than ``max_depth``.
+
+    ``body`` must already have passed the strict parse (the C decoder bounds
+    its own recursion, and the body is capped at 2 MiB). Works on bytes at C
+    speed instead of walking the parsed tree: drop string literals, keep only
+    container brackets, then strip innermost ``[]`` pairs once per level. Each
+    pass lowers the tallest container by one, so anything left after
+    ``max_depth`` passes nests deeper than ``max_depth``.
+    """
+    brackets = _JSON_STRING_RE.sub(b"", body).translate(_BRACES_TO_BRACKETS, _NON_CONTAINER_BYTES)
+    for _ in range(max_depth):
+        if not brackets:
+            return False
+        brackets = brackets.replace(b"[]", b"")
+    return bool(brackets)
 
 
 def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
@@ -1190,9 +1355,13 @@ __all__ = [
     "BrandJsonJwksResolver",
     "BrandJsonResolverError",
     "BrandJsonResolverErrorCode",
+    "DEFAULT_BRAND_JSON_CONNECT_TIMEOUT_SECONDS",
     "DEFAULT_BRAND_JSON_TIMEOUT_SECONDS",
     "DEFAULT_MAX_AGE_SECONDS",
+    "DEFAULT_MAX_BRAND_JSON_BYTES",
     "DEFAULT_MAX_REDIRECTS",
     "DEFAULT_MAX_STALE_SECONDS",
     "DEFAULT_MIN_COOLDOWN_SECONDS",
+    "MAX_BRAND_JSON_DEPTH",
+    "MAX_BRAND_JSON_NEGATIVE_CACHE_SECONDS",
 ]

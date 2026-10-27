@@ -60,6 +60,12 @@ MAX_REGISTRY_ERROR_LIST_ITEMS = 20
 MAX_REGISTRY_ERROR_PATH_SEGMENTS = 8
 DEFAULT_MAX_REGISTRY_RESPONSE_BYTES = 256 * 1024
 DEFAULT_MAX_BULK_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024
+#: ``/api/brands/brand-json`` wraps a raw brand.json, which AdCP 3.3 allows up
+#: to 2 MiB (``MAX_BRAND_JSON_BYTES``), in a small envelope (domain, url,
+#: variant, validation warnings). Allow the full brand.json plus 256 KiB for
+#: that envelope so a large brand house the registry accepted can be read back.
+DEFAULT_MAX_BRAND_JSON_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024 + 256 * 1024
+_BRAND_JSON_REGISTRY_PATH = "/api/brands/brand-json"
 MAX_RETRY_AFTER_SECONDS = 2_147_483.647
 
 _COMMUNITY_MIRROR_PLATFORM_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
@@ -480,6 +486,8 @@ class RegistryClient:
         max_response_bytes: Maximum decoded response size for normal endpoints.
         max_bulk_response_bytes: Maximum decoded response size for bulk and feed
             endpoints.
+        max_brand_json_response_bytes: Maximum decoded response size for
+            ``get_brand_json``, whose body carries a brand.json of up to 2 MiB.
     """
 
     def __init__(
@@ -490,11 +498,14 @@ class RegistryClient:
         user_agent: str = "adcp-client-python",
         max_response_bytes: int = DEFAULT_MAX_REGISTRY_RESPONSE_BYTES,
         max_bulk_response_bytes: int = DEFAULT_MAX_BULK_REGISTRY_RESPONSE_BYTES,
+        max_brand_json_response_bytes: int = DEFAULT_MAX_BRAND_JSON_REGISTRY_RESPONSE_BYTES,
     ):
         if max_response_bytes <= 0:
             raise ValueError("max_response_bytes must be greater than zero")
         if max_bulk_response_bytes <= 0:
             raise ValueError("max_bulk_response_bytes must be greater than zero")
+        if max_brand_json_response_bytes <= 0:
+            raise ValueError("max_brand_json_response_bytes must be greater than zero")
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._external_client = client
@@ -502,6 +513,7 @@ class RegistryClient:
         self._user_agent = user_agent
         self._max_response_bytes = max_response_bytes
         self._max_bulk_response_bytes = max_bulk_response_bytes
+        self._max_brand_json_response_bytes = max_brand_json_response_bytes
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create httpx client."""
@@ -533,6 +545,8 @@ class RegistryClient:
     def _response_limit(self, path: str) -> int:
         """Return the explicit endpoint-specific decoded response body limit."""
         normalized = urlsplit(path).path.rstrip("/")
+        if normalized == _BRAND_JSON_REGISTRY_PATH:
+            return self._max_brand_json_response_bytes
         if (
             normalized in _LARGE_REGISTRY_RESPONSE_PATHS
             or normalized.startswith("/api/registry/mirrors/")
