@@ -28,6 +28,12 @@ Downgrade table (v2 → v1):
 * ``event=click, method=img`` → ``click_tracker`` slot, no loss
 * ``event=custom, custom_event_name=X`` → ``impression_tracker`` slot,
   custom-event timing LOST
+* AdCP 3.3 playback events (``start``, ``first_quartile``, ``midpoint``,
+  ``third_quartile``, ``complete``), and their 3.2 interim form
+  ``event=custom`` with ``custom_event_name`` set to one of them → DROPPED
+  (``v1`` is ``None``). A quartile URL in the impression slot would count
+  every impression as a quartile view, so the 3.3 migration guide forbids
+  that projection.
 * ``method=js`` (any event) → same slot as method=img, JS execution LOST
 * All lossy combinations emit ``PIXEL_TRACKER_LOSSY_DOWNGRADE``
 
@@ -70,6 +76,13 @@ _PIXEL_TRACKER_URL_ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"}
 # Events that collapse onto the viewability slot on the v1 side. Together
 # with the JS-method check and the custom-event check, this set fully
 # determines which downgrades emit the LOSSY advisory.
+# AdCP 3.3 playback events. Compared as wire strings so the interim
+# ``event: custom`` form (``custom_event_name`` set to one of these) is
+# caught on 3.2 types that don't define the enum values yet.
+_PLAYBACK_EVENTS: frozenset[str] = frozenset(
+    {"start", "first_quartile", "midpoint", "third_quartile", "complete"}
+)
+
 _VIEWABILITY_EVENTS: frozenset[PixelTrackerEvent] = frozenset(
     {
         PixelTrackerEvent.viewable_mrc_50,
@@ -111,9 +124,13 @@ class V1UrlTracker:
 
 @dataclass
 class PixelTrackerDowngrade:
-    """Result of downgrading one ``PixelTrackerAsset`` to v1 wire shape."""
+    """Result of downgrading one ``PixelTrackerAsset`` to v1 wire shape.
 
-    v1: V1UrlTracker
+    ``v1`` is ``None`` when the tracker has no v1 projection and is dropped
+    (AdCP 3.3 playback events); ``advisory`` then says so.
+    """
+
+    v1: V1UrlTracker | None
     advisory: Error | None = None
 
 
@@ -192,11 +209,42 @@ def downgrade_pixel_tracker(
             advisory's ``field`` (e.g.,
             ``"creative_manifest.assets[2]"``).
     """
+    raw_event = getattr(pixel.event, "value", pixel.event)
     event = _coerce_event(pixel.event)
     method = _coerce_method(pixel.method)
     url = str(pixel.url)
     js = method is PixelTrackerMethod.js
     custom_name = pixel.custom_event_name if hasattr(pixel, "custom_event_name") else None
+
+    playback = raw_event if raw_event in _PLAYBACK_EVENTS else None
+    if playback is None and event is PixelTrackerEvent.custom and custom_name in _PLAYBACK_EVENTS:
+        playback = custom_name
+    if playback is not None:
+        return PixelTrackerDowngrade(
+            v1=None,
+            advisory=make_sdk_advisory(
+                code="PIXEL_TRACKER_LOSSY_DOWNGRADE",
+                message=(
+                    f"Pixel tracker for playback event {playback!r} has no v1 "
+                    "url-tracker slot and was dropped."
+                ),
+                field=field_path,
+                details={
+                    "source_event": raw_event,
+                    "source_method": method.value,
+                    "source_custom_event_name": (
+                        _echo_identifier(custom_name) if custom_name is not None else None
+                    ),
+                    "v1_asset_id": None,
+                    "lost": ["tracker"],
+                },
+                suggestion=(
+                    "v1 buyers cannot receive playback trackers; firing one in the "
+                    "impression slot would count every impression as a playback "
+                    "event. Keep the v2 manifest in flight for 3.1+ buyers."
+                ),
+            ),
+        )
 
     v1 = V1UrlTracker(asset_id=_downgrade_slot(event), url=url, js_method=js)
 
@@ -401,7 +449,8 @@ def downgrade_pixel_trackers(
     """Apply :func:`downgrade_pixel_tracker` across a list.
 
     Returns the projected v1 trackers + a deduplicated list of
-    advisories. Advisories are deduplicated on
+    advisories. Dropped trackers (AdCP 3.3 playback events) are left out
+    of ``items``. Advisories are deduplicated on
     ``(code, source_event, source_method, source_custom_event_name)``
     so a manifest with many viewability pixels surfaces ONE advisory
     per kind. Distinct custom events keep distinct advisories because
@@ -413,7 +462,8 @@ def downgrade_pixel_trackers(
     for i, pt in enumerate(pixels):
         prefix = f"{field_path_prefix}[{i}]" if field_path_prefix else None
         result = downgrade_pixel_tracker(pt, field_path=prefix)
-        out.items.append(result.v1)
+        if result.v1 is not None:
+            out.items.append(result.v1)
         if result.advisory is not None:
             details = result.advisory.details or {}
             key = (

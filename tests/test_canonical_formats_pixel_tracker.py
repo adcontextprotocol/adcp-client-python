@@ -299,3 +299,46 @@ def test_upgrade_quiet_inference_still_surfaces_rejections() -> None:
         if (a.details or {}).get("inference_basis") == "rejected_disallowed_scheme"
     ]
     assert len(rejections) == 1
+
+
+# ---------------------------------------------------------------------------
+# AdCP 3.3 playback events: dropped on downgrade, never impression_tracker
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name", ["start", "first_quartile", "midpoint", "third_quartile", "complete"]
+)
+def test_interim_custom_playback_event_is_dropped_not_impression(name: str) -> None:
+    result = downgrade_pixel_tracker(
+        _pt("custom", custom_event_name=name), field_path="manifest.assets[0]"
+    )
+    assert result.v1 is None
+    assert result.advisory is not None
+    assert result.advisory.code == "PIXEL_TRACKER_LOSSY_DOWNGRADE"
+    assert result.advisory.field == "manifest.assets[0]"
+    assert result.advisory.details["lost"] == ["tracker"]
+    assert result.advisory.details["source_custom_event_name"] == name
+
+
+def test_33_playback_event_value_is_dropped() -> None:
+    # 3.2 types don't define the 3.3 enum values yet; the wire value decides.
+    pixel = _pt("impression").model_copy(update={"event": "first_quartile"})
+    result = downgrade_pixel_tracker(pixel)
+    assert result.v1 is None
+    assert result.advisory is not None
+    assert result.advisory.details["source_event"] == "first_quartile"
+
+
+def test_other_custom_events_still_take_the_impression_slot() -> None:
+    result = downgrade_pixel_tracker(_pt("custom", custom_event_name="engagement"))
+    assert result.v1 is not None
+    assert result.v1.asset_id == "impression_tracker"
+
+
+def test_downgrade_batch_leaves_dropped_trackers_out_of_items() -> None:
+    result = downgrade_pixel_trackers(
+        [_pt("impression"), _pt("custom", custom_event_name="midpoint"), _pt("click")]
+    )
+    assert [item.asset_id for item in result.items] == ["impression_tracker", "click_tracker"]
+    assert [a.details["lost"] for a in result.advisories] == [["tracker"]]
