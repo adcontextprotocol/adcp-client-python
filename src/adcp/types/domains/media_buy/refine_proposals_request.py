@@ -69,7 +69,7 @@ class RefineProposalsRequest(AdcpRequest, AdcpVersionEnvelope):
         ),
     ]
     refinements: Annotated[
-        list[proposal_refinement.ProposalRefinement] | Refinements,
+        list[proposal_refinement.ProposalRefinement],
         Field(
             description='Proposal operations to apply, with at most 25 entries per request. revise creates a draft successor from a draft, committed, or accepted source. finalize MUST target a draft, reserves inventory, and creates a committed successor whose expires_at is the hold deadline. A batch containing finalize MUST contain only finalize entries and is atomic. extend_hold (experimental, media_buy.hold_extension) MUST target a committed, unexpired proposal that holds inventory and creates a committed successor with a later expires_at; a batch containing extend_hold MUST contain only extend_hold entries and is atomic. proposal_id values MUST be unique; results preserve request order.',
             max_length=25,

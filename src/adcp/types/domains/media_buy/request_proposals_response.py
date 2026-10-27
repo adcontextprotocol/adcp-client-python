@@ -137,7 +137,7 @@ class PurchaseContinuation1(AdCPBaseModel):
         ),
     ]
     losses: Annotated[
-        list[Loss] | Losses,
+        list[Loss],
         Field(
             description='Guarantees that the established create_media_buy continuation cannot provide. The coordinator MUST fail before mutation unless the caller explicitly accepts every listed loss.',
             min_length=2,

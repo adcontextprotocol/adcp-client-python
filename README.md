@@ -393,6 +393,7 @@ the SDK's supported versions in the error details.
 - **[Durable legacy purchase continuations](docs/legacy-purchase-continuations.md)** - Safe products-only compatibility redemption and crash recovery
 - **[Media-buy lifecycle coordinator](docs/media-buy-lifecycle-coordinator.md)** - Negotiated catalog-to-purchase workflow across AdCP 3.0, 3.1, and 3.2; remaining buyer parity is tracked in [#1154](https://github.com/adcontextprotocol/adcp-client-python/issues/1154)
 - **[Media-buy action rights](docs/media-buy-action-rights.md)** - Assess product possibilities, accepted change rights, and currently available actions
+- **[Media-buy state machine](docs/media-buy-state-machine.md)** - Requested and observed lifecycle graphs, and terminal statuses
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Universal macro translation](docs/universal-macro-translation.md)** - Producer-side pixel URL translation, trust boundary, and diagnostics
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy

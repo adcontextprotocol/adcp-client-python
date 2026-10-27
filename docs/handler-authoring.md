@@ -1716,7 +1716,8 @@ if event_type in subscription.event_types:
 
 `WebhookSender` is the transport layer — it constructs and signs one HTTP POST.
 `InMemoryWebhookDeliverySupervisor` adds best-effort retries and circuit breakers
-for local development. Neither it nor `PgWebhookDeliverySupervisor` implements
+for local development. Neither it nor
+[`PgWebhookDeliverySupervisor`](webhooks/pg-delivery-supervisor.md) implements
 the atomic terminal-state/outbox contract required for TaskHandoff publication;
 use `PgTaskWebhookOutbox` with `PgTaskRegistry` for that lifecycle. The older
 supervisors remain explicit/manual delivery utilities.

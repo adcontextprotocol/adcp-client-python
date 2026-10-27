@@ -560,7 +560,12 @@ _VERSION_ENVELOPE_FIELDS = ("adcp_version", "adcp_major_version")
 # Keys that carry documentation, not validation. Two declarations that differ only in
 # these describe the same wire contract, which is what makes lifting them into the
 # envelope's own declaration a no-change rewrite.
-_DOCUMENTATION_KEYS = frozenset({"$comment", "deprecated", "description", "examples", "title"})
+# ``x-removed-in`` is the 4.0 removal marker AdCP 3.2.6 stamped on every deprecated
+# field: an annotation on the deprecation, not a type, bound or requirement, so an
+# inline copy that predates the marker still declares the envelope's wire contract.
+_DOCUMENTATION_KEYS = frozenset(
+    {"$comment", "deprecated", "description", "examples", "title", "x-removed-in"}
+)
 
 # How many schemas the pass is allowed to rewrite, so a bump that changes the shape of
 # the problem is a build failure rather than a silent behavior change. Measured at pin

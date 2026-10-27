@@ -12,3 +12,36 @@ updates:
     open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
+
+  # Frozen Python environments for the same interop replay. Each requirements
+  # file pins the installed set an interop control verifies, so it changes only
+  # with its control.
+  - package-ecosystem: pip
+    directory: "/scripts/ci/reporting_interop/python"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+
+  # The SDK's own Python dependencies. Version updates stay off, so these
+  # entries exist only for their ignore rules, which also apply to security
+  # updates. datamodel-code-generator is pinned exactly because its class
+  # numbering shifts between releases: an upgrade must regenerate
+  # src/adcp/types/ in the same change, which is an SDK 10 decision
+  # (docs/v10-codegen-plan.md, #1649). Dependabot has filed this manifest as
+  # pip, and uv.lock makes it a uv project too, so both carry the rule.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "datamodel-code-generator"
+  - package-ecosystem: uv
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "datamodel-code-generator"

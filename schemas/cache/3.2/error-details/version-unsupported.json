@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.4/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.7/core/version-envelope.json"
     }
   ],
   "properties": {
@@ -27,6 +27,7 @@
     "supported_majors": {
       "type": "array",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "DEPRECATED in favor of `supported_versions`. Major versions the seller supports. Servers SHOULD emit both through 3.x; removed in 4.0.",
       "items": {
         "type": "integer",

@@ -90,6 +90,7 @@
         "adcp_major_version": {
           "type": "integer",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "DEPRECATED in favor of adcp_version (release-precision string). Servers MUST continue to honor this field through 3.x. Removed in 4.0. Original semantics: the AdCP major version the buyer's payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.",
           "minimum": 1,
           "maximum": 99
@@ -128,13 +129,14 @@
         "authentication": {
           "type": "object",
           "deprecated": true,
+          "x-removed-in": "4.0.0",
           "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification \u2014 signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook key is published at its brand.json `agents[]` `jwks_uri` using `adcp_use: \"request-signing\"` (deprecated `webhook-signing` keys remain accepted during the compatibility window); it does not override this selector and is only used when `authentication` is omitted. See docs/building/by-layer/L1/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
           "properties": {
             "schemes": {
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -159,6 +161,7 @@
     "external:enums/auth-scheme.json": {
       "title": "Authentication Scheme",
       "deprecated": true,
+      "x-removed-in": "4.0.0",
       "description": "Legacy authentication schemes for the webhook auth block. Bearer: token sent in Authorization header. HMAC-SHA256: legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit the authentication block and use the RFC 9421 webhook signing profile (applicable on schemas where authentication is optional). Removed in AdCP 4.0.",
       "type": "string",
       "enum": [
@@ -179,7 +182,7 @@
           "description": "Immutable proposal ID returned by request_proposals or refine_proposals."
         },
         "reason": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
         },
         "detail": {
           "type": "string",
@@ -275,7 +278,7 @@
           "description": "How seriously the buyer is evaluating supply in this cycle."
         },
         "planning_horizon": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.4/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.7/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json",
           "description": "Inclusive calendar range in which the buyer expects the campaign to run."
         },
         "response_deadline": {

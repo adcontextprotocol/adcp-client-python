@@ -17,7 +17,7 @@
     }
   },
   "profile": "production",
-  "surface_version": "3.2.4",
+  "surface_version": "3.2.7",
   "filters": {
     "exclude_protocols": [
       "compliance"

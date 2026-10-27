@@ -16,9 +16,10 @@ import logging
 import math
 import os
 import re
+import sys
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -42,8 +43,9 @@ from adcp.webhook_sender import (
 from adcp.webhook_supervisor import RetryPolicy
 
 if TYPE_CHECKING:
-    from psycopg import AsyncConnection
+    from psycopg import AsyncConnection, Connection
     from psycopg_pool import AsyncConnectionPool
+    from sqlalchemy.engine import Connection as SqlAlchemyConnection
 
 DEFAULT_TABLE = "adcp_notification_outbox"
 MIN_RETRY_HORIZON_SECONDS = 86_400
@@ -73,6 +75,103 @@ def _canonical(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode(
         "utf-8"
     )
+
+
+_Row = tuple[Any, ...]
+_RunStatement = Callable[[str, tuple[Any, ...]], "_Row | None"]
+
+
+def _is_driver_instance(value: Any, module: str, name: str) -> bool:
+    """Return whether ``value`` is a ``module.name``, without importing ``module``.
+
+    A caller holding a driver connection has necessarily imported that
+    driver, so dispatch never imports an optional dependency.
+    """
+    cls = getattr(sys.modules.get(module), name, None)
+    return isinstance(cls, type) and isinstance(value, cls)
+
+
+def _dbapi_transaction_state(dbapi: Any) -> tuple[str, bool] | None:
+    """Classify a raw psycopg 3 or psycopg2 connection.
+
+    Returns ``(state, autocommit)`` where state is ``"intrans"``, ``"idle"``
+    or ``"other"``, or ``None`` when ``dbapi`` is neither driver.
+    """
+    if _is_driver_instance(dbapi, "psycopg", "Connection"):
+        from psycopg.pq import TransactionStatus
+
+        status = dbapi.info.transaction_status
+        autocommit = bool(dbapi.autocommit)
+        if status == TransactionStatus.INTRANS:
+            return "intrans", autocommit
+        return ("idle" if status == TransactionStatus.IDLE else "other"), autocommit
+    if _is_driver_instance(dbapi, "psycopg2.extensions", "connection"):
+        ext = sys.modules["psycopg2.extensions"]
+        status = dbapi.get_transaction_status()
+        autocommit = bool(dbapi.autocommit)
+        if status == ext.TRANSACTION_STATUS_INTRANS:
+            return "intrans", autocommit
+        return ("idle" if status == ext.TRANSACTION_STATUS_IDLE else "other"), autocommit
+    return None
+
+
+def _sync_statement_runner(conn: Any) -> _RunStatement:
+    """Return a one-row statement runner for a sync connection in a transaction.
+
+    * psycopg 3 ``Connection`` and psycopg2 ``connection``: the server session
+      must already be inside a transaction block (``INTRANS``), as for the
+      async method.
+    * SQLAlchemy ``Connection``: ``in_transaction()`` must be true and the
+      underlying psycopg 3 or psycopg2 connection must not be in autocommit
+      mode. SQLAlchemy begins the driver transaction lazily on the first
+      statement, so the driver may still report ``IDLE``.
+    """
+    if _is_driver_instance(conn, "sqlalchemy.engine", "Connection"):
+        if conn.closed or conn.invalidated:
+            raise ValueError("enqueue_prepared_sync requires an open SQLAlchemy connection")
+        dbapi = conn.connection.dbapi_connection
+        state = _dbapi_transaction_state(dbapi)
+        if state is None:
+            raise TypeError(
+                "enqueue_prepared_sync supports SQLAlchemy connections on the psycopg "
+                "or psycopg2 driver"
+            )
+        status, autocommit = state
+        if not conn.in_transaction() or autocommit or status == "other":
+            raise ValueError("enqueue_prepared_sync requires an open business transaction")
+
+        def run_sqlalchemy(sql: str, params: tuple[Any, ...]) -> _Row | None:
+            row = conn.exec_driver_sql(sql, params).fetchone()
+            return None if row is None else tuple(row)
+
+        return run_sqlalchemy
+
+    state = _dbapi_transaction_state(conn)
+    if state is None:
+        if _is_driver_instance(conn, "psycopg", "AsyncConnection"):
+            raise TypeError("use enqueue_prepared for a psycopg AsyncConnection")
+        raise TypeError(
+            "enqueue_prepared_sync accepts a psycopg Connection, a psycopg2 connection "
+            "or a SQLAlchemy Connection"
+        )
+    if state[0] != "intrans":
+        raise ValueError("enqueue_prepared_sync requires an open business transaction")
+
+    def run_dbapi(sql: str, params: tuple[Any, ...]) -> _Row | None:
+        # psycopg 3 and psycopg2 cursors both take ``%s`` parameters. Ask for
+        # plain tuple rows: the caller's connection may default to dict rows.
+        if _is_driver_instance(conn, "psycopg", "Connection"):
+            from psycopg.rows import tuple_row
+
+            cursor = conn.cursor(row_factory=tuple_row)
+        else:
+            cursor = conn.cursor(cursor_factory=sys.modules["psycopg2.extensions"].cursor)
+        with cursor:
+            cursor.execute(sql, params)
+            row = cursor.fetchone()
+        return None if row is None else tuple(row)
+
+    return run_dbapi
 
 
 def _identifier(value: str, name: str) -> None:
@@ -181,6 +280,10 @@ class PgNotificationOutbox:
             "envelope_nonce, retry_until) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (dedup_scope, idempotency_key) DO NOTHING RETURNING id"
+        )
+        self._sql_existing = (  # noqa: S608
+            f"SELECT {self._columns} FROM {table} "  # nosec B608
+            "WHERE dedup_scope=%s AND idempotency_key=%s FOR UPDATE"
         )
         self._sql_expire = (  # noqa: S608
             f"WITH expired AS (SELECT id FROM {table}"  # nosec B608
@@ -329,26 +432,20 @@ class PgNotificationOutbox:
             }
         )
 
-    async def enqueue_prepared(
+    def _prepare_insert(
         self,
-        conn: AsyncConnection[Any],
         prepared: PreparedWebhook,
         *,
         notification_type: str,
         caller_scope_id: str,
-        account_id: str | None = None,
-        signing_scope_id: str | None = None,
-    ) -> int:
-        """Enqueue on the caller's transaction; never commit or perform HTTP.
+        account_id: str | None,
+        signing_scope_id: str | None,
+    ) -> tuple[tuple[Any, ...], bytes]:
+        """Validate and encrypt one notification; return insert params and scope.
 
-        Identical re-enqueue returns the existing id. Reusing a scoped key with
-        different body, headers or signing scope raises ``ValueError``. The
-        caller must open a real transaction (autocommit alone is rejected).
+        Pure apart from the nonce and clock, so the async and sync enqueue
+        paths share every check and the same ciphertext construction.
         """
-        from psycopg.pq import TransactionStatus
-
-        if conn.info.transaction_status != TransactionStatus.INTRANS:
-            raise ValueError("enqueue_prepared requires an open business transaction")
         _identifier(caller_scope_id, "caller_scope_id")
         _identifier(notification_type, "notification_type")
         _identifier(prepared.idempotency_key, "idempotency_key")
@@ -382,31 +479,28 @@ class PgNotificationOutbox:
         deadline = datetime.now(timezone.utc) + timedelta(
             seconds=self.delivery_retry_horizon_seconds
         )
-        cursor = await conn.execute(
-            self._sql_insert,
-            (
-                notification_type,
-                caller_scope_id,
-                account_id,
-                prepared.url,
-                prepared.idempotency_key,
-                signing_scope_id,
-                self._key_id,
-                scope,
-                encrypted,
-                nonce,
-                deadline,
-            ),
+        params = (
+            notification_type,
+            caller_scope_id,
+            account_id,
+            prepared.url,
+            prepared.idempotency_key,
+            signing_scope_id,
+            self._key_id,
+            scope,
+            encrypted,
+            nonce,
+            deadline,
         )
-        row = await cursor.fetchone()
-        if row is not None:
-            return int(row[0])
-        cursor = await conn.execute(  # noqa: S608
-            f"SELECT {self._columns} FROM {self._table} "  # nosec B608
-            "WHERE dedup_scope=%s AND idempotency_key=%s FOR UPDATE",
-            (scope, prepared.idempotency_key),
-        )
-        existing = await cursor.fetchone()
+        return params, scope
+
+    def _existing_binding_id(
+        self,
+        existing: tuple[Any, ...] | None,
+        prepared: PreparedWebhook,
+        signing_scope_id: str | None,
+    ) -> int:
+        """Return the id of a conflicting row bound to the same delivery."""
         if existing is None:
             raise RuntimeError("notification outbox conflict row disappeared")
         try:
@@ -416,6 +510,85 @@ class PgNotificationOutbox:
         if stored != prepared or existing[6] != signing_scope_id:
             raise ValueError("notification key is already bound to a different immutable delivery")
         return int(existing[0])
+
+    async def enqueue_prepared(
+        self,
+        conn: AsyncConnection[Any],
+        prepared: PreparedWebhook,
+        *,
+        notification_type: str,
+        caller_scope_id: str,
+        account_id: str | None = None,
+        signing_scope_id: str | None = None,
+    ) -> int:
+        """Enqueue on the caller's transaction; never commit or perform HTTP.
+
+        Identical re-enqueue returns the existing id. Reusing a scoped key with
+        different body, headers or signing scope raises ``ValueError``. The
+        caller must open a real transaction (autocommit alone is rejected).
+        For a synchronous connection, use :meth:`enqueue_prepared_sync`.
+        """
+        from psycopg.pq import TransactionStatus
+        from psycopg.rows import tuple_row
+
+        if conn.info.transaction_status != TransactionStatus.INTRANS:
+            raise ValueError("enqueue_prepared requires an open business transaction")
+        params, scope = self._prepare_insert(
+            prepared,
+            notification_type=notification_type,
+            caller_scope_id=caller_scope_id,
+            account_id=account_id,
+            signing_scope_id=signing_scope_id,
+        )
+        # Plain tuple rows, whatever the caller's connection row factory.
+        async with conn.cursor(row_factory=tuple_row) as cursor:
+            await cursor.execute(self._sql_insert, params)
+            row = await cursor.fetchone()
+            if row is not None:
+                return int(row[0])
+            await cursor.execute(self._sql_existing, (scope, prepared.idempotency_key))
+            existing = await cursor.fetchone()
+        return self._existing_binding_id(existing, prepared, signing_scope_id)
+
+    def enqueue_prepared_sync(
+        self,
+        conn: Connection[Any] | SqlAlchemyConnection | Any,
+        prepared: PreparedWebhook,
+        *,
+        notification_type: str,
+        caller_scope_id: str,
+        account_id: str | None = None,
+        signing_scope_id: str | None = None,
+    ) -> int:
+        """Synchronous :meth:`enqueue_prepared` for a sync business transaction.
+
+        ``conn`` is a psycopg 3 ``Connection``, a psycopg2 ``connection``, or a
+        SQLAlchemy ``Connection`` on either driver (for an ORM ``Session``,
+        pass ``session.connection()``). It must be inside a transaction:
+
+        * psycopg 3 and psycopg2: the session is in a transaction block, for
+          example after the business write or inside ``conn.transaction()``.
+        * SQLAlchemy: ``conn.in_transaction()`` is true and the connection is
+          not using the ``AUTOCOMMIT`` isolation level.
+
+        Anything else raises ``ValueError``; an unsupported connection type
+        raises ``TypeError``. Validation, encryption, deduplication and the
+        binding check are the async method's; the row commits or rolls back
+        with the caller's transaction and the async worker delivers it.
+        """
+        run = _sync_statement_runner(conn)
+        params, scope = self._prepare_insert(
+            prepared,
+            notification_type=notification_type,
+            caller_scope_id=caller_scope_id,
+            account_id=account_id,
+            signing_scope_id=signing_scope_id,
+        )
+        row = run(self._sql_insert, params)
+        if row is not None:
+            return int(row[0])
+        existing = run(self._sql_existing, (scope, prepared.idempotency_key))
+        return self._existing_binding_id(existing, prepared, signing_scope_id)
 
     def _open(self, row: tuple[Any, ...]) -> PreparedWebhook:
         _, account, caller, kind, url, key, signing_scope, key_id, scope, ciphertext, nonce = row[

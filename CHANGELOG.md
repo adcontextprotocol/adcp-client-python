@@ -198,6 +198,21 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.2.0...v9.3.0) (2026-10-27)
+
+
+### Features
+
+* **decisioning:** export media-buy terminal statuses and the observed transition graph ([#1664](https://github.com/adcontextprotocol/adcp-client-python/issues/1664)) ([4b1554e](https://github.com/adcontextprotocol/adcp-client-python/commit/4b1554e14de0e72bf21af8a6a2b3f102a1227a5b)), closes [#1604](https://github.com/adcontextprotocol/adcp-client-python/issues/1604)
+* **webhooks:** add PgNotificationOutbox.enqueue_prepared_sync for synchronous business transactions ([#1665](https://github.com/adcontextprotocol/adcp-client-python/issues/1665)) ([e081fe4](https://github.com/adcontextprotocol/adcp-client-python/commit/e081fe431d83c733648921d34ead9420d0cbce4b)), closes [#1607](https://github.com/adcontextprotocol/adcp-client-python/issues/1607)
+
+
+### Bug Fixes
+
+* **protocol:** adopt signed AdCP 3.2.7 on SDK 9 ([#1657](https://github.com/adcontextprotocol/adcp-client-python/issues/1657)) ([95ed163](https://github.com/adcontextprotocol/adcp-client-python/commit/95ed163d61c40a851997280c647ef8627ada17b0))
+* **types:** drop the empty-model arm codegen emits beside a constrained array ([#1658](https://github.com/adcontextprotocol/adcp-client-python/issues/1658)) ([adaf29b](https://github.com/adcontextprotocol/adcp-client-python/commit/adaf29bcb040860d8d4047741735002ea527016f)), closes [#1616](https://github.com/adcontextprotocol/adcp-client-python/issues/1616)
+* **webhooks:** send PgWebhookDeliverySupervisor task webhooks and deliver the ones already stuck in the queue ([#1651](https://github.com/adcontextprotocol/adcp-client-python/issues/1651)) ([83a2fe3](https://github.com/adcontextprotocol/adcp-client-python/commit/83a2fe37e8517950c4aa465ad0d5b92a955bf16c))
+
 ## [9.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.1.1...v9.2.0) (2026-10-26)
 
 

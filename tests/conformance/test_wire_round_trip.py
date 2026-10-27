@@ -84,19 +84,18 @@ BOUND_DEFAULTS = frozenset(
 )
 
 #: Schemas with at least one schema-valid document the generated model refuses
-#: (raises, or fails validation). Refusing is the schema/model parity suite's
-#: domain, not this one's; the set is recorded so a refusal cannot silently
-#: remove a schema from the round-trip grade, and so that it only shrinks.
-#: ``mcp-webhook-payload`` and ``async-response-data`` raise ``TypeError``
-#: (#1616); the others refuse documents the bundled schema accepts
-#: (``publisher-property-selector`` through the mutual-exclusivity validator
-#: ``_ergonomic`` adds, which the schema does not express).
+#: (fails validation). Refusing is the schema/model parity suite's domain, not
+#: this one's; the set is recorded so a refusal cannot silently remove a schema
+#: from the round-trip grade, and so that it only shrinks. Each refuses
+#: documents the bundled schema accepts (``publisher-property-selector``
+#: through the mutual-exclusivity validator ``_ergonomic`` adds, which the
+#: schema does not express). A model that *raises* instead of refusing is not
+#: recorded here: :func:`test_no_schema_valid_document_raises_outside_validation`
+#: forbids it outright (#1616).
 REFUSING = frozenset(
     {
         "brand/creative-approval-request.json",
         "brand/verify-brand-claims-response.json",
-        "core/async-response-data.json",
-        "core/mcp-webhook-payload.json",
         "core/publisher-property-selector.json",
         "core/reporting-delivery-capabilities.json",
         "media-buy/change-term.json",
@@ -250,3 +249,22 @@ def test_refusing_schemas_are_declared() -> None:
     )
     fixed = sorted(REFUSING - refusing)
     assert not fixed, f"schemas that no longer refuse: {fixed}; delete them from REFUSING"
+
+
+def test_no_schema_valid_document_raises_outside_validation() -> None:
+    """A model refuses with ``ValidationError`` or not at all; it never raises (#1616).
+
+    ``mcp-webhook-payload`` and ``async-response-data`` used to raise a raw
+    ``TypeError`` from a ``min_length`` applied to an empty-model union arm.
+    Unlike a refusal, a raise is never a schema disagreement to declare: it is
+    a generator defect, and this test has no allowlist.
+    """
+    raised = [
+        f"  {schema} [{refusal.document}] {sorted(refusal.error_types)}: {refusal.message}"
+        for schema in SCHEMAS
+        for refusal in _graded(schema)[1]
+        if refusal.error_types & rt.RAISED_OUTSIDE_VALIDATION_NAMES
+    ]
+    assert not raised, "\n".join(
+        [f"{len(raised)} schema-valid document(s) made a generated model raise:"] + raised[:20]
+    )

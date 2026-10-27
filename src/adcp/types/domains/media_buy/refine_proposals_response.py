@@ -810,7 +810,7 @@ class RefineProposalsResponse1(AdcpResponse, AdCPBaseModel):
         NoExplicitNull,
     ] = None
     results: Annotated[
-        list[Results8] | Results,
+        list[Results8],
         Field(
             description="Results in the request's refinements[] order; position carries no ranking. If any result is finalized, every result MUST be finalized; under inventory_hold semantics a finalize batch either creates every requested hold or none, and under terms_only semantics (get_adcp_capabilities media_buy.proposal_refinement.hold_semantics, or a draft hold_policy with available false) it commits every requested proposal's terms or none, with no inventory hold placed for those entries. An extend_hold batch either extends every requested hold or none. Every returned proposal carries parent_proposal_id equal to the result's source_proposal_id, making negotiation lineage reconstructible from the proposals alone.",
             min_length=1,
@@ -860,7 +860,7 @@ class RefineProposalsResponse2(AdcpResponse, CompactTaskSubmitted):
         NoExplicitNull,
     ] = None
     results: Annotated[
-        list[Results14] | Results | None,
+        list[Results14] | None,
         Field(
             description="Results in the request's refinements[] order; position carries no ranking. If any result is finalized, every result MUST be finalized; under inventory_hold semantics a finalize batch either creates every requested hold or none, and under terms_only semantics (get_adcp_capabilities media_buy.proposal_refinement.hold_semantics, or a draft hold_policy with available false) it commits every requested proposal's terms or none, with no inventory hold placed for those entries. An extend_hold batch either extends every requested hold or none. Every returned proposal carries parent_proposal_id equal to the result's source_proposal_id, making negotiation lineage reconstructible from the proposals alone.",
             min_length=1,

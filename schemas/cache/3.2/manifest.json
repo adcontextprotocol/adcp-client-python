@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.2.4/manifest.schema.json",
-  "adcp_version": "3.2.4",
-  "generated_at": "2026-10-11T21:23:01.435Z",
+  "$schema": "/schemas/3.2.7/manifest.schema.json",
+  "adcp_version": "3.2.7",
+  "generated_at": "2026-10-24T17:36:23.421Z",
   "tools": {
     "accept_proposal": {
       "protocol": "media-buy",
@@ -2086,10 +2086,12 @@
       "entry_point_tools": [
         "create_media_buy",
         "get_media_buy_delivery",
+        "get_products",
         "list_products",
         "sync_creatives"
       ],
       "exercised_tools": [
+        "assert_contribution",
         "create_media_buy",
         "get_adcp_capabilities",
         "get_media_buy_delivery",
