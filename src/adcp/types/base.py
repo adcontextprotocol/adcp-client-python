@@ -575,6 +575,12 @@ class AdCPBaseModel(BaseModel):
 
     Consumers who want per-model strict validation can override
     ``model_config`` on their subclass.
+
+    Dumps write wire names: a field the generator aliased because its wire
+    key is not a Python identifier (``field_schema`` for ``$schema``,
+    ``pass_`` for ``pass``) is emitted under the wire key by ``model_dump()``
+    and ``model_dump_json()`` with no ``by_alias`` argument. Pass
+    ``by_alias=False`` for the Python names.
     """
 
     # ``defer_build=True`` skips building each model's pydantic-core
@@ -582,7 +588,19 @@ class AdCPBaseModel(BaseModel):
     # modules, eager builds dominate ``import adcp`` memory; deferring means each
     # model's core schema is built lazily on first validate/serialize, so only
     # the handful of models actually used are paid for.
-    model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
+    # ``serialize_by_alias``: a dump writes the wire name of an aliased field
+    # (``$schema``, ``pass``, ``from``, ``media-buy``, ``_truncation``, ``2xl``)
+    # without the caller passing ``by_alias=True``, so ``model_dump()`` is the
+    # document and not a Python-named rendering of it (#1615). Construction
+    # accepts either spelling (``validate_by_name`` alongside the default
+    # ``validate_by_alias``).
+    model_config = ConfigDict(
+        extra=_EXTRA_POLICY,
+        defer_build=True,
+        serialize_by_alias=True,
+        validate_by_alias=True,
+        validate_by_name=True,
+    )
 
     # Pydantic derives serialization JSON Schema from the model fields only when
     # this serializer's return is unannotated. Even ``-> Any`` erases the shape.

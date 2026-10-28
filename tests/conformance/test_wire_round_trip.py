@@ -54,10 +54,6 @@ ACCEPTED: dict[str, str] = {
     # admits its siblings'. No digest-covered schema is affected at this pin;
     # the hazard is a newer-spec field inside one. #1614.
     "field_dropped": "unknown and sibling-arm properties are dropped (#1614)",
-    # ``model_dump()`` without ``by_alias`` writes ``field_schema`` for
-    # ``$schema`` and ``pass_`` for ``pass``; the SDK's own wire paths pass
-    # ``by_alias=True``. #1615.
-    "alias_emitted": "model_dump() writes the Python name of an aliased key (#1615)",
     # ``exclude_none`` drops an explicit ``null`` on a property whose schema
     # admits it; on the Python side ``None`` means "not supplied". #1615.
     "null_dropped": "exclude_none drops an admitted explicit null (#1615)",
