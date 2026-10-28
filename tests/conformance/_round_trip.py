@@ -37,12 +37,13 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 from types import UnionType
-from typing import Annotated, Any, Union, get_origin
+from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 import rfc8785
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, RootModel, TypeAdapter, ValidationError
 
 import adcp.types._eager  # noqa: F401  (see below)
+from adcp.types.base import is_omit_unset_default
 from adcp.validation.schema_loader import (
     _ensure_state,
     _make_ref_resolver,
@@ -148,6 +149,11 @@ CLASSES: dict[str, str] = {
     "default_emitted": (
         "the model emits a field the document omitted: a schema default the "
         "generator wrote into the field, or a value the model computes"
+    ),
+    "discriminator_emitted": (
+        "the model emits a single-value Literal the document omitted: the "
+        "document was routed to an arm that requires a discriminator it does "
+        "not carry, so the arm's injected default appears (arm routing, #1414)"
     ),
     "null_dropped": ("an explicit null the schema admits is dropped by the dump's exclude_none"),
     "field_dropped": (
@@ -399,8 +405,6 @@ def dump_as_received(grader: Any, parsed: Any) -> Any:
     way); ``by_alias`` writes the wire name. A union alias root gets the same
     settings through its adapter.
     """
-    if hasattr(parsed, "model_dump_as_received"):
-        return parsed.model_dump_as_received()
     kwargs: dict[str, Any] = dict(
         mode="json", exclude_unset=True, exclude_none=False, by_alias=True
     )
@@ -722,7 +726,72 @@ def round_trip(
             document.schema, document.name, frozenset({type(exc).__name__}), str(exc)[:200]
         )
     dumped = dump_json(model, parsed) if not as_received else dump_as_received(model, parsed)
-    return differences(document.schema, document.name, document.payload, dumped), None
+    found = differences(document.schema, document.name, document.payload, dumped)
+    return [_reclassify(parsed, d) for d in found], None
+
+
+def _reclassify(parsed: Any, difference: Difference) -> Difference:
+    """Name an emitted injected discriminator as arm routing, not as a default.
+
+    A single-value ``Literal`` field the generator gave a default is a
+    discriminator an arm requires; when the document omitted it and the model
+    still emits it, the document was routed to an arm it does not satisfy.
+    That is ``discriminator_emitted``, a routing defect (#1414), not a schema
+    default (#1613). A field carrying ``OmitUnsetDefault`` is a schema
+    default and keeps its class.
+    """
+    if difference.kind != "default_emitted":
+        return difference
+    parts = [part for part in difference.pointer.split("/") if part]
+    if not parts:
+        return difference
+    owner: Any = parsed
+    for part in parts[:-1]:
+        owner = _step(owner, part)
+        if owner is None:
+            return difference
+    if isinstance(owner, RootModel):
+        owner = owner.root
+    if not isinstance(owner, BaseModel):
+        return difference
+    name = _field_name(type(owner), parts[-1])
+    if name is None:
+        return difference
+    field = type(owner).model_fields[name]
+    if is_omit_unset_default(field):
+        return difference
+    if get_origin(field.annotation) is Literal and len(get_args(field.annotation)) == 1:
+        return Difference(
+            difference.schema,
+            difference.document,
+            difference.pointer,
+            "discriminator_emitted",
+            difference.before,
+            difference.after,
+        )
+    return difference
+
+
+def _step(owner: Any, part: str) -> Any:
+    if isinstance(owner, RootModel):
+        owner = owner.root
+    if isinstance(owner, list):
+        return owner[int(part)] if part.isdigit() and int(part) < len(owner) else None
+    if isinstance(owner, dict):
+        return owner.get(part)
+    if isinstance(owner, BaseModel):
+        name = _field_name(type(owner), part)
+        return getattr(owner, name) if name is not None else None
+    return None
+
+
+def _field_name(model: type[BaseModel], key: str) -> str | None:
+    if key in model.model_fields:
+        return key
+    for name, info in model.model_fields.items():
+        if key in (info.alias, info.serialization_alias):
+            return name
+    return None
 
 
 def grader_for(document: Document) -> Any:

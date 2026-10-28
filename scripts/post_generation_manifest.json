@@ -78,6 +78,7 @@
     "remove_unused_pydantic_field_imports": true,
     "emit_open_asset_unions": true,
     "declare_root_schema_module_exports": true,
-    "strip_extra_blank_lines_at_eof": true
+    "strip_extra_blank_lines_at_eof": true,
+    "point_rootmodels_at_adcp_root": true
   }
 }

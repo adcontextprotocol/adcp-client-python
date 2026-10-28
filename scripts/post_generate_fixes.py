@@ -1135,6 +1135,12 @@ def point_integer_fields_at_the_schema_integer_type() -> None:
 #: The ``Field`` keyword the generator emits for ``generate_types.NO_EXPLICIT_NULL_KEY``.
 _NO_EXPLICIT_NULL_EXTRA = "json_schema_extra={'x-adcp-no-explicit-null': True}"
 _NO_EXPLICIT_NULL_MARKER = "NoExplicitNull"
+_NO_EXPLICIT_NULL_KEY = "x-adcp-no-explicit-null"
+#: The second generator mark the same rewrite carries: a schema-optional
+#: property with a schema ``default`` (``generate_types.OMIT_UNSET_DEFAULT_KEY``).
+_OMIT_UNSET_DEFAULT_KEY = "x-adcp-omit-unset-default"
+_OMIT_UNSET_DEFAULT_MARKER = "OmitUnsetDefault"
+_MARK_KEYS = frozenset({_NO_EXPLICIT_NULL_KEY, _OMIT_UNSET_DEFAULT_KEY})
 
 
 def _generated_line_width() -> int:
@@ -1196,7 +1202,7 @@ def _no_explicit_null_keyword(call: ast.expr) -> ast.keyword | None:
         if keyword.arg != "json_schema_extra" or not isinstance(keyword.value, ast.Dict):
             continue
         keys = [k.value for k in keyword.value.keys if isinstance(k, ast.Constant)]
-        if keys == ["x-adcp-no-explicit-null"]:
+        if keys and len(keys) == len(keyword.value.keys) and set(keys) <= _MARK_KEYS:
             return keyword
     return None
 
@@ -1345,8 +1351,16 @@ def _rewrite_no_explicit_null_marks(
         annotation_names = {n.id for n in ast.walk(elements[0]) if isinstance(n, ast.Name)} | {
             n.value for n in ast.walk(elements[0]) if isinstance(n, ast.Constant)
         }
-        if None in annotation_names and marker is not None:
+        assert isinstance(keyword.value, ast.Dict)
+        keys = {k.value for k in keyword.value.keys if isinstance(k, ast.Constant)}
+        appended = False
+        if _NO_EXPLICIT_NULL_KEY in keys and None in annotation_names and marker is not None:
             metadata.append(marker)
+            appended = True
+        if _OMIT_UNSET_DEFAULT_KEY in keys and marker is not None:
+            metadata.append(_OMIT_UNSET_DEFAULT_MARKER)
+            appended = True
+        if appended:
             marked += 1
         # Measure from the start of the line: the indentation counts toward
         # the width black lays the statement out against.
@@ -1372,13 +1386,13 @@ def _rewrite_no_explicit_null_marks(
     return raw.decode("utf-8"), marked
 
 
-def _ensure_no_explicit_null_import(source: str) -> str:
-    """Import ``NoExplicitNull`` from ``adcp.types.base`` when the module lacks it."""
-    if re.search(r"^from adcp\.types\.base import .*\bNoExplicitNull\b", source, re.MULTILINE):
+def _ensure_no_explicit_null_import(source: str, name: str = _NO_EXPLICIT_NULL_MARKER) -> str:
+    """Import ``name`` (a marker) from ``adcp.types.base`` when the module lacks it."""
+    if re.search(rf"^from adcp\.types\.base import .*\b{name}\b", source, re.MULTILINE):
         return source
     if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
-        return add_to_import(source, "adcp.types.base", _NO_EXPLICIT_NULL_MARKER)
-    statement = f"from adcp.types.base import {_NO_EXPLICIT_NULL_MARKER}\n"
+        return add_to_import(source, "adcp.types.base", name)
+    statement = f"from adcp.types.base import {name}\n"
     anchor = _import_pattern("pydantic").search(source)
     if anchor is not None:
         return source[: anchor.start()] + statement + source[anchor.start() :]
@@ -1407,10 +1421,12 @@ def point_omittable_fields_at_no_explicit_null() -> None:
     marked = 0
     for path in sorted(OUTPUT_DIR.rglob("*.py")):
         source = path.read_text()
-        if _NO_EXPLICIT_NULL_EXTRA not in source:
+        no_null = f"'{_NO_EXPLICIT_NULL_KEY}'"
+        omit_default = f"'{_OMIT_UNSET_DEFAULT_KEY}'"
+        if no_null not in source and omit_default not in source:
             continue
         source, count = _rewrite_no_explicit_null_marks(source)
-        assert _NO_EXPLICIT_NULL_EXTRA not in source, path
+        assert no_null not in source and omit_default not in source, path
         # A module whose only ``Field`` or ``Annotated`` was the mark's is left
         # exactly as the generator writes it without the mark.
         if "Field(" not in source:
@@ -1419,8 +1435,10 @@ def point_omittable_fields_at_no_explicit_null() -> None:
             source = drop_from_imports(source, "typing", "Annotated")
             # Dropping the only ``typing`` import leaves its blank line behind.
             source = re.sub(r"\n{3,}(from |import )", r"\n\n\1", source, count=1)
-        if count:
-            source = _ensure_no_explicit_null_import(source)
+        if re.search(r"\bNoExplicitNull\b", source):
+            source = _ensure_no_explicit_null_import(source, _NO_EXPLICIT_NULL_MARKER)
+        if re.search(r"\bOmitUnsetDefault\b", source):
+            source = _ensure_no_explicit_null_import(source, _OMIT_UNSET_DEFAULT_MARKER)
         path.write_text(source)
         modified += 1
         marked += count
@@ -3837,6 +3855,8 @@ _CANCELED_FIELD_RE = re.compile(
     r"(    canceled: Annotated\[\n        )"
     r"Literal\[True\]"
     r"(,\n        Field\(\n            description=[^\n]*\n        \),\n)"
+    # The optional-const mark (#1613) is dropped with the default it qualified.
+    r"(?:        OmitUnsetDefault,\n)?"
     r"(    \])"
     r" = True"
 )
@@ -3850,6 +3870,7 @@ _UNCHANGED_FIELD_RE = re.compile(
     r"(    unchanged: Annotated\[\n        )"
     r"Literal\[True\]"
     r"(,\n        Field\(\n            description=.*?\n        \),\n)"
+    r"(?:        OmitUnsetDefault,\n)?"
     r"(    \])"
     r" = True",
     re.DOTALL,
@@ -7440,6 +7461,35 @@ def _rebuild_union(arms: list[ast.expr]) -> ast.expr:
     return rebuilt
 
 
+def point_rootmodels_at_adcp_root() -> None:
+    """Give every generated ``RootModel`` the SDK's dump defaults (#1613).
+
+    A composing root that ``unwrap_rootmodel_unions`` keeps wrapped dumped
+    with pydantic's defaults -- every ``None`` of its arm as ``null`` -- while
+    the arm itself, an ``AdCPBaseModel``, left them off. The wrapper now
+    subclasses ``adcp.types.base.AdCPRootModel``, whose ``model_dump`` and
+    ``model_dump_json`` carry the base model's ``exclude_none`` and
+    ``serialize_as_any`` defaults. Runs last: the earlier passes locate root
+    models by the ``RootModel[`` base this one renames.
+    """
+    pattern = re.compile(r"(class \w+\(\s*)RootModel\[")
+    modified = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if "RootModel[" not in source:
+            continue
+        rewritten, count = pattern.subn(r"\1AdCPRootModel[", source)
+        if not count:
+            continue
+        rewritten = _ensure_no_explicit_null_import(rewritten, "AdCPRootModel")
+        body = re.sub(r"^from pydantic import [^\n]*\n", "", rewritten, flags=re.MULTILINE)
+        if not re.search(r"(?<!AdCP)\bRootModel\b", body):
+            rewritten = drop_from_imports(rewritten, "pydantic", "RootModel")
+        path.write_text(rewritten)
+        modified += 1
+    print(f"  Pointed root models at AdCPRootModel in {modified} file(s)")
+
+
 def preserve_request_signing_operation_strings() -> None:
     """Keep request-signing operation lists source-compatible with beta.5.
 
@@ -8650,6 +8700,7 @@ def main(argv: list[str] | None = None) -> int:
         # ``__all__`` it writes has to name the final set.
         declare_root_schema_module_exports,
         strip_extra_blank_lines_at_eof,
+        point_rootmodels_at_adcp_root,
     ]
     observed: dict[str, list[str]] = {}
     digest = _tree_digest(OUTPUT_DIR)

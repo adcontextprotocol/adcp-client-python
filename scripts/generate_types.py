@@ -967,6 +967,14 @@ def flatten_root_object_validation_union(schema: dict, schema_path: Path) -> dic
 #: carry it.
 NO_EXPLICIT_NULL_KEY = "x-adcp-no-explicit-null"
 
+#: Pre-generation mark on an optional property whose schema declares a
+#: ``default``. Carried the same way, and turned into the
+#: ``adcp.types.base.OmitUnsetDefault`` annotation by the same post-generation
+#: pass: the default dump then leaves the property off unless it was set
+#: (#1613). A required property with a default is not marked; it is emitted
+#: either way.
+OMIT_UNSET_DEFAULT_KEY = "x-adcp-omit-unset-default"
+
 
 def _file_uri_resource(path: Path):
     """Load *path* as a ``referencing`` resource addressed by its file URI.
@@ -1034,6 +1042,21 @@ def _required_names(node: Any, resolver, seen: frozenset[str] = frozenset()) -> 
     return required
 
 
+def _carries_a_default(property_schema: dict[str, Any]) -> bool:
+    """Whether the generated field for this optional property gets a default.
+
+    A schema ``default`` becomes the field's default. A ``const`` or a one-value
+    ``enum`` becomes a single-value ``Literal``, and
+    ``post_generate_fixes.inject_literal_discriminator_defaults`` gives that a
+    default too; on an optional property that default is a value the wire did
+    not send, so it is marked the same way.
+    """
+    if "default" in property_schema or "const" in property_schema:
+        return True
+    enum = property_schema.get("enum")
+    return isinstance(enum, list) and len(enum) == 1
+
+
 def _mark_no_explicit_null(node: Any, validator, resolver, counter: list[int]) -> None:
     if isinstance(node, list):
         for item in node:
@@ -1050,8 +1073,11 @@ def _mark_no_explicit_null(node: Any, validator, resolver, counter: list[int]) -
             if not _property_admits_null(validator, property_schema):
                 property_schema[NO_EXPLICIT_NULL_KEY] = True
                 counter[0] += 1
+            if _carries_a_default(property_schema):
+                property_schema[OMIT_UNSET_DEFAULT_KEY] = True
+                counter[1] += 1
     for key, value in node.items():
-        if key == NO_EXPLICIT_NULL_KEY:
+        if key in (NO_EXPLICIT_NULL_KEY, OMIT_UNSET_DEFAULT_KEY):
             continue
         _mark_no_explicit_null(value, validator, resolver, counter)
 
@@ -1100,6 +1126,7 @@ def mark_no_explicit_null_properties(temp_dir: Path) -> int:
         for path in sorted(temp_dir.rglob("*.json"))
     )
     marked = 0
+    defaulted = 0
     for schema_file in sorted(temp_dir.rglob("*.json")):
         with open(schema_file) as f:
             schema = json.load(f)
@@ -1117,13 +1144,15 @@ def mark_no_explicit_null_properties(temp_dir: Path) -> int:
             validator_class = validator_for(document)
         validator = validator_class(document, registry=registry)
         resolver = registry.resolver(base_uri=document["$id"])
-        counter = [0]
+        counter = [0, 0]
         _mark_no_explicit_null(schema, validator, resolver, counter)
-        if counter[0]:
+        if counter[0] or counter[1]:
             with open(schema_file, "w") as f:
                 json.dump(schema, f, indent=2)
             marked += counter[0]
+            defaulted += counter[1]
     print(f"  Marked {marked} optional properties that refuse an explicit null")
+    print(f"  Marked {defaulted} optional properties that carry a schema default")
     return marked
 
 
@@ -1391,6 +1420,7 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         # where the post-generation pass turns it into ``NoExplicitNull``.
         "--field-extra-keys",
         NO_EXPLICIT_NULL_KEY,
+        OMIT_UNSET_DEFAULT_KEY,
         "--allow-remote-refs",
     ]
 

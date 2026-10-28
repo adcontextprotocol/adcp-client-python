@@ -109,10 +109,12 @@ def test_seller_slots_override_registry_retina_slot_contract() -> None:
                 "asset_group_id": "seller_image",
                 "asset_type": "image",
                 "required": True,
-                "consumed_for_production": True,
             }
         ],
     }
+    # ``consumed_for_production`` reads its schema default (true) and, unset,
+    # stays off the wire (SDK 10, #1613).
+    assert result.declaration.params["slots"][0].get("consumed_for_production") is None
     assert result.advisories == []
 
 

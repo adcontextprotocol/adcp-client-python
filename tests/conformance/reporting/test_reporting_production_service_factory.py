@@ -222,6 +222,10 @@ async def factory_harness(
                     "grain": "row",
                     "primary_keys": ["row_id"],
                     "canonicalization_id": key.canonicalization.canonicalization_id,
+                    "canonicalization_contract_version": "1.0",
+                    "canonicalization_media_type": (
+                        "application/vnd.adcp.reporting-canonicalization+json"
+                    ),
                     "canonicalization_uri": key.canonicalization.canonicalization_uri,
                     "canonicalization_sha256": key.canonicalization.canonicalization_sha256,
                 },

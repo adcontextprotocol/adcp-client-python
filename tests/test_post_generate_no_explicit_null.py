@@ -19,6 +19,10 @@ import pytest
 from scripts import post_generate_fixes as fixes
 
 MARK = fixes._NO_EXPLICIT_NULL_EXTRA
+DEFAULT_MARK = "json_schema_extra={'x-adcp-omit-unset-default': True}"
+BOTH_MARKS = (
+    "json_schema_extra={'x-adcp-no-explicit-null': True, 'x-adcp-omit-unset-default': True}"
+)
 
 
 def _rewrite(source: str, marker: str | None = fixes._NO_EXPLICIT_NULL_MARKER) -> tuple[str, int]:
@@ -177,3 +181,78 @@ def test_non_ascii_text_before_the_mark_does_not_shift_the_edit() -> None:
         "Ünïcode.'), NoExplicitNull" in rewritten
         or "Ünïcode.'),\n        NoExplicitNull" in rewritten
     )
+
+
+def test_the_default_mark_becomes_omit_unset_default_whatever_the_annotation() -> None:
+    """A schema-optional default is marked even when the annotation refuses ``None``."""
+    source = f"""\
+    class X(AdCPBaseModel):
+        sandbox: Annotated[bool, Field(description='Sandbox flag.', {DEFAULT_MARK})] = False
+        tz: Annotated[Timezone | None, Field({BOTH_MARKS})] = 'local'
+        status: Annotated[Literal['closed'], Field({DEFAULT_MARK})] = 'closed'
+    """
+    rewritten, count = _rewrite(source)
+    assert count == 3
+    sandbox = "Annotated[bool, Field(description='Sandbox flag.'), OmitUnsetDefault] = False"
+    assert f"    sandbox: {sandbox}\n" in rewritten
+    assert (
+        "    tz: Annotated[Timezone | None, NoExplicitNull, OmitUnsetDefault] = 'local'\n"
+        in rewritten
+    )
+    assert "    status: Annotated[Literal['closed'], OmitUnsetDefault] = 'closed'\n" in rewritten
+
+
+def test_both_marks_suppressed_give_back_the_unmarked_rendering() -> None:
+    source = f"""\
+    class X(AdCPBaseModel):
+        sandbox: Annotated[bool, Field({DEFAULT_MARK})] = False
+        tz: Annotated[Timezone | None, Field(description='kept', {BOTH_MARKS})] = 'local'
+    """
+    rewritten, count = _rewrite(source, marker=None)
+    assert count == 0
+    assert rewritten == textwrap.dedent("""\
+    class X(AdCPBaseModel):
+        sandbox: bool = False
+        tz: Annotated[Timezone | None, Field(description='kept')] = 'local'
+    """)
+
+
+def test_the_pass_imports_each_marker_it_wrote(tmp_path, monkeypatch) -> None:
+    generated_dir = tmp_path / "domains"
+    target = generated_dir / "core" / "thing.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Annotated\n\n"
+        "from adcp.types.base import AdCPBaseModel\n"
+        "from pydantic import Field\n\n\n"
+        "class X(AdCPBaseModel):\n"
+        f"    sandbox: Annotated[bool, Field({DEFAULT_MARK})] = False\n"
+        f"    ref: Annotated[str | None, Field({MARK})] = None\n"
+    )
+    monkeypatch.setattr(fixes, "OUTPUT_DIR", generated_dir)
+    fixes.point_omittable_fields_at_no_explicit_null()
+    source = target.read_text()
+    assert "from adcp.types.base import AdCPBaseModel, NoExplicitNull, OmitUnsetDefault" in source
+    assert "x-adcp-" not in source
+    assert "    sandbox: Annotated[bool, OmitUnsetDefault] = False\n" in source
+    assert "    ref: Annotated[str | None, NoExplicitNull] = None\n" in source
+
+
+def test_root_models_are_pointed_at_the_adcp_root(tmp_path, monkeypatch) -> None:
+    generated_dir = tmp_path / "domains"
+    target = generated_dir / "core" / "union.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from pydantic import ConfigDict, RootModel\n\n"
+        "from adcp.types.base import AdCPBaseModel\n\n\n"
+        "class A(AdCPBaseModel):\n    pass\n\n\n"
+        "class U(RootModel[A | int]):\n    root: A | int\n\n\n"
+        "class Wide(\n    RootModel[\n        A\n        | int\n    ]\n):\n    pass\n"
+    )
+    monkeypatch.setattr(fixes, "OUTPUT_DIR", generated_dir)
+    fixes.point_rootmodels_at_adcp_root()
+    source = target.read_text()
+    assert "class U(AdCPRootModel[A | int]):" in source
+    assert "class Wide(\n    AdCPRootModel[" in source
+    assert "from adcp.types.base import AdCPBaseModel, AdCPRootModel" in source
+    assert "from pydantic import ConfigDict\n" in source

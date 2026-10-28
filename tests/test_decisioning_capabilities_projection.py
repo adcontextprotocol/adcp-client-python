@@ -592,8 +592,8 @@ def test_request_scoped_webhook_signing_can_be_adopter_managed(
     assert response["webhook_signing"] == {
         "supported": True,
         "profile": "adcp/webhook-signing/v1",
-        # 3.3 advertises the accepted profiles beside the legacy singular field.
-        "profiles": ["adcp/webhook-signing/v1"],
+        # ``profiles`` carries the 3.3 schema default and, unset, stays off the
+        # wire (SDK 10, #1613); a seller advertising it sets it explicitly.
         "algorithms": ["ed25519"],
         "legacy_hmac_fallback": True,
         "delivery_retry_horizon_seconds": 86400,

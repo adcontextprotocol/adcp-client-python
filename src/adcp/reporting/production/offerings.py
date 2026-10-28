@@ -61,8 +61,14 @@ class ReportingProductionOffering:
         from adcp.validation.schema_loader import get_named_validator
 
         validator = get_named_validator("core/reporting-delivery-offering.json")
-        if validator is None or next(validator.iter_errors(raw), None) is not None:
+        if validator is None:
             raise ValueError("offering must satisfy the complete public contract")
+        error = next(validator.iter_errors(raw), None)
+        if error is not None:
+            where = "/".join(str(part) for part in error.absolute_path) or "/"
+            raise ValueError(
+                f"offering must satisfy the complete public contract: {error.message} at {where}"
+            )
         profile, definition, key = (
             raw["reporting_profile"],
             self.verification_key.definition,
