@@ -11,10 +11,24 @@ every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 
 import copy
 import os
+import warnings
 from collections.abc import Callable
+from contextvars import ContextVar
 from functools import lru_cache
 from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, Union, cast, get_args, get_origin
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Final,
+    Generic,
+    Literal,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 from pydantic import (
     AfterValidator,
@@ -23,6 +37,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     GetCoreSchemaHandler,
+    RootModel,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     StrictInt,
@@ -509,7 +524,11 @@ def inherit_field(source: type[BaseModel], name: str, *, required: bool = False)
         # The marker belongs to an optional property (omit it, or supply a
         # value); a required field has no "omitted" to spell, and the tree-wide
         # invariant is that every marked field is optional.
-        field.metadata = [item for item in field.metadata if item is not _REFUSE_JSON_NULL]
+        field.metadata = [
+            item
+            for item in field.metadata
+            if item is not _REFUSE_JSON_NULL and item is not OmitUnsetDefault
+        ]
         if field.exclude_if is NoExplicitNull.exclude_if:
             field.exclude_if = None
     return field
@@ -523,6 +542,71 @@ def is_no_explicit_null(field: FieldInfo) -> bool:
     half). A redeclaration that copies the generated ``FieldInfo`` keeps both.
     """
     return field.exclude_if is NoExplicitNull.exclude_if
+
+
+class _OmitUnsetDefault:
+    """Marks a schema-optional property that carries a schema ``default``.
+
+    The generator writes the schema default into the field (``sandbox: bool =
+    False``), which is the right Python surface: the attribute reads as the
+    default when the property was omitted. On the wire, though, "omitted" and
+    "present with the default" are different bytes, and a digest or echo over
+    the document tells them apart (#1613). A field carrying this marker is
+    left off the default dump unless it is in ``model_fields_set`` -- the wire
+    set it, or the caller did. A schema-required property with a default
+    (and a generator-injected discriminator default) carries no marker and is
+    emitted either way.
+
+    Carried in ``Annotated`` metadata; pydantic keeps unknown metadata on
+    ``FieldInfo.metadata``. One marker however the field is copied, like
+    :class:`_RefuseJsonNull`.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "OmitUnsetDefault"
+
+    def __copy__(self) -> _OmitUnsetDefault:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> _OmitUnsetDefault:
+        return self
+
+    def __reduce__(self) -> str:
+        return "OmitUnsetDefault"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _OmitUnsetDefault)
+
+    def __hash__(self) -> int:
+        return hash(_OmitUnsetDefault)
+
+
+#: The marker the generator appends to a schema-optional property with a
+#: schema ``default`` (``scripts/generate_types.py`` marks it,
+#: ``scripts/post_generate_fixes.py`` points it here). See
+#: :class:`_OmitUnsetDefault`.
+OmitUnsetDefault: Final = _OmitUnsetDefault()
+
+
+def is_omit_unset_default(field: FieldInfo) -> bool:
+    """Whether ``field`` carries :data:`OmitUnsetDefault`."""
+    return any(item is OmitUnsetDefault for item in field.metadata)
+
+
+@lru_cache(maxsize=4096)
+def omit_unset_default_fields(model: type[BaseModel]) -> frozenset[str]:
+    """The fields of ``model`` the default dump leaves off unless they were set."""
+    return frozenset(
+        name for name, field in model.model_fields.items() if is_omit_unset_default(field)
+    )
+
+
+#: Set for the duration of a dump the caller asked for with
+#: ``exclude_unset=False``: every field is emitted, defaults included, which is
+#: the SDK 9 output.
+_EMIT_UNSET_DEFAULTS: ContextVar[bool] = ContextVar("adcp_emit_unset_defaults", default=False)
 
 
 def _admits_none(annotation: Any) -> bool:
@@ -682,6 +766,8 @@ class AdCPBaseModel(BaseModel):
         extra = self.__pydantic_extra__
         if extra and info.exclude_none and not cls.model_fields:
             return _keep_opaque_nulls(value, extra, info)
+        if not info.exclude_unset and not _EMIT_UNSET_DEFAULTS.get():
+            self._drop_unset_defaults(value, info)
         if info.exclude_none:
             self._put_back_explicit_nulls(value, info)
         # Bundled schemas can rename or inline the same wire shape. Match its
@@ -690,10 +776,18 @@ class AdCPBaseModel(BaseModel):
         fields = cls.model_fields
         if {"subscriber_id", "url", "event_types", "product_payload_view"} <= fields.keys():
             events = getattr(self, "event_types", ())
-            if "product_payload_view" not in self.model_fields_set and not any(
-                str(getattr(e, "value", e)).startswith("product.") for e in events
-            ):
-                value.pop("product_payload_view", None)
+            product_event = any(str(getattr(e, "value", e)).startswith("product.") for e in events)
+            if "product_payload_view" not in self.model_fields_set:
+                if not product_event:
+                    value.pop("product_payload_view", None)
+                elif "product_payload_view" not in value:
+                    # A product subscription declares its payload view even when
+                    # the caller left it at the default (the one schema default
+                    # the SDK keeps emitting unset; see ``_drop_unset_defaults``).
+                    view = getattr(self, "product_payload_view")
+                    value["product_payload_view"] = (
+                        getattr(view, "value", view) if info.mode == "json" else view
+                    )
         return value
 
     # -- Explicit nulls (#1615) --------------------------------------------
@@ -754,6 +848,24 @@ class AdCPBaseModel(BaseModel):
                 if name is not None:
                     self.__pydantic_fields_set__.discard(name)
 
+    def _drop_unset_defaults(self, value: dict[str, Any], info: SerializationInfo) -> None:
+        """Leave off a schema-optional default the document (or caller) did not set."""
+        cls = type(self)
+        marked = omit_unset_default_fields(cls)
+        if not marked:
+            return
+        # pydantic reports ``None`` here when the call passed no ``by_alias``.
+        by_alias: bool | None = info.by_alias
+        if by_alias is None:
+            by_alias = bool(cls.model_config.get("serialize_by_alias"))
+        fields_set = self.__pydantic_fields_set__
+        for name in marked:
+            if name in fields_set:
+                continue
+            field = cls.model_fields[name]
+            key = (field.serialization_alias or field.alias or name) if by_alias else name
+            value.pop(key, None)
+
     def _put_back_explicit_nulls(self, value: dict[str, Any], info: SerializationInfo) -> None:
         """Re-emit ``null`` for a set, null-admitting field that ``exclude_none`` dropped."""
         cls = type(self)
@@ -792,6 +904,7 @@ class AdCPBaseModel(BaseModel):
             kwargs["exclude_none"] = True
         if "serialize_as_any" not in kwargs:
             kwargs["serialize_as_any"] = True
+        token = _EMIT_UNSET_DEFAULTS.set(kwargs.get("exclude_unset", None) is False)
         try:
             return super().model_dump(**kwargs)
         except (TypeError, PydanticSerializationError) as exc:
@@ -799,38 +912,27 @@ class AdCPBaseModel(BaseModel):
                 raise
             _build_deferred_serializers(self, set())
             return super().model_dump(**kwargs)
+        finally:
+            _EMIT_UNSET_DEFAULTS.reset(token)
 
     def model_dump_as_received(self, **kwargs: Any) -> dict[str, Any]:
-        """The document this model was parsed from, as JSON values.
+        """Deprecated: ``model_dump(mode="json")`` is the document now.
 
-        ``model_dump(mode="json")`` emits every field, so a property the wire
-        omitted comes back carrying the schema default the generator wrote
-        into the field (``sandbox: false``, ``timezone: "inventory_local"``).
-        A reader treats those as the same document; a
-        digest does not. ``core/canonical-proposal.json`` binds
-        ``terms_digest`` to the JCS form of ``commercial_terms`` *as declared*,
-        and a buyer recomputing it over a default dump gets a mismatch whenever
-        the seller left a defaulted property out (#1613).
-
-        This dump leaves off every field the document did not set
-        (``exclude_unset``), keeps an explicit ``null`` on a property whose
-        schema admits one (``exclude_none=False``; a property the schema
-        refuses ``null`` on is left off by its own :data:`NoExplicitNull`
-        exclusion either way), and writes wire names (``by_alias``). With the
-        wire-preserving scalar types (:mod:`adcp.types._wire`), a schema-valid
-        document that reached the model round-trips byte-for-byte under RFC
-        8785 -- except for a property the model never held, which
-        ``extra='ignore'`` dropped on input (#1614).
-        ``tests/conformance/test_wire_round_trip.py`` holds every digest- and
-        echo-covered schema to that, with no allowlist.
-
-        For a model built in Python the result is exactly the fields the
-        caller set, in the deterministic forms the wire types document.
+        In SDK 9 the default dump emitted every field, so a schema default the
+        wire omitted came back, an admitted explicit ``null`` was dropped and
+        an aliased key was written under its Python name; this method was the
+        recipe that recovered the bytes (#1613, #1615). In SDK 10 the default
+        dump leaves an unset schema default off, re-emits a received ``null``
+        and writes wire names, so the two are the same document. This alias
+        stays through 10.x and is removed in 11.
         """
+        warnings.warn(
+            "model_dump_as_received() is deprecated: model_dump(mode='json') now dumps the "
+            "document as received. It will be removed in SDK 11.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         kwargs.setdefault("mode", "json")
-        kwargs.setdefault("exclude_unset", True)
-        kwargs.setdefault("exclude_none", False)
-        kwargs.setdefault("by_alias", True)
         return self.model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
@@ -838,6 +940,7 @@ class AdCPBaseModel(BaseModel):
             kwargs["exclude_none"] = True
         if "serialize_as_any" not in kwargs:
             kwargs["serialize_as_any"] = True
+        token = _EMIT_UNSET_DEFAULTS.set(kwargs.get("exclude_unset", None) is False)
         try:
             return super().model_dump_json(**kwargs)
         except (TypeError, PydanticSerializationError) as exc:
@@ -845,6 +948,8 @@ class AdCPBaseModel(BaseModel):
                 raise
             _build_deferred_serializers(self, set())
             return super().model_dump_json(**kwargs)
+        finally:
+            _EMIT_UNSET_DEFAULTS.reset(token)
 
     def model_summary(self) -> str:
         """Human-readable summary for protocol responses.
@@ -859,6 +964,54 @@ class AdCPBaseModel(BaseModel):
         if formatter:
             return formatter(self)
         return f"{self.__class__.__name__} response"
+
+
+_RootT = TypeVar("_RootT")
+
+
+class AdCPRootModel(RootModel[_RootT], Generic[_RootT]):
+    """The ``RootModel`` base for generated composing roots.
+
+    A generated schema root that is a union of object models, or a wrapper
+    another union discriminates against, keeps its ``RootModel``
+    (``post_generate_fixes.unwrap_rootmodel_unions``). Pydantic's own
+    ``RootModel.model_dump`` emits every ``None`` of the arm it holds, so the
+    wrapper's dump differed from the arm's; this base gives it
+    :class:`AdCPBaseModel`'s defaults (``exclude_none``, ``serialize_as_any``)
+    so a root dumps the document its arm would (#1613).
+    """
+
+    def model_dump(self, **kwargs: Any) -> Any:
+        if "exclude_none" not in kwargs:
+            kwargs["exclude_none"] = True
+        if "serialize_as_any" not in kwargs:
+            kwargs["serialize_as_any"] = True
+        token = _EMIT_UNSET_DEFAULTS.set(kwargs.get("exclude_unset", None) is False)
+        try:
+            return super().model_dump(**kwargs)
+        except (TypeError, PydanticSerializationError) as exc:
+            if "MockValSer" not in str(exc):
+                raise
+            _build_deferred_serializers(self, set())
+            return super().model_dump(**kwargs)
+        finally:
+            _EMIT_UNSET_DEFAULTS.reset(token)
+
+    def model_dump_json(self, **kwargs: Any) -> str:
+        if "exclude_none" not in kwargs:
+            kwargs["exclude_none"] = True
+        if "serialize_as_any" not in kwargs:
+            kwargs["serialize_as_any"] = True
+        token = _EMIT_UNSET_DEFAULTS.set(kwargs.get("exclude_unset", None) is False)
+        try:
+            return super().model_dump_json(**kwargs)
+        except (TypeError, PydanticSerializationError) as exc:
+            if "MockValSer" not in str(exc):
+                raise
+            _build_deferred_serializers(self, set())
+            return super().model_dump_json(**kwargs)
+        finally:
+            _EMIT_UNSET_DEFAULTS.reset(token)
 
 
 class RegistryBaseModel(BaseModel):

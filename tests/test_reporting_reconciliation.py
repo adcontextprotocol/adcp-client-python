@@ -118,6 +118,10 @@ def test_capability_uses_public_reporting_delivery_model() -> None:
                         "grain": "media_buy_day",
                         "primary_keys": ["media_buy_id", "date"],
                         "canonicalization_id": "rows-v1",
+                        "canonicalization_contract_version": "1.0",
+                        "canonicalization_media_type": (
+                            "application/vnd.adcp.reporting-canonicalization+json"
+                        ),
                         "canonicalization_uri": "https://schemas.example/canonicalization/rows-v1.json",
                         "canonicalization_sha256": "b" * 64,
                     },

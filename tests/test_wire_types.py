@@ -298,15 +298,21 @@ def test_model_dump_as_received_leaves_off_what_the_document_omitted() -> None:
         "terms_digest": "sha256:" + base64.urlsafe_b64encode(digest).rstrip(b"=").decode(),
     }
     parsed = CanonicalProposal.model_validate_json(json.dumps(proposal))
-    # The default dump materializes ``verification_required: false`` (#1613)...
-    overlay = parsed.model_dump(mode="json")["commercial_terms"]["purchases"][0][
-        "targeting_overlay"
-    ]
-    assert overlay["age_restriction"] == {"min": 21, "verification_required": False}
-    # ...and the as-received dump is the document, so terms_digest verifies.
-    received = parsed.model_dump_as_received()
+    # The default dump is the document (SDK 10, #1613): the schema default
+    # ``verification_required: false`` the seller left out stays out, so
+    # terms_digest verifies over the default dump...
+    dumped = parsed.model_dump(mode="json")
+    assert dumped == proposal
+    assert rfc8785.dumps(dumped["commercial_terms"]) == rfc8785.dumps(terms)
+    overlay = dumped["commercial_terms"]["purchases"][0]["targeting_overlay"]
+    assert overlay["age_restriction"] == {"min": 21}
+    # ...the attribute still reads the default...
+    purchase = parsed.commercial_terms.purchases[0]
+    assert purchase.targeting_overlay.age_restriction.verification_required is False
+    # ...and the deprecated as-received dump says the same.
+    with pytest.warns(DeprecationWarning):
+        received = parsed.model_dump_as_received()
     assert received == proposal
-    assert rfc8785.dumps(received["commercial_terms"]) == rfc8785.dumps(terms)
 
 
 def test_model_dump_as_received_keeps_an_admitted_null_and_the_wire_alias() -> None:
@@ -316,7 +322,8 @@ def test_model_dump_as_received_keeps_an_admitted_null_and_the_wire_alias() -> N
     parsed = TargetingInput.model_validate_json(json.dumps(document))
     # A received null is re-emitted by the default dump too (SDK 10, #1615).
     assert parsed.model_dump(mode="json") == document
-    assert parsed.model_dump_as_received() == document
+    with pytest.warns(DeprecationWarning):
+        assert parsed.model_dump_as_received() == document
 
 
 # ---------------------------------------------------------------------------

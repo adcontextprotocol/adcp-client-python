@@ -238,7 +238,7 @@ async def test_get_products():
 
         # Verify adapter method was called
         mock_get.assert_called_once_with(
-            {"brief": "test campaign", "buying_mode": "brief", "include_collections": False}
+            {"brief": "test campaign", "buying_mode": "brief"}
         )
         # Verify parsing was called with correct type
         mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
@@ -380,7 +380,6 @@ async def test_get_products_wholesale_versions_sent_and_parsed():
     mock_get.assert_called_once_with(
         {
             "buying_mode": "wholesale",
-            "include_collections": False,
             "pagination": {"max_results": 25},
             "if_wholesale_feed_version": "wf_1",
             "if_pricing_version": "pr_1",
@@ -976,8 +975,8 @@ async def test_multi_agent_parallel_execution():
         results = await client.get_products(request)
 
         # Verify both agents' get_products method was called
-        mock1.assert_called_once_with({"buying_mode": "wholesale", "include_collections": False})
-        mock2.assert_called_once_with({"buying_mode": "wholesale", "include_collections": False})
+        mock1.assert_called_once_with({"buying_mode": "wholesale"})
+        mock2.assert_called_once_with({"buying_mode": "wholesale"})
 
         # Verify results from both agents
         assert len(results) == 2
@@ -1241,7 +1240,7 @@ async def test_get_media_buys_parses_response():
             GetMediaBuysRequest.model_validate({"account": {"account_id": "acct-1"}})
         )
         mock_adapter.assert_called_once_with(
-            {"account": {"account_id": "acct-1"}, "include_history": 0, "include_snapshot": False}
+            {"account": {"account_id": "acct-1"}}
         )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
@@ -1328,7 +1327,7 @@ async def test_get_media_buys_parses_snapshot_response():
             )
         )
         mock_adapter.assert_called_once_with(
-            {"account": {"account_id": "acct-1"}, "include_history": 0, "include_snapshot": True}
+            {"account": {"account_id": "acct-1"}, "include_snapshot": True}
         )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)

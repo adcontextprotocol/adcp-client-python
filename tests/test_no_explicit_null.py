@@ -265,19 +265,18 @@ def test_every_optional_field_either_carries_the_marker_or_admits_null(
             )
 
 
-def test_no_generated_module_still_carries_the_transient_mark() -> None:
-    """The ``x-adcp-no-explicit-null`` key is a generator-internal carrier and never ships."""
+@pytest.mark.parametrize("key", ["x-adcp-no-explicit-null", "x-adcp-omit-unset-default"])
+def test_no_generated_module_still_carries_the_transient_mark(key: str) -> None:
+    """A generator mark is a generator-internal carrier and never ships."""
     domains = Path(public_types.__file__).parent / "domains"
     offenders = [
-        path.relative_to(domains)
-        for path in domains.rglob("*.py")
-        if "x-adcp-no-explicit-null" in path.read_text()
+        path.relative_to(domains) for path in domains.rglob("*.py") if key in path.read_text()
     ]
     assert offenders == []
     bundled = Path(public_types.__file__).parent.parent / "_schemas"
     if bundled.exists():
         for path in bundled.rglob("*.json"):
-            assert "x-adcp-no-explicit-null" not in path.read_text(), path
+            assert key not in path.read_text(), path
 
 
 def test_marker_is_widespread_in_the_generated_tree() -> None:

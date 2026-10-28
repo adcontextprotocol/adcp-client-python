@@ -25,7 +25,8 @@ round-trip with no difference of any class. Every other schema may show only
 the classes named in :data:`ACCEPTED`, each with the reason it remains and the
 issue that tracks it; the set only shrinks, and a class that stops occurring
 must be deleted from it. A class outside ``ACCEPTED`` — a rewritten URL,
-datetime, UUID or email, a changed value, a changed shape — fails anywhere.
+datetime, UUID or email, an emitted default, a dropped null, a Python-named
+key, a changed value, a changed shape — fails anywhere.
 """
 
 from __future__ import annotations
@@ -42,13 +43,15 @@ from tests.conformance import _round_trip as rt
 #: is a regression. A class that stops occurring is deleted — this set only
 #: shrinks.
 ACCEPTED: dict[str, str] = {
-    # The generator writes a schema ``default`` into the field and the dump
-    # emits every field, so a document that omitted a defaulted property gains
-    # it. "Omitted" and "present with the default" read the same to a schema
-    # validator; they hash differently. #1613 proposes leaving an unset
-    # optional default off the dump; until then, dump as received
-    # (``exclude_unset=True``) to recover the bytes.
-    "default_emitted": "the generator materializes schema defaults on dump (#1613)",
+    # A document routed to an arm whose required discriminator it does not
+    # carry gains that arm's injected single-value ``Literal``. The generated
+    # arm classes merge the root's properties, so a document valid under a
+    # sibling arm validates under the first arm that accepts it. Arm routing
+    # is #1414's domain (closed by #1522's construction dispatch); a schema
+    # default the document omitted is no longer emitted (#1613).
+    "discriminator_emitted": (
+        "a document routed to an arm it does not satisfy gains the arm's discriminator (#1414)"
+    ),
     # ``extra='ignore'`` drops a property the pinned model does not declare,
     # and a union arm declares only its own properties while the schema's arm
     # admits its siblings'. No digest-covered schema is affected at this pin;
@@ -56,25 +59,9 @@ ACCEPTED: dict[str, str] = {
     "field_dropped": "unknown and sibling-arm properties are dropped (#1614)",
 }
 
-#: Schemas whose bytes the protocol binds. Under ``model_dump_as_received``
-#: no difference of any class; under the default dump no rewrite, no dropped
-#: field, no alias and no dropped null -- only, for the schemas listed in
-#: :data:`BOUND_DEFAULTS`, a schema default the document omitted.
+#: Schemas whose bytes the protocol binds: no difference of any class, under
+#: the default dump and under the explicit as-received settings alike.
 BOUND = sorted(rt.DIGEST_COVERED | rt.ECHO_COVERED)
-
-#: Bound schemas whose *default* dump still materializes a schema default the
-#: document omitted (#1613): ``commercial_terms`` reaches ``targeting.json``
-#: (``age_restriction.verification_required``), so ``terms_digest`` recomputed
-#: over ``model_dump(mode="json")`` mismatches whenever the seller left it
-#: out. ``model_dump_as_received`` recovers the bytes, and that is the
-#: verification path until #1613 lands. The set only shrinks; a bound schema
-#: joining it is a regression.
-BOUND_DEFAULTS = frozenset(
-    {
-        "core/canonical-proposal.json",
-        "media-buy/commercial-terms.json",
-    }
-)
 
 #: Schemas with at least one schema-valid document the generated model refuses
 #: (fails validation). Refusing is the schema/model parity suite's domain, not
@@ -158,25 +145,14 @@ def test_bound_object_round_trips_byte_for_byte_as_received(schema: str) -> None
 
 
 @pytest.mark.parametrize("schema", BOUND)
-def test_bound_object_is_never_rewritten_by_the_default_dump(schema: str) -> None:
-    """The default dump of a bound object rewrites nothing; at most it adds a declared default."""
+def test_bound_object_round_trips_byte_for_byte_by_default(schema: str) -> None:
+    """The default dump of a digest- or echo-covered object is the document."""
     graded, _refusals = _graded(schema)
     changed = [d for _, differences in graded for d in differences]
-    rewritten = [d for d in changed if d.kind != "default_emitted"]
-    assert not rewritten, "\n".join(
-        [f"{len(rewritten)} rewrite(s) in a digest- or echo-covered object ({schema}):"]
-        + [f"  {d.describe()}" for d in rewritten[:20]]
+    assert not changed, "\n".join(
+        [f"{len(changed)} difference(s) in a digest- or echo-covered object ({schema}):"]
+        + [f"  {d.describe()}" for d in changed[:20]]
     )
-    defaults = [d for d in changed if d.kind == "default_emitted"]
-    if schema in BOUND_DEFAULTS:
-        assert (
-            defaults
-        ), f"{schema} no longer emits an omitted default; delete it from BOUND_DEFAULTS"
-    else:
-        assert not defaults, "\n".join(
-            [f"{schema} now emits a default the document omitted (#1613):"]
-            + [f"  {d.describe()}" for d in defaults[:20]]
-        )
 
 
 @pytest.mark.parametrize("schema", SCHEMAS)

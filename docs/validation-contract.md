@@ -105,37 +105,32 @@ mechanisms carry it, and a conformance suite measures it:
   AdCP schema types (`adcp.types.domains`); `adcp.types.registry`, the
   OpenAPI-generated registry client, keeps pydantic's `AnyUrl` and
   `AwareDatetime` — no registry object is digest-covered.
-- **An explicit "as received" dump.** `AdCPBaseModel.model_dump_as_received()`
-  is `model_dump(mode="json", exclude_unset=True, exclude_none=False,
-  by_alias=True)`: it leaves off every field the document did not set (where
-  a generated default would otherwise appear), keeps an explicit `null` the
-  schema admits, and writes wire names. Recompute a digest over this dump, not
-  the default one. For a model built in Python it emits exactly the fields the
-  caller set.
+- **The default dump is the document.** `model_dump(mode="json")` leaves off
+  a schema-optional default the document did not carry (`OmitUnsetDefault`,
+  #1613), re-emits a `null` the document carried on a property whose schema
+  admits one (#1615), writes wire names (`$schema`, `pass`, `from`; #1615),
+  and keeps an unknown property where the schema object is open (#1614).
+  Recompute a digest over the default dump. For a model built in Python it
+  emits the fields the caller set plus the ones the schema requires.
+  `model_dump_as_received()` is a deprecated alias of the same dump and is
+  removed in SDK 11; `model_dump(exclude_unset=False)` gives the SDK 9 output
+  with every default materialized.
 
 `tests/conformance/test_wire_round_trip.py` runs every bundle schema that has
 a model — the bundle's `examples`, a synthesized document, the differential
 fixtures, a checked-in corpus for the digest-covered schemas, and variants of
 each exercising every form a normalizing parser rewrites — through
 `model_validate_json(doc).model_dump(mode="json")` and compares the result to
-the input under JCS. A rewritten URL, datetime, UUID, email, value or shape
-fails anywhere. The digest- and echo-covered schemas must round-trip with no
-difference of any class under `model_dump_as_received`. Under the default
-dump the suite names the classes that remain, each with the issue that tracks
-it, and the list only shrinks:
+the input under JCS. A rewritten URL, datetime, UUID, email, value or shape,
+an emitted default, a dropped null or a Python-named key fails anywhere. The
+digest- and echo-covered schemas must round-trip with no difference of any
+class. Under the default dump the suite names the classes that remain, each
+with the issue that tracks it, and the list only shrinks:
 
 | class | what happens | where it stands |
 | --- | --- | --- |
-| `default_emitted` | the dump materializes a schema default the document omitted | #1613; `model_dump_as_received` recovers the bytes. Two digest-covered schemas (`canonical-proposal`, `commercial-terms`) are affected under the default dump and are listed in the suite. |
-| `field_dropped` | `extra='ignore'` drops an unknown or sibling-arm property | #1614; not recoverable by any dump. No digest-covered schema is affected at pin 3.2.7. |
-| `alias_emitted` | `model_dump()` writes `pass_` for `pass`, `field_schema` for `$schema` | #1615; `model_dump_as_received` writes the wire name. |
-| `null_dropped` | `exclude_none` drops an admitted explicit `null` | #1615; `model_dump_as_received` keeps it. |
-
-Why the default dump was not changed in 9.x: leaving unset defaults off every
-`model_dump()` is wire-equivalent for a schema-applying reader but visible to
-any code that indexes a dumped dict (`payload["sandbox"]`), including a
-counterparty that does not apply schema defaults. That is a 10.0 decision,
-written up in #1613.
+| `field_dropped` | `extra='ignore'` drops an unknown or sibling-arm property | #1614; not recoverable by any dump. No digest-covered schema is affected. |
+| `discriminator_emitted` | a document valid under one arm is routed to a sibling arm, whose required single-value `Literal` it does not carry, and the arm's injected default appears | #1414; closed by #1522's construction dispatch. |
 
 ## Wire-boundary behavior
 
