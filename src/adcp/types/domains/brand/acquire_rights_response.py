@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl
+from adcp.types.base import NoExplicitNull, WireAnyUrl
 from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -24,7 +24,7 @@ from ..core.protocol_envelope import ProtocolEnvelope
 class Disclosure(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     required: bool
-    text: str | None = None
+    text: Annotated[str | None, NoExplicitNull] = None
 
 
 class AcquireRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -34,13 +34,13 @@ class AcquireRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     brand_id: str
     terms: rights_terms_1.RightsTerms
     generation_credentials: list[generation_credential_1.GenerationCredential]
-    restrictions: list[str] | None = None
-    disclosure: Disclosure | None = None
-    approval_webhook: push_notification_config_1.PushNotificationConfig | None = None
-    usage_reporting_url: WireAnyUrl | None = None
+    restrictions: Annotated[list[str] | None, NoExplicitNull] = None
+    disclosure: Annotated[Disclosure | None, NoExplicitNull] = None
+    approval_webhook: Annotated[push_notification_config_1.PushNotificationConfig | None, NoExplicitNull] = None
+    usage_reporting_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
     rights_constraint: Any
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class AcquireRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -48,10 +48,10 @@ class AcquireRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     rights_id: str
     rights_status: Literal['pending_approval'] = 'pending_approval'
     brand_id: str
-    detail: str | None = None
-    estimated_response_time: str | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    detail: Annotated[str | None, NoExplicitNull] = None
+    estimated_response_time: Annotated[str | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class AcquireRightsResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -60,16 +60,16 @@ class AcquireRightsResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     rights_status: Literal['rejected'] = 'rejected'
     brand_id: str
     reason: str
-    suggestions: list[str] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    suggestions: Annotated[list[str] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class AcquireRightsResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 AcquireRightsResponse: TypeAlias = AcquireRightsResponse1 | AcquireRightsResponse2 | AcquireRightsResponse3 | AcquireRightsResponse4

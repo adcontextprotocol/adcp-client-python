@@ -197,7 +197,8 @@ def test_exclude_none_false_on_a_direct_dump_keeps_only_schema_admitted_nulls() 
     so there is nothing to keep, and the document stays readable in JSON mode.
     """
     request = UpdateMediaBuyRequest.model_validate(_NULLABLE_UPDATE)
-    assert "budget_cap_timezone" not in request.model_dump()
+    # A received ``null`` on a null-admitting field is on the default dump too (SDK 10).
+    assert request.model_dump()["budget_cap_timezone"] is None
     loose = request.model_dump(exclude_none=False)
     assert loose["budget_cap_timezone"] is None
     assert loose["daily_budget_cap"] is None

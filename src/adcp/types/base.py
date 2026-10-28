@@ -12,7 +12,9 @@ every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 import copy
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, cast
+from functools import lru_cache
+from types import NoneType, UnionType
+from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, Union, cast, get_args, get_origin
 
 from pydantic import (
     AfterValidator,
@@ -523,6 +525,55 @@ def is_no_explicit_null(field: FieldInfo) -> bool:
     return field.exclude_if is NoExplicitNull.exclude_if
 
 
+def _admits_none(annotation: Any) -> bool:
+    """Whether ``annotation`` accepts ``None`` as a value."""
+    if annotation is Any or annotation is NoneType:
+        return True
+    origin = get_origin(annotation)
+    if origin is Annotated:
+        return _admits_none(get_args(annotation)[0])
+    if origin is Union or origin is UnionType:
+        return any(_admits_none(arm) for arm in get_args(annotation))
+    return False
+
+
+@lru_cache(maxsize=4096)
+def null_admitting_fields(model: type[BaseModel]) -> frozenset[str]:
+    """The fields of ``model`` whose schema admits an explicit ``null``.
+
+    A generated optional property is ``T | None = None``; when its schema does
+    not admit ``null`` it also carries :data:`NoExplicitNull`, which refuses a
+    JSON ``null`` and leaves a ``None`` off every dump. The fields left over --
+    an annotation that admits ``None`` and no marker -- are the ones a wire
+    ``null`` is a legal value for, and the ones :class:`AdCPBaseModel`
+    re-emits a received ``null`` on (#1615).
+    """
+    return frozenset(
+        name
+        for name, field in model.model_fields.items()
+        if not is_no_explicit_null(field) and _admits_none(field.annotation)
+    )
+
+
+def _is_required_key(model: type[BaseModel], key: str) -> bool:
+    """Whether ``key`` (Python name or alias) names a required field, or no field at all."""
+    name = _field_name_for_key(model, key)
+    if name is None:
+        return True  # an unknown key is left for pydantic (extras, or a refusal)
+    return model.model_fields[name].is_required()
+
+
+def _field_name_for_key(model: type[BaseModel], key: str) -> str | None:
+    """The field ``key`` names, whether ``key`` is the Python name or the alias."""
+    fields = model.model_fields
+    if key in fields:
+        return key
+    for name, field in fields.items():
+        if field.alias == key or field.validation_alias == key:
+            return name
+    return None
+
+
 def _keep_opaque_nulls(
     value: dict[str, Any], extra: dict[str, Any], info: SerializationInfo
 ) -> dict[str, Any]:
@@ -616,16 +667,27 @@ class AdCPBaseModel(BaseModel):
         Also keeps an opaque object's ``null`` values (see
         :func:`_keep_opaque_nulls`).
         """
-        value = handler(self)
+        return self._finish_wire_dump(handler(self), info)
+
+    def _finish_wire_dump(self, value: Any, info: SerializationInfo) -> Any:
+        """The wire-fidelity pass every AdCP model serializer ends with.
+
+        A subclass that declares its own wrap serializer replaces this
+        class's, so it calls this on ``handler(self)`` itself
+        (``canonical_creative._serialize_canonical_model``).
+        """
         if not isinstance(value, dict):
             return value
+        cls = type(self)
         extra = self.__pydantic_extra__
-        if extra and info.exclude_none and not type(self).model_fields:
+        if extra and info.exclude_none and not cls.model_fields:
             return _keep_opaque_nulls(value, extra, info)
+        if info.exclude_none:
+            self._put_back_explicit_nulls(value, info)
         # Bundled schemas can rename or inline the same wire shape. Match its
         # declared fields rather than generated class/module names; supplied
         # values still come exclusively from this instance's fields-set.
-        fields = type(self).model_fields
+        fields = cls.model_fields
         if {"subscriber_id", "url", "event_types", "product_payload_view"} <= fields.keys():
             events = getattr(self, "event_types", ())
             if "product_payload_view" not in self.model_fields_set and not any(
@@ -633,6 +695,90 @@ class AdCPBaseModel(BaseModel):
             ):
                 value.pop("product_payload_view", None)
         return value
+
+    # -- Explicit nulls (#1615) --------------------------------------------
+    #
+    # On the Python side ``None`` means "not supplied": ``Model(x=None)`` and
+    # ``Model()`` are the same document. On the wire an explicit ``null`` on a
+    # property whose schema admits it is a value, and a digest or echo over the
+    # document includes it. The two meet in ``model_fields_set``: a field the
+    # wire set to ``null`` is set, with value ``None``; an optional field a
+    # Python caller passed as ``None`` is left out here, so the dump can emit ``null`` for
+    # exactly the fields that were received as (or deliberately given as, via a
+    # dict document) ``null``. ``model_validate``, ``model_validate_json`` and
+    # nested validation never pass through ``__init__``, so what they set stays
+    # set. A class that defines its own ``__init__`` makes pydantic call it
+    # during validation as well, so it must not declare a null-admitting field
+    # (``tests/test_explicit_nulls.py`` guards that).
+
+    def __init__(self, /, **data: Any) -> None:
+        # A class with its own ``__init__`` is also constructed through it by
+        # validation, where a ``None`` is a document value; such a class keeps
+        # pydantic's reading of a ``None`` keyword argument (and, by
+        # ``tests/test_explicit_nulls.py``, has no null-admitting field).
+        if None in data.values() and not type(self).__pydantic_custom_init__:
+            # A ``None`` keyword argument for an optional field is the same as
+            # leaving it out, so it is left out before validation runs: a
+            # validator that asks ``model_fields_set`` whether a field is
+            # present (a root required-group rule) gets the answer the wire
+            # would. A required field keeps its ``None``: that is a value, and
+            # ``null`` on the wire where the schema admits it.
+            cls = type(self)
+            data = {
+                key: item
+                for key, item in data.items()
+                if item is not None or _is_required_key(cls, key)
+            }
+        super().__init__(**data)
+
+    # Pydantic calls a model's ``__init__`` from inside validation only when it
+    # is not the base one; this override has base semantics.
+    cast(Any, __init__).__pydantic_base_init__ = True
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+        if value is None and name in type(self).model_fields:
+            self.__pydantic_fields_set__.discard(name)
+
+    def model_copy(self, *, update: Any = None, deep: bool = False) -> Self:
+        copied = super().model_copy(update=update, deep=deep)
+        if update and None in update.values():
+            copied._unset_none_keys(update)
+        return copied
+
+    def _unset_none_keys(self, data: Any) -> None:
+        cls = type(self)
+        for key, item in data.items():
+            if item is None:
+                name = _field_name_for_key(cls, key)
+                if name is not None:
+                    self.__pydantic_fields_set__.discard(name)
+
+    def _put_back_explicit_nulls(self, value: dict[str, Any], info: SerializationInfo) -> None:
+        """Re-emit ``null`` for a set, null-admitting field that ``exclude_none`` dropped."""
+        cls = type(self)
+        admitting = null_admitting_fields(cls)
+        if not admitting:
+            return
+        include, exclude = info.include, info.exclude
+        # pydantic reports ``None`` here when the call passed no ``by_alias``.
+        by_alias: bool | None = info.by_alias
+        if by_alias is None:
+            by_alias = bool(cls.model_config.get("serialize_by_alias"))
+        for name in self.__pydantic_fields_set__:
+            if name not in admitting or self.__dict__.get(name) is not None:
+                continue
+            field = cls.model_fields[name]
+            if field.exclude:
+                continue
+            key = (field.serialization_alias or field.alias or name) if by_alias else name
+            if key in value:
+                continue
+            if include is not None and name not in include and key not in include:
+                continue
+            if exclude is not None and (name in exclude or key in exclude):
+                continue
+            value[key] = None
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         # ``serialize_as_any=True`` makes Pydantic dispatch on the runtime type of
@@ -659,9 +805,8 @@ class AdCPBaseModel(BaseModel):
 
         ``model_dump(mode="json")`` emits every field, so a property the wire
         omitted comes back carrying the schema default the generator wrote
-        into the field (``sandbox: false``, ``timezone: "inventory_local"``),
-        and an explicit ``null`` the schema admits is dropped by
-        ``exclude_none``. A reader treats those as the same document; a
+        into the field (``sandbox: false``, ``timezone: "inventory_local"``).
+        A reader treats those as the same document; a
         digest does not. ``core/canonical-proposal.json`` binds
         ``terms_digest`` to the JCS form of ``commercial_terms`` *as declared*,
         and a buyer recomputing it over a default dump gets a mismatch whenever

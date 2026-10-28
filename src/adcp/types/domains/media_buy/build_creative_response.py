@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl, WireDatetime
+from adcp.types.base import NoExplicitNull, WireAnyUrl, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -29,8 +29,8 @@ from ..enums import task_status as task_status_1
 class Input(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     name: str
-    macros: dict[str, str] | None = None
-    context_description: str | None = None
+    macros: Annotated[dict[str, str] | None, NoExplicitNull] = None
+    context_description: Annotated[str | None, NoExplicitNull] = None
 
 
 class Preview2(AdcpVersionEnvelope):
@@ -43,22 +43,22 @@ class Preview2(AdcpVersionEnvelope):
 class Preview(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview2], Field(min_length=1)]
-    interactive_url: WireAnyUrl | None = None
+    interactive_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
     expires_at: WireDatetime
 
 
 class Input2(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     name: str
-    macros: dict[str, str] | None = None
-    context_description: str | None = None
+    macros: Annotated[dict[str, str] | None, NoExplicitNull] = None
+    context_description: Annotated[str | None, NoExplicitNull] = None
 
 
 class Preview4(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     preview_id: str
-    format_id: format_id_1.FormatReferenceStructuredObject | None = None
-    capability_id: Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')] | None = None
+    format_id: Annotated[format_id_1.FormatReferenceStructuredObject | None, NoExplicitNull] = None
+    capability_id: Annotated[Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')] | None, NoExplicitNull] = None
     renders: Annotated[list[preview_render_1.PreviewRender], Field(min_length=1)]
     input: Input2
 
@@ -66,152 +66,152 @@ class Preview4(AdcpVersionEnvelope):
 class Preview3(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview4], Field(min_length=1)]
-    interactive_url: WireAnyUrl | None = None
+    interactive_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
     expires_at: WireDatetime
 
 
 class CatalogItemRef(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    catalog_type: str | None = None
+    catalog_type: Annotated[str | None, NoExplicitNull] = None
     item_id: str
 
 
 class Eval(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    features: list[creative_feature_result_1.CreativeFeatureResult] | None = None
-    ranked_against: Annotated[int, Field(ge=1)] | None = None
-    calls_used: Annotated[int, Field(ge=0)] | None = None
-    seconds_used: Annotated[float, Field(ge=0)] | None = None
-    ext: ext_1.ExtensionObject | None = None
+    features: Annotated[list[creative_feature_result_1.CreativeFeatureResult] | None, NoExplicitNull] = None
+    ranked_against: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    calls_used: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    seconds_used: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class Variant(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     build_variant_id: str
-    recipe_hash: str | None = None
-    parent_build_variant_id: str | None = None
+    recipe_hash: Annotated[str | None, NoExplicitNull] = None
+    parent_build_variant_id: Annotated[str | None, NoExplicitNull] = None
     creative_manifest: creative_manifest_1.CreativeManifest
-    variant_axis_value: Any | None = None
-    recommended: bool | None = None
-    rank: Annotated[int, Field(ge=1)] | None = None
-    eval: Eval | None = None
-    pricing_option_id: str | None = None
-    vendor_cost: Annotated[float, Field(ge=0)] | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    consumption: creative_consumption_1.CreativeConsumption | None = None
+    variant_axis_value: Annotated[Any | None, NoExplicitNull] = None
+    recommended: Annotated[bool | None, NoExplicitNull] = None
+    rank: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    eval: Annotated[Eval | None, NoExplicitNull] = None
+    pricing_option_id: Annotated[str | None, NoExplicitNull] = None
+    vendor_cost: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    consumption: Annotated[creative_consumption_1.CreativeConsumption | None, NoExplicitNull] = None
 
 
 class Creative(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    build_creative_id: str | None = None
-    catalog_item_ref: CatalogItemRef | None = None
-    signal_condition: signal_targeting_1.SignalTargeting | None = None
-    variants: Annotated[list[Variant], Field(min_length=1)] | None = None
-    errors: Annotated[list[error_1.Error], Field(min_length=1)] | None = None
+    build_creative_id: Annotated[str | None, NoExplicitNull] = None
+    catalog_item_ref: Annotated[CatalogItemRef | None, NoExplicitNull] = None
+    signal_condition: Annotated[signal_targeting_1.SignalTargeting | None, NoExplicitNull] = None
+    variants: Annotated[Annotated[list[Variant], Field(min_length=1)] | None, NoExplicitNull] = None
+    errors: Annotated[Annotated[list[error_1.Error], Field(min_length=1)] | None, NoExplicitNull] = None
 
 
 class PerLeaf(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    catalog_item_ref: dict[str, Any] | None = None
-    variant_axis_value: Any | None = None
-    pricing_option_id: str | None = None
-    cost_low: Annotated[float, Field(ge=0)] | None = None
-    cost_high: Annotated[float, Field(ge=0)] | None = None
-    consumption_estimate: creative_consumption_1.CreativeConsumption | None = None
+    catalog_item_ref: Annotated[dict[str, Any] | None, NoExplicitNull] = None
+    variant_axis_value: Annotated[Any | None, NoExplicitNull] = None
+    pricing_option_id: Annotated[str | None, NoExplicitNull] = None
+    cost_low: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    cost_high: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    consumption_estimate: Annotated[creative_consumption_1.CreativeConsumption | None, NoExplicitNull] = None
 
 
 class Estimate(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    items_total: Annotated[int, Field(ge=0)] | None = None
-    items_to_produce: Annotated[int, Field(ge=0)] | None = None
-    conditions_total: Annotated[int, Field(ge=1)] | None = None
-    variants_per_item: Annotated[int, Field(ge=1)] | None = None
-    leaves_total: Annotated[int, Field(ge=0)] | None = None
+    items_total: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    items_to_produce: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    conditions_total: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    variants_per_item: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    leaves_total: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]
     cost_low: Annotated[float, Field(ge=0)]
     cost_high: Annotated[float, Field(ge=0)]
-    cost_expected: Annotated[float, Field(ge=0)] | None = None
+    cost_expected: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
     basis: Literal['fixed', 'estimated_units', 'cpm_deferred']
-    per_leaf: list[PerLeaf] | None = None
+    per_leaf: Annotated[list[PerLeaf] | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifest: creative_manifest_1.CreativeManifest
-    build_variant_id: str | None = None
-    recipe_hash: str | None = None
-    sandbox: bool | None = None
-    expires_at: WireDatetime | None = None
-    preview: Preview | None = None
-    preview_error: error_1.Error | None = None
-    pricing_option_id: str | None = None
-    vendor_cost: Annotated[float, Field(ge=0)] | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    consumption: creative_consumption_1.CreativeConsumption | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    build_variant_id: Annotated[str | None, NoExplicitNull] = None
+    recipe_hash: Annotated[str | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    preview: Annotated[Preview | None, NoExplicitNull] = None
+    preview_error: Annotated[error_1.Error | None, NoExplicitNull] = None
+    pricing_option_id: Annotated[str | None, NoExplicitNull] = None
+    vendor_cost: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    consumption: Annotated[creative_consumption_1.CreativeConsumption | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifests: Annotated[list[creative_manifest_1.CreativeManifest], Field(min_length=1)]
-    sandbox: bool | None = None
-    expires_at: WireDatetime | None = None
-    preview: Preview3 | None = None
-    preview_error: error_1.Error | None = None
-    pricing_option_id: str | None = None
-    vendor_cost: Annotated[float, Field(ge=0)] | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    consumption: creative_consumption_1.CreativeConsumption | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    preview: Annotated[Preview3 | None, NoExplicitNull] = None
+    preview_error: Annotated[error_1.Error | None, NoExplicitNull] = None
+    pricing_option_id: Annotated[str | None, NoExplicitNull] = None
+    vendor_cost: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    consumption: Annotated[creative_consumption_1.CreativeConsumption | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creatives: Annotated[list[Creative], Field(min_length=1)]
-    items_total: Annotated[int, Field(ge=0)] | None = None
-    items_returned: Annotated[int, Field(ge=0)] | None = None
-    leaves_total: Annotated[int, Field(ge=0)] | None = None
-    leaves_returned: Annotated[int, Field(ge=0)] | None = None
-    vendor_cost: Annotated[float, Field(ge=0)] | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    keep_mode_applied: Literal['keep_all', 'keep_one', 'keep_some'] | None = None
-    selection_strategy_applied: creative_selection_strategy_1.CreativeSelectionStrategy | None = None
-    budget_status: Literal['complete', 'capped'] | None = None
-    errors: list[error_1.Error] | None = None
-    sandbox: bool | None = None
-    expires_at: WireDatetime | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    items_total: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    items_returned: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    leaves_total: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    leaves_returned: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    vendor_cost: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    keep_mode_applied: Annotated[Literal['keep_all', 'keep_one', 'keep_some'] | None, NoExplicitNull] = None
+    selection_strategy_applied: Annotated[creative_selection_strategy_1.CreativeSelectionStrategy | None, NoExplicitNull] = None
+    budget_status: Annotated[Literal['complete', 'capped'] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse5(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     mode: Literal['estimate'] = 'estimate'
     estimate: Estimate
-    expires_at: WireDatetime | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class BuildCreativeResponse6(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 BuildCreativeResponse: TypeAlias = BuildCreativeResponse1 | BuildCreativeResponse2 | BuildCreativeResponse3 | BuildCreativeResponse4 | BuildCreativeResponse5 | BuildCreativeResponse6

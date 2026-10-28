@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from adcp.types.base import AdcpResponse
 
-from typing import Literal, TypeAlias
+from typing import Annotated, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -22,45 +22,45 @@ from ..core.protocol_envelope import ProtocolEnvelope
 
 class BrandContext(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    brand_id: str | None = None
-    sku_id: str | None = None
+    brand_id: Annotated[str | None, NoExplicitNull] = None
+    sku_id: Annotated[str | None, NoExplicitNull] = None
 
 
 class Artifact(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     record_id: str
-    timestamp: WireDatetime | None = None
-    package_id: str | None = None
+    timestamp: Annotated[WireDatetime | None, NoExplicitNull] = None
+    package_id: Annotated[str | None, NoExplicitNull] = None
     artifact: artifact_1.Artifact
-    country: str | None = None
-    channel: str | None = None
-    brand_context: BrandContext | None = None
-    local_verdict: Literal['pass', 'fail', 'unevaluated'] | None = None
+    country: Annotated[str | None, NoExplicitNull] = None
+    channel: Annotated[str | None, NoExplicitNull] = None
+    brand_context: Annotated[BrandContext | None, NoExplicitNull] = None
+    local_verdict: Annotated[Literal['pass', 'fail', 'unevaluated'] | None, NoExplicitNull] = None
 
 
 class CollectionInfo(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    total_deliveries: int | None = None
-    total_collected: int | None = None
-    returned_count: int | None = None
-    effective_rate: float | None = None
+    total_deliveries: Annotated[int | None, NoExplicitNull] = None
+    total_collected: Annotated[int | None, NoExplicitNull] = None
+    returned_count: Annotated[int | None, NoExplicitNull] = None
+    effective_rate: Annotated[float | None, NoExplicitNull] = None
 
 
 class GetMediaBuyArtifactsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     media_buy_id: str
     artifacts: list[Artifact]
-    collection_info: CollectionInfo | None = None
-    pagination: pagination_response_1.PaginationResponse | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    collection_info: Annotated[CollectionInfo | None, NoExplicitNull] = None
+    pagination: Annotated[pagination_response_1.PaginationResponse | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class GetMediaBuyArtifactsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 GetMediaBuyArtifactsResponse: TypeAlias = GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2

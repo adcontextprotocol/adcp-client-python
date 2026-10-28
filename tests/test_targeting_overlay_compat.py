@@ -30,7 +30,7 @@ from adcp.types import (
     TargetingOverlay,
     UpdateMediaBuyRequest,
 )
-from adcp.types.base import is_no_explicit_null
+from adcp.types.base import is_no_explicit_null, null_admitting_fields
 from adcp.types.domains.core.targeting_input import TargetingOverlayInput as GeneratedInput
 from adcp.types.domains.media_buy.package_control import PackageControl
 from adcp.types.domains.media_buy.package_request import (
@@ -200,7 +200,12 @@ def test_subclass_null_intent_survives_request_serialization(
     request = _request(task, collection, overlay)
     assert getattr(request, collection)[0].targeting_overlay is overlay
     params = request.model_dump(mode="json", exclude_none=True)
-    assert params[collection][0]["targeting_overlay"] == {"geo_regions": ["US-NY"]}
+    # A received ``null`` on a null-admitting field is already on the default
+    # dump (SDK 10, #1615); ``preserve_explicit_nulls`` restores the rest.
+    admitted = null_admitting_fields(overlay_class)
+    assert params[collection][0]["targeting_overlay"] == {
+        key: item for key, item in dimensions.items() if item is not None or key in admitted
+    }
 
     wire = preserve_explicit_nulls(request, params, task_name=task, version="3.2.0-rc.3")
 

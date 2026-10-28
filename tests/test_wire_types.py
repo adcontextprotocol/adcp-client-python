@@ -314,7 +314,8 @@ def test_model_dump_as_received_keeps_an_admitted_null_and_the_wire_alias() -> N
 
     document = {"signal_targeting_groups": None}
     parsed = TargetingInput.model_validate_json(json.dumps(document))
-    assert parsed.model_dump(mode="json") == {}
+    # A received null is re-emitted by the default dump too (SDK 10, #1615).
+    assert parsed.model_dump(mode="json") == document
     assert parsed.model_dump_as_received() == document
 
 

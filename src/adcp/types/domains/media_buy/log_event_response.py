@@ -8,6 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -28,19 +29,19 @@ class LogEventResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     events_received: Annotated[int, Field(ge=0)]
     events_processed: Annotated[int, Field(ge=0)]
-    partial_failures: list[PartialFailure] | None = None
-    warnings: list[str] | None = None
-    match_quality: Annotated[float, Field(ge=0, le=1)] | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    partial_failures: Annotated[list[PartialFailure] | None, NoExplicitNull] = None
+    warnings: Annotated[list[str] | None, NoExplicitNull] = None
+    match_quality: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class LogEventResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 LogEventResponse: TypeAlias = LogEventResponse1 | LogEventResponse2

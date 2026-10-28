@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -28,17 +28,17 @@ class UpdateRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope)
         default_factory=list
     )
     rights_constraint: Any | None = None
-    paused: bool | None = None
+    paused: Annotated[bool | None, NoExplicitNull] = None
     implementation_date: WireDatetime | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class UpdateRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 UpdateRightsResponse: TypeAlias = UpdateRightsResponse1 | UpdateRightsResponse2

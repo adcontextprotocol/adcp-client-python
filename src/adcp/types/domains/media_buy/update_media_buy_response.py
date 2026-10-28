@@ -10,7 +10,7 @@ from collections.abc import Sequence
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -34,26 +34,26 @@ class UpdateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
     model_config = ConfigDict(extra='allow')
     status: Literal['completed'] = 'completed'
     media_buy_id: str
-    name: Annotated[str, StringConstraints(pattern='\\S', min_length=1, max_length=255)] | None = None
-    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
+    name: Annotated[Annotated[str, StringConstraints(pattern='\\S', min_length=1, max_length=255)] | None, NoExplicitNull] = None
+    media_buy_status: Annotated[media_buy_status_1.MediaBuyStatus | None, NoExplicitNull] = None
     revision: Annotated[int, Field(ge=1)]
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    total_budget: Annotated[float, Field(ge=0)] | None = None
-    daily_budget_cap: Annotated[float, Field(ge=0)] | None = None
-    frequency_cap: media_buy_frequency_cap_1.MediaBuyFrequencyCap | None = None
-    budget_cap_timezone: str | None = None
-    budget_allocation: Any | None = None
-    pacing: pacing_1.Pacing | None = None
-    bidding: Any | None = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    total_budget: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    daily_budget_cap: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    frequency_cap: Annotated[media_buy_frequency_cap_1.MediaBuyFrequencyCap | None, NoExplicitNull] = None
+    budget_cap_timezone: Annotated[str | None, NoExplicitNull] = None
+    budget_allocation: Annotated[Any | None, NoExplicitNull] = None
+    pacing: Annotated[pacing_1.Pacing | None, NoExplicitNull] = None
+    bidding: Annotated[Any | None, NoExplicitNull] = None
     implementation_date: WireDatetime | None = None
-    invoice_recipient: business_entity_1.BusinessEntity | None = None
-    affected_packages: Sequence[package_1.Package] | None = None
-    valid_actions: list[media_buy_valid_action_1.MediaBuyValidAction] | None = None
-    available_actions: list[media_buy_available_action_1.MediaBuyAvailableAction] | None = None
-    warnings: list[warning_1.Warning] | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    invoice_recipient: Annotated[business_entity_1.BusinessEntity | None, NoExplicitNull] = None
+    affected_packages: Annotated[Sequence[package_1.Package] | None, NoExplicitNull] = None
+    valid_actions: Annotated[list[media_buy_valid_action_1.MediaBuyValidAction] | None, NoExplicitNull] = None
+    available_actions: Annotated[list[media_buy_available_action_1.MediaBuyAvailableAction] | None, NoExplicitNull] = None
+    warnings: Annotated[list[warning_1.Warning] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -81,18 +81,18 @@ class UpdateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
 class UpdateMediaBuyResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class UpdateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 UpdateMediaBuyResponse: TypeAlias = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | UpdateMediaBuyResponse3

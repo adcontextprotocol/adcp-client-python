@@ -212,11 +212,18 @@ def test_manifest_format_kind_keeps_its_optional_default() -> None:
     with pytest.raises(ValidationError):
         CreativeManifest(assets={})
 
-    # An explicit ``None`` satisfies the document rule -- the group is keyed on the
-    # field being present, not on it being non-null -- and reads back as ``None``.
-    # It is left off the dump even under ``exclude_none=False``: ``format_kind``
+    # A ``None`` keyword argument for an optional field is "not supplied" (SDK
+    # 10, #1615), so it does not satisfy the document rule either: the
+    # construction is refused instead of producing a manifest whose dump would
+    # have omitted ``format_kind`` and been schema-invalid.
+    with pytest.raises(ValidationError):
+        CreativeManifest(assets={}, format_kind=None)
+
+    # A dict document carrying the key with ``None`` is present to the rule -- the
+    # group is keyed on the field being present -- and reads back as ``None``. It
+    # is left off the dump even under ``exclude_none=False``: ``format_kind``
     # admits no ``null`` on the wire (``NoExplicitNull``, #1587).
-    explicit = CreativeManifest(assets={}, format_kind=None)
+    explicit = CreativeManifest.model_validate({"assets": {}, "format_kind": None})
     assert explicit.format_kind is None
     assert "format_kind" in explicit.model_fields_set
     assert "format_kind" not in explicit.model_dump(exclude_unset=True, exclude_none=False)

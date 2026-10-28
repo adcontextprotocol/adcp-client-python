@@ -88,6 +88,7 @@ from pydantic import (
     PlainSerializer,
     PrivateAttr,
     RootModel,
+    SerializationInfo,
     SerializerFunctionWrapHandler,
     WithJsonSchema,
     WrapSerializer,
@@ -630,13 +631,22 @@ def sanitize_canonical_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def _serialize_canonical_model(
     self: CanonicalBoundaryModel,
     handler: SerializerFunctionWrapHandler,
+    info: SerializationInfo,
 ) -> Any:
     """Enforce the boundary for nested and TypeAdapter serialization too."""
 
     # Each serializer remains its own boundary: a custom serializer can start
     # an independent TypeAdapter dump and embed that result as a JSON string,
     # which an enclosing cleanup pass cannot inspect.
-    return strip_legacy_creative_identity(handler(self))
+    #
+    # This serializer replaces AdCPBaseModel's, so the wire-fidelity pass
+    # (explicit nulls, opaque nulls) runs here on the same handler output.
+    value = handler(self)
+    if isinstance(self, AdCPBaseModel):
+        # ``serialize_as_any`` can hand this serializer a dict at a canonical
+        # position; only a model has a wire pass to run.
+        value = self._finish_wire_dump(value, info)
+    return strip_legacy_creative_identity(value)
 
 
 @lru_cache(maxsize=128)
@@ -811,33 +821,44 @@ class Format(CanonicalBoundaryModel):
     # ``allOf`` clause forbidding ``capability_id`` outright.
     _root_schema_name: ClassVar[str | None] = None
 
-    format_option_id: str | None = Field(
-        default=None,
-        description="Stable option identifier within the product or publisher namespace.",
-    )
-    publisher_domain: str | None = Field(
-        default=None,
-        pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
-    )
-    display_name: str | None = None
-    applies_to_channels: list[MediaChannel] | None = None
-    seller_preference: SellerPreference | None = None
-    canonical_formats_only: bool | None = None
-    experimental: bool | None = None
-    format_shape: str | None = None
-    format_schema: PlatformExtensionReference | None = None
+    # Every optional property below is never-null in
+    # ``core/product-format-declaration.json`` (each generated arm marks it),
+    # so the hand-written declaration carries the same marker: a JSON ``null``
+    # is refused, and the explicit-null round trip in ``AdCPBaseModel`` has
+    # nothing to remember here -- which a class with its own ``__init__``
+    # requires (see ``AdCPBaseModel.__init__``).
+    format_option_id: Annotated[
+        str | None,
+        Field(description="Stable option identifier within the product or publisher namespace."),
+        NoExplicitNull,
+    ] = None
+    publisher_domain: Annotated[
+        str | None,
+        Field(pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"),
+        NoExplicitNull,
+    ] = None
+    display_name: Annotated[str | None, NoExplicitNull] = None
+    applies_to_channels: Annotated[list[MediaChannel] | None, NoExplicitNull] = None
+    seller_preference: Annotated[SellerPreference | None, NoExplicitNull] = None
+    canonical_formats_only: Annotated[bool | None, NoExplicitNull] = None
+    experimental: Annotated[bool | None, NoExplicitNull] = None
+    format_shape: Annotated[str | None, NoExplicitNull] = None
+    format_schema: Annotated[PlatformExtensionReference | None, NoExplicitNull] = None
     format_kind: str
     params: dict[str, Any]
     # Declared so the spec's ``translation_target.token`` is validated as a
     # macro capability instead of being screened as a credential-shaped extra.
-    macro_resolution_capabilities: list[MacroProcessingCapability] | None = Field(
-        default=None,
-        min_length=1,
-        description=(
-            "Binding format-option processing capabilities for exact macro dialect "
-            "identities, semantics, operations, actors, contexts, and encodings."
+    macro_resolution_capabilities: Annotated[
+        list[MacroProcessingCapability] | None,
+        Field(
+            min_length=1,
+            description=(
+                "Binding format-option processing capabilities for exact macro dialect "
+                "identities, semantics, operations, actors, contexts, and encodings."
+            ),
         ),
-    )
+        NoExplicitNull,
+    ] = None
 
     _legacy_format_refs: list[LegacyFormatId] = PrivateAttr(default_factory=list)
 
@@ -1224,7 +1245,9 @@ CreateMediaBuyResponse = CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | Cre
 class UpdateMediaBuyResponse1(_LegacyUpdateMediaBuyResponse1, CanonicalBoundaryModel):
     """Canonical update response preserving the 3.x legacy-status normalizer."""
 
-    affected_packages: Sequence[Package] | None = None
+    affected_packages: Sequence[Package] | None = inherit_field(
+        _LegacyUpdateMediaBuyResponse1, "affected_packages"
+    )
 
     @model_validator(mode="before")
     @classmethod

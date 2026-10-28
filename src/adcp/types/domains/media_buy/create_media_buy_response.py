@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -33,31 +33,31 @@ from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, 
 class CreateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal['completed'] = 'completed'
-    proposal_id: Annotated[str, StringConstraints(min_length=1)] | None = None
+    proposal_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
     media_buy_id: str
-    name: Annotated[str, StringConstraints(pattern='\\S', min_length=1, max_length=255)] | None = None
-    account: account_1.Account | None = None
-    invoice_recipient: business_entity_1.BusinessEntity | None = None
-    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
+    name: Annotated[Annotated[str, StringConstraints(pattern='\\S', min_length=1, max_length=255)] | None, NoExplicitNull] = None
+    account: Annotated[account_1.Account | None, NoExplicitNull] = None
+    invoice_recipient: Annotated[business_entity_1.BusinessEntity | None, NoExplicitNull] = None
+    media_buy_status: Annotated[media_buy_status_1.MediaBuyStatus | None, NoExplicitNull] = None
     confirmed_at: WireDatetime | None
-    creative_deadline: WireDatetime | None = None
+    creative_deadline: Annotated[WireDatetime | None, NoExplicitNull] = None
     revision: Annotated[int, Field(ge=1)]
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    total_budget: Annotated[float, Field(ge=0)] | None = None
-    daily_budget_cap: Annotated[float, Field(ge=0)] | None = None
-    frequency_cap: media_buy_frequency_cap_1.MediaBuyFrequencyCap | None = None
-    budget_cap_timezone: str | None = None
-    budget_allocation: Any | None = None
-    pacing: pacing_1.Pacing | None = None
-    bidding: Any | None = None
-    valid_actions: list[media_buy_valid_action_1.MediaBuyValidAction] | None = None
-    available_actions: list[media_buy_available_action_1.MediaBuyAvailableAction] | None = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    total_budget: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    daily_budget_cap: Annotated[Annotated[float, Field(ge=0)] | None, NoExplicitNull] = None
+    frequency_cap: Annotated[media_buy_frequency_cap_1.MediaBuyFrequencyCap | None, NoExplicitNull] = None
+    budget_cap_timezone: Annotated[str | None, NoExplicitNull] = None
+    budget_allocation: Annotated[Any | None, NoExplicitNull] = None
+    pacing: Annotated[pacing_1.Pacing | None, NoExplicitNull] = None
+    bidding: Annotated[Any | None, NoExplicitNull] = None
+    valid_actions: Annotated[list[media_buy_valid_action_1.MediaBuyValidAction] | None, NoExplicitNull] = None
+    available_actions: Annotated[list[media_buy_available_action_1.MediaBuyAvailableAction] | None, NoExplicitNull] = None
     packages: list[package_1.Package]
-    planned_delivery: planned_delivery_1.PlannedDelivery | None = None
-    warnings: list[warning_1.Warning] | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    planned_delivery: Annotated[planned_delivery_1.PlannedDelivery | None, NoExplicitNull] = None
+    warnings: Annotated[list[warning_1.Warning] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -85,19 +85,19 @@ class CreateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
 class CreateMediaBuyResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class CreateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    expected_confirmation_at: WireDatetime | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    expected_confirmation_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 CreateMediaBuyResponse: TypeAlias = CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3

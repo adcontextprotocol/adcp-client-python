@@ -53,14 +53,20 @@ def _make_request(product_ids: list[str] | None):
             for pid in product_ids
         ]
 
+    # A ``None`` keyword argument is "not supplied" (SDK 10), so the
+    # proposal_id path must carry what its schema arm requires: total_budget.
+    arm: dict[str, Any] = (
+        {"packages": packages}
+        if packages is not None
+        else {"proposal_id": "prop-123", "total_budget": {"amount": 5000.0, "currency": "USD"}}
+    )
     return CreateMediaBuyRequest(
         idempotency_key="test-key-12345678",
         account={"account_id": "acct_test"},
         brand={"domain": "example.com"},
         start_time="2026-06-01T00:00:00Z",
         end_time="2026-07-01T00:00:00Z",
-        packages=packages,
-        proposal_id=None if product_ids is not None else "prop-123",
+        **arm,
     )
 
 

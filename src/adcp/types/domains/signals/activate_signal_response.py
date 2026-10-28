@@ -8,6 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -21,16 +22,16 @@ from ..core.protocol_envelope import ProtocolEnvelope
 class ActivateSignalResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     deployments: list[deployment_1.Deployment]
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class ActivateSignalResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 ActivateSignalResponse: TypeAlias = ActivateSignalResponse1 | ActivateSignalResponse2

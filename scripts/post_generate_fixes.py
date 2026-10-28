@@ -5709,6 +5709,7 @@ def restore_response_variant_aliases() -> None:
             self.needs_protocol_envelope = False
             self.needs_media_buy_helpers = False
             self.needs_sequence = False
+            self.needs_no_explicit_null = False
             self.datetime_imports: set[str] = set()
 
         def add_import(self, line: str) -> None:
@@ -5929,9 +5930,25 @@ def restore_response_variant_aliases() -> None:
                         typ = _union_with_none(typ)
                     lines.append(f"    {prop_name}: {typ}")
                 else:
-                    lines.append(f"    {prop_name}: {_union_with_none(typ)} = None")
+                    lines.append(self.optional_field(prop_name, prop_schema, typ))
             self.nested.append("\n".join(lines))
             return class_name
+
+        def optional_field(self, prop_name: str, prop_schema: Any, typ: str) -> str:
+            """Render an optional property the way the generator does.
+
+            ``T | None = None`` reads as ``None`` when omitted; where the schema
+            does not admit ``null`` the field also carries ``NoExplicitNull``,
+            so a JSON ``null`` is refused and a ``None`` never reaches the wire
+            (#1547, #1615). The emitter used to leave the marker off every
+            response arm, which made a dict ``None`` a wire ``null`` there.
+            """
+            annotation = _union_with_none(typ)
+            if isinstance(prop_schema, dict) and not _schema_permits_null(prop_schema):
+                self.needs_no_explicit_null = True
+                self.typing_imports.add("Annotated")
+                return f"    {prop_name}: Annotated[{annotation}, NoExplicitNull] = None"
+            return f"    {prop_name}: {annotation} = None"
 
         def composes_protocol_envelope(self, schema: dict[str, Any]) -> bool:
             """Return whether ``schema`` composes ``core/protocol-envelope.json``.
@@ -6044,7 +6061,7 @@ def restore_response_variant_aliases() -> None:
                             typ = _union_with_none(typ)
                         lines.append(f"    {prop_name}: {typ}")
                 else:
-                    lines.append(f"    {prop_name}: {_union_with_none(typ)} = None")
+                    lines.append(self.optional_field(prop_name, prop_schema, typ))
             if self.base in {
                 "CreateMediaBuyResponse",
                 "UpdateMediaBuyResponse",
@@ -6142,7 +6159,10 @@ def restore_response_variant_aliases() -> None:
                 all_block.append(f"    {name!r},")
             all_block.append("]")
             body.append("\n".join(all_block))
-            return "\n".join(header) + "\n\n\n" + "\n\n\n".join(body) + "\n"
+            module = "\n".join(header) + "\n\n\n" + "\n\n\n".join(body) + "\n"
+            if self.needs_no_explicit_null:
+                module = _ensure_no_explicit_null_import(module)
+            return module
 
     for relative, base in response_specs:
         target = OUTPUT_DIR / relative
