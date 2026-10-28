@@ -30,7 +30,7 @@ def test_falsy_or_unknown_values_keep_default(value: str) -> None:
     forward-compat ``ignore`` default. Whitespace-around-1 is caught by
     strip(), but ``"tRUE "`` specifically tests that trailing space is
     tolerated."""
-    expected = "forbid" if value.strip().lower() in {"1", "true", "yes", "on"} else "ignore"
+    expected = "forbid" if value.strip().lower() in {"1", "true", "yes", "on"} else "allow"
     with patch.dict("os.environ", {"ADCP_STRICT_VALIDATION": value}):
         assert _resolve_extra_policy() == expected
 
@@ -38,7 +38,7 @@ def test_falsy_or_unknown_values_keep_default(value: str) -> None:
 def test_unset_var_keeps_default() -> None:
     """No env var at all → default (forward-compat safe)."""
     with patch.dict("os.environ", {}, clear=True):
-        assert _resolve_extra_policy() == "ignore"
+        assert _resolve_extra_policy() == "allow"
 
 
 def test_default_is_ignore_for_production_forward_compat() -> None:
@@ -51,7 +51,7 @@ def test_default_is_ignore_for_production_forward_compat() -> None:
     # In the test environment with no ADCP_STRICT_VALIDATION set, it
     # must be ``ignore`` — a regression here indicates the default
     # flipped.
-    assert _EXTRA_POLICY in {"ignore", "forbid"}
+    assert _EXTRA_POLICY in {"allow", "forbid"}
     # If this assertion fails, the test environment has the env var
     # set — check your shell, not the SDK.
 

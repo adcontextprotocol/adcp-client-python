@@ -97,30 +97,32 @@ if TYPE_CHECKING:
 MessageFormatter = Callable[[Any], str]
 
 
-def _resolve_extra_policy() -> Literal["ignore", "forbid"]:
+def _resolve_extra_policy() -> Literal["allow", "forbid"]:
     """Choose the ``extra`` policy for :class:`AdCPBaseModel`.
 
-    ``ignore`` (default) silently drops unknown fields, preserving
-    forward compatibility when newer spec versions add fields. This is
-    the production-safe default — a client on spec N sending to a
-    server on spec N+1 keeps working.
+    ``allow`` (default) keeps an unknown field in ``model_extra`` and writes
+    it back on dump. The generator sets ``extra='forbid'`` on every class
+    whose schema object is closed (``additionalProperties: false``) and
+    ``extra='allow'`` where the schema says ``true``; a class whose schema
+    says nothing inherits this default, which is JSON Schema's own reading of
+    an absent ``additionalProperties``. A document that carried a property the
+    pinned model does not declare -- a field a newer spec added, a sibling
+    arm's property the schema admits -- therefore survives parse → dump
+    (#1614). SDK 9 dropped it (``ignore``).
 
-    ``forbid`` raises on unknown fields so CI catches the silent-drop
-    case that production-safe defaults obscure. Most useful during
-    upgrades: right after a major spec revision, run tests with
-    ``ADCP_STRICT_VALIDATION=1`` to surface every place the upgrade
-    dropped a renamed field, then ship with the flag unset for the
-    forward-compat default.
+    ``forbid`` raises on unknown fields so a test run catches a stray keyword
+    argument or a renamed field. Set ``ADCP_STRICT_VALIDATION=1`` in CI during
+    upgrades, then ship with the flag unset.
 
     Values accepted: ``"1"``, ``"true"``, ``"yes"``, ``"on"`` (any
     case). Anything else — including empty string and ``"0"`` — keeps
-    the ``ignore`` default.
+    the ``allow`` default.
     """
     raw = os.environ.get("ADCP_STRICT_VALIDATION", "").strip().lower()
-    return "forbid" if raw in {"1", "true", "yes", "on"} else "ignore"
+    return "forbid" if raw in {"1", "true", "yes", "on"} else "allow"
 
 
-_EXTRA_POLICY: Literal["ignore", "forbid"] = _resolve_extra_policy()
+_EXTRA_POLICY: Literal["allow", "forbid"] = _resolve_extra_policy()
 
 
 def _build_deferred_serializers(value: Any, seen: set[int]) -> None:
@@ -687,19 +689,41 @@ def _keep_opaque_nulls(
     return kept
 
 
+def _put_back_null_extras(
+    value: dict[str, Any], extra: dict[str, Any], info: SerializationInfo
+) -> None:
+    """Re-emit an unknown key whose value is ``null`` on an open model.
+
+    ``exclude_none`` drops it with the ``None`` fields; an unknown key is a
+    value the document carried, and the schema that admits it admits its
+    ``null`` (#1614).
+    """
+    include, exclude = info.include, info.exclude
+    for key, item in extra.items():
+        if (
+            item is None
+            and key not in value
+            and (include is None or key in include)
+            and (exclude is None or key not in exclude)
+        ):
+            value[key] = None
+
+
 class AdCPBaseModel(BaseModel):
     """Base model for AdCP types with spec-compliant serialization.
 
-    Defaults to ``extra='ignore'`` so unknown fields from newer spec
-    versions are silently dropped rather than causing validation
-    errors. Generated types whose schemas set
-    ``additionalProperties: true`` override this with ``extra='allow'``
-    in their own ``model_config``.
+    Defaults to ``extra='allow'``: an unknown field from a newer spec
+    version, or a sibling arm's property the schema admits, is kept in
+    ``model_extra`` and written back on dump instead of being dropped
+    (#1614). Generated types whose schemas close the object
+    (``additionalProperties: false``) set ``extra='forbid'`` in their own
+    ``model_config``; the rest follow the schema's reading of an absent
+    ``additionalProperties``, which is open.
 
     Set ``ADCP_STRICT_VALIDATION=1`` in the environment (``"1"``,
     ``"true"``, ``"yes"``, ``"on"`` are accepted) to flip the default
-    to ``extra='forbid'``. Use this during spec upgrades to catch
-    silently-dropped renamed fields in tests. See :func:`_resolve_extra_policy`.
+    to ``extra='forbid'``. Use this in tests to catch a stray keyword
+    argument or a renamed field. See :func:`_resolve_extra_policy`.
 
     .. important::
        The env var is resolved **once at module import time**. Set it
@@ -764,8 +788,10 @@ class AdCPBaseModel(BaseModel):
             return value
         cls = type(self)
         extra = self.__pydantic_extra__
-        if extra and info.exclude_none and not cls.model_fields:
-            return _keep_opaque_nulls(value, extra, info)
+        if extra and info.exclude_none:
+            if not cls.model_fields:
+                return _keep_opaque_nulls(value, extra, info)
+            _put_back_null_extras(value, extra, info)
         if not info.exclude_unset and not _EMIT_UNSET_DEFAULTS.get():
             self._drop_unset_defaults(value, info)
         if info.exclude_none:

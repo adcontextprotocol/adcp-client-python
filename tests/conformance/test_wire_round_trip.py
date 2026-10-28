@@ -52,11 +52,6 @@ ACCEPTED: dict[str, str] = {
     "discriminator_emitted": (
         "a document routed to an arm it does not satisfy gains the arm's discriminator (#1414)"
     ),
-    # ``extra='ignore'`` drops a property the pinned model does not declare,
-    # and a union arm declares only its own properties while the schema's arm
-    # admits its siblings'. No digest-covered schema is affected at this pin;
-    # the hazard is a newer-spec field inside one. #1614.
-    "field_dropped": "unknown and sibling-arm properties are dropped (#1614)",
 }
 
 #: Schemas whose bytes the protocol binds: no difference of any class, under
@@ -183,13 +178,11 @@ def test_every_accepted_class_still_occurs() -> None:
     assert not unknown, f"ACCEPTED names classes the sweep does not produce: {unknown}"
 
 
-def test_dump_as_received_leaves_only_unknown_fields() -> None:
-    """The explicit "as received" dump recovers everything but what the model never held.
+def test_the_explicit_as_received_settings_leave_no_residue() -> None:
+    """``exclude_unset=True, exclude_none=False, by_alias=True`` is the document too.
 
-    ``AdCPBaseModel.model_dump_as_received`` leaves off unset defaults, keeps
-    an admitted explicit ``null`` and writes wire names, so the only residue is
-    a property the model dropped on input (#1614). This is the path a verifier
-    uses to recompute a digest over a parsed object today.
+    The explicit settings SDK 9's ``model_dump_as_received`` used recover the
+    same bytes as the default dump; nothing the model held is left behind.
     """
     residue: dict[str, set[str]] = defaultdict(set)
     for schema in SCHEMAS:
@@ -199,9 +192,9 @@ def test_dump_as_received_leaves_only_unknown_fields() -> None:
             for d in rt.round_trip(document, as_received=True)[0]:
                 residue[d.kind].add(schema)
     unexpected = {
-        kind: sorted(schemas) for kind, schemas in residue.items() if kind != "field_dropped"
+        kind: sorted(schemas) for kind, schemas in residue.items() if kind not in ACCEPTED
     }
-    assert not unexpected, f"dump-as-received residue beyond dropped fields: {unexpected}"
+    assert not unexpected, f"as-received residue: {unexpected}"
 
 
 def test_refusing_schemas_are_declared() -> None:

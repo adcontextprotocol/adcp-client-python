@@ -36,26 +36,27 @@ SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache" / _BUNDLE_KEY
 GENERATED_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "domains"
 
 
-def test_base_model_config_is_ignore() -> None:
-    """Sanity check: AdCPBaseModel must have extra='ignore'."""
-    assert AdCPBaseModel.model_config.get("extra") == "ignore", (
+def test_base_model_config_is_allow() -> None:
+    """Sanity check: AdCPBaseModel must have extra='allow' (SDK 10, #1614)."""
+    assert AdCPBaseModel.model_config.get("extra") == "allow", (
         f"AdCPBaseModel.model_config is {AdCPBaseModel.model_config!r} — "
         "is the package installed from the correct branch?"
     )
 
 
 class TestBaseModelDefault:
-    """AdCPBaseModel defaults to extra='ignore'."""
+    """AdCPBaseModel defaults to extra='allow'."""
 
-    def test_base_model_drops_extra_fields(self) -> None:
-        """Unknown fields are silently dropped, not stored or rejected."""
+    def test_base_model_keeps_extra_fields(self) -> None:
+        """Unknown fields are kept in model_extra and written back, not dropped (#1614)."""
 
         class DefaultType(AdCPBaseModel):
             name: str
 
-        obj = DefaultType(name="test", unknown_field="dropped")
+        obj = DefaultType(name="test", unknown_field="kept")
         assert obj.name == "test"
-        assert not hasattr(obj, "unknown_field")
+        assert obj.model_extra == {"unknown_field": "kept"}
+        assert obj.model_dump() == {"name": "test", "unknown_field": "kept"}
 
     def test_base_model_accepts_known_fields(self) -> None:
         class DefaultType(AdCPBaseModel):
@@ -77,16 +78,16 @@ class TestGeneratedTypeOverrides:
         assert obj.name == "test"
         assert obj.extra_field == "stored"  # type: ignore[attr-defined]
 
-    def test_ignore_inherited_without_explicit_config(self) -> None:
-        """A subclass without its own model_config inherits ignore from base."""
+    def test_allow_inherited_without_explicit_config(self) -> None:
+        """A subclass without its own model_config inherits allow from base."""
 
         class InheritedType(AdCPBaseModel):
             name: str
             value: int
 
-        obj = InheritedType(name="test", value=1, surprise="dropped")
+        obj = InheritedType(name="test", value=1, surprise="kept")
         assert obj.name == "test"
-        assert not hasattr(obj, "surprise")
+        assert obj.model_extra == {"surprise": "kept"}
 
     def test_open_payload_field_preserves_extension_data(self) -> None:
         """x-adcp-open-payload fields keep arbitrary structured payload data."""
