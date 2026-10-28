@@ -1626,8 +1626,10 @@ class TestPydanticSchemas:
             assert status_variants[0]["const"] == "completed"
             advertised_statuses = {status_variants[0]["const"], *status_variants[1]["enum"]}
             assert advertised_statuses == media_buy_statuses
+            # The null arm left the published schema with the never-null marker
+            # (#1547), so the property is the enum reference itself.
             media_buy_status = _deref(
-                _PYDANTIC_OUTPUT_SCHEMAS[tool], properties["media_buy_status"]["anyOf"][0]
+                _PYDANTIC_OUTPUT_SCHEMAS[tool], properties["media_buy_status"]
             )
             assert set(media_buy_status["enum"]) == media_buy_statuses
 

@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl, WireDatetime
+from adcp.types.base import NoExplicitNull, WireAnyUrl, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -29,20 +29,20 @@ from ..enums import task_status as task_status_1
 class Creative(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_id: str
-    revision_id: creative_revision_id_1.CreativeRevisionId | None = None
-    account: account_1.Account | None = None
+    revision_id: Annotated[creative_revision_id_1.CreativeRevisionId | None, NoExplicitNull] = None
+    account: Annotated[account_1.Account | None, NoExplicitNull] = None
     action: creative_action_1.CreativeAction
-    status: creative_status_1.CreativeStatus | None = None
-    platform_id: str | None = None
-    localization: creative_localization_readback_1.CreativeLocalizationReadback | None = None
-    changes: list[str] | None = None
-    errors: list[error_1.Error] | None = None
-    warnings: list[str] | None = None
-    macro_resolution_results: list[macro_resolution_result_1.MacroResolutionResult] | None = None
-    preview_url: WireAnyUrl | None = None
-    expires_at: WireDatetime | None = None
-    assigned_to: list[str] | None = None
-    assignment_errors: dict[Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')], str] | None = None
+    status: Annotated[creative_status_1.CreativeStatus | None, NoExplicitNull] = None
+    platform_id: Annotated[str | None, NoExplicitNull] = None
+    localization: Annotated[creative_localization_readback_1.CreativeLocalizationReadback | None, NoExplicitNull] = None
+    changes: Annotated[list[str] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    warnings: Annotated[list[str] | None, NoExplicitNull] = None
+    macro_resolution_results: Annotated[list[macro_resolution_result_1.MacroResolutionResult] | None, NoExplicitNull] = None
+    preview_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    assigned_to: Annotated[list[str] | None, NoExplicitNull] = None
+    assignment_errors: Annotated[dict[Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')], str] | None, NoExplicitNull] = None
 
 
 class Merge(AdcpVersionEnvelope):
@@ -55,29 +55,29 @@ class Merge(AdcpVersionEnvelope):
 
 class SyncCreativesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    dry_run: bool | None = None
+    dry_run: Annotated[bool | None, NoExplicitNull] = None
     creatives: list[Creative]
-    merges: list[Merge] | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    merges: Annotated[list[Merge] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncCreativesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncCreativesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 SyncCreativesResponse: TypeAlias = SyncCreativesResponse1 | SyncCreativesResponse2 | SyncCreativesResponse3

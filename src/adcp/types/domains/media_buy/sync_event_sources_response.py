@@ -8,6 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -23,43 +24,43 @@ from ..enums import event_type as event_type_1
 
 class Setup(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    snippet: str | None = None
-    snippet_type: Literal['javascript', 'html', 'pixel_url', 'server_only'] | None = None
-    instructions: str | None = None
+    snippet: Annotated[str | None, NoExplicitNull] = None
+    snippet_type: Annotated[Literal['javascript', 'html', 'pixel_url', 'server_only'] | None, NoExplicitNull] = None
+    instructions: Annotated[str | None, NoExplicitNull] = None
 
 
 class EventSource(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     event_source_id: str
-    name: str | None = None
-    platform_id: str | None = None
-    seller_id: str | None = None
-    event_types: list[event_type_1.EventType] | None = None
-    value_currencies: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]], Field(min_length=1)] | None = None
-    action_source: action_source_1.ActionSource | None = None
-    surface: event_surface_1.EventSurface | None = None
-    managed_by: Literal['buyer', 'seller'] | None = None
-    setup: Setup | None = None
+    name: Annotated[str | None, NoExplicitNull] = None
+    platform_id: Annotated[str | None, NoExplicitNull] = None
+    seller_id: Annotated[str | None, NoExplicitNull] = None
+    event_types: Annotated[list[event_type_1.EventType] | None, NoExplicitNull] = None
+    value_currencies: Annotated[Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
+    action_source: Annotated[action_source_1.ActionSource | None, NoExplicitNull] = None
+    surface: Annotated[event_surface_1.EventSurface | None, NoExplicitNull] = None
+    managed_by: Annotated[Literal['buyer', 'seller'] | None, NoExplicitNull] = None
+    setup: Annotated[Setup | None, NoExplicitNull] = None
     action: Literal['created', 'updated', 'unchanged', 'deleted', 'archived', 'failed']
-    archived: bool | None = None
-    health: event_source_health_1.EventSourceHealth | None = None
-    errors: list[error_1.Error] | None = None
-    ext: ext_1.ExtensionObject | None = None
+    archived: Annotated[bool | None, NoExplicitNull] = None
+    health: Annotated[event_source_health_1.EventSourceHealth | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncEventSourcesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     event_sources: list[EventSource]
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncEventSourcesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 SyncEventSourcesResponse: TypeAlias = SyncEventSourcesResponse1 | SyncEventSourcesResponse2

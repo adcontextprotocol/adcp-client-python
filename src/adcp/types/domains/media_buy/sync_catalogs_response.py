@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -27,54 +27,54 @@ class ItemIssue(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     item_id: str
     status: catalog_item_status_1.CatalogItemStatus
-    reasons: list[str] | None = None
+    reasons: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class Catalog(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     catalog_id: str
-    catalog_generation: Annotated[str, StringConstraints(min_length=1, max_length=255)] | None = None
+    catalog_generation: Annotated[Annotated[str, StringConstraints(min_length=1, max_length=255)] | None, NoExplicitNull] = None
     action: catalog_action_1.CatalogAction
-    platform_id: str | None = None
-    item_count: Annotated[int, Field(ge=0)] | None = None
-    items_approved: Annotated[int, Field(ge=0)] | None = None
-    items_pending: Annotated[int, Field(ge=0)] | None = None
-    items_rejected: Annotated[int, Field(ge=0)] | None = None
-    item_issues: list[ItemIssue] | None = None
-    last_synced_at: WireDatetime | None = None
-    next_fetch_at: WireDatetime | None = None
-    changes: list[str] | None = None
-    errors: list[error_1.Error] | None = None
-    warnings: list[str] | None = None
+    platform_id: Annotated[str | None, NoExplicitNull] = None
+    item_count: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    items_approved: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    items_pending: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    items_rejected: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    item_issues: Annotated[list[ItemIssue] | None, NoExplicitNull] = None
+    last_synced_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    next_fetch_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    changes: Annotated[list[str] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    warnings: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class SyncCatalogsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    status: Literal['completed'] | None = None
-    dry_run: bool | None = None
+    status: Annotated[Literal['completed'] | None, NoExplicitNull] = None
+    dry_run: Annotated[bool | None, NoExplicitNull] = None
     catalogs: list[Catalog]
-    item_availability_updates: Annotated[list[catalog_item_availability_update_result_1.CatalogItemAvailabilityUpdateResult], Field(min_length=1, max_length=1000)] | None = None
-    item_availability_states: Annotated[list[catalog_item_availability_state_1.CatalogItemAvailabilityState], Field(min_length=1, max_length=1000)] | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    item_availability_updates: Annotated[Annotated[list[catalog_item_availability_update_result_1.CatalogItemAvailabilityUpdateResult], Field(min_length=1, max_length=1000)] | None, NoExplicitNull] = None
+    item_availability_states: Annotated[Annotated[list[catalog_item_availability_state_1.CatalogItemAvailabilityState], Field(min_length=1, max_length=1000)] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncCatalogsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[Any], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncCatalogsResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 SyncCatalogsResponse: TypeAlias = SyncCatalogsResponse1 | SyncCatalogsResponse2 | SyncCatalogsResponse3

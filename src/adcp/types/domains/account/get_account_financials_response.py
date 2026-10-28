@@ -10,6 +10,7 @@ from datetime import date
 
 from typing import Annotated, Literal, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -25,14 +26,14 @@ from ..enums import payment_terms as payment_terms_1
 class Spend(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     total_spend: Annotated[float, Field(ge=0)]
-    media_buy_count: Annotated[int, Field(ge=0)] | None = None
+    media_buy_count: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
 
 
 class Credit(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     credit_limit: Annotated[float, Field(ge=0)]
     available_credit: float
-    utilization_percent: Annotated[float, Field(ge=0, le=100)] | None = None
+    utilization_percent: Annotated[Annotated[float, Field(ge=0, le=100)] | None, NoExplicitNull] = None
 
 
 class LastTopUp(AdcpVersionEnvelope):
@@ -44,17 +45,17 @@ class LastTopUp(AdcpVersionEnvelope):
 class Balance(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     available: Annotated[float, Field(ge=0)]
-    last_top_up: LastTopUp | None = None
+    last_top_up: Annotated[LastTopUp | None, NoExplicitNull] = None
 
 
 class Invoice(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     invoice_id: str
-    period: date_range_1.DateRange | None = None
+    period: Annotated[date_range_1.DateRange | None, NoExplicitNull] = None
     amount: Annotated[float, Field(ge=0)]
     status: Literal['draft', 'issued', 'paid', 'past_due', 'void']
-    due_date: date | None = None
-    paid_date: date | None = None
+    due_date: Annotated[date | None, NoExplicitNull] = None
+    paid_date: Annotated[date | None, NoExplicitNull] = None
 
 
 class GetAccountFinancialsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -63,21 +64,21 @@ class GetAccountFinancialsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolE
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]
     period: date_range_1.DateRange
     timezone: str
-    spend: Spend | None = None
-    credit: Credit | None = None
-    balance: Balance | None = None
-    payment_status: Literal['current', 'past_due', 'suspended'] | None = None
-    payment_terms: payment_terms_1.PaymentTerms | None = None
-    invoices: list[Invoice] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    spend: Annotated[Spend | None, NoExplicitNull] = None
+    credit: Annotated[Credit | None, NoExplicitNull] = None
+    balance: Annotated[Balance | None, NoExplicitNull] = None
+    payment_status: Annotated[Literal['current', 'past_due', 'suspended'] | None, NoExplicitNull] = None
+    payment_terms: Annotated[payment_terms_1.PaymentTerms | None, NoExplicitNull] = None
+    invoices: Annotated[list[Invoice] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class GetAccountFinancialsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 GetAccountFinancialsResponse: TypeAlias = GetAccountFinancialsResponse1 | GetAccountFinancialsResponse2

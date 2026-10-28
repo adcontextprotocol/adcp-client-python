@@ -1127,6 +1127,56 @@ def mark_no_explicit_null_properties(temp_dir: Path) -> int:
     return marked
 
 
+_GENERATOR_MARK_KEYS = ("x-adcp-no-explicit-null", "x-adcp-omit-unset-default")
+
+
+def _copy_marks(marked: Any, target: Any) -> int:
+    """Copy the generator marks from the flattened node onto the canonical one."""
+    copied = 0
+    if isinstance(marked, dict) and isinstance(target, dict):
+        for key in _GENERATOR_MARK_KEYS:
+            if key in marked and key not in target:
+                target[key] = marked[key]
+                copied += 1
+        for key, value in marked.items():
+            if key in target:
+                copied += _copy_marks(value, target[key])
+    elif isinstance(marked, list) and isinstance(target, list):
+        for left, right in zip(marked, target):
+            copied += _copy_marks(left, right)
+    return copied
+
+
+def _overlay_marked_schemas(mirror_root: Path) -> int:
+    """Carry the generator marks into the canonical-URL ref mirror.
+
+    ``PRESERVE_CANONICAL_URL_REFS`` makes the generator resolve a few schemas
+    (the asset union's arms among them) through this mirror instead of the
+    flattened tree, so without this the classes it inlines from them carried
+    neither generator mark and ``core/assets/asset_union.py`` accepted and
+    re-emitted a ``null`` its schema refuses. The flattened tree rewrites
+    file names and ``$ref`` targets, so only the marks are copied, node by
+    node, onto the mirror's own documents.
+    """
+    if TEMP_DIR is None:
+        return 0
+    replaced = 0
+    for file in mirror_root.rglob("*.json"):
+        relative = file.relative_to(mirror_root)
+        marked = TEMP_DIR.joinpath(*(part.replace("-", "_") for part in relative.parts))
+        if not marked.is_file():
+            continue
+        with open(file) as f:
+            target = json.load(f)
+        with open(marked) as f:
+            source = json.load(f)
+        if _copy_marks(source, target):
+            with open(file, "w") as f:
+                json.dump(target, f, indent=2)
+            replaced += 1
+    return replaced
+
+
 def flatten_schemas(temp_dir: Path):
     """
     Copy schemas to temp directory, preserving directory structure.
@@ -1347,6 +1397,7 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
     with tempfile.TemporaryDirectory(prefix="adcp-codegen-refs-") as mirror:
         cached = Path(mirror) / "adcontextprotocol.org" / "schemas" / _BUNDLE_KEY
         shutil.copytree(SCHEMAS_DIR, cached)
+        _overlay_marked_schemas(cached)
         if _PINNED_VERSION != _BUNDLE_KEY:
             # A stable bundle is cached as MAJOR.MINOR, but its absolute
             # references name the exact release, e.g. /schemas/3.2.1/.

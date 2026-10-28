@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -36,57 +36,57 @@ class Source(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     kind: Literal['dataset', 'platform_segment']
     vendor: brand_ref_1.BrandReference
-    locator: str | None = None
-    segment_ref: str | None = None
-    columns_read: Annotated[list[str], Field(min_length=1)] | None = None
-    access_status: Literal['active', 'unavailable'] | None = None
+    locator: Annotated[str | None, NoExplicitNull] = None
+    segment_ref: Annotated[str | None, NoExplicitNull] = None
+    columns_read: Annotated[Annotated[list[str], Field(min_length=1)] | None, NoExplicitNull] = None
+    access_status: Annotated[Literal['active', 'unavailable'] | None, NoExplicitNull] = None
 
 
 class Audience(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     audience_id: str
-    name: str | None = None
-    platform_id: str | None = None
-    seller_id: str | None = None
+    name: Annotated[str | None, NoExplicitNull] = None
+    platform_id: Annotated[str | None, NoExplicitNull] = None
+    seller_id: Annotated[str | None, NoExplicitNull] = None
     action: Literal['created', 'updated', 'unchanged', 'deleted', 'failed']
-    status: audience_status_1.AudienceStatus | None = None
-    uploaded_count: Annotated[int, Field(ge=0)] | None = None
-    total_uploaded_count: Annotated[int, Field(ge=0)] | None = None
-    matched_count: Annotated[int, Field(ge=0)] | None = None
-    effective_match_rate: Annotated[float, Field(ge=0, le=1)] | None = None
-    match_rate_basis: audience_match_rate_basis_1.AudienceMatchRateBasis | None = None
-    audience_size: audience_size_1.AudienceSize | None = None
-    targetable_size: audience_size_1.AudienceSize | None = None
-    match_breakdown: Annotated[list[MatchBreakdown], Field(min_length=1)] | None = None
-    last_synced_at: WireDatetime | None = None
-    source: Source | None = None
-    minimum_size: Annotated[int, Field(ge=1)] | None = None
-    errors: list[error_1.Error] | None = None
+    status: Annotated[audience_status_1.AudienceStatus | None, NoExplicitNull] = None
+    uploaded_count: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    total_uploaded_count: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    matched_count: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
+    effective_match_rate: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
+    match_rate_basis: Annotated[audience_match_rate_basis_1.AudienceMatchRateBasis | None, NoExplicitNull] = None
+    audience_size: Annotated[audience_size_1.AudienceSize | None, NoExplicitNull] = None
+    targetable_size: Annotated[audience_size_1.AudienceSize | None, NoExplicitNull] = None
+    match_breakdown: Annotated[Annotated[list[MatchBreakdown], Field(min_length=1)] | None, NoExplicitNull] = None
+    last_synced_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    source: Annotated[Source | None, NoExplicitNull] = None
+    minimum_size: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
 
 
 class SyncAudiencesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     audiences: list[Audience]
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncAudiencesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncAudiencesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    errors: list[error_1.Error] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 SyncAudiencesResponse: TypeAlias = SyncAudiencesResponse1 | SyncAudiencesResponse2 | SyncAudiencesResponse3

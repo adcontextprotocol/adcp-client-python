@@ -8,6 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -30,31 +31,31 @@ class Feature(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     feature_id: str
     status: feature_check_status_1.FeatureCheckStatus
-    policy_id: str | None = None
-    explanation: str | None = None
-    confidence: Annotated[float, Field(ge=0, le=1)] | None = None
+    policy_id: Annotated[str | None, NoExplicitNull] = None
+    explanation: Annotated[str | None, NoExplicitNull] = None
+    confidence: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
 
 
 class Result(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     record_id: str
     verdict: binary_verdict_1.BinaryVerdict
-    features: list[Feature] | None = None
+    features: Annotated[list[Feature] | None, NoExplicitNull] = None
 
 
 class ValidateContentDeliveryResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     summary: Summary
     results: list[Result]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class ValidateContentDeliveryResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 ValidateContentDeliveryResponse: TypeAlias = ValidateContentDeliveryResponse1 | ValidateContentDeliveryResponse2

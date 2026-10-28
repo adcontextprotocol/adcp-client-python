@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl, WireDatetime
+from adcp.types.base import NoExplicitNull, WireAnyUrl, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -25,8 +25,8 @@ from ..enums import task_status as task_status_1
 class Input(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     name: str
-    macros: dict[str, str] | None = None
-    context_description: str | None = None
+    macros: Annotated[dict[str, str] | None, NoExplicitNull] = None
+    context_description: Annotated[str | None, NoExplicitNull] = None
 
 
 class Preview(AdcpVersionEnvelope):
@@ -39,8 +39,8 @@ class Preview(AdcpVersionEnvelope):
 class Input2(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     name: str
-    macros: dict[str, str] | None = None
-    context_description: str | None = None
+    macros: Annotated[dict[str, str] | None, NoExplicitNull] = None
+    context_description: Annotated[str | None, NoExplicitNull] = None
 
 
 class Preview2(AdcpVersionEnvelope):
@@ -53,17 +53,17 @@ class Preview2(AdcpVersionEnvelope):
 class Response(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     previews: Annotated[list[Preview2], Field(min_length=1)]
-    interactive_url: WireAnyUrl | None = None
-    expires_at: WireDatetime | None = None
+    interactive_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
 
 
 class Result(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     success: bool
     creative_id: str
-    quality_used: creative_quality_1.CreativeQuality | None = None
-    response: Response | None = None
-    errors: Annotated[list[error_1.Error], Field(min_length=1)] | None = None
+    quality_used: Annotated[creative_quality_1.CreativeQuality | None, NoExplicitNull] = None
+    response: Annotated[Response | None, NoExplicitNull] = None
+    errors: Annotated[Annotated[list[error_1.Error], Field(min_length=1)] | None, NoExplicitNull] = None
 
 
 class Preview3(AdcpVersionEnvelope):
@@ -76,31 +76,31 @@ class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     model_config = ConfigDict(extra='allow')
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
-    quality_used: creative_quality_1.CreativeQuality | None = None
-    interactive_url: WireAnyUrl | None = None
-    expires_at: WireDatetime | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    quality_used: Annotated[creative_quality_1.CreativeQuality | None, NoExplicitNull] = None
+    interactive_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class PreviewCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['batch'] = 'batch'
     results: Annotated[list[Result], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['variant'] = 'variant'
     variant_id: str
-    creative_id: str | None = None
+    creative_id: Annotated[str | None, NoExplicitNull] = None
     previews: Annotated[list[Preview3], Field(min_length=1)]
-    manifest: creative_manifest_1.CreativeManifest | None = None
-    expires_at: WireDatetime | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    manifest: Annotated[creative_manifest_1.CreativeManifest | None, NoExplicitNull] = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -108,9 +108,9 @@ class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     response_type: Literal['submitted'] = 'submitted'
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
-    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 PreviewCreativeResponse: TypeAlias = PreviewCreativeResponse1 | PreviewCreativeResponse2 | PreviewCreativeResponse3 | PreviewCreativeResponse4

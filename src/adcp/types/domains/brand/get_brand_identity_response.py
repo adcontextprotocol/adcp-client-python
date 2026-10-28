@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl
+from adcp.types.base import NoExplicitNull, WireAnyUrl
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -30,60 +30,60 @@ class House(AdcpVersionEnvelope):
 class Logo(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     url: WireAnyUrl
-    orientation: Literal['square', 'horizontal', 'vertical', 'stacked'] | None = None
-    background: Literal['dark-bg', 'light-bg', 'transparent-bg'] | None = None
-    variant: Literal['primary', 'secondary', 'icon', 'wordmark', 'full-lockup'] | None = None
-    tags: list[str] | None = None
-    usage: str | None = None
-    width: int | None = None
-    height: int | None = None
+    orientation: Annotated[Literal['square', 'horizontal', 'vertical', 'stacked'] | None, NoExplicitNull] = None
+    background: Annotated[Literal['dark-bg', 'light-bg', 'transparent-bg'] | None, NoExplicitNull] = None
+    variant: Annotated[Literal['primary', 'secondary', 'icon', 'wordmark', 'full-lockup'] | None, NoExplicitNull] = None
+    tags: Annotated[list[str] | None, NoExplicitNull] = None
+    usage: Annotated[str | None, NoExplicitNull] = None
+    width: Annotated[int | None, NoExplicitNull] = None
+    height: Annotated[int | None, NoExplicitNull] = None
 
 
 class Colors(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    primary: Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None = None
-    secondary: Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None = None
-    accent: Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None = None
-    background: Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None = None
-    text: Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None = None
+    primary: Annotated[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
+    secondary: Annotated[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
+    accent: Annotated[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
+    background: Annotated[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
+    text: Annotated[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')] | Annotated[list[Annotated[str, StringConstraints(pattern='^#[0-9A-Fa-f]{6}$')]], Field(min_length=1)] | None, NoExplicitNull] = None
 
 
 class File(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     url: Annotated[str, StringConstraints(pattern='^https://')]
-    weight: Annotated[int, Field(ge=100, le=900)] | None = None
-    weight_range: Annotated[list[Annotated[int, Field(ge=100, le=900)]], Field(min_length=2, max_length=2)] | None = None
-    style: Literal['normal', 'italic', 'oblique'] | None = None
+    weight: Annotated[Annotated[int, Field(ge=100, le=900)] | None, NoExplicitNull] = None
+    weight_range: Annotated[Annotated[list[Annotated[int, Field(ge=100, le=900)]], Field(min_length=2, max_length=2)] | None, NoExplicitNull] = None
+    style: Annotated[Literal['normal', 'italic', 'oblique'] | None, NoExplicitNull] = None
 
 
 class FontRole2(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     family: str
-    files: Annotated[list[File], Field(max_length=36)] | None = None
-    opentype_features: Annotated[list[Annotated[str, StringConstraints(pattern='^[a-z0-9]{4}$')]], Field(max_length=20)] | None = None
-    fallbacks: Annotated[list[Annotated[str, StringConstraints(max_length=100)]], Field(max_length=10)] | None = None
+    files: Annotated[Annotated[list[File], Field(max_length=36)] | None, NoExplicitNull] = None
+    opentype_features: Annotated[Annotated[list[Annotated[str, StringConstraints(pattern='^[a-z0-9]{4}$')]], Field(max_length=20)] | None, NoExplicitNull] = None
+    fallbacks: Annotated[Annotated[list[Annotated[str, StringConstraints(max_length=100)]], Field(max_length=10)] | None, NoExplicitNull] = None
 
 
 class Fonts(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    primary: str | FontRole2 | None = None
-    secondary: str | FontRole2 | None = None
+    primary: Annotated[str | FontRole2 | None, NoExplicitNull] = None
+    secondary: Annotated[str | FontRole2 | None, NoExplicitNull] = None
 
 
 class Tone(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    voice: str | None = None
-    attributes: list[str] | None = None
-    dos: list[str] | None = None
-    donts: list[str] | None = None
+    voice: Annotated[str | None, NoExplicitNull] = None
+    attributes: Annotated[list[str] | None, NoExplicitNull] = None
+    dos: Annotated[list[str] | None, NoExplicitNull] = None
+    donts: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class VoiceSynthesis(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    provider: str | None = None
-    voice_id: str | None = None
-    rights_offering_id: str | None = None
-    settings: dict[str, Any] | None = None
+    provider: Annotated[str | None, NoExplicitNull] = None
+    voice_id: Annotated[str | None, NoExplicitNull] = None
+    rights_offering_id: Annotated[str | None, NoExplicitNull] = None
+    settings: Annotated[dict[str, Any] | None, NoExplicitNull] = None
 
 
 class Asset(AdcpVersionEnvelope):
@@ -91,23 +91,23 @@ class Asset(AdcpVersionEnvelope):
     asset_id: str
     asset_type: asset_content_type_1.AssetContentType
     url: WireAnyUrl
-    tags: list[str] | None = None
-    name: str | None = None
-    description: str | None = None
-    width: int | None = None
-    height: int | None = None
-    duration_seconds: float | None = None
-    file_size_bytes: int | None = None
-    format: str | None = None
+    tags: Annotated[list[str] | None, NoExplicitNull] = None
+    name: Annotated[str | None, NoExplicitNull] = None
+    description: Annotated[str | None, NoExplicitNull] = None
+    width: Annotated[int | None, NoExplicitNull] = None
+    height: Annotated[int | None, NoExplicitNull] = None
+    duration_seconds: Annotated[float | None, NoExplicitNull] = None
+    file_size_bytes: Annotated[int | None, NoExplicitNull] = None
+    format: Annotated[str | None, NoExplicitNull] = None
 
 
 class Rights(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    available_uses: list[right_use_1.RightUse] | None = None
-    countries: list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None = None
-    excluded_countries: list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None = None
-    exclusivity_model: str | None = None
-    content_restrictions: list[str] | None = None
+    available_uses: Annotated[list[right_use_1.RightUse] | None, NoExplicitNull] = None
+    countries: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None, NoExplicitNull] = None
+    excluded_countries: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None, NoExplicitNull] = None
+    exclusivity_model: Annotated[str | None, NoExplicitNull] = None
+    content_restrictions: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class Collection(AdcpVersionEnvelope):
@@ -115,8 +115,8 @@ class Collection(AdcpVersionEnvelope):
     publisher_domain: Annotated[str, StringConstraints(pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$')]
     collection_id: str
     name: str
-    role: talent_role_1.TalentRole | None = None
-    seller_agent_url: WireAnyUrl | None = None
+    role: Annotated[talent_role_1.TalentRole | None, NoExplicitNull] = None
+    seller_agent_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
 
 
 class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
@@ -124,29 +124,29 @@ class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvel
     brand_id: str
     house: House
     names: list[dict[str, str]]
-    description: str | None = None
-    industries: Annotated[list[str], Field(min_length=1)] | None = None
-    keller_type: Literal['master', 'sub_brand', 'endorsed', 'independent'] | None = None
-    logos: list[Logo] | None = None
-    colors: Colors | None = None
-    fonts: Fonts | None = None
-    visual_guidelines: dict[str, Any] | None = None
-    tone: Tone | None = None
-    tagline: str | Annotated[list[dict[str, Annotated[str, StringConstraints(min_length=1)]]], Field(min_length=1)] | None = None
-    voice_synthesis: VoiceSynthesis | None = None
-    assets: list[Asset] | None = None
-    rights: Rights | None = None
-    collections: list[Collection] | None = None
-    available_fields: list[Literal['description', 'industries', 'keller_type', 'logos', 'colors', 'fonts', 'visual_guidelines', 'tone', 'tagline', 'voice_synthesis', 'assets', 'rights', 'collections']] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    description: Annotated[str | None, NoExplicitNull] = None
+    industries: Annotated[Annotated[list[str], Field(min_length=1)] | None, NoExplicitNull] = None
+    keller_type: Annotated[Literal['master', 'sub_brand', 'endorsed', 'independent'] | None, NoExplicitNull] = None
+    logos: Annotated[list[Logo] | None, NoExplicitNull] = None
+    colors: Annotated[Colors | None, NoExplicitNull] = None
+    fonts: Annotated[Fonts | None, NoExplicitNull] = None
+    visual_guidelines: Annotated[dict[str, Any] | None, NoExplicitNull] = None
+    tone: Annotated[Tone | None, NoExplicitNull] = None
+    tagline: Annotated[str | Annotated[list[dict[str, Annotated[str, StringConstraints(min_length=1)]]], Field(min_length=1)] | None, NoExplicitNull] = None
+    voice_synthesis: Annotated[VoiceSynthesis | None, NoExplicitNull] = None
+    assets: Annotated[list[Asset] | None, NoExplicitNull] = None
+    rights: Annotated[Rights | None, NoExplicitNull] = None
+    collections: Annotated[list[Collection] | None, NoExplicitNull] = None
+    available_fields: Annotated[list[Literal['description', 'industries', 'keller_type', 'logos', 'colors', 'fonts', 'visual_guidelines', 'tone', 'tagline', 'voice_synthesis', 'assets', 'rights', 'collections']] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class GetBrandIdentityResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 GetBrandIdentityResponse: TypeAlias = GetBrandIdentityResponse1 | GetBrandIdentityResponse2

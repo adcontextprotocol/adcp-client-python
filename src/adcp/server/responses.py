@@ -768,13 +768,18 @@ def build_creative_response(
     """
     from adcp.types.canonical_creative import CreativeManifest
 
+    # A ``None`` in a dict handed to this builder means "not supplied" (the
+    # builder's contract); it is not a wire ``null``, which a validated dict
+    # would otherwise carry through (#1615).
     if isinstance(creative_manifest, list):
-        validated_manifests = [CreativeManifest.model_validate(item) for item in creative_manifest]
+        validated_manifests = [
+            CreativeManifest.model_validate(_strip_none_values(item)) for item in creative_manifest
+        ]
         return {
             "creative_manifests": _serialize_canonical(validated_manifests),
             "sandbox": sandbox,
         }
-    validated_manifest = CreativeManifest.model_validate(creative_manifest)
+    validated_manifest = CreativeManifest.model_validate(_strip_none_values(creative_manifest))
     return {
         "creative_manifest": _canonical_value(validated_manifest),
         "sandbox": sandbox,

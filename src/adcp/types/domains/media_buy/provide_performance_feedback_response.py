@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Literal, TypeAlias
 
-from adcp.types.base import WireDatetime
+from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -21,21 +21,21 @@ from ..core.protocol_envelope import ProtocolEnvelope
 class ProvidePerformanceFeedbackResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     success: Literal[True]
-    feedback_id: Annotated[str, StringConstraints(min_length=1)] | None = None
-    application_status: Literal['accepted', 'applied', 'not_applied'] | None = None
-    status_reason: Annotated[str, StringConstraints(max_length=500)] | None = None
-    received_at: WireDatetime | None = None
-    applied_at: WireDatetime | None = None
-    sandbox: bool | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    feedback_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
+    application_status: Annotated[Literal['accepted', 'applied', 'not_applied'] | None, NoExplicitNull] = None
+    status_reason: Annotated[Annotated[str, StringConstraints(max_length=500)] | None, NoExplicitNull] = None
+    received_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    applied_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class ProvidePerformanceFeedbackResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 ProvidePerformanceFeedbackResponse: TypeAlias = ProvidePerformanceFeedbackResponse1 | ProvidePerformanceFeedbackResponse2

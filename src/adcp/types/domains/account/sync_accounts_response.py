@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, Any, Literal, TypeAlias
 
-from adcp.types.base import WireAnyUrl, WireDatetime
+from adcp.types.base import NoExplicitNull, WireAnyUrl, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -32,9 +32,9 @@ from ..enums import payment_terms as payment_terms_1
 
 class Setup(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    url: WireAnyUrl | None = None
+    url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
     message: str
-    expires_at: WireDatetime | None = None
+    expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
 
 
 class CreditLimit(AdcpVersionEnvelope):
@@ -45,48 +45,48 @@ class CreditLimit(AdcpVersionEnvelope):
 
 class Account(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    account_id: str | None = None
-    account: account_ref_1.AccountReference | None = None
-    brand: brand_ref_1.BrandReference | None = None
-    operator: str | None = None
-    operator_unit: operator_unit_1.OperatorUnit | None = None
-    revision: Annotated[int, Field(ge=1)] | None = None
-    identity_change: account_identity_change_1.AccountIdentityChange | None = None
-    identity_change_preview: account_identity_change_preview_1.AccountIdentityChangePreview | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    timezone: Annotated[str, StringConstraints(min_length=1)] | None = None
-    name: str | None = None
+    account_id: Annotated[str | None, NoExplicitNull] = None
+    account: Annotated[account_ref_1.AccountReference | None, NoExplicitNull] = None
+    brand: Annotated[brand_ref_1.BrandReference | None, NoExplicitNull] = None
+    operator: Annotated[str | None, NoExplicitNull] = None
+    operator_unit: Annotated[operator_unit_1.OperatorUnit | None, NoExplicitNull] = None
+    revision: Annotated[Annotated[int, Field(ge=1)] | None, NoExplicitNull] = None
+    identity_change: Annotated[account_identity_change_1.AccountIdentityChange | None, NoExplicitNull] = None
+    identity_change_preview: Annotated[account_identity_change_preview_1.AccountIdentityChangePreview | None, NoExplicitNull] = None
+    currency: Annotated[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None, NoExplicitNull] = None
+    timezone: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
+    name: Annotated[str | None, NoExplicitNull] = None
     action: Literal['created', 'updated', 'unchanged', 'failed']
-    status: Literal['active', 'pending_approval', 'rejected', 'payment_required', 'suspended', 'closed'] | None = None
-    billing: billing_party_1.BillingParty | None = None
-    billing_entity: business_entity_1.BusinessEntity | None = None
-    destination_billing_entity: Any | None = None
-    account_scope: account_scope_1.AccountScope | None = None
-    setup: Setup | None = None
-    rate_card: str | None = None
-    payment_terms: payment_terms_1.PaymentTerms | None = None
-    credit_limit: CreditLimit | None = None
-    errors: Annotated[list[error_1.Error], Field(min_length=1)] | None = None
-    warnings: list[str] | None = None
-    sandbox: bool | None = None
-    notification_configs: Annotated[list[notification_config_1.NotificationConfig], Field(max_length=16)] | None = None
-    reporting_delivery_configs: Annotated[list[reporting_delivery_config_state_1.ReportingDeliveryConfigurationState], Field(max_length=16)] | None = None
-    authorization: account_authorization_1.AccountAuthorization | None = None
+    status: Annotated[Literal['active', 'pending_approval', 'rejected', 'payment_required', 'suspended', 'closed'] | None, NoExplicitNull] = None
+    billing: Annotated[billing_party_1.BillingParty | None, NoExplicitNull] = None
+    billing_entity: Annotated[business_entity_1.BusinessEntity | None, NoExplicitNull] = None
+    destination_billing_entity: Annotated[Any | None, NoExplicitNull] = None
+    account_scope: Annotated[account_scope_1.AccountScope | None, NoExplicitNull] = None
+    setup: Annotated[Setup | None, NoExplicitNull] = None
+    rate_card: Annotated[str | None, NoExplicitNull] = None
+    payment_terms: Annotated[payment_terms_1.PaymentTerms | None, NoExplicitNull] = None
+    credit_limit: Annotated[CreditLimit | None, NoExplicitNull] = None
+    errors: Annotated[Annotated[list[error_1.Error], Field(min_length=1)] | None, NoExplicitNull] = None
+    warnings: Annotated[list[str] | None, NoExplicitNull] = None
+    sandbox: Annotated[bool | None, NoExplicitNull] = None
+    notification_configs: Annotated[Annotated[list[notification_config_1.NotificationConfig], Field(max_length=16)] | None, NoExplicitNull] = None
+    reporting_delivery_configs: Annotated[Annotated[list[reporting_delivery_config_state_1.ReportingDeliveryConfigurationState], Field(max_length=16)] | None, NoExplicitNull] = None
+    authorization: Annotated[account_authorization_1.AccountAuthorization | None, NoExplicitNull] = None
 
 
 class SyncAccountsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    dry_run: bool | None = None
+    dry_run: Annotated[bool | None, NoExplicitNull] = None
     accounts: list[Account]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class SyncAccountsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 SyncAccountsResponse: TypeAlias = SyncAccountsResponse1 | SyncAccountsResponse2

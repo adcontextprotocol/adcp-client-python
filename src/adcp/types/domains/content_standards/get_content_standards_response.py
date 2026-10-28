@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from adcp.types.base import AdcpResponse
 
-from typing import TypeAlias
+from typing import Annotated, TypeAlias
 
+from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -19,15 +20,15 @@ from ..core.protocol_envelope import ProtocolEnvelope
 
 class GetContentStandardsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class GetContentStandardsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 GetContentStandardsResponse: TypeAlias = GetContentStandardsResponse1 | GetContentStandardsResponse2

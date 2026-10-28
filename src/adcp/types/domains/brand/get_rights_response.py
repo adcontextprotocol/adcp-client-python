@@ -8,7 +8,7 @@ from adcp.types.base import AdcpResponse
 
 from typing import Annotated, TypeAlias
 
-from adcp.types.base import WireAnyUrl
+from adcp.types.base import NoExplicitNull, WireAnyUrl
 from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -23,14 +23,14 @@ from ..enums import right_use as right_use_1
 
 class ExclusivityStatus(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    available: bool | None = None
-    existing_exclusives: list[str] | None = None
+    available: Annotated[bool | None, NoExplicitNull] = None
+    existing_exclusives: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class PreviewAsset(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     url: WireAnyUrl
-    usage: str | None = None
+    usage: Annotated[str | None, NoExplicitNull] = None
 
 
 class Right(AdcpVersionEnvelope):
@@ -38,40 +38,40 @@ class Right(AdcpVersionEnvelope):
     rights_id: str
     brand_id: str
     name: str
-    description: str | None = None
-    right_type: right_type_1.RightType | None = None
-    match_score: Annotated[float, Field(ge=0, le=1)] | None = None
-    match_reasons: list[str] | None = None
+    description: Annotated[str | None, NoExplicitNull] = None
+    right_type: Annotated[right_type_1.RightType | None, NoExplicitNull] = None
+    match_score: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
+    match_reasons: Annotated[list[str] | None, NoExplicitNull] = None
     available_uses: list[right_use_1.RightUse]
-    countries: list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None = None
-    excluded_countries: list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None = None
-    exclusivity_status: ExclusivityStatus | None = None
+    countries: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None, NoExplicitNull] = None
+    excluded_countries: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{2}$')]] | None, NoExplicitNull] = None
+    exclusivity_status: Annotated[ExclusivityStatus | None, NoExplicitNull] = None
     pricing_options: Annotated[list[rights_pricing_option_1.RightsPricingOption], Field(min_length=1)]
-    content_restrictions: list[str] | None = None
-    preview_assets: list[PreviewAsset] | None = None
+    content_restrictions: Annotated[list[str] | None, NoExplicitNull] = None
+    preview_assets: Annotated[list[PreviewAsset] | None, NoExplicitNull] = None
 
 
 class Excluded(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     brand_id: str
-    name: str | None = None
+    name: Annotated[str | None, NoExplicitNull] = None
     reason: str
-    suggestions: list[str] | None = None
+    suggestions: Annotated[list[str] | None, NoExplicitNull] = None
 
 
 class GetRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights: list[Right]
-    excluded: list[Excluded] | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    excluded: Annotated[list[Excluded] | None, NoExplicitNull] = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 class GetRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
+    ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
 GetRightsResponse: TypeAlias = GetRightsResponse1 | GetRightsResponse2
