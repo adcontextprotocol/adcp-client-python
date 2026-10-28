@@ -11,13 +11,12 @@ from typing import Any, Generic
 
 from pydantic import ValidationError
 
-from adcp.server.base import ADCPHandler, NotImplementedResponse, TContext
+from adcp.server.base import ADCPHandler, NotImplementedResponse, TContext, invalid_request
 from adcp.types import (
     CalibrateContentRequest,
     CalibrateContentResponse,
     CreateContentStandardsRequest,
     CreateContentStandardsResponse,
-    Error,
     GetContentStandardsRequest,
     GetContentStandardsResponse,
     GetMediaBuyArtifactsRequest,
@@ -71,11 +70,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = CreateContentStandardsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_create_content_standards(request, context)
 
     async def get_content_standards(
@@ -90,11 +85,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = GetContentStandardsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_get_content_standards(request, context)
 
     async def list_content_standards(
@@ -109,11 +100,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = ListContentStandardsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_list_content_standards(request, context)
 
     async def update_content_standards(
@@ -128,11 +115,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = UpdateContentStandardsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_update_content_standards(request, context)
 
     async def calibrate_content(
@@ -147,11 +130,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = CalibrateContentRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_calibrate_content(request, context)
 
     async def validate_content_delivery(
@@ -166,11 +145,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = ValidateContentDeliveryRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_validate_content_delivery(request, context)
 
     async def get_media_buy_artifacts(
@@ -185,11 +160,7 @@ class ContentStandardsHandler(ADCPHandler[TContext], Generic[TContext]):
         try:
             request = GetMediaBuyArtifactsRequest.model_validate(params)
         except ValidationError as e:
-            return NotImplementedResponse(
-                supported=False,
-                reason=f"Invalid request: {e}",
-                error=Error(code="VALIDATION_ERROR", message=str(e)),
-            )
+            return invalid_request(e, payload=params)
         return await self.handle_get_media_buy_artifacts(request, context)
 
     # ========================================================================

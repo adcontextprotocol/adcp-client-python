@@ -186,7 +186,7 @@ async def test_authorized_request_runs_platform_method(executor) -> None:
 
         async def get_products(self, req, ctx):
             seen.append(ctx.buyer_agent)
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),
@@ -234,7 +234,7 @@ async def test_authorized_propagates_brand_id_when_extractor_returns_it(executor
         accounts = SingletonAccounts(account_id="hello")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),
@@ -285,7 +285,7 @@ async def test_denied_request_raises_permission_denied(executor) -> None:
         async def get_products(self, req, ctx):
             nonlocal method_ran
             method_ran = True
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),
@@ -380,7 +380,7 @@ async def test_no_buyer_agent_skips_gate(executor) -> None:
         async def get_products(self, req, ctx):
             nonlocal method_ran
             method_ran = True
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),
@@ -428,7 +428,7 @@ async def test_extractor_returns_none_skips_gate(executor) -> None:
         async def get_products(self, req, ctx):
             nonlocal method_ran
             method_ran = True
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),
@@ -483,7 +483,7 @@ async def test_async_extractor_is_awaited(executor) -> None:
         accounts = SingletonAccounts(account_id="hello")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = PlatformHandler(
         _Platform(),

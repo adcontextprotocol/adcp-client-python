@@ -67,7 +67,14 @@ def test_capability_dicts_parse_to_canonical_public_models() -> None:
     assert isinstance(portfolio.primary_countries[0], PrimaryCountry)
 
 
-def test_composability_patch_preserves_generated_field_constraints() -> None:
+def test_composability_annotation_preserves_generated_field_constraints() -> None:
+    """Swapping the type must not take the constraints beside it.
+
+    ``COMPATIBILITY_ANNOTATIONS`` rewrites the type INSIDE the generated
+    ``Annotated[...]``, leaving the ``Field(...)`` untouched. The runtime patch
+    this replaced rebuilt a ``FieldInfo`` and had to copy the old one to keep
+    ``min_length``; a source rewrite bounded to the type cannot drop it.
+    """
     with pytest.raises(ValidationError, match="at least 1 item"):
         Portfolio(publisher_domains=[])
 
@@ -83,7 +90,7 @@ def test_composability_patch_preserves_generated_field_constraints() -> None:
 def test_composed_model_classes_have_equivalent_wire_schemas(
     canonical_model: type, bundled_model: type
 ) -> None:
-    """A schema drift must be reviewed before an identity patch remains valid.
+    """A schema drift must be reviewed before the declared equivalence holds.
 
     ``TypeAdapter`` rather than ``model_json_schema()``: the scalar schemas in
     this list are ``str`` subclasses, not Pydantic models — see #1277.

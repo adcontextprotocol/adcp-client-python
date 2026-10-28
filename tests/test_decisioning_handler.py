@@ -79,7 +79,7 @@ async def test_get_products_routes_through_platform(executor) -> None:
 
         async def get_products(self, req, ctx):
             received_account_id.append(ctx.account.id)
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     req = GetProductsRequest(buying_mode="brief", brief="any inventory")
@@ -106,7 +106,7 @@ async def test_get_products_threads_auth_info_to_account(executor) -> None:
         async def get_products(self, req, ctx):
             received_principal.append(ctx.account.id)
             received_auth_info.append(ctx.auth_info)
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     ctx = ToolContext(
@@ -203,7 +203,14 @@ async def test_create_media_buy_sync_path_returns_typed_response(executor) -> No
             idempotency_key="idem_aaaa1234567890",
             start_time="2026-05-01T00:00:00Z",
             end_time="2026-05-31T23:59:59Z",
-            packages=[{"buyer_ref": "pkg_1", "product_id": "prod_1", "pricing_option_id": "cpm"}],
+            packages=[
+                {
+                    "buyer_ref": "pkg_1",
+                    "product_id": "prod_1",
+                    "pricing_option_id": "cpm",
+                    "budget": 1000.0,
+                }
+            ],
         ),
         ToolContext(),
     )
@@ -237,7 +244,14 @@ async def test_create_media_buy_handoff_path_returns_submitted_envelope(
             idempotency_key="idem_aaaa1234567890",
             start_time="2026-05-01T00:00:00Z",
             end_time="2026-05-31T23:59:59Z",
-            packages=[{"buyer_ref": "pkg_1", "product_id": "prod_1", "pricing_option_id": "cpm"}],
+            packages=[
+                {
+                    "buyer_ref": "pkg_1",
+                    "product_id": "prod_1",
+                    "pricing_option_id": "cpm",
+                    "budget": 1000.0,
+                }
+            ],
         ),
         ToolContext(),
     )
@@ -367,7 +381,7 @@ async def test_handler_awaits_async_account_resolver(executor) -> None:
 
         async def get_products(self, req, ctx):
             received_id.append(ctx.account.id)
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     await handler.get_products(GetProductsRequest(buying_mode="brief", brief="any"), ToolContext())
@@ -389,7 +403,7 @@ async def test_handler_extract_auth_info_from_dict(executor) -> None:
 
         async def get_products(self, req, ctx):
             received_kind.append(ctx.auth_info.kind if ctx.auth_info else "none")
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     ctx = ToolContext(

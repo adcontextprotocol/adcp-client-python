@@ -80,7 +80,9 @@ def make_client(
     )
     client._capabilities_fetched_at = time.monotonic()
     client.adapter.get_products = AsyncMock(
-        return_value=TaskResult(status=TaskStatus.COMPLETED, data=GetProductsResponse(products=[]))
+        return_value=TaskResult(
+            status=TaskStatus.COMPLETED, data=GetProductsResponse(products=[], cache_scope="public")
+        )
     )
     return client
 
@@ -503,7 +505,7 @@ def make_handler(store, *, required=False, executor):
 
         async def get_products(self, request, ctx):
             assert ctx.account.id == "" or ctx.account.id == "provisioned"
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     return PlatformHandler(Seller(), executor=executor, registry=InMemoryTaskRegistry())
 

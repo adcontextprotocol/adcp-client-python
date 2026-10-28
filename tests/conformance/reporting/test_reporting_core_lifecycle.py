@@ -688,12 +688,62 @@ async def test_core_reconciliation_refuses_a_managed_delivery_ledger(
     receipt records rather than quietly ignoring them -- a buyer that thinks it
     is doing Core must not end up trusting managed-delivery evidence it never
     verified.
+
+    WHY THE OBLIGATION IS DELAYED AND NOT HEALTHY. ``destination_ref`` is the
+    field that must trip the tier check, and
+    ``core/reporting-obligation.json``'s ``allOf[4]`` fires on the CONJUNCTION
+    ``if: {properties: {health: {enum: [healthy, complete]}}, required:
+    [health, destination_ref]}`` -- so an obligation that is BOTH healthy and
+    destination-bearing must additionally carry ``materialization_count >= 1``,
+    ``successful_materialization_count >= 1`` and ``resource_retained_until``.
+    Pinning ``destination_ref`` onto a HEALTHY period therefore makes the
+    seller's payload invalid against the pin, ``load_reporting_ledger`` refuses
+    it first, and the buyer sees ``STATUS_READ_FAILED`` -- the tier check never
+    runs and this test grades nothing.
+
+    Supplying those counts is the wrong repair, and was tried and reverted: a
+    Core ledger HAS no materializations, so a fixture that reports one asserts
+    something false about the tier under test. The pin says so in
+    ``destination_ref``'s own description -- "Core (API-delivered) obligations
+    omit every destination and materialization field".
+
+    A ``delayed`` obligation makes ``allOf[4]``'s ``if`` false on the HEALTH
+    conjunct instead, which costs nothing and fabricates nothing: no
+    materialization field is required or supplied, ``allOf[8]`` wants
+    ``issues`` non-empty and an overdue period already carries
+    ``REPORT_OVERDUE``, and the obligation is a real Core obligation whose
+    source simply has not answered. ``destination_ref`` is then the ONE thing
+    in the payload the pin forbids for Core, which is exactly the single
+    variable this test should turn.
     """
     source = SimulatedSource()
     await ledger.put_configuration(_configuration())
     first = _period(0)
-    source.set(first.start, InlineFetchResult(rows=[], data_through=first.end))
-    await _run_worker_at(ledger, source, now=first.expected_at)
+    # The source is left unscripted on purpose: the obligation is committed when
+    # the period closes, no revision exists, and the period is overdue but still
+    # inside the declared automated recovery window -- ``delayed``, per step 8 of
+    # the lifecycle above.
+    await _run_worker_at(ledger, source, now=first.end + timedelta(minutes=1))
+    overdue = first.expected_at + timedelta(minutes=1)
+    assert overdue < first.expected_at + RECOVERY_WINDOW, (
+        "the read boundary must sit inside the recovery window, or the obligation "
+        "escalates to action_required and this fixture is no longer the delayed one "
+        "it documents"
+    )
+
+    obligation = await ledger.find_obligation(
+        account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        period_start=first.start,
+        period_end=first.end,
+    )
+    assert obligation is not None
+    assert await _health_of(_handler_at(ledger, overdue), obligation, at=overdue) == (
+        "delayed",
+        "REPORT_OVERDUE",
+    )
 
     class ManagedHandler(ReportingStatusHandler):
         async def handle(self, request: dict[str, Any], *, caller: Any) -> dict[str, Any]:
@@ -702,16 +752,34 @@ async def test_core_reconciliation_refuses_a_managed_delivery_ledger(
                 period["destination_ref"] = "dest_1"
             return payload
 
-    client = LedgerStatusClient(ManagedHandler(ledger), CALLER)
+    managed = ManagedHandler(
+        PgReportingLedgerStore(pool=ledger._pool, clock=lambda: overdue),  # noqa: SLF001
+    )
+    client = LedgerStatusClient(managed, CALLER)
+    request = GetReportingStatusRequest.model_validate(
+        {"account": {"account_id": ACCOUNT}, "view": "periods"}
+    )
     with pytest.raises(ReportingReconciliationError) as error:
-        await reconcile_reporting_core(
-            client,
-            GetReportingStatusRequest.model_validate(
-                {"account": {"account_id": ACCOUNT}, "view": "periods"}
-            ),
-            expected_periods=_expected_periods(1),
-        )
+        await reconcile_reporting_core(client, request, expected_periods=_expected_periods(1))
     assert error.value.code == "MANAGED_DELIVERY_NOT_ENABLED"
+
+    # The refusal is attributable to ``destination_ref`` and not to the delayed
+    # health: the SAME ledger, read through the unmodified handler, is read
+    # successfully and reconciles (not definitively -- the period is overdue).
+    # Without this, a fixture that broke the read for some unrelated reason
+    # would still raise and still be graded green.
+    clean = LedgerStatusClient(
+        ReportingStatusHandler(
+            PgReportingLedgerStore(pool=ledger._pool, clock=lambda: overdue),  # noqa: SLF001
+        ),
+        CALLER,
+    )
+    settled = await reconcile_reporting_core(clean, request, expected_periods=_expected_periods(1))
+    assert settled.definitive is False
+    assert [item.destination_ref for item in settled.ledger.obligations] == [None]
+    assert [getattr(item.health, "value", item.health) for item in settled.ledger.obligations] == [
+        "delayed"
+    ]
 
 
 async def test_the_status_projection_validates_as_adcp_wire(
@@ -1518,7 +1586,7 @@ async def test_a_later_successful_read_supersedes_with_received(
         ledger,
         client,
         now=boundary + timedelta(hours=2),
-        obligations=[_obligation_wire(ledger, obligation)],
+        obligations=[_obligation_wire(ledger, obligation, revision)],
         readings={obligation.reporting_obligation_id: reading},
         revisions={revision.reporting_revision_id: _revision_wire(revision, obligation)},
         current_statuses=await _caller_statuses(ledger),
@@ -1570,7 +1638,7 @@ async def test_a_failed_read_posts_unreadable_with_a_failure_code(
         ledger,
         client,
         now=period.expected_at + RECOVERY_WINDOW,
-        obligations=[_obligation_wire(ledger, obligation)],
+        obligations=[_obligation_wire(ledger, obligation, revision)],
         readings={
             obligation.reporting_obligation_id: ReportingContentReading(
                 reporting_revision_id=revision.reporting_revision_id,
@@ -1623,7 +1691,7 @@ async def test_a_contract_violation_posts_content_mismatch_with_its_code(
         ledger,
         client,
         now=period.expected_at + RECOVERY_WINDOW,
-        obligations=[_obligation_wire(ledger, obligation)],
+        obligations=[_obligation_wire(ledger, obligation, revision)],
         # The pinned definition promises `conversions`; the revision does not
         # carry it, which is a contract fact -- not a count dispute.
         definition=ReportingPinnedDefinition(metric_names=("impressions", "spend", "conversions")),
@@ -1701,11 +1769,22 @@ async def test_a_rejected_statement_is_surfaced_not_raised(
         outcome.raise_for_failures()
 
 
-def _obligation_wire(ledger: PgReportingLedgerStore, obligation: Any) -> Any:
+def _obligation_wire(ledger: PgReportingLedgerStore, obligation: Any, revision: Any = None) -> Any:
     """The seller's own obligation, as the wire model the planner consumes.
 
     Round-tripped through ``get_reporting_status`` rather than hand-built, so
     the planner is fed exactly what a buyer would read.
+
+    The obligation's own revision is passed rather than an empty sequence, and
+    it has to be: ``_obligation_to_wire`` derives ``revision_count`` as
+    ``len(revisions)``, and ``core/reporting-obligation.json`` forbids a
+    published or healthy obligation that reports none --
+    ``allOf/1/then/properties/revision_count/minimum`` (health in
+    {healthy, complete}) and ``allOf/5/then/properties/revision_count/minimum``
+    (production_status published) both require at least 1. Validating the old
+    ``revisions=()`` payload against the pin with ``jsonschema`` raises at
+    exactly those two paths, so the empty sequence contradicted the
+    ``health="healthy", production_status="published"`` this helper declares.
     """
     del ledger
     from adcp.reporting.ledger.status import _obligation_to_wire
@@ -1713,7 +1792,7 @@ def _obligation_wire(ledger: PgReportingLedgerStore, obligation: Any) -> Any:
 
     payload = _obligation_to_wire(
         obligation,
-        revisions=(),
+        revisions=() if revision is None else (revision,),
         health="healthy",
         production_status="published",
         issues=(),

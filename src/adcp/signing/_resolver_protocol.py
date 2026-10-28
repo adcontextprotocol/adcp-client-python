@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import codecs
-from collections.abc import AsyncIterator
+from collections import deque
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import httpx
@@ -13,17 +14,25 @@ from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited
 from adcp.signing._strict_json import parse_strict_json
 
 
-def protocol_validation_failed(error: BaseException) -> bool:
-    """Recognize SDK parse failures, including task-group wrappers on 3.10+."""
-    pending = [error]
+def _reachable(error: BaseException) -> Iterator[BaseException]:
+    """Every exception reachable from ``error``, breadth first.
+
+    Follows group members, ``__cause__`` and ``__context__``, because the MCP
+    and A2A client stacks run the fetch inside an anyio task group and the
+    original failure can sit under any of the three.
+
+    Breadth first and in declaration order so the first leaf yielded is the
+    nearest one: :func:`primary_cause` reports it, and a LIFO walk would report
+    whichever member happened to be pushed last.
+    """
+    pending = deque([error])
     seen: set[int] = set()
     while pending:
-        current = pending.pop()
+        current = pending.popleft()
         if id(current) in seen:
             continue
         seen.add(id(current))
-        if isinstance(current, (ValueError, TypeError)):
-            return True
+        yield current
         children = getattr(current, "exceptions", ())
         if isinstance(children, tuple):
             pending.extend(child for child in children if isinstance(child, BaseException))
@@ -31,7 +40,40 @@ def protocol_validation_failed(error: BaseException) -> bool:
             pending.append(current.__cause__)
         if current.__context__ is not None:
             pending.append(current.__context__)
-    return False
+
+
+def _is_group(error: BaseException) -> bool:
+    return isinstance(getattr(error, "exceptions", None), tuple)
+
+
+def protocol_validation_failed(error: BaseException) -> bool:
+    """Recognize SDK parse failures, including task-group wrappers on 3.10+."""
+    return any(isinstance(found, (ValueError, TypeError)) for found in _reachable(error))
+
+
+def primary_cause(error: BaseException) -> BaseException:
+    """The nearest non-group exception under ``error``, or ``error`` itself.
+
+    A task group's own ``str()`` is "unhandled errors in a TaskGroup (N
+    sub-exceptions)", which names neither the failure nor the agent, and every
+    fact a caller needs is in the member. Chaining the group instead would leave
+    each adopter to walk ``.exceptions`` — a copy of this traversal in every
+    consumer, which is the SDK's job and not theirs.
+    """
+    return next((found for found in _reachable(error) if not _is_group(found)), error)
+
+
+def describe_failure(error: BaseException) -> str:
+    """``error`` as a sentence that names the real failure.
+
+    The type is included because a bare ``str()`` is empty for several of the
+    exceptions this path raises (``httpx.ConnectError()`` with no args, among
+    them), and a message that renders as "capabilities fetch failed: " is worse
+    than the group sentence it replaced.
+    """
+    cause = primary_cause(error)
+    text = str(cause)
+    return f"{type(cause).__name__}: {text}" if text else type(cause).__name__
 
 
 def _validate_protocol_object(content: bytes) -> dict[str, Any]:

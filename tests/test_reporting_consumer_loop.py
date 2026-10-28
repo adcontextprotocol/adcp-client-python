@@ -77,6 +77,17 @@ def _obligation(**overrides: Any) -> ReportingObligation:
         "reconciliation_status": "not_required",
     }
     payload.update(overrides)
+    # core/reporting-obligation.json states these ties outside its properties:
+    # published implies at least one revision (member 5) and healthy implies both
+    # (member 1), so an obligation with no revision yet is pending and waiting; and
+    # naming a current consumer status implies having counted one (member 0).
+    if payload["revision_count"] == 0:
+        if "production_status" not in overrides:
+            payload["production_status"] = "pending"
+        if "health" not in overrides:
+            payload["health"] = "waiting"
+    if "current_consumer_status_id" in overrides and "consumer_status_count" not in overrides:
+        payload["consumer_status_count"] = 1
     return ReportingObligation.model_validate(payload)
 
 
@@ -108,6 +119,12 @@ def _revision(**overrides: Any) -> ReportingRevision:
         "schema_version": "1.0.0",
     }
     payload.update(overrides)
+    # core/reporting-revision.json member 1: an official revision states what made
+    # it official, under which policy, and when.
+    if payload["finality"] == "official":
+        payload.setdefault("finality_basis", "source_final")
+        payload.setdefault("finality_policy_id", "daily_v1_official")
+        payload.setdefault("finalized_at", payload["created_at"])
     return ReportingRevision.model_validate(payload)
 
 

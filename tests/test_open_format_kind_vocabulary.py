@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 
 import pytest
@@ -78,7 +79,16 @@ def test_no_generated_model_types_a_field_with_the_closed_enum() -> None:
     for path in sorted(_GENERATED.rglob("*.py")):
         for number, line in enumerate(path.read_text().splitlines(), 1):
             stripped = line.strip()
-            if "CanonicalFormatKind" not in stripped:
+            # The IDENTIFIER, not the substring. A longer generated name that
+            # merely ENDS in it re-closes nothing: branch-class names are built
+            # from their branch's discriminating condition, so
+            # ``CreativeAssetV2CreativeCanonicalFormatKind`` -- the oneOf/1
+            # branch of core/creative-asset.json -- contains these 18 characters
+            # and annotates no field with the enum. A substring test reported all
+            # seven of its occurrences as re-closures while the real count was
+            # zero, which is a guard grading a spelling rather than the property
+            # this docstring states.
+            if not re.search(r"\bCanonicalFormatKind\b", stripped):
                 continue
             if (
                 stripped.startswith(("import ", "from ", "#", '"'))

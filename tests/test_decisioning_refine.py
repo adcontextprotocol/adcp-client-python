@@ -242,7 +242,7 @@ class _PlatformWithRefine(DecisioningPlatform):
     def get_products(self, req, ctx):
         from adcp.types import GetProductsResponse
 
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     def refine_get_products(self, req, ctx):
         return RefineResult(
@@ -259,7 +259,7 @@ class _PlatformNoRefine(DecisioningPlatform):
     def get_products(self, req, ctx):
         from adcp.types import GetProductsResponse
 
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
 
 def test_has_refine_support_true_when_method_present() -> None:
@@ -320,7 +320,7 @@ async def test_handler_brief_mode_unaffected(executor) -> None:
 
     class _P(_PlatformWithRefine):
         def get_products(self, req, ctx):
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
         def refine_get_products(self, req, ctx):  # not called
             raise AssertionError("refine_get_products should not be called for brief mode")

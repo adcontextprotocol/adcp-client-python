@@ -735,7 +735,6 @@ async def _resolve_buyer_agent(
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
-            recovery="correctable",
         )
 
     if agent.status == "active":
@@ -749,13 +748,11 @@ async def _resolve_buyer_agent(
         raise AdcpError(
             "AGENT_SUSPENDED",
             message=_denied_message,
-            recovery="terminal",
         )
     if agent.status == "blocked":
         raise AdcpError(
             "AGENT_BLOCKED",
             message=_denied_message,
-            recovery="terminal",
         )
     # Default-reject any non-active status the framework doesn't
     # recognize (typo, future enum value, adopter-custom string). A
@@ -770,7 +767,6 @@ async def _resolve_buyer_agent(
     raise AdcpError(
         "PERMISSION_DENIED",
         message=_denied_message,
-        recovery="correctable",
     )
 
 
@@ -871,7 +867,6 @@ async def _enforce_brand_authorization(
     raise AdcpError(
         "PERMISSION_DENIED",
         message=_denied_message,
-        recovery="correctable",
     )
 
 
@@ -1685,7 +1680,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                     raise AdcpError(
                         "ACCOUNT_REQUIRED",
                         message="An account is required for product discovery",
-                        recovery="correctable",
                         field="account",
                     )
             if ref is None and tool_name in {
@@ -1700,7 +1694,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             raise AdcpError(
                 "ACCOUNT_NOT_FOUND",
                 message="Account reference could not be resolved",
-                recovery="terminal",
                 field="account",
             )
         # Phase 1 sandbox-authority — track explicit mode values for the
@@ -2391,7 +2384,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                             raise AdcpError(
                                 "INVALID_STATE",
                                 message="finalize requires a draft source proposal",
-                                recovery="correctable",
                                 field="refinements.proposal_id",
                                 details={"proposal_id": proposal_id},
                             )
@@ -2791,7 +2783,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                             f"{len(product_ids)} product(s). Retry the request; "
                             "if the problem persists contact the seller."
                         ),
-                        recovery="transient",
                         details=_exception_cause_details(exc),
                     ) from exc
 
@@ -3377,7 +3368,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                         "preview_creative may return a task handoff only when "
                         "the request explicitly sets allow_async=true"
                     ),
-                    recovery="correctable",
                     field="allow_async",
                 )
 
@@ -3658,7 +3648,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             raise AdcpError(
                 "INVALID_REQUEST",
                 message=str(exc),
-                recovery="correctable",
             ) from exc
         account = await self._resolve_account(None, tool_ctx, tool_name="check_governance")
         ctx = self._build_ctx(tool_ctx, account)
@@ -3729,7 +3718,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             raise AdcpError(
                 "INVALID_REQUEST",
                 message=str(exc),
-                recovery="correctable",
             ) from exc
         account = await self._resolve_account(None, tool_ctx, tool_name="report_plan_outcome")
         ctx = self._build_ctx(tool_ctx, account)

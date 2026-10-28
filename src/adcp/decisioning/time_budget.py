@@ -266,6 +266,15 @@ def project_incomplete_response(*, interval: int, unit: str) -> dict[str, Any]:
     )
     return {
         "products": [],
+        # ``cache_scope`` is required on every 3.1+ get_products response: the
+        # root conditional's standard branch names it beside ``products``, and
+        # the two-layer cache model's safety property depends on it. A timeout
+        # response carries no ``wholesale_feed_version`` or ``pricing_version``,
+        # so it describes no account-specific overlay, and ``public`` is what
+        # the published layer is called. Omitted here until the generated model
+        # began enforcing the conditional, which made the SDK's own timeout
+        # response one its schema refuses.
+        "cache_scope": "public",
         "incomplete": [
             {
                 "scope": "products",

@@ -347,7 +347,7 @@ async def test_handler_returning_already_typed_params_no_double_validation():
             # Specialized-base pattern: defensively re-validate.
             req = GetProductsRequest.model_validate(params)
             received_types.append(type(req))
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     caller = create_tool_caller(_Agent(), "get_products")
     await caller({"buying_mode": "brief"})

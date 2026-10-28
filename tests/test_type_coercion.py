@@ -628,6 +628,7 @@ class TestResponseTypeCoercion:
         # No cast() needed!
         response = GetProductsResponse(
             products=[product],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+            cache_scope="public",
         )
 
         assert len(response.products) == 1
@@ -659,6 +660,7 @@ class TestResponseTypeCoercion:
         response = GetProductsResponse(
             products=[],
             errors=[error],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+            cache_scope="public",
         )
 
         assert len(response.errors) == 1

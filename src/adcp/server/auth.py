@@ -997,7 +997,6 @@ async def enforce_authenticated_tenant(
         raise AdcpError(
             "PERMISSION_DENIED",
             message="Bearer credential is not valid for this tenant.",
-            recovery="correctable",
         )
     return await call_next()
 

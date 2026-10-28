@@ -527,7 +527,25 @@ async def test_first_boot_offerings_require_their_installed_tier(tier: str) -> N
             "destination_modes": ["existing"],
         }
     else:
+        # A consumer_receipt offering is only a document at all with its method and
+        # the whole canonical-digest contract (core/reporting-delivery-offering.json,
+        # allOf member 1). The tier it is missing is reconciled_billing, which is
+        # what the service has to refuse -- not a malformed offering.
         offering["reconciliation_mode"] = "consumer_receipt"
+        offering["method"] = {
+            "pattern": "file_transfer",
+            "transport": "https",
+            "orchestration": "producer_managed",
+            "destination_modes": ["existing"],
+        }
+        offering["reporting_profile"] = {
+            **offering["reporting_profile"],
+            "canonicalization_id": "rows-v1",
+            "canonicalization_contract_version": "1.0",
+            "canonicalization_media_type": "application/vnd.adcp.reporting-canonicalization+json",
+            "canonicalization_uri": "https://contracts.example.test/rows-v1.json",
+            "canonicalization_sha256": "d" * 64,
+        }
     service.sources.register(
         "gam",
         ScriptedReportingAdapter(redacted_capabilities(), []),

@@ -69,6 +69,9 @@ async def test_generated_projections_are_accepted_by_buyer_reconciler(
         accepted_receipt_count=1,
         adjustment_receipt_count=0,
         accepted_adjustment_receipt_count=0,
+        # Member 7 of core/reporting-obligation.json requires this third count on a
+        # complete consumer_receipt obligation, alongside the two receipt counts.
+        pending_adjustment_count=0,
         resource_retained_until=s.delivery.resource_retained_until.isoformat(),
     )
     result["revisions"] = [revision_to_wire(s.revision, obligation=s.obligation)]

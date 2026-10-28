@@ -56,7 +56,7 @@ def _ids(models: tuple[type[BaseModel], ...]) -> list[str]:
 
 def test_the_canonical_model_list_is_not_empty() -> None:
     """A later refactor must not satisfy these tests by emptying the list."""
-    assert len(PRIMARY_CANONICAL_MODELS) == 31
+    assert len(PRIMARY_CANONICAL_MODELS) == 33
 
 
 @pytest.mark.parametrize("model", PRIMARY_CANONICAL_MODELS, ids=_ids(PRIMARY_CANONICAL_MODELS))
@@ -170,3 +170,194 @@ def test_an_inherited_validator_that_reads_a_removed_field_still_works() -> None
         canonical_creative.Creative.model_validate(
             {k: v for k, v in row.items() if k != "format_kind"}
         )
+
+
+def _canonical_branch_pairs() -> list[tuple[type[BaseModel], type[BaseModel]]]:
+    """Every canonical class paired with the generated BRANCH it refines.
+
+    Derived from the MRO rather than listed: a canonical class refines a
+    generated branch when a generated class sits in its bases and that class is
+    itself a subclass of a generated split root's base. A schema refresh that
+    splits a fourteenth root is covered without editing this.
+
+    The branch set comes from ``_branch_models`` -- the method the dispatch hook
+    itself consults -- not from the ``<Root>Branches`` alias. Reading the alias
+    covered only roots that export one, which excluded the five public response
+    bases: their branches are the numbered classes the generator writes, and
+    those are exported individually rather than behind a union alias. Nothing
+    canonical refines one today, so the gap was in the derivation rather than in
+    the coverage, and a derivation with a hole in it is the kind that goes stale
+    without a failure.
+    """
+    import adcp.types._generated as generated
+
+    branches: set[type[BaseModel]] = set()
+    for name in dir(generated):
+        candidate = getattr(generated, name)
+        if (
+            isinstance(candidate, type)
+            and issubclass(candidate, BaseModel)
+            and "_branch_models" in candidate.__dict__
+        ):
+            branches.update(candidate._branch_models())
+
+    pairs: list[tuple[type[BaseModel], type[BaseModel]]] = []
+    for name in dir(canonical_creative):
+        candidate = getattr(canonical_creative, name)
+        if not isinstance(candidate, type) or not issubclass(candidate, BaseModel):
+            continue
+        refined = [base for base in candidate.__mro__[1:] if base in branches]
+        if refined:
+            pairs.append((candidate, refined[0]))
+    return pairs
+
+
+def test_the_canonical_branch_population_is_not_empty() -> None:
+    """A derivation that selects nothing passes for free."""
+    pairs = _canonical_branch_pairs()
+    assert len(pairs) >= 3, f"only {len(pairs)} canonical classes refine a generated branch"
+
+
+@pytest.mark.parametrize(
+    "canonical,generated",
+    _canonical_branch_pairs(),
+    ids=lambda model: getattr(model, "__name__", str(model)),
+)
+def test_a_canonical_branch_keeps_its_generated_branchs_requiredness(
+    canonical: type[BaseModel], generated: type[BaseModel]
+) -> None:
+    """Requiredness is the branch's own, field by field.
+
+    A canonical class refines the TYPE of a field; it must not change whether
+    the field is required. Requiredness is what distinguishes one branch from
+    another, so relaxing it here reinstates the flattening that branch classes
+    exist to remove -- a document satisfying no branch would be accepted at the
+    canonical surface, which is the one a consumer touches.
+
+    The mechanism that keeps this true is base ORDER, and it is a two-token
+    edit away from being wrong, which is why this is asserted rather than
+    documented.
+    """
+    divergent = [
+        name
+        for name, field in generated.model_fields.items()
+        if name in canonical.model_fields
+        and canonical.model_fields[name].is_required() != field.is_required()
+    ]
+    assert not divergent, (
+        f"{canonical.__name__} diverges from {generated.__name__} on the requiredness of "
+        f"{divergent}. The usual cause is base ORDER: the generated branch must be listed "
+        f"FIRST and CanonicalBoundaryModel LAST, so the branch's requiredness wins by MRO "
+        f"position and model_config still resolves from the canonical side. With the "
+        f"boundary first, every field the branch does not re-declare reverts to optional."
+    )
+
+
+@pytest.mark.parametrize(
+    "canonical,generated",
+    _canonical_branch_pairs(),
+    ids=lambda model: getattr(model, "__name__", str(model)),
+)
+def test_a_canonical_branch_declares_every_field_its_generated_branch_declares(
+    canonical: type[BaseModel], generated: type[BaseModel]
+) -> None:
+    """No field is lost on the way to the canonical surface, except by the rule.
+
+    ``CanonicalBoundaryModel`` removes legacy creative identity from a canonical
+    model's DECLARED fields, which is the layer's purpose. That exception is
+    read from the same predicate the production strip uses, so the test cannot
+    drift from the rule it is excepting -- a hand-listed field name would admit
+    a second removal nobody decided on.
+    """
+    from adcp.types.canonical_creative import is_legacy_creative_identity_key
+
+    missing = sorted(
+        name
+        for name in set(generated.model_fields) - set(canonical.model_fields)
+        if not is_legacy_creative_identity_key(name)
+    )
+    assert not missing, f"{canonical.__name__} drops {missing} declared by {generated.__name__}"
+
+
+def _where_base_order_is_expressible(
+    canonical: type[BaseModel], generated: type[BaseModel], boundary: type[BaseModel]
+) -> set[str]:
+    """Fields on which reordering the bases would change requiredness.
+
+    Three conditions, and the third took two corrections to state: the generated
+    branch REQUIRES the field, the canonical class does not re-declare it in its
+    own body, and the boundary-side base CARRIES that field with a different
+    requiredness.
+
+    Both looser versions demanded failures that cannot happen. Dropping the
+    third condition entirely named fields required on both sides, which order
+    cannot change. Phrasing it as "the boundary does not also require it" named
+    fields the boundary does not carry at all -- pydantic takes a field only
+    from a class that declares it, so a base contributing nothing for a name
+    cannot affect it whatever the order.
+
+    Where this set is empty the defect cannot appear, and a probe aimed there
+    passes while proving nothing -- which is what happened the first time this
+    was probed by hand, on the one branch that re-declares every field it
+    requires.
+    """
+    own = set(getattr(canonical, "__annotations__", {}))
+    return {
+        name
+        for name, field in generated.model_fields.items()
+        if field.is_required()
+        and name not in own
+        and name in boundary.model_fields
+        and not boundary.model_fields[name].is_required()
+    }
+
+
+def test_the_requiredness_test_fails_wherever_the_defect_can_appear() -> None:
+    """A probe over the POPULATION, so it cannot be aimed at a blind spot.
+
+    For each canonical branch where base order is expressible, rebuild the class
+    with the boundary base FIRST -- carrying its own body across, so order is the
+    only difference -- and require that the requiredness comparison fails. A
+    probe that changed the body as well would report flattening from the wrong
+    cause.
+    """
+    pairs = _canonical_branch_pairs()
+    assert pairs, "the derivation selected nothing"
+
+    probed = 0
+    for canonical, generated in pairs:
+        # The DECLARED bases, swapped -- not "the first non-generated class in the
+        # MRO", which picked a sibling canonical model and produced an
+        # inconsistent MRO rather than a measurement.
+        others = [base for base in canonical.__bases__ if base is not generated]
+        if len(others) != 1:
+            continue
+        boundary = others[0]
+        expressible = _where_base_order_is_expressible(canonical, generated, boundary)
+        if not expressible:
+            continue
+        namespace: dict[str, object] = {
+            "__annotations__": dict(getattr(canonical, "__annotations__", {}))
+        }
+        for name in namespace["__annotations__"]:  # type: ignore[attr-defined]
+            field = canonical.model_fields.get(name)
+            if field is not None and not field.is_required():
+                namespace[name] = field.default
+        reordered = type(f"Reordered{canonical.__name__}", (boundary, generated), namespace)
+        diverged = [
+            name
+            for name, field in generated.model_fields.items()
+            if name in reordered.model_fields
+            and reordered.model_fields[name].is_required() != field.is_required()
+        ]
+        assert diverged, (
+            f"reordering {canonical.__name__}'s bases changed nothing, yet the defect is "
+            f"expressible on {sorted(expressible)}. Either the probe no longer changes "
+            f"what it thinks it changes, or requiredness no longer comes from MRO position."
+        )
+        probed += 1
+
+    assert probed, (
+        "no canonical branch can express the base-order defect, so "
+        "test_a_canonical_branch_keeps_its_generated_branchs_requiredness grades nothing"
+    )

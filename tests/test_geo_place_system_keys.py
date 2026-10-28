@@ -232,7 +232,9 @@ def test_overlay_product_and_discovery_parents(system: str, field: str, from_jso
         (Product, product, ["overlay_support", field, "systems"]),
         (
             GetProductsResponse,
-            {"products": [product]},
+            # media-buy/get-products-response.json's root states which field group
+            # a successful lookup carries: products alone is not one of them.
+            {"status": "completed", "cache_scope": "public", "products": [product]},
             ["products", 0, "overlay_support", field, "systems"],
         ),
         (

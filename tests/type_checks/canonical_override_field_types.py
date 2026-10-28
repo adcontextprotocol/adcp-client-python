@@ -44,8 +44,12 @@ def placement_format_options(placement: Placement) -> list[str]:
 
 
 def product_format_options(product: Product) -> list[str]:
-    assert_type(product.format_options, list[Format])
-    return [str(option.format_kind) for option in product.format_options]
+    # Optional, like ``placement.format_options`` above: core/product.json
+    # requires format_options in no branch unconditionally, so the public model
+    # stopped requiring it (salesagent-8qela.69). The old assertion encoded the
+    # over-requirement, not the pin.
+    assert_type(product.format_options, list[Format] | None)
+    return [str(option.format_kind) for option in product.format_options or []]
 
 
 def product_placements(product: Product) -> list[str]:

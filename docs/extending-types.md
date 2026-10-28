@@ -13,15 +13,17 @@ This guide shows how to extend ADCP types safely while maintaining protocol comp
 > overrides to walk children — Pydantic does the walking; this guide covers the two seams
 > (`Field(exclude=True)` and `@model_serializer`) that hook into it.
 
-## Object Unions Are Type Aliases
+## A Nested Object Union Is a Type Alias
 
-Object unions such as `AccountReference`, `PostalArea`, `SignalRef`, and
-`PricingOption` are public union aliases, not Pydantic `RootModel` classes.
-This keeps their object arms composable and subclassable when an adopter needs
+A union NESTED inside another schema — `AccountReference`, `PostalArea`,
+`SignalRef`, `PricingOption` and the rest — is a public union alias, not a
+Pydantic `RootModel` class. (A schema ROOT whose branches partition is a class;
+see *A Split Root Is a Class* below.)
+This keeps their object branches composable and subclassable when an adopter needs
 a stricter `model_config` or internal excluded fields, without imposing another
-public wrapper around the constituent schema arms.
+public wrapper around the constituent schema branches.
 
-Construct a known arm directly. For example:
+Construct a known branch directly. For example:
 
 ```python
 from adcp.types import AccountReferenceById
@@ -29,7 +31,7 @@ from adcp.types import AccountReferenceById
 account = AccountReferenceById(account_id="acct-1")
 ```
 
-For untrusted data where the arm is not known in advance, use Pydantic's
+For untrusted data where the branch is not known in advance, use Pydantic's
 `TypeAdapter`:
 
 ```python
@@ -43,7 +45,90 @@ Code written against the former wrappers should replace
 `AccountReference.model_validate(raw)` (and the corresponding calls on
 `PostalArea` or `SignalRef`) with `TypeAdapter(...).validate_python(raw)`.
 The validated wire shapes are unchanged; only the unnecessary outer public
-wrapper is removed, and validation returns the selected schema arm directly.
+wrapper is removed, and validation returns the selected schema branch directly.
+
+## A Split Root Is a Class, and Its Branches Subclass It
+
+The section above is about a union *nested inside* another schema. A schema
+**root** whose branches partition by requiredness is the other case, and its
+public name is a class — so the guidance inverts.
+
+Thirteen roots are in that population, among them `CreateMediaBuyRequest`,
+`CreativeAsset`, `CreativeManifest`, `WebhookChallengeResponse`,
+`RequestProposalsRequest` and `ListAccountChangesResponse`. For each, the public
+name is a base carrying the fields every branch shares, and one subclass per
+branch carries that branch's own requiredness:
+
+```python
+from adcp.types import CreateMediaBuyRequest, CreateMediaBuyRequestBranches
+
+# The public name validates, and returns the branch the document satisfies.
+request = CreateMediaBuyRequest.model_validate(raw_request)
+type(request)  # CreateMediaBuyRequestCommittedProposalExecution
+
+# It is also a real base, so this holds for every branch:
+isinstance(request, CreateMediaBuyRequest)  # True
+```
+
+Three consequences for an adopter.
+
+**Validate through the public name.** `model_validate`, a field annotated with
+it, and `TypeAdapter` all return the matching branch — the base carries the
+branches' core schema, so every path agrees. A document satisfying no branch is
+refused, and the refusal names the root's JSON Schema keyword with the branch
+titles:
+
+```
+requires at least one of these field groups: Explicit packages with fixed
+allocation | Explicit packages with seller-optimized allocation | Committed
+proposal execution
+```
+
+**Construct a branch, not the base.** Constructing the base validates against
+the branches, so `CreateMediaBuyRequest()` with no arguments raises — an empty
+media buy satisfies none of the three ways to be one. Construct the branch class
+whose shape you mean, and you get the stricter type for free: the branch
+declares its required fields as required, and types each field it forbids as
+`None`, so passing one is a type error rather than a runtime refusal. Once you
+hold a branch you no longer need `getattr`, `hasattr` or `is not None` guards for
+the fields that branch requires.
+
+**Subclass the base, or subclass one branch — but know which you want.**
+
+```python
+from adcp.types import CreateMediaBuyRequestCommittedProposalExecution
+
+class InternalProposalExecution(CreateMediaBuyRequestCommittedProposalExecution):
+    """One branch, plus internal tracking."""
+
+    workflow_id: str | None = Field(default=None, exclude=True)
+```
+
+Subclassing a BRANCH gives a stricter type and keeps that branch's
+requiredness. Subclassing the BASE gives a type every branch's document can
+validate into, and your subclass keeps its own shape rather than the union's —
+the dispatch belongs to the class that declares its branches, so a refinement
+declared elsewhere is not swept into it.
+
+`<Root>Branches` is exported from `adcp.types` beside each public base that has
+one — five today: `CreateMediaBuyRequestBranches`,
+`ListAccountChangesResponseBranches`, `RequestProposalsRequestBranches`,
+`VerifyBrandClaimRequestBranches` and `WebhookChallengeResponseBranches`.
+Annotate a variable with it to make a type checker force exhaustive narrowing.
+A union is exported only where the public name is a base over exactly those
+branches, which is why the other eight roots have no alias: `adcp.types` never
+exported those roots either, and `adcp.types.CreativeAsset` is the canonical
+model refining ONE branch, so pairing a union with that name would promise a
+supertype it is not.
+
+Each declaring module also builds a `<Root>BranchesAdapter`, the `TypeAdapter`
+over its union, once at import. Import it from the module rather than from
+`adcp.types`, which does not re-export it.
+
+The design, the proof that decides which roots are in this population, and what
+it does not reach are in
+[design/type-generation.md](design/type-generation.md#branches-that-partition-become-types-rules-that-do-not-partition-stay-checks).
+This document does not repeat that reasoning.
 
 ## Scalar Schemas Are Plain Scalars
 
@@ -105,7 +190,7 @@ assert issubclass(GetProductsResponse, ProtocolEnvelope)
 every root `allOf` `$ref` in the schema bundle and fails if the generated class
 does not descend from the referenced schema's class. Two shapes are refused
 rather than graded, because inheritance cannot express them — a referenced
-schema that renders as a union of arms (`AssetVariant`,
+schema that renders as a union of branches (`AssetVariant`,
 `ProductFormatDeclaration`), and one that renders as a value wrapper rather
 than an object, which is what a pure `if`/`then` constraint schema produces.
 Those compose as copied fields, and `TypeAdapter` is the way to validate them.
@@ -255,11 +340,11 @@ exact and subclassed `TargetingOverlay` instances at runtime, preserving their
 object identity. These request classes are public; the nested control and
 purchase container classes are internal. Their compatibility union tries
 `TargetingOverlayInput` first with left-to-right validation, so raw dictionaries
-still become mutation-input objects. The legacy arm is runtime-only: generated
+still become mutation-input objects. The legacy branch is runtime-only: generated
 JSON Schema and MCP tool discovery still advertise only the mutation input and
 null. Invalid targeting produces the input schema's errors with request-document
 field paths, including direct Pydantic `ValidationError.errors()`. Python-mode
-validation removes the bridge's synthetic union arm names and duplicate legacy
+validation removes the bridge's synthetic union branch names and duplicate legacy
 errors at the targeting field boundary. Direct `model_validate_json()` uses the
 Input schema's native JSON validation, preserving its error types and order
 even when a canonical parent first materializes the request as Python objects.

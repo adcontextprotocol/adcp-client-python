@@ -258,7 +258,6 @@ def _assert_transition(
                 f"Unknown {resource_kind} state {from_state!r}; "
                 f"expected one of {sorted(graph.keys())}."
             ),
-            recovery="correctable",
             field="status",
             details=_details(id_field, resource_id, from_state, to_state),
         )
@@ -271,7 +270,6 @@ def _assert_transition(
                 f"{resource_kind.capitalize()} is in terminal state "
                 f"{from_state!r}; transition to {to_state!r} is not permitted."
             ),
-            recovery="correctable",
             field="status",
             details=_details(id_field, resource_id, from_state, to_state),
         )
@@ -283,7 +281,6 @@ def _assert_transition(
                 f"Illegal {resource_kind} transition {from_state!r} → "
                 f"{to_state!r}; legal next states: {sorted(legal)}."
             ),
-            recovery="correctable",
             field="status",
             details=_details(id_field, resource_id, from_state, to_state),
         )

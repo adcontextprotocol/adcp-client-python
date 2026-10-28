@@ -726,7 +726,12 @@ async def test_platform_property_filter_boot_and_wire_call(
 
         def get_products(self, req, ctx):
             assert req.property_list.list_id == "approved"
-            payload = {"products": [], "property_list_applied": True, "seller_extra": "retained"}
+            payload = {
+                "products": [],
+                "property_list_applied": True,
+                "seller_extra": "retained",
+                "cache_scope": "public",
+            }
             return (
                 GetProductsResponse.model_validate(payload)
                 if response_shape == "model"

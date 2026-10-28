@@ -81,11 +81,20 @@ class RefineResult:
     :param per_refine_outcome: Exactly ``len(request.refine)`` entries,
         in the same order.  Mismatched length is a developer-facing error
         (raised by the framework before the response is built).
+    :param cache_scope: Which cache layer this response's product set
+        describes -- ``'public'`` for the seller's published rates,
+        ``'account'`` for an account-specific overlay. Required on every 3.1+
+        ``get_products`` response by the root conditional's standard branch,
+        and the two-layer cache model's safety property depends on it, so the
+        framework cannot omit it. Defaulted to ``'public'`` because a refine
+        that carries no account-specific versions describes the published
+        layer; an adopter serving an overlay says so here.
     """
 
     products: list[Any]
     proposals: list[Any] | None
     per_refine_outcome: list[RefinementOutcome] = field(default_factory=list)
+    cache_scope: Literal["public", "account"] = "public"
 
 
 def assert_buying_mode_consistent(req: GetProductsRequest) -> None:
@@ -232,6 +241,7 @@ def project_refine_response(
         (developer-facing — adopter contract violation).
     """
     from adcp.types import GetProductsResponse
+    from adcp.types.domains.media_buy.get_products_response import CacheScope
 
     refinement_applied = build_refinement_applied(refines, result.per_refine_outcome)
 
@@ -239,6 +249,7 @@ def project_refine_response(
         products=list(result.products),
         proposals=list(result.proposals) if result.proposals is not None else None,
         refinement_applied=refinement_applied,
+        cache_scope=CacheScope(result.cache_scope),
     )
 
 

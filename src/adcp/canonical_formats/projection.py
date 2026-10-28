@@ -18,7 +18,11 @@ from urllib.parse import urlsplit
 from pydantic import ValidationError
 
 from adcp.canonical_formats.fixtures import load_v1_reference_catalog
-from adcp.canonical_formats.identity import canonicalize_agent_url, coerce_format_id
+from adcp.canonical_formats.identity import (
+    canonicalize_agent_url,
+    coerce_format_id,
+    declared_v1_format_refs,
+)
 from adcp.types import Format, Product
 from adcp.types.legacy import (
     FormatReferenceStructuredObject,
@@ -783,8 +787,9 @@ def resolve_legacy_format_refs(
     provide a durable resolver backed by adopter storage or catalog snapshots.
     """
 
-    if declaration.legacy_format_refs:
-        return list(declaration.legacy_format_refs)
+    declared = declared_v1_format_refs(declaration)
+    if declared:
+        return list(declared)
     if resolver is None:
         raise CanonicalFormatLegacyResolutionError(
             "canonical creative crossed a process boundary without a durable "
@@ -832,7 +837,7 @@ def project_canonical_response_to_legacy(
                 sort_keys=True,
                 separators=(",", ":"),
             )
-            for ref in declaration.legacy_format_refs
+            for ref in declared_v1_format_refs(declaration)
         )
         return canonical, legacy
 

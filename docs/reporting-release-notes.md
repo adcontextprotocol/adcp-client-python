@@ -161,7 +161,7 @@ reauthorization and per-session destination authorization.
 ## Current and historical protocol versions
 
 Live reporting mounts and callers use AdCP `3.2`, whose bundle spelling is
-`3.2.1`. Omit an explicit pin to use the packaged default, or configure the
+`3.2.3`. Omit an explicit pin to use the packaged default, or configure the
 current supported reporting version consistently across the composition and
 its mounts. Cross-cohort reporting requests are rejected even when optional
 request validation is disabled.

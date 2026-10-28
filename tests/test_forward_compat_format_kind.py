@@ -59,12 +59,24 @@ from adcp.types.domains.creative.get_creative_delivery_response import (
 FUTURE_FORMAT_KIND = "future_canonical_format"
 
 
+def _coordinated(format_kind: str) -> dict[str, object]:
+    """``component_assets`` exactly when the kind is ``coordinated_placements``.
+
+    ``creative-asset.json`` and ``creative-manifest.json`` both state it as one
+    conditional: if the kind is ``coordinated_placements`` the manifest carries
+    ``component_assets``, and otherwise it MUST NOT. So a factory parametrized
+    over every kind has to follow the kind rather than pick one side.
+    """
+    return {"component_assets": {}} if format_kind == "coordinated_placements" else {}
+
+
 def _creative_asset(format_kind: str) -> CreativeAsset:
     return CreativeAsset(
         creative_id="creative-1",
         name="Creative",
         format_kind=format_kind,
         assets={},
+        **_coordinated(format_kind),
     )
 
 
@@ -89,7 +101,7 @@ def _delivery_creative(format_kind: str) -> DeliveryCreative:
 
 
 def _creative_manifest(format_kind: str) -> CreativeManifest:
-    return CreativeManifest(format_kind=format_kind, assets={})
+    return CreativeManifest(format_kind=format_kind, assets={}, **_coordinated(format_kind))
 
 
 #: Every model that carries a ``format_kind``, in both directions. There is no
@@ -212,21 +224,18 @@ def test_manifest_format_kind_keeps_its_optional_default() -> None:
     with pytest.raises(ValidationError):
         CreativeManifest(assets={})
 
-    # A ``None`` keyword argument for an optional field is "not supplied" (SDK
-    # 10, #1615), so it does not satisfy the document rule either: the
-    # construction is refused instead of producing a manifest whose dump would
-    # have omitted ``format_kind`` and been schema-invalid.
+    # An explicit ``None`` does NOT satisfy the document rule. It used to, while
+    # the compiled check read membership alone, and that was wrong in two ways
+    # the bundled schema states plainly: ``format_kind`` is an enum of strings,
+    # so ``null`` is not a value it takes, and the client drops a null-valued key
+    # on the way out -- so the document SENT carries neither arm's field. The
+    # group is keyed on the field being present on what is sent.
     with pytest.raises(ValidationError):
         CreativeManifest(assets={}, format_kind=None)
 
-    # A dict document carrying the key with ``None`` is present to the rule -- the
-    # group is keyed on the field being present -- and reads back as ``None``. It
-    # is left off the dump even under ``exclude_none=False``: ``format_kind``
-    # admits no ``null`` on the wire (``NoExplicitNull``, #1587).
-    explicit = CreativeManifest.model_validate({"assets": {}, "format_kind": None})
-    assert explicit.format_kind is None
-    assert "format_kind" in explicit.model_fields_set
-    assert "format_kind" not in explicit.model_dump(exclude_unset=True, exclude_none=False)
+    # Naming the arm is what satisfies it.
+    named = CreativeManifest(assets={}, format_kind="image")
+    assert named.format_kind == "image"
 
 
 @pytest.mark.parametrize("json_input", [False, True], ids=["python", "json"])

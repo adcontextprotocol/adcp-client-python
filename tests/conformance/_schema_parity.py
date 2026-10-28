@@ -601,11 +601,11 @@ DECLARED: dict[str, Callable[[Divergence], bool]] = {
         and not isinstance(d.mutation, bool)
         and d.mutation in (0, 1)
     ),
-    # The model renders a ``oneOf``/``anyOf`` as a plain union whose arms
-    # allow extra properties, so a value that fits no arm's declared type is
-    # kept as an extra field on whichever arm validates. The schema evaluates
+    # The model renders a ``oneOf``/``anyOf`` as a plain union whose branches
+    # allow extra properties, so a value that fits no branch's declared type is
+    # kept as an extra field on whichever branch validates. The schema evaluates
     # the composition and refuses.
-    "union_arm_absorbs_a_type_error": lambda d: (
+    "union_branch_absorbs_a_type_error": lambda d: (
         d.direction == MODEL_ACCEPTS and d.keyword in ("oneOf", "anyOf")
     ),
     # ``CanonicalBoundaryModel`` refuses any payload carrying a legacy

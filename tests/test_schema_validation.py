@@ -56,9 +56,18 @@ class TestValidateRequest:
         assert outcome.valid is True
 
     def test_pydantic_model_still_runs_canonical_cross_field_validation(self) -> None:
-        structurally_valid = GetSignalsRequest()
+        """``validate_request`` grades the document, not the model's word for it.
 
-        outcome = validate_request("get_signals", structurally_valid)
+        ``get-signals-request.json`` requires a selector outside wholesale mode,
+        and the empty request satisfies none. The generated model now refuses it
+        too -- that conditional used to be dropped -- so the document reaches
+        this function only through ``model_construct``, which is what the
+        function exists to be given: a model whose own validation was skipped
+        or whose schema the SDK has not yet caught up with.
+        """
+        unvalidated = GetSignalsRequest.model_construct()
+
+        outcome = validate_request("get_signals", unvalidated)
 
         assert outcome.valid is False
         assert any(issue.keyword == "anyOf" for issue in outcome.issues)
@@ -225,7 +234,13 @@ class TestErrorBuilders:
         payload = build_adcp_validation_error_payload("create_media_buy", "response", issues)
         assert payload["code"] == "VALIDATION_ERROR"
         assert "/media_buy_id" in payload["message"]
-        assert payload["field"] == "/media_buy_id"
+        # core/error.json: `field` is JSONPath-lite, and when issues[] is
+        # present sellers MUST set it to issues[0].pointer TRANSLATED. This
+        # assertion read "/media_buy_id" and so pinned the untranslated
+        # pointer — the defect itself (salesagent-8qela.18). The pointer keeps
+        # its RFC 6901 spelling one line below: the two formats side by side
+        # are the dual-write the spec asks for.
+        assert payload["field"] == "media_buy_id"
         assert payload["details"]["tool"] == "create_media_buy"
         assert payload["details"]["side"] == "response"
         assert payload["details"]["issues"][0]["pointer"] == "/media_buy_id"

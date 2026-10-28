@@ -11,7 +11,7 @@ from importlib.resources import files
 import pytest
 from jsonschema import FormatChecker
 from jsonschema.validators import validator_for
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from adcp._version import resolve_adcp_version
 from adcp.types import GetAdcpCapabilitiesResponse, SyncAccountsAccount, SyncAccountsResponse
@@ -257,7 +257,14 @@ def test_anonymous_discovery_rejects_conflicting_account_requirement(
         "supported_billing": ["operator"],
         "required_for_products": account_required,
     }
-    assert named(relative).is_valid(response) is not (anonymous and account_required)
+    conflict = anonymous and account_required
+    assert named(relative).is_valid(response) is not conflict
+    if conflict:
+        # The schema states the conflict in its root allOf, so the derived root
+        # constraint refuses it too: the model and the bundle agree per document.
+        with pytest.raises(ValidationError):
+            GetAdcpCapabilitiesResponse.model_validate(response)
+        return
     model = GetAdcpCapabilitiesResponse.model_validate(response)
     assert model.media_buy.anonymous_discovery is anonymous
     assert model.signals.anonymous_discovery is anonymous

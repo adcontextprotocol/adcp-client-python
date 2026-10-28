@@ -136,9 +136,7 @@ class MCPPropertyListFetcher:
         agent_url, list_id = str(field(ref, "agent_url")), field(ref, "list_id")
         auth_token = field(ref, "auth_token")
         if not isinstance(list_id, str) or not list_id:
-            raise AdcpError(
-                "INVALID_REQUEST", message="Property list_id is required", recovery="correctable"
-            )
+            raise AdcpError("INVALID_REQUEST", message="Property list_id is required")
         try:
             validate_webhook_destination_url(
                 agent_url,
@@ -149,7 +147,6 @@ class MCPPropertyListFetcher:
             raise AdcpError(
                 "INVALID_REQUEST",
                 message="Property list destination is invalid",
-                recovery="correctable",
             ) from None
         token_digest = hashlib.sha256((auth_token or "").encode()).hexdigest()
         key = (agent_url, list_id, token_digest)
@@ -230,7 +227,6 @@ class MCPPropertyListFetcher:
             raise AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message="Property list resolution failed",
-                recovery="transient",
             ) from None
         expiry = min(expiries) if all_cacheable and expiries else None
         resolved = ResolvedPropertyList(tuple(identifiers), expiry, page_number)

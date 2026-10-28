@@ -1,4 +1,4 @@
-"""A ``Legacy*`` name is the generated class, and there is one per response arm.
+"""A ``Legacy*`` name is the generated class, and there is one per response branch.
 
 Two defects, one cause: the ``Legacy*`` set was curated by hand, so what it
 named drifted from what the generator emits.
@@ -13,16 +13,16 @@ declare and was refused by the public name for it. A public name more permissive
 
 #1399 — ``LegacyUpdateMediaBuy{Success,Error}Response`` shipped while
 ``LegacyUpdateMediaBuySubmittedResponse`` and all three
-``LegacyCreateMediaBuy*Response`` arms did not, so four response arms could only
+``LegacyCreateMediaBuy*Response`` branches did not, so four response branches could only
 be named through ``adcp.types.domains.media_buy.*_response`` — the private tree
 this release exists to retire. Adding four names would have fixed four
 instances: the generator had ALREADY opened a fifth, by adding a fourth
-``preview_creative`` arm that nobody named.
+``preview_creative`` branch that nobody named.
 
 So neither test reads a list. Both derive what the surface must carry from the
 generated tree:
 
-* the arms of a response union come from ``typing.get_args`` of the union the
+* the branches of a response union come from ``typing.get_args`` of the union the
   generated module itself declares — not from a name pattern, and not from
   ``__module__`` (which names the canonical spec even for a duplicate, and so
   cannot tell a copy from the original);
@@ -64,16 +64,16 @@ def _camel(stem: str) -> str:
     return "".join(part.title() for part in stem.split("_"))
 
 
-def _response_arms() -> list[tuple[str, str, type[BaseModel]]]:
-    """Every arm of every response union whose tool is on the ``Legacy*`` surface.
+def _response_branches() -> list[tuple[str, str, type[BaseModel]]]:
+    """Every branch of every response union whose tool is on the ``Legacy*`` surface.
 
-    ``(tool, arm name, arm class)``. The arms come from the generated module's
-    own ``<Tool>Response`` union, so a schema that gains or loses an arm changes
+    ``(tool, branch name, branch class)``. The branches come from the generated module's
+    own ``<Tool>Response`` union, so a schema that gains or loses an branch changes
     this list with no edit here. A response that is one class rather than a
-    union contributes that class as its only arm.
+    union contributes that class as its only branch.
     """
 
-    arms: list[tuple[str, str, type[BaseModel]]] = []
+    branches: list[tuple[str, str, type[BaseModel]]] = []
     for path in sorted(_DOMAINS_DIR.rglob("*_response.py")):
         relative = path.relative_to(_DOMAINS_DIR)
         if relative.parts[0] == "bundled":
@@ -92,12 +92,12 @@ def _response_arms() -> list[tuple[str, str, type[BaseModel]]]:
         members = typing.get_args(union) or (union,)
         for member in members:
             if isinstance(member, type) and issubclass(member, BaseModel):
-                arms.append((tool, member.__name__, member))
-    return arms
+                branches.append((tool, member.__name__, member))
+    return branches
 
 
-ARMS = _response_arms()
-ARM_IDS = [f"{tool}:{name}" for tool, name, _ in ARMS]
+BRANCHES = _response_branches()
+BRANCH_IDS = [f"{tool}:{name}" for tool, name, _ in BRANCHES]
 
 
 def test_the_derived_sets_are_not_empty() -> None:
@@ -108,13 +108,13 @@ def test_the_derived_sets_are_not_empty() -> None:
     """
     assert len(LEGACY_NAMES) > 40, LEGACY_NAMES
     assert len(LEGACY_CLASSES) > 35, LEGACY_CLASSES
-    assert len(ARMS) > 12, ARM_IDS
-    assert {tool for tool, _, _ in ARMS} >= {
+    assert len(BRANCHES) > 12, BRANCH_IDS
+    assert {tool for tool, _, _ in BRANCHES} >= {
         "BuildCreative",
         "CreateMediaBuy",
         "PreviewCreative",
         "UpdateMediaBuy",
-    }, sorted({tool for tool, _, _ in ARMS})
+    }, sorted({tool for tool, _, _ in BRANCHES})
 
 
 # ---------------------------------------------------------------------------
@@ -207,29 +207,29 @@ def test_the_format_reference_accepts_what_the_sdk_s_own_model_fields_accept() -
 
 
 # ---------------------------------------------------------------------------
-# #1399 — one Legacy name per arm, derived from the generated unions
+# #1399 — one Legacy name per branch, derived from the generated unions
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("tool", "arm_name", "arm"), ARMS, ids=ARM_IDS)
-def test_every_arm_of_a_response_on_the_legacy_surface_is_publicly_nameable(
-    tool: str, arm_name: str, arm: type[BaseModel]
+@pytest.mark.parametrize(("tool", "branch_name", "branch"), BRANCHES, ids=BRANCH_IDS)
+def test_every_branch_of_a_response_on_the_legacy_surface_is_publicly_nameable(
+    tool: str, branch_name: str, branch: type[BaseModel]
 ) -> None:
-    """The generated arm itself, not only the canonical subclass that shadows it.
+    """The generated branch itself, not only the canonical subclass that shadows it.
 
     A seller reading a response off the wire holds an instance of the GENERATED
-    arm. ``adcp.types.CreateMediaBuySuccessResponse`` is the canonical subclass,
+    branch. ``adcp.types.CreateMediaBuySuccessResponse`` is the canonical subclass,
     so an ``isinstance`` against it is False for that instance and the only
     public spelling for the thing in hand was a ``domains`` path. The
-    ``Legacy*`` name is how the flat surface reaches it, and every arm of a
+    ``Legacy*`` name is how the flat surface reaches it, and every branch of a
     response whose tool is on that surface needs one.
     """
-    direct = [name for name in PLAIN_NAMES if getattr(types, name, None) is arm]
-    through_legacy = [name for name in LEGACY_NAMES if getattr(types, name, None) is arm]
+    direct = [name for name in PLAIN_NAMES if getattr(types, name, None) is branch]
+    through_legacy = [name for name in LEGACY_NAMES if getattr(types, name, None) is branch]
 
     assert direct or through_legacy, (
-        f"{arm.__module__}.{arm_name} is an arm of {tool}Response and no public "
+        f"{branch.__module__}.{branch_name} is a branch of {tool}Response and no public "
         f"name on adcp.types resolves to it, so it can only be named through "
         f"adcp.types.domains — which is the tree 9.0 retires. Add "
-        f"Legacy{tool}<Arm>Response in src/adcp/types/legacy.py (#1399)"
+        f"Legacy{tool}<Branch>Response in src/adcp/types/legacy.py (#1399)"
     )

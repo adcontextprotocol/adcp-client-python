@@ -4,7 +4,9 @@
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"signal_spec": "sports fans"},
+    "payload": {
+      "signal_spec": "sports fans"
+    },
     "canonical_valid": true,
     "pydantic_valid": true
   },
@@ -13,7 +15,9 @@
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"discovery_mode": "wholesale"},
+    "payload": {
+      "discovery_mode": "wholesale"
+    },
     "canonical_valid": true,
     "pydantic_valid": true
   },
@@ -24,16 +28,19 @@
     "model": "GetSignalsRequest",
     "payload": {},
     "canonical_valid": false,
-    "pydantic_valid": true
+    "pydantic_valid": false
   },
   {
     "id": "get_signals.wholesale_forbids_selector",
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"discovery_mode": "wholesale", "signal_spec": "sports fans"},
+    "payload": {
+      "discovery_mode": "wholesale",
+      "signal_spec": "sports fans"
+    },
     "canonical_valid": false,
-    "pydantic_valid": true
+    "pydantic_valid": false
   },
   {
     "id": "get_signals.pricing_requires_feed_version",
@@ -45,14 +52,16 @@
       "if_pricing_version": "pricing-v1"
     },
     "canonical_valid": false,
-    "pydantic_valid": true
+    "pydantic_valid": false
   },
   {
     "id": "get_signals.signal_refs_min_items",
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"signal_refs": []},
+    "payload": {
+      "signal_refs": []
+    },
     "canonical_valid": false,
     "pydantic_valid": false
   },
@@ -61,7 +70,12 @@
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"signal_spec": "sports fans", "countries": ["usa"]},
+    "payload": {
+      "signal_spec": "sports fans",
+      "countries": [
+        "usa"
+      ]
+    },
     "canonical_valid": false,
     "pydantic_valid": false
   },
@@ -70,7 +84,274 @@
     "tool": "get_signals",
     "direction": "request",
     "model": "GetSignalsRequest",
-    "payload": {"signal_spec": "sports fans", "max_results": 0},
+    "payload": {
+      "signal_spec": "sports fans",
+      "max_results": 0
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.packages_without_package_budget",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed"
+        }
+      ],
+      "budget_allocation": {
+        "mode": "fixed"
+      }
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.packages_with_min_spend_target",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed",
+          "budget": 1000,
+          "min_spend_target": 500
+        }
+      ],
+      "budget_allocation": {
+        "mode": "fixed"
+      }
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.packages_with_proposal_id",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed",
+          "budget": 1000
+        }
+      ],
+      "budget_allocation": {
+        "mode": "fixed"
+      },
+      "proposal_id": "prop_1",
+      "total_budget": {
+        "amount": 1000,
+        "currency": "USD"
+      }
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.proposal_with_budget_allocation",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "proposal_id": "prop_1",
+      "total_budget": {
+        "amount": 1000,
+        "currency": "USD"
+      },
+      "budget_allocation": {
+        "mode": "fixed"
+      }
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.seller_optimized_without_total_budget",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed",
+          "budget": 1000
+        }
+      ],
+      "budget_allocation": {
+        "mode": "seller_optimized",
+        "optimization_goals": [
+          {
+            "kind": "metric",
+            "metric": "clicks"
+          }
+        ]
+      }
+    },
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "create_media_buy.valid_fixed_allocation",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed",
+          "budget": 1000
+        }
+      ],
+      "budget_allocation": {
+        "mode": "fixed"
+      }
+    },
+    "canonical_valid": true,
+    "pydantic_valid": true
+  },
+  {
+    "id": "create_media_buy.valid_seller_optimized",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "packages": [
+        {
+          "product_id": "prod_1",
+          "pricing_option_id": "cpm_usd_fixed"
+        }
+      ],
+      "total_budget": {
+        "amount": 1000,
+        "currency": "USD"
+      },
+      "budget_allocation": {
+        "mode": "seller_optimized",
+        "optimization_goals": [
+          {
+            "kind": "metric",
+            "metric": "clicks"
+          }
+        ]
+      }
+    },
+    "canonical_valid": true,
+    "pydantic_valid": true
+  },
+  {
+    "id": "create_media_buy.valid_committed_proposal",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00",
+      "proposal_id": "prop_1",
+      "total_budget": {
+        "amount": 1000,
+        "currency": "USD"
+      }
+    },
+    "canonical_valid": true,
+    "pydantic_valid": true
+  },
+  {
+    "id": "create_media_buy.no_required_group_at_all",
+    "tool": "create_media_buy",
+    "direction": "request",
+    "model": "CreateMediaBuyRequest",
+    "payload": {
+      "account": {
+        "account_id": "acct_test"
+      },
+      "brand": {
+        "domain": "example.com"
+      },
+      "idempotency_key": "0123456789abcdef0123",
+      "start_time": "2026-10-07T00:00:00+00:00",
+      "end_time": "2026-11-05T00:00:00+00:00"
+    },
     "canonical_valid": false,
     "pydantic_valid": false
   }

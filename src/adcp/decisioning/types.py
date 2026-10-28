@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast
 
 # PEP 696 TypeVar defaults + PEP 695 / PEP 718 generic TypeAlias both
 # need ``typing_extensions`` backports for Python 3.10-3.12 (the package
@@ -59,6 +59,40 @@ if TYPE_CHECKING:
     )
 
 
+def _registered_recovery(code: str) -> Literal["correctable", "transient", "terminal"]:
+    """The recovery ``enums/error-code.json`` registers for ``code``.
+
+    Asked of :data:`~adcp.server.helpers.STANDARD_ERROR_CODES`, which is built
+    from the pinned schema's ``enumMetadata`` block and fails closed on a code
+    the block does not classify. That block's own ``$comment`` is addressed at
+    SDKs — "SDKs MUST consume this block instead of parsing 'Recovery: X' from
+    enumDescriptions prose" — so this is the one place the answer comes from and
+    there is no second table to drift from it.
+
+    An unregistered code answers ``terminal``, matching
+    :func:`~adcp.server.helpers.adcp_error` exactly: both resolve the same
+    vocabulary, so a code must not classify differently depending on which of
+    the two an adopter reached for. ``INTERNAL_ERROR`` is the case that matters —
+    it is in neither the spec enum nor the SDK extensions and is raised at 55
+    sites, and ``terminal`` is both its previous value and the right one.
+
+    This differs on purpose from :func:`adcp.signing.recovery_for`, which RAISES
+    for an unclassified code on the grounds that a default would answer for a
+    code no spec block speaks for. That taxonomy has no unregistered-code legacy
+    to serve; raising here would convert 55 working raise sites into errors
+    rather than classify them.
+    """
+    # Imported inside the function: `adcp.server.helpers` reads the pinned
+    # schema from disk at import time, and `adcp.decisioning.types` is imported
+    # for its TypedDicts by modules that must not pay for that.
+    from adcp.server.helpers import STANDARD_ERROR_CODES
+
+    info = STANDARD_ERROR_CODES.get(code)
+    if info is None:
+        return "terminal"
+    return cast(Literal["correctable", "transient", "terminal"], info["recovery"])
+
+
 class AdcpError(Exception):
     """Wire-shaped structured error raised by platform methods.
 
@@ -91,7 +125,13 @@ class AdcpError(Exception):
         outside the enum are accepted (``str``) but buyers won't have
         first-class handling for them.
     :param message: Human-readable error message. Always set.
-    :param recovery: Buyer's retry strategy:
+    :param recovery: Buyer's retry strategy. **Omit it** and the
+        classification ``enums/error-code.json`` registers for ``code`` is
+        used, via :func:`_registered_recovery`; an unregistered code answers
+        ``'terminal'``. Pass one only to OVERRIDE the registered
+        classification for your own deployment — inside this package that
+        override is a second representation of a fact the schema already
+        owns, and ``tests/test_error_recovery_table.py`` refuses it.
 
         * ``'retry_with_changes'`` — fix the indicated field and retry
         * ``'correctable'`` — same as retry_with_changes (legacy alias)
@@ -114,9 +154,9 @@ class AdcpError(Exception):
         code: str,
         *,
         message: str = "",
-        recovery: Literal[
-            "retry_with_changes", "correctable", "transient", "terminal"
-        ] = "terminal",
+        recovery: (
+            Literal["retry_with_changes", "correctable", "transient", "terminal"] | None
+        ) = None,
         field: str | None = None,
         suggestion: str | None = None,
         retry_after: int | None = None,
@@ -124,7 +164,7 @@ class AdcpError(Exception):
     ) -> None:
         super().__init__(message or code)
         self.code = code
-        self.recovery = recovery
+        self.recovery = recovery if recovery is not None else _registered_recovery(code)
         self.field = field
         self.suggestion = suggestion
         self.retry_after = retry_after

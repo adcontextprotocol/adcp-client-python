@@ -97,7 +97,11 @@ class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     variant_id: str
     creative_id: Annotated[str | None, NoExplicitNull] = None
     previews: Annotated[list[Preview3], Field(min_length=1)]
-    manifest: Annotated[creative_manifest_1.CreativeManifest | None, NoExplicitNull] = None
+    # A response carries the tolerant read-back node, not the strict input class: a seller may
+    # send an unknown field, or a manifest instance of a sibling class, and neither may become
+    # acceptable on the INPUT model (#1241). See adcp.types._readback and READBACK_CLONES in
+    # scripts/post_generate_fixes.py.
+    manifest: Annotated[creative_manifest_1._ReadbackCreativeManifest | None, NoExplicitNull] = None
     expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None

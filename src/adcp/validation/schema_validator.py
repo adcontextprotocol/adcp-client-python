@@ -67,6 +67,47 @@ class ValidationIssue:
     hint: str | None = None
 
 
+class SchemaRuleError(ValueError):
+    """A conditional invariant the generated model cannot express, refused with
+    the vocabulary term that names the rule and a pointer to the offending field.
+
+    ``core/error.json`` (AdCP 3.2.1) makes ``keyword`` required on every
+    ``issues[]`` row and describes it as "Schema keyword that rejected the
+    payload, drawn from the JSON Schema vocabulary ... Implementers SHOULD use
+    the validator's native keyword name; do not invent custom values here". Its
+    stated purpose is that an agent can "pattern-match on rejection class without
+    parsing message text". A hand-written refusal therefore carries its own term,
+    because one constant over a heterogeneous set of rules conveys no class at
+    all — it says only that something refused, which ``code`` already says.
+
+    ``pointer`` is carried for the same reason: an agent that cannot locate the
+    rejection is back to parsing the message.
+
+    A SITE THAT ENFORCES TWO RULES CARRIES TWO ISSUES. ``issues`` is an array, so
+    a refusal that is both a missing-required and a forbidden-present keeps the
+    class of each half instead of collapsing to whichever term fits worse.
+
+    ``str()`` joins the messages, so a caller that only logs the exception still
+    reads the same text it did before.
+    """
+
+    def __init__(self, *issues: ValidationIssue) -> None:
+        if not issues:
+            raise TypeError("a SchemaRuleError names at least one violated rule")
+        self.issues: tuple[ValidationIssue, ...] = issues
+        super().__init__("; ".join(issue.message for issue in issues))
+
+
+def rule(keyword: str, pointer: str, message: str) -> ValidationIssue:
+    """One violated rule, for :class:`SchemaRuleError`.
+
+    ``schema_path`` is empty: these rules live in the schema's ``if``/``then``
+    and negative intersections, which the generated model does not retain a path
+    into, and an invented path would be worse than an absent one.
+    """
+    return ValidationIssue(pointer=pointer, message=message, keyword=keyword, schema_path="")
+
+
 @dataclass(frozen=True)
 class ValidationOutcome:
     valid: bool
@@ -124,8 +165,7 @@ class SchemaValidationError(Exception):
             first = issues[0] if issues else None
             if first is not None:
                 message = (
-                    f"{tool} {side} failed schema validation at "
-                    f"{first.pointer}: {first.message}"
+                    f"{tool} {side} failed schema validation at {first.pointer}: {first.message}"
                 )
             else:
                 message = f"{tool} {side} failed schema validation"
@@ -211,30 +251,84 @@ def _path_to_pointer(path: Any) -> str:
     return "/" + "/".join(escape(seg) for seg in path)
 
 
-def _safe_message(err: Any, keyword: str) -> str:
-    """Value-free description of the failure.
+#: A segment JSONPath-lite can write after a ``.`` unambiguously. Schema-declared
+#: AdCP names are all of this shape; a segment that is not comes from an open map
+#: in the payload (``ext``, ``details``, a targeting key) where a peer chose it.
+_BARE_SEGMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_INDEX_SEGMENT = re.compile(r"^(?:0|[1-9][0-9]*)$")
+_JSONPATH_TOKEN = re.compile(
+    r"""
+      \[ (?P<index>\d+) \]                      # [0]
+    | \[ ' (?P<quoted>(?:[^'\\]|\\.)*) ' \]     # ['a.b']
+    | \.? (?P<bare>[A-Za-z_][A-Za-z0-9_]*)      # name  or  .name
+    """,
+    re.VERBOSE,
+)
 
-    Never echoes the offending payload value — that would leak bearer
-    tokens, PII, or prompt-injection strings through the error envelope.
-    Keeps only the structural facts the caller needs to locate the
-    offending field and understand why the schema rejected it.
+
+def pointer_to_field(pointer: str) -> str:
+    """An RFC 6901 pointer as the JSONPath-lite ``error.field`` uses.
+
+    ``/packages/0/targeting`` -> ``packages[0].targeting``. Required by
+    ``core/error.json``: when ``issues[]`` is present, ``field`` is
+    ``issues[0].pointer`` translated.
+
+    The target format is the lossy one, and the pin says so where it defines
+    ``issues[].pointer`` — RFC 6901 is "standardized and unambiguous on keys
+    containing ``/`` or ``~``", "differs from the legacy top-level ``field``
+    which uses JSONPath-lite", and sellers "MUST translate the format"
+    regardless. So dot notation cannot express three pointer shapes:
+
+    * a segment that is not a bare identifier is bracket-quoted
+      (``/a.b`` -> ``['a.b']``), which covers keys containing ``.`` and the
+      ``~1``/``~0`` escapes for ``/`` and ``~``. Standard JSONPath member
+      access, beyond the examples the spec gives;
+    * an all-digit segment becomes an index (``[0]``), so a digit-string
+      object key is indistinguishable from one — the one lossy case;
+    * root (``"/"``, this repo's spelling for the empty path) becomes ``""``.
     """
-    if keyword == "required":
-        # ``err.message`` contains a schema-declared key name, not user
-        # data. Pattern: "'X' is a required property". Safe to pass through.
-        return str(err.message)
-    if keyword == "type":
-        expected = err.validator_value
-        return f"expected type {expected!r}"
-    if keyword == "enum":
-        try:
-            size = len(err.validator_value)
-        except TypeError:
-            size = 0
-        return f"value not in allowed enum ({size} option{'s' if size != 1 else ''})"
-    if keyword == "const":
-        return "value does not match the required constant"
-    if keyword in {
+    if pointer in ("", "/"):
+        return ""
+    out: list[str] = []
+    for raw in pointer.lstrip("/").split("/"):
+        segment = raw.replace("~1", "/").replace("~0", "~")
+        if _INDEX_SEGMENT.match(segment):
+            out.append(f"[{segment}]")
+        elif _BARE_SEGMENT.match(segment):
+            out.append(segment if not out else f".{segment}")
+        else:
+            escaped = segment.replace("\\", "\\\\").replace("'", "\\'")
+            out.append(f"['{escaped}']")
+    return "".join(out)
+
+
+def field_to_pointer(field: str) -> str:
+    """The RFC 6901 pointer a JSONPath-lite ``error.field`` came from.
+
+    The inverse of :func:`pointer_to_field`; the two are asserted inverses in
+    ``tests/test_error_field_jsonpath_lite.py``, which is what covers the
+    escape handling in both directions.
+    """
+    if not field:
+        return "/"
+    segments: list[str] = []
+    position = 0
+    while position < len(field):
+        match = _JSONPATH_TOKEN.match(field, position)
+        if match is None:
+            raise ValueError(f"not JSONPath-lite at offset {position}: {field!r}")
+        position = match.end()
+        if (index := match.group("index")) is not None:
+            segments.append(index)
+        elif (quoted := match.group("quoted")) is not None:
+            segments.append(re.sub(r"\\(.)", r"\1", quoted))
+        else:
+            segments.append(match.group("bare"))
+    return _path_to_pointer(segments)
+
+
+_BOUNDED_KEYWORDS = frozenset(
+    {
         "minLength",
         "maxLength",
         "minimum",
@@ -246,17 +340,175 @@ def _safe_message(err: Any, keyword: str) -> str:
         "minProperties",
         "maxProperties",
         "multipleOf",
-    }:
-        return f"{keyword} constraint failed (bound={err.validator_value!r})"
+    }
+)
+
+
+#: The four JSON Schema keywords whose failure is a composition rather than a
+#: single constraint. Named once: ``safe_message_for`` renders them together and
+#: both lanes ask the same question of a keyword before deriving field names.
+_COMPOSITION_KEYWORDS = frozenset({"oneOf", "anyOf", "allOf", "not"})
+
+
+class _Unset:
+    """Sentinel: a fact the caller's error shape does not carry.
+
+    Distinct from ``None``, which a schema can legitimately supply as a
+    bound — so the two render differently.
+    """
+
+
+UNSET = _Unset()
+
+
+def _render_fields(fields: Any) -> str:
+    """The field names a refusal cites, as one phrase.
+
+    Accepts the comma-joined string the compiled validators put in their error
+    context and any iterable of names, so each lane hands over whatever shape it
+    already has rather than converting at the call site.
+    """
+    if isinstance(fields, str):
+        names = [part.strip() for part in fields.split(",")]
+    else:
+        names = [str(name).strip() for name in fields]
+    return ", ".join(sorted({name for name in names if name}))
+
+
+def safe_message_for(
+    keyword: str,
+    *,
+    required_message: str | None = None,
+    bound: Any = UNSET,
+    enum_size: int | None = None,
+    format_name: Any = UNSET,
+    fields: Any = UNSET,
+) -> str:
+    """Value-free wording for a rejection, given only structural facts.
+
+    The one owner of how a refusal is PHRASED to a peer. Takes facts
+    rather than a validator's error object so both projections share it:
+    :func:`_safe_message` extracts them from a ``jsonschema`` error, and
+    :mod:`adcp.validation.pydantic_errors` extracts them from a pydantic
+    one. Neither passes a payload value in, so neither can leak one out.
+    """
+    if keyword == "required":
+        # A schema-declared key name, not user data. Pattern:
+        # "'X' is a required property".
+        return required_message or "required constraint failed"
+    if keyword == "type":
+        if bound is UNSET:
+            return "value is the wrong type"
+        return f"expected type {bound!r}"
+    if keyword == "enum":
+        if enum_size is None:
+            return "value not in allowed enum"
+        return f"value not in allowed enum ({enum_size} option{'s' if enum_size != 1 else ''})"
+    if keyword == "const":
+        return "value does not match the required constant"
+    if keyword in _BOUNDED_KEYWORDS:
+        if bound is UNSET:
+            return f"{keyword} constraint failed"
+        return f"{keyword} constraint failed (bound={bound!r})"
     if keyword == "pattern":
         return "string does not match required pattern"
     if keyword == "format":
-        return f"value does not match required format ({err.validator_value!r})"
+        if format_name is UNSET:
+            return "value does not match required format"
+        return f"value does not match required format ({format_name!r})"
     if keyword == "additionalProperties":
         return "unexpected property"
-    if keyword in {"oneOf", "anyOf", "allOf", "not"}:
+    if keyword in _COMPOSITION_KEYWORDS:
+        # The names a composition constrains are declared by the SCHEMA, so
+        # citing them is the same move as passing a ``required`` failure's key
+        # name through above — and it is what turns "allOf composition failed"
+        # from a rule identifier into something a buyer can act on. Nothing from
+        # the instance reaches here: each lane derives the names from a schema
+        # node or from the context the generator composed out of one.
+        if rendered := _render_fields(fields) if fields is not UNSET else "":
+            return f"{keyword} composition failed (fields: {rendered})"
         return f"{keyword} composition failed"
     return f"{keyword} constraint failed"
+
+
+def _declared_field_names(node: Any) -> tuple[str, ...]:
+    """Every property name a schema node declares, sorted.
+
+    Schema-derived and instance-free by construction: the only thing read is
+    the node, so a value the peer sent cannot reach the result. Mirrors
+    ``scripts/compile_conditions.named_fields``, which does this over the
+    generator's own condition tree -- "``agent-notification-config.json``'s
+    conditional reads ``event_types`` and ``all_authorized_accounts``, and
+    naming them is the difference between a diagnostic and a citation".
+
+    Recurses through the composition and conditional keywords, because that is
+    where the names live for the failure this serves: an ``allOf`` node's own
+    ``properties`` is usually empty and its arms carry everything.
+    """
+    found: set[str] = set()
+    seen: set[int] = set()
+
+    def walk(current: Any) -> None:
+        if isinstance(current, dict):
+            if id(current) in seen:
+                return
+            seen.add(id(current))
+            properties = current.get("properties")
+            if isinstance(properties, dict):
+                found.update(str(name) for name in properties)
+            required = current.get("required")
+            if isinstance(required, list):
+                found.update(str(name) for name in required)
+            for keyword in ("allOf", "anyOf", "oneOf", "not", "if", "then", "else", "items"):
+                walk(current.get(keyword))
+            dependencies = current.get("dependencies") or current.get("dependentRequired")
+            if isinstance(dependencies, dict):
+                found.update(str(name) for name in dependencies)
+        elif isinstance(current, list):
+            if id(current) in seen:
+                return
+            seen.add(id(current))
+            for item in current:
+                walk(item)
+
+    walk(node)
+    return tuple(sorted(found))
+
+
+def _safe_message(err: Any, keyword: str) -> str:
+    """Value-free description of a ``jsonschema`` failure.
+
+    Never echoes the offending payload value — that would leak bearer
+    tokens, PII, or prompt-injection strings through the error envelope.
+    Keeps only the structural facts the caller needs to locate the
+    offending field and understand why the schema rejected it.
+    """
+    enum_size: int | None = None
+    if keyword == "enum":
+        try:
+            enum_size = len(err.validator_value)
+        except TypeError:
+            enum_size = 0
+    # A composition's names come off the SCHEMA, never the instance, so the
+    # oracle cites the same thing the compiled lane's context carries.
+    #
+    # The ARMS, not the enclosing node. ``err.schema`` for a root ``anyOf`` is
+    # the whole request schema, so walking it names all 31 of its properties --
+    # noise, and the inverse of a citation. ``err.validator_value`` is the
+    # composition's own operand list, which is what the generator's
+    # ``named_fields`` walks too: for the create-request root it yields the six
+    # names that distinguish the arms.
+    fields: Any = UNSET
+    if keyword in _COMPOSITION_KEYWORDS:
+        fields = _declared_field_names(getattr(err, "validator_value", None)) or UNSET
+    return safe_message_for(
+        keyword,
+        required_message=str(err.message) if keyword == "required" else None,
+        bound=err.validator_value,
+        enum_size=enum_size,
+        format_name=err.validator_value,
+        fields=fields,
+    )
 
 
 def _missing_required_key(err: Any) -> str | None:

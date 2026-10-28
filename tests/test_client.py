@@ -221,7 +221,7 @@ async def test_get_products():
 
     mock_parsed_result = TaskResult[GetProductsResponse](
         status=TaskStatus.COMPLETED,
-        data=GetProductsResponse(products=[]),  # Properly typed result
+        data=GetProductsResponse(products=[], cache_scope="public"),  # Properly typed result
         success=True,
     )
 
@@ -263,6 +263,9 @@ def test_get_products_preserves_canonical_format_options():
         status=TaskStatus.COMPLETED,
         success=True,
         data={
+            # Required on every 3.1+ get_products response by the root
+            # conditional's standard branch, alongside ``products``.
+            "cache_scope": "public",
             "products": [
                 _get_products_product(
                     format_options=[
@@ -273,7 +276,7 @@ def test_get_products_preserves_canonical_format_options():
                         }
                     ]
                 )
-            ]
+            ],
         },
     )
 
@@ -305,6 +308,7 @@ def test_get_products_still_projects_legacy_format_ids():
         status=TaskStatus.COMPLETED,
         success=True,
         data={
+            "cache_scope": "public",
             "products": [
                 _get_products_product(
                     format_ids=[
@@ -314,7 +318,7 @@ def test_get_products_still_projects_legacy_format_ids():
                         }
                     ]
                 )
-            ]
+            ],
         },
     )
 
@@ -776,6 +780,10 @@ async def test_all_client_methods():
                 "plan_id": "plan_123",
                 "outcome": "completed",
                 "governance_context": "ctx-abc-123-governance",
+                # A completed outcome names the check it completes and carries the
+                # seller's response (governance/report-plan-outcome-request.json).
+                "check_id": "chk_123",
+                "seller_response": {"seller_reference": "mb_123"},
             },
         ),
         (
@@ -958,7 +966,7 @@ async def test_multi_agent_parallel_execution():
 
     mock_result = TaskResult(
         status=TaskStatus.COMPLETED,
-        data={"products": []},
+        data={"products": [], "cache_scope": "public"},
         success=True,
     )
 

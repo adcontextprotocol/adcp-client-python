@@ -307,10 +307,13 @@ async def test_request_proposals_filters_without_breaking_bound_references(
     handler = PlatformHandler(
         Seller(), executor=None, registry=InMemoryTaskRegistry(), property_list_fetcher=fetcher
     )
+    # media-buy/request-proposals-request.json anyOf: a top-level brand, or an
+    # account carrying brand and operator. An account_id reference names neither.
     request = RequestProposalsRequest.model_validate(
         {
             "idempotency_key": "proposal-request-1234",
             "account": {"account_id": "account"},
+            "brand": {"domain": "buyer.example.com"},
             "brief": "News",
             "criteria": {
                 "offer_filters": {

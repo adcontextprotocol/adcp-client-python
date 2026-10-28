@@ -18,7 +18,7 @@ deploying these changes. They collect the historical comparison boundaries,
 feature-tier requirements and operational limits; final release qualification
 remains separate from the integrated source.
 
-The default protocol is AdCP 3.2.1. Set `ReportingProductionSupport`'s
+The default protocol is AdCP 3.2.3. Set `ReportingProductionSupport`'s
 `adcp_version="3.2"` or omit the pin for the packaged default. Historical
 rc.3, rc.6 and rc.7 schemas are not advertised as live reporting contracts.
 See [rc.7 adoption](protocol-3.2-rc7.md) and

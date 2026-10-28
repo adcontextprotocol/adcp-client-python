@@ -149,7 +149,7 @@ async def test_get_products_handoff_returns_submitted_envelope(executor) -> None
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     async def _curate(task_ctx):
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -182,7 +182,7 @@ async def test_get_products_handoff_completion_lands_in_registry(executor) -> No
         completed.set()
         # Empty products list is wire-valid; the terminal artifact shape is
         # what matters for the registry-completion assertion.
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -212,7 +212,7 @@ async def test_get_signals_handoff_returns_submitted_envelope(executor) -> None:
     from adcp.types import GetSignalsRequest, GetSignalsResponse
 
     async def _discover(task_ctx):
-        return GetSignalsResponse(signals=[])
+        return GetSignalsResponse(signals=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -239,7 +239,7 @@ async def test_get_signals_handoff_completion_lands_in_registry(executor) -> Non
 
     async def _discover(task_ctx):
         completed.set()
-        return GetSignalsResponse(signals=[])
+        return GetSignalsResponse(signals=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -279,7 +279,7 @@ async def test_get_products_sync_path_no_task_id(executor) -> None:
         accounts = SingletonAccounts(account_id="seller")
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     resp = await handler.get_products(
@@ -300,7 +300,7 @@ async def test_get_signals_sync_path_no_task_id(executor) -> None:
         accounts = SingletonAccounts(account_id="signals-seller")
 
         async def get_signals(self, req, ctx):
-            return GetSignalsResponse(signals=[])
+            return GetSignalsResponse(signals=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     resp = await handler.get_signals(
@@ -359,7 +359,7 @@ def _store_backed_platform(store: _RecordingStore, handoff: bool):
     _products: list[Any] = []
 
     async def _curate(task_ctx):
-        return GetProductsResponse(products=_products, proposals=_proposals)
+        return GetProductsResponse(products=_products, proposals=_proposals, cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -371,7 +371,9 @@ def _store_backed_platform(store: _RecordingStore, handoff: bool):
         async def get_products(self, req, ctx):
             if handoff:
                 return ctx.handoff_to_task(_curate)
-            return GetProductsResponse(products=_products, proposals=_proposals)
+            return GetProductsResponse(
+                products=_products, proposals=_proposals, cache_scope="public"
+            )
 
     return _Platform()
 
@@ -560,7 +562,7 @@ async def test_get_products_push_unresolved_account_rejected(executor) -> None:
             call_count["n"] += 1
             from adcp.types import GetProductsResponse
 
-            return GetProductsResponse(products=[])
+            return GetProductsResponse(products=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     with pytest.raises(AdcpError) as exc:
@@ -589,7 +591,7 @@ async def test_get_signals_push_unresolved_account_rejected(executor) -> None:
         async def get_signals(self, req, ctx):
             from adcp.types import GetSignalsResponse
 
-            return GetSignalsResponse(signals=[])
+            return GetSignalsResponse(signals=[], cache_scope="public")
 
     handler = _make_handler(_Platform(), executor)
     with pytest.raises(AdcpError) as exc:
@@ -755,7 +757,9 @@ async def test_persisted_draft_keeps_full_product_data_under_projection(executor
             return store
 
         async def get_products(self, req, ctx):
-            return GetProductsResponse(products=rich_products, proposals=proposals)
+            return GetProductsResponse(
+                products=rich_products, proposals=proposals, cache_scope="public"
+            )
 
     store = _RecordingStore()
     handler = _make_handler(_Platform(), executor)
@@ -797,7 +801,7 @@ async def test_get_products_handoff_unresolved_account_no_push_rejected(executor
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     async def _curate(task_ctx):
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -836,7 +840,7 @@ async def test_wholesale_handoff_rejected_leaves_no_registry_row(executor) -> No
 
     async def _curate(task_ctx):
         ran["bg"] = True
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
@@ -893,35 +897,32 @@ async def test_wholesale_workflow_handoff_rejected_before_enqueue(executor) -> N
     assert enqueued is False
 
 
-@pytest.mark.asyncio
-async def test_get_signals_wholesale_handoff_rejected_leaves_no_registry_row(executor) -> None:
-    from adcp.types import GetSignalsRequest, GetSignalsResponse
+def test_get_signals_wholesale_with_a_selector_has_no_spelling_to_hand_a_handler() -> None:
+    """The combination cannot reach a handler, because it cannot be constructed.
 
-    ran = {"bg": False}
+    ``get-signals-request.json``'s root conditional says that in wholesale
+    discovery mode the request carries no selector: ``if discovery_mode is
+    wholesale then not (signal_spec or signal_refs or signal_ids)``. This test
+    used to build that request, hand it to the handler, and assert the handler
+    refused it with ``INVALID_REQUEST`` on ``discovery_mode`` and left no
+    registry row -- which is what the SDK did while the conditional was dropped
+    from the generated model entirely.
 
-    async def _discover(task_ctx):
-        ran["bg"] = True
-        return GetSignalsResponse(signals=[])
+    It is now refused where the schema states it: at construction. So the
+    obligation is the refusal's existence and its subject, and the handler path
+    it used to cover is unreachable rather than untested. Nothing here reaches
+    past the refusal to exercise it: a request built through
+    ``model_construct`` would be a document no buyer can send.
+    """
+    from pydantic import ValidationError
 
-    class _Platform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities()
-        accounts = SingletonAccounts(account_id="signals-seller")
+    from adcp.types import GetSignalsRequest
 
-        async def get_signals(self, req, ctx):
-            return ctx.handoff_to_task(_discover)
+    with pytest.raises(ValidationError, match="get-signals-request.json"):
+        GetSignalsRequest(discovery_mode="wholesale", signal_spec="x")
 
-    registry = InMemoryTaskRegistry()
-    handler = _make_handler(_Platform(), executor, registry=registry)
-    with pytest.raises(AdcpError) as exc:
-        await handler.get_signals(
-            GetSignalsRequest(discovery_mode="wholesale", signal_spec="x"),
-            ToolContext(),
-        )
-    assert exc.value.code == "INVALID_REQUEST"
-    assert exc.value.field == "discovery_mode"
-    await asyncio.sleep(0.05)
-    assert registry._records == {}
-    assert ran["bg"] is False
+    # The same mode without a selector is what wholesale discovery looks like.
+    assert GetSignalsRequest(discovery_mode="wholesale").discovery_mode == "wholesale"
 
 
 # ---------------------------------------------------------------------------
@@ -959,7 +960,7 @@ async def test_get_products_external_push_owner_suppresses_sdk_sender(executor) 
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     async def _curate(task_ctx):
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = _external_push_capabilities()
@@ -991,7 +992,7 @@ async def test_get_signals_external_push_owner_suppresses_sdk_sender(executor) -
     from adcp.types import GetSignalsRequest, GetSignalsResponse
 
     async def _discover(task_ctx):
-        return GetSignalsResponse(signals=[])
+        return GetSignalsResponse(signals=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = _external_push_capabilities()
@@ -1045,7 +1046,14 @@ async def test_create_media_buy_external_push_owner_suppresses_sdk_sender(execut
             idempotency_key="idem_async_create_1",
             start_time="2026-05-01T00:00:00Z",
             end_time="2026-05-31T23:59:59Z",
-            packages=[{"buyer_ref": "pkg_1", "product_id": "prod_1", "pricing_option_id": "cpm"}],
+            packages=[
+                {
+                    "buyer_ref": "pkg_1",
+                    "product_id": "prod_1",
+                    "pricing_option_id": "cpm",
+                    "budget": 1000.0,
+                }
+            ],
             push_notification_config={
                 "url": "https://buyer.example.com/wh",
                 "operation_id": "op-cmb-789",
@@ -1104,7 +1112,7 @@ async def test_get_products_handoff_no_push_no_webhook(executor) -> None:
 
     async def _curate(task_ctx):
         completed.set()
-        return GetProductsResponse(products=[])
+        return GetProductsResponse(products=[], cache_scope="public")
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()

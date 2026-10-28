@@ -62,20 +62,24 @@ def _configure_fake_pipeline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     *,
-    fail_ergonomic: bool,
-) -> tuple[Path, Path, Path, Path]:
+    fail_late: bool,
+) -> tuple[Path, Path, Path]:
+    """A pipeline whose last subprocess can be made to fail.
+
+    The injection point used to be the ergonomic-coercion step, which was the
+    last subprocess the pipeline ran. That step is gone -- the coercion is
+    declared on the generated field (salesagent-1jj5e) -- so consolidation is
+    now the last one, and it carries the same property: a failure AFTER
+    generation has produced a new tree must leave the checkout untouched.
+    """
     repository = tmp_path / "repository"
     output = repository / "src" / "adcp" / "types" / "domains"
     consolidated = output.parent / "_generated.py"
-    ergonomic = output.parent / "_ergonomic.py"
     deltas = repository / "SCHEMA_DELTAS.md"
     output.mkdir(parents=True)
-    scripts = repository / "scripts"
-    scripts.mkdir()
-    (scripts / "generate_ergonomic_coercion.py").write_text("")
+    (repository / "scripts").mkdir()
     (output / "sentinel.py").write_text("old generated tree\n")
     consolidated.write_text("old consolidated exports\n")
-    ergonomic.write_text("old ergonomic module\n")
     deltas.write_text("old delta report\n")
 
     monkeypatch.setattr(generate_types, "REPO_ROOT", repository)
@@ -105,53 +109,43 @@ def _configure_fake_pipeline(
         types = source / "adcp" / "types"
         types.mkdir(parents=True)
         (types / "_generated.py").write_text("stale consolidated exports\n")
-        (types / "_ergonomic.py").write_text("stale ergonomic module\n")
         return source
 
     monkeypatch.setattr(generate_types, "_staged_source_tree", fake_staged_source)
 
     def fake_subprocess(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        if "consolidate_exports.py" in args[1]:
-            destination = Path(args[args.index("--output-file") + 1])
-            destination.write_text("new consolidated exports\n")
-            return subprocess.CompletedProcess(args, 0, "", "")
-        if fail_ergonomic:
-            return subprocess.CompletedProcess(args, 1, "", "late ergonomic failure")
+        assert "consolidate_exports.py" in args[1], args[1]
+        if fail_late:
+            return subprocess.CompletedProcess(args, 1, "", "late consolidation failure")
         destination = Path(args[args.index("--output-file") + 1])
-        destination.write_text("new ergonomic module\n")
+        destination.write_text("new consolidated exports\n")
         return subprocess.CompletedProcess(args, 0, "", "")
 
     monkeypatch.setattr(generate_types.subprocess, "run", fake_subprocess)
-    return output, consolidated, ergonomic, deltas
+    return output, consolidated, deltas
 
 
 def test_late_generation_failure_leaves_checkout_unchanged(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    output, consolidated, ergonomic, deltas = _configure_fake_pipeline(
-        monkeypatch, tmp_path, fail_ergonomic=True
-    )
+    output, consolidated, deltas = _configure_fake_pipeline(monkeypatch, tmp_path, fail_late=True)
 
     assert generate_types.main([]) == 1
 
     assert (output / "sentinel.py").read_text() == "old generated tree\n"
     assert consolidated.read_text() == "old consolidated exports\n"
-    assert ergonomic.read_text() == "old ergonomic module\n"
     assert deltas.read_text() == "old delta report\n"
 
 
 def test_check_mode_reports_drift_without_writes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    output, consolidated, ergonomic, deltas = _configure_fake_pipeline(
-        monkeypatch, tmp_path, fail_ergonomic=False
-    )
+    output, consolidated, deltas = _configure_fake_pipeline(monkeypatch, tmp_path, fail_late=False)
 
     assert generate_types.main(["--check"]) == 1
 
     assert (output / "sentinel.py").read_text() == "old generated tree\n"
     assert consolidated.read_text() == "old consolidated exports\n"
-    assert ergonomic.read_text() == "old ergonomic module\n"
     assert deltas.read_text() == "old delta report\n"
 
 
