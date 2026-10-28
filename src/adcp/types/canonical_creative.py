@@ -368,7 +368,9 @@ def _direct_boundary_fields(cls: type[AdCPBaseModel]) -> frozenset[str] | None:
     )
     if any(item.func not in stock_serializers for item in decorators.model_serializers.values()):
         return None
-    if cls.model_config.get("serialize_by_alias"):
+    if any(f.alias is not None and f.alias != name for name, f in cls.model_fields.items()):
+        # The direct scan reads ``__dict__`` by Python name; the dump (and so
+        # the wire) uses the alias. Scan the dump instead for these.
         return None
     # This stock serializer conditionally drops a field based on sibling values.
     if {"subscriber_id", "url", "event_types", "product_payload_view"} <= cls.model_fields.keys():
