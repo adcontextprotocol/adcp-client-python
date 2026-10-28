@@ -387,3 +387,25 @@ def test_both_checkers_refuse_the_removed_constructor_keyword(checker: str, tmp_
             f"{checker} does not know {name} on the wire model {class_name} either, "
             f"so the refusal above proves nothing: {on(line)}"
         )
+
+
+def test_a_subclass_may_forward_reference_a_later_model() -> None:
+    """The removal's rebuild defers an unresolved forward reference, as pydantic does.
+
+    A subclass that re-inherits a removed field triggers the forced rebuild; if
+    that rebuild raises, annotating a field with a model defined further down the
+    module fails at class creation instead of at the caller's ``model_rebuild()``.
+    """
+    from adcp.types import PackageRequest
+
+    class WithForwardRef(PackageRequest):
+        later: list[Later] | None = None
+
+    class Later(BaseModel):
+        name: str
+
+    assert not WithForwardRef.__pydantic_complete__
+    WithForwardRef.model_rebuild()
+
+    assert "later" in WithForwardRef.model_fields
+    assert not set(_removed_names(WithForwardRef)) & set(WithForwardRef.model_fields)

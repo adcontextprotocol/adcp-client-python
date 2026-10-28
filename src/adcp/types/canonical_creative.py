@@ -690,6 +690,13 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         Binding happens AFTER class creation, so pydantic never considers the
         name a field candidate; ``model_fields``, the JSON schema and the wire
         are all unaffected. Measured scope: one such validator, on one model.
+
+
+        The rebuild does not raise on an unresolved forward reference. A
+        subclass may annotate a field with a model defined later in its module
+        (``creatives: list["CreativeAsset"]``); plain pydantic defers such a
+        class until ``model_rebuild()``, and a raising rebuild here would turn
+        that ordinary pattern into an error at class creation.
         """
 
         removed = [name for name in cls.model_fields if is_legacy_creative_identity_key(name)]
@@ -698,7 +705,7 @@ class CanonicalBoundaryModel(AdCPBaseModel):
             cls.__annotations__.pop(name, None)
             setattr(cls, name, None)
         if removed:
-            cls.model_rebuild(force=True)
+            cls.model_rebuild(force=True, raise_errors=False)
 
     @model_validator(mode="before")
     @classmethod
