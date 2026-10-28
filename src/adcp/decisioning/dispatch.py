@@ -1362,6 +1362,7 @@ def _build_request_context(
         "caller_identity": caller_identity,
         "tenant_id": tool_ctx.tenant_id,
         "resolved_adcp_version": tool_ctx.resolved_adcp_version,
+        "application_adcp_version": tool_ctx.application_adcp_version,
         "metadata": clean_metadata,
         "transport": transport,
         "account": account,
