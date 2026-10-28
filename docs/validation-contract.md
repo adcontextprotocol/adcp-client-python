@@ -129,7 +129,6 @@ with the issue that tracks it, and the list only shrinks:
 
 | class | what happens | where it stands |
 | --- | --- | --- |
-| `field_dropped` | `extra='ignore'` drops an unknown or sibling-arm property | #1614; not recoverable by any dump. No digest-covered schema is affected. |
 | `discriminator_emitted` | a document valid under one arm is routed to a sibling arm, whose required single-value `Literal` it does not carry, and the arm's injected default appears | #1414; closed by #1522's construction dispatch. |
 
 ## Wire-boundary behavior
