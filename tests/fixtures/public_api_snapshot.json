@@ -719,6 +719,7 @@
       "normalize_identifier": "adcp.identifiers",
       "parse_managerdomains": "adcp.adagents",
       "project_available_actions": "adcp.media_buy_actions",
+      "properties_for_publisher_domain": "adcp.adagents",
       "reassess_media_buy_action": "adcp.media_buy_actions",
       "resolve_properties_for_agent": "adcp.adagents",
       "route_media_buy_action": "adcp.media_buy_actions",
@@ -746,7 +747,8 @@
       "validate_publisher_properties_item": "adcp.validation.legacy",
       "validate_webhook_challenge_response": "adcp.webhooks",
       "verify_agent_authorization": "adcp.adagents",
-      "verify_agent_for_property": "adcp.adagents"
+      "verify_agent_for_property": "adcp.adagents",
+      "verify_cross_domain_properties": "adcp.adagents"
     }
   },
   "adcp.reporting": {
