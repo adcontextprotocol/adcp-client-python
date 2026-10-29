@@ -84,7 +84,10 @@ def test_invalid_sibling_cannot_break_lookup(url: Any) -> None:
     assert find_authorized_agent_entries(doc, AGENT) == [valid]
     assert verify_agent_authorization(doc, AGENT)
     assert get_properties_by_agent(doc, AGENT) == doc["properties"]
-    assert resolve_properties_for_agent(doc, AGENT, mode="permissive") == doc["properties"]
+    assert (
+        resolve_properties_for_agent(doc, AGENT, mode="permissive", allow_any_domain=True)
+        == doc["properties"]
+    )
     assert doc == before
     if not isinstance(url, str) or not url:
         assert any(error.kind == "missing_url" for error in validate_adagents_structure(doc).errors)
