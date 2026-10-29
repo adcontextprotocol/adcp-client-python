@@ -252,6 +252,25 @@ def _with_canonical_sources(payload: dict[str, Any], *sources: Any) -> dict[str,
     return _CanonicalResponse(payload, *sources)
 
 
+def _check_unchanged(
+    unchanged: bool | None,
+    items_field: str,
+    items: list[Any] | None,
+    wholesale_feed_version: str | None,
+) -> None:
+    """Reject an ``unchanged: true`` wholesale answer the schema would reject.
+
+    ``cache_scope`` is not checked: the MCP dispatcher fills ``public`` for a
+    request without an account, as it does for a full response.
+    """
+    if not unchanged:
+        return
+    if items is not None:
+        raise ValueError(f"an unchanged: true response must omit {items_field}")
+    if wholesale_feed_version is None:
+        raise ValueError("an unchanged: true response must echo wholesale_feed_version")
+
+
 # ============================================================================
 # Protocol Discovery
 # ============================================================================
@@ -420,7 +439,13 @@ def products_response(
     metadata for cache/version-aware enumeration. Pass ``cache_scope``
     explicitly for spec-valid wholesale responses; the dispatcher only infers
     ``public`` for request paths without an account.
+
+    ``unchanged=True`` builds the conditional-read answer (see
+    :func:`adcp.server.feed_version.feed_unchanged`): ``products`` must be
+    omitted and ``wholesale_feed_version`` echoed, with ``cache_scope``.
+    ``unchanged=False`` emits nothing — the spec forbids ``unchanged: false``.
     """
+    _check_unchanged(unchanged, "products", products, wholesale_feed_version)
     serialized = _serialize_canonical(products) if products is not None else None
     resp: dict[str, Any] = {
         "status": status,
@@ -444,8 +469,8 @@ def products_response(
         resp["pricing_version"] = pricing_version
     if cache_scope is not None:
         resp["cache_scope"] = cache_scope
-    if unchanged is not None:
-        resp["unchanged"] = unchanged
+    if unchanged:
+        resp["unchanged"] = True
     return _with_canonical_sources(resp, products, proposals)
 
 
@@ -810,8 +835,10 @@ def signals_response(
     Matches GetSignalsResponse schema, including beta 3 wholesale feed
     metadata for cache/version-aware enumeration. Pass ``cache_scope``
     explicitly for spec-valid wholesale responses; the dispatcher only infers
-    ``public`` for request paths without an account.
+    ``public`` for request paths without an account. ``unchanged`` follows
+    :func:`products_response`.
     """
+    _check_unchanged(unchanged, "signals", signals, wholesale_feed_version)
     resp: dict[str, Any] = {"status": status, "sandbox": sandbox}
     if signals is not None:
         resp["signals"] = _serialize(signals)
@@ -825,8 +852,8 @@ def signals_response(
         resp["pricing_version"] = pricing_version
     if cache_scope is not None:
         resp["cache_scope"] = cache_scope
-    if unchanged is not None:
-        resp["unchanged"] = unchanged
+    if unchanged:
+        resp["unchanged"] = True
     return resp
 
 
