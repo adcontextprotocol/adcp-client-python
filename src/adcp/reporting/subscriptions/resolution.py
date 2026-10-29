@@ -160,7 +160,7 @@ class SubscriptionOffering:
                 raise ValueError(
                     f"offering {offering.get('offering_id')!r} has no standard_dimensions"
                 )
-            dimensions = offering["standard_dimensions"]
+            dimensions = tuple(offering["standard_dimensions"] or ())
         schedule = offering["schedule"]
         fixed_zone = schedule.get("period_timezone")
         if fixed_zone is not None and period_timezone is not None and fixed_zone != period_timezone:

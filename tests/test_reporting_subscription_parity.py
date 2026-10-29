@@ -178,3 +178,16 @@ def test_typescript_parity(case: dict[str, Any]) -> None:
         for row in case["expected"]
     )
     assert run(case["input"]) == expected, case.get("rule")
+
+
+def test_every_subscription_in_the_table_is_schema_valid() -> None:
+    """The table's subscriptions validate against core/reporting-subscription.json."""
+    from adcp.validation import schema_loader
+
+    validator = schema_loader.get_named_validator(
+        "core/reporting-subscription.json", version="3.3.0-beta.1"
+    )
+    for case in CASES:
+        for version in case["input"]["versions"]:
+            errors = [error.message for error in validator.iter_errors(version["configuration"])]
+            assert errors == [], (case["name"], version["subscription_version"], errors)

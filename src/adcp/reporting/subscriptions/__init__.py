@@ -48,6 +48,13 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionSelector,
     resolve_subscription_offerings,
 )
+from adcp.reporting.subscriptions.wire import (
+    project_offering,
+    project_reporting_delivery,
+    project_subscription_coverage,
+    project_subscription_state,
+    serves_settled_subscription_fields,
+)
 
 __all__ = [
     "REPORTING_SUBSCRIPTIONS_FEATURE",
@@ -76,4 +83,9 @@ __all__ = [
     "subscription_exceptions",
     "subscription_version_windows",
     "with_subscription_dimensions",
+    "project_offering",
+    "project_reporting_delivery",
+    "project_subscription_coverage",
+    "project_subscription_state",
+    "serves_settled_subscription_fields",
 ]
