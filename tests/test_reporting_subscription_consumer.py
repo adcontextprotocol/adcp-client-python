@@ -81,7 +81,11 @@ class Seller:
 
         async def emit(change: PrincipalChange) -> None:
             self.notifications.append(
-                {"notification_type": "principal.changed", "reason": change.reason}
+                {
+                    "notification_type": "principal.changed",
+                    "reason": change.reason,
+                    "changed_at": change.changed_at.isoformat(),
+                }
             )
 
         self.principals = PrincipalService(emit_change=emit)
@@ -231,7 +235,9 @@ async def test_tracker_keeps_every_registered_version() -> None:
     seller = Seller()
     client = Client(seller)
     tracker = ReportingSubscriptionTracker(client, offerings=[DAILY])
-    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY)
+    seller.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone=NY, authorized_at=at("2026-09-01T00:00:00Z")
+    )
     tracker.observe_account("acct-1", authorized_at=at("2026-09-01T00:00:00Z"), timezone=NY)
     await tracker.sync([SUBSCRIPTION])
     seller.now = at("2026-10-03T12:00:00Z")
@@ -267,13 +273,111 @@ async def test_regrant_within_retention_keeps_authorized_at() -> None:
     await tracker.handle_notification(seller.notifications[-1])
     seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
     await seller.reconcile("2026-10-06T15:00:00Z")
+    # The notification's changed_at dates the re-grant; a later poll of
+    # list_accounts (unchanged authorized_at) adds nothing.
     await tracker.handle_notification(seller.notifications[-1])
-    with pytest.raises(ValueError):
-        tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
     tracker.observe_account(
-        "acct-1", authorized_at=granted, timezone=NY, observed_at=at("2026-10-06T15:00:00Z")
+        "acct-1", authorized_at=granted, timezone=NY, observed_at=at("2026-10-09T00:00:00Z")
     )
     (coverage,) = await load_subscription_coverage(client, account={"account_id": "acct-1"})
     now = at("2026-10-10T00:00:00Z")
     buyer = tracker.expected_periods("analytics", "acct-1", buys=[BUY], now=now, coverage=coverage)
     assert buyer == await seller.engine.owed_periods(IDENTITY, "analytics", "acct-1", now=now)
+
+
+@pytest.mark.asyncio
+async def test_a_changed_authorized_at_is_a_new_chain_even_if_the_loss_was_missed() -> None:
+    seller = Seller()
+    seller.engine._retention = timedelta(days=2)
+    seller.engine._retention_days = 2
+    client = Client(seller)
+    tracker = ReportingSubscriptionTracker(client, offerings=[DAILY], status_retention_days=2)
+    granted = at("2026-09-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    await tracker.sync([SUBSCRIPTION])
+    await seller.reconcile("2026-10-01T00:00:00Z")
+    tracker.observe_account(
+        "acct-1", authorized_at=granted, timezone=NY, observed_at=at("2026-10-02T12:00:00Z")
+    )
+    # Lost on 10-03; the tracker misses every notification.
+    del seller.accounts["acct-1"]
+    await seller.reconcile("2026-10-03T00:00:00Z")
+    regrant = at("2026-10-08T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=regrant)
+    await seller.reconcile("2026-10-08T00:00:00Z")
+    tracker.observe_account(
+        "acct-1", authorized_at=regrant, timezone=NY, observed_at=at("2026-10-08T01:00:00Z")
+    )
+    await tracker.refresh()
+    now = at("2026-10-12T05:00:00Z")
+    seller_owes = await seller.engine.owed_periods(IDENTITY, "analytics", "acct-1", now=now)
+    buyer = tracker.expected_periods("analytics", "acct-1", buys=[BUY], now=now)
+    owed = {(p.period_start, p.offering_id) for p in seller_owes}
+    expected = {(p.period_start, p.offering_id) for p in buyer}
+    # Never a period the seller does not owe: no false obligation_missing.
+    assert expected <= owed
+    assert "2026-10-09T04:00:00Z" in {start for start, _ in expected}
+
+
+@pytest.mark.asyncio
+async def test_expected_periods_follow_the_sellers_timezone_cutovers() -> None:
+    seller = Seller()
+    client = Client(seller)
+    tracker = ReportingSubscriptionTracker(client, offerings=[DAILY], status_retention_days=400)
+    granted = at("2026-09-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    await tracker.sync([SUBSCRIPTION])
+    await seller.reconcile("2026-10-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone="America/Los_Angeles", authorized_at=granted
+    )
+    await seller.reconcile("2026-10-03T12:00:00Z")
+    # The tracker only notices the new zone days later.
+    tracker.observe_account(
+        "acct-1",
+        authorized_at=granted,
+        timezone="America/Los_Angeles",
+        observed_at=at("2026-10-06T12:00:00Z"),
+    )
+    (coverage,) = await load_subscription_coverage(client, account={"account_id": "acct-1"})
+    now = at("2026-10-10T00:00:00Z")
+    buyer = tracker.expected_periods("analytics", "acct-1", buys=[BUY], now=now, coverage=coverage)
+    assert buyer == await seller.engine.owed_periods(IDENTITY, "analytics", "acct-1", now=now)
+
+
+def test_observe_account_requires_a_timezone() -> None:
+    tracker = ReportingSubscriptionTracker(Client(Seller()), offerings=[DAILY])
+    with pytest.raises(TypeError):
+        tracker.observe_account("acct-1", authorized_at=at("2026-09-01T00:00:00Z"))  # type: ignore[call-arg]
+    with pytest.raises(ValueError):
+        tracker.observe_account(
+            "acct-1", authorized_at=at("2026-09-01T00:00:00Z"), timezone="posixrules"
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_restarted_tracker_reads_prior_configurations_from_the_readback() -> None:
+    seller = Seller()
+    client = Client(seller)
+    first = ReportingSubscriptionTracker(client, offerings=[DAILY])
+    granted = at("2026-09-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    await first.sync([SUBSCRIPTION])
+    seller.now = at("2026-10-03T12:00:00Z")
+    await first.sync(
+        [{**SUBSCRIPTION, "subscription_version": 2, "scope": {"account_ids": ["acct-2"]}}]
+    )
+    # A new tracker with no local version records.
+    restarted = ReportingSubscriptionTracker(client, offerings=[DAILY])
+    restarted.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    await restarted.refresh()
+    periods = restarted.expected_periods(
+        "analytics", "acct-1", buys=[BUY], now=at("2026-10-08T00:00:00Z")
+    )
+    assert [p.period_start for p in periods] == [
+        "2026-10-01T04:00:00Z",
+        "2026-10-02T04:00:00Z",
+        "2026-10-03T04:00:00Z",
+    ]

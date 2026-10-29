@@ -24,17 +24,18 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 from uuid import uuid4
 
-from adcp.reporting.subscriptions._clock import utc_instant
+from adcp.reporting.subscriptions._clock import require_zone, utc_instant
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
     ExpectedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
     expected_subscription_periods,
+    subscription_version_windows,
 )
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering
 from adcp.types import (
@@ -213,6 +214,10 @@ class _AccountRecord:
     operator: str | None = None
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
+    #: The last instant the account was seen readable.
+    last_seen: datetime | None = None
+    #: The chain start ``list_accounts`` last showed as ``authorized_at``.
+    chain_start: datetime | None = None
 
 
 class ReportingSubscriptionTracker:
@@ -295,37 +300,71 @@ class ReportingSubscriptionTracker:
         self._readback = readback
         return readback
 
-    async def refresh(self) -> ReportingSubscriptionReadback:
-        """Re-read the readback and fold ``accounts_unauthorized[]`` into grant history."""
+    async def refresh(self, *, changed_at: datetime | None = None) -> ReportingSubscriptionReadback:
+        """Re-read the readback and fold ``accounts_unauthorized[]`` into grant history.
+
+        ``changed_at`` is the ``principal.changed`` notification's
+        ``changed_at``. When an account the tracker saw lose authority leaves
+        ``accounts_unauthorized[]`` within retention, that is a re-grant the
+        wire does not otherwise date (adcp#8585 keeps ``authorized_at`` at the
+        chain start), so it is recorded at ``changed_at``.
+        """
         self._readback = await read_reporting_subscriptions(self._client)
+        listed: set[str] = set()
         for state in self._readback.subscriptions:
             for entry in state.accounts_unauthorized or ():
+                listed.add(entry.account_id)
                 self._record_loss(entry.account_id, utc_instant(entry.unauthorized_at))
+        if changed_at is not None:
+            at = utc_instant(changed_at, field="changed_at")
+            for account_id, record in self._accounts.items():
+                last = record.grants[-1] if record.grants else None
+                if last is None or last.unauthorized_at is None or account_id in listed:
+                    continue
+                expired = self._retention is not None and at - last.unauthorized_at >= timedelta(
+                    days=self._retention
+                )
+                if not expired and at > last.unauthorized_at:
+                    record.grants.append(SubscriptionAuthorization(at))
         return self._readback
 
     async def handle_notification(self, notification: Mapping[str, Any] | Any) -> bool:
         """Refresh on a relevant ``principal.changed``; returns whether it refreshed."""
         if not is_subscription_change(notification):
             return False
-        await self.refresh()
+        payload = _dump(notification)
+        changed = payload.get("changed_at")
+        if isinstance(changed, str):
+            changed = datetime.fromisoformat(changed.replace("Z", "+00:00"))
+        await self.refresh(changed_at=changed if isinstance(changed, datetime) else None)
         return True
 
     def observe_account(
         self,
         account_id: str,
         *,
-        authorized_at: datetime | None,
-        timezone: str = "UTC",
+        authorized_at: datetime,
+        timezone: str,
         operator: str | None = None,
         observed_at: datetime | None = None,
     ) -> None:
         """Record what ``list_accounts`` shows for an account the caller can read.
 
-        After a recorded loss, a later ``authorized_at`` is a re-grant that
-        started a new chain. An unchanged ``authorized_at`` is a re-grant within
-        retention (adcp#8585), recorded at ``observed_at``. A changed
-        ``timezone`` is recorded as a timezone change at ``observed_at``.
+        ``timezone`` is required: the SDK never substitutes a zone.
+        ``authorized_at`` is the start of the caller's current authorization
+        chain (adcp#8585), so any change starts a new chain, even when the
+        loss before it was never seen; the unseen loss is then placed as early
+        as the facts allow (the last instant the account was seen readable),
+        so the tracker under-expects rather than claims periods the seller
+        never owed. An unchanged ``authorized_at`` after a recorded loss is a
+        re-grant within retention; :meth:`handle_notification` dates it from
+        the ``principal.changed`` notification, and ``observed_at`` is only a
+        fallback. A changed ``timezone`` is a fallback too: the seller's
+        ``timezone_cutovers[]`` are authoritative in :meth:`expected_periods`.
         """
+        require_zone(timezone, field="timezone")
+        granted = utc_instant(authorized_at, field="authorized_at")
+        seen = utc_instant(observed_at, field="observed_at") if observed_at else granted
         record = self._accounts.get(account_id)
         if record is None:
             record = self._accounts[account_id] = _AccountRecord(timezone, operator)
@@ -333,39 +372,53 @@ class ReportingSubscriptionTracker:
             if observed_at is None:
                 raise ValueError("a timezone change needs observed_at")
             record.timezone_changes.append(
-                AccountTimezoneChange(
-                    utc_instant(observed_at), timezone, previous_timezone=record.timezone
-                )
+                AccountTimezoneChange(seen, timezone, previous_timezone=record.timezone)
             )
             record.timezone = timezone
         if operator is not None:
             record.operator = operator
-        if authorized_at is None:
-            return
-        granted = utc_instant(authorized_at, field="authorized_at")
-        if not record.grants:
+        if record.chain_start is None:
+            record.chain_start = granted
             record.grants.append(SubscriptionAuthorization(granted))
+            record.last_seen = seen
             return
-        last = record.grants[-1]
-        if last.unauthorized_at is None:
-            return
-        if granted > last.unauthorized_at:
-            # A new chain: the seller reset authorized_at to the re-grant.
-            record.grants.append(SubscriptionAuthorization(granted))
-            return
-        # adcp#8585: a re-grant within status_retention_days continues the
-        # chain and leaves authorized_at unchanged, so the wire carries no
-        # re-grant instant. Record the instant this account was observed
-        # readable again; the seller's gaps[] (when it does not backfill)
-        # remain authoritative for the periods that are not owed.
-        if observed_at is None:
+        if granted < record.chain_start:
             raise ValueError(
-                "the account is readable again with an unchanged authorized_at; "
-                "pass observed_at so the re-grant can be recorded"
+                f"authorized_at for {account_id!r} moved earlier, which a chain start cannot"
             )
-        record.grants.append(
-            SubscriptionAuthorization(max(utc_instant(observed_at), last.unauthorized_at))
-        )
+        last = record.grants[-1]
+        if granted > record.chain_start:
+            # A new chain starting at ``granted``.
+            if last.unauthorized_at is None and last.authorized_at <= record.chain_start:
+                # Its loss was never seen: end the old grant at the earliest
+                # instant the facts allow, then start the new chain.
+                ended = record.last_seen or last.authorized_at
+                if self._retention is not None:
+                    ended = min(ended, granted - timedelta(days=self._retention))
+                ended = max(ended, last.authorized_at + timedelta(microseconds=1))
+                record.grants[-1] = SubscriptionAuthorization(last.authorized_at, ended)
+                record.grants.append(SubscriptionAuthorization(granted))
+            elif last.unauthorized_at is None:
+                # The re-grant is already recorded (dated by a notification);
+                # the wire's chain start is authoritative for when it began.
+                record.grants[-1] = SubscriptionAuthorization(
+                    max(granted, record.grants[-2].unauthorized_at or granted)
+                    if len(record.grants) > 1
+                    else granted
+                )
+            else:
+                record.grants.append(SubscriptionAuthorization(granted))
+            record.chain_start = granted
+        elif last.unauthorized_at is not None:
+            # The same chain readable again: a re-grant within retention not
+            # yet dated by a notification.
+            if observed_at is None:
+                raise ValueError(
+                    "the account is readable again with an unchanged authorized_at; "
+                    "pass observed_at, or let handle_notification date the re-grant"
+                )
+            record.grants.append(SubscriptionAuthorization(max(seen, last.unauthorized_at)))
+        record.last_seen = max(record.last_seen or seen, seen)
 
     def _record_loss(self, account_id: str, unauthorized_at: datetime) -> None:
         record = self._accounts.get(account_id)
@@ -384,11 +437,18 @@ class ReportingSubscriptionTracker:
         now: datetime,
         coverage: ReportingSubscriptionCoverage | None = None,
         include_unresolved: bool = False,
+        require_prior_configurations: bool = True,
     ) -> list[ExpectedSubscriptionPeriod]:
         """What the seller owes this account under the subscription, from buyer records.
 
         ``coverage`` is the subscription's ``subscription_coverage[]`` entry
-        for the account, read while the caller is authorized.
+        for the account, read while the caller is authorized. Its
+        ``excluded``, ``gaps`` and ``timezone_cutovers`` all apply; when it
+        lists timezone cutovers they replace the tracker's own observations.
+        A prior version whose configuration neither the readback
+        (adcp#8588) nor this tracker knows is an error unless
+        ``require_prior_configurations`` is false, which assumes the current
+        configuration.
         """
         state = self._readback.get(subscription_id)
         if state is None:
@@ -396,22 +456,29 @@ class ReportingSubscriptionTracker:
         record = self._accounts.get(account_id)
         if record is None:
             raise KeyError(account_id)
-        return expected_subscription_periods(
-            subscription=state,
+        windows = subscription_version_windows(
+            state,
             version_configurations=self._sent.get(subscription_id),
+            require_prior_configurations=require_prior_configurations,
+        )
+        return expected_subscription_periods(
+            subscription=windows,
             account_id=account_id,
             buys=buys,
             offerings=self._offerings,
             account_timezone=record.timezone,
             now=now,
             authorizations=list(record.grants),
-            exceptions=() if coverage is None else coverage.excluded,
-            gaps=() if coverage is None else (coverage.gaps or ()),
+            coverage=coverage,
             backfill_on_regrant=self._backfill,
             status_retention_days=self._retention,
             destinations=self._destinations,
             account_operator=record.operator,
-            timezone_changes=list(record.timezone_changes),
+            timezone_changes=(
+                ()
+                if coverage is not None and coverage.timezone_cutovers
+                else list(record.timezone_changes)
+            ),
             include_unresolved=include_unresolved,
         )
 
