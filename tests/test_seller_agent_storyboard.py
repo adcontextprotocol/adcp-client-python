@@ -1234,3 +1234,57 @@ async def test_compact_catalog_ignores_outcome_target_and_paginates_fields() -> 
     assert "products" not in unchanged
     invalid = await _seller().list_products({"cursor": "invalid"})
     assert invalid["errors"][0]["code"] == "INVALID_REQUEST"
+
+
+@pytest.mark.asyncio
+async def test_delivery_without_impressions_omits_them_and_rates() -> None:
+    """AdCP 3.3: absence means not measured; never fill zero or derive a rate."""
+    store = _store()
+    await store.seed_media_buy(
+        media_buy_id="unmeasured", fixture={"packages": [{"package_id": "p", "budget": 10}]}
+    )
+    cumulative = await store.simulate_delivery(
+        "unmeasured",
+        reported_spend={"amount": 5, "currency": "USD"},
+        viewability={"measurable_impressions": 0, "viewable_impressions": 0, "standard": "mrc"},
+    )
+    assert "impressions" not in cumulative["cumulative"]
+    report = await _seller().get_media_buy_delivery({"media_buy_ids": ["unmeasured"]})
+    buy = report["media_buy_deliveries"][0]
+    assert "impressions" not in buy["totals"]
+    assert "impressions" not in buy["by_package"][0]
+    assert "viewable_rate" not in buy["totals"]["viewability"]
+
+
+@pytest.mark.asyncio
+async def test_viewability_under_two_standards_has_no_flat_total() -> None:
+    """AdCP 3.3: a metric reported under more than one qualifier omits its flat carrier."""
+    store = _store()
+    await store.seed_media_buy(
+        media_buy_id="mixed-standards", fixture={"packages": [{"package_id": "p", "budget": 10}]}
+    )
+    for standard in ("mrc", "groupm"):
+        await store.simulate_delivery(
+            "mixed-standards",
+            impressions=100,
+            reported_spend={"amount": 1, "currency": "USD"},
+            viewability={
+                "measurable_impressions": 100,
+                "viewable_impressions": 50,
+                "standard": standard,
+            },
+        )
+    report = await _seller().get_media_buy_delivery({"media_buy_ids": ["mixed-standards"]})
+    totals = report["media_buy_deliveries"][0]["totals"]
+    assert totals["impressions"] == 200
+    assert "viewability" not in totals
+
+
+@pytest.mark.parametrize(
+    ("version", "expect_rows"), [("3.3-beta.1", True), ("3.2", False), (None, True)]
+)
+def test_impressionless_rows_are_served_only_from_33(version, expect_rows) -> None:
+    from types import SimpleNamespace
+
+    context = None if version is None else SimpleNamespace(resolved_adcp_version=version)
+    assert _sa._serves_impressionless_rows(context) is expect_rows
