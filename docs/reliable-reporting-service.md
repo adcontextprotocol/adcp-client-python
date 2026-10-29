@@ -334,6 +334,18 @@ and the `subscription_coverage[]` exceptions and gaps. It returns
 they feed `evaluate_reporting_ledger` and the consumer-status planner as they
 are.
 
+`ReportingSubscriptionTracker` keeps those records for you. Register through
+`tracker.sync(...)` so every version's configuration is kept (the readback
+keeps only the current one), record what `list_accounts` shows with
+`tracker.observe_account(...)`, and pass each `principal.changed` payload to
+`tracker.handle_notification(...)`; it re-reads `get_principal` and folds
+`accounts_unauthorized[]` into the grant history.
+`tracker.expected_periods(subscription_id, account_id, buys=..., now=...,
+coverage=...)` then returns what the seller owes. A withheld period carries no
+`expected_at`, so it is never claimed missing while authority is absent.
+`sync_reporting_subscriptions`, `read_reporting_subscriptions` and
+`load_subscription_coverage` are the underlying client helpers.
+
 **Seller.** Opt in on the principal runtime and link it to the engine. Without
 `reporting_subscriptions=`, `PrincipalService` rejects the section with
 `UNSUPPORTED_FEATURE`, as the spec requires for an unsupported section.
