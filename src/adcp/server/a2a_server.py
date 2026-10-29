@@ -752,13 +752,19 @@ class ADCPAgentExecutor(AgentExecutor):
         # TestControllerStore; otherwise we would advertise a skill
         # backed only by the handler's not-supported stub.
         resolved_adcp_version = _resolve_handler_adcp_version(handler, None)
-        from adcp.server.version_policy import resolve_supported_versions
+        from adcp.server.version_policy import (
+            resolve_application_adcp_version,
+            resolve_supported_versions,
+        )
 
         supported_versions = resolve_supported_versions(
             supported_versions, handler=handler, adcp_version=resolved_adcp_version
         )
         self._supported_versions = supported_versions
         self._default_adcp_version = resolved_adcp_version
+        self._application_adcp_version = resolve_application_adcp_version(
+            handler, adcp_version=resolved_adcp_version, supported_versions=supported_versions
+        )
         tool_defs = get_tools_for_handler(
             handler,
             advertise_all=advertise_all,
@@ -777,6 +783,7 @@ class ADCPAgentExecutor(AgentExecutor):
                 default_unnegotiated_adcp_version=resolved_adcp_version,
                 response_enhancer=response_enhancer,
                 supported_versions=supported_versions,
+                adcp_version=resolved_adcp_version,
             )
 
         if test_controller is not None:
@@ -809,10 +816,14 @@ class ADCPAgentExecutor(AgentExecutor):
                 "comply_test_controller",
                 params,
                 self._supported_versions,
-                default=self._default_adcp_version,
+                # An omitted envelope is served as the application release,
+                # as for every other skill.
+                default=self._default_adcp_version or self._application_adcp_version,
             )
-            if context is not None and version is not None:
-                context.resolved_adcp_version = version
+            if context is not None:
+                context.application_adcp_version = self._application_adcp_version
+                if version is not None:
+                    context.resolved_adcp_version = version
             result = await _handle_test_controller(
                 store,
                 params,

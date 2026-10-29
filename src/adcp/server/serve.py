@@ -2935,6 +2935,11 @@ def create_mcp_server(
     mcp._adcp_default_version = (
         _resolve_handler_adcp_version(handler, None) or DEFAULT_UNNEGOTIATED_ADCP_VERSION
     )
+    from adcp.server.version_policy import resolve_application_adcp_version
+
+    mcp._adcp_application_version = resolve_application_adcp_version(
+        handler, supported_versions=supported_versions
+    )
     mcp._adcp_operational_routes = prepare_operational_routes(unauthenticated_routes)
     mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
     object.__setattr__(mcp.settings, "host", resolved_host)
@@ -3251,6 +3256,7 @@ def _register_handler_tools(
             pre_validation_hook=hook,
             response_enhancer=response_enhancer,
             supported_versions=supported_versions,
+            adcp_version=resolved_adcp_version,
             default_unnegotiated_adcp_version=(
                 resolved_adcp_version or DEFAULT_UNNEGOTIATED_ADCP_VERSION
             ),

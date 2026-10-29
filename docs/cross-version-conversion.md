@@ -1,7 +1,9 @@
 # Application and wire versions
 
-Application requests, responses, and server handlers use the latest AdCP models
-packaged with the SDK. The client discovers a seller's `adcp.supported_versions`
+Client application requests and responses use the latest AdCP models packaged
+with the SDK; a server's handlers run on its application version (its pin,
+else the newest of its `supported_versions`, else the packaged release; see
+below). The client discovers a seller's `adcp.supported_versions`
 and chooses the highest common release for each call. Discovery follows the
 existing `capabilities_ttl` cache; refreshing capabilities changes subsequent
 calls, without changing requests already in flight. An advertisement containing
@@ -10,41 +12,94 @@ For A2A, discovery uses a separate conversation and never changes a retained
 business context or task ID. Refreshing capabilities while approval is pending
 therefore preserves the original task for resumption.
 
-## Handlers receive requests upgraded to the latest minor
+## Handlers receive requests converted to the application version
 
-Since SDK 9.0.0, server dispatch upgrades an older buyer's request to the
-latest AdCP minor packaged with the SDK before the handler runs. Handlers
-always answer in the latest shapes; the SDK converts the response down to the
-buyer's version. This is a breaking change from SDK 8, where handlers saw the
-buyer's own envelope.
+A server runs its handlers on one release, its *application version*:
 
-A handler that tailors a response per version must read the buyer's version
-from the context, not from `params`:
+1. the server's `adcp_version` pin, when it has one (`adcp_version=` on a
+   server factory, or the handler's `get_adcp_version()` / `_adcp_version`);
+2. else the newest release in its `supported_versions`;
+3. else the release packaged with the SDK (`3.3-beta.0` in SDK 10).
+
+`adcp.server.version_policy.resolve_application_adcp_version` is the one
+resolver every dispatch path uses: `create_mcp_server`, `create_a2a_server`,
+`serve`, `MCPToolSet`, `ADCPAgentExecutor`, `create_tool_caller`, and the
+Decisioning `PlatformHandler` / `create_adcp_server_from_platform`.
+
+Server dispatch validates an older or newer buyer's request against the
+buyer's own schema, converts it to the application version, and only then
+applies the unknown-field policy, application-schema validation and typed
+parsing. The handler answers in the application version; the SDK validates
+that answer against the application schema (under the configured response
+mode) and converts it to the buyer's version: up (a 3.2 server answering a
+`3.3-beta.0` buyer), unchanged (a same-release buyer), or down (a 3.1 or 3.0
+buyer). A conversion the target schema refuses fails as a structured
+`VERSION_UNSUPPORTED` error rather than reaching the peer invalid.
+
+So a production seller can keep its handler code on the stable 3.2 contract
+while the SDK's default is a pre-release:
 
 ```python
-from adcp.server import ADCPHandler, ToolContext
+from adcp.server import ADCPHandler, ToolContext, create_mcp_server
 
 
 class Seller(ADCPHandler):
+    def get_adcp_version(self) -> str:
+        return "3.2"  # the server pin; ADCPServerBuilder(adcp_version="3.2") sets the same
+
+    async def get_products(self, params: dict, context: ToolContext):
+        assert params["adcp_version"] == "3.2"           # the application version
+        assert context.application_adcp_version == "3.2"
+        buyer_version = context.resolved_adcp_version    # "3.1", "3.2" or "3.3-beta.0"
+        ...
+
+
+mcp = create_mcp_server(Seller())                                    # pinned by the handler
+mcp = create_mcp_server(OtherSeller(), supported_versions=["3.2"])   # newest listed release
+```
+
+Since SDK 9.0.0 the handler has not seen the buyer's own envelope; SDK 10.0
+makes the version it does see follow the server's pin instead of always being
+the packaged release. A handler that tailors a response per buyer must read
+the buyer's version from the context, not from `params`:
+
+```python
+class Seller(ADCPHandler):
     async def get_products(self, params, context: ToolContext):
-        # A 3.1 buyer: params["adcp_version"] == "3.2" after the upgrade,
-        # and resolve_requested_adcp_version(params) also returns "3.2".
+        # A 3.1 buyer on a 3.2 server: params["adcp_version"] == "3.2" after
+        # the conversion, and resolve_requested_adcp_version(params) is "3.2".
         buyer_version = context.resolved_adcp_version  # "3.1"
         ...
 ```
 
 `resolve_requested_adcp_version(params)` inside a handler returns the
-converted (served) version for any explicit `adcp_version` claim, so branches
-keyed on it silently stop matching older buyers. It still describes a raw wire
+application version for any explicit `adcp_version` claim, so branches keyed
+on it silently stop matching older buyers. It still describes a raw wire
 payload correctly, before dispatch. `ToolContext.resolved_adcp_version` is the
-buyer's negotiated wire contract. A2A requests without any version envelope
-leave it `None` and are served as the current SDK shape. Decisioning platforms
-read the same value from `RequestContext.resolved_adcp_version`.
+buyer's negotiated wire contract and `ToolContext.application_adcp_version`
+is the handler's. A2A requests without any version envelope leave
+`resolved_adcp_version` `None` and are served as the application version.
+Decisioning platforms read the same two values from `RequestContext`.
 
-Most handlers need no version logic: return the latest shapes and let the SDK
-drop the fields an older buyer cannot represent. Branch on
+Most handlers need no version logic: return the application-version shapes
+and let the SDK drop the fields an older buyer cannot represent. Branch on
 `context.resolved_adcp_version` only when the business answer itself differs,
 for example when withholding a product that an older buyer could not book.
+
+### What a pin does and does not change for typed handlers
+
+Dict handlers, schema validation and the unknown-field policy are exact: on a
+3.2 server they use the bundled 3.2 schemas and nothing else. Typed handler
+parameters (`params: GetProductsRequest`) and typed responses still use the
+generated classes of the packaged release. Those classes are additive
+supersets of 3.2 (the only 3.2 property absent from `3.3-beta.0` is
+`evaluator.evaluator_id` on `build_creative`), so a 3.2 payload parses into
+them unchanged and dumps back as the same 3.2 payload. A field that 3.3 added
+reads as unset, its model default, on a 3.2 server; it is never written to the
+wire unless the handler sets it, and a response that sets a field the 3.2
+schema refuses fails strict response validation before conversion. For a
+handler that must only ever name 3.2 fields, subclass the pinned bases in
+`adcp.types.versioned_bases.v32`.
 
 `adcp_version` sets a negotiation ceiling. A request's explicit `adcp_version`
 overrides the constructor ceiling for that call. `server_version` declares a
@@ -95,10 +150,13 @@ scope restrictions or merges governance authorities automatically. A legacy
 single-agent registration without categories upgrades normally.
 
 Both MCP and A2A validate requests after converting to the wire version and
-validate responses before upgrading them. Server dispatch validates an older
-request against its original schema, upgrades it before typed handler parsing,
-and converts the response before wire validation. `ToolContext.resolved_adcp_version`
-continues to describe the buyer's wire contract for transport-aware integrations.
+validate responses before upgrading them. Server dispatch validates a buyer's
+request against its original schema, converts it to the application version
+before typed handler parsing, validates the handler's response against the
+application schema, and converts it before wire validation.
+`ToolContext.resolved_adcp_version` continues to describe the buyer's wire
+contract for transport-aware integrations; `ToolContext.application_adcp_version`
+is the handler's.
 Response envelope defaults and the 3.0 media-buy lifecycle status are adapted
 at the boundary. Governance decision and acknowledgement statuses map to
 `verdict` and `outcome_state`, including verdicts on audit check entries.
@@ -188,7 +246,7 @@ on which side of the wire converts:
 | Side | Per-loss record | Summary |
 | --- | --- | --- |
 | Client (buyer converting its request or a seller's response) | `WARNING` | none |
-| Server dispatch (request upgrade, response downgrade) | `DEBUG` | one `INFO` line per conversion with losses |
+| Server dispatch (request and response conversion to and from the application version) | `DEBUG` | one `INFO` line per conversion with losses |
 
 On the client, a drop means the buyer lost data it may care about. On the
 server, dropping newer fields for an older buyer is the expected cost of serving
@@ -202,8 +260,9 @@ INFO adcp.compat.versions: AdCP conversion of get_products 3.2 -> 3.1 dropped 15
 ```
 
 The summary collapses array indexes to `*` and lists at most ten distinct
-pointers. Request upgrades add fields rather than drop them, so a server logs
-at most one summary per response. Enable `DEBUG` on `adcp.compat.versions` to
+pointers. A request upgrade adds fields rather than drops them, so a server
+serving older buyers logs at most one summary per response; a server pinned
+below a buyer's release may also log one for the request it converts down. Enable `DEBUG` on `adcp.compat.versions` to
 see every exact pointer, or read them from the metadata report.
 
 Code calling `adcp.compat.versions.convert_payload` directly chooses the level

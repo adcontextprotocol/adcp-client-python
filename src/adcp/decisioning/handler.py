@@ -40,7 +40,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from adcp._version import (
     is_adcp_version_at_least,
-    resolve_adcp_version,
     resolve_adcp_version_alias,
 )
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -1497,10 +1496,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # ``None`` resolves to the protocol version bundled with this SDK, so
         # every PlatformHandler has a concrete pin for schema discovery and
         # unnegotiated dispatch.
-        from adcp.server.version_policy import default_adcp_version, resolve_supported_versions
+        from adcp.server.version_policy import (
+            resolve_application_adcp_version,
+            resolve_supported_versions,
+        )
 
-        self._adcp_version = resolve_adcp_version(
-            default_adcp_version(adcp_version, supported_versions)
+        self._adcp_version = resolve_application_adcp_version(
+            adcp_version=adcp_version, supported_versions=supported_versions
         )
         self._supported_adcp_versions = resolve_supported_versions(
             supported_versions, adcp_version=self._adcp_version

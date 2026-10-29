@@ -152,18 +152,26 @@ class ToolContext:
         hatch when subclassing isn't worth it.
     :param resolved_adcp_version: The buyer's wire contract: the
         release-precision AdCP version the transport dispatcher negotiated
-        for this request, before the SDK upgraded the request. A buyer
+        for this request, before the SDK converted the request. A buyer
         claiming ``adcp_version: "3.1"`` reads ``"3.1"`` here even though the
-        handler's params arrive upgraded to the latest minor, so this, not
+        handler's params arrive converted to :attr:`application_adcp_version`,
+        so this, not
         :func:`adcp.validation.envelope.resolve_requested_adcp_version` on
         those params, is the source for version-specific business logic.
         A major-only envelope resolves to ``"3.0"``. Without any version
         envelope, the server's pinned ``adcp_version`` applies if it has one;
         otherwise MCP pins ``"3.0"`` for compatibility, while A2A leaves this
-        ``None`` and serves the current SDK shape. Unversioned
+        ``None`` and serves the application release. Unversioned
         ``get_adcp_capabilities`` resolves to the highest supported release.
-        Handlers must answer in the latest shapes regardless of this value;
-        the SDK converts the response down to this version.
+        Handlers answer in the application release regardless of this value;
+        the SDK converts the response to this version.
+    :param application_adcp_version: The release the handler runs on: the
+        server's ``adcp_version`` pin, else the newest of its
+        ``supported_versions``, else the release packaged with the SDK. The
+        dispatcher converts the buyer's request to this version before the
+        handler sees it and converts the handler's response back to
+        :attr:`resolved_adcp_version`. ``None`` only outside a dispatcher
+        (a bare context built by hand).
     """
 
     request_id: str | None = None
@@ -171,6 +179,7 @@ class ToolContext:
     tenant_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     resolved_adcp_version: str | None = None
+    application_adcp_version: str | None = None
 
 
 @dataclass

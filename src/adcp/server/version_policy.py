@@ -24,17 +24,81 @@ def default_adcp_version(
     """
     if adcp_version is not None or not supported_versions:
         return adcp_version
-    from adcp._version import is_adcp_version_at_least
+    from adcp._version import is_adcp_version_at_least, resolve_adcp_version
 
     newest: str | None = None
     for version in supported_versions:
         try:
-            release = resolve_adcp_version_alias(normalize_to_release_precision(version))
-        except ValueError:
+            # Only a release this SDK can run on is a candidate: a
+            # legacy-only selection (``["2.5"]``) keeps the SDK default.
+            release = resolve_adcp_version(version)
+        except ConfigurationError:
             continue
         if newest is None or is_adcp_version_at_least(release, newest):
             newest = release
     return newest
+
+
+def handler_adcp_version_pin(handler: Any, explicit_version: str | None = None) -> str | None:
+    """The trusted server pin: an explicit argument, else the handler's own.
+
+    A handler declares its pin through ``get_adcp_version()`` or a
+    ``_adcp_version`` attribute. ``None`` means the server has no pin of its
+    own and inherits the SDK default.
+    """
+    if explicit_version is not None:
+        return explicit_version
+    if handler is None:
+        return None
+    getter = getattr(handler, "get_adcp_version", None)
+    if callable(getter):
+        try:
+            candidate = getter()
+        except Exception:
+            candidate = None
+        if isinstance(candidate, str):
+            return candidate
+    candidate = getattr(handler, "_adcp_version", None)
+    return candidate if isinstance(candidate, str) else None
+
+
+def resolve_application_adcp_version(
+    handler: Any = None,
+    *,
+    adcp_version: str | None = None,
+    supported_versions: Sequence[str] | None = None,
+) -> str:
+    """The release a server's handlers run on.
+
+    Every dispatch path converts requests *to* this version before the
+    handler runs and responses *from* it before they reach the buyer. It is
+    the server's ``adcp_version`` pin when it has one, else the newest
+    release in its ``supported_versions``, else the release packaged with
+    the SDK. A handler composed by Decisioning carries both settings, so
+    transports built on it agree without repeating them.
+
+    Raises :class:`adcp.exceptions.ConfigurationError` when the pin is not
+    a release this SDK can speak.
+    """
+    from adcp._version import resolve_adcp_version
+
+    pin = handler_adcp_version_pin(handler, adcp_version)
+    if supported_versions is None:
+        supported_versions = getattr(handler, "_supported_adcp_versions", None)
+    pin = default_adcp_version(pin, supported_versions)
+    try:
+        return resolve_adcp_version(pin)
+    except ConfigurationError:
+        # A frozen historical prerelease mount (``3.2.0-rc.1``) runs on that
+        # exact bundle; it is served natively and never converted.
+        if pin is not None:
+            try:
+                release = resolve_adcp_version_alias(normalize_to_release_precision(pin))
+            except ValueError:
+                raise ConfigurationError(f"adcp_version={pin!r} is not a valid version") from None
+            if "-" in release and list_validator_keys(version=release):
+                return release
+        raise
 
 
 def resolve_supported_versions(

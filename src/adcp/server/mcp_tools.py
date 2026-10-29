@@ -2685,20 +2685,9 @@ def _resolve_handler_adcp_version(
     explicit_version: str | None,
 ) -> str | None:
     """Resolve one trusted server pin for both discovery and dispatch."""
-    if explicit_version is not None:
-        return explicit_version
-    if instance is None:
-        return None
-    getter = getattr(instance, "get_adcp_version", None)
-    if callable(getter):
-        try:
-            candidate = getter()
-        except Exception:
-            candidate = None
-        if isinstance(candidate, str):
-            return candidate
-    candidate = getattr(instance, "_adcp_version", None)
-    return candidate if isinstance(candidate, str) else None
+    from adcp.server.version_policy import handler_adcp_version_pin
+
+    return handler_adcp_version_pin(instance, explicit_version)
 
 
 #: Non-compact schemas, memoized per (kind, mode, tool). The compact path
@@ -3125,6 +3114,7 @@ def create_tool_caller(
     default_unnegotiated_adcp_version: str | None = DEFAULT_UNNEGOTIATED_ADCP_VERSION,
     response_enhancer: ResponseEnhancer | None = None,
     supported_versions: Sequence[str] | None = None,
+    adcp_version: str | None = None,
 ) -> Callable[..., Any]:
     """Create a tool caller function for an ADCP handler method.
 
@@ -3205,6 +3195,21 @@ def create_tool_caller(
             applied to every successful response after context echo and
             before schema validation. See :data:`ResponseEnhancer` for the
             two supported arities and the failure/idempotency semantics.
+        supported_versions: Wire versions this server serves; buyers
+            claiming another version are refused. See
+            :func:`adcp.server.version_policy.resolve_supported_versions`.
+        adcp_version: Trusted server pin. Defaults to the handler's own
+            ``get_adcp_version()`` / ``_adcp_version`` pin.
+
+    **Application version.** The handler runs on one release: the server's
+    pin, else the newest of ``supported_versions``, else the release
+    packaged with the SDK (see
+    :func:`adcp.server.version_policy.resolve_application_adcp_version`).
+    A buyer's request is converted from its wire version to that release
+    before validation and typed parsing, and the handler's response is
+    converted back to the buyer's version. ``ToolContext.resolved_adcp_version``
+    keeps the buyer's version; ``ToolContext.application_adcp_version`` is
+    the handler's.
 
     Returns:
         Async callable ``call_tool(params, context=None)``. The ``context``
@@ -3284,8 +3289,15 @@ def create_tool_caller(
     )
     accepted_versions = selected_versions or SUPPORTED_WIRE_VERSIONS
     from adcp._version import resolve_adcp_version_alias
+    from adcp.compat.versions import is_convertible_version
+    from adcp.server.version_policy import resolve_application_adcp_version
 
     served_contracts = {resolve_adcp_version_alias(version) for version in accepted_versions}
+    # The release the handler runs on. Requests are converted to it and
+    # responses from it; wire-side validation keeps the buyer's version.
+    application_version = resolve_application_adcp_version(
+        handler, adcp_version=adcp_version, supported_versions=selected_versions
+    )
 
     def unsupported_version_error(exc: UnsupportedVersionError) -> ADCPTaskError:
         return ADCPTaskError(
@@ -3348,6 +3360,7 @@ def create_tool_caller(
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()
+        ctx.application_adcp_version = application_version
 
         raw_params = params  # Preserve original wire params for context echo.
 
@@ -3488,12 +3501,11 @@ def create_tool_caller(
         if wire_version is None:
             wire_version = default_unnegotiated_adcp_version
         if selected_versions is not None:
-            # A2A's unpinned default is the packaged contract. Legacy shape
-            # probes and omitted envelopes must obey the same selected set as
-            # explicit version claims, even when schema validation is off.
-            from adcp._version import resolve_adcp_version
-
-            effective_version = wire_version or resolve_adcp_version(None)
+            # An omitted A2A envelope is served as the application release.
+            # Legacy shape probes and omitted envelopes must obey the same
+            # selected set as explicit version claims, even when schema
+            # validation is off.
+            effective_version = wire_version or application_version
             effective_version = resolve_adcp_version_alias(
                 normalize_to_release_precision(effective_version)
             )
@@ -3514,10 +3526,10 @@ def create_tool_caller(
         ctx.resolved_adcp_version = wire_version
 
         if pinned_reporting_status:
-            from adcp._version import is_adcp_version_at_least, resolve_adcp_version
+            from adcp._version import is_adcp_version_at_least
 
-            mounted_version = default_unnegotiated_adcp_version or resolve_adcp_version(None)
-            requested_version = wire_version or resolve_adcp_version(None)
+            mounted_version = default_unnegotiated_adcp_version or application_version
+            requested_version = wire_version or application_version
             if is_adcp_version_at_least(mounted_version, "3.2-rc.6") != is_adcp_version_at_least(
                 requested_version, "3.2-rc.6"
             ):
@@ -3608,24 +3620,29 @@ def create_tool_caller(
                     phase="request",
                     exception=exc,
                 ) from exc
-            # Adapter output is validated against the SDK pin
+            # Adapter output is validated against the application release
             # (catches translator bugs with v3 field paths). The
             # ``post_adapter_validator_version`` name documents
             # which side of the adapter this value plays.
-            post_adapter_validator_version: str | None = None
+            post_adapter_validator_version: str | None = application_version
         else:
             post_adapter_validator_version = wire_version
-        response_validator_version = None if legacy_adapter is not None else wire_version
+        # A legacy buyer's response is validated in the application shape
+        # before the adapter rewrites it. An omitted A2A envelope is served
+        # as the application release.
+        response_validator_version = (
+            application_version if legacy_adapter is not None else wire_version
+        ) or application_version
 
-        from adcp._version import resolve_adcp_version
-
-        application_version = resolve_adcp_version(None)
         convert_minor_version = (
             legacy_adapter is None
             and wire_version is not None
-            and wire_version != application_version
+            and resolve_adcp_version_alias(normalize_to_release_precision(wire_version))
+            != application_version
             and wire_version.startswith("3.")
-            and "-" not in wire_version
+            and is_convertible_version(wire_version)
+            # A frozen historical prerelease mount serves its own contract.
+            and is_convertible_version(application_version)
             and method_name != "sync_reporting_receipts"
             and not frozen_reporting_feed
         )
@@ -3657,7 +3674,7 @@ def create_tool_caller(
                 source_version=wire_version,
                 target_version=application_version,
             ).payload
-            post_adapter_validator_version = None
+            post_adapter_validator_version = application_version
             ctx.metadata[CONVERSION_METADATA_KEY] = {"wire_version": wire_version, "losses": []}
 
         creative_boundary_tools = {
@@ -3917,6 +3934,32 @@ def create_tool_caller(
             and isinstance(result, dict)
             and "adcp_error" not in result
         ):
+            # The handler answers in the application release. Check that
+            # contract before converting, so a response the handler's own
+            # schema refuses is reported against the handler's field paths
+            # rather than silently projected for the buyer.
+            if response_mode is not None and response_mode != "off":
+                application_outcome = validate_response(
+                    method_name, result, version=application_version
+                )
+                if not application_outcome.valid:
+                    logger.warning(
+                        "Schema validation warning (application response, %s) for %s: %s",
+                        application_version,
+                        method_name,
+                        format_issues(application_outcome.issues),
+                    )
+                    if response_mode == "strict":
+                        raise ADCPTaskError(
+                            operation=method_name,
+                            errors=[
+                                Error(
+                                    **build_adcp_validation_error_payload(
+                                        method_name, "response", application_outcome.issues
+                                    )
+                                )
+                            ],
+                        )
             response_direction = result.get("status")
             converted = convert_version_payload(
                 result,
@@ -4061,6 +4104,7 @@ class MCPToolSet:
                 pre_validation_hook=hook,
                 response_enhancer=response_enhancer,
                 supported_versions=supported_versions,
+                adcp_version=resolved_adcp_version,
                 default_unnegotiated_adcp_version=(
                     resolved_adcp_version or DEFAULT_UNNEGOTIATED_ADCP_VERSION
                 ),
