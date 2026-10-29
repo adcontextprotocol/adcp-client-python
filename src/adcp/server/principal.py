@@ -15,7 +15,7 @@ import unicodedata
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -42,6 +42,8 @@ from adcp.types.domains.core.reporting_subscription_state import ReportingSubscr
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
+
+_ResponseT = TypeVar("_ResponseT", GetPrincipalResponse, SyncPrincipalResponse)
 
 # get_principal relationship is added in AdCP 3.3 (DR-0024): result arms served
 # below 3.3 are closed, so the field is emitted only at 3.3 or later.
@@ -201,6 +203,33 @@ def _copy_record(record: PrincipalRecord) -> PrincipalRecord:
         },
         store_revision=record.store_revision,
     )
+
+
+def _gate_subscription_fields(response: _ResponseT, context: ToolContext | None) -> _ResponseT:
+    """Drop adcp#8585 readback fields for callers served below 3.3.0-beta.2.
+
+    The server validates responses against the release it serves, and
+    3.3.0-beta.1 closes the subscription state object.
+    """
+    from adcp.reporting.subscriptions.wire import (
+        project_subscription_state,
+        serves_settled_subscription_fields,
+    )
+
+    configuration = getattr(response.result, "configuration", None)
+    states = getattr(configuration, "reporting_subscriptions", None)
+    if not states or serves_settled_subscription_fields(
+        getattr(context, "resolved_adcp_version", None)
+    ):
+        return response
+    if not any(getattr(item, "inactive_intervals", None) for item in states):
+        return response
+    envelope = response.model_dump(mode="json", exclude_none=True)
+    envelope["result"]["configuration"]["reporting_subscriptions"] = [
+        project_subscription_state(item, None)
+        for item in envelope["result"]["configuration"]["reporting_subscriptions"]
+    ]
+    return type(response).model_validate(envelope)
 
 
 def _json(value: object) -> str:
@@ -448,7 +477,9 @@ class PrincipalService:
         response keeps the closed pre-3.3 result shape. Pass the handler's
         ``ToolContext`` so the served release is known.
         """
-        response = await self._get_principal_state(identity, request)
+        response = _gate_subscription_fields(
+            await self._get_principal_state(identity, request), context
+        )
         if (
             self._relationship_resolver is None
             or response.result.kind == "failed"
@@ -509,6 +540,21 @@ class PrincipalService:
         return self._current_response(record, context=request.context)
 
     async def sync_principal(
+        self,
+        identity: PrincipalIdentity,
+        request: SyncPrincipalRequest | Mapping[str, Any],
+        *,
+        context: ToolContext | None = None,
+    ) -> SyncPrincipalResponse:
+        """Apply the submitted sections atomically.
+
+        Pass the handler's ``ToolContext`` so fields a newer release added
+        (such as reporting-subscription ``inactive_intervals``) reach only
+        callers served that release.
+        """
+        return _gate_subscription_fields(await self._sync_principal(identity, request), context)
+
+    async def _sync_principal(
         self,
         identity: PrincipalIdentity,
         request: SyncPrincipalRequest | Mapping[str, Any],

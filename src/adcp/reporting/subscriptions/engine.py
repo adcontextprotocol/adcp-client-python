@@ -59,6 +59,7 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionSelector,
     resolve_subscription_offerings,
 )
+from adcp.reporting.subscriptions.wire import project_subscription_coverage
 from adcp.types.domains.core.reporting_subscription_coverage import (
     ReportingSubscriptionCoverage,
 )
@@ -719,13 +720,21 @@ class ReportingSubscriptionEngine:
     # -- reads -----------------------------------------------------------------
 
     async def subscription_coverage(
-        self, identity: PrincipalIdentity, account_id: str, *, now: datetime | None = None
+        self,
+        identity: PrincipalIdentity,
+        account_id: str,
+        *,
+        now: datetime | None = None,
+        adcp_version: str | None = None,
     ) -> list[ReportingSubscriptionCoverage]:
         """``subscription_coverage[]`` for one account, while the caller is authorized.
 
         One entry per caller subscription whose scope includes the account,
         inactive ones included while retained. An unauthorized account is
-        unknown here, as for any unauthorized caller.
+        unknown here, as for any unauthorized caller. ``adcp_version`` is the
+        release the response is served at: below 3.3.0-beta.2, the adcp#8585
+        fields are dropped and per-offering gaps and cutovers become
+        account-wide (see :mod:`adcp.reporting.subscriptions.wire`).
         """
         instant = self._now(now)
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
@@ -764,7 +773,11 @@ class ReportingSubscriptionEngine:
                 cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
                 if cutovers:
                     payload["timezone_cutovers"] = cutovers
-                result.append(ReportingSubscriptionCoverage.model_validate(payload))
+                result.append(
+                    ReportingSubscriptionCoverage.model_validate(
+                        project_subscription_coverage(payload, adcp_version)
+                    )
+                )
             return result
 
     def _gaps(

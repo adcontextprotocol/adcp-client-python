@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -30,6 +31,8 @@ from adcp.reporting.subscriptions import (
 from adcp.server import PrincipalChange, PrincipalIdentity, PrincipalService
 
 IDENTITY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
+#: A handler context served 3.3.0-beta.2, which carries the adcp#8585 fields.
+BETA_2 = SimpleNamespace(resolved_adcp_version="3.3-beta.2")
 NY = "America/New_York"
 
 
@@ -199,7 +202,7 @@ class World:
         await self.engine.reconcile(IDENTITY)
 
     async def state(self, subscription_id: str):
-        current = await self.principals.get_principal(IDENTITY)
+        current = await self.principals.get_principal(IDENTITY, context=BETA_2)
         return next(
             item
             for item in current.result.configuration.reporting_subscriptions
@@ -207,7 +210,9 @@ class World:
         )
 
     async def coverage(self, account_id: str, subscription_id: str):
-        entries = await self.engine.subscription_coverage(IDENTITY, account_id)
+        entries = await self.engine.subscription_coverage(
+            IDENTITY, account_id, adcp_version="3.3-beta.2"
+        )
         return next((item for item in entries if item.subscription_id == subscription_id), None)
 
     async def seller_owes(self, subscription_id: str, account_id: str, now: str):
@@ -824,3 +829,45 @@ async def test_receipt_roster_follows_active_receipt_subscriptions() -> None:
     await world.reconcile("2026-10-01T00:00:00Z")
     assert await world.engine.receipt_roster(IDENTITY, "acct-1") == ["billing"]
     assert await world.engine.receipt_roster(IDENTITY, "acct-unknown") == []
+
+
+@pytest.mark.asyncio
+async def test_beta_1_callers_get_account_wide_entries_without_new_fields() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [
+        buy(
+            "mb-1",
+            "2026-10-01T04:00:00Z",
+            "2026-10-08T04:00:00Z",
+            offering_ids=("pkg", "pkg-region-utc"),
+        ),
+    ]
+    await world.sync(
+        subscription(
+            selector={
+                "feed_purpose": "analytics",
+                "period_duration": "P1D",
+                "required_finality": "official",
+                "dimensions": ["package"],
+                "match": "all",
+            }
+        )
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-03T10:30:00Z")
+    await world.reconcile("2026-10-03T10:30:00Z")
+    world.grant("acct-1", "2026-10-04T15:30:00Z")
+    await world.reconcile("2026-10-04T15:30:00Z")
+    (entry,) = await world.engine.subscription_coverage(IDENTITY, "acct-1")
+    assert [(g.offering_id, g.from_, g.until) for g in entry.gaps] == [
+        (None, at("2026-10-03T00:00:00Z"), at("2026-10-05T04:00:00Z"))
+    ]
+    # The served response validates against the pinned 3.3.0-beta.1 schema.
+    from adcp.validation import schema_loader
+
+    validator = schema_loader.get_named_validator(
+        "core/reporting-subscription-coverage.json", version="3.3.0-beta.1"
+    )
+    payload = entry.model_dump(mode="json", exclude_none=True, by_alias=True)
+    assert [error.message for error in validator.iter_errors(payload)] == []
