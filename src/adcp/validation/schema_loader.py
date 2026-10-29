@@ -30,6 +30,7 @@ import logging
 import re
 import threading
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -263,6 +264,10 @@ class _LoaderState:
         # every returned tree independent, including any repeated branches.
         self.mcp_schemas: dict[tuple[str, Direction], str] = {}
         self.mcp_schema_lock = threading.Lock()
+        #: Transforms of ``mcp_schemas`` (the compact discovery shape, for
+        #: one), keyed by derivation name, so they live and die with this
+        #: state rather than in a module global that outlives a reset.
+        self.derived_mcp_schemas: dict[tuple[str, str, Direction], str] = {}
         self.registry: dict[str, dict[str, Any]] = {}
         self._registry_loaded = False
         #: Version segments that canonical ``/schemas/{segment}/`` references
@@ -1288,6 +1293,37 @@ def get_mcp_schema(
                     return None
                 cached = json.dumps(compact, separators=(",", ":"))
                 state.mcp_schemas[key] = cached
+    return cast(dict[str, Any], json.loads(cached))
+
+
+def get_derived_mcp_schema(
+    tool_name: str,
+    direction: Literal["request", "sync"],
+    *,
+    version: str | None = None,
+    derivation: str,
+    derive: Callable[[dict[str, Any]], dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Return ``derive(get_mcp_schema(...))``, memoized with the versioned state.
+
+    ``derivation`` names the transform so unrelated derivations of the same
+    schema do not collide. As with :func:`get_mcp_schema`, each caller
+    receives an independent, alias-free JSON tree, and the memo belongs to
+    the loader state for ``version``: a reset discards it. Concurrent first
+    callers may each run ``derive`` once; the results are identical, so the
+    last write is as good as the first.
+    """
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    key = (derivation, tool_name, direction)
+    cached = state.derived_mcp_schemas.get(key)
+    if cached is None:
+        source = get_mcp_schema(tool_name, direction, version=version)
+        if source is None:
+            return None
+        cached = json.dumps(derive(source), separators=(",", ":"))
+        state.derived_mcp_schemas[key] = cached
     return cast(dict[str, Any], json.loads(cached))
 
 

@@ -115,6 +115,44 @@
 
 ### Bug fixes
 
+* **server:** a version-pinned MCP seller — an `adcp_version` pin, or
+  `supported_versions`, which pins the server to its newest listed release —
+  advertised the *exact* bundled wire schemas in `tools/list`, ignoring
+  `schema_mode`. A single `get_products` response resolves about 280
+  definitions, and MCP cannot share definitions between tools, so the plain
+  eleven-tool seller in #1692 listed 106,250 JSON members (2.5 MB) and every
+  SDK 10 client call to it failed with `ADCPResponseTooComplexError` before
+  the handler ran, because the MCP client lists tools before each call and
+  the client's member bound was 100,000. The default `schema_mode="compact"`
+  now compacts the bundled schemas by the rules the unpinned path already
+  applied to Pydantic output — every root field with its description and
+  rules, every required nested field, every scalar with its constraints, each
+  dropped optional nested field re-admitted as `true` — and additionally
+  drops nested cross-field rules (`if`/`then`/`else`, `not`), nested `x-`
+  metadata, nested `$schema` and definition descriptions, and advertises
+  `oneOf` as `anyOf` so a loosened arm can never make a valid response fail
+  the client's output-schema check. The issue's seller lists 17,181 members
+  (467 KB); every tool the SDK can serve at the largest `supported_versions`
+  lists about 74,000 members and 1.9 MB, under half of both buyer bounds, and
+  a guard test pins that. `schema_mode="defs"` (and `"inline"`) keep the
+  exact bundled schema. The startup size line now reports JSON members as
+  well as bytes and warns past half of either bound. Fixes #1692.
+* **client:** the JSON member bound on agent responses rises from 100,000 to
+  524,288 (`adcp._json_bounds.MAX_JSON_MEMBERS`), the 4 MiB response budget
+  at eight bytes per member. Keyed JSON — every AdCP task body and every
+  JSON Schema in a `tools/list` — cannot average much under eight bytes per
+  member (a quoted key, a colon, a value, a separator), so any such document
+  inside the byte budget is now inside the member bound too, where 100,000
+  was eight times tighter than the byte budget implied and a conforming
+  peer's `tools/list` could exceed it at 2.5 MB. It is still a real bound:
+  bare-scalar arrays and empty containers (two to three bytes per member)
+  are refused at a quarter of what the byte budget alone would admit, and
+  the depth bound of 64 is unchanged. `tools/list` deliberately gets the same
+  bound as a tool result rather than a larger one: it travels the same
+  transport, and a compact listing of every tool is a small fraction of it.
+  Inbound webhook and push bodies keep the spec's 100,000
+  (`MAX_INBOUND_JSON_MEMBERS`), sized to their 1 MiB cap. Refs #1692.
+
 * **server:** MCP ``outputSchema`` now honours ``schema_mode`` instead of
   always inlining every ``$ref``. Inlining expands each shared subtree once
   per reference, so ``ListCreativesResponse`` was advertised at 4.8 MB where

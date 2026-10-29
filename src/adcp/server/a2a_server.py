@@ -753,6 +753,7 @@ class ADCPAgentExecutor(AgentExecutor):
         # backed only by the handler's not-supported stub.
         resolved_adcp_version = _resolve_handler_adcp_version(handler, None)
         from adcp.server.version_policy import (
+            default_adcp_version,
             resolve_application_adcp_version,
             resolve_supported_versions,
         )
@@ -765,10 +766,12 @@ class ADCPAgentExecutor(AgentExecutor):
         self._application_adcp_version = resolve_application_adcp_version(
             handler, adcp_version=resolved_adcp_version, supported_versions=supported_versions
         )
+        # Discovery describes the release the handlers run on: the pin, else
+        # the newest of ``supported_versions``, else the packaged release.
         tool_defs = get_tools_for_handler(
             handler,
             advertise_all=advertise_all,
-            adcp_version=resolved_adcp_version,
+            adcp_version=default_adcp_version(resolved_adcp_version, supported_versions),
         )
         for tool_def in tool_defs:
             name = tool_def["name"]
