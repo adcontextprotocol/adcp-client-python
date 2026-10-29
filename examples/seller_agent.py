@@ -773,6 +773,33 @@ def _serves_impressionless_rows(context: Any) -> bool:
     return not (major.isdigit() and minor.isdigit()) or (int(major), int(minor)) >= (3, 3)
 
 
+#: (reporting_dimensions key, product reporting flag, by_package field) for the
+#: AdCP 3.3 breakdowns the sandbox serves from controller-injected rows only.
+_INJECTED_BREAKDOWNS = (
+    ("property", "supports_property_breakdown", "by_property"),
+    ("installment_property", "supports_installment_property_breakdown", "by_installment_property"),
+)
+
+
+def _injected_breakdown(
+    rows: list[dict[str, Any]], request: dict[str, Any], field: str
+) -> dict[str, Any]:
+    """Sort, then limit, exactly the injected rows; never infer delivery."""
+    sort_by = request.get("sort_by", "spend")
+    direction = request.get("sort_direction", "desc")
+    if not any(sort_by in row for row in rows):
+        sort_by, direction = "spend", "desc"
+    ordered = sorted(rows, key=lambda row: row.get(sort_by, 0), reverse=direction == "desc")
+    limit = request.get("limit", len(ordered))
+    return {
+        field: deepcopy(ordered[:limit]),
+        f"{field}_truncated": len(ordered) > limit,
+        f"{field}_suppressed": False,
+        f"{field}_sorted_by": sort_by,
+        f"{field}_sort_direction": direction,
+    }
+
+
 def _narrow_metrics(metrics: dict[str, Any], requested: list[str] | None) -> dict[str, Any]:
     if not requested:
         return metrics
@@ -1059,7 +1086,13 @@ class DemoSeller(ADCPHandler):
             "lifecycle_tools": ["list_products"],
             # Native responses use canonical formats; the explicit converters
             # above retain the negotiated AdCP 3.0 compatibility wire.
-            "features": {"canonical_creatives": True},
+            "features": {
+                "canonical_creatives": True,
+                # AdCP 3.3: products that set the matching reporting flag
+                # return these breakdowns from controller-injected rows.
+                "supports_property_breakdown": True,
+                "supports_installment_property_breakdown": True,
+            },
             "creative_sync": True,
             "reporting": True,
             "cancellation": True,
@@ -1856,6 +1889,16 @@ class DemoSeller(ADCPHandler):
                             "by_format_sort_direction": direction,
                         }
                     )
+                dimensions = params.get("reporting_dimensions") or {}
+                for dimension, flag, field in _INJECTED_BREAKDOWNS:
+                    if dimension in dimensions and reporting.get(flag):
+                        entry.update(
+                            _injected_breakdown(
+                                mb.get("injected_delivery", {}).get(field, []),
+                                dimensions[dimension],
+                                field,
+                            )
+                        )
                 by_package.append(entry)
             if any("time_based_views" in metrics for metrics in package_metrics):
                 totals["time_based_views"] = [
@@ -1945,10 +1988,26 @@ class DemoStore(TestControllerStore):
         reported_spend: dict[str, Any] | None = None,
         delivery_date: str | None = None,
         viewability: dict[str, Any] | None = None,
+        property_delivery: list[dict[str, Any]] | None = None,
+        installment_property_delivery: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         mb = media_buys.get(media_buy_id)
         if mb is None:
             raise TestControllerError("NOT_FOUND", f"Media buy {media_buy_id} not found")
+        injected = {
+            "by_property": property_delivery,
+            "by_installment_property": installment_property_delivery,
+        }
+        if any(rows is not None for rows in injected.values()):
+            if len(mb.get("packages", [])) != 1:
+                raise TestControllerError(
+                    "INVALID_PARAMS", "injected breakdown rows need a single-package buy"
+                )
+            # Each array replaces the previous one; it is undated and never
+            # added to totals.
+            for field, rows in injected.items():
+                if rows is not None:
+                    mb.setdefault("injected_delivery", {})[field] = deepcopy(rows)
         event: dict[str, Any] = {
             "delivery_date": delivery_date or datetime.now(timezone.utc).date().isoformat(),
         }

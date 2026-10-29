@@ -1288,3 +1288,140 @@ def test_impressionless_rows_are_served_only_from_33(version, expect_rows) -> No
 
     context = None if version is None else SimpleNamespace(resolved_adcp_version=version)
     assert _sa._serves_impressionless_rows(context) is expect_rows
+
+
+_PROPERTY_ROWS = [
+    {
+        "publisher_domain": "nova-sports.example",
+        "identifier": {"type": "domain", "value": "nova-sports.example"},
+        "impressions": 2000,
+        "spend": 10,
+    },
+    {
+        "publisher_domain": "acme-news.example",
+        "identifier": {"type": "domain", "value": "acme-news.example"},
+        "impressions": 5000,
+        "spend": 25,
+    },
+    {
+        "publisher_domain": "streamhaus.example",
+        "identifier": {"type": "android_package", "value": "example.streamhaus.app"},
+        "impressions": 3000,
+        "spend": 90,
+    },
+]
+
+
+def _installment_row(installment_id: str, host: str, impressions: int, spend: int) -> dict:
+    return {
+        "installment_ref": {
+            "collection_ref": {
+                "publisher_domain": "studio-network.example",
+                "collection_id": "nightly_news",
+            },
+            "installment_id": installment_id,
+        },
+        "publisher_domain": host,
+        "identifier": {"type": "domain", "value": host},
+        "impressions": impressions,
+        "spend": spend,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("dimension", "flag", "field", "rows", "first_desc", "first_asc"),
+    [
+        (
+            "property",
+            "supports_property_breakdown",
+            "by_property",
+            _PROPERTY_ROWS,
+            "acme-news.example",
+            "nova-sports.example",
+        ),
+        (
+            "installment_property",
+            "supports_installment_property_breakdown",
+            "by_installment_property",
+            [
+                _installment_row("ep_102", "streamhaus.example", 800, 8),
+                _installment_row("ep_101", "othercast.example", 1500, 60),
+                _installment_row("ep_101", "streamhaus.example", 4000, 40),
+            ],
+            "streamhaus.example",
+            "streamhaus.example",
+        ),
+    ],
+)
+async def test_injected_breakdowns_follow_the_33_property_storyboards(
+    dimension, flag, field, rows, first_desc, first_asc
+) -> None:
+    """media_buy_seller/property_delivery_reporting and its installment variant."""
+    capabilities = await _seller().get_adcp_capabilities({})
+    assert capabilities["media_buy"]["features"][
+        "supports_installment_property_breakdown" if "installment" in field else flag
+    ]
+    store = _store()
+    await store.seed_product(
+        product_id="breakdowns",
+        fixture={
+            "format_options": [_image_option("image")],
+            "reporting_capabilities": {"available_metrics": ["impressions", "spend"], flag: True},
+        },
+    )
+    await store.seed_media_buy(
+        media_buy_id="breakdown-buy",
+        fixture={"packages": [{"package_id": "p", "product_id": "breakdowns", "budget": 100}]},
+    )
+    await store.simulate_delivery(
+        "breakdown-buy",
+        impressions=10000,
+        **{
+            (
+                "property_delivery" if dimension == "property" else "installment_property_delivery"
+            ): rows
+        },
+    )
+    validator = get_named_validator(
+        "media-buy/get-media-buy-delivery-response.json", version="3.3.0-beta.1"
+    )
+    top = await _seller().get_media_buy_delivery(
+        {
+            "media_buy_ids": ["breakdown-buy"],
+            "reporting_dimensions": {
+                dimension: {"limit": 2, "sort_by": "impressions", "sort_direction": "desc"}
+            },
+        }
+    )
+    assert list(validator.iter_errors({**top, "status": "completed"})) == []
+    pkg = top["media_buy_deliveries"][0]["by_package"][0]
+    assert len(pkg[field]) == 2
+    assert pkg[field][0]["publisher_domain"] == first_desc
+    assert pkg[f"{field}_truncated"] is True
+    assert pkg[f"{field}_suppressed"] is False
+    assert (pkg[f"{field}_sorted_by"], pkg[f"{field}_sort_direction"]) == ("impressions", "desc")
+    complete = await _seller().get_media_buy_delivery(
+        {
+            "media_buy_ids": ["breakdown-buy"],
+            "reporting_dimensions": {
+                dimension: {"limit": 3, "sort_by": "spend", "sort_direction": "asc"}
+            },
+        }
+    )
+    pkg = complete["media_buy_deliveries"][0]["by_package"][0]
+    assert [row["spend"] for row in pkg[field]] == sorted(row["spend"] for row in rows)
+    assert pkg[field][0]["publisher_domain"] == first_asc
+    assert pkg[f"{field}_truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_injected_breakdown_rows_need_a_single_package_buy() -> None:
+    store = _store()
+    await store.seed_media_buy(
+        media_buy_id="two-packages",
+        fixture={"packages": [{"package_id": "a", "budget": 1}, {"package_id": "b", "budget": 1}]},
+    )
+    with pytest.raises(_sa.TestControllerError) as error:
+        await store.simulate_delivery("two-packages", property_delivery=_PROPERTY_ROWS)
+    assert error.value.code == "INVALID_PARAMS"
