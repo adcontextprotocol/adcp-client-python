@@ -369,15 +369,18 @@ def generate_code() -> str:
         '"""Apply type coercion to generated types for better ergonomics.',
         "",
         "This module patches the generated types to accept more flexible input types",
-        "while maintaining type safety. It uses Pydantic's model_rebuild() to add",
-        "BeforeValidator annotations to fields.",
+        "while maintaining type safety. It edits the generated field metadata and then",
+        "invalidates each patched model with ``defer_model_rebuild`` so pydantic",
+        "re-derives its core schema, with the coercion validators included, on first use.",
         "",
         "Why import-time patching?",
         "    We apply coercion at module load time rather than lazily because:",
         "    1. Pydantic validation runs during __init__, before any lazy access",
-        "    2. model_rebuild() is the standard Pydantic pattern for post-hoc changes",
-        "    3. The cost is minimal (~10-20ms for all types, once at import)",
-        "    4. After import, there is zero runtime overhead",
+        "    2. Editing field metadata and rebuilding is the standard Pydantic pattern",
+        "       for post-hoc changes",
+        "    3. The patch itself is cheap; the rebuild it needs is deferred to the",
+        "       model's first use rather than paid at import for every model (#1694)",
+        "    4. After the first use of a model, there is zero runtime overhead",
         "    5. This approach maintains full type checker compatibility",
         "",
         "Coercion rules applied:",
@@ -401,6 +404,7 @@ def generate_code() -> str:
         "",
         "from pydantic import BeforeValidator, WrapValidator",
         "",
+        "from adcp.types.base import defer_model_rebuild",
         "from adcp.types.coercion import (",
         "    coerce_subclass_list,",
         "    coerce_to_enum,",
@@ -546,14 +550,14 @@ def generate_code() -> str:
         for c in coercions:
             if c["type"] == "enum":
                 target = get_symbol_name(c["target_class"])
-                field_comments.append(f'{c["field"]}: {target} | str | None')
+                field_comments.append(f"{c['field']}: {target} | str | None")
             elif c["type"] in {"enum_list", "unique_enum_list"}:
                 target = get_symbol_name(c["target_class"])
-                field_comments.append(f'{c["field"]}: list[{target} | str] | None')
+                field_comments.append(f"{c['field']}: list[{target} | str] | None")
             elif c["type"] == "context":
-                field_comments.append(f'{c["field"]}: ContextObject | dict | None')
+                field_comments.append(f"{c['field']}: ContextObject | dict | None")
             elif c["type"] == "ext":
-                field_comments.append(f'{c["field"]}: ExtensionObject | dict | None')
+                field_comments.append(f"{c['field']}: ExtensionObject | dict | None")
             elif c["type"] == "subclass_list":
                 from collections.abc import Sequence as AbcSequence
 
@@ -563,7 +567,7 @@ def generate_code() -> str:
                 is_seq = get_origin(base_ann if base_ann is not None else ann) is AbcSequence
                 container = "Sequence" if is_seq else "list"
                 field_comments.append(
-                    f'{c["field"]}: {container}[{get_symbol_name(c["target_class"])}] '
+                    f"{c['field']}: {container}[{get_symbol_name(c['target_class'])}] "
                     "(accepts subclass instances)"
                 )
 
@@ -648,7 +652,7 @@ def generate_code() -> str:
                 lines.append("        ],")
                 lines.append("    )")
 
-        lines.append(f"    {type_name}.model_rebuild(force=True)")
+        lines.append(f"    defer_model_rebuild({type_name})")
         lines.append("")
 
     # PackageUpdate is now a single class (flattened from validation-only oneOf)
