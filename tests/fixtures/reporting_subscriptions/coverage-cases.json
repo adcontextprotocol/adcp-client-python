@@ -1,5 +1,5 @@
 {
- "$source": "adcontextprotocol/adcp-client@0f98ba1c0e17d05887db61153020f8b790045439:test/fixtures/reporting-subscriptions/coverage-cases.json (PR #3505)",
+ "$source": "adcontextprotocol/adcp-client@0f98ba1c0e17d05887db61153020f8b790045439:test/fixtures/reporting-subscriptions/coverage-cases.json (PR #3505); local fix for scope maxProperties 1 (pending the same fix upstream): account new in a later version v1: dropped all_authorized_accounts; period_timezone override v1: dropped all_authorized_accounts; monthly billing cycle v1: dropped account_ids",
  "$comment": "Cross-SDK parity table for expectedSubscriptionPeriods (AdCP 3.3 media_buy.reporting_subscriptions). Each case gives the input and the exact owed periods (or expected_error). Compare instants, not strings: the TypeScript SDK emits toISOString() form. Expected rows are hand-derived from the spec rule. subscription_id, account_id and report_definition_id are omitted from expected rows; they are input.subscription_id, input.account.account_id and the offering's report_definition_id. Rows are ordered by period_start, subscription_version, offering_id and media_buy_id (byte order).",
  "cases": [
   {
@@ -1780,7 +1780,6 @@
        "subscription_version": 1,
        "active": true,
        "scope": {
-        "all_authorized_accounts": true,
         "account_ids": [
          "acct_other"
         ]
@@ -5353,7 +5352,6 @@
        "subscription_version": 1,
        "active": true,
        "scope": {
-        "all_authorized_accounts": true,
         "account_ids": [
          "acct_1"
         ]
@@ -5588,10 +5586,7 @@
        "subscription_version": 1,
        "active": true,
        "scope": {
-        "all_authorized_accounts": true,
-        "account_ids": [
-         "acct_1"
-        ]
+        "all_authorized_accounts": true
        },
        "selector": {
         "feed_purpose": "billing",

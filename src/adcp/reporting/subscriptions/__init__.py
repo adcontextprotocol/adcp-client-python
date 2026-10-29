@@ -23,6 +23,7 @@ from adcp.reporting.subscriptions.capabilities import (
     advertise_reporting_subscriptions,
     reporting_configuration_tasks,
     subscription_capabilities,
+    with_subscription_dimensions,
 )
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
@@ -74,4 +75,5 @@ __all__ = [
     "subscription_covers_account",
     "subscription_exceptions",
     "subscription_version_windows",
+    "with_subscription_dimensions",
 ]

@@ -17,11 +17,10 @@ Ties under ``exact`` and ``finest`` go to the lowest ``offering_id`` in byte
 order. ``match`` defaults to ``exact`` when ``dimensions`` is present and to
 ``finest`` when it is absent.
 
-Offerings do not publish their mapped dimensions on the wire; the seller maps
-each report definition's native dimensions. :class:`SubscriptionOffering`
-therefore carries the mapping explicitly, so a buyer that knows the mapping
-(for example from the seller's documentation or from the obligations it has
-already received) resolves exactly what the seller resolves.
+Offerings publish the seller's mapping as ``standard_dimensions`` and
+``unmapped_dimensions`` (adcp#8585), so
+:meth:`SubscriptionOffering.from_offering` reads them from the wire and a
+buyer resolves exactly what the seller resolves.
 """
 
 from __future__ import annotations
@@ -41,29 +40,9 @@ STANDARD_REPORTING_DIMENSIONS: frozenset[str] = frozenset(
 
 SubscriptionMatch = Literal["exact", "finest", "all"]
 _ALIGNMENTS = frozenset({"utc", "account_timezone", "source_timezone", "billing_cycle"})
-#: Zone names a ``utc`` schedule can produce periods in under ``period_timezone``.
-UTC_ZONE_NAMES: frozenset[str] = frozenset(
-    {
-        "UTC",
-        "Etc/UTC",
-        "Etc/UCT",
-        "UCT",
-        "Etc/Universal",
-        "Universal",
-        "Etc/Zulu",
-        "Zulu",
-        "GMT",
-        "Etc/GMT",
-        "Etc/GMT+0",
-        "Etc/GMT-0",
-        "Etc/GMT0",
-        "GMT+0",
-        "GMT-0",
-        "GMT0",
-        "Etc/Greenwich",
-        "Greenwich",
-    }
-)
+#: The UTC aliases a ``utc`` schedule matches under ``period_timezone``
+#: (``core/reporting-subscription.json``: "a UTC alias (UTC or Etc/UTC)").
+UTC_ZONE_NAMES: frozenset[str] = frozenset({"UTC", "Etc/UTC"})
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
@@ -155,15 +134,18 @@ class SubscriptionOffering:
         cls,
         offering: Any,
         *,
-        dimensions: Iterable[str] = (),
-        unmapped_dimensions: Iterable[str] = (),
+        dimensions: Iterable[str] | None = None,
+        unmapped_dimensions: Iterable[str] | None = None,
         period_timezone: str | None = None,
         available_from: datetime | None = None,
         withdrawn_at: datetime | None = None,
     ) -> SubscriptionOffering:
         """Project a ``ReportingDeliveryOffering`` (model or wire mapping).
 
-        ``period_timezone`` supplies the account-resolved zone of an
+        Dimensions come from the offering's ``standard_dimensions`` and
+        ``unmapped_dimensions`` (adcp#8585); ``dimensions`` and
+        ``unmapped_dimensions`` override them for a seller that has not yet
+        published them. ``period_timezone`` supplies the account-resolved zone of an
         ``account_resolved`` ``source_timezone`` offering; a fixed zone on the
         offering wins when both are present and they must agree.
         """
@@ -188,8 +170,14 @@ class SubscriptionOffering:
             delivery_sla=str(schedule["delivery_sla"]),
             supported_finality=frozenset(str(item) for item in offering["supported_finality"]),
             reconciliation_mode=str(offering["reconciliation_mode"]),
-            dimensions=frozenset(dimensions),
-            unmapped_dimensions=frozenset(unmapped_dimensions),
+            dimensions=frozenset(
+                offering.get("standard_dimensions") or () if dimensions is None else dimensions
+            ),
+            unmapped_dimensions=frozenset(
+                offering.get("unmapped_dimensions") or ()
+                if unmapped_dimensions is None
+                else unmapped_dimensions
+            ),
             period_timezone=fixed_zone or period_timezone,
             period_anchor=(
                 datetime.fromisoformat(str(anchor).replace("Z", "+00:00")) if anchor else None
@@ -219,11 +207,15 @@ class SubscriptionOffering:
         )
 
     def can_produce(self, period_timezone: str | None) -> bool:
-        """Whether the schedule can produce periods in a ``period_timezone`` override.
+        """Whether the offering matches a ``period_timezone`` override.
 
-        A ``utc`` schedule only in a UTC alias; a fixed-timezone schedule only
-        in that zone; an ``account_timezone`` or ``account_resolved`` schedule
-        in any zone.
+        ``core/reporting-subscription.json`` ``selector.period_timezone``: an
+        ``account_timezone`` offering matches and uses the override in place of
+        the account's zone; a ``utc`` offering matches only a UTC alias (UTC or
+        Etc/UTC); a ``source_timezone`` or fixed ``billing_cycle`` offering
+        matches only when its published ``period_timezone`` equals it; a
+        ``billing_cycle`` offering whose anchor the buyer configures never
+        matches a subscription.
         """
         if not self.schedulable:
             return False
@@ -234,7 +226,9 @@ class SubscriptionOffering:
         if self.alignment == "account_timezone":
             return True
         if self.alignment == "source_timezone":
-            return self.period_timezone_policy != "fixed" or self.period_timezone == period_timezone
+            return (
+                self.period_timezone_policy == "fixed" and self.period_timezone == period_timezone
+            )
         return self.period_timezone == period_timezone
 
     def zone(self, account_timezone: str | None, period_timezone: str | None = None) -> str:
@@ -254,11 +248,7 @@ class SubscriptionOffering:
                 )
             return zone
         if self.alignment == "source_timezone":
-            zone = (
-                self.period_timezone
-                if self.period_timezone_policy == "fixed"
-                else (period_timezone or self.period_timezone)
-            )
+            zone = self.period_timezone
             if zone is None:
                 raise ValueError(
                     f"offering {self.offering_id!r} resolves its source timezone per account; "

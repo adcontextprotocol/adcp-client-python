@@ -89,17 +89,53 @@ def reporting_configuration_tasks(
     return tasks
 
 
+def with_subscription_dimensions(offering: Mapping[str, Any] | Any, mapping: Any) -> dict[str, Any]:
+    """An offering's wire form with ``standard_dimensions`` and ``unmapped_dimensions``.
+
+    ``mapping`` is the offering's
+    :class:`~adcp.reporting.subscriptions.SubscriptionOffering` (or anything
+    with ``dimensions`` and ``unmapped_dimensions``). Sellers advertising
+    ``media_buy.reporting_subscriptions`` MUST publish ``standard_dimensions``
+    on every offering (adcp#8585); ``unmapped_dimensions`` appears only when
+    any exist. Values are sorted so the declaration is stable.
+    """
+    payload: dict[str, Any] = (
+        dict(offering)
+        if isinstance(offering, Mapping)
+        else offering.model_dump(mode="json", exclude_none=True)
+    )
+    payload["standard_dimensions"] = sorted(getattr(mapping, "dimensions"))
+    unmapped = sorted(getattr(mapping, "unmapped_dimensions", ()) or ())
+    if unmapped:
+        payload["unmapped_dimensions"] = unmapped
+    else:
+        payload.pop("unmapped_dimensions", None)
+    return payload
+
+
 def subscription_capabilities(
     reporting_delivery: Mapping[str, Any], support: ReportingSubscriptionSupport | None
 ) -> dict[str, Any]:
     """Return ``reporting_delivery`` with the registration fields for ``support``.
 
     ``None`` returns an unchanged copy, so a seller without subscriptions
-    advertises exactly what it did before.
+    advertises exactly what it did before. With ``support``, every offering
+    must already carry ``standard_dimensions`` (see
+    :func:`with_subscription_dimensions`).
     """
     payload = dict(reporting_delivery)
     if support is None:
         return payload
+    missing = [
+        str(item.get("offering_id"))
+        for item in payload.get("offerings") or ()
+        if "standard_dimensions" not in item
+    ]
+    if missing:
+        raise ValueError(
+            "sellers advertising reporting subscriptions must publish standard_dimensions "
+            f"on every offering; missing on {missing}"
+        )
     tasks = reporting_configuration_tasks(
         subscriptions=True, account_configuration=support.account_configuration
     )
@@ -154,4 +190,5 @@ __all__ = [
     "advertise_reporting_subscriptions",
     "reporting_configuration_tasks",
     "subscription_capabilities",
+    "with_subscription_dimensions",
 ]

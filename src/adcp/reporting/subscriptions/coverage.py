@@ -28,7 +28,7 @@ entry removes the periods whose start falls in ``[from, until)``. Lost
 authority removes periods the same way unless ``backfill_on_regrant`` keeps
 them.
 
-Rules where the spec is silent (identical in the TypeScript SDK)
+Rules settled by adcp#8585 (identical in the TypeScript SDK)
     Time is split per buy at every version ``accepted_at`` / ``superseded_at``,
     deactivation and reactivation instant, offering ``available_from`` /
     ``withdrawn_at`` and account timezone cutover. Each stretch with an active,
@@ -38,13 +38,15 @@ Rules where the spec is silent (identical in the TypeScript SDK)
     the latest E across everything the previous regime resolved; after a regime
     that resolved nothing, or no active version, the ordinary start rule applies.
     A re-grant before ``unauthorized_at + status_retention_days`` continues the
-    authority chain; a later one starts a new chain.
+    authority chain; a later one starts a new chain. Reactivation is a fresh
+    start (``inactive_intervals``), and ``gaps[]`` and ``timezone_cutovers[]``
+    entries with an ``offering_id`` apply to that offering only.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -222,10 +224,17 @@ class SubscriptionAuthorization:
 
 @dataclass(frozen=True)
 class AccountTimezoneChange:
-    """An account timezone change at ``changed_at`` (the instant T of the cutover)."""
+    """An account timezone change at ``changed_at`` (the instant T of the cutover).
+
+    ``offering_id`` limits it to one offering, as a ``timezone_cutovers[]``
+    entry with ``offering_id`` does; ``previous_timezone`` is the zone before
+    the change, which every seller entry carries.
+    """
 
     changed_at: datetime
     timezone: str
+    offering_id: str | None = None
+    previous_timezone: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "changed_at", utc_instant(self.changed_at, field="changed_at"))
@@ -242,15 +251,20 @@ class SubscriptionException:
     from_: datetime
     until: datetime | None = None
     media_buy_id: str | None = None
+    #: A ``gaps[]`` entry for one offering's boundaries; ``None`` is every offering.
+    offering_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "from_", utc_instant(self.from_, field="from"))
         if self.until is not None:
             object.__setattr__(self, "until", utc_instant(self.until, field="until"))
 
-    def removes(self, start: datetime, media_buy_id: str) -> bool:
+    def removes(self, start: datetime, media_buy_id: str, offering_id: str | None = None) -> bool:
         if self.media_buy_id is not None and self.media_buy_id != media_buy_id:
             return False
+        if self.offering_id is not None and offering_id is not None:
+            if self.offering_id != offering_id:
+                return False
         return self.from_ <= start and (self.until is None or start < self.until)
 
 
@@ -286,11 +300,13 @@ def subscription_exceptions(
     for gap in gaps:
         if hasattr(gap, "model_dump"):
             gap = gap.model_dump(mode="json", exclude_none=True, by_alias=True)
+        offering_id = _value(gap, "offering_id")
         result.append(
             SubscriptionException(
                 reason="unauthorized",
                 from_=_require_instant(_value(gap, "from", _value(gap, "from_")), field="from"),
                 until=_require_instant(_value(gap, "until"), field="until"),
+                offering_id=None if offering_id is None else _text(offering_id),
             )
         )
     return tuple(result)
@@ -349,7 +365,7 @@ def subscription_version_windows(
     """Derive version windows from a ``core/reporting-subscription-state.json`` readback.
 
     The readback keeps ``prior_versions`` (version, ``accepted_at``,
-    ``superseded_at``) but not their configurations. Supply each prior
+    ``superseded_at``) and ``inactive_intervals`` but not prior configurations. Supply each prior
     version's configuration in ``version_configurations`` when it differs
     from the current one; otherwise the current configuration is assumed.
     """
@@ -382,6 +398,17 @@ def subscription_version_windows(
                 configuration=configurations.get(version, current_configuration),
             )
         )
+    inactive = tuple(
+        (
+            _require_instant(_value(item, "deactivated_at"), field="deactivated_at"),
+            _instant(_value(item, "reactivated_at"), field="reactivated_at"),
+        )
+        for item in _value(subscription, "inactive_intervals", ()) or ()
+    )
+    if inactive:
+        # The readback lists them per subscription; they apply to whichever
+        # version was current, so every window carries them.
+        windows = [replace(window, inactive_intervals=inactive) for window in windows]
     windows.sort(key=lambda item: (item.accepted_at, item.subscription_version))
     for earlier, later in zip(windows, windows[1:]):
         if earlier.subscription_version >= later.subscription_version:
@@ -558,11 +585,14 @@ def _expected_at(
 
 
 def _timezone_at(
-    instant: datetime, initial: str | None, changes: Sequence[AccountTimezoneChange]
+    instant: datetime,
+    initial: str | None,
+    changes: Sequence[AccountTimezoneChange],
+    offering_id: str,
 ) -> str | None:
     zone = initial
     for change in changes:
-        if change.changed_at <= instant:
+        if change.changed_at <= instant and change.offering_id in {None, offering_id}:
             zone = change.timezone
     return zone
 
@@ -644,12 +674,20 @@ def expected_subscription_periods(
         excluded.extend(_value(coverage, "excluded") or ())
         gap_entries.extend(_value(coverage, "gaps") or ())
         for entry in _value(coverage, "timezone_cutovers") or ():
+            offering_id = _value(entry, "offering_id")
+            previous = _value(entry, "previous_timezone")
             changes.append(
                 AccountTimezoneChange(
                     _require_instant(_value(entry, "effective_at"), field="effective_at"),
                     _text(_value(entry, "timezone")),
+                    offering_id=None if offering_id is None else _text(offering_id),
+                    previous_timezone=None if previous is None else _text(previous),
                 )
             )
+    changes.sort(key=lambda item: item.changed_at)
+    if account_timezone is None and changes and changes[0].previous_timezone is not None:
+        # The zone in effect before the first cutover, as the seller reports it.
+        account_timezone = changes[0].previous_timezone
     if account_timezone is not None:
         require_zone(account_timezone, field="account_timezone")
     for change in changes:
@@ -733,7 +771,10 @@ def expected_subscription_periods(
                         continue
                     if not _authorized(chains, calendar, start, backfill_on_regrant):
                         continue
-                    if any(item.removes(start, buy.media_buy_id) for item in removals):
+                    if any(
+                        item.removes(start, buy.media_buy_id, resolved.offering.offering_id)
+                        for item in removals
+                    ):
                         continue
                     key = (regime.version, resolved.offering.offering_id, calendar.zone_name, start)
                     entry = owed.get(key)
@@ -810,7 +851,6 @@ def _regimes(
                     f"{selector.destination_id!r}; pass its pattern and transport"
                 )
             destination = destinations[selector.destination_id]
-        zone = _timezone_at(start, account_timezone, changes)
         found: dict[str, SubscriptionOffering] = {}
         for _package_id, offering_ids in buy.product_offering_ids():
             resolution = resolve_subscription_offerings(
@@ -823,7 +863,13 @@ def _regimes(
             for item in resolution.offerings:
                 found[item.offering_id] = item
         resolved = tuple(
-            _Resolved(item, item.calendar(zone, selector.period_timezone))
+            _Resolved(
+                item,
+                item.calendar(
+                    _timezone_at(start, account_timezone, changes, item.offering_id),
+                    selector.period_timezone,
+                ),
+            )
             for item in sorted(found.values(), key=lambda value: value.offering_id.encode())
         )
         previous = regimes[-1] if regimes else None

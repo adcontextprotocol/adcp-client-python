@@ -1319,3 +1319,131 @@ def test_start_is_the_first_boundary_after_the_latest_of_three(
         ],
     )
     assert result == expected
+
+
+# -- fields settled by adcp#8585 ----------------------------------------------------
+
+
+class TestSettledFields:
+    def test_readback_inactive_intervals_are_a_fresh_start(self) -> None:
+        readback = state("2026-10-01T00:00:00Z")
+        readback["inactive_intervals"] = [
+            {"deactivated_at": "2026-10-03T12:00:00Z", "reactivated_at": "2026-10-05T12:00:00Z"}
+        ]
+        model = ReportingSubscriptionState.model_validate(readback)
+        assert starts(subscription=model, buys=[buy(end_time="2026-10-08T04:00:00Z")]) == [
+            *days("2026-10-01", 3),
+            *days("2026-10-06", 2),
+        ]
+
+    def test_timezone_cutover_from_coverage_with_previous_timezone(self) -> None:
+        coverage = ReportingSubscriptionCoverage.model_validate(
+            {
+                "subscription_id": "analytics-daily",
+                "subscription_version": 1,
+                "status": "active",
+                "excluded": [],
+                "timezone_cutovers": [
+                    {
+                        "effective_at": "2026-10-04T05:00:00Z",
+                        "timezone": "Etc/GMT+8",
+                        "previous_timezone": "Etc/GMT+5",
+                    }
+                ],
+            }
+        )
+        # No account_timezone: the zone before the cutover is previous_timezone.
+        result = run(
+            account_timezone=None,
+            coverage=coverage,
+            buys=[buy(start_time="2026-10-02T05:00:00Z", end_time="2026-10-05T08:00:00Z")],
+        )
+        assert [(p.period_start, p.source_timezone) for p in result] == [
+            ("2026-10-02T05:00:00Z", "Etc/GMT+5"),
+            ("2026-10-03T05:00:00Z", "Etc/GMT+5"),
+            ("2026-10-04T08:00:00Z", "Etc/GMT+8"),
+        ]
+
+    def test_per_offering_cutovers_and_gaps(self) -> None:
+        local_hourly = offering("local-hourly", duration="PT1H", sla="PT1H")
+        config = subscription_config(dimensions=["package"], match="all")
+        config["selector"]["period_duration"] = "P1D"
+        daily_buy = buy(end_time="2026-10-05T04:00:00Z", offering_ids=("daily-pkg",))
+        gaps = [
+            {
+                "from": "2026-10-02T04:00:00Z",
+                "until": "2026-10-03T04:00:00Z",
+                "reason": "unauthorized",
+                "offering_id": "some-other-offering",
+            }
+        ]
+        # A gap naming another offering leaves this one's periods owed.
+        assert starts(
+            subscription=state("2026-10-01T00:00:00Z", config=config),
+            offerings=[DAILY, local_hourly],
+            buys=[daily_buy],
+            gaps=gaps,
+        ) == days("2026-10-01", 4)
+        gaps[0]["offering_id"] = "daily-pkg"
+        assert starts(
+            subscription=state("2026-10-01T00:00:00Z", config=config),
+            offerings=[DAILY],
+            buys=[daily_buy],
+            gaps=gaps,
+        ) == ["2026-10-01T04:00:00Z", *days("2026-10-03", 2)]
+        # A timezone cutover naming another offering leaves this one's zone.
+        moved = run(
+            offerings=[DAILY],
+            buys=[daily_buy],
+            timezone_changes=[
+                AccountTimezoneChange(
+                    at("2026-10-02T04:00:00Z"), "America/Los_Angeles", offering_id="other"
+                )
+            ],
+        )
+        assert {p.source_timezone for p in moved} == {NY}
+
+    def test_period_timezone_matching_is_as_specified(self) -> None:
+        utc_daily = offering("utc-daily", alignment="utc")
+        resolved_source = offering(
+            "src-resolved",
+            alignment="source_timezone",
+            period_timezone="Asia/Tokyo",
+            period_timezone_policy="account_resolved",
+        )
+
+        def override(zone: str) -> dict:
+            return subscription_config(
+                dimensions=["package"],
+                match="all",
+                scope={"account_ids": ["acct-1"]},
+                period_timezone=zone,
+            )
+
+        product = ("utc-daily", "src-resolved")
+        offers = [utc_daily, resolved_source]
+        # Only UTC and Etc/UTC are UTC aliases; an account-resolved source
+        # zone is not a published zone, so it never matches an override.
+        assert resolved(override("UTC"), offerings=offers, product=product) == ("utc-daily",)
+        assert resolved(override("Etc/Zulu"), offerings=offers, product=product) == ()
+        assert resolved(override("Asia/Tokyo"), offerings=offers, product=product) == ()
+
+    def test_wire_offering_dimensions_drive_matching(self) -> None:
+        wire = {
+            "offering_id": "gam-daily",
+            "feed_purpose": "analytics",
+            "report_definition_id": "gam-delivery-v1",
+            "reporting_profile": {"id": "delivery"},
+            "schedule": {"period_duration": "P1D", "alignment": "utc", "delivery_sla": "PT6H"},
+            "supported_finality": ["official"],
+            "reconciliation_mode": "delivery_only",
+            "standard_dimensions": ["package"],
+            "unmapped_dimensions": ["device"],
+        }
+        projected = SubscriptionOffering.from_offering(wire)
+        assert projected.dimensions == frozenset({"package"})
+        assert projected.unmapped_dimensions == frozenset({"device"})
+        exact = subscription_config(dimensions=["package"])
+        finest = subscription_config(dimensions=["package"], match="finest")
+        assert resolved(exact, offerings=[projected], product=("gam-daily",)) == ()
+        assert resolved(finest, offerings=[projected], product=("gam-daily",)) == ("gam-daily",)

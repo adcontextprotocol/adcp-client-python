@@ -13,9 +13,11 @@ from adcp.reporting.subscriptions import (
     REPORTING_SUBSCRIPTIONS_FEATURE,
     REPORTING_SUBSCRIPTIONS_SECTION,
     ReportingSubscriptionSupport,
+    SubscriptionOffering,
     advertise_reporting_subscriptions,
     reporting_configuration_tasks,
     subscription_capabilities,
+    with_subscription_dimensions,
 )
 from adcp.validation import schema_loader
 
@@ -58,11 +60,28 @@ BASE = {
 }
 
 
+PREVIEW_OFFERING_FIELDS = ("standard_dimensions", "unmapped_dimensions")
+
+
 def _errors(block: dict) -> list[str]:
+    # TODO(3.3.0-beta.2): validate the adcp#8585 offering fields against the
+    # bundle once it carries them; beta.1 closes the offering object.
+    block = {
+        **block,
+        "offerings": [
+            {k: v for k, v in item.items() if k not in PREVIEW_OFFERING_FIELDS}
+            for item in block["offerings"]
+        ],
+    }
     validator = schema_loader.get_named_validator(
         "core/reporting-delivery-capabilities.json", version=VERSION
     )
     return [error.message for error in validator.iter_errors(block)]
+
+
+def _published(block: dict) -> dict:
+    mapping = SubscriptionOffering.from_offering(block["offerings"][0], dimensions=("package",))
+    return {**block, "offerings": [with_subscription_dimensions(block["offerings"][0], mapping)]}
 
 
 def test_base_block_is_valid_and_unchanged_without_support() -> None:
@@ -75,7 +94,7 @@ def test_base_block_is_valid_and_unchanged_without_support() -> None:
 
 def test_subscriptions_alongside_account_configuration() -> None:
     block = subscription_capabilities(
-        BASE,
+        _published(BASE),
         ReportingSubscriptionSupport(
             max_accounts=500, backfill_on_regrant=True, dimensions=("package", "creative")
         ),
@@ -93,7 +112,7 @@ def test_subscriptions_alongside_account_configuration() -> None:
 
 def test_subscriptions_only_drops_the_deprecated_field() -> None:
     block = subscription_capabilities(
-        BASE, ReportingSubscriptionSupport(account_configuration=False)
+        _published(BASE), ReportingSubscriptionSupport(account_configuration=False)
     )
     assert _errors(block) == []
     assert block["configuration_tasks"] == ["sync_principal"]
@@ -150,3 +169,24 @@ def test_configuration_tasks_and_support_validation() -> None:
     support = ReportingSubscriptionSupport(dimensions=("package", "dma_zone", "package"))
     assert support.dimensions == ("package", "dma_zone")
     assert support.standard_dimensions == ("package",)
+
+
+def test_offerings_must_publish_standard_dimensions() -> None:
+    with pytest.raises(ValueError, match="standard_dimensions"):
+        subscription_capabilities(BASE, ReportingSubscriptionSupport())
+    published = _published(BASE)["offerings"][0]
+    assert published["standard_dimensions"] == ["package"]
+    assert "unmapped_dimensions" not in published
+    mapping = SubscriptionOffering.from_offering(
+        BASE["offerings"][0], dimensions=("package",), unmapped_dimensions=("device",)
+    )
+    published = with_subscription_dimensions(BASE["offerings"][0], mapping)
+    assert published["unmapped_dimensions"] == ["device"]
+    # The published fields validate on the generated (patched) offering model
+    # and round-trip into the same mapping a buyer resolves from.
+    from adcp.types import ReportingDeliveryOffering
+
+    model = ReportingDeliveryOffering.model_validate(published)
+    again = SubscriptionOffering.from_offering(model)
+    assert again.dimensions == frozenset({"package"})
+    assert again.unmapped_dimensions == frozenset({"device"})
