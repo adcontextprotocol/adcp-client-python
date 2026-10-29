@@ -235,6 +235,29 @@ async def test_active_and_replace_account_configs_change_in_place() -> None:
 
 
 @pytest.mark.asyncio
+async def test_readback_lists_inactive_intervals() -> None:
+    principals, clock = service()
+    await sync(principals, {"reporting_subscriptions": [subscription()]})
+    clock.advance(hours=5)
+    await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
+    clock.advance(hours=24)
+    reactivated = await sync(principals, {"reporting_subscriptions": [subscription()]})
+    state = states(reactivated)["analytics-daily"]
+    assert state["state"] == "active" and "deactivated_at" not in state
+    assert state["inactive_intervals"] == [
+        {"deactivated_at": "2026-10-01T17:00:00Z", "reactivated_at": "2026-10-02T17:00:00Z"}
+    ]
+    clock.advance(hours=1)
+    omitted = await sync(principals, {"reporting_subscriptions": []})
+    state = states(omitted)["analytics-daily"]
+    assert state["inactive_intervals"][-1] == {"deactivated_at": "2026-10-02T18:00:00Z"}
+    assert state["deactivated_at"] == "2026-10-02T18:00:00Z"
+    current = await principals.get_principal(IDENTITY)
+    read = current.result.configuration.reporting_subscriptions[0]
+    assert len(read.inactive_intervals) == 2
+
+
+@pytest.mark.asyncio
 async def test_omitted_subscription_is_deactivated_and_retained() -> None:
     principals, clock = service()
     await sync(

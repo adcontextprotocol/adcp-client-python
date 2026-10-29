@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -191,10 +191,6 @@ class _PrincipalState:
     accounts: dict[str, _Account] = field(default_factory=dict)
     #: (subscription_id, version) -> configuration
     versions: dict[tuple[str, int], dict[str, Any]] = field(default_factory=dict)
-    #: (subscription_id, version) -> in-place inactive stretches [from, until)
-    inactive: dict[tuple[str, int], list[tuple[datetime, datetime | None]]] = field(
-        default_factory=dict
-    )
     #: subscription_id -> accounts it ever covered
     covered: dict[str, set[str]] = field(default_factory=dict)
     #: subscription_id -> accounts holding a max_accounts slot
@@ -276,32 +272,17 @@ class ReportingSubscriptionEngine:
     async def record_versions(
         self, identity: PrincipalIdentity, states: Sequence[ReportingSubscriptionState]
     ) -> None:
-        """Keep every version's configuration and its in-place inactive stretches.
+        """Keep every version's configuration; the readback keeps only the current one.
 
-        The readback keeps only the current configuration, and drops
-        ``deactivated_at`` when a version is reactivated in place; the engine
-        remembers both so a reactivation is a fresh start, never owing the
-        periods that started while the subscription was inactive.
+        In-place reactivations need no engine state: the readback's
+        ``inactive_intervals`` (adcp#8585) carry them.
         """
-        now = self._now(None)
         async with self._store.lock:
             principal = self._store.principal(identity.subject)
             for state in states:
                 payload = _dump(state)
                 key = (str(payload["subscription_id"]), int(payload["subscription_version"]))
                 principal.versions.setdefault(key, dict(payload["configuration"]))
-                stretches = principal.inactive.setdefault(key, [])
-                open_stretch = bool(stretches) and stretches[-1][1] is None
-                if payload.get("state") == "inactive" and not open_stretch:
-                    deactivated = payload.get("deactivated_at")
-                    start = (
-                        utc_instant(datetime.fromisoformat(deactivated.replace("Z", "+00:00")))
-                        if isinstance(deactivated, str)
-                        else now
-                    )
-                    stretches.append((start, None))
-                elif payload.get("state") != "inactive" and open_stretch:
-                    stretches[-1] = (stretches[-1][0], max(now, stretches[-1][0]))
 
     async def authorization_changed(
         self,
@@ -326,7 +307,9 @@ class ReportingSubscriptionEngine:
                 )
             self._apply_grant(account, authorized=authorized, at=instant)
             if timezone is not None and timezone != account.timezone:
-                account.timezone_changes.append(AccountTimezoneChange(instant, timezone))
+                account.timezone_changes.append(
+                    AccountTimezoneChange(instant, timezone, previous_timezone=account.timezone)
+                )
                 account.timezone = timezone
             if operator is not None:
                 account.operator = operator
@@ -389,7 +372,11 @@ class ReportingSubscriptionEngine:
                             granted = min(reported, instant)
                     self._apply_grant(account, authorized=True, at=granted)
                 if item.timezone != account.timezone:
-                    account.timezone_changes.append(AccountTimezoneChange(instant, item.timezone))
+                    account.timezone_changes.append(
+                        AccountTimezoneChange(
+                            instant, item.timezone, previous_timezone=account.timezone
+                        )
+                    )
                     account.timezone = item.timezone
                 account.operator = item.operator
             for account_id, account in principal.accounts.items():
@@ -629,7 +616,8 @@ class ReportingSubscriptionEngine:
         buys: Sequence[SubscriptionBuy],
         destinations: Mapping[str, Any],
         now: datetime,
-    ) -> list[PeriodCalendar]:
+    ) -> list[tuple[str, PeriodCalendar]]:
+        """``(offering_id, calendar)`` for each offering the account resolves to."""
         if account is None:
             return []
         selector = SubscriptionSelector.from_subscription(state["configuration"])
@@ -648,7 +636,7 @@ class ReportingSubscriptionEngine:
             at=now,
         )
         return [
-            item.calendar(account.timezone, selector.period_timezone)
+            (item.offering_id, item.calendar(account.timezone, selector.period_timezone))
             for item in resolution.offerings
         ]
 
@@ -664,7 +652,7 @@ class ReportingSubscriptionEngine:
         schedules = self._schedules(state, account, buys, destinations, now)
         if not schedules:
             return now
-        return max(calendar.ceil(now) for calendar in schedules)
+        return max(calendar.ceil(now) for _offering_id, calendar in schedules)
 
     def _accounts_with_exceptions(
         self, principal: _PrincipalState, subscription_id: str, now: datetime
@@ -723,7 +711,7 @@ class ReportingSubscriptionEngine:
             }
             if schedules:
                 entry["last_owed_period_end"] = iso_z(
-                    max(calendar.floor(lost) for calendar in schedules)
+                    max(calendar.floor(lost) for _offering_id, calendar in schedules)
                 )
             result.append(entry)
         return result
@@ -742,6 +730,7 @@ class ReportingSubscriptionEngine:
         instant = self._now(now)
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
+        buys = await self._host.account_buys(identity, account_id)
         async with self._store.lock:
             principal = self._store.principal(identity.subject)
             account = principal.accounts.get(account_id)
@@ -769,10 +758,10 @@ class ReportingSubscriptionEngine:
                         if entry.until is None or instant - entry.until <= self._retention
                     ],
                 }
-                gaps = self._gaps(state, account, destinations, instant)
+                gaps = self._gaps(state, account, buys, destinations, instant)
                 if gaps:
                     payload["gaps"] = gaps
-                cutovers = self._timezone_cutovers(state, account, destinations, instant)
+                cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
                 if cutovers:
                     payload["timezone_cutovers"] = cutovers
                 result.append(ReportingSubscriptionCoverage.model_validate(payload))
@@ -782,6 +771,7 @@ class ReportingSubscriptionEngine:
         self,
         state: Mapping[str, Any],
         account: _Account,
+        buys: Sequence[SubscriptionBuy],
         destinations: Mapping[str, Any],
         now: datetime,
     ) -> list[dict[str, Any]]:
@@ -795,18 +785,22 @@ class ReportingSubscriptionEngine:
                 continue
             if expired:
                 continue  # a fresh coverage start claims no gap
-            schedules = self._schedules(state, account, (), destinations, lost)
-            if not schedules:
+            schedules = self._schedules(state, account, buys, destinations, lost)
+            entries = [
+                (offering_id, calendar.floor(lost), calendar.ceil(regranted))
+                for offering_id, calendar in schedules
+            ]
+            if not entries or now - max(until for _o, _f, until in entries) > self._retention:
                 continue
-            until = max(calendar.ceil(regranted) for calendar in schedules)
-            if now - until > self._retention:
-                continue
-            gaps.append(
-                {
-                    "from": iso_z(min(calendar.floor(lost) for calendar in schedules)),
-                    "until": iso_z(until),
-                    "reason": "unauthorized",
-                }
+            gaps.extend(
+                _per_offering(
+                    entries,
+                    lambda start, until: {
+                        "from": iso_z(start),
+                        "until": iso_z(until),
+                        "reason": "unauthorized",
+                    },
+                )
             )
         return gaps
 
@@ -814,6 +808,7 @@ class ReportingSubscriptionEngine:
         self,
         state: Mapping[str, Any],
         account: _Account,
+        buys: Sequence[SubscriptionBuy],
         destinations: Mapping[str, Any],
         now: datetime,
     ) -> list[dict[str, Any]]:
@@ -824,18 +819,32 @@ class ReportingSubscriptionEngine:
             resolution = resolve_subscription_offerings(
                 selector,
                 self._offerings,
-                product_offering_ids=[item.offering_id for item in self._offerings],
+                product_offering_ids=_buy_offering_ids(buys)
+                or [item.offering_id for item in self._offerings],
                 destination=_destination_for(selector, destinations),
                 at=change.changed_at,
             )
-            schedules = [
-                item.calendar(zone, selector.period_timezone)
+            effective = [
+                (
+                    item.offering_id,
+                    item.calendar(zone, selector.period_timezone).ceil(change.changed_at),
+                )
                 for item in resolution.offerings
                 if item.alignment == "account_timezone"
             ]
-            if schedules and now - change.changed_at <= self._retention:
-                effective = max(calendar.ceil(change.changed_at) for calendar in schedules)
-                cutovers.append({"effective_at": iso_z(effective), "timezone": change.timezone})
+            if effective and now - change.changed_at <= self._retention:
+                previous, timezone = zone, change.timezone
+
+                def cutover(at: datetime, _same: datetime) -> dict[str, Any]:
+                    return {
+                        "effective_at": iso_z(at),
+                        "timezone": timezone,
+                        "previous_timezone": previous,
+                    }
+
+                cutovers.extend(
+                    _per_offering([(offering_id, at, at) for offering_id, at in effective], cutover)
+                )
             zone = change.timezone
         return cutovers
 
@@ -894,25 +903,15 @@ class ReportingSubscriptionEngine:
             for e in principal.exclusions.get((subscription_id, account_id), [])
             if not e.package_ids
         ]
-        windows: tuple[SubscriptionVersionWindow, ...] = tuple(
-            replace(
-                window,
-                inactive_intervals=tuple(
-                    (start, until)
-                    for start, until in principal.inactive.get(
-                        (subscription_id, window.subscription_version), ()
-                    )
-                    if until is not None
-                ),
-            )
-            for window in subscription_version_windows(state, version_configurations=versions)
+        windows: tuple[SubscriptionVersionWindow, ...] = subscription_version_windows(
+            state, version_configurations=versions
         )
         return expected_subscription_periods(
             subscription=windows,
             account_id=account_id,
             buys=buys,
             offerings=self._offerings,
-            account_timezone=account.initial_timezone or account.timezone,
+            account_timezone=account.timezone,
             now=now,
             authorizations=list(account.grants),
             exceptions=exclusions,
@@ -953,6 +952,35 @@ class ReportingSubscriptionEngine:
 
 
 # -- helpers -------------------------------------------------------------------
+
+
+def _buy_offering_ids(buys: Sequence[SubscriptionBuy]) -> list[str]:
+    ids: set[str] = set()
+    for buy in buys:
+        for _package, offering_ids in buy.product_offering_ids():
+            ids.update(offering_ids)
+    return sorted(ids)
+
+
+def _per_offering(
+    entries: Sequence[tuple[str, datetime, datetime]],
+    build: Callable[[datetime, datetime], dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """One entry for every offering when their boundaries agree, else one each.
+
+    ``gaps[]`` and ``timezone_cutovers[]`` entries without ``offering_id``
+    apply to every offering on the account (adcp#8585).
+    """
+    instants = {(first, second) for _offering_id, first, second in entries}
+    if len(instants) == 1:
+        first, second = next(iter(instants))
+        return [build(first, second)]
+    result = []
+    for offering_id, first, second in sorted(entries, key=lambda item: item[0].encode()):
+        entry = build(first, second)
+        entry["offering_id"] = offering_id
+        result.append(entry)
+    return result
 
 
 def _operator_selected(configuration: Mapping[str, Any], account: _Account) -> bool:

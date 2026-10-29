@@ -60,7 +60,8 @@ PACKAGE_COUNTRY = offering("pkg-country", ("package", "country"))
 HOURLY = offering(
     "pkg-hourly", ("package",), period_duration="PT1H", alignment="utc", delivery_sla="PT2H"
 )
-OFFERINGS = [PACKAGE, PACKAGE_CREATIVE, PACKAGE_COUNTRY, HOURLY]
+REGION_UTC = offering("pkg-region-utc", ("package", "region"), alignment="utc")
+OFFERINGS = [PACKAGE, PACKAGE_CREATIVE, PACKAGE_COUNTRY, HOURLY, REGION_UTC]
 ALL_IDS = tuple(item.offering_id for item in OFFERINGS)
 
 
@@ -539,7 +540,7 @@ async def test_account_ids_subscription_beats_all_accounts() -> None:
     [
         ("exact", ["pkg"]),
         ("finest", ["pkg-country"]),
-        ("all", ["pkg", "pkg-country", "pkg-creative"]),
+        ("all", ["pkg", "pkg-country", "pkg-creative", "pkg-region-utc"]),
     ],
 )
 async def test_exact_finest_and_all(match: str, expected: list[str]) -> None:
@@ -643,7 +644,9 @@ async def test_reactivation_in_place_is_a_fresh_start() -> None:
     await world.sync(subscription())
     state = await world.state("analytics")
     assert state.state == "active" and state.deactivated_at is None
-    owed = await world.seller_owes("analytics", "acct-1", "2026-10-09T05:00:00Z")
+    assert len(state.inactive_intervals) == 1
+    # The buyer recomputes the same periods from the readback alone.
+    owed = await world.assert_conformant("analytics", "acct-1", "2026-10-09T05:00:00Z")
     # Oct 3 started before deactivation; the next owed day starts at the
     # first boundary after reactivation.
     assert [p.period_start for p in owed] == [
@@ -654,6 +657,127 @@ async def test_reactivation_in_place_is_a_fresh_start() -> None:
         "2026-10-07T04:00:00Z",
         "2026-10-08T04:00:00Z",
     ]
+
+
+@pytest.mark.asyncio
+async def test_timezone_cutovers_carry_previous_timezone() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-07T07:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone="America/Los_Angeles", authorized_at=at("2026-09-01T00:00:00Z")
+    )
+    await world.reconcile("2026-10-03T12:00:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    (cutover,) = coverage.timezone_cutovers
+    assert cutover.previous_timezone == NY
+    assert cutover.timezone == "America/Los_Angeles"
+    assert cutover.effective_at == at("2026-10-04T04:00:00Z")
+    assert cutover.offering_id is None
+    # The buyer needs no timezone history of its own: list_accounts shows the
+    # current zone, and previous_timezone gives the zone before the cutover.
+    seller = await world.seller_owes("analytics", "acct-1", "2026-10-08T00:00:00Z")
+    buyer = expected_subscription_periods(
+        subscription=await world.state("analytics"),
+        account_id="acct-1",
+        buys=world.host.buys["acct-1"],
+        offerings=OFFERINGS,
+        account_timezone="America/Los_Angeles",
+        now=at("2026-10-08T00:00:00Z"),
+        authorizations=world.grants["acct-1"],
+        coverage=coverage,
+        status_retention_days=world.retention_days,
+    )
+    assert buyer == seller
+    # New York days through Oct 3 (E = Oct 4 04:00Z), then Los Angeles days
+    # from 07:00Z; 04:00Z to 07:00Z on Oct 4 is owed under neither.
+    assert [(p.period_start, p.source_timezone) for p in seller] == [
+        ("2026-10-01T04:00:00Z", NY),
+        ("2026-10-02T04:00:00Z", NY),
+        ("2026-10-03T04:00:00Z", NY),
+        ("2026-10-04T07:00:00Z", "America/Los_Angeles"),
+        ("2026-10-05T07:00:00Z", "America/Los_Angeles"),
+        ("2026-10-06T07:00:00Z", "America/Los_Angeles"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_gaps_are_per_offering_when_boundaries_differ() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [
+        buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-08T04:00:00Z", offering_ids=("pkg",)),
+        buy("mb-2", "2026-10-01T04:00:00Z", "2026-10-08T04:00:00Z", offering_ids=("pkg-hourly",)),
+    ]
+    await world.sync(
+        subscription(),
+        subscription(
+            "pacing",
+            selector={
+                "feed_purpose": "analytics",
+                "period_duration": "PT1H",
+                "required_finality": "official",
+                "dimensions": ["package"],
+            },
+            scope={"account_ids": ["acct-1"]},
+        ),
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-03T10:30:00Z")
+    await world.reconcile("2026-10-03T10:30:00Z")
+    world.grant("acct-1", "2026-10-04T15:30:00Z")
+    await world.reconcile("2026-10-04T15:30:00Z")
+    daily = await world.coverage("acct-1", "analytics")
+    hourly = await world.coverage("acct-1", "pacing")
+    # Each subscription resolves one offering, so each gap uses its boundaries.
+    assert [(g.from_, g.until, g.offering_id) for g in daily.gaps] == [
+        (at("2026-10-03T04:00:00Z"), at("2026-10-05T04:00:00Z"), None)
+    ]
+    assert [(g.from_, g.until, g.offering_id) for g in hourly.gaps] == [
+        (at("2026-10-03T10:00:00Z"), at("2026-10-04T16:00:00Z"), None)
+    ]
+    await world.assert_conformant("analytics", "acct-1", "2026-10-07T00:00:00Z", daily)
+    await world.assert_conformant("pacing", "acct-1", "2026-10-05T00:00:00Z", hourly)
+
+
+@pytest.mark.asyncio
+async def test_gap_entries_name_offerings_whose_boundaries_differ() -> None:
+    # match all resolves a New York day and a UTC day, whose boundaries differ.
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [
+        buy(
+            "mb-1",
+            "2026-10-01T04:00:00Z",
+            "2026-10-08T04:00:00Z",
+            offering_ids=("pkg", "pkg-region-utc"),
+        ),
+    ]
+    await world.sync(
+        subscription(
+            selector={
+                "feed_purpose": "analytics",
+                "period_duration": "P1D",
+                "required_finality": "official",
+                "dimensions": ["package"],
+                "match": "all",
+            }
+        )
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-03T10:30:00Z")
+    await world.reconcile("2026-10-03T10:30:00Z")
+    world.grant("acct-1", "2026-10-04T15:30:00Z")
+    await world.reconcile("2026-10-04T15:30:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    assert [(g.offering_id, g.from_, g.until) for g in coverage.gaps] == [
+        ("pkg", at("2026-10-03T04:00:00Z"), at("2026-10-05T04:00:00Z")),
+        ("pkg-region-utc", at("2026-10-03T00:00:00Z"), at("2026-10-05T00:00:00Z")),
+    ]
+    owed = await world.assert_conformant("analytics", "acct-1", "2026-10-07T05:00:00Z", coverage)
+    assert {p.offering_id for p in owed} == {"pkg", "pkg-region-utc"}
 
 
 @pytest.mark.asyncio

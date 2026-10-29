@@ -270,7 +270,18 @@ def _deactivated(old: dict[str, Any], *, stamp: str) -> ReportingSubscriptionSta
         configuration["active"] = False
         payload.update(state="inactive", deactivated_at=stamp, configuration=configuration)
         payload.pop("issues", None)
+        payload["inactive_intervals"] = _intervals(
+            [*(old.get("inactive_intervals") or ()), {"deactivated_at": stamp}]
+        )
     return ReportingSubscriptionState.model_validate(payload)
+
+
+#: ``inactive_intervals`` holds at most this many entries (the schema's maxItems).
+_MAX_INACTIVE_INTERVALS = 64
+
+
+def _intervals(intervals: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    return [dict(item) for item in intervals][-_MAX_INACTIVE_INTERVALS:]
 
 
 def _next_state(
@@ -318,17 +329,22 @@ def _next_state(
         for carried in ("accounts_with_exceptions", "accounts_unauthorized"):
             if old.get(carried):
                 payload[carried] = old[carried]
+    # inactive_intervals (adcp#8585) let a buyer recompute a reactivation in
+    # place, which the readback otherwise loses with deactivated_at.
+    intervals = [dict(item) for item in (old or {}).get("inactive_intervals") or ()]
+    was_inactive = old is not None and old.get("state") == "inactive"
     if active:
         payload["state"] = "active"
+        if was_inactive and intervals and "reactivated_at" not in intervals[-1]:
+            intervals[-1]["reactivated_at"] = stamp
     else:
         payload["state"] = "inactive"
-        payload["deactivated_at"] = (
-            old["deactivated_at"]
-            if old is not None
-            and old.get("state") == "inactive"
-            and int(old["subscription_version"]) == version
-            else stamp
-        )
+        if not was_inactive or not intervals or "reactivated_at" in intervals[-1]:
+            start = old["deactivated_at"] if was_inactive and old is not None else stamp
+            intervals.append({"deactivated_at": start})
+        payload["deactivated_at"] = intervals[-1]["deactivated_at"]
+    if intervals:
+        payload["inactive_intervals"] = _intervals(intervals)
     destination = configuration.get("destination")
     if destination is not None:
         target = destinations[destination["destination_id"]]
