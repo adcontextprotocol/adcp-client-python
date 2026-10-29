@@ -318,6 +318,82 @@ than `configure()`. Production workers belong to `start()`/`close()`; the Core
 [production guide](reporting-production.md) for account admission and provider
 contracts, and [the wiring example](../examples/reporting_service_production.py).
 
+## Reporting subscriptions (AdCP 3.3, experimental)
+
+`media_buy.reporting_subscriptions` lets a caller register reporting once on its
+principal through `sync_principal`, rather than once per account through
+`sync_accounts`. `adcp.reporting.subscriptions` holds both halves.
+
+**Buyer.** `expected_subscription_periods(...)` is the coverage rule as a pure
+function over plain data. Pass it the `get_principal` subscription readback,
+the buys you can see (`SubscriptionBuy`, with earlier flights when a buy was
+extended or reinstated), the offerings with the seller's dimension mapping
+(`SubscriptionOffering`), the account timezone, the account's grant history,
+and the `subscription_coverage[]` exceptions and gaps. It returns
+`ExpectedSubscriptionPeriod` values, which are `ExpectedReportingPeriod`s, so
+they feed `evaluate_reporting_ledger` and the consumer-status planner as they
+are.
+
+**Seller.** Opt in on the principal runtime and link it to the engine. Without
+`reporting_subscriptions=`, `PrincipalService` rejects the section with
+`UNSUPPORTED_FEATURE`, as the spec requires for an unsupported section.
+`replace_account_configs: true` is also rejected with `UNSUPPORTED_FEATURE`
+until the engine can deactivate account-level configurations.
+
+```python
+from adcp.reporting.subscriptions import (
+    ReportingSubscriptionEngine,
+    ReportingSubscriptionSupport,
+    SubscriptionOffering,
+)
+from adcp.server import PrincipalService
+
+principals = PrincipalService(emit_change=emit_principal_changed)
+engine = ReportingSubscriptionEngine(
+    principals=principals,
+    host=my_host,  # list_authorized_accounts, account_buys[, account_delivery_configs]
+    offerings=[
+        SubscriptionOffering.from_offering(daily_offering),  # reads standard_dimensions
+    ],
+    support=ReportingSubscriptionSupport(max_accounts=500),
+)
+principals.set_reporting_subscriptions(
+    engine.principal_options(delivery_config_ids=caller_config_ids)
+)
+```
+
+The host supplies only what it alone knows: the accounts a principal may read
+(`list_authorized_accounts`, paged), each with its IANA `timezone` and the
+`authorized_at` that `list_accounts` serves (the engine never substitutes
+either); each account's buys with their products'
+`reporting_delivery_offering_ids` (`account_buys`); and optionally the caller's
+own active `sync_accounts` configurations (`account_delivery_configs`), which
+take precedence. Give each configuration its `active_from` so the `overridden`
+exception opens at that instant; otherwise run `engine.reconcile(principal)`
+synchronously with every `sync_accounts` write. Call `engine.reconcile` on a
+schedule and after anything changes, and `engine.authorization_changed(...)`
+when you learn of a grant or revocation directly. A subscription that cannot
+be evaluated (for example an account with no timezone yet) is isolated and
+listed in `engine.evaluation_errors`; the others carry on. `subscription_coverage`
+answers from the engine's last-reconciled authority, so re-check authority
+before serving it. Use `render_path_template(...)` to expand a destination
+`path_template`, and `PrincipalService.reporting_subscription_ids(...)` to make
+`sync_accounts` reject a `delivery_config_id` that equals a subscription id. The engine records exceptions as cutover
+intervals, keeps `accounts_with_exceptions[]` and `accounts_unauthorized[]`
+current in `get_principal` (each change fires `principal.changed` with reason
+`reporting_subscription_changed`), serves `subscription_coverage(...)` for
+`get_reporting_status`, and computes `owed_periods(...)` with the same function
+the buyer runs.
+
+Under `max_accounts`, accounts already served keep their slots and the rest are
+filled in `account_id` byte order; the remainder get a `capacity` exception.
+
+`subscription_capabilities(...)` and `advertise_reporting_subscriptions(...)`
+project `configuration_tasks`, the deprecated `configuration_task`, the
+`subscriptions` block, the feature id and the principal section. The engine
+does not yet write ledger obligations, so do not advertise the capability
+until obligations are materialized for the periods it owes.
+
 ## Advanced composition
 
 `postgres_reliable_reporting_service()` (from `adcp_reporting_storage`) without

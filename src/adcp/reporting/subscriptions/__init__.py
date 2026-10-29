@@ -12,6 +12,11 @@ its principal through ``sync_principal`` instead of once per account through
   (``exact`` / ``finest`` / ``all``, ties to the lowest ``offering_id``).
 * :func:`subscription_capabilities` -- the capability fields a seller that
   serves subscriptions must advertise.
+* :func:`apply_reporting_subscriptions` -- validation and versioning of the
+  ``sync_principal`` section, used by ``PrincipalService`` when it is given
+  ``reporting_subscriptions=`` options.
+* :class:`ReportingSubscriptionEngine` -- the seller runtime: host hooks,
+  lost authority, exceptions, ``subscription_coverage[]`` and owed periods.
 """
 
 from __future__ import annotations
@@ -39,6 +44,22 @@ from adcp.reporting.subscriptions.coverage import (
     subscription_exceptions,
     subscription_version_windows,
 )
+from adcp.reporting.subscriptions.engine import (
+    AccountDeliveryConfig,
+    AuthorizedAccount,
+    AuthorizedAccountPage,
+    InMemoryReportingSubscriptionStore,
+    ReportingSubscriptionDeliveryHost,
+    ReportingSubscriptionEngine,
+    ReportingSubscriptionHost,
+    ReportingSubscriptionPrecedenceHost,
+)
+from adcp.reporting.subscriptions.registry import (
+    ReportingSubscriptionError,
+    apply_reporting_subscriptions,
+    refresh_destination_states,
+    render_path_template,
+)
 from adcp.reporting.subscriptions.resolution import (
     STANDARD_REPORTING_DIMENSIONS,
     SubscriptionDestination,
@@ -57,6 +78,18 @@ from adcp.reporting.subscriptions.wire import (
 )
 
 __all__ = [
+    "AccountDeliveryConfig",
+    "AuthorizedAccount",
+    "AuthorizedAccountPage",
+    "InMemoryReportingSubscriptionStore",
+    "ReportingSubscriptionDeliveryHost",
+    "ReportingSubscriptionEngine",
+    "ReportingSubscriptionError",
+    "ReportingSubscriptionHost",
+    "ReportingSubscriptionPrecedenceHost",
+    "apply_reporting_subscriptions",
+    "refresh_destination_states",
+    "render_path_template",
     "REPORTING_SUBSCRIPTIONS_FEATURE",
     "REPORTING_SUBSCRIPTIONS_SECTION",
     "STANDARD_REPORTING_DIMENSIONS",
