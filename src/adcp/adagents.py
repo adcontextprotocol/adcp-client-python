@@ -723,7 +723,8 @@ def properties_for_publisher_domain(
                 if _publisher_attribution_domain(prop["publisher_domain"]) == domain:
                     selected.append(prop)
             except AdagentsValidationError:
-                pass
+                # An invalid explicit publisher claim cannot fall back to identifiers.
+                logger.debug("Skipping property with invalid publisher_domain")
             continue
         domain_ids = _property_domain_identifiers(prop, include_subdomains=True)
         if any(_domain_identifier_is_under_publisher(i, domain) for i in domain_ids) or (
