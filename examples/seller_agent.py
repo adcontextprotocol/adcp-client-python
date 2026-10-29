@@ -702,21 +702,24 @@ def _package_budget_total(packages: list[dict[str, Any]]) -> Decimal:
 
 def _delivery_totals(events: list[dict[str, Any]]) -> dict[str, Any]:
     totals: dict[str, Any] = {
-        "impressions": sum(event.get("impressions", 0) for event in events),
         "spend": float(sum((Decimal(str(event.get("spend", 0))) for event in events), Decimal(0))),
     }
-    for metric in ("clicks", "conversions"):
+    # AdCP 3.3: an impression count nobody measured is absent, never zero.
+    for metric in ("impressions", "clicks", "conversions"):
         if any(metric in event for event in events):
             totals[metric] = sum(event.get(metric, 0) for event in events)
     views = [event["viewability"] for event in events if event.get("viewability")]
-    if views:
+    # AdCP 3.3: viewability reported under more than one standard has no flat
+    # total; one row is one (metric, qualifier) key.
+    if views and len({view.get("standard") for view in views}) == 1:
         measurable = sum(view.get("measurable_impressions", 0) for view in views)
         viewable = sum(view.get("viewable_impressions", 0) for view in views)
         totals["viewability"] = {
             "measurable_impressions": measurable,
             "viewable_impressions": viewable,
-            "viewable_rate": viewable / measurable if measurable else 0,
         }
+        if measurable:
+            totals["viewability"]["viewable_rate"] = viewable / measurable
         timed = [view for view in views if "viewed_seconds" in view]
         weight = sum(view.get("measurable_impressions", 0) for view in timed)
         if weight:
@@ -754,6 +757,20 @@ def _split_delivery(totals: dict[str, Any], weights: list[Decimal]) -> list[dict
             results[index][metric] = float(value) if metric == "spend" else int(value)
             allocated += value
     return results
+
+
+def _serves_impressionless_rows(context: Any) -> bool:
+    """Whether the caller's release (AdCP 3.3+) allows rows without ``impressions``.
+
+    Below 3.3 a dimensional row with no impression count is omitted, never
+    sent as ``impressions: 0``.
+    """
+    version = getattr(context, "resolved_adcp_version", None)
+    if not version:
+        return True
+    major, _, rest = str(version).partition(".")
+    minor = rest.split(".", 1)[0].split("-", 1)[0]
+    return not (major.isdigit() and minor.isdigit()) or (int(major), int(minor)) >= (3, 3)
 
 
 def _narrow_metrics(metrics: dict[str, Any], requested: list[str] | None) -> dict[str, Any]:
@@ -1813,6 +1830,8 @@ class DemoSeller(ADCPHandler):
                     "currency": mb.get("currency", "USD"),
                     **_narrow_metrics(metrics, requested),
                 }
+                if not _serves_impressionless_rows(context):
+                    rows = [row for row in rows if "impressions" in row]
                 if format_request is not None and reporting.get("supports_format_breakdown"):
                     sort_by = format_request.get("sort_by", "spend")
                     direction = format_request.get("sort_direction", "desc")
