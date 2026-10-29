@@ -98,7 +98,12 @@ async def test_bare_entries_require_explicit_opt_out() -> None:
         "publisher.com", validate_structure=False, transport_factory=factory
     )
     assert data == BARE
-    assert resolve_properties_for_agent(data, AGENT, mode="permissive") == BARE["properties"]
+    assert (
+        resolve_properties_for_agent(
+            data, AGENT, mode="permissive", publisher_domain="publisher.com"
+        )
+        == BARE["properties"]
+    )
     cached = await fetch_adagents_with_cache(
         "publisher.com", validate_structure=False, transport_factory=factory
     )

@@ -2557,6 +2557,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert [p["property_id"] for p in properties] == ["site1", "app1"]
 
@@ -2583,6 +2584,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://other-agent.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert properties == []
 
@@ -2610,6 +2612,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert properties == []
 
@@ -2635,6 +2638,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert properties == []
 
@@ -2662,6 +2666,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert properties == []
 
@@ -2700,6 +2705,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert [p["property_id"] for p in properties] == ["site1"]
 
@@ -2735,6 +2741,7 @@ class TestGetPropertiesByAgent:
             adagents_data,
             "https://agent1.example.com",
             mode="permissive",
+            allow_any_domain=True,
         )
         assert [p["property_id"] for p in properties] == ["site1"]
 

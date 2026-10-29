@@ -14,7 +14,7 @@ import json
 import logging
 import re
 import socket
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -2099,6 +2099,8 @@ def resolve_properties_for_agent(
     agent_url: str,
     *,
     mode: PropertyResolutionMode = "strict",
+    publisher_domain: str | None = None,
+    allow_any_domain: bool = False,
 ) -> list[dict[str, Any]]:
     """Resolve properties for an agent with an explicit strict/permissive mode.
 
@@ -2115,30 +2117,60 @@ def resolve_properties_for_agent(
     explicit or unknown selector field, or has multiple same-URL entries, the
     resolver still returns the strict result.
 
+    A bare entry carries no typed binding, so nothing in the file stops a
+    document served at ``attacker.example`` from bare-listing an agent and
+    claiming another publisher's site, app or venue. Permissive mode
+    therefore requires ``publisher_domain``, the domain the document was
+    fetched for: the bare-entry fallback keeps only properties whose
+    identifiers are all ``type: "domain"`` and name that domain or one of
+    its subdomains (``www.D`` is treated as ``D``). A property whose own
+    ``publisher_domain`` names another domain is dropped; the claim is not
+    trusted, since the file is not attested. Properties identified by a
+    bundle ID, store ID or venue are dropped, because a domain cannot vouch
+    for them. ``allow_any_domain=True`` instead keeps the SDK 9 behavior of
+    returning every top-level property; use it only for diagnostics.
+
     Args:
         adagents_data: Parsed adagents.json data
         agent_url: URL of the agent to filter by
         mode: ``"strict"`` for spec-conformant resolution, ``"permissive"``
             to opt into bare-entry top-level property fallback.
+        publisher_domain: Permissive mode only: the publisher domain the
+            document was fetched for, gating the bare-entry fallback.
+        allow_any_domain: Permissive mode only: skip the domain gate.
 
     Returns:
         List of properties for the specified agent.
 
     Raises:
-        AdagentsValidationError: If adagents_data is malformed
-        ValueError: If mode is not ``"strict"`` or ``"permissive"``
+        AdagentsValidationError: If adagents_data is malformed, or
+            ``publisher_domain`` is not a registrable hostname
+        ValueError: If mode is not ``"strict"`` or ``"permissive"``, or the
+            domain gate options do not fit the mode
     """
     if mode == "strict":
+        if publisher_domain is not None or allow_any_domain:
+            raise ValueError("publisher_domain and allow_any_domain apply to mode='permissive'")
         return _resolve_properties_for_agent(
             adagents_data,
             agent_url,
             permissive_bare_top_level=False,
         )
     if mode == "permissive":
+        if publisher_domain is None and not allow_any_domain:
+            raise ValueError(
+                "mode='permissive' requires publisher_domain= (the domain the document "
+                "was fetched for), or allow_any_domain=True to skip the domain gate"
+            )
+        if publisher_domain is not None and allow_any_domain:
+            raise ValueError("pass publisher_domain or allow_any_domain=True, not both")
         return _resolve_properties_for_agent(
             adagents_data,
             agent_url,
             permissive_bare_top_level=True,
+            bare_entry_domain=(
+                None if publisher_domain is None else _publisher_domain_host(publisher_domain)
+            ),
         )
     raise ValueError("mode must be 'strict' or 'permissive'")
 
@@ -2148,6 +2180,7 @@ def _resolve_properties_for_agent(
     agent_url: str,
     *,
     permissive_bare_top_level: bool,
+    bare_entry_domain: str | None = None,
 ) -> list[dict[str, Any]]:
     """Implementation shared by strict and opt-in permissive property resolution."""
     matches = find_authorized_agent_entries(adagents_data, agent_url)
@@ -2185,9 +2218,372 @@ def _resolve_properties_for_agent(
         and len(matches) == 1
         and _is_bare_authorized_agent_entry(matches[0])
     ):
-        return [p for p in revoked_top_level if isinstance(p, dict)]
+        return [
+            p
+            for p in revoked_top_level
+            if isinstance(p, dict)
+            and (bare_entry_domain is None or _only_names_domain(p, bare_entry_domain))
+        ]
 
     return []
+
+
+# ---------------------------------------------------------------------------
+# Publisher-domain attribution and cross-domain verification (#1697)
+# ---------------------------------------------------------------------------
+
+_HOSTNAME_RE = re.compile(
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"
+)
+
+
+def _domain_host(value: object, *, wildcard: bool = False) -> str | None:
+    """Canonical lowercase A-label hostname of ``value``, or None if it is not one.
+
+    ``wildcard=True`` accepts a leading ``*.`` (a property identifier
+    pattern) and returns the host it ranges over. IP literals, single-label
+    names, URLs and anything else that is not a hostname return None.
+    """
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if wildcard and candidate.startswith("*."):
+        candidate = candidate[2:]
+    if candidate.endswith("."):
+        candidate = candidate[:-1]
+    try:
+        host = idna.encode(candidate, uts46=True).decode("ascii").lower()
+    except (idna.IDNAError, UnicodeError):
+        return None
+    if len(host) > 253 or _HOSTNAME_RE.fullmatch(host) is None:
+        return None
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    return None
+
+
+def _publisher_host(value: object, *, wildcard: bool = False) -> str | None:
+    """:func:`_domain_host` with a leading ``www.`` removed (``www.D`` names ``D``).
+
+    ``www.com`` is a domain in its own right, so the label is removed only
+    when a dotted name remains.
+    """
+    host = _domain_host(value, wildcard=wildcard)
+    if host is not None and host.startswith("www.") and "." in host[4:]:
+        return host[4:]
+    return host
+
+
+def _publisher_domain_host(publisher_domain: str) -> str:
+    """Validate a caller-supplied publisher domain for attribution and gating.
+
+    A public suffix (``co.uk``, ``github.io``) is refused: every tenant
+    under it would count as one of its subdomains.
+    """
+    host = _publisher_host(publisher_domain)
+    if host is None or registrable_domain(host) is None:
+        raise AdagentsValidationError(
+            f"publisher_domain must be a registrable hostname, got {publisher_domain!r}"
+        )
+    return host
+
+
+def _names_domain(host: str, domain: str) -> bool:
+    """``host`` is ``domain`` or one of its subdomains."""
+    return host == domain or host.endswith(f".{domain}")
+
+
+def _domain_identifiers(prop: dict[str, Any]) -> list[Any]:
+    identifiers = prop.get("identifiers")
+    if not isinstance(identifiers, list):
+        return []
+    return [
+        i.get("value") for i in identifiers if isinstance(i, dict) and i.get("type") == "domain"
+    ]
+
+
+def _only_names_domain(prop: dict[str, Any], domain: str) -> bool:
+    """Permissive-mode gate: every identifier is a domain under ``domain``."""
+    if "publisher_domain" in prop and _publisher_host(prop["publisher_domain"]) != domain:
+        return False
+    identifiers = prop.get("identifiers")
+    if not isinstance(identifiers, list) or not identifiers:
+        return False
+    for identifier in identifiers:
+        if not isinstance(identifier, dict) or identifier.get("type") != "domain":
+            return False
+        host = _domain_host(identifier.get("value"), wildcard=True)
+        if host is None or not _names_domain(host, domain):
+            return False
+    return True
+
+
+def properties_for_publisher_domain(
+    properties: list[dict[str, Any]],
+    publisher_domain: str,
+    *,
+    include_domainless: bool = False,
+) -> list[dict[str, Any]]:
+    """Return the properties that belong to ``publisher_domain``.
+
+    One adagents.json is often served at several publisher domains (a
+    media group's shared file) or names a network's publishers. When
+    syncing it for publisher domain ``D``, this answers "which of these
+    properties are ``D``'s", using the AdCP domain rules:
+
+    - A property that declares ``publisher_domain`` belongs to ``D`` when
+      that value names ``D``. Its identifiers are not consulted.
+    - Otherwise it belongs to ``D`` when a ``type: "domain"`` identifier
+      names ``D`` or any subdomain of it (``www.D``, ``m.D``, ``shop.D``,
+      or the pattern ``*.D``).
+    - A property with neither (an app known only by bundle ID, a DOOH
+      venue) cannot be attributed. It is excluded unless
+      ``include_domainless=True``; call twice to report those separately.
+
+    A ``publisher_domain`` given as ``www.D`` is treated as ``D``. Hosts
+    are compared case-insensitively in A-label form. This attributes
+    properties; it does not authorize them. Pass the output of
+    :func:`get_properties_by_agent` or :func:`resolve_properties_for_agent`,
+    and see :func:`verify_cross_domain_properties` for claims about
+    another publisher's domain.
+
+    Raises:
+        AdagentsValidationError: ``publisher_domain`` is not a registrable
+            hostname (an IP literal, a single label, a public suffix).
+    """
+    domain = _publisher_domain_host(publisher_domain)
+    attributed: list[dict[str, Any]] = []
+    for prop in (p for p in properties if isinstance(p, dict)):
+        if "publisher_domain" in prop:
+            if _publisher_host(prop["publisher_domain"]) == domain:
+                attributed.append(prop)
+            continue
+        values = _domain_identifiers(prop)
+        if not values:
+            if include_domainless:
+                attributed.append(prop)
+            continue
+        if any(
+            (host := _domain_host(value, wildcard=True)) is not None and _names_domain(host, domain)
+            for value in values
+        ):
+            attributed.append(prop)
+    return attributed
+
+
+CrossDomainFailureReason = Literal["not_vouched", "fetch_failed", "invalid_domain", "domain_limit"]
+AdagentsFetcher: TypeAlias = Callable[[str], Awaitable[dict[str, Any]]]
+"""Fetch the adagents.json document governing a publisher domain."""
+
+
+@dataclass(frozen=True)
+class UnverifiedProperty:
+    """A cross-domain claim that could not be verified.
+
+    ``domain`` is the publisher domain that did not vouch for the claim, or
+    the raw value that is not a usable hostname (``invalid_domain``).
+    """
+
+    prop: dict[str, Any]
+    domain: str
+    reason: CrossDomainFailureReason
+
+
+@dataclass(frozen=True)
+class CrossDomainVerification:
+    """Result of :func:`verify_cross_domain_properties`.
+
+    ``verified``: properties on the source domain (or its subdomains) and
+    cross-domain claims every named publisher vouched for, in input order.
+    ``unverified``: cross-domain claims to drop, with the reason.
+    ``domainless``: properties naming no domain at all, which no publisher
+    domain can vouch for; the caller decides.
+    """
+
+    verified: list[dict[str, Any]] = field(default_factory=list)
+    unverified: list[UnverifiedProperty] = field(default_factory=list)
+    domainless: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _vouching_domains(prop: dict[str, Any], source: str) -> list[str] | str | None:
+    """Publisher domains that must vouch for ``prop``, read from its claims.
+
+    Returns the list of other publishers' domains (empty when every claim is
+    on ``source``), None when the property names no domain at all, or the
+    offending raw value (as ``str``) when a claim is not a usable hostname.
+    A declared ``publisher_domain`` is where the spec says to check, so it
+    vouches as written. A domain identifier is vouched for by its
+    registrable domain (eTLD+1), which controls every host beneath it.
+    """
+    domains: list[str] = []
+    named = False
+    if "publisher_domain" in prop:
+        named = True
+        declared = _publisher_host(prop["publisher_domain"])
+        if declared is None:
+            return str(prop["publisher_domain"])
+        if not _names_domain(declared, source):
+            domains.append(declared)
+    for value in _domain_identifiers(prop):
+        named = True
+        host = _domain_host(value, wildcard=True)
+        if host is None:
+            return str(value)
+        if _names_domain(host, source):
+            continue
+        registrable = registrable_domain(host)
+        if registrable is None:
+            return str(value)
+        if registrable not in domains:
+            domains.append(registrable)
+    return domains if named else None
+
+
+def _identifier_covered(claimed: dict[str, Any], authorized: list[dict[str, Any]]) -> bool:
+    """One claimed identifier is authorized by some identifier the voucher lists."""
+    claimed_type = claimed.get("type")
+    claimed_value = claimed.get("value")
+    if not isinstance(claimed_type, str) or not isinstance(claimed_value, str):
+        return False
+    for prop in authorized:
+        identifiers = prop.get("identifiers")
+        if not isinstance(identifiers, list):
+            continue
+        for identifier in identifiers:
+            if not isinstance(identifier, dict) or identifier.get("type") != claimed_type:
+                continue
+            value = identifier.get("value")
+            if not isinstance(value, str):
+                continue
+            if claimed_type == "domain":
+                if domain_matches(claimed_value, value):
+                    return True
+            elif value == claimed_value:
+                return True
+    return False
+
+
+async def verify_cross_domain_properties(
+    properties: list[dict[str, Any]],
+    *,
+    source_domain: str,
+    agent_url: str,
+    fetcher: AdagentsFetcher | None = None,
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+    max_domains: int = 50,
+    max_concurrency: int = 10,
+) -> CrossDomainVerification:
+    """Keep only the cross-domain claims the named publishers vouch for.
+
+    ``properties`` were resolved for ``agent_url`` from the adagents.json
+    fetched for ``source_domain`` (``A``). A property on ``A`` or one of
+    its subdomains is ``A``'s own claim and is verified. A property that
+    names another publisher's domain ``B`` (a declared ``publisher_domain``,
+    or a ``type: "domain"`` identifier outside ``A``) is verified only when
+    ``B`` vouches for it: the document governing ``B``, fetched with
+    :func:`fetch_adagents`, authorizes ``agent_url`` (strict resolution,
+    honoring ``B``'s revocations) for every identifier of the property.
+    That covers ``B`` authorizing the agent itself and ``B`` delegating to
+    ``A``, since :func:`fetch_adagents` follows ``B``'s
+    ``authoritative_location`` and, when ``B`` publishes no file, its
+    ads.txt ``MANAGERDOMAIN``. A domain identifier is vouched for by its
+    registrable domain (``shop.b.example`` by ``b.example``).
+
+    The check fails closed. A property naming several other publishers
+    needs each of them to vouch for the whole property. A fetch that fails
+    for any reason, a value that is not a hostname, and a bare entry in
+    ``B``'s file vouch for nothing. At most ``max_domains`` distinct
+    publisher domains are fetched (a hostile file cannot fan the sync out
+    to arbitrary hosts); claims beyond that are ``domain_limit``.
+    Properties that name no domain are returned in ``domainless``.
+
+    Args:
+        properties: Properties resolved for ``agent_url`` from ``A``'s document.
+        source_domain: The publisher domain the document was fetched for.
+        agent_url: The agent the properties were resolved for.
+        fetcher: Async callable returning the document governing a domain.
+            Defaults to :func:`fetch_adagents` with ``timeout`` and ``client``.
+        timeout: Per-fetch timeout for the default fetcher.
+        client: Optional shared client for the default fetcher.
+        max_domains: Upper bound on distinct publisher domains fetched.
+        max_concurrency: Concurrent fetches.
+
+    Raises:
+        AdagentsValidationError: ``source_domain`` is not a registrable hostname.
+        ValueError: ``max_domains`` or ``max_concurrency`` is not positive.
+    """
+    if max_domains < 1 or max_concurrency < 1:
+        raise ValueError("max_domains and max_concurrency must be positive")
+    source = _publisher_domain_host(source_domain)
+    fetch = fetcher or (lambda domain: fetch_adagents(domain, timeout=timeout, client=client))
+
+    # One verdict per input position: a property object, the reason it
+    # failed, or the publisher domains still to vouch for it.
+    verdicts: list[tuple[dict[str, Any], UnverifiedProperty | list[str] | None]] = []
+    for prop in (p for p in properties if isinstance(p, dict)):
+        domains = _vouching_domains(prop, source)
+        if isinstance(domains, str):
+            verdicts.append((prop, UnverifiedProperty(prop, domains, "invalid_domain")))
+        else:
+            verdicts.append((prop, domains))
+
+    wanted = (d for _, v in verdicts if isinstance(v, list) for d in v)
+    to_fetch = list(dict.fromkeys(wanted))[:max_domains]
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _authorized(domain: str) -> list[dict[str, Any]] | None:
+        async with semaphore:
+            try:
+                document = await fetch(domain)
+                return get_properties_by_agent(document, agent_url)
+            except Exception as exc:  # every failure vouches for nothing
+                logger.info("adagents.json for %s did not load for vouching: %s", domain, exc)
+                return None
+
+    fetched = dict(zip(to_fetch, await asyncio.gather(*(_authorized(d) for d in to_fetch))))
+
+    result = CrossDomainVerification()
+    for prop, verdict in verdicts:
+        if verdict is None:
+            result.domainless.append(prop)
+            continue
+        if isinstance(verdict, list):
+            verdict = _first_failure(prop, verdict, fetched)
+        if verdict is None:
+            result.verified.append(prop)
+        else:
+            result.unverified.append(verdict)
+    return result
+
+
+def _first_failure(
+    prop: dict[str, Any],
+    domains: list[str],
+    fetched: dict[str, list[dict[str, Any]] | None],
+) -> UnverifiedProperty | None:
+    """The first publisher domain that does not vouch for ``prop``, if any."""
+    for domain in domains:
+        if domain not in fetched:
+            return UnverifiedProperty(prop, domain, "domain_limit")
+        authorized = fetched[domain]
+        if authorized is None:
+            return UnverifiedProperty(prop, domain, "fetch_failed")
+        if not _claim_covered(prop, authorized):
+            return UnverifiedProperty(prop, domain, "not_vouched")
+    return None
+
+
+def _claim_covered(prop: dict[str, Any], authorized: list[dict[str, Any]]) -> bool:
+    identifiers = prop.get("identifiers")
+    if not isinstance(identifiers, list) or not identifiers:
+        return False
+    return all(
+        isinstance(identifier, dict) and _identifier_covered(identifier, authorized)
+        for identifier in identifiers
+    )
 
 
 def _reference_renderer_catalog_errors(
