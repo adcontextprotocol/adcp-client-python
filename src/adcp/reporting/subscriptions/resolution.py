@@ -30,7 +30,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
-from adcp.reporting.subscriptions._clock import PeriodCalendar, require_zone, utc_instant
+from adcp.reporting.subscriptions._clock import (
+    PeriodCalendar,
+    parse_delivery_sla,
+    parse_period_duration,
+    require_zone,
+    utc_instant,
+)
 
 #: The 3.3 standard breakdown vocabulary (``enums/reporting-dimension.json``).
 #: It is extensible: a selector naming a value no offering maps matches nothing.
@@ -75,8 +81,8 @@ class SubscriptionOffering:
     ``period_timezone`` is the schedule's IANA zone for ``source_timezone``
     (fixed, or the seller's account-resolved upstream zone) and fixed
     ``billing_cycle`` offerings. ``period_timezone_policy`` is the
-    ``source_timezone`` policy: an ``account_resolved`` schedule can produce
-    periods in any zone a ``period_timezone`` override names.
+    ``source_timezone`` policy: an ``account_resolved`` schedule has no
+    published zone, so it never matches a ``period_timezone`` override.
     ``available_from`` and ``withdrawn_at`` bound when the offering is a
     candidate; a change in resolution is a cutover.
     """
@@ -106,6 +112,11 @@ class SubscriptionOffering:
             raise ValueError("offering_id is required")
         if self.alignment not in _ALIGNMENTS:
             raise ValueError(f"unknown schedule alignment {self.alignment!r}")
+        # Refuse what the shared calendar cannot derive, up front rather than
+        # mid-evaluation: a delivery_sla with years or months, or an invalid
+        # duration.
+        parse_delivery_sla(self.delivery_sla)
+        parse_period_duration(self.period_duration)
         object.__setattr__(self, "supported_finality", frozenset(self.supported_finality))
         object.__setattr__(self, "dimensions", frozenset(self.dimensions))
         object.__setattr__(self, "unmapped_dimensions", frozenset(self.unmapped_dimensions))
@@ -241,7 +252,8 @@ class SubscriptionOffering:
         """The IANA zone this offering's periods use for an account.
 
         ``period_timezone`` is a single-account subscription's override; it
-        applies to ``account_timezone`` and ``account_resolved`` schedules.
+        applies to ``account_timezone`` schedules only (other alignments match
+        an override only when their published zone already equals it).
         """
         if self.alignment == "utc":
             return "UTC"
@@ -274,6 +286,7 @@ class SubscriptionOffering:
             delivery_sla=self.delivery_sla,
             zone_name=self.zone(account_timezone, period_timezone),
             anchor=self.period_anchor if self.alignment == "billing_cycle" else None,
+            local=self.alignment != "utc",
         )
 
 

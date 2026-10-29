@@ -1,4 +1,4 @@
-"""AdCP 3.3 reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585).
+"""AdCP 3.3 reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585, adcp#8588).
 
 adcontextprotocol/adcp#8585 (merged to the spec's main, not yet in a signed
 bundle) adds these experimental fields:
@@ -9,7 +9,10 @@ bundle) adds these experimental fields:
 * ``core/reporting-subscription-state.json``: ``inactive_intervals[]``, so a
   reactivation in place can be recomputed after local-state loss;
 * ``core/reporting-subscription-coverage.json``: ``previous_timezone`` and
-  ``offering_id`` on ``timezone_cutovers[]``, and ``offering_id`` on ``gaps[]``.
+  ``offering_id`` on ``timezone_cutovers[]``, and ``offering_id`` on ``gaps[]``;
+* ``prior_versions[].configuration`` on the readback (adcp#8588, pending);
+* the extensible ``reporting-dimension`` vocabulary on selectors, offerings and
+  the capability block, which the generator closed.
 
 The pinned 3.3.0-beta.1 models close those objects
 (``additionalProperties: false``), so the fields are added to the generated
@@ -31,8 +34,14 @@ from adcp.types.domains.bundled.protocol import (
 )
 from adcp.types.domains.core import reporting_delivery_offering as _offering
 from adcp.types.domains.core import reporting_subscription_coverage as _coverage
+from adcp.types.domains.core import reporting_delivery_capabilities as _capabilities
+from adcp.types.domains.core import reporting_subscription as _subscription
 from adcp.types.domains.core import reporting_subscription_state as _state
-from adcp.types.domains.enums.reporting_dimension import ReportingDimension
+
+#: One value of the extensible ``enums/reporting-dimension.json`` vocabulary.
+#: Receivers MUST accept unknown values (``x-extensible``); a selector naming a
+#: value no offering maps simply matches nothing.
+ReportingDimensionToken = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=64)]
 
 
 class ReportingSubscriptionInactiveInterval(AdCPBaseModel):
@@ -61,6 +70,13 @@ def _add_field(model: type[BaseModel], name: str, annotation: Any, field: FieldI
     model.model_rebuild(force=True)
 
 
+def _replace_field(model: type[BaseModel], name: str, annotation: Any, field: FieldInfo) -> None:
+    field.annotation = annotation
+    model.model_fields[name] = field
+    model.__annotations__[name] = annotation
+    model.model_rebuild(force=True)
+
+
 def _optional(annotation: Any, **kwargs: Any) -> tuple[Any, FieldInfo]:
     wrapped = Annotated[annotation | None, Field(**kwargs), NoExplicitNull]
     return wrapped, FieldInfo.from_annotated_attribute(cast(Any, wrapped), None)
@@ -80,13 +96,43 @@ def apply_reporting_subscription_preview() -> None:
         _add_field(
             offering_model,
             "standard_dimensions",
-            *_optional(list[ReportingDimension], max_length=16, description=dimensions_doc),
+            *_optional(list[ReportingDimensionToken], max_length=16, description=dimensions_doc),
         )
         _add_field(
             offering_model,
             "unmapped_dimensions",
             *_optional(list[str], max_length=16, description=unmapped_doc),
         )
+    # The generated models close the extensible dimension vocabulary.
+    _replace_field(
+        _subscription.Selector,
+        "dimensions",
+        *_optional(
+            list[ReportingDimensionToken],
+            min_length=1,
+            max_length=16,
+            description="Breakdown in the standard (extensible) vocabulary.",
+        ),
+    )
+    for subscriptions_model in (_capabilities.Subscriptions, _bundled_capabilities.Subscriptions):
+        _replace_field(
+            subscriptions_model,
+            "dimensions",
+            *_optional(
+                list[ReportingDimensionToken],
+                min_length=1,
+                description="Standard dimensions this seller maps its report definitions onto.",
+            ),
+        )
+    # adcp#8588: each prior version carries the configuration it had.
+    _add_field(
+        _state.PriorVersion,
+        "configuration",
+        *_optional(
+            _subscription.ReportingSubscription,
+            description="The configuration this version had.",
+        ),
+    )
     _add_field(
         _state.ReportingSubscriptionState,
         "inactive_intervals",
@@ -114,4 +160,8 @@ def apply_reporting_subscription_preview() -> None:
         )
 
 
-__all__ = ["ReportingSubscriptionInactiveInterval", "apply_reporting_subscription_preview"]
+__all__ = [
+    "ReportingDimensionToken",
+    "ReportingSubscriptionInactiveInterval",
+    "apply_reporting_subscription_preview",
+]

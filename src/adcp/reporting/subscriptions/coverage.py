@@ -361,14 +361,19 @@ class SubscriptionVersionWindow:
 
 
 def subscription_version_windows(
-    subscription: Any, *, version_configurations: Mapping[int, Any] | None = None
+    subscription: Any,
+    *,
+    version_configurations: Mapping[int, Any] | None = None,
+    require_prior_configurations: bool = False,
 ) -> tuple[SubscriptionVersionWindow, ...]:
     """Derive version windows from a ``core/reporting-subscription-state.json`` readback.
 
-    The readback keeps ``prior_versions`` (version, ``accepted_at``,
-    ``superseded_at``) and ``inactive_intervals`` but not prior configurations. Supply each prior
-    version's configuration in ``version_configurations`` when it differs
-    from the current one; otherwise the current configuration is assumed.
+    Each prior version's configuration comes from ``version_configurations``
+    when given, else from the readback's ``prior_versions[].configuration``
+    (adcp#8588). A seller on 3.3.0-beta.1 does not send it; then the current
+    configuration is assumed, unless ``require_prior_configurations`` makes
+    the gap an error. A version accepted while the subscription was already
+    inactive has an empty window.
     """
     if hasattr(subscription, "model_dump"):
         subscription = subscription.model_dump(mode="json", exclude_none=True)
@@ -381,22 +386,34 @@ def subscription_version_windows(
     deactivated_at = _instant(_value(subscription, "deactivated_at"), field="deactivated_at")
     if state == "inactive" and deactivated_at is None:
         raise ValueError("an inactive subscription must carry deactivated_at")
+    accepted_at = _require_instant(_value(subscription, "accepted_at"), field="accepted_at")
     windows = [
         SubscriptionVersionWindow(
             subscription_version=current_version,
-            accepted_at=_require_instant(_value(subscription, "accepted_at"), field="accepted_at"),
-            ends_at=deactivated_at if state == "inactive" else None,
+            accepted_at=accepted_at,
+            ends_at=(
+                max(accepted_at, deactivated_at)
+                if state == "inactive" and deactivated_at is not None
+                else None
+            ),
             configuration=configurations.get(current_version, current_configuration),
         )
     ]
     for prior in _value(subscription, "prior_versions", ()) or ():
         version = int(_value(prior, "subscription_version"))
+        configuration = configurations.get(version, _value(prior, "configuration"))
+        if configuration is None:
+            if require_prior_configurations:
+                raise ValueError(
+                    f"no configuration is known for prior subscription_version {version}"
+                )
+            configuration = current_configuration
         windows.append(
             SubscriptionVersionWindow(
                 subscription_version=version,
                 accepted_at=_require_instant(_value(prior, "accepted_at"), field="accepted_at"),
                 ends_at=_require_instant(_value(prior, "superseded_at"), field="superseded_at"),
-                configuration=configurations.get(version, current_configuration),
+                configuration=configuration,
             )
         )
     inactive = tuple(
@@ -493,6 +510,10 @@ class _Regime:
     until: datetime | None
     version: int
     resolved: tuple[_Resolved, ...]
+    #: Per offering: the instant from which this regime owes periods (E, or
+    #: the regime start). Carried so a later cutover inside the same outgoing
+    #: period never owes a period twice.
+    handoffs: dict[str, datetime] = field(default_factory=dict)
 
 
 @dataclass
@@ -763,10 +784,9 @@ def expected_subscription_periods(
         for index, regime in enumerate(regimes):
             if regime is None:
                 continue
-            predecessor = regimes[index - 1] if index > 0 else None
             for resolved in regime.resolved:
                 calendar = resolved.calendar
-                handoff = _cutover_end(regime.start, predecessor, resolved)
+                handoff = regime.handoffs[resolved.offering.offering_id]
                 lower = max(
                     calendar.ceil(max(handoff, buy.confirmed_at)),
                     calendar.floor(flights_start),
@@ -780,7 +800,11 @@ def expected_subscription_periods(
                     if not include_unresolved and end > now:
                         break
                     flight_start, flight_stop = buy.flight_at(end)
-                    if not (start < flight_stop and end > flight_start):
+                    # An empty flight (stopped at or before it started)
+                    # overlaps no period.
+                    if flight_stop <= flight_start or not (
+                        start < flight_stop and end > flight_start
+                    ):
                         continue
                     if not _authorized(chains, calendar, start, backfill_on_regrant):
                         continue
@@ -893,18 +917,36 @@ def _regimes(
         ):
             previous.until = until
             continue
-        regimes.append(_Regime(start, until, window.subscription_version, resolved))
+        regime = _Regime(start, until, window.subscription_version, resolved)
+        predecessor = regimes[-1] if regimes else None
+        regime.handoffs = {
+            item.offering.offering_id: _cutover_end(start, predecessor, item) for item in resolved
+        }
+        regimes.append(regime)
     return regimes
 
 
 def _cutover_end(handoff: datetime, predecessor: _Regime | None, incoming: _Resolved) -> datetime:
-    """E for an incoming offering at ``handoff``; the regime start with no predecessor."""
+    """E for an incoming offering at ``handoff``; the regime start with no predecessor.
+
+    E is the end of the outgoing offering's last period that starts before T.
+    When the outgoing regime itself owed nothing before T (its own handoff
+    lies after T, as with two cutovers inside one period), that last period
+    belongs to an earlier regime and ends at the outgoing regime's handoff.
+    """
     if predecessor is None or not predecessor.resolved:
         return handoff
+
+    def outgoing_end(item: _Resolved) -> datetime:
+        return max(
+            item.calendar.ceil(handoff),
+            predecessor.handoffs.get(item.offering.offering_id, handoff),
+        )
+
     for item in predecessor.resolved:
         if item.offering.offering_id == incoming.offering.offering_id:
-            return item.calendar.ceil(handoff)
-    return max(item.calendar.ceil(handoff) for item in predecessor.resolved)
+            return outgoing_end(item)
+    return max(outgoing_end(item) for item in predecessor.resolved)
 
 
 def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWindow]) -> str:

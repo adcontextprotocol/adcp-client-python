@@ -190,3 +190,10 @@ def test_offerings_must_publish_standard_dimensions() -> None:
     again = SubscriptionOffering.from_offering(model)
     assert again.dimensions == frozenset({"package"})
     assert again.unmapped_dimensions == frozenset({"device"})
+
+
+def test_feature_id_without_the_principal_section_is_refused() -> None:
+    with pytest.raises(ValueError, match="adcp.principal"):
+        advertise_reporting_subscriptions(
+            {"experimental_features": []}, ReportingSubscriptionSupport()
+        )

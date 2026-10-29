@@ -12,7 +12,12 @@ same gate the TypeScript SDK applies). For older callers:
 * per-offering ``gaps[]`` collapse into one account-wide gap spanning them
   (it removes at least the periods any offering's gap removes);
 * per-offering ``timezone_cutovers[]`` for one change collapse into one entry
-  at the latest ``effective_at``.
+  at the latest ``effective_at``; distinct changes stay distinct;
+* ``prior_versions[].configuration`` (adcp#8588) is dropped.
+
+Known limitation: without ``inactive_intervals`` a beta.1 reader cannot see an
+in-place reactivation, so it expects the periods of the inactive stretch.
+3.3.0-beta.1 has no way to express it.
 
 TODO(3.3.0-beta.2): once the SDK pins a bundle containing adcp#8585 these
 projections only matter for callers pinned to 3.3.0-beta.1.
@@ -81,6 +86,11 @@ def project_subscription_state(
     payload = dict(state)
     if not serves_settled_subscription_fields(adcp_version):
         payload.pop("inactive_intervals", None)
+        if payload.get("prior_versions"):
+            payload["prior_versions"] = [
+                {key: value for key, value in item.items() if key != "configuration"}
+                for item in payload["prior_versions"]
+            ]
     return payload
 
 
@@ -128,14 +138,24 @@ def _account_wide_gaps(gaps: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]
 
 
 def _account_wide_cutovers(cutovers: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    by_change: dict[tuple[Any, Any], dict[str, Any]] = {}
-    for cutover in cutovers:
+    """One entry per change, at the latest of its per-offering ``effective_at``.
+
+    The per-offering entries of one change share ``timezone`` and
+    ``previous_timezone`` and sit next to each other in time order; a later
+    change, even back to an earlier zone, starts a new group.
+    """
+    ordered = sorted(cutovers, key=lambda item: _instant(item["effective_at"]))
+    result: list[dict[str, Any]] = []
+    previous_key: tuple[Any, Any] | None = None
+    for cutover in ordered:
         key = (cutover.get("timezone"), cutover.get("previous_timezone"))
         entry = {"effective_at": cutover["effective_at"], "timezone": cutover["timezone"]}
-        current = by_change.get(key)
-        if current is None or _instant(entry["effective_at"]) > _instant(current["effective_at"]):
-            by_change[key] = entry
-    return sorted(by_change.values(), key=lambda item: _instant(item["effective_at"]))
+        if result and key == previous_key and "offering_id" in cutover:
+            result[-1] = entry  # a later effective_at of the same change
+        else:
+            result.append(entry)
+        previous_key = key
+    return result
 
 
 __all__ = [

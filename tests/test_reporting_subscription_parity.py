@@ -128,9 +128,9 @@ def buys(input_: dict[str, Any]) -> list[SubscriptionBuy]:
     return result
 
 
-def run(input_: dict[str, Any]) -> list[tuple]:
+def periods(input_: dict[str, Any]):
     account = input_["account"]
-    periods = expected_subscription_periods(
+    return expected_subscription_periods(
         subscription=windows(input_["versions"], input_.get("inactive_intervals", [])),
         account_id=account["account_id"],
         buys=buys(input_),
@@ -146,8 +146,11 @@ def run(input_: dict[str, Any]) -> list[tuple]:
         backfill_on_regrant=bool(input_.get("backfill_on_regrant", False)),
         status_retention_days=input_.get("status_retention_days"),
     )
-    assert {p.delivery_config_id for p in periods} <= {input_["subscription_id"]}
-    rows = [
+
+
+def rows(owed) -> list[tuple]:
+    """Per-buy rows in the table's order: start, version, offering, buy (byte order)."""
+    return [
         (
             at(p.period_start),
             p.delivery_config_version,
@@ -155,19 +158,28 @@ def run(input_: dict[str, Any]) -> list[tuple]:
             media_buy_id.encode(),
             at(p.period_end),
         )
-        for p in periods
+        for p in owed
         for media_buy_id in p.media_buy_ids
     ]
-    return sorted(rows)
+
+
+#: The table names JavaScript error classes. Python raises ValueError for the
+#: malformed input TypeScript reports as TypeError (and RangeError).
+ERROR_CLASSES = {"TypeError": ValueError, "RangeError": ValueError}
 
 
 @pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
 def test_typescript_parity(case: dict[str, Any]) -> None:
     if "expected_error" in case:
-        with pytest.raises((ValueError, TypeError)):
-            run(case["input"])
+        expected_class = ERROR_CLASSES[case["expected_error"]]
+        with pytest.raises(Exception) as raised:
+            periods(case["input"])
+        # Strict: malformed input, not an incidental KeyError or AttributeError.
+        assert isinstance(raised.value, expected_class), (case["name"], raised.value)
         return
-    expected = sorted(
+    owed = periods(case["input"])
+    assert {p.delivery_config_id for p in owed} <= {case["input"]["subscription_id"]}
+    expected = [
         (
             at(row["period_start"]),
             row["subscription_version"],
@@ -176,8 +188,30 @@ def test_typescript_parity(case: dict[str, Any]) -> None:
             at(row["period_end"]),
         )
         for row in case["expected"]
-    )
-    assert run(case["input"]) == expected, case.get("rule")
+    ]
+    # Strict: the same rows in the same order, not just the same set.
+    assert rows(owed) == expected, case.get("rule")
+    if "expected_obligations" in case:
+        obligations = [
+            (
+                p.delivery_config_version,
+                p.offering_id,
+                at(p.period_start),
+                at(p.period_end),
+                list(p.media_buy_ids),
+            )
+            for p in owed
+        ]
+        assert obligations == [
+            (
+                item["subscription_version"],
+                item["offering_id"],
+                at(item["period_start"]),
+                at(item["period_end"]),
+                item["media_buy_ids"],
+            )
+            for item in case["expected_obligations"]
+        ], case.get("rule")
 
 
 def test_every_subscription_in_the_table_is_schema_valid() -> None:

@@ -91,3 +91,37 @@ def test_per_offering_entries_become_account_wide_below_beta_2() -> None:
         {"effective_at": "2026-10-04T04:00:00Z", "timezone": "America/Los_Angeles"}
     ]
     assert project_subscription_coverage(coverage, "3.3-beta.2") == coverage
+
+
+def test_distinct_changes_back_to_a_zone_stay_distinct_below_beta_2() -> None:
+    cutovers = [
+        {
+            "effective_at": "2026-01-10T05:00:00Z",
+            "timezone": "America/Los_Angeles",
+            "previous_timezone": "America/New_York",
+        },
+        {
+            "effective_at": "2026-03-10T08:00:00Z",
+            "timezone": "America/New_York",
+            "previous_timezone": "America/Los_Angeles",
+        },
+        {
+            "effective_at": "2026-06-10T04:00:00Z",
+            "timezone": "America/Los_Angeles",
+            "previous_timezone": "America/New_York",
+        },
+    ]
+    projected = project_subscription_coverage({"timezone_cutovers": cutovers}, "3.3-beta.1")
+    assert [item["effective_at"] for item in projected["timezone_cutovers"]] == [
+        "2026-01-10T05:00:00Z",
+        "2026-03-10T08:00:00Z",
+        "2026-06-10T04:00:00Z",
+    ]
+
+
+def test_prior_version_configuration_is_dropped_below_beta_2() -> None:
+    state = {"prior_versions": [{"subscription_version": 1, "configuration": {"x": 1}}]}
+    assert project_subscription_state(state, "3.3-beta.1")["prior_versions"] == [
+        {"subscription_version": 1}
+    ]
+    assert project_subscription_state(state, "3.3-beta.2") == state

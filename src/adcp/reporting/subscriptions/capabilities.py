@@ -163,9 +163,9 @@ def advertise_reporting_subscriptions(
     """Add the feature id and principal section to a capabilities response.
 
     Expects ``media_buy.reporting_delivery`` already projected through
-    :func:`subscription_capabilities`. The ``adcp.principal`` block is touched
-    only when present: a seller advertising subscriptions must already
-    advertise the principal layer, which owns its own block.
+    :func:`subscription_capabilities`. A seller advertising subscriptions must
+    already advertise the principal layer, so an absent ``adcp.principal``
+    block raises rather than producing the feature id without the section.
     """
     payload = dict(capabilities)
     if support is None:
@@ -174,14 +174,18 @@ def advertise_reporting_subscriptions(
         payload.get("experimental_features") or (), REPORTING_SUBSCRIPTIONS_FEATURE
     )
     adcp = payload.get("adcp")
-    if isinstance(adcp, Mapping) and isinstance(adcp.get("principal"), Mapping):
-        principal = dict(adcp["principal"])
-        principal["supported_sections"] = _append_unique(
-            principal.get("supported_sections") or (), REPORTING_SUBSCRIPTIONS_SECTION
+    if not (isinstance(adcp, Mapping) and isinstance(adcp.get("principal"), Mapping)):
+        # The feature id without the reporting_subscriptions section is a
+        # non-conformant advertisement.
+        raise ValueError(
+            "advertising reporting subscriptions requires the adcp.principal block, which "
+            "carries the reporting_subscriptions section"
         )
-        adcp = dict(adcp)
-        adcp["principal"] = principal
-        payload["adcp"] = adcp
+    principal = dict(adcp["principal"])
+    principal["supported_sections"] = _append_unique(
+        principal.get("supported_sections") or (), REPORTING_SUBSCRIPTIONS_SECTION
+    )
+    payload["adcp"] = {**adcp, "principal": principal}
     return payload
 
 

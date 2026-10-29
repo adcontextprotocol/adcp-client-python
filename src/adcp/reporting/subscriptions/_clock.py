@@ -17,6 +17,14 @@ years, months, days, hours, minutes, then seconds.
   whether time components are civil; this matches the TypeScript SDK
   (adcontextprotocol/adcp-client#3505), so both SDKs derive identical periods.
 * A zero-length period (a skipped civil date) is never a period.
+* Sub-daily local periods (adcp#8588): under ``account_timezone``,
+  ``source_timezone`` or ``billing_cycle`` alignment, a duration of hours,
+  minutes and seconds only MUST divide 24 hours, and its boundaries are the
+  instants whose local wall-clock time is a whole multiple of the duration
+  after local midnight, counted afresh each local day. A nonexistent wall time
+  yields no boundary and a repeated one yields one boundary per offset, so a
+  23-hour DST day has 23 hourly periods and a 25-hour day 25. Local durations
+  cannot mix date and time components.
 
 The ledger's ``ReportingScheduleSpec`` treats every component as civil time and
 defaults an anchorless civil schedule to the UTC epoch in local time; this
@@ -29,8 +37,9 @@ import calendar as _calendar
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from datetime import date, datetime, time, timedelta, timezone
+from functools import lru_cache
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 UTC = timezone.utc
 _DURATION = re.compile(r"P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
@@ -44,9 +53,15 @@ def utc_instant(value: datetime, *, field: str = "timestamp") -> datetime:
     return value.astimezone(UTC)
 
 
+@lru_cache(maxsize=1)
+def _iana_zones() -> frozenset[str]:
+    return frozenset(available_timezones())
+
+
 def require_zone(name: str | None, *, field: str = "timezone") -> ZoneInfo:
-    """A recognized IANA zone; numeric offsets and unknown names are refused."""
-    if not name or name[0] in "+-" or name[0].isdigit():
+    """A recognized IANA zone; numeric offsets, unknown names and keys that are
+    not IANA zone names (``posixrules``, ``right/UTC``, ``posix/...``) are refused."""
+    if not name or name[0] in "+-" or name[0].isdigit() or name not in _iana_zones():
         raise ValueError(f"{field} {name!r} is not a recognized IANA timezone")
     try:
         return ZoneInfo(name)
@@ -67,10 +82,17 @@ def parse_period_duration(value: str) -> tuple[int, int, int, int]:
 
 
 def parse_delivery_sla(value: str) -> timedelta:
-    """A non-negative ``delivery_sla`` as exact elapsed time (days are 24 hours)."""
+    """A non-negative ``delivery_sla`` as exact elapsed time (days are 24 hours).
+
+    A ``delivery_sla`` with years or months, which the offering schema allows,
+    has no agreed arithmetic across SDKs and is refused.
+    """
     match = _SLA.fullmatch(value)
     if match is None or value in {"P", "PT"} or value.endswith("T"):
-        raise ValueError(f"{value!r} is not a supported delivery_sla")
+        raise ValueError(
+            f"delivery_sla {value!r} is not supported: use days, hours, minutes and "
+            "seconds only (years and months have no agreed arithmetic)"
+        )
     days, hours, minutes, seconds = (int(item or 0) for item in match.groups())
     return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
 
@@ -96,6 +118,9 @@ class PeriodCalendar:
     zone_name: str
     origin: datetime  # naive local civil time
     delivery_sla: timedelta = timedelta(0)
+    #: Local alignment (anything but ``utc``): sub-daily durations restart at
+    #: each local midnight (adcp#8588).
+    local: bool = False
     _parts: tuple[int, int, int, int] = field(init=False, repr=False, compare=False)
     _zone: ZoneInfo = field(init=False, repr=False, compare=False)
     _approx: float = field(init=False, repr=False, compare=False)
@@ -107,6 +132,16 @@ class PeriodCalendar:
         if self.origin.tzinfo is not None:
             raise ValueError("origin is local civil time and must be naive")
         years, months, days, exact = parts
+        if self.local and exact and (years or months or days):
+            raise ValueError(
+                f"period_duration {self.period_duration!r} mixes date and time components, "
+                "which a local alignment does not allow"
+            )
+        if self.local and exact and not (years or months or days) and 86400 % exact:
+            raise ValueError(
+                f"period_duration {self.period_duration!r} must divide 24 hours "
+                "under a local alignment"
+            )
         approx = years * 365.2425 * 86400 + months * 30.436875 * 86400 + days * 86400 + exact
         object.__setattr__(self, "_approx", approx)
 
@@ -118,15 +153,50 @@ class PeriodCalendar:
         delivery_sla: str,
         zone_name: str,
         anchor: datetime | None = None,
+        local: bool = False,
     ) -> PeriodCalendar:
-        """``anchor`` is an instant (``billing_cycle``); otherwise local midnight 1970-01-01."""
+        """``anchor`` is an instant (``billing_cycle``); otherwise local midnight 1970-01-01.
+
+        ``local`` marks an ``account_timezone``, ``source_timezone`` or
+        ``billing_cycle`` schedule.
+        """
         zone = require_zone(zone_name)
         origin = (
             utc_instant(anchor, field="period_anchor").astimezone(zone).replace(tzinfo=None)
             if anchor is not None
             else datetime(1970, 1, 1)
         )
-        return cls(period_duration, zone_name, origin, parse_delivery_sla(delivery_sla))
+        return cls(
+            period_duration, zone_name, origin, parse_delivery_sla(delivery_sla), local=local
+        )
+
+    @property
+    def _subdaily_local(self) -> bool:
+        years, months, days, exact = self._parts
+        return self.local and bool(exact) and not (years or months or days)
+
+    def _day_boundaries(self, day: date) -> list[datetime]:
+        """Every boundary on one local date: wall-clock multiples after local midnight."""
+        step = self._parts[3]
+        found: set[datetime] = set()
+        midnight = datetime.combine(day, time())
+        for index in range(86400 // step):
+            wall = midnight + timedelta(seconds=index * step)
+            for fold in (0, 1):
+                instant = wall.replace(tzinfo=self._zone, fold=fold).astimezone(UTC)
+                if instant.astimezone(self._zone).replace(tzinfo=None) == wall:
+                    found.add(instant)
+        return sorted(found)
+
+    def _boundaries_from(self, instant: datetime) -> Iterator[datetime]:
+        """Sub-daily local boundaries at or after ``instant``, in order."""
+        at = utc_instant(instant)
+        day = at.astimezone(self._zone).date() - timedelta(days=1)
+        while True:
+            for boundary in self._day_boundaries(day):
+                if boundary >= at:
+                    yield boundary
+            day += timedelta(days=1)
 
     def boundary(self, ordinal: int) -> datetime:
         years, months, days, exact = self._parts
@@ -152,11 +222,20 @@ class PeriodCalendar:
 
     def ceil(self, instant: datetime) -> datetime:
         """The first boundary at or after ``instant`` (E for a cutover at it)."""
+        if self._subdaily_local:
+            return next(self._boundaries_from(instant))
         return self.boundary(self.first_ordinal_at_or_after(instant))
 
     def floor(self, instant: datetime) -> datetime:
         """The last boundary at or before ``instant``."""
         at = utc_instant(instant)
+        if self._subdaily_local:
+            day = at.astimezone(self._zone).date() + timedelta(days=1)
+            while True:
+                earlier = [item for item in self._day_boundaries(day) if item <= at]
+                if earlier:
+                    return earlier[-1]
+                day -= timedelta(days=1)
         ordinal = self.first_ordinal_at_or_after(at)
         start = self.boundary(ordinal)
         return start if start == at else self.boundary(ordinal - 1)
@@ -166,6 +245,14 @@ class PeriodCalendar:
     ) -> Iterator[tuple[datetime, datetime]]:
         """Every nonempty period whose start lies in ``[starts_from, starts_before)``."""
         upper = utc_instant(starts_before)
+        if self._subdaily_local:
+            boundaries = self._boundaries_from(starts_from)
+            start = next(boundaries)
+            while start < upper:
+                end = next(boundaries)
+                yield start, end
+                start = end
+            return
         ordinal = self.first_ordinal_at_or_after(starts_from)
         start = self.boundary(ordinal)
         while start < upper:

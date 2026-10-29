@@ -1480,3 +1480,254 @@ def test_wire_offering_without_standard_dimensions_is_refused() -> None:
     with pytest.raises(ValueError, match="standard_dimensions"):
         SubscriptionOffering.from_offering(wire)
     assert SubscriptionOffering.from_offering(wire, dimensions=()).dimensions == frozenset()
+
+
+# -- expert review fixes ---------------------------------------------------------
+
+
+class TestReviewFixes:
+    def test_buy_canceled_before_its_flight_owes_nothing(self) -> None:
+        monthly = offering("monthly-utc", duration="P1M", alignment="utc")
+        canceled = buy(
+            confirmed_at="2026-10-01T00:00:00Z",
+            start_time="2026-11-15T00:00:00Z",
+            end_time="2026-12-15T00:00:00Z",
+            canceled_at="2026-11-10T00:00:00Z",
+            offering_ids=("monthly-utc",),
+        )
+        assert (
+            run(
+                subscription=state(
+                    "2026-10-01T00:00:00Z", config=subscription_config(duration="P1M")
+                ),
+                offerings=[monthly],
+                buys=[canceled],
+                now=at("2027-01-01T00:00:00Z"),
+            )
+            == []
+        )
+        # P1D: starts 06:00 local and is canceled at 02:00 local the same day.
+        same_day = buy(
+            start_time="2026-10-05T10:00:00Z",
+            end_time="2026-10-09T04:00:00Z",
+            canceled_at="2026-10-05T06:00:00Z",
+        )
+        assert run(buys=[same_day]) == []
+        # A zero-length flight overlaps nothing either.
+        empty = buy(start_time="2026-10-05T10:00:00Z", end_time="2026-10-05T10:00:00Z")
+        assert run(buys=[empty]) == []
+
+    def test_two_cutovers_inside_one_period_never_overlap(self) -> None:
+        # The account moves LA -> NY at 10-03T12Z (E = 10-04T07Z) and a new
+        # version is accepted at 10-03T13Z, inside the same outgoing LA day.
+        subscription = state(
+            "2026-10-03T13:00:00Z",
+            version=2,
+            config=subscription_config(version=2),
+            prior=[(1, "2026-10-01T00:00:00Z", "2026-10-03T13:00:00Z")],
+        )
+        kwargs = dict(
+            subscription=subscription,
+            account_timezone=NY,
+            buys=[buy(start_time="2026-10-02T07:00:00Z", end_time="2026-10-07T04:00:00Z")],
+        )
+        at_change = run(
+            timezone_changes=[
+                AccountTimezoneChange(
+                    at("2026-10-03T12:00:00Z"), NY, previous_timezone="America/Los_Angeles"
+                )
+            ],
+            **kwargs,
+        )
+        at_effective = run(
+            timezone_changes=[
+                AccountTimezoneChange(
+                    at("2026-10-04T07:00:00Z"), NY, previous_timezone="America/Los_Angeles"
+                )
+            ],
+            **kwargs,
+        )
+        assert at_change == at_effective
+        spans = [(at(p.period_start), at(p.period_end)) for p in at_change]
+        assert all(end <= start for (_, end), (start, _) in zip(spans, spans[1:]))
+        assert [(p.period_start, p.delivery_config_version) for p in at_change] == [
+            ("2026-10-02T07:00:00Z", 1),
+            ("2026-10-03T07:00:00Z", 1),  # the LA day containing both changes
+            ("2026-10-05T04:00:00Z", 2),  # first NY day starting at or after 10-04T07Z
+            ("2026-10-06T04:00:00Z", 2),
+        ]
+
+    def test_two_version_bumps_inside_one_period(self) -> None:
+        subscription = state(
+            "2026-10-03T15:00:00Z",
+            version=3,
+            config=subscription_config(version=3),
+            prior=[
+                (2, "2026-10-03T14:00:00Z", "2026-10-03T15:00:00Z"),
+                (1, "2026-10-01T00:00:00Z", "2026-10-03T14:00:00Z"),
+            ],
+        )
+        result = run(
+            subscription=subscription,
+            version_configurations={2: subscription_config(version=2, duration="PT1H")},
+            buys=[buy(end_time="2026-10-06T04:00:00Z", offering_ids=("daily-pkg", "hourly-pkg"))],
+        )
+        spans = [(at(p.period_start), at(p.period_end)) for p in result]
+        assert all(end <= start for (_, end), (start, _) in zip(spans, spans[1:]))
+        assert [(p.period_start, p.delivery_config_version) for p in result][2:] == [
+            ("2026-10-03T04:00:00Z", 1),
+            ("2026-10-04T04:00:00Z", 3),
+            ("2026-10-05T04:00:00Z", 3),
+        ]
+
+    def test_unknown_dimension_values_parse_and_match_nothing(self) -> None:
+        from adcp.types import SyncPrincipalRequest  # noqa: F401  (applies the preview)
+        from adcp.types.domains.core.reporting_subscription import ReportingSubscription
+
+        config = ReportingSubscription.model_validate(subscription_config(dimensions=["device"]))
+        assert [str(item) for item in config.selector.dimensions] == ["device"]
+        assert resolved(subscription_config(dimensions=["device"])) == ()
+        wire = {
+            "offering_id": "pkg-device",
+            "feed_purpose": "analytics",
+            "report_definition_id": "d",
+            "reporting_profile": {"id": "delivery"},
+            "schedule": {"period_duration": "P1D", "alignment": "utc", "delivery_sla": "PT6H"},
+            "supported_finality": ["official"],
+            "reconciliation_mode": "delivery_only",
+            "standard_dimensions": ["package", "device"],
+        }
+        projected = SubscriptionOffering.from_offering(wire)
+        assert projected.dimensions == frozenset({"package", "device"})
+        device = subscription_config(dimensions=["device"])
+        assert resolved(device, offerings=[projected], product=("pkg-device",)) == ()
+        finest = subscription_config(dimensions=["device"], match="finest")
+        assert resolved(finest, offerings=[projected], product=("pkg-device",)) == ("pkg-device",)
+
+    def test_offerings_with_month_slas_are_refused_at_construction(self) -> None:
+        with pytest.raises(ValueError, match="delivery_sla"):
+            offering("monthly-sla", duration="P1M", sla="P1M")
+
+    def test_non_iana_zone_keys_are_refused(self) -> None:
+        for zone in ("posixrules", "right/UTC", "posix/America/New_York", "+05:00"):
+            with pytest.raises(ValueError):
+                run(account_timezone=zone, buys=[buy()])
+
+    def test_prior_versions_carry_their_configuration(self) -> None:
+        readback = state(
+            "2026-10-03T12:00:00Z",
+            version=2,
+            config=subscription_config(version=2, scope={"account_ids": ["acct-2"]}),
+            prior=[(1, "2026-10-01T00:00:00Z", "2026-10-03T12:00:00Z")],
+        )
+        readback["prior_versions"][0]["configuration"] = subscription_config()
+        model = ReportingSubscriptionState.model_validate(readback)
+        # v1 covered acct-1; the readback says so without buyer records.
+        assert starts(subscription=model, buys=[buy()]) == days("2026-10-01", 3)
+        bare = state(
+            "2026-10-03T12:00:00Z",
+            version=2,
+            prior=[(1, "2026-10-01T00:00:00Z", "2026-10-03T12:00:00Z")],
+        )
+        with pytest.raises(ValueError, match="prior subscription_version 1"):
+            subscription_version_windows(bare, require_prior_configurations=True)
+
+    def test_version_accepted_while_inactive_has_an_empty_window(self) -> None:
+        readback = state(
+            "2026-10-05T00:00:00Z",
+            version=2,
+            config=subscription_config(version=2),
+            prior=[(1, "2026-10-01T00:00:00Z", "2026-10-05T00:00:00Z")],
+            deactivated_at="2026-10-03T12:00:00Z",
+        )
+        # The readback carries the still-open interval from v1's deactivation.
+        readback["inactive_intervals"] = [{"deactivated_at": "2026-10-03T12:00:00Z"}]
+        assert starts(subscription=readback, buys=[buy()]) == days("2026-10-01", 3)
+
+
+class TestSubDailyLocalPeriods:
+    """adcp#8588: sub-daily local periods restart at each local midnight."""
+
+    def hours(self, zone: str, start: str, until: str, duration: str = "PT1H") -> list[str]:
+        local = offering("local", duration=duration, sla="PT1H")
+        return [
+            p.period_start
+            for p in run(
+                subscription=state(
+                    "2026-01-01T00:00:00Z", config=subscription_config(duration=duration)
+                ),
+                offerings=[local],
+                account_timezone=zone,
+                buys=[
+                    buy(
+                        confirmed_at="2026-01-01T00:00:00Z",
+                        start_time=start,
+                        end_time=until,
+                        offering_ids=("local",),
+                    )
+                ],
+                now=at("2027-01-01T00:00:00Z"),
+            )
+        ]
+
+    def test_hours_start_on_the_local_hour_whatever_the_1970_offset(self) -> None:
+        # Asia/Singapore was UTC+07:30 in 1970; its hours still start on :00.
+        result = self.hours("Asia/Singapore", "2026-10-01T00:00:00Z", "2026-10-01T03:00:00Z")
+        assert result == ["2026-10-01T00:00:00Z", "2026-10-01T01:00:00Z", "2026-10-01T02:00:00Z"]
+        kathmandu = self.hours("Asia/Kathmandu", "2026-10-01T00:15:00Z", "2026-10-01T02:15:00Z")
+        assert kathmandu == ["2026-10-01T00:15:00Z", "2026-10-01T01:15:00Z"]
+
+    def test_dst_days_have_23_and_25_hours(self) -> None:
+        spring = self.hours(NY, "2026-03-08T05:00:00Z", "2026-03-09T04:00:00Z")
+        fall = self.hours(NY, "2026-11-01T04:00:00Z", "2026-11-02T05:00:00Z")
+        assert (len(spring), len(fall)) == (23, 25)
+        # Both 01:00 wall times are boundaries on the fall-back day.
+        assert fall[1:3] == ["2026-11-01T05:00:00Z", "2026-11-01T06:00:00Z"]
+
+    def test_six_hour_periods_do_not_drift_with_dst(self) -> None:
+        summer = self.hours(NY, "2026-07-01T04:00:00Z", "2026-07-02T04:00:00Z", "PT6H")
+        winter = self.hours(NY, "2026-01-05T05:00:00Z", "2026-01-06T05:00:00Z", "PT6H")
+        assert summer == [
+            "2026-07-01T04:00:00Z",
+            "2026-07-01T10:00:00Z",
+            "2026-07-01T16:00:00Z",
+            "2026-07-01T22:00:00Z",
+        ]
+        assert winter == [
+            "2026-01-05T05:00:00Z",
+            "2026-01-05T11:00:00Z",
+            "2026-01-05T17:00:00Z",
+            "2026-01-05T23:00:00Z",
+        ]
+
+    def test_local_durations_must_divide_a_day_and_not_mix_components(self) -> None:
+        for duration in ("PT7H", "P1DT1H"):
+            with pytest.raises(ValueError):
+                self.hours(NY, "2026-07-01T04:00:00Z", "2026-07-02T04:00:00Z", duration)
+
+    def test_utc_alignment_is_unchanged(self) -> None:
+        result = periods(
+            subscription=state("2026-10-03T00:00:00Z", config=subscription_config(duration="PT1H")),
+            buys=[
+                buy(
+                    start_time="2026-10-03T10:00:00Z",
+                    end_time="2026-10-03T12:00:00Z",
+                    offering_ids=("hourly-pkg",),
+                )
+            ],
+        )
+        assert result == [
+            ("2026-10-03T10:00:00Z", "2026-10-03T11:00:00Z"),
+            ("2026-10-03T11:00:00Z", "2026-10-03T12:00:00Z"),
+        ]
+
+
+def test_a_bare_3_3_version_cannot_be_served_while_beta_1_is_pinned() -> None:
+    # The gate would serve 3.3 the adcp#8585 fields, but the dispatcher never
+    # resolves a bare "3.3" while only the 3.3.0-beta.1 bundle is pinned.
+    from adcp._version import get_supported_adcp_versions, resolve_adcp_version
+    from adcp.exceptions import ConfigurationError
+
+    with pytest.raises(ConfigurationError):
+        resolve_adcp_version("3.3")
+    assert "3.3" not in get_supported_adcp_versions()
