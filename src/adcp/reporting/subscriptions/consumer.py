@@ -211,7 +211,6 @@ def is_subscription_change(notification: Mapping[str, Any] | Any) -> bool:
 class _AccountRecord:
     timezone: str
     operator: str | None = None
-    initial_timezone: str = ""
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
 
@@ -322,19 +321,21 @@ class ReportingSubscriptionTracker:
     ) -> None:
         """Record what ``list_accounts`` shows for an account the caller can read.
 
-        A new ``authorized_at`` after a recorded loss is a re-grant. A changed
+        After a recorded loss, a later ``authorized_at`` is a re-grant that
+        started a new chain. An unchanged ``authorized_at`` is a re-grant within
+        retention (adcp#8585), recorded at ``observed_at``. A changed
         ``timezone`` is recorded as a timezone change at ``observed_at``.
         """
         record = self._accounts.get(account_id)
         if record is None:
-            record = self._accounts[account_id] = _AccountRecord(
-                timezone, operator, initial_timezone=timezone
-            )
+            record = self._accounts[account_id] = _AccountRecord(timezone, operator)
         elif timezone != record.timezone:
             if observed_at is None:
                 raise ValueError("a timezone change needs observed_at")
             record.timezone_changes.append(
-                AccountTimezoneChange(utc_instant(observed_at), timezone)
+                AccountTimezoneChange(
+                    utc_instant(observed_at), timezone, previous_timezone=record.timezone
+                )
             )
             record.timezone = timezone
         if operator is not None:
@@ -346,8 +347,25 @@ class ReportingSubscriptionTracker:
             record.grants.append(SubscriptionAuthorization(granted))
             return
         last = record.grants[-1]
-        if last.unauthorized_at is not None and granted > last.unauthorized_at:
+        if last.unauthorized_at is None:
+            return
+        if granted > last.unauthorized_at:
+            # A new chain: the seller reset authorized_at to the re-grant.
             record.grants.append(SubscriptionAuthorization(granted))
+            return
+        # adcp#8585: a re-grant within status_retention_days continues the
+        # chain and leaves authorized_at unchanged, so the wire carries no
+        # re-grant instant. Record the instant this account was observed
+        # readable again; the seller's gaps[] (when it does not backfill)
+        # remain authoritative for the periods that are not owed.
+        if observed_at is None:
+            raise ValueError(
+                "the account is readable again with an unchanged authorized_at; "
+                "pass observed_at so the re-grant can be recorded"
+            )
+        record.grants.append(
+            SubscriptionAuthorization(max(utc_instant(observed_at), last.unauthorized_at))
+        )
 
     def _record_loss(self, account_id: str, unauthorized_at: datetime) -> None:
         record = self._accounts.get(account_id)
@@ -384,7 +402,7 @@ class ReportingSubscriptionTracker:
             account_id=account_id,
             buys=buys,
             offerings=self._offerings,
-            account_timezone=record.initial_timezone,
+            account_timezone=record.timezone,
             now=now,
             authorizations=list(record.grants),
             exceptions=() if coverage is None else coverage.excluded,

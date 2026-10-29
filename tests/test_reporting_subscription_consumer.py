@@ -7,6 +7,7 @@ sits behind a thin client adapter, so the buyer sees only wire responses.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -29,6 +30,8 @@ from adcp.types import GetReportingStatusResponse
 from adcp.types.core import TaskResult, TaskStatus
 
 IDENTITY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
+#: The in-process client is served 3.3.0-beta.2, which carries the adcp#8585 fields.
+BETA_2 = SimpleNamespace(resolved_adcp_version="3.3-beta.2")
 NY = "America/New_York"
 
 
@@ -99,22 +102,24 @@ class Seller:
 
 
 class Client:
-    """What an ADCPClient returns, backed by the in-process seller."""
+    """What an ADCPClient returns, backed by the in-process seller (served 3.3.0-beta.2)."""
 
     def __init__(self, seller: Seller) -> None:
         self.seller = seller
 
     async def sync_principal(self, request):
-        data = await self.seller.principals.sync_principal(IDENTITY, request)
+        data = await self.seller.principals.sync_principal(IDENTITY, request, context=BETA_2)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 
     async def get_principal(self, request):
-        data = await self.seller.principals.get_principal(IDENTITY, request)
+        data = await self.seller.principals.get_principal(IDENTITY, request, context=BETA_2)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 
     async def get_reporting_status(self, request):
         account_id = request.account.account_id
-        coverage = await self.seller.engine.subscription_coverage(IDENTITY, account_id)
+        coverage = await self.seller.engine.subscription_coverage(
+            IDENTITY, account_id, adcp_version="3.3-beta.2"
+        )
         data = GetReportingStatusResponse.model_construct(subscription_coverage=coverage or None)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 
@@ -242,3 +247,33 @@ async def test_tracker_keeps_every_registered_version() -> None:
         "2026-10-03T04:00:00Z",
     ]
     assert {p.delivery_config_version for p in periods} == {1}
+
+
+@pytest.mark.asyncio
+async def test_regrant_within_retention_keeps_authorized_at() -> None:
+    # adcp#8585: a re-grant inside retention continues the chain, so
+    # list_accounts shows the original authorized_at. The tracker records the
+    # re-grant when it observes the account readable again.
+    seller = Seller()
+    client = Client(seller)
+    tracker = ReportingSubscriptionTracker(client, offerings=[DAILY], status_retention_days=400)
+    granted = at("2026-09-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    await tracker.sync([SUBSCRIPTION])
+    await seller.reconcile("2026-10-01T00:00:00Z")
+    del seller.accounts["acct-1"]
+    await seller.reconcile("2026-10-04T08:00:00Z")
+    await tracker.handle_notification(seller.notifications[-1])
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    await seller.reconcile("2026-10-06T15:00:00Z")
+    await tracker.handle_notification(seller.notifications[-1])
+    with pytest.raises(ValueError):
+        tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    tracker.observe_account(
+        "acct-1", authorized_at=granted, timezone=NY, observed_at=at("2026-10-06T15:00:00Z")
+    )
+    (coverage,) = await load_subscription_coverage(client, account={"account_id": "acct-1"})
+    now = at("2026-10-10T00:00:00Z")
+    buyer = tracker.expected_periods("analytics", "acct-1", buys=[BUY], now=now, coverage=coverage)
+    assert buyer == await seller.engine.owed_periods(IDENTITY, "analytics", "acct-1", now=now)
