@@ -107,7 +107,7 @@ known peer version and bypasses automatic capability discovery. Application
 models remain current with either option. Unsupported tasks fail before sending
 a request; the SDK never retries a mutation using another protocol version.
 
-The SDK chains consecutive minor conversions: 3.2 ↔ 3.1 ↔ 3.0. The bundled
+The SDK chains consecutive minor conversions: 3.3-beta.1 ↔ 3.2 ↔ 3.1 ↔ 3.0. The bundled
 schemas identify newly introduced fields, including fields in nested arrays,
 account-reference unions, and maps. Extension and context bags remain opaque.
 Existing creative-format adapters supply deterministic legacy format routes;
@@ -196,7 +196,7 @@ widening the search. Optional newer members are still dropped one at a time
 inside a dropped response node stay in the report, explaining why it went.
 
 Every downgrade then validates the result against the older release's bundled
-schema. A refusal the projection did not cause fails with
+schema, checking formats as the SDK validators do. A refusal the projection did not cause fails with
 `ADCPVersionConversionError` instead of reaching the peer invalid. Examples are
 a field the older release requires and the payload never had, such as 3.1
 delivery `totals.spend`, and a required enum member the older release cannot
@@ -210,8 +210,40 @@ reconstructs a peer's own evidence, rather than sending a payload, can pass
 `require_valid_target=False` to `convert_payload` to skip the final check.
 
 `tests/test_version_conversion_sweep.py` converts every bundled 3.2 schema
-example and fixture down to 3.1 and 3.0 and requires each result to validate,
-or to fail with one of the structured errors it lists.
+example and fixture down to 3.1 and 3.0, and every bundled 3.3-beta.1 example
+and fixture down to 3.2, 3.1 and 3.0. Each result must validate, or fail with
+one of the structured errors it lists.
+
+### 3.3 → 3.2 semantic rules
+
+Some 3.3 additions need more than dropping the field. These rules run on the
+3.3-beta.1 → 3.2 step, so they also apply on the way to 3.1 and 3.0:
+
+| 3.3 field or value | Result for a 3.2 peer | Loss `reason` |
+| --- | --- | --- |
+| `by_spot[]` row without `aired_at` (`spot_status` `scheduled` / `preempted`) | Row omitted | `row_omitted_not_aired` |
+| `spot_status`, `scheduled_at`, `replaces_spot_id`, `break_position` on an aired row | Field dropped; the row stays an aired row | `field_unavailable` |
+| Delivery row without `impressions` (`by_*`, `daily_breakdown`) | Row omitted, never sent as `impressions: 0` | `row_omitted_impressions_not_measured` |
+| `media_buy.features.catalog_ingestion` | Dropped; `catalog_management` remains the 3.2 declaration | `field_unavailable` |
+| Request `reporting_webhook` / `artifact_webhook` without `authentication` | `ADCPVersionConversionError` at the webhook; no credential is invented | none |
+| `daypart_targets[].start_time` / `end_time` | `ADCPVersionConversionError`, request or response; never rounded to whole hours | none |
+| `age_determination_bases` | Moved to `ext.adcp.age_determination_bases`, replacing any interim value there | `moved_to_ext_adcp` |
+| `price_breakdown` with an `operator_fee` adjustment | Response: breakdown omitted, since the rest no longer sums to `fixed_price`; request: error | `enum_unavailable` on the kind, `unrepresentable_in_target` on the breakdown |
+| New `error.code` values (`REFERENCE_DEFINITION_CHANGED`, ...) | Kept: 3.2 `error.code` is open, and receivers classify it by `recovery` | none |
+| Other new enum values | Dropped when optional, refused when required (see above) | `enum_unavailable` |
+
+Row omission applies to response arrays only. A row is omitted when it lacks
+`aired_at` or `impressions` and the 3.2 row requires the field while the 3.3
+row does not. A field the newer schema declares is not a key of an older
+open map whose value schema refuses it: `catalog_ingestion` is dropped, not
+sent as a 3.2 vendor feature flag. A
+buyer converting a 3.2 response up reads `ext.adcp.age_determination_bases`
+into an absent top-level field; a top-level value wins, and the extension bag
+is left unchanged. Capability discovery is not version-gated, so a buyer
+pinned to 3.2 still parses a 3.3 seller's capabilities with the packaged
+models. Definition pins and `REFERENCE_DEFINITION_CHANGED` mapping (#1641),
+`expected_confirmation_at` (#1640) and playback pixel trackers (#1643) have
+their own rules.
 
 ## Conversion reports
 
