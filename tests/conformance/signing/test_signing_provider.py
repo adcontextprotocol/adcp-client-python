@@ -303,8 +303,14 @@ def test_pem_to_adcp_jwk_accepts_spki_public_pem() -> None:
 
 def test_pem_to_adcp_jwk_rejects_invalid_purpose() -> None:
     pem, _ = generate_signing_keypair(alg="ed25519", kid="x", purpose="request-signing")
-    with pytest.raises(ValueError, match="purpose must be one of"):
-        pem_to_adcp_jwk(pem, kid="x", purpose="some-other-purpose")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="purpose must be a lowercase hyphenated token"):
+        pem_to_adcp_jwk(pem, kid="x", purpose="Request Signing")
+
+
+def test_pem_to_adcp_jwk_accepts_response_signing() -> None:
+    pem, minted = generate_signing_keypair(alg="es256", kid="x", purpose="response-signing")
+    derived = pem_to_adcp_jwk(pem, kid="x", purpose="response-signing")
+    assert derived == minted
 
 
 def test_pem_to_adcp_jwk_rejects_empty_kid() -> None:
