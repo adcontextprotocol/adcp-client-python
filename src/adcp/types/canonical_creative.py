@@ -1469,7 +1469,9 @@ class CreateMediaBuyRequestExplicitPackagesWithFixedAllocation(
     line -- dropping the line keeps the field required and loses the narrowing.
     """
 
-    packages: Sequence[PackageRequest] = _inherit(_LegacyCreateMediaBuyFixed, "packages", required=True)
+    packages: Sequence[PackageRequest] = _inherit(
+        _LegacyCreateMediaBuyFixed, "packages", required=True
+    )
 
 
 class CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation(
@@ -1477,7 +1479,9 @@ class CreateMediaBuyRequestExplicitPackagesWithSellerOptimizedAllocation(
 ):
     """Canonical seller-optimized create request; packages are canonical."""
 
-    packages: Sequence[PackageRequest] = _inherit(_LegacyCMBSellerOptimized, "packages", required=True)
+    packages: Sequence[PackageRequest] = _inherit(
+        _LegacyCMBSellerOptimized, "packages", required=True
+    )
 
 
 class CreateMediaBuyRequestCommittedProposalExecution(
