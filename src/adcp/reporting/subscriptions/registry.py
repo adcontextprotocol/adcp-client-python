@@ -419,8 +419,9 @@ def render_path_template(
     """Expand a subscription ``path_template`` for one delivery.
 
     Each substituted value fills exactly one path segment: a value containing
-    ``/`` is percent-encoded (RFC 3986), and a value equal to ``.`` or ``..`` is
-    encoded too, so no value can add or escape a segment.
+    ``/`` (or ``\\``, for backslash-separated targets) is percent-encoded
+    (RFC 3986), and a value equal to ``.`` or ``..`` is encoded too, so no
+    value can add or escape a segment.
     ``period_start`` is written as ``YYYY-MM-DDTHH:MM:SSZ``.
     """
     values = {
@@ -437,7 +438,9 @@ def render_path_template(
         value = values[name]
         if value in {".", ".."}:
             return value.replace(".", "%2E")
-        if "/" in value:
+        if "/" in value or "\\" in value:
+            # "/" per the spec; "\\" too, so a backslash-separated target
+            # (SMB, UNC) cannot gain or escape a segment either.
             return quote(value, safe="")
         return value
 

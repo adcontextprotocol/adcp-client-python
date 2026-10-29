@@ -649,6 +649,14 @@ def test_render_path_template() -> None:
     )
     # A value with "/" or equal to "." / ".." fills exactly one segment.
     assert rendered == "analytics/acme%2Feu/%2E%2E/2026-10-01T04:00:00Z"
+    backslash = render_path_template(
+        "a/{account_id}/{subscription_id}",
+        account_id="..\\..\\secret",
+        subscription_id="analytics-daily",
+        offering_id="o",
+        period_start=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert backslash == "a/..%5C..%5Csecret/analytics-daily"
 
 
 @pytest.mark.asyncio
