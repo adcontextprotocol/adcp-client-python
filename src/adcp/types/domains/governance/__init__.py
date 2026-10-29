@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -120,7 +120,7 @@ from adcp.types.domains.governance.sync_plans_request import (
 from adcp.types.domains.governance.sync_plans_response import (
     Category,
     ResolvedPolicy,
-    Status50,
+    Status52,
     SyncPlansResponse,
 )
 
@@ -199,7 +199,7 @@ __all__ = [
     "RuntimeAttestation1",
     "RuntimeAttestationEvaluation",
     "SellerResponse",
-    "Status50",
+    "Status52",
     "Statuses",
     "Subject",
     "Subject4",

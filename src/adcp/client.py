@@ -139,6 +139,8 @@ from adcp.types import (
     GetCreativeDeliveryResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
+    GetMediaBuyIssueRequest,
+    GetMediaBuyIssueResponse,
     GetMediaBuysRequest,
     GetMediaBuysResponse,
     GetPrincipalRequest,
@@ -168,8 +170,12 @@ from adcp.types import (
     ProvidePerformanceFeedbackResponse,
     RefineProposalsRequest,
     RefineProposalsResponse,
+    ReportMediaBuyIssueRequest,
+    ReportMediaBuyIssueResponse,
     ReportUsageRequest,
     ReportUsageResponse,
+    RequestAccountRequest,
+    RequestAccountResponse,
     RequestProposalsRequest,
     RequestProposalsResponse,
     SyncAccountsRequest,
@@ -723,7 +729,7 @@ def _resolve_server_version(pin: str | None) -> str | None:
     normalized = resolve_bundle_key(pin)
     if normalized not in LEGACY_ADAPTER_VERSIONS:
         # A 3.x pin is a wire value: release precision, so a prerelease pin
-        # (3.3.0-beta.0) negotiates and is echoed as 3.3-beta.0, never as its
+        # (3.3.0-beta.1) negotiates and is echoed as 3.3-beta.1, never as its
         # bundle key.
         normalized = normalize_to_release_precision(pin)
     if normalized in LEGACY_ADAPTER_VERSIONS:
@@ -1116,7 +1122,7 @@ class ADCPClient:
         if not is_convertible_version(str(declared_peer)):
             # Historical prerelease pins keep their exact contract and gates;
             # minor-release translators must not guess prerelease semantics.
-            # The SDK's own served prerelease (3.3-beta.0) negotiates like its line.
+            # The SDK's own served prerelease (3.3-beta.1) negotiates like its line.
             return ConversionResult(self.adapter._enrich_outgoing_params(params))
         if self._server_version is not None:
             target = negotiate_version([self._server_version], maximum=maximum)
@@ -2607,6 +2613,52 @@ class ADCPClient:
         return cast(
             TaskResult[ListProposalsResponse],
             await self._execute_typed_task("list_proposals", request, ListProposalsResponse),
+        )
+
+    @_task_options_method
+    async def report_media_buy_issue(
+        self,
+        request: ReportMediaBuyIssueRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[ReportMediaBuyIssueResponse]:
+        """Report an urgent issue on a media buy (AdCP 3.3)."""
+        return cast(
+            TaskResult[ReportMediaBuyIssueResponse],
+            await self._execute_typed_task(
+                "report_media_buy_issue", request, ReportMediaBuyIssueResponse
+            ),
+        )
+
+    @_task_options_method
+    async def get_media_buy_issue(
+        self,
+        request: GetMediaBuyIssueRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[GetMediaBuyIssueResponse]:
+        """Read the acknowledgement and resolution of a media-buy issue (AdCP 3.3)."""
+        return cast(
+            TaskResult[GetMediaBuyIssueResponse],
+            await self._execute_typed_task(
+                "get_media_buy_issue", request, GetMediaBuyIssueResponse
+            ),
+        )
+
+    @_task_options_method
+    async def request_account(
+        self,
+        request: RequestAccountRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[RequestAccountResponse]:
+        """Request, match or change an advertiser account (AdCP 3.3, experimental)."""
+        return cast(
+            TaskResult[RequestAccountResponse],
+            await self._execute_typed_task("request_account", request, RequestAccountResponse),
         )
 
     @_task_options_method
@@ -6420,6 +6472,8 @@ class ADCPClient:
             "list_products": ListProductsResponse,
             "list_collections": ListCollectionsResponse,
             "list_proposals": ListProposalsResponse,
+            "report_media_buy_issue": ReportMediaBuyIssueResponse,
+            "get_media_buy_issue": GetMediaBuyIssueResponse,
             "request_proposals": RequestProposalsResponse,
             "refine_proposals": RefineProposalsResponse,
             "decline_proposals": DeclineProposalsResponse,
@@ -6445,6 +6499,7 @@ class ADCPClient:
             "get_account_financials": GetAccountFinancialsResponse,
             "list_account_changes": ListAccountChangesResponse,
             "list_accounts": ListAccountsResponse,
+            "request_account": RequestAccountResponse,
             "sync_accounts": SyncAccountsResponse,
             "log_event": LogEventResponse,
             "sync_event_sources": SyncEventSourcesResponse,
@@ -7384,6 +7439,33 @@ class ADCPMultiAgentClient:
 
         return await _gather_agent_results(
             *(agent.list_proposals(request) for agent in self.agents.values())
+        )
+
+    async def report_media_buy_issue(
+        self, request: ReportMediaBuyIssueRequest
+    ) -> list[TaskResult[ReportMediaBuyIssueResponse]]:
+        """Report a media-buy issue to all agents."""
+
+        return await _gather_agent_results(
+            *(agent.report_media_buy_issue(request) for agent in self.agents.values())
+        )
+
+    async def get_media_buy_issue(
+        self, request: GetMediaBuyIssueRequest
+    ) -> list[TaskResult[GetMediaBuyIssueResponse]]:
+        """Read a media-buy issue across all agents."""
+
+        return await _gather_agent_results(
+            *(agent.get_media_buy_issue(request) for agent in self.agents.values())
+        )
+
+    async def request_account(
+        self, request: RequestAccountRequest
+    ) -> list[TaskResult[RequestAccountResponse]]:
+        """Request an advertiser account from all agents."""
+
+        return await _gather_agent_results(
+            *(agent.request_account(request) for agent in self.agents.values())
         )
 
     async def request_proposals(

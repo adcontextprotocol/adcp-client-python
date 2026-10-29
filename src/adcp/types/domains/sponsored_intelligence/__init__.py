@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -19,8 +19,10 @@ from __future__ import annotations
 from adcp.types.domains.sponsored_intelligence.si_capabilities import (
     A2ui,
     Avatar,
+    Catalog,
     Commerce,
     Components,
+    Format,
     Modalities,
     SiCapabilities,
     StandardEnum,
@@ -74,7 +76,7 @@ from adcp.types.domains.sponsored_intelligence.si_sponsored_context_receipt impo
     HostReceipt,
     SiSponsoredContextReceipt,
     Status,
-    Status45,
+    Status47,
 )
 from adcp.types.domains.sponsored_intelligence.si_terminate_session_request import (
     Reason,
@@ -96,6 +98,7 @@ __all__ = [
     "AcpHandoff",
     "ActionResponse",
     "Avatar",
+    "Catalog",
     "Commerce",
     "Components",
     "ConsentScopeEnum",
@@ -104,6 +107,7 @@ __all__ = [
     "DisclosureCommitment",
     "DisclosureObligation",
     "FollowUp",
+    "Format",
     "Handoff",
     "HostReceipt",
     "Intent",
@@ -134,7 +138,7 @@ __all__ = [
     "SiUiElement",
     "StandardEnum",
     "Status",
-    "Status45",
+    "Status47",
     "TerminationContext",
     "Timing",
     "TransactionIntent",

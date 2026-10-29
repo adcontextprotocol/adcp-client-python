@@ -19,7 +19,9 @@ from ..core import context as context_1
 from ..core import date_range as date_range_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core import invoice_line as invoice_line_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..enums import invoice_kind as invoice_kind_1
 from ..enums import payment_terms as payment_terms_1
 
 
@@ -56,6 +58,9 @@ class Invoice(AdcpVersionEnvelope):
     status: Literal['draft', 'issued', 'paid', 'past_due', 'void']
     due_date: Annotated[date | None, NoExplicitNull] = None
     paid_date: Annotated[date | None, NoExplicitNull] = None
+    invoice_kind: Annotated[invoice_kind_1.InvoiceKind | None, NoExplicitNull] = None
+    adjusts_invoice_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
+    lines: Annotated[list[invoice_line_1.InvoiceLine] | None, NoExplicitNull] = None
 
 
 class GetAccountFinancialsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):

@@ -44,6 +44,8 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "update_media_buy": "media_buy",
     "get_media_buys": "media_buy",
     "get_media_buy_delivery": "media_buy",
+    "report_media_buy_issue": "media_buy",
+    "get_media_buy_issue": "media_buy",
     "get_reporting_status": "media_buy",
     "provide_performance_feedback": "media_buy",
     "list_creative_formats": "media_buy",
@@ -74,6 +76,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     # Account
     "list_account_changes": "media_buy",
     "list_accounts": "media_buy",
+    "request_account": "media_buy",
     "sync_accounts": "media_buy",
     "get_account_financials": "media_buy",
     "report_usage": "media_buy",

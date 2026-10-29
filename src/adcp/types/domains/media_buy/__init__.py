@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -241,6 +241,12 @@ from adcp.types.domains.media_buy.get_media_buy_delivery_response import (
     ReportingRevisionBinding,
     Window,
 )
+from adcp.types.domains.media_buy.get_media_buy_issue_request import GetMediaBuyIssueRequest
+from adcp.types.domains.media_buy.get_media_buy_issue_response import (
+    GetMediaBuyIssueResponse,
+    GetMediaBuyIssueResponse1,
+    GetMediaBuyIssueResponse2,
+)
 from adcp.types.domains.media_buy.get_media_buys_request import GetMediaBuysRequest
 from adcp.types.domains.media_buy.get_media_buys_response import (
     Cancellation,
@@ -277,6 +283,7 @@ from adcp.types.domains.media_buy.get_products_request import (
 )
 from adcp.types.domains.media_buy.get_products_response import (
     ExcludedBy,
+    ExecutionReadiness,
     Extensions,
     FilterDiagnostics,
     GetProductsResponse,
@@ -359,12 +366,17 @@ from adcp.types.domains.media_buy.media_buy_delivery_webhook_result import (
 )
 from adcp.types.domains.media_buy.outcome_target import Goal, Goal1, Goal2, OutcomeTarget
 from adcp.types.domains.media_buy.package_control import PackageControl
-from adcp.types.domains.media_buy.package_request import (
-    CommittedMetrics,
+from adcp.types.domains.media_buy.package_forecast_input import (
     CommittedMetrics1,
     CommittedMetrics2,
+    PackageForecastInput,
+)
+from adcp.types.domains.media_buy.package_request import (
+    Bidding,
+    CommittedMetrics3,
+    CommittedMetrics5,
     PackageRequest,
-    Qualifier,
+    Params,
 )
 from adcp.types.domains.media_buy.package_update import (
     KeywordTargetsAddItem,
@@ -378,7 +390,7 @@ from adcp.types.domains.media_buy.product_fields import ProductResponseField, Pr
 from adcp.types.domains.media_buy.product_purchase import ProductPurchase
 from adcp.types.domains.media_buy.product_purchase_input import ProductPurchaseInput
 from adcp.types.domains.media_buy.product_refinement import (
-    Action12,
+    Action13,
     ProductRefinementRequests,
     ProductRefinementRequests1,
     ProductRefinementRequests2,
@@ -399,11 +411,13 @@ from adcp.types.domains.media_buy.proposal_refinement import (
     Constraints6,
     Constraints7,
     Constraints8,
+    Constraints9,
     Cpm,
     Flight,
     Impressions,
     ProposalRefinement,
     ProposalRefinement10,
+    ProposalRefinement11,
     ProposalRefinement2,
     ProposalRefinement3,
     ProposalRefinement4,
@@ -459,6 +473,16 @@ from adcp.types.domains.media_buy.refine_proposals_response import (
     Results9,
     TotalBudgetGuidance,
     UnsatisfiedConstraint,
+)
+from adcp.types.domains.media_buy.report_media_buy_issue_request import (
+    Category,
+    ReportMediaBuyIssueRequest,
+    Severity,
+)
+from adcp.types.domains.media_buy.report_media_buy_issue_response import (
+    ReportMediaBuyIssueResponse,
+    ReportMediaBuyIssueResponse1,
+    ReportMediaBuyIssueResponse2,
 )
 from adcp.types.domains.media_buy.request_proposals_async_response_input_required import (
     RequestProposalsInputRequired,
@@ -600,7 +624,7 @@ __all__ = [
     "AcceptancePolicyRule",
     "AcceptedLoss",
     "Action10",
-    "Action12",
+    "Action13",
     "AdvertiserJurisdiction",
     "AffectedPackageId",
     "AggregatedTotals",
@@ -611,6 +635,7 @@ __all__ = [
     "AudienceType",
     "Authentication",
     "BatchFrequency",
+    "Bidding",
     "BreakPosition",
     "BuildCreativeInputRequired",
     "BuildCreativeRequest",
@@ -649,12 +674,14 @@ __all__ = [
     "Catalog",
     "CatalogItem",
     "CatalogItemRef",
+    "Category",
     "ChangeKind",
     "CloseReason",
     "CommercialTerms",
-    "CommittedMetrics",
     "CommittedMetrics1",
     "CommittedMetrics2",
+    "CommittedMetrics3",
+    "CommittedMetrics5",
     "CompatibilityPurchaseCoordinatorInput",
     "Condition",
     "Constraints",
@@ -666,6 +693,7 @@ __all__ = [
     "Constraints6",
     "Constraints7",
     "Constraints8",
+    "Constraints9",
     "ControlMediaBuyInputRequired",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
@@ -709,6 +737,7 @@ __all__ = [
     "Estimate",
     "Eval",
     "ExcludedBy",
+    "ExecutionReadiness",
     "Extensions",
     "Fee",
     "Field1",
@@ -723,6 +752,10 @@ __all__ = [
     "Geo",
     "GetMediaBuyDeliveryRequest",
     "GetMediaBuyDeliveryResponse",
+    "GetMediaBuyIssueRequest",
+    "GetMediaBuyIssueResponse",
+    "GetMediaBuyIssueResponse1",
+    "GetMediaBuyIssueResponse2",
     "GetMediaBuysRequest",
     "GetMediaBuysResponse",
     "GetProductsInputRequired",
@@ -799,8 +832,10 @@ __all__ = [
     "OutcomeTarget",
     "Package",
     "PackageControl",
+    "PackageForecastInput",
     "PackageRequest",
     "PackageUpdate",
+    "Params",
     "PartialFailure",
     "PerLeaf",
     "Period",
@@ -835,6 +870,7 @@ __all__ = [
     "ProposalKind",
     "ProposalRefinement",
     "ProposalRefinement10",
+    "ProposalRefinement11",
     "ProposalRefinement2",
     "ProposalRefinement3",
     "ProposalRefinement4",
@@ -855,7 +891,6 @@ __all__ = [
     "PurchaseContinuation5",
     "PurchaseContinuation6",
     "PurchaseContinuation7",
-    "Qualifier",
     "Refine",
     "Refine1",
     "Refine2",
@@ -874,6 +909,10 @@ __all__ = [
     "Refinements",
     "RegionAliase",
     "RegistryAcceptancePolicyProfileReference",
+    "ReportMediaBuyIssueRequest",
+    "ReportMediaBuyIssueResponse",
+    "ReportMediaBuyIssueResponse1",
+    "ReportMediaBuyIssueResponse2",
     "ReportingCommitment",
     "ReportingDimensions",
     "ReportingRevisionBinding",
@@ -911,6 +950,7 @@ __all__ = [
     "SelectedProductId",
     "Semantics",
     "Setup",
+    "Severity",
     "SignalCondition",
     "SignalCondition1",
     "SignalCondition2",

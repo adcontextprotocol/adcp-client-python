@@ -100,7 +100,7 @@ def _line(version: str) -> tuple[int, int] | None:
 def _wire_for_line(major: int, minor: int) -> str:
     """The release-precision value this SDK serves for a minor line.
 
-    A line whose packaged spec is a prerelease (``3.3-beta.0`` on the 3.3
+    A line whose packaged spec is a prerelease (``3.3-beta.1`` on the 3.3
     line) is spoken, converted and validated as that exact prerelease: its
     schemas are the only 3.3 contract this wheel ships. Every other line is
     its stable release.
@@ -132,7 +132,7 @@ def is_convertible_version(version: str) -> bool:
     """Whether minor-release translation applies to ``version``.
 
     Stable releases of the SDK's major convert, as does the exact prerelease
-    the SDK serves for a line (``3.3-beta.0`` while the pin is that beta).
+    the SDK serves for a line (``3.3-beta.1`` while the pin is that beta).
     Any other prerelease keeps its own schema contract and gates: the
     translators must not guess prerelease semantics.
     """

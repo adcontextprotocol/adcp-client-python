@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -37,10 +37,16 @@ from adcp.types.domains.account.list_account_changes_response import (
     SourceCoverageItem,
     Status20,
 )
-from adcp.types.domains.account.list_accounts_request import ListAccountsRequest
+from adcp.types.domains.account.list_accounts_request import ListAccountsRequest, RequestId
 from adcp.types.domains.account.list_accounts_response import ListAccountsResponse
 from adcp.types.domains.account.report_usage_request import ReportUsageRequest, UsageItem
 from adcp.types.domains.account.report_usage_response import ReportUsageResponse
+from adcp.types.domains.account.request_account_request import RequestAccountRequest
+from adcp.types.domains.account.request_account_response import (
+    RequestAccountResponse,
+    RequestAccountResponse1,
+    RequestAccountResponse2,
+)
 from adcp.types.domains.account.sync_accounts_request import (
     Accounts,
     Accounts1,
@@ -81,6 +87,11 @@ __all__ = [
     "ListAccountsResponse",
     "ReportUsageRequest",
     "ReportUsageResponse",
+    "RequestAccountRequest",
+    "RequestAccountResponse",
+    "RequestAccountResponse1",
+    "RequestAccountResponse2",
+    "RequestId",
     "Setup",
     "SourceCoverageItem",
     "Spend",

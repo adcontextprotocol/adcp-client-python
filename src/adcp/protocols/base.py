@@ -288,6 +288,21 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def report_media_buy_issue(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Report an urgent issue on a media buy (AdCP 3.3)."""
+        pass
+
+    @abstractmethod
+    async def get_media_buy_issue(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read a media-buy issue's acknowledgement and resolution (AdCP 3.3)."""
+        pass
+
+    @abstractmethod
+    async def request_account(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Request, match or change an advertiser account (AdCP 3.3)."""
+        pass
+
+    @abstractmethod
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         pass
