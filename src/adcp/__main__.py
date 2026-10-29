@@ -229,6 +229,11 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "get_media_buys": ("get_media_buys", _ta(gen.GetMediaBuysRequest)),
         "list_collections": ("list_collections", _ta(gen.ListCollectionsRequest)),
         "list_proposals": ("list_proposals", _ta(gen.ListProposalsRequest)),
+        "report_media_buy_issue": (
+            "report_media_buy_issue",
+            _ta(gen.ReportMediaBuyIssueRequest),
+        ),
+        "get_media_buy_issue": ("get_media_buy_issue", _ta(gen.GetMediaBuyIssueRequest)),
         # Signals
         "get_signals": ("get_signals", _ta(gen.GetSignalsRequest)),
         "activate_signal": ("activate_signal", _ta(gen.ActivateSignalRequest)),
@@ -242,6 +247,7 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             _ta(gen.ListAccountChangesRequest),
         ),
         "list_accounts": ("list_accounts", _ta(gen.ListAccountsRequest)),
+        "request_account": ("request_account", _ta(gen.RequestAccountRequest)),
         "sync_accounts": ("sync_accounts", _ta(gen.SyncAccountsRequest)),
         "get_account_financials": (
             "get_account_financials",

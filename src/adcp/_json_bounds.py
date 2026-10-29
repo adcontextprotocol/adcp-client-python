@@ -5,18 +5,35 @@ is on the order of two million JSON nodes, and deeply nested input exhausts the
 stack of a recursive-descent parser or a generated validator before any schema
 check runs. AdCP 3.3 (``security.mdx`` §Response Size Bounds item 6 and
 §Inbound body bounds item 3) therefore asks for two parse bounds after the byte
-cap passes:
+cap passes: a maximum nesting depth and a maximum aggregate count of object
+members and array elements.
 
-* a maximum nesting depth of :data:`MAX_JSON_DEPTH` (64), and
-* at most :data:`MAX_JSON_MEMBERS` (100,000) aggregate object members and
-  array elements.
+* The depth bound is :data:`MAX_JSON_DEPTH` (64) everywhere.
+* The member bound is sized to the byte budget it sits behind. An *inbound*
+  body (a webhook or push, capped at 1 MiB by default) is held to the spec's
+  :data:`MAX_INBOUND_JSON_MEMBERS` (100,000). An agent *response* (capped at
+  4 MiB by default) is held to :data:`MAX_JSON_MEMBERS` (524,288): the byte
+  budget divided by :data:`MIN_REALISTIC_BYTES_PER_MEMBER` (8).
 
-Both are the task-body caps of the attestation resolution fetch contract.
+Why 8 bytes per member. A member of a JSON *object* costs at least a quoted
+key, a colon and a value, plus a separator: ``"id":1,`` is seven bytes with a
+two-character key, and real AdCP keys run five to twenty characters. Keyed
+JSON — every AdCP task body, and every JSON Schema in an MCP ``tools/list`` —
+therefore cannot average much under eight bytes per member, so any such
+document that fits the byte budget also fits the member bound. (An SDK
+seller's own compact ``tools/list`` measures about 24 bytes per member.) The
+only shapes denser than that are arrays of bare scalars (``[1,1,1,...]`` at
+two bytes per element) and empty containers (``[[],[],[]]`` at three), which
+are exactly the pathological inputs the bound exists for: at 4 MiB they would
+be two million nodes, and the bound still refuses them at a quarter of that.
+A bound of 100,000 members, by contrast, was eight times tighter than the
+4 MiB budget implies for realistic JSON, and a conforming peer's ``tools/list``
+could exceed it while well inside the byte budget (#1692).
 
 The bounds are enforced by :class:`JsonBoundsScanner`, a counting scanner that
 reads the bytes once and keeps only a small container stack — never the
-document. It aborts at depth 65 or member 100,001, so the check cannot itself
-become the allocation primitive it guards against. A full ``json.loads``
+document. It aborts at the first depth or member past the bound, so the check
+cannot itself become the allocation primitive it guards against. A full ``json.loads``
 followed by a walk would already have allocated the document it was meant to
 refuse.
 
@@ -47,15 +64,45 @@ from typing import Any, Literal
 MAX_JSON_DEPTH = 64
 """Maximum JSON nesting depth (``[[...]]`` 64 deep passes; 65 is rejected)."""
 
-MAX_JSON_MEMBERS = 100_000
-"""Maximum aggregate object members plus array elements in one document."""
-
 DEFAULT_MAX_INBOUND_BODY_BYTES = 4 * 1024 * 1024
 """Spec ceiling for an inbound push or webhook body (4 MiB, 4,194,304 bytes).
 
 A tighter per-feature cap governs: AdCP webhook deliveries keep the 1 MB
 payload limit (``webhooks.mdx`` §Security requirements), see
 :data:`adcp.webhook_receiver.DEFAULT_MAX_WEBHOOK_BODY_BYTES`.
+
+This is also the default byte budget a buyer applies to one agent response
+(:data:`adcp._response_limit.DEFAULT_MAX_RESPONSE_BYTES`), which is what
+:data:`MAX_JSON_MEMBERS` is derived from.
+"""
+
+MIN_REALISTIC_BYTES_PER_MEMBER = 8
+"""The density the response member bound assumes: bytes per object member.
+
+Keyed JSON cannot average much below this (a quoted key, a colon, a value and
+a separator), so a document under the byte budget at this density is within
+the member bound. Only bare-scalar arrays and empty containers are denser,
+and those are what the bound is for. See the module docstring.
+"""
+
+MAX_JSON_MEMBERS = DEFAULT_MAX_INBOUND_BODY_BYTES // MIN_REALISTIC_BYTES_PER_MEMBER
+"""Maximum aggregate object members plus array elements in one agent response.
+
+524,288: the default 4 MiB response budget at
+:data:`MIN_REALISTIC_BYTES_PER_MEMBER`. Applied to every response the client
+reads — tool results, ``tools/list``, SSE events and MCP text payloads — by
+:mod:`adcp._response_limit` and :mod:`adcp.protocols.mcp`. ``tools/list`` is
+not given a separate, larger bound: it travels the same transport, and a
+compact listing of every tool the SDK can serve is a small fraction of this
+(a guard test pins it under half).
+"""
+
+MAX_INBOUND_JSON_MEMBERS = 100_000
+"""Maximum aggregate object members plus array elements in one inbound body.
+
+The AdCP 3.3 figure for a webhook or push body (``security.mdx`` §Inbound body
+bounds item 3), sized to the 1 MB webhook delivery limit at roughly ten bytes
+per member. Used by :mod:`adcp.webhook_receiver`.
 """
 
 JsonBoundKind = Literal["depth", "members", "encoding"]
@@ -510,8 +557,10 @@ def _looks_wide(data: bytes | bytearray | memoryview) -> bool:
 
 __all__ = [
     "DEFAULT_MAX_INBOUND_BODY_BYTES",
+    "MAX_INBOUND_JSON_MEMBERS",
     "MAX_JSON_DEPTH",
     "MAX_JSON_MEMBERS",
+    "MIN_REALISTIC_BYTES_PER_MEMBER",
     "JsonBoundKind",
     "JsonBoundsError",
     "JsonBoundsScanner",

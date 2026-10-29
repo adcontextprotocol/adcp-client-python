@@ -126,13 +126,15 @@ async def test_unversioned_defaults_and_legacy_probes_cannot_escape_selection(
     assert seller.versions == []
 
 
-async def test_a2a_packaged_default_also_obeys_selection() -> None:
+async def test_a2a_omitted_envelope_is_served_as_the_newest_selected_release() -> None:
+    """An unpinned A2A server runs on its newest selected release, not the packaged one."""
     seller = VersionSelectionSeller()
     executor = ADCPAgentExecutor(seller, validation=None, supported_versions=["3.1"])
-    with pytest.raises(ADCPTaskError) as caught:
-        await executor._tool_callers["get_products"](REQUEST)
-    assert caught.value.errors[0].code == "VERSION_UNSUPPORTED"
-    assert seller.versions == []
+    context = ToolContext()
+    response = await executor._tool_callers["get_products"](REQUEST, context)
+    assert response["products"] == []
+    assert seller.versions == [None]
+    assert context.application_adcp_version == "3.1"
 
 
 async def test_hooks_are_checked_before_dispatch_and_aliases_remain_explicit() -> None:

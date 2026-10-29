@@ -1530,6 +1530,18 @@ class MCPAdapter(ProtocolAdapter):
         """List open opportunities and proposals (AdCP 3.3)."""
         return await self._call_mcp_tool("list_proposals", params)
 
+    async def report_media_buy_issue(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Report an urgent issue on a media buy (AdCP 3.3)."""
+        return await self._call_mcp_tool("report_media_buy_issue", params)
+
+    async def get_media_buy_issue(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read a media-buy issue's acknowledgement and resolution (AdCP 3.3)."""
+        return await self._call_mcp_tool("get_media_buy_issue", params)
+
+    async def request_account(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Request, match or change an advertiser account (AdCP 3.3)."""
+        return await self._call_mcp_tool("request_account", params)
+
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         return await self._call_mcp_tool("get_signals", params)

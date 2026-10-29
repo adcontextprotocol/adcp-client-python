@@ -36,7 +36,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Literal
 
-from adcp._version import resolve_adcp_version
 from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.task_registry import InMemoryTaskRegistry
@@ -274,10 +273,16 @@ def create_adcp_server_from_platform(
     # D5: executor / thread_pool_size mutually exclusive.
     # Validate before allocating a framework-owned executor so a bad public
     # pin cannot leak a worker pool during construction.
-    from adcp.server.version_policy import default_adcp_version, resolve_supported_versions
+    from adcp.server.version_policy import (
+        resolve_application_adcp_version,
+        resolve_supported_versions,
+    )
 
-    resolved_adcp_version = resolve_adcp_version(
-        default_adcp_version(adcp_version, supported_versions)
+    # The release the platform's methods run on: the pin, else the newest
+    # listed release, else the packaged default. The handler carries it as
+    # its pin so every transport dispatches on the same release.
+    resolved_adcp_version = resolve_application_adcp_version(
+        adcp_version=adcp_version, supported_versions=supported_versions
     )
     supported_versions = resolve_supported_versions(
         supported_versions, adcp_version=resolved_adcp_version

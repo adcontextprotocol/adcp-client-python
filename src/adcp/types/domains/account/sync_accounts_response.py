@@ -25,9 +25,12 @@ from ..core import notification_config as notification_config_1
 from ..core import operator_unit as operator_unit_1
 from ..core import reporting_delivery_config_state as reporting_delivery_config_state_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..enums import account_request_resolution as account_request_resolution_1
 from ..enums import account_scope as account_scope_1
 from ..enums import billing_party as billing_party_1
 from ..enums import payment_terms as payment_terms_1
+from ..enums import pending_action_kind as pending_action_kind_1
+from ..enums import pending_action_party as pending_action_party_1
 
 
 class Setup(AdcpVersionEnvelope):
@@ -35,6 +38,8 @@ class Setup(AdcpVersionEnvelope):
     url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
     message: str
     expires_at: Annotated[WireDatetime | None, NoExplicitNull] = None
+    waiting_on: Annotated[pending_action_party_1.PendingActionParty | None, NoExplicitNull] = None
+    kind: Annotated[pending_action_kind_1.PendingActionKind | None, NoExplicitNull] = None
 
 
 class CreditLimit(AdcpVersionEnvelope):
@@ -46,6 +51,8 @@ class CreditLimit(AdcpVersionEnvelope):
 class Account(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     account_id: Annotated[str | None, NoExplicitNull] = None
+    request_id: Annotated[Annotated[str, StringConstraints(min_length=1, max_length=128)] | None, NoExplicitNull] = None
+    resolution: Annotated[account_request_resolution_1.AccountRequestResolution | None, NoExplicitNull] = None
     account: Annotated[account_ref_1.AccountReference | None, NoExplicitNull] = None
     brand: Annotated[brand_ref_1.BrandReference | None, NoExplicitNull] = None
     operator: Annotated[str | None, NoExplicitNull] = None

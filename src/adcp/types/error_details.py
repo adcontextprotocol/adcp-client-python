@@ -17,17 +17,19 @@ A nested name that two error-details schemas both define carries the
 defining file in its name (``ScopeFromRateLimited``) instead of a bare one.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:51 UTC
+Generation date: 2026-10-29 01:57:27 UTC
 """
 
 # ruff: noqa: E501, I001
 from __future__ import annotations
 
+from adcp.types.domains.core.account_candidate import AccountCandidate
 from adcp.types.domains.core.brand_key import BrandKey
 from adcp.types.domains.core.canonical_account_ref import (
     CanonicalAccountReference1,
     CanonicalAccountReference2,
 )
+from adcp.types.domains.core.creative_review_sla import CreativeReviewSla
 from adcp.types.domains.core.downstream_connection_requirement import (
     ConnectionType,
     DownstreamConnectionRequirement,
@@ -52,8 +54,9 @@ from adcp.types.domains.core.product_execution_requirement import (
     ProductExecutionRequirement3,
 )
 from adcp.types.domains.core.representation_rejection import Code, RepresentationRejection
-from adcp.types.domains.core.sla_window import SlaWindow
+from adcp.types.domains.core.sla_window import Clock, SlaWindow
 from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedReason
+from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
 from adcp.types.domains.enums.billing_party import BillingParty
 from adcp.types.domains.enums.catalog_type import CatalogType
 from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
@@ -75,6 +78,7 @@ from adcp.types.domains.error_details.accessibility_violation import (
     FailureKind1,
     Violation,
 )
+from adcp.types.domains.error_details.account_ambiguous import AccountAmbiguousDetails
 from adcp.types.domains.error_details.account_moved import AccountMovedDetails
 from adcp.types.domains.error_details.account_setup_required import AccountSetupRequiredDetails
 from adcp.types.domains.error_details.action_not_allowed import ActionNotAllowedDetails
@@ -116,6 +120,9 @@ from adcp.types.domains.error_details.governance_agent_not_accepted import (
 )
 from adcp.types.domains.error_details.macro_resolution_failed import MacroResolutionFailedDetails
 from adcp.types.domains.error_details.policy_violation import Origin, PolicyViolationDetails
+from adcp.types.domains.error_details.price_adjustments_mismatch import (
+    PriceAdjustmentsMismatchDetails,
+)
 from adcp.types.domains.error_details.rate_limited import (
     RateLimitedDetails,
     Scope as ScopeFromRateLimited,
@@ -168,15 +175,19 @@ from adcp.types.domains.governance.accepted_governance_agents import (
     AnyOf2,
     VerificationMode,
 )
+from adcp.types.domains.pricing_options.price_breakdown import Adjustment, PriceBreakdown
 
 # Explicit exports
 __all__ = [
     "AcceptedGovernanceAgents",
     "AccessibilityViolationDetails",
+    "AccountAmbiguousDetails",
+    "AccountCandidate",
     "AccountMovedDetails",
     "AccountSetupRequiredDetails",
     "ActionNotAllowedDetails",
     "ActionNotAllowedReason",
+    "Adjustment",
     "AgentPermissionDeniedDetails",
     "AnyOf",
     "AnyOf1",
@@ -191,6 +202,7 @@ __all__ = [
     "CanonicalAccountReference1",
     "CanonicalAccountReference2",
     "CatalogType",
+    "Clock",
     "Code",
     "Codes",
     "ConflictDetails",
@@ -200,6 +212,7 @@ __all__ = [
     "CreativeMergeRejectionReason",
     "CreativeRejectedDetails",
     "CreativeRepresentationUnresolvedDetails",
+    "CreativeReviewSla",
     "CreativeRevisionContentMismatchDetails",
     "DefinitionPinReferenceKind",
     "DocumentRole",
@@ -234,6 +247,9 @@ __all__ = [
     "Origin",
     "OriginalError",
     "PolicyViolationDetails",
+    "PriceAdjustmentKind",
+    "PriceAdjustmentsMismatchDetails",
+    "PriceBreakdown",
     "ProductExecutionRequirement1",
     "ProductExecutionRequirement2",
     "ProductExecutionRequirement3",

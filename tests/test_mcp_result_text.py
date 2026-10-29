@@ -55,7 +55,9 @@ async def test_summary_runs_after_context_echo_validation_and_enhancement(
     seen = []
 
     def summary(name, result, ctx):
-        assert events == ["enhance", "validate"]
+        # An unversioned MCP buyer is served as 3.0, so the 3.3 application
+        # response is validated once in its own shape and once on the wire.
+        assert events == ["enhance", "validate", "validate"]
         assert name == "get_products"
         assert ctx is context
         seen.append(deepcopy(result))

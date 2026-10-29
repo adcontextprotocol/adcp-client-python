@@ -1,0 +1,26 @@
+{
+  "version": "3.3.0-beta.1",
+  "source_commit": "0144a6c906c25b83c5bf0ee6a422a6a93406353e",
+  "release_url": "https://github.com/adcontextprotocol/adcp/releases/tag/v3.3.0-beta.1",
+  "bundle_url": "https://adcontextprotocol.org/protocol/3.3.0-beta.1.tgz",
+  "certificate_identity": "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/main",
+  "certificate_oidc_issuer": "https://token.actions.githubusercontent.com",
+  "artifacts": {
+    "3.3.0-beta.1.tgz": {
+      "bytes": 26988624,
+      "sha256": "897e103827d51ffdae0e23117bf8c3349d237e0fb772e60703dc553bfb6a7b66"
+    },
+    "3.3.0-beta.1.tgz.crt": {
+      "bytes": 2464,
+      "sha256": "05ef815c9faec9f8db84a1c0ccf332de257ebe6dd16fcbc3052e92414edc4662"
+    },
+    "3.3.0-beta.1.tgz.sha256": {
+      "bytes": 83,
+      "sha256": "3e91d603523f98ea5a06a907a40e1e343a385ddecae8cdf75671b58c15793203"
+    },
+    "3.3.0-beta.1.tgz.sig": {
+      "bytes": 96,
+      "sha256": "66fc0c1006ad03a1a43afe1c1b86a232cceae541ed9c79950ae41d85cd89ff60"
+    }
+  }
+}

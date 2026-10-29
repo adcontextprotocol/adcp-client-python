@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "10.0.0b0"
+version = "10.0.0b2"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -275,7 +275,7 @@ adcp = [
     "_schemas/3.1/**/*.json",
     "_schemas/3.1.15/**/*.json",
     "_schemas/3.2/**/*.json",
-    "_schemas/3.3.0-beta.0/**/*.json",
+    "_schemas/3.3.0-beta.1/**/*.json",
     # Exact signed compliance inputs plus their immutable release provenance.
     "_compliance/3.2.1/**/*.json",
     "_compliance/3.2.1/**/*.jsonl",
@@ -285,10 +285,10 @@ adcp = [
     "_compliance/3.2.4/**/*.jsonl",
     "_compliance/3.2.4/**/*.yaml",
     "_compliance/3.2.4/**/*.md",
-    "_compliance/3.3.0-beta.0/**/*.json",
-    "_compliance/3.3.0-beta.0/**/*.jsonl",
-    "_compliance/3.3.0-beta.0/**/*.yaml",
-    "_compliance/3.3.0-beta.0/**/*.md",
+    "_compliance/3.3.0-beta.1/**/*.json",
+    "_compliance/3.3.0-beta.1/**/*.jsonl",
+    "_compliance/3.3.0-beta.1/**/*.yaml",
+    "_compliance/3.3.0-beta.1/**/*.md",
     "_compliance/3.2.7/**/*.json",
     "_compliance/3.2.7/**/*.jsonl",
     "_compliance/3.2.7/**/*.yaml",

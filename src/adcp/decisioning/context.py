@@ -541,6 +541,14 @@ class RequestContext(ToolContext, Generic[TMeta]):
         ``account.id`` for ``'explicit'``-resolution adopters; can
         diverge for ``'derived'`` / ``'implicit'`` modes.
 
+    ``resolved_adcp_version`` / ``application_adcp_version`` — "which AdCP release?"
+        Inherited from :class:`ToolContext`. ``resolved_adcp_version`` is
+        the buyer's negotiated wire release; ``application_adcp_version``
+        is the release the platform's methods run on (the server's pin,
+        else the newest of its ``supported_versions``, else the packaged
+        default). Request models arrive converted to the latter and
+        responses are converted back to the former.
+
     Common patterns:
 
     * Routing to the right adapter? → ``ctx.account.metadata.adapter``

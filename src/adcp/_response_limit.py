@@ -19,8 +19,9 @@ the A2A agent card, and SSE streams — flows through
   ``Content-Type: text/event-stream``;
 * once those byte checks pass, bounds what the bytes will become: every JSON
   body, and every SSE event's ``data``, is run through the counting scanner in
-  :mod:`adcp._json_bounds` (nesting depth 64, 100,000 aggregate object members
-  and array elements) as it streams, so an over-deep or over-wide document is
+  :mod:`adcp._json_bounds` (nesting depth 64, and 524,288 aggregate object
+  members and array elements — the 4 MiB budget at eight bytes per member,
+  see that module for the derivation) as it streams, so an over-deep or over-wide document is
   refused before the MCP or A2A SDK parses it (AdCP 3.3 ``security.mdx``
   §Response Size Bounds item 6). The violation raises
   :class:`ADCPResponseTooComplexError`, an :class:`ADCPResponseTooLargeError`.
@@ -150,7 +151,7 @@ class ADCPResponseTooComplexError(ADCPResponseTooLargeError):
     arrays is millions of JSON nodes. After the byte budget passes, every
     response is held to a nesting depth of
     :data:`~adcp._json_bounds.MAX_JSON_DEPTH` (64) and at most
-    :data:`~adcp._json_bounds.MAX_JSON_MEMBERS` (100,000) aggregate object
+    :data:`~adcp._json_bounds.MAX_JSON_MEMBERS` (524,288) aggregate object
     members and array elements, checked while the body streams and before
     the MCP or A2A SDK parses it (AdCP 3.3 ``security.mdx`` §Response Size
     Bounds item 6).
