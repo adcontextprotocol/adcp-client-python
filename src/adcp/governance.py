@@ -36,6 +36,7 @@ from adcp._version import resolve_adcp_version
 from adcp.signing._strict_json import parse_strict_json
 from adcp.signing.brand_jwks import BrandJsonResolverError, _pick_agent
 from adcp.signing.canonical import canonicalize_target_uri
+from adcp.signing.constants import ADCP_USE_GOVERNANCE
 from adcp.signing.crypto import b64url_decode, b64url_encode, import_jwk
 from adcp.signing.etld import host_from
 from adcp.signing.jwks import AsyncCachingJwksResolver, AsyncJwksResolver, JwksResolver
@@ -1210,7 +1211,7 @@ async def verify_governance_authorization(
         if (
             not isinstance(jwk, Mapping)
             or jwk.get("kid") != kid
-            or jwk.get("adcp_use") != "governance-signing"
+            or jwk.get("adcp_use") != ADCP_USE_GOVERNANCE
             or jwk.get("use") != "sig"
             or not isinstance(jwk.get("key_ops"), list)
             or "verify" not in jwk["key_ops"]
