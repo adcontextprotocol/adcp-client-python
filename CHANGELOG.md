@@ -86,6 +86,29 @@
 
 ### Bug fixes
 
+* **server:** a version-pinned MCP seller — an `adcp_version` pin, which every
+  decisioning `PlatformHandler` carries — advertised the *exact* bundled wire
+  schemas in `tools/list`, ignoring `schema_mode`. A single `get_products`
+  response resolves about 280 definitions, and MCP cannot share definitions
+  between tools, so a plain eleven-tool seller listed 106,250 JSON members
+  (2.5 MB) and every SDK 10 client call to it failed with
+  `ADCPResponseTooComplexError` before the handler ran, because the MCP
+  client lists tools before each call and the SDK 10 client bounds a
+  response's JSON members. The default `schema_mode="compact"` now compacts
+  the bundled schemas by the rules the unpinned path already applied to
+  Pydantic output — every root field with its description and rules, every
+  required nested field, every scalar with its constraints, each dropped
+  optional nested field re-admitted as `true` — and additionally drops nested
+  cross-field rules (`if`/`then`/`else`, `not`), nested `x-` metadata, nested
+  `$schema` and definition descriptions, and advertises `oneOf` as `anyOf` so
+  a loosened arm can never make a valid response fail the client's
+  output-schema check. The issue's seller lists 17,181 members (467 KB);
+  every tool the SDK can serve, pinned, lists about 67,000 members and
+  1.8 MB, under half of both SDK 10 buyer bounds, and a guard test pins that.
+  `schema_mode="defs"` (and `"inline"`) keep the exact bundled schema. The
+  startup size line now reports JSON members as well as bytes and warns past
+  half of either bound. Fixes #1692.
+
 * **server:** MCP ``outputSchema`` now honours ``schema_mode`` instead of
   always inlining every ``$ref``. Inlining expands each shared subtree once
   per reference, so ``ListCreativesResponse`` was advertised at 4.8 MB where
