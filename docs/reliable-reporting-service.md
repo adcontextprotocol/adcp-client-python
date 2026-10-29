@@ -318,6 +318,69 @@ than `configure()`. Production workers belong to `start()`/`close()`; the Core
 [production guide](reporting-production.md) for account admission and provider
 contracts, and [the wiring example](../examples/reporting_service_production.py).
 
+## Reporting subscriptions (AdCP 3.3, experimental)
+
+`media_buy.reporting_subscriptions` lets a caller register reporting once on its
+principal through `sync_principal`, rather than once per account through
+`sync_accounts`. `adcp.reporting.subscriptions` holds both halves.
+
+**Buyer.** `expected_subscription_periods(...)` is the coverage rule as a pure
+function over plain data. Pass it the `get_principal` subscription readback,
+the buys you can see (`SubscriptionBuy`, with earlier flights when a buy was
+extended or reinstated), the offerings with the seller's dimension mapping
+(`SubscriptionOffering`), the account timezone, the account's grant history,
+and the `subscription_coverage[]` exceptions and gaps. It returns
+`ExpectedSubscriptionPeriod` values, which are `ExpectedReportingPeriod`s, so
+they feed `evaluate_reporting_ledger` and the consumer-status planner as they
+are.
+
+**Seller.** Opt in on the principal runtime and link it to the engine. Without
+`reporting_subscriptions=`, `PrincipalService` keeps its 3.2 behavior.
+
+```python
+from adcp.reporting.subscriptions import (
+    ReportingSubscriptionEngine,
+    ReportingSubscriptionSupport,
+    SubscriptionOffering,
+)
+from adcp.server import PrincipalService
+
+principals = PrincipalService(emit_change=emit_principal_changed)
+engine = ReportingSubscriptionEngine(
+    principals=principals,
+    host=my_host,  # list_authorized_accounts, account_buys[, account_delivery_configs]
+    offerings=[
+        SubscriptionOffering.from_offering(daily_offering, dimensions=("package",)),
+    ],
+    support=ReportingSubscriptionSupport(max_accounts=500),
+)
+principals.set_reporting_subscriptions(
+    engine.principal_options(delivery_config_ids=caller_config_ids)
+)
+```
+
+The host supplies only what it alone knows: the accounts a principal may read
+(`list_authorized_accounts`, paged), each account's buys with their products'
+`reporting_delivery_offering_ids` (`account_buys`), and optionally the caller's
+own active `sync_accounts` configurations (`account_delivery_configs`), which
+take precedence. Call `engine.reconcile(principal)` on a schedule and after
+anything changes; call `engine.authorization_changed(...)` when you learn of a
+grant or revocation directly. The engine records exceptions as cutover
+intervals, keeps `accounts_with_exceptions[]` and `accounts_unauthorized[]`
+current in `get_principal` (each change fires `principal.changed` with reason
+`reporting_subscription_changed`), serves `subscription_coverage(...)` for
+`get_reporting_status`, and computes `owed_periods(...)` with the same function
+the buyer runs.
+
+`max_accounts` serves eligible accounts in order of their coverage start, then
+`account_id` in byte order; the rest get a `capacity` exception.
+
+`subscription_capabilities(...)` and `advertise_reporting_subscriptions(...)`
+project `configuration_tasks`, the deprecated `configuration_task`, the
+`subscriptions` block, the feature id and the principal section. The engine
+does not yet write ledger obligations, so do not advertise the capability
+until obligations are materialized for the periods it owes.
+
 ## Advanced composition
 
 `postgres_reliable_reporting_service()` (from `adcp_reporting_storage`) without

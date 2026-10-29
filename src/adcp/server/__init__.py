@@ -146,6 +146,7 @@ from adcp.server.principal import (
     PrincipalRecord,
     PrincipalRecordStore,
     PrincipalService,
+    ReportingSubscriptionOptions,
 )
 from adcp.server.proposal import ProposalBuilder, ProposalNotSupported
 from adcp.server.responses import (
@@ -244,6 +245,7 @@ __all__ = [
     "PrincipalRecord",
     "PrincipalRecordStore",
     "PrincipalService",
+    "ReportingSubscriptionOptions",
     # Proposal helpers
     "ProposalBuilder",
     "ProposalNotSupported",

@@ -12,7 +12,7 @@ import asyncio
 import json
 import re
 import unicodedata
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Protocol
@@ -38,6 +38,7 @@ from adcp.types import (
     SyncPrincipalRequest,
     SyncPrincipalResponse,
 )
+from adcp.types.domains.core.reporting_subscription_state import ReportingSubscriptionState
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
@@ -89,6 +90,8 @@ class PrincipalChange:
     changed_at: datetime
     reason: str
     destination_id: str | None = None
+    #: Set for ``reporting_subscription_changed``: the subscription that changed.
+    subscription_id: str | None = None
 
 
 PrincipalChangeEmitter = Callable[[PrincipalChange], Awaitable[None]]
@@ -99,6 +102,28 @@ DestinationProofHook = Callable[
 NotificationProofHook = Callable[
     [PrincipalIdentity, AgentNotificationConfig], Awaitable[AgentNotificationConfigState]
 ]
+DeliveryConfigIdsHook = Callable[[PrincipalIdentity], Awaitable[Collection[str]]]
+SubscriptionVersionsHook = Callable[
+    [PrincipalIdentity, Sequence[ReportingSubscriptionState]], Awaitable[None]
+]
+
+
+@dataclass(frozen=True)
+class ReportingSubscriptionOptions:
+    """Opt-in acceptance of the 3.3 ``reporting_subscriptions`` section.
+
+    Without these options ``PrincipalService`` keeps its 3.2 behavior and
+    ignores the section. ``delivery_config_ids`` returns every
+    ``delivery_config_id`` the caller uses through ``sync_accounts`` so a
+    ``subscription_id`` never collides with one. ``record_versions`` receives
+    every committed subscription state, so the reporting runtime keeps each
+    version's configuration for as long as its obligations are retained.
+    ``ReportingSubscriptionEngine.principal_options()`` builds these.
+    """
+
+    delivery_config_ids: DeliveryConfigIdsHook | None = None
+    record_versions: SubscriptionVersionsHook | None = None
+    clock: Callable[[], datetime] | None = None
 
 
 @dataclass
@@ -320,6 +345,12 @@ def _normalize_coordinate(value: str, *, field: str) -> str:
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
+def _destination_id(destination: Any) -> str:
+    if isinstance(destination, Mapping):
+        return str(destination["destination_id"])
+    return str(destination.destination_id)
+
+
 def _normalize_destination(destination: AgentReportingDestination) -> AgentReportingDestination:
     payload = destination.model_dump(mode="json", exclude_none=True)
     if "location" in payload:
@@ -352,8 +383,10 @@ class PrincipalService:
         relationship_resolver: (
             Callable[[PrincipalIdentity], Awaitable[Mapping[str, Any] | BaseModel | None]] | None
         ) = None,
+        reporting_subscriptions: ReportingSubscriptionOptions | None = None,
     ) -> None:
         self._store = store or InMemoryPrincipalRecordStore()
+        self._subscriptions = reporting_subscriptions
         self._destination_proof = destination_proof
         self._notification_proof = notification_proof
         self._emit_change = emit_change
@@ -363,6 +396,13 @@ class PrincipalService:
             "webhook_signing_algorithms": accepted_webhook_signing_algorithms,
             "experimental_features": accepted_experimental_features,
         }
+
+    def set_reporting_subscriptions(self, options: ReportingSubscriptionOptions | None) -> None:
+        """Enable (or, with ``None``, disable) the 3.3 ``reporting_subscriptions`` section.
+
+        Lets a reporting engine built from this service link back to it.
+        """
+        self._subscriptions = options
 
     def set_declaration_support(
         self,
@@ -568,6 +608,10 @@ class PrincipalService:
             if await self._store.compare_and_swap(
                 identity.subject, expected_store_revision, record
             ):
+                if self._subscriptions is not None and self._subscriptions.record_versions:
+                    await self._subscriptions.record_versions(
+                        identity, list(next_state.reporting_subscriptions or [])
+                    )
                 return response
             # A different process committed between our read and write.  Repeat
             # from the authoritative record so stale fences reject and an exact
@@ -619,6 +663,13 @@ class PrincipalService:
             destinations[index] = AgentReportingDestinationState.model_validate(payload)
             state_payload = record.configuration.model_dump(mode="json", exclude_none=True)
             state_payload["reporting_destinations"] = destinations
+            subscriptions_before = list(record.configuration.reporting_subscriptions or [])
+            subscriptions_after = subscriptions_before
+            if self._subscriptions is not None and subscriptions_before:
+                from adcp.reporting.subscriptions.registry import refresh_destination_states
+
+                subscriptions_after = refresh_destination_states(subscriptions_before, destinations)
+                state_payload["reporting_subscriptions"] = subscriptions_after
             record.configuration = PrincipalState.model_validate(state_payload)
             expected_store_revision = record.store_revision
             record.store_revision += 1
@@ -637,6 +688,22 @@ class PrincipalService:
                     destination_id,
                 )
             )
+            before = {item.subscription_id: str(item.state) for item in subscriptions_before}
+            for item in subscriptions_after:
+                if (
+                    str(item.state) == "action_required"
+                    and before.get(item.subscription_id) != "action_required"
+                ):
+                    await self._emit_change(
+                        PrincipalChange(
+                            record.principal_id,
+                            identity.subject,
+                            datetime.now(timezone.utc),
+                            "reporting_subscription_changed",
+                            destination_id,
+                            subscription_id=item.subscription_id,
+                        )
+                    )
         return destinations[index]
 
     async def refresh_declarations(
@@ -791,6 +858,8 @@ class PrincipalService:
             payload["declarations"] = self._negotiate_declarations(
                 desired.declarations or AgentDeclarations()
             )
+        if self._subscriptions is not None:
+            await self._replace_subscriptions(identity, previous, desired, payload)
         state = PrincipalState.model_validate(payload)
         active_notifications = [
             config for config in state.notification_configs or [] if config.active is not False
@@ -805,6 +874,140 @@ class PrincipalService:
                 "active notification configs require an accepted webhook signing algorithm",
             )
         return state
+
+    async def _replace_subscriptions(
+        self,
+        identity: PrincipalIdentity,
+        previous: PrincipalState | None,
+        desired: PrincipalConfiguration,
+        payload: dict[str, Any],
+    ) -> None:
+        """Apply ``reporting_subscriptions`` against the destinations after this request."""
+        from adcp.reporting.subscriptions.registry import (
+            ReportingSubscriptionError,
+            apply_reporting_subscriptions,
+            refresh_destination_states,
+        )
+
+        assert self._subscriptions is not None
+        destinations = payload.get("reporting_destinations") or []
+        prior = list((previous.reporting_subscriptions if previous else None) or [])
+        try:
+            if "reporting_subscriptions" in desired.model_fields_set:
+                hook = self._subscriptions.delivery_config_ids
+                payload["reporting_subscriptions"] = apply_reporting_subscriptions(
+                    prior,
+                    desired.reporting_subscriptions or [],
+                    destinations=destinations,
+                    now=self._now(),
+                    delivery_config_ids=await hook(identity) if hook else (),
+                )
+            elif prior and "reporting_destinations" in desired.model_fields_set:
+                names = {_destination_id(item) for item in destinations}
+                for item in prior:
+                    configuration = item.configuration
+                    if (
+                        str(item.state) != "inactive"
+                        and configuration.destination is not None
+                        and configuration.destination.destination_id not in names
+                    ):
+                        raise ReportingSubscriptionError(
+                            f"subscription {item.subscription_id!r} names destination "
+                            f"{configuration.destination.destination_id!r}, which this "
+                            "request removes"
+                        )
+                payload["reporting_subscriptions"] = refresh_destination_states(prior, destinations)
+        except ReportingSubscriptionError as error:
+            raise _PrincipalValidationError(error.code, str(error)) from None
+
+    def _now(self) -> datetime:
+        clock = self._subscriptions.clock if self._subscriptions else None
+        return clock() if clock else datetime.now(timezone.utc)
+
+    async def update_subscription_status(
+        self,
+        identity: PrincipalIdentity,
+        subscription_id: str,
+        *,
+        accounts_with_exceptions: Sequence[Mapping[str, Any]] | None = None,
+        accounts_unauthorized: Sequence[Mapping[str, Any]] | None = None,
+    ) -> bool:
+        """Record seller-derived subscription status without version churn.
+
+        Like destination proof transitions, this does not advance the
+        caller-owned ``configuration_version``. A change emits
+        ``principal.changed`` with reason ``reporting_subscription_changed``.
+        Returns whether anything changed.
+        """
+        while True:
+            record = await self._store.get(identity.subject)
+            if not record or not record.configuration:
+                raise KeyError(subscription_id)
+            states = list(record.configuration.reporting_subscriptions or [])
+            index = next(
+                (i for i, item in enumerate(states) if item.subscription_id == subscription_id),
+                None,
+            )
+            if index is None:
+                raise KeyError(subscription_id)
+            payload = states[index].model_dump(mode="json", exclude_none=True)
+            for name, value in (
+                ("accounts_with_exceptions", accounts_with_exceptions),
+                ("accounts_unauthorized", accounts_unauthorized),
+            ):
+                if value is None:
+                    continue
+                if value:
+                    payload[name] = [dict(item) for item in value]
+                else:
+                    payload.pop(name, None)
+            updated = ReportingSubscriptionState.model_validate(payload)
+            if _json(updated) == _json(states[index]):
+                return False
+            states[index] = updated
+            state_payload = record.configuration.model_dump(mode="json", exclude_none=True)
+            state_payload["reporting_subscriptions"] = states
+            record.configuration = PrincipalState.model_validate(state_payload)
+            expected_store_revision = record.store_revision
+            record.store_revision += 1
+            if await self._store.compare_and_swap(
+                identity.subject, expected_store_revision, record
+            ):
+                break
+        if self._emit_change:
+            await self._emit_change(
+                PrincipalChange(
+                    record.principal_id,
+                    identity.subject,
+                    datetime.now(timezone.utc),
+                    "reporting_subscription_changed",
+                    subscription_id=subscription_id,
+                )
+            )
+        return True
+
+    async def reporting_subscriptions(
+        self, identity: PrincipalIdentity
+    ) -> list[ReportingSubscriptionState]:
+        """The caller's stored subscription states, for the reporting runtime."""
+        record = await self._store.get(identity.subject)
+        if record is None or record.configuration is None:
+            return []
+        return [
+            item.model_copy(deep=True)
+            for item in record.configuration.reporting_subscriptions or []
+        ]
+
+    async def reporting_destinations(
+        self, identity: PrincipalIdentity
+    ) -> list[AgentReportingDestinationState]:
+        """The caller's stored destination states, for the reporting runtime."""
+        record = await self._store.get(identity.subject)
+        if record is None or record.configuration is None:
+            return []
+        return [
+            item.model_copy(deep=True) for item in record.configuration.reporting_destinations or []
+        ]
 
     def _negotiate_declarations(self, declared: AgentDeclarations) -> PrincipalDeclarationsState:
         raw = declared.model_dump(mode="json", exclude_none=True)
@@ -836,17 +1039,15 @@ class PrincipalService:
             }
         )
 
-    @staticmethod
-    def _submitted_sections_are_empty(configuration: PrincipalConfiguration) -> bool:
+    def _submitted_sections_are_empty(self, configuration: PrincipalConfiguration) -> bool:
         fields = configuration.model_fields_set
         if not fields:
             return False
+        sections = {"notification_configs", "reporting_destinations"}
+        if self._subscriptions is not None:
+            sections.add("reporting_subscriptions")
         return (
-            all(
-                getattr(configuration, field) == []
-                for field in fields
-                if field in {"notification_configs", "reporting_destinations"}
-            )
+            all(getattr(configuration, field) == [] for field in fields if field in sections)
             and "declarations" not in fields
         )
 
@@ -880,6 +1081,7 @@ class PrincipalService:
 
 
 __all__ = [
+    "DeliveryConfigIdsHook",
     "DestinationProofHook",
     "InMemoryPrincipalRecordStore",
     "NotificationProofHook",
@@ -889,4 +1091,6 @@ __all__ = [
     "PrincipalRecord",
     "PrincipalRecordStore",
     "PrincipalService",
+    "ReportingSubscriptionOptions",
+    "SubscriptionVersionsHook",
 ]
