@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field
 
 
 class AnyOf1(AdCPBaseModel):
@@ -64,7 +64,7 @@ class AnyOf2(AdCPBaseModel):
     ]
 
 
-class AnyOf(RootModel[AnyOf1 | AnyOf2]):
+class AnyOf(AdCPRootModel[AnyOf1 | AnyOf2]):
     root: Annotated[AnyOf1 | AnyOf2, Field(discriminator='kind')]
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""

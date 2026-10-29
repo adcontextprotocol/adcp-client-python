@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field
 
 from . import attestation_issuer
 from . import ext as ext_1
@@ -20,7 +20,7 @@ class SupportedDeliveryMethod(StrEnum):
     embedded = 'embedded'
 
 
-class CredentialOrigin(RootModel[WireAnyUrl]):
+class CredentialOrigin(AdCPRootModel[WireAnyUrl]):
     root: WireAnyUrl
 
 

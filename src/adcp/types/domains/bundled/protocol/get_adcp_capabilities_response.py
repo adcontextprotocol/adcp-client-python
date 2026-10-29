@@ -11,16 +11,9 @@ from datetime import date
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Dict, Literal
 
-from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireEmail
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, GeoPlaceSystemKey, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireEmail
 from adcp.types._scalar import ScalarFloat, ScalarInt, ScalarStr
-from pydantic import (
-    ConfigDict,
-    Field,
-    RootModel,
-    StrictBool,
-    StrictFloat,
-    StringConstraints,
-)
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat, StringConstraints
 
 
 class Status(StrEnum):
@@ -392,7 +385,7 @@ class ReportingDestinationOffering(AdCPBaseModel):
 
 
 class CallerEventType(
-    RootModel[
+    AdCPRootModel[
         Literal[
             'scheduled',
             'final',
@@ -860,7 +853,7 @@ class Issuer2(AdCPBaseModel):
     ] = None
 
 
-class CredentialOrigin(RootModel[WireAnyUrl]):
+class CredentialOrigin(AdCPRootModel[WireAnyUrl]):
     root: WireAnyUrl
 
 
@@ -1885,7 +1878,7 @@ class Countries8(StrEnum):
     ward = 'ward'
 
 
-class Countries9(RootModel[WireAnyUrl]):
+class Countries9(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(
@@ -1996,7 +1989,7 @@ class GeoPlaces1(StrEnum):
     microsoft_ads = 'microsoft_ads'
 
 
-class GeoPlaces2(RootModel[WireAnyUrl]):
+class GeoPlaces2(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(

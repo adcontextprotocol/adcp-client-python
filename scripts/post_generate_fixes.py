@@ -2162,6 +2162,83 @@ def add_rootmodel_getattr_proxy():
         print("  No RootModel union types needed __getattr__ proxy")
 
 
+def defer_rootmodel_builds() -> None:
+    """Declare every generated composing root against ``AdCPRootModel``.
+
+    The generator's ``--base-class`` puts ``AdCPBaseModel`` -- and with it
+    ``defer_build=True`` -- under every object model, but a
+    ``class X(RootModel[...])`` inherits nothing from the SDK base, and a
+    ``model_config`` in its body comes too late: the ``RootModel[...]``
+    expression has already parametrized a concrete class under pydantic's
+    default config and built the union's validator there. A composing root
+    such as ``adagents.AdcpAgentsAuthorization`` or
+    ``core.format.CanonicalParameters`` walked most of its domain into
+    pydantic-core on import that way (#1694). ``adcp.types.base.AdCPRootModel``
+    parametrizes with ``defer_build=True``, so the build waits for first use
+    like every other generated model's. Runs after
+    ``rewrite_scalar_rootmodels``, which has consumed the ``RootModel[<scalar>]``
+    classes by then, and before the import cleanups, which drop the
+    ``RootModel`` import this pass leaves unused.
+    """
+    fixed_count = 0
+
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = py_file.read_text()
+        if "RootModel[" not in source:
+            continue
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        # Byte offsets of the ``RootModel`` name in each class header, edited
+        # back to front so earlier offsets stay valid.
+        line_offsets = [0]
+        for line in source.splitlines(keepends=True):
+            line_offsets.append(line_offsets[-1] + len(line))
+        edits: list[int] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for base in node.bases:
+                if (
+                    isinstance(base, ast.Subscript)
+                    and isinstance(base.value, ast.Name)
+                    and base.value.id == "RootModel"
+                ):
+                    edits.append(line_offsets[base.value.lineno - 1] + base.value.col_offset)
+        if not edits:
+            continue
+
+        for offset in sorted(edits, reverse=True):
+            source = source[:offset] + "AdCP" + source[offset:]
+        if re.search(r"^from adcp\.types\.base import .*\bAdCPRootModel\b", source, re.MULTILINE):
+            pass
+        elif re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+            source = add_to_import(source, "adcp.types.base", "AdCPRootModel")
+        else:
+            source = _insert_base_import(source, "from adcp.types.base import AdCPRootModel\n")
+        py_file.write_text(source)
+        fixed_count += len(edits)
+
+    if fixed_count > 0:
+        print(f"  Deferred the build of {fixed_count} RootModel class(es)")
+    else:
+        print("  No RootModel classes needed a deferred build")
+
+
+def _insert_base_import(source: str, statement: str) -> str:
+    """Add an ``adcp.types.base`` import to a module that has none."""
+    anchor = _import_pattern("pydantic").search(source)
+    if anchor is not None:
+        return source[: anchor.start()] + statement + source[anchor.start() :]
+    for pattern in (r"^from typing import [^\n]*\n", r"^from __future__ import [^\n]*\n\n?"):
+        match = re.search(pattern, source, re.MULTILINE)
+        if match is not None:
+            return source[: match.end()] + statement + source[match.end() :]
+    return statement + source
+
+
 class _ScalarRootSpec(NamedTuple):
     """One generated class that will become a scalar subclass."""
 
@@ -8569,6 +8646,7 @@ def main(argv: list[str] | None = None) -> int:
         # Last of the substantive fixes: every earlier fixer may still emit or
         # edit a ``RootModel[<scalar>]`` class, and this one consumes them all.
         rewrite_scalar_rootmodels,
+        defer_rootmodel_builds,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
         preserve_geo_place_system_map_keys,

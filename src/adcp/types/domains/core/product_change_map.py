@@ -7,7 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from pydantic import Field, RootModel, StringConstraints
+from adcp.types.base import AdCPRootModel
+from pydantic import Field, StringConstraints
 
 
 class ProductChangeMap1(StrEnum):
@@ -15,7 +16,7 @@ class ProductChangeMap1(StrEnum):
     omit = 'omit'
 
 
-class ProductChangeMap(RootModel[dict[Annotated[str, StringConstraints(min_length=1)], ProductChangeMap1]]):
+class ProductChangeMap(AdCPRootModel[dict[Annotated[str, StringConstraints(min_length=1)], ProductChangeMap1]]):
     root: Annotated[
         dict[Annotated[str, StringConstraints(min_length=1)], ProductChangeMap1],
         Field(

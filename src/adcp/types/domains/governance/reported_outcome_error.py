@@ -7,9 +7,9 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Dict
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
 from adcp.types._scalar import ScalarStr
-from pydantic import ConfigDict, Field, RootModel, StrictBool, StrictFloat, StringConstraints
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat, StringConstraints
 
 
 class Recovery(StrEnum):
@@ -28,7 +28,7 @@ class BoundedScalar1(ScalarStr):
     _constraints = {'max_length': 4000}
 
 
-class BoundedScalar(RootModel[StrictBool | StrictFloat | BoundedScalar1 | None]):
+class BoundedScalar(AdCPRootModel[StrictBool | StrictFloat | BoundedScalar1 | None]):
     root: StrictBool | StrictFloat | BoundedScalar1 | None
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -38,7 +38,7 @@ class BoundedScalar(RootModel[StrictBool | StrictFloat | BoundedScalar1 | None])
 
 
 
-class BoundedValueLevel31(RootModel[list[BoundedScalar | None]]):
+class BoundedValueLevel31(AdCPRootModel[list[BoundedScalar | None]]):
     root: Annotated[list[BoundedScalar | None], Field(max_length=32)]
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -51,21 +51,21 @@ class BoundedValueLevel31(RootModel[list[BoundedScalar | None]]):
 BoundedValueLevel3 = BoundedScalar | BoundedValueLevel31 | dict[str, BoundedScalar | None] | None
 
 
-class BoundedValueLevel21(RootModel[list[BoundedValueLevel3]]):
+class BoundedValueLevel21(AdCPRootModel[list[BoundedValueLevel3]]):
     root: Annotated[list[BoundedValueLevel3], Field(max_length=32)]
 
 
 BoundedValueLevel2 = BoundedScalar | BoundedValueLevel21 | dict[str, BoundedValueLevel3] | None
 
 
-class BoundedValue1(RootModel[list[BoundedValueLevel2]]):
+class BoundedValue1(AdCPRootModel[list[BoundedValueLevel2]]):
     root: Annotated[list[BoundedValueLevel2], Field(max_length=32)]
 
 
 BoundedValue = BoundedScalar | BoundedValue1 | dict[str, BoundedValueLevel2] | None
 
 
-class BoundedObject(RootModel[dict[Annotated[str, StringConstraints(max_length=128)], BoundedValue]]):
+class BoundedObject(AdCPRootModel[dict[Annotated[str, StringConstraints(max_length=128)], BoundedValue]]):
     root: Annotated[dict[Annotated[str, StringConstraints(max_length=128)], BoundedValue], Field(max_length=32)]
 
 

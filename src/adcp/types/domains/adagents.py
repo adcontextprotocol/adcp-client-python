@@ -7,9 +7,9 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, WireAnyUrl, WireDatetime, WireEmail
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, WireAnyUrl, WireDatetime, WireEmail
 from adcp.types._scalar import ScalarStr
-from pydantic import ConfigDict, Field, RootModel, StrictBool, model_validator
+from pydantic import ConfigDict, Field, StrictBool, model_validator
 
 from .core import (
     collection,
@@ -1072,7 +1072,7 @@ class AdcpAgentsAuthorization213(AdcpAgentsAuthorization27):
 
 
 class AdcpAgentsAuthorization2(
-    RootModel[
+    AdCPRootModel[
         AdcpAgentsAuthorization28
         | AdcpAgentsAuthorization29
         | AdcpAgentsAuthorization210
@@ -1446,7 +1446,7 @@ class AdcpAgentsAuthorization2(
 
 
 
-class AdcpAgentsAuthorization(RootModel[AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2]):
+class AdcpAgentsAuthorization(AdCPRootModel[AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2]):
     root: Annotated[
         AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2,
         Field(

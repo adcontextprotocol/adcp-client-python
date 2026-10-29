@@ -8,15 +8,9 @@ from enum import IntEnum
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, SchemaInt, WireAnyUrl, WireDatetime
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, SchemaInt, WireAnyUrl, WireDatetime
 from adcp.types._scalar import ScalarFloat, ScalarStr
-from pydantic import (
-    ConfigDict,
-    Field,
-    RootModel,
-    StrictBool,
-    StrictFloat,
-)
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat
 
 
 class FocalPointItem(ScalarFloat):
@@ -268,7 +262,7 @@ class UnavailableBehavior(StrEnum):
     reject = 'reject'
 
 
-class MacroBearingUrl1(RootModel[WireAnyUrl]):
+class MacroBearingUrl1(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(
@@ -1843,7 +1837,7 @@ class DaastAsset2(AdCPBaseModel):
     content: Annotated[str, Field(description='Inline DAAST XML content')]
 
 
-class DaastAsset(RootModel[DaastAsset1 | DaastAsset2]):
+class DaastAsset(AdCPRootModel[DaastAsset1 | DaastAsset2]):
     root: Annotated[
         DaastAsset1 | DaastAsset2,
         Field(
@@ -2143,7 +2137,7 @@ class PublishedPostAsset2(AdCPBaseModel):
     ] = None
 
 
-class PublishedPostAsset(RootModel[PublishedPostAsset1 | PublishedPostAsset2]):
+class PublishedPostAsset(AdCPRootModel[PublishedPostAsset1 | PublishedPostAsset2]):
     root: Annotated[
         PublishedPostAsset1 | PublishedPostAsset2,
         Field(
@@ -2495,7 +2489,7 @@ class VastAsset2(AdCPBaseModel):
     content: Annotated[str, Field(description='Inline VAST XML content')]
 
 
-class VastAsset(RootModel[VastAsset1 | VastAsset2]):
+class VastAsset(AdCPRootModel[VastAsset1 | VastAsset2]):
     root: Annotated[
         VastAsset1 | VastAsset2,
         Field(
@@ -2943,7 +2937,7 @@ class DisplayTagAsset3(AdCPBaseModel):
     ]
 
 
-class DisplayTagAsset(RootModel[DisplayTagAsset1 | DisplayTagAsset2 | DisplayTagAsset3]):
+class DisplayTagAsset(AdCPRootModel[DisplayTagAsset1 | DisplayTagAsset2 | DisplayTagAsset3]):
     root: Annotated[
         DisplayTagAsset1 | DisplayTagAsset2 | DisplayTagAsset3,
         Field(

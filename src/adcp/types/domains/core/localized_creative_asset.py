@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Any, Annotated
 
-from adcp.types.base import AdCPBaseModel
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel
+from pydantic import Field
 
 from .assets.asset_union import (
     AudioAsset,
@@ -115,7 +115,7 @@ class LocalizedCreativeAsset22(DaastTrackerAsset, LocalizedCreativeAsset1):
 
 
 class LocalizedCreativeAsset(
-    RootModel[
+    AdCPRootModel[
         LocalizedCreativeAsset2
         | LocalizedCreativeAsset3
         | LocalizedCreativeAsset4

@@ -8,7 +8,8 @@ from adcp.types._scalar import ScalarStr
 
 from typing import Annotated
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
 class AcceptancePolicyProfileId(ScalarStr):
@@ -16,7 +17,7 @@ class AcceptancePolicyProfileId(ScalarStr):
     _constraints = {'min_length': 1}
 
 
-class AcceptancePolicyProfileIds(RootModel[list[AcceptancePolicyProfileId]]):
+class AcceptancePolicyProfileIds(AdCPRootModel[list[AcceptancePolicyProfileId]]):
     root: Annotated[
         list[AcceptancePolicyProfileId],
         Field(

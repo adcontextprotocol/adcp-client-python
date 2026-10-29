@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
-from pydantic import ConfigDict, Field, RootModel, StringConstraints
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
+from pydantic import ConfigDict, Field, StringConstraints
 
 from . import locale_tag, localized_creative_asset
 
@@ -26,12 +26,12 @@ class LocaleFallback(AdCPBaseModel):
     locale_variant_id: Annotated[str, Field(max_length=255, min_length=1)]
 
 
-class ResolvedAssets1(RootModel[list[localized_creative_asset.LocalizedCreativeAsset]]):
+class ResolvedAssets1(AdCPRootModel[list[localized_creative_asset.LocalizedCreativeAsset]]):
     root: Annotated[list[localized_creative_asset.LocalizedCreativeAsset], Field(min_length=1)]
 
 
 class ResolvedAssets(
-    RootModel[
+    AdCPRootModel[
         dict[
             Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')],
             localized_creative_asset.LocalizedCreativeAsset | ResolvedAssets1,

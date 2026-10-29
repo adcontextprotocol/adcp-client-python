@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey, NoExplicitNull, SchemaInt
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, GeoPlaceSystemKey, NoExplicitNull, SchemaInt
 from adcp.types._scalar import ScalarStr
-from pydantic import ConfigDict, Field, RootModel, StringConstraints
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..enums import browser_family, daypart_timezone_mode, match_type, metro_system, transport_mode
 from . import ext as ext_1
@@ -31,7 +31,7 @@ class PlacementSelection(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class Supported(RootModel[Literal[True]]):
+class Supported(AdCPRootModel[Literal[True]]):
     root: Literal[True]
 
 
@@ -49,7 +49,7 @@ class CountrySupport1(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class CountrySupport(RootModel[Supported | CountrySupport1]):
+class CountrySupport(AdCPRootModel[Supported | CountrySupport1]):
     root: Supported | CountrySupport1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -76,7 +76,7 @@ class MetroSupport1(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class MetroSupport(RootModel[Supported | MetroSupport1]):
+class MetroSupport(AdCPRootModel[Supported | MetroSupport1]):
     root: Supported | MetroSupport1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -143,7 +143,7 @@ class KeywordSupport1(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class KeywordSupport(RootModel[Supported | KeywordSupport1]):
+class KeywordSupport(AdCPRootModel[Supported | KeywordSupport1]):
     root: Supported | KeywordSupport1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -161,7 +161,7 @@ class BrowserSupport1(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BrowserSupport(RootModel[Supported | BrowserSupport1]):
+class BrowserSupport(AdCPRootModel[Supported | BrowserSupport1]):
     root: Supported | BrowserSupport1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -171,7 +171,7 @@ class BrowserSupport(RootModel[Supported | BrowserSupport1]):
 
 
 
-class IanaTimezones(RootModel[list[iana_timezone.IanaTimezoneIdentifier]]):
+class IanaTimezones(AdCPRootModel[list[iana_timezone.IanaTimezoneIdentifier]]):
     root: Annotated[
         list[iana_timezone.IanaTimezoneIdentifier],
         Field(
@@ -196,7 +196,7 @@ class DaypartSupport1(AdCPBaseModel):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class DaypartSupport(RootModel[Literal[True] | DaypartSupport1]):
+class DaypartSupport(AdCPRootModel[Literal[True] | DaypartSupport1]):
     root: Literal[True] | DaypartSupport1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""

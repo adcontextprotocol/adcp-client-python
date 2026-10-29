@@ -6,17 +6,18 @@ from __future__ import annotations
 
 from typing import Any, Annotated
 
-from pydantic import Field, RootModel, StringConstraints
+from adcp.types.base import AdCPRootModel
+from pydantic import Field, StringConstraints
 
 from .assets import asset_union
 
 
-class CreativeAssets1(RootModel[list[asset_union.AssetVariant]]):
+class CreativeAssets1(AdCPRootModel[list[asset_union.AssetVariant]]):
     root: Annotated[list[asset_union.AssetVariant], Field(min_length=1)]
 
 
 class CreativeAssets(
-    RootModel[dict[Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')], asset_union.AssetVariant | CreativeAssets1]]
+    AdCPRootModel[dict[Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')], asset_union.AssetVariant | CreativeAssets1]]
 ):
     root: Annotated[
         dict[Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')], asset_union.AssetVariant | CreativeAssets1],

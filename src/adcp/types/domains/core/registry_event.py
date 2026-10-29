@@ -7,9 +7,9 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireUuid
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireUuid
 from adcp.types._scalar import ScalarStr
-from pydantic import ConfigDict, Field, RootModel, StrictBool
+from pydantic import ConfigDict, Field, StrictBool
 
 from ..enums import adcp_protocol, collection_kind, distribution_identifier_type
 from . import agent_signing_key
@@ -268,15 +268,15 @@ class Domain(ScalarStr):
     }
 
 
-class BadgeRole(RootModel[adcp_protocol.AdcpProtocol]):
+class BadgeRole(AdCPRootModel[adcp_protocol.AdcpProtocol]):
     root: adcp_protocol.AdcpProtocol
 
 
-class StringArray(RootModel[list[str]]):
+class StringArray(AdCPRootModel[list[str]]):
     root: list[str]
 
 
-class ChangedFields(RootModel[list[str]]):
+class ChangedFields(AdCPRootModel[list[str]]):
     root: Annotated[
         list[str],
         Field(
@@ -359,7 +359,7 @@ class Country(Market):
     pass
 
 
-class Countries(RootModel[list[Country]]):
+class Countries(AdCPRootModel[list[Country]]):
     root: Annotated[list[Country], Field(min_length=1)]
 
 

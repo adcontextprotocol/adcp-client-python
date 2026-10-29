@@ -66,6 +66,27 @@ a domain path when the name it needs is not bound there.
 - Add specific `type: ignore` comments (e.g., `# type: ignore[no-any-return]`) rather than blanket ignores
 - Test type checking in CI across multiple Python versions (3.10+)
 
+## Import-time model patches must defer their rebuild (#1694)
+
+`_ergonomic`, `_forward_compat`, `canonical_creative` and `aliases` edit generated
+models' `model_fields` at import. Never follow such an edit with
+`model_rebuild(force=True)`: pydantic does not share nested `defer_build`
+schemas between parents, so each forced rebuild of a request/response root
+walks its whole subtree into pydantic-core — two dozen of them cost ~400 MiB
+and 10 s at import on 9.3.0. Call `adcp.types.base.defer_model_rebuild(model)`
+instead; the patched fields take effect on the model's first use.
+
+A generated `class X(RootModel[A | B])` builds at the `RootModel[...]`
+expression, before any config `X` declares. Generated composing roots
+therefore parametrize `adcp.types.base.AdCPRootModel` (deferred); the
+post-generate fixer does the rewrite. Every deferred SDK model also carries
+`_DeferredValSer` placeholders (installed by `__pydantic_init_subclass__`) that
+build on *instance* attribute access, which is how pydantic-core reaches a
+serializer when it dumps by inference (`Any` field, `serialize_as_any`); a
+subclass that overrides `__pydantic_init_subclass__` must call `super()`.
+`tests/test_import_memory.py` imports
+each entry module in a subprocess and fails when peak RSS exceeds its budget.
+
 ## ctx_metadata: write-only credentials prohibited
 
 `RequestContext.metadata` is for non-secret request hints, not credentials. The

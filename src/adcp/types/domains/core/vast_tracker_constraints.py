@@ -7,9 +7,9 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
 from adcp.types._scalar import ScalarStr
-from pydantic import Field, RootModel
+from pydantic import Field
 
 from ..enums import vast_version
 
@@ -55,7 +55,7 @@ class VastOffset(ScalarStr):
     _constraints = {'pattern': '^(\\d{2}:[0-5]\\d:[0-5]\\d(\\.\\d{3})?|(100|\\d{1,2})%)$'}
 
 
-class VastVersions(RootModel[list[vast_version.VastVersion]]):
+class VastVersions(AdCPRootModel[list[vast_version.VastVersion]]):
     root: Annotated[list[vast_version.VastVersion], Field(min_length=1)]
 
 

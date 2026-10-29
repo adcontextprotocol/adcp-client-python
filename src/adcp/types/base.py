@@ -12,7 +12,7 @@ every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 import copy
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Final, Generic, Literal, TypeVar, cast
 
 from pydantic import (
     AfterValidator,
@@ -21,6 +21,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     GetCoreSchemaHandler,
+    RootModel,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     StrictInt,
@@ -29,6 +30,7 @@ from pydantic import (
     WithJsonSchema,
     model_serializer,
 )
+from pydantic._internal._mock_val_ser import MockValSer, set_model_mocks
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticSerializationError, PydanticUndefined, core_schema
 
@@ -106,6 +108,33 @@ def _resolve_extra_policy() -> Literal["ignore", "forbid"]:
 _EXTRA_POLICY: Literal["ignore", "forbid"] = _resolve_extra_policy()
 
 
+_RootT = TypeVar("_RootT")
+
+
+class AdCPRootModel(RootModel[_RootT], Generic[_RootT]):
+    """``RootModel`` under the SDK's deferred-build policy.
+
+    ``class X(RootModel[A | B])`` parametrizes a concrete class at the
+    ``RootModel[...]`` expression, and that class carries pydantic's default
+    config: its validator for the whole union is built right there, before
+    ``X`` and any config ``X`` declares exist. For a composing root such as
+    ``adagents.AdcpAgentsAuthorization`` that walked most of its domain into
+    pydantic-core at import (#1694). Parametrizing this class instead inherits
+    ``defer_build=True`` into ``AdCPRootModel[A | B]`` and into ``X``, so the
+    build waits for first use like every other generated model's.
+    ``scripts/post_generate_fixes.defer_rootmodel_builds`` points every
+    generated composing root here; a value root is a scalar subclass instead
+    (``adcp.types._scalar``).
+    """
+
+    model_config = ConfigDict(defer_build=True)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
+        _install_deferred_valsers(cls)
+
+
 def _build_deferred_serializers(value: Any, seen: set[int]) -> None:
     """Force lazy core-schema builds for every model instance in a graph.
 
@@ -134,6 +163,86 @@ def _build_deferred_serializers(value: Any, seen: set[int]) -> None:
     elif isinstance(value, dict):
         for item in value.values():
             _build_deferred_serializers(item, seen)
+
+
+class _DeferredValSer(MockValSer[Any]):
+    """pydantic's rebuild-on-access placeholder, extended to instance attribute access.
+
+    ``MockValSer`` rebuilds the model when one of its *methods* is accessed,
+    which covers ``Model(...)`` and ``instance.model_dump()``. pydantic-core
+    reaches a serializer another way: when it serializes a model instance it
+    meets by inference — an ``Any``-typed field, ``serialize_as_any``, a
+    plain-pydantic parent — it reads ``instance.__pydantic_serializer__`` and
+    downcasts, which a placeholder fails with ``TypeError: 'MockValSer' object
+    is not an instance of 'SchemaSerializer'`` (#1310, #1339). A placeholder
+    that is also a descriptor builds the model on that instance-level read and
+    hands back the real object. Class-level reads still return the placeholder,
+    which is what pydantic's own ``isinstance(..., MockValSer)`` checks expect.
+    """
+
+    __slots__ = ("_attr",)
+
+    def __init__(self, mock: MockValSer[Any], attr: str) -> None:
+        super().__init__(
+            mock._error_message,
+            code=mock._code,
+            val_or_ser="validator" if attr == "__pydantic_validator__" else "serializer",
+            attempt_rebuild=mock._attempt_rebuild,
+        )
+        self._attr = attr
+
+    def __get__(self, instance: object, owner: type[BaseModel] | None = None) -> Any:
+        if instance is None or owner is None:
+            return self
+        # An empty parent namespace: the model's own module and
+        # ``__pydantic_parent_namespace__`` resolve everything a generated or
+        # adopter class declares at module level. A class that still needs the
+        # caller's locals keeps the placeholder, and pydantic's frame-walking
+        # rebuild runs on the next method access as before.
+        if owner.model_rebuild(raise_errors=False, _parent_namespace_depth=0) is False:
+            return self
+        return getattr(owner, self._attr)
+
+
+def _install_deferred_valsers(cls: type[BaseModel]) -> None:
+    """Swap pydantic's placeholders on ``cls`` for ones that build on instance access."""
+    for attr in ("__pydantic_validator__", "__pydantic_serializer__"):
+        mock = cls.__dict__.get(attr)
+        if isinstance(mock, MockValSer) and not isinstance(mock, _DeferredValSer):
+            setattr(cls, attr, _DeferredValSer(mock, attr))
+
+
+def defer_model_rebuild(model: type[BaseModel]) -> None:
+    """Discard ``model``'s built core schema so pydantic rebuilds it on first use.
+
+    The import-time patchers (``_ergonomic``, ``_forward_compat``,
+    ``canonical_creative``) edit ``model_fields`` in place and then need the
+    core schema re-derived. ``model_rebuild(force=True)`` does that
+    immediately: it walks the model's whole nested subtree into a fresh
+    pydantic-core validator and serializer, and pydantic does not share the
+    schemas of nested ``defer_build`` models between parents, so each forced
+    rebuild of a request or response root costs tens of MiB and hundreds of
+    milliseconds — at import, for models the process may never use (#1694).
+
+    This helper instead puts the model back into the state ``defer_build=True``
+    leaves a freshly declared class in: the built artefacts are replaced by
+    pydantic's rebuild-on-access placeholders, and the next validation,
+    serialization or schema request builds the schema from the patched fields.
+    The outcome is identical to a forced rebuild; only the moment differs.
+    :func:`adcp.testing.build_all_models` still realizes every model eagerly
+    for callers (freezegun) that need the build to happen before patching
+    ``datetime``.
+
+    The placeholders are pydantic's own (``pydantic._internal._mock_val_ser``);
+    the pinned ``pydantic<2.14`` range is what makes relying on them safe, and
+    ``tests/test_lazy_rebuild.py`` grades the contract.
+    """
+    model.__pydantic_complete__ = False
+    for attr in ("__pydantic_core_schema__", "__pydantic_validator__", "__pydantic_serializer__"):
+        if attr in model.__dict__ and not isinstance(getattr(model, attr), MockValSer):
+            delattr(model, attr)
+    set_model_mocks(model)
+    _install_deferred_valsers(model)
 
 
 def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
@@ -583,6 +692,14 @@ class AdCPBaseModel(BaseModel):
     # model's core schema is built lazily on first validate/serialize, so only
     # the handful of models actually used are paid for.
     model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
+        # The deferred build's placeholders, made to build on instance access
+        # as well (see ``_DeferredValSer``). A subclass that overrides this
+        # hook must call ``super()``.
+        _install_deferred_valsers(cls)
 
     # Pydantic derives serialization JSON Schema from the model fields only when
     # this serializer's return is unannotated. Even ``-> Any`` erases the shape.

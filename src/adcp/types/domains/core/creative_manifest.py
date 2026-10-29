@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
-from pydantic import ConfigDict, Field, RootModel, StringConstraints, model_validator
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
+from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
 from . import brand_ref, creative_assets
 from . import ext as ext_1
@@ -31,7 +31,7 @@ def _normalize_asset_models(value: Any) -> Any:
     return value
 
 
-class Assets(RootModel[list[asset_union.AssetVariant]]):
+class Assets(AdCPRootModel[list[asset_union.AssetVariant]]):
     root: Annotated[list[asset_union.AssetVariant], Field(min_length=1)]
 
 

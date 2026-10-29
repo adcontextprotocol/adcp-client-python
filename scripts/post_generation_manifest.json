@@ -67,6 +67,7 @@
     "fix_update_rights_legacy_response_defaults": true,
     "fix_list_creatives_format_reference_xor": true,
     "rewrite_scalar_rootmodels": true,
+    "defer_rootmodel_builds": true,
     "rewrite_generated_enums_to_strenum": true,
     "annotate_registry_track_verdict": true,
     "preserve_geo_place_system_map_keys": true,

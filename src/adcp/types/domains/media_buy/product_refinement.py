@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
+from pydantic import ConfigDict, Field
 
 
 class ProductRefinementRequests2(AdCPBaseModel):
@@ -79,7 +79,7 @@ ProductRefinementRequests1 = Annotated[
 ]
 
 
-class ProductRefinementRequests(RootModel[list[ProductRefinementRequests1]]):
+class ProductRefinementRequests(AdCPRootModel[list[ProductRefinementRequests1]]):
     root: Annotated[
         list[ProductRefinementRequests1],
         Field(

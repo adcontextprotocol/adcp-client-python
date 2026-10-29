@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 from . import vendor_pricing_option
 
 
-class SignalPricingOption(RootModel[vendor_pricing_option.VendorPricingOption]):
+class SignalPricingOption(AdCPRootModel[vendor_pricing_option.VendorPricingOption]):
     root: Annotated[
         vendor_pricing_option.VendorPricingOption,
         Field(
