@@ -143,9 +143,9 @@ class SubscriptionOffering:
         """Project a ``ReportingDeliveryOffering`` (model or wire mapping).
 
         Dimensions come from the offering's ``standard_dimensions`` and
-        ``unmapped_dimensions`` (adcp#8585); ``dimensions`` and
-        ``unmapped_dimensions`` override them for a seller that has not yet
-        published them. ``period_timezone`` supplies the account-resolved zone of an
+        ``unmapped_dimensions`` (adcp#8585); an offering without
+        ``standard_dimensions`` is refused unless ``dimensions`` supplies the
+        mapping explicitly. ``period_timezone`` supplies the account-resolved zone of an
         ``account_resolved`` ``source_timezone`` offering; a fixed zone on the
         offering wins when both are present and they must agree.
         """
@@ -153,6 +153,14 @@ class SubscriptionOffering:
             offering = offering.model_dump(mode="json", exclude_none=True)
         if not isinstance(offering, Mapping):
             raise TypeError("offering must be a ReportingDeliveryOffering or a mapping")
+        if dimensions is None:
+            if "standard_dimensions" not in offering:
+                # adcp#8585: sellers advertising subscriptions MUST publish it,
+                # and matching never guesses a breakdown.
+                raise ValueError(
+                    f"offering {offering.get('offering_id')!r} has no standard_dimensions"
+                )
+            dimensions = offering["standard_dimensions"]
         schedule = offering["schedule"]
         fixed_zone = schedule.get("period_timezone")
         if fixed_zone is not None and period_timezone is not None and fixed_zone != period_timezone:
@@ -170,9 +178,7 @@ class SubscriptionOffering:
             delivery_sla=str(schedule["delivery_sla"]),
             supported_finality=frozenset(str(item) for item in offering["supported_finality"]),
             reconciliation_mode=str(offering["reconciliation_mode"]),
-            dimensions=frozenset(
-                offering.get("standard_dimensions") or () if dimensions is None else dimensions
-            ),
+            dimensions=frozenset(dimensions),
             unmapped_dimensions=frozenset(
                 offering.get("unmapped_dimensions") or ()
                 if unmapped_dimensions is None

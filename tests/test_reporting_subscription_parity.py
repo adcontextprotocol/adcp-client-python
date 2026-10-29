@@ -36,7 +36,13 @@ def at(value: str | None) -> datetime | None:
     return None if value is None else datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def windows(versions: list[dict[str, Any]]) -> list[SubscriptionVersionWindow]:
+def windows(
+    versions: list[dict[str, Any]], readback_intervals: list[dict[str, Any]] = ()
+) -> list[SubscriptionVersionWindow]:
+    # The readback's inactive_intervals (adcp#8585) apply to every version.
+    shared = [
+        (at(item["deactivated_at"]), at(item.get("reactivated_at"))) for item in readback_intervals
+    ]
     result = []
     for index, record in enumerate(versions):
         following = versions[index + 1] if index + 1 < len(versions) else None
@@ -47,6 +53,7 @@ def windows(versions: list[dict[str, Any]]) -> list[SubscriptionVersionWindow]:
             (at(item["from"]), at(item.get("until")))
             for item in record.get("inactive_intervals", ())
         ]
+        inactive.extend(shared)
         if "deactivated_at" in record:
             inactive.append((at(record["deactivated_at"]), None))
         method = record.get("destination_method")
@@ -81,8 +88,6 @@ def offerings(input_: dict[str, Any]) -> list[SubscriptionOffering]:
         result.append(
             SubscriptionOffering.from_offering(
                 wire,
-                dimensions=wire.get("dimensions", ()),
-                unmapped_dimensions=wire.get("unmapped_dimensions", ()),
                 period_timezone=resolved,
                 available_from=at(wire.get("available_from")),
                 withdrawn_at=at(wire.get("withdrawn_at")),
@@ -126,7 +131,7 @@ def buys(input_: dict[str, Any]) -> list[SubscriptionBuy]:
 def run(input_: dict[str, Any]) -> list[tuple]:
     account = input_["account"]
     periods = expected_subscription_periods(
-        subscription=windows(input_["versions"]),
+        subscription=windows(input_["versions"], input_.get("inactive_intervals", [])),
         account_id=account["account_id"],
         buys=buys(input_),
         offerings=offerings(input_),

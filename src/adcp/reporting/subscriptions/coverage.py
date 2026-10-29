@@ -228,7 +228,8 @@ class AccountTimezoneChange:
 
     ``offering_id`` limits it to one offering, as a ``timezone_cutovers[]``
     entry with ``offering_id`` does; ``previous_timezone`` is the zone before
-    the change, which every seller entry carries.
+    the change, which every seller entry carries and the coverage rule
+    requires.
     """
 
     changed_at: datetime
@@ -586,13 +587,22 @@ def _expected_at(
 
 def _timezone_at(
     instant: datetime,
-    initial: str | None,
+    current: str | None,
     changes: Sequence[AccountTimezoneChange],
     offering_id: str,
 ) -> str | None:
-    zone = initial
-    for change in changes:
-        if change.changed_at <= instant and change.offering_id in {None, offering_id}:
+    """The zone an offering's account-timezone periods use at ``instant``.
+
+    Only changes that apply to the offering count. Before the first of them
+    the zone is that change's ``previous_timezone``; with none, it is the
+    account's current zone throughout (adcp#8585).
+    """
+    applicable = [item for item in changes if item.offering_id in {None, offering_id}]
+    if not applicable:
+        return current
+    zone = applicable[0].previous_timezone
+    for change in applicable:
+        if change.changed_at <= instant:
             zone = change.timezone
     return zone
 
@@ -639,9 +649,10 @@ def expected_subscription_periods(
     :param buys: the confirmed buys in the account the caller can see.
         A buy without ``confirmed_at`` is not covered.
     :param offerings: offerings with the seller's dimension mapping.
-    :param account_timezone: the account's timezone before the first timezone
-        change (its current timezone when there are none). Required when an
-        ``account_timezone`` offering resolves without a ``period_timezone``.
+    :param account_timezone: the account's current timezone, as
+        ``list_accounts`` shows it. Before a timezone change the zone is that
+        change's ``previous_timezone``. Required when an ``account_timezone``
+        offering resolves without a ``period_timezone`` and no change applies.
     :param now: periods are owed once resolved, at their end; a period ending
         after ``now`` is returned only with ``include_unresolved``.
     :param authorizations: the account's grant history. Empty means the seller
@@ -685,15 +696,17 @@ def expected_subscription_periods(
                 )
             )
     changes.sort(key=lambda item: item.changed_at)
-    if account_timezone is None and changes and changes[0].previous_timezone is not None:
-        # The zone in effect before the first cutover, as the seller reports it.
-        account_timezone = changes[0].previous_timezone
     if account_timezone is not None:
         require_zone(account_timezone, field="account_timezone")
     for change in changes:
         require_zone(change.timezone, field="timezone_cutovers.timezone")
-    if changes and account_timezone is None:
-        raise ValueError("account_timezone is required with timezone changes")
+    for change in changes:
+        if change.previous_timezone is None:
+            raise ValueError(
+                "a timezone change needs previous_timezone: the account's current timezone "
+                "already shows the new zone"
+            )
+        require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
     changes.sort(key=lambda item: item.changed_at)
     removals = subscription_exceptions(excluded, gap_entries)
     ids = [item.offering_id for item in offerings]

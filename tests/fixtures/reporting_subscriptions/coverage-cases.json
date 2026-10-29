@@ -1,6 +1,6 @@
 {
- "$source": "adcontextprotocol/adcp-client@0f98ba1c0e17d05887db61153020f8b790045439:test/fixtures/reporting-subscriptions/coverage-cases.json (PR #3505); local fix for scope maxProperties 1 (pending the same fix upstream): account new in a later version v1: dropped all_authorized_accounts; period_timezone override v1: dropped all_authorized_accounts; monthly billing cycle v1: dropped account_ids",
- "$comment": "Cross-SDK parity table for expectedSubscriptionPeriods (AdCP 3.3 media_buy.reporting_subscriptions). Each case gives the input and the exact owed periods (or expected_error). Compare instants, not strings: the TypeScript SDK emits toISOString() form. Expected rows are hand-derived from the spec rule. subscription_id, account_id and report_definition_id are omitted from expected rows; they are input.subscription_id, input.account.account_id and the offering's report_definition_id. Rows are ordered by period_start, subscription_version, offering_id and media_buy_id (byte order).",
+ "$source": "adcontextprotocol/adcp-client@f8b2fddd24bc0912356fdfa30197bfb8c6003fbf:test/fixtures/reporting-subscriptions/coverage-cases.json (PR #3505)",
+ "$comment": "Cross-SDK parity table for expectedSubscriptionPeriods (AdCP 3.3 media_buy.reporting_subscriptions), conforming to adcontextprotocol/adcp#8585. Each case gives the input and the exact owed periods (or expected_error). Compare instants, not strings: the TypeScript SDK emits toISOString() form. Expected rows are hand-derived from the spec rule. subscription_id, account_id and report_definition_id are omitted from expected rows; they are input.subscription_id, input.account.account_id and the offering's report_definition_id. Rows are ordered by period_start, subscription_version, offering_id and media_buy_id (byte order).",
  "cases": [
   {
    "name": "baseline",
@@ -84,7 +84,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -197,7 +197,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -303,7 +303,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -409,7 +409,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -523,7 +523,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -637,7 +637,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -743,7 +743,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -871,7 +871,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -991,7 +991,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1097,7 +1097,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1188,7 +1188,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1319,7 +1319,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1463,7 +1463,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -1495,7 +1495,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1616,7 +1616,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1642,7 +1642,7 @@
   },
   {
    "name": "deactivation then reactivation in place",
-   "rule": "Inactive [11-04T12, 11-06T12): a cutover out at 11-04T12 and a fresh start at the first boundary at or after 11-06T12 (11-07).",
+   "rule": "Readback inactive_intervals [11-04T12, 11-06T12): a cutover out at 11-04T12 and a fresh start at the first boundary at or after 11-06T12 (11-07).",
    "input": {
     "subscription_id": "analytics-daily",
     "versions": [
@@ -1665,13 +1665,7 @@
         ]
        },
        "reconciliation_mode": "delivery_only"
-      },
-      "inactive_intervals": [
-       {
-        "from": "2026-11-04T12:00:00Z",
-        "until": "2026-11-06T12:00:00Z"
-       }
-      ]
+      }
      }
     ],
     "account": {
@@ -1728,12 +1722,18 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
     ],
-    "now": "2026-12-01T00:00:00Z"
+    "now": "2026-12-01T00:00:00Z",
+    "inactive_intervals": [
+     {
+      "deactivated_at": "2026-11-04T12:00:00Z",
+      "reactivated_at": "2026-11-06T12:00:00Z"
+     }
+    ]
    },
    "expected": [
     {
@@ -1872,7 +1872,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -1981,7 +1981,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2076,7 +2076,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2168,7 +2168,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2278,7 +2278,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2396,7 +2396,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2529,7 +2529,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2644,7 +2644,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2773,7 +2773,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -2906,7 +2906,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -3013,7 +3013,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -3134,7 +3134,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -3166,7 +3166,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -3199,7 +3199,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -3232,7 +3232,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -3350,7 +3350,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -3382,7 +3382,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -3415,7 +3415,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -3448,7 +3448,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -3546,7 +3546,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -3578,7 +3578,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -3611,7 +3611,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -3644,7 +3644,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -3764,7 +3764,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -3796,7 +3796,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -3829,7 +3829,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -3862,7 +3862,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -3978,7 +3978,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4010,7 +4010,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -4043,7 +4043,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -4076,7 +4076,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -4196,7 +4196,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4228,7 +4228,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -4261,7 +4261,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -4294,7 +4294,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -4477,7 +4477,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4509,7 +4509,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ]
@@ -4542,7 +4542,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "country"
       ]
@@ -4575,7 +4575,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "unmapped_dimensions": [
@@ -4694,7 +4694,7 @@
        "snapshot"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4726,7 +4726,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4758,7 +4758,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4790,7 +4790,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -4905,7 +4905,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -4937,7 +4937,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package",
        "creative"
       ],
@@ -5059,7 +5059,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -5172,7 +5172,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -5205,7 +5205,7 @@
   },
   {
    "name": "account timezone change is a cutover",
-   "rule": "The account moves to Los Angeles; timezone_cutovers.effective_at 11-05T05Z is E. New York days starting before it are owed, then Los Angeles days from the first boundary at or after it (11-05T08Z). 05Z-08Z is owed under neither.",
+   "rule": "The account moves to Los Angeles (account.timezone is the current zone); timezone_cutovers.effective_at 11-05T05Z is E and previous_timezone New York governs before it. New York days starting before E are owed, then Los Angeles days from the first boundary at or after it (11-05T08Z). 05Z-08Z is owed under neither.",
    "input": {
     "subscription_id": "analytics-daily",
     "versions": [
@@ -5233,7 +5233,7 @@
     ],
     "account": {
      "account_id": "acct_1",
-     "timezone": "America/New_York",
+     "timezone": "America/Los_Angeles",
      "grants": [
       {
        "authorized_at": "2026-10-01T00:00:00Z"
@@ -5285,7 +5285,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -5295,7 +5295,8 @@
      "timezone_cutovers": [
       {
        "effective_at": "2026-11-05T05:00:00Z",
-       "timezone": "America/Los_Angeles"
+       "timezone": "America/Los_Angeles",
+       "previous_timezone": "America/New_York"
       }
      ]
     }
@@ -5424,7 +5425,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -5537,7 +5538,7 @@
        "snapshot"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -5586,7 +5587,9 @@
        "subscription_version": 1,
        "active": true,
        "scope": {
-        "all_authorized_accounts": true
+        "account_ids": [
+         "acct_1"
+        ]
        },
        "selector": {
         "feed_purpose": "billing",
@@ -5660,7 +5663,7 @@
        "official"
       ],
       "reconciliation_mode": "consumer_receipt",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "method": {
@@ -5794,7 +5797,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      },
@@ -5826,7 +5829,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "method": {
@@ -5869,7 +5872,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ],
       "method": {
@@ -6007,7 +6010,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -6074,6 +6077,872 @@
      ]
     }
    ]
+  },
+  {
+   "name": "timezone cutover scoped to one offering",
+   "rule": "A timezone_cutovers entry with offering_id applies to that offering only; an offering with no applicable entry uses account.timezone (Los Angeles) throughout.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "all_authorized_accounts": true
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ],
+        "match": "all"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/Los_Angeles",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T08:00:00Z",
+      "end_time": "2026-11-06T08:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_e_pkg_acct_tz",
+         "off_f_pkg_acct_tz"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_e_pkg_acct_tz",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_e_pkg_acct_tz",
+      "report_definition_uri": "https://seller.example/report-definitions/off_e_pkg_acct_tz.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "account_timezone",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     },
+     {
+      "offering_id": "off_f_pkg_acct_tz",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_f_pkg_acct_tz",
+      "report_definition_uri": "https://seller.example/report-definitions/off_f_pkg_acct_tz.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "account_timezone",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z",
+    "coverage": {
+     "timezone_cutovers": [
+      {
+       "offering_id": "off_e_pkg_acct_tz",
+       "effective_at": "2026-11-05T05:00:00Z",
+       "timezone": "America/Los_Angeles",
+       "previous_timezone": "America/New_York"
+      }
+     ]
+    }
+   },
+   "expected": [
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_e_pkg_acct_tz",
+     "period_start": "2026-11-03T05:00:00Z",
+     "period_end": "2026-11-04T05:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_f_pkg_acct_tz",
+     "period_start": "2026-11-03T08:00:00Z",
+     "period_end": "2026-11-04T08:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_e_pkg_acct_tz",
+     "period_start": "2026-11-04T05:00:00Z",
+     "period_end": "2026-11-05T05:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_f_pkg_acct_tz",
+     "period_start": "2026-11-04T08:00:00Z",
+     "period_end": "2026-11-05T08:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_e_pkg_acct_tz",
+     "period_start": "2026-11-05T08:00:00Z",
+     "period_end": "2026-11-06T08:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_f_pkg_acct_tz",
+     "period_start": "2026-11-05T08:00:00Z",
+     "period_end": "2026-11-06T08:00:00Z"
+    }
+   ]
+  },
+  {
+   "name": "gap scoped to one offering",
+   "rule": "A gaps[] entry with offering_id removes only that offering's periods; an entry without offering_id applies to every offering.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "all_authorized_accounts": true
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ],
+        "match": "all"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_a_pkg",
+         "off_b_pkg_creative"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_a_pkg",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_a_pkg",
+      "report_definition_uri": "https://seller.example/report-definitions/off_a_pkg.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     },
+     {
+      "offering_id": "off_b_pkg_creative",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_b_pkg_creative",
+      "report_definition_uri": "https://seller.example/report-definitions/off_b_pkg_creative.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package",
+       "creative"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z",
+    "coverage": {
+     "gaps": [
+      {
+       "offering_id": "off_a_pkg",
+       "from": "2026-11-04T00:00:00Z",
+       "until": "2026-11-05T00:00:00Z",
+       "reason": "unauthorized"
+      }
+     ]
+    }
+   },
+   "expected": [
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_a_pkg",
+     "period_start": "2026-11-03T00:00:00Z",
+     "period_end": "2026-11-04T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_b_pkg_creative",
+     "period_start": "2026-11-03T00:00:00Z",
+     "period_end": "2026-11-04T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_b_pkg_creative",
+     "period_start": "2026-11-04T00:00:00Z",
+     "period_end": "2026-11-05T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_a_pkg",
+     "period_start": "2026-11-05T00:00:00Z",
+     "period_end": "2026-11-06T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_b_pkg_creative",
+     "period_start": "2026-11-05T00:00:00Z",
+     "period_end": "2026-11-06T00:00:00Z"
+    }
+   ]
+  },
+  {
+   "name": "match exact without dimensions",
+   "rule": "exact with no dimensions: every candidate qualifies and the lowest offering_id in byte order wins.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "all_authorized_accounts": true
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "match": "exact"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_a_pkg",
+         "off_b_pkg_creative",
+         "off_c_pkg_country",
+         "off_d_pkg_device"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_a_pkg",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_a_pkg",
+      "report_definition_uri": "https://seller.example/report-definitions/off_a_pkg.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     },
+     {
+      "offering_id": "off_b_pkg_creative",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_b_pkg_creative",
+      "report_definition_uri": "https://seller.example/report-definitions/off_b_pkg_creative.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package",
+       "creative"
+      ]
+     },
+     {
+      "offering_id": "off_c_pkg_country",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_c_pkg_country",
+      "report_definition_uri": "https://seller.example/report-definitions/off_c_pkg_country.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package",
+       "country"
+      ]
+     },
+     {
+      "offering_id": "off_d_pkg_device",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_d_pkg_device",
+      "report_definition_uri": "https://seller.example/report-definitions/off_d_pkg_device.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ],
+      "unmapped_dimensions": [
+       "device"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z"
+   },
+   "expected": [
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_a_pkg",
+     "period_start": "2026-11-03T00:00:00Z",
+     "period_end": "2026-11-04T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_a_pkg",
+     "period_start": "2026-11-04T00:00:00Z",
+     "period_end": "2026-11-05T00:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_a_pkg",
+     "period_start": "2026-11-05T00:00:00Z",
+     "period_end": "2026-11-06T00:00:00Z"
+    }
+   ]
+  },
+  {
+   "name": "period_timezone never matches an account-resolved source_timezone offering",
+   "rule": "A source_timezone offering matches a period_timezone override only when its published period_timezone equals it; an account_resolved offering publishes none.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "account_ids": [
+         "acct_1"
+        ]
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ],
+        "period_timezone": "America/New_York"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ],
+     "source_timezone": "America/New_York"
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_s_resolved"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_s_resolved",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_s_resolved",
+      "report_definition_uri": "https://seller.example/report-definitions/off_s_resolved.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "source_timezone",
+       "delivery_sla": "PT6H",
+       "period_timezone_policy": "account_resolved"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z"
+   },
+   "expected": []
+  },
+  {
+   "name": "period_timezone matches a fixed source_timezone offering in the same zone",
+   "rule": "A fixed source_timezone offering publishing America/New_York matches a New York override and keeps its own boundaries (05:00Z in November).",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "account_ids": [
+         "acct_1"
+        ]
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ],
+        "period_timezone": "America/New_York"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-05T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_s_fixed"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_s_fixed",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_s_fixed",
+      "report_definition_uri": "https://seller.example/report-definitions/off_s_fixed.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "source_timezone",
+       "delivery_sla": "PT6H",
+       "period_timezone_policy": "fixed",
+       "period_timezone": "America/New_York"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z"
+   },
+   "expected": [
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_s_fixed",
+     "period_start": "2026-11-03T05:00:00Z",
+     "period_end": "2026-11-04T05:00:00Z"
+    },
+    {
+     "subscription_version": 1,
+     "media_buy_id": "mb_1",
+     "offering_id": "off_s_fixed",
+     "period_start": "2026-11-04T05:00:00Z",
+     "period_end": "2026-11-05T05:00:00Z"
+    }
+   ]
+  },
+  {
+   "name": "a utc offering matches only UTC or Etc/UTC",
+   "rule": "period_timezone GMT is not one of the UTC aliases core/reporting-subscription.json names, so the utc offering does not match.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "account_ids": [
+         "acct_1"
+        ]
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ],
+        "period_timezone": "GMT"
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_a_pkg"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_a_pkg",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_a_pkg",
+      "report_definition_uri": "https://seller.example/report-definitions/off_a_pkg.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z"
+   },
+   "expected": []
   },
   {
    "name": "numeric offset timezone is refused",
@@ -6157,7 +7026,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }
@@ -6247,9 +7116,196 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z"
+   },
+   "expected_error": "TypeError"
+  },
+  {
+   "name": "a timezone cutover without previous_timezone is refused",
+   "rule": "Sellers MUST include previous_timezone: account.timezone already shows the new zone, so the old schedule cannot be recovered without it.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "all_authorized_accounts": true
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ]
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_e_pkg_acct_tz"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_e_pkg_acct_tz",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_e_pkg_acct_tz",
+      "report_definition_uri": "https://seller.example/report-definitions/off_e_pkg_acct_tz.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "account_timezone",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only",
+      "standard_dimensions": [
+       "package"
+      ]
+     }
+    ],
+    "now": "2026-12-01T00:00:00Z",
+    "coverage": {
+     "timezone_cutovers": [
+      {
+       "effective_at": "2026-11-05T05:00:00Z",
+       "timezone": "America/Los_Angeles"
+      }
+     ]
+    }
+   },
+   "expected_error": "TypeError"
+  },
+  {
+   "name": "an offering without standard_dimensions cannot be resolved",
+   "rule": "Sellers advertising subscriptions MUST publish standard_dimensions on every offering; matching never guesses.",
+   "input": {
+    "subscription_id": "analytics-daily",
+    "versions": [
+     {
+      "subscription_version": 1,
+      "accepted_at": "2026-11-01T12:00:00Z",
+      "configuration": {
+       "subscription_id": "analytics-daily",
+       "subscription_version": 1,
+       "active": true,
+       "scope": {
+        "all_authorized_accounts": true
+       },
+       "selector": {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "official",
+        "dimensions": [
+         "package"
+        ]
+       },
+       "reconciliation_mode": "delivery_only"
+      }
+     }
+    ],
+    "account": {
+     "account_id": "acct_1",
+     "timezone": "America/New_York",
+     "grants": [
+      {
+       "authorized_at": "2026-10-01T00:00:00Z"
+      }
+     ]
+    },
+    "buys": [
+     {
+      "media_buy_id": "mb_1",
+      "confirmed_at": "2026-11-02T15:00:00Z",
+      "start_time": "2026-11-03T00:00:00Z",
+      "end_time": "2026-11-06T00:00:00Z",
+      "packages": [
+       {
+        "package_id": "pkg_1",
+        "reporting_delivery_offering_ids": [
+         "off_a_pkg"
+        ]
+       }
+      ]
+     }
+    ],
+    "offerings": [
+     {
+      "offering_id": "off_a_pkg",
+      "feed_purpose": "analytics",
+      "report_definition_id": "rd_off_a_pkg",
+      "report_definition_uri": "https://seller.example/report-definitions/off_a_pkg.json",
+      "report_definition_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reporting_profile": {
+       "id": "adcp.delivery.v1",
+       "version": "1.0.0",
+       "schema_uri": "https://seller.example/schemas/delivery.json",
+       "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+       "schema_ref_policy": "local_fragment_only",
+       "grain": "daily",
+       "primary_keys": [
+        "account_id",
+        "package_id"
+       ]
+      },
+      "schedule": {
+       "period_duration": "P1D",
+       "alignment": "utc",
+       "delivery_sla": "PT6H"
+      },
+      "supported_finality": [
+       "official"
+      ],
+      "reconciliation_mode": "delivery_only"
      }
     ],
     "now": "2026-12-01T00:00:00Z"
@@ -6342,7 +7398,7 @@
        "official"
       ],
       "reconciliation_mode": "delivery_only",
-      "dimensions": [
+      "standard_dimensions": [
        "package"
       ]
      }

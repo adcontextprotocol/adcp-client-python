@@ -1222,8 +1222,12 @@ class TestTimezones:
         # The old schedule ends at 05:00Z the next day; the first new-timezone
         # day starts at 08:00Z; 05:00Z..08:00Z is owed under neither.
         result = run(
-            account_timezone="Etc/GMT+5",
-            timezone_changes=[AccountTimezoneChange(at("2026-10-03T12:00:00Z"), "Etc/GMT+8")],
+            account_timezone="Etc/GMT+8",  # the current zone, as list_accounts shows it
+            timezone_changes=[
+                AccountTimezoneChange(
+                    at("2026-10-03T12:00:00Z"), "Etc/GMT+8", previous_timezone="Etc/GMT+5"
+                )
+            ],
             buys=[buy(start_time="2026-10-02T05:00:00Z", end_time="2026-10-05T08:00:00Z")],
         )
         assert [(p.period_start, p.period_end, p.source_timezone) for p in result] == [
@@ -1244,7 +1248,9 @@ class TestTimezones:
             ],
         )
         moved = run(
-            timezone_changes=[AccountTimezoneChange(at("2026-10-03T12:30:00Z"), "Etc/GMT+8")],
+            timezone_changes=[
+                AccountTimezoneChange(at("2026-10-03T12:30:00Z"), "Etc/GMT+8", previous_timezone=NY)
+            ],
             **kwargs,
         )
         assert moved == run(**kwargs)
@@ -1352,9 +1358,10 @@ class TestSettledFields:
                 ],
             }
         )
-        # No account_timezone: the zone before the cutover is previous_timezone.
+        # account_timezone is the current zone; before the cutover the zone is
+        # previous_timezone.
         result = run(
-            account_timezone=None,
+            account_timezone="Etc/GMT+8",
             coverage=coverage,
             buys=[buy(start_time="2026-10-02T05:00:00Z", end_time="2026-10-05T08:00:00Z")],
         )
@@ -1397,7 +1404,10 @@ class TestSettledFields:
             buys=[daily_buy],
             timezone_changes=[
                 AccountTimezoneChange(
-                    at("2026-10-02T04:00:00Z"), "America/Los_Angeles", offering_id="other"
+                    at("2026-10-02T04:00:00Z"),
+                    "America/Los_Angeles",
+                    offering_id="other",
+                    previous_timezone=NY,
                 )
             ],
         )
@@ -1447,3 +1457,26 @@ class TestSettledFields:
         finest = subscription_config(dimensions=["package"], match="finest")
         assert resolved(exact, offerings=[projected], product=("gam-daily",)) == ()
         assert resolved(finest, offerings=[projected], product=("gam-daily",)) == ("gam-daily",)
+
+
+def test_timezone_change_requires_previous_timezone() -> None:
+    with pytest.raises(ValueError, match="previous_timezone"):
+        run(
+            buys=[buy()],
+            timezone_changes=[AccountTimezoneChange(at("2026-10-03T12:00:00Z"), "Etc/GMT+8")],
+        )
+
+
+def test_wire_offering_without_standard_dimensions_is_refused() -> None:
+    wire = {
+        "offering_id": "legacy",
+        "feed_purpose": "analytics",
+        "report_definition_id": "legacy-v1",
+        "reporting_profile": {"id": "delivery"},
+        "schedule": {"period_duration": "P1D", "alignment": "utc", "delivery_sla": "PT6H"},
+        "supported_finality": ["official"],
+        "reconciliation_mode": "delivery_only",
+    }
+    with pytest.raises(ValueError, match="standard_dimensions"):
+        SubscriptionOffering.from_offering(wire)
+    assert SubscriptionOffering.from_offering(wire, dimensions=()).dimensions == frozenset()
