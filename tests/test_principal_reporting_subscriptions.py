@@ -524,6 +524,21 @@ async def test_destination_needing_action_moves_the_subscription_to_action_requi
 
 
 @pytest.mark.asyncio
+async def test_destination_transitions_work_without_a_change_emitter() -> None:
+    principals = PrincipalService(reporting_subscriptions=ReportingSubscriptionOptions())
+    named = subscription(
+        destination={"destination_id": "archive", "path_template": "a/{account_id}"}
+    )
+    await sync(
+        principals, {"reporting_destinations": [DESTINATION], "reporting_subscriptions": [named]}
+    )
+    await principals.transition_destination(IDENTITY, "archive", "action_required")
+    await principals.transition_destination(IDENTITY, "archive", "ready")
+    state = (await principals.get_principal(IDENTITY)).result.configuration
+    assert state.reporting_subscriptions[0].state == "active"
+
+
+@pytest.mark.asyncio
 async def test_seller_status_updates_do_not_bump_the_configuration_version() -> None:
     emitted: list[PrincipalChange] = []
     principals, _clock = service(emitted=emitted)

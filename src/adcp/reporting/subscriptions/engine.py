@@ -487,7 +487,9 @@ class ReportingSubscriptionEngine:
                 result[account_id] = [_Exclusion("overridden", now, overridden_by=overriding)]
                 continue
             result[account_id] = []
-            eligible.append((_chain_start(account), account_id.encode("utf-8"), account_id))
+            eligible.append(
+                (_chain_start(account, self._retention), account_id.encode("utf-8"), account_id)
+            )
         limit = self._support.max_accounts
         if limit is not None:
             for _start, _key, account_id in sorted(eligible)[limit:]:
@@ -897,12 +899,20 @@ class ReportingSubscriptionEngine:
 # -- helpers -------------------------------------------------------------------
 
 
-def _chain_start(account: _Account) -> datetime:
-    return (
-        account.grants[0].authorized_at
-        if account.grants
-        else datetime.min.replace(tzinfo=timezone.utc)
-    )
+def _chain_start(account: _Account, retention: timedelta) -> datetime:
+    """The first ``authorized_at`` of the account's current grant chain.
+
+    A re-grant at or after ``unauthorized_at + status_retention_days`` is a
+    fresh coverage start, as in the coverage rule, so it starts a new chain.
+    """
+    if not account.grants:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    start = account.grants[0].authorized_at
+    for earlier, later in zip(account.grants, account.grants[1:]):
+        lost = earlier.unauthorized_at
+        if lost is not None and later.authorized_at - lost >= retention:
+            start = later.authorized_at
+    return start
 
 
 def _operator_selected(configuration: Mapping[str, Any], account: _Account) -> bool:
