@@ -10,9 +10,10 @@ Two equivalent entry points — pick whichever fits your calling context:
   ergonomic.
 
 Both paths produce the same PEM and JWK. Publish the JWK (public half)
-at your agent's ``jwks_uri`` — the ``adcp_use`` claim (``request-signing``
-or ``webhook-signing``) pins the key to one signing profile; verifiers
-reject keys used in the wrong surface.
+at your agent's ``jwks_uri`` — the ``adcp_use`` claim pins the key to one
+signing purpose (``request-signing``, ``response-signing``,
+``governance-signing``, the deprecated ``webhook-signing``, or any other
+lowercase hyphenated token); verifiers reject keys used in the wrong surface.
 
 Usage (CLI):
     adcp-keygen --alg ed25519 --out private-key.pem
@@ -43,6 +44,7 @@ import argparse
 import getpass
 import json
 import os
+import re
 import secrets
 import sys
 import unicodedata
@@ -54,6 +56,12 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from joserfc.jwk import ECKey, OKPKey
 
+from adcp.signing.constants import (
+    ADCP_USE_GOVERNANCE,
+    ADCP_USE_REQUEST,
+    ADCP_USE_RESPONSE,
+    ADCP_USE_WEBHOOK,
+)
 from adcp.signing.crypto import ALG_ED25519, ALG_ES256, load_private_key_pem
 
 # Key generation, PKCS#8 PEM export and RFC 7517 / 8037 public JWK export are
@@ -61,7 +69,11 @@ from adcp.signing.crypto import ALG_ED25519, ALG_ES256, load_private_key_pem
 # the JWS ``alg`` each curve is published under, and the AdCP-specific JWK
 # members (``use``, ``key_ops``, ``adcp_use``, ``kid``).
 
-_ADCP_USE_VALUES = ("request-signing", "webhook-signing")
+#: Purposes the spec names today, for help text. The accepted vocabulary is
+#: open: any token matching ``_ADCP_USE_PATTERN`` is a valid ``adcp_use``.
+_KNOWN_ADCP_USES = (ADCP_USE_REQUEST, ADCP_USE_RESPONSE, ADCP_USE_GOVERNANCE, ADCP_USE_WEBHOOK)
+_ADCP_USE_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+_ADCP_USE_MAX_LENGTH = 64
 
 # JWS ``alg`` (RFC 7518 / RFC 8037) published for each AdCP-allowed curve. Not
 # the RFC 9421 ``alg`` used in ``Signature-Input``.
@@ -86,6 +98,25 @@ def _adcp_public_jwk(key: OKPKey | ECKey, *, kid: str, adcp_use: str) -> dict[st
         "kid": kid,
         **public,
     }
+
+
+def _check_purpose(purpose: object) -> str:
+    """``purpose`` if it is a lowercase hyphenated token, else ``ValueError``.
+
+    Validation is syntactic, not by membership: an AdCP verifier accepts a
+    key only when ``adcp_use`` equals the purpose of the surface it verifies
+    (fail-closed), so a purpose no verifier implements authorizes nothing.
+    """
+    if (
+        not isinstance(purpose, str)
+        or len(purpose) > _ADCP_USE_MAX_LENGTH
+        or _ADCP_USE_PATTERN.fullmatch(purpose) is None
+    ):
+        raise ValueError(
+            "purpose must be a lowercase hyphenated token of at most "
+            f"{_ADCP_USE_MAX_LENGTH} characters (e.g. {ADCP_USE_REQUEST!r}), got {purpose!r}"
+        )
+    return purpose
 
 
 def _private_pem(key: OKPKey | ECKey, passphrase: bytes | None) -> bytes:
@@ -114,7 +145,7 @@ def pem_to_adcp_jwk(
     pem: bytes,
     *,
     kid: str,
-    purpose: Literal["request-signing", "webhook-signing"],
+    purpose: str,
     password: bytes | None = None,
 ) -> dict[str, Any]:
     """Derive the public JWK for an existing AdCP signing PEM.
@@ -134,8 +165,8 @@ def pem_to_adcp_jwk(
     * ``alg`` — MUST be ``"EdDSA"`` for Ed25519, ``"ES256"`` for P-256
       (NOT the RFC 9421 ``alg`` casing used in ``Signature-Input``).
     * ``adcp_use`` — required by AdCP #2423; verifiers reject keys
-      lacking it. MUST match the signing surface (``"request-signing"``
-      vs. ``"webhook-signing"``).
+      lacking it. MUST match the signing surface (``"request-signing"``,
+      ``"response-signing"``, ``"governance-signing"``, ...).
     * ``key_ops`` — MUST be ``["verify"]`` (the public half cannot
       sign).
 
@@ -146,22 +177,20 @@ def pem_to_adcp_jwk(
         the loader handles both forms.
     :param kid: JWK ``kid`` to embed. MUST match the value the signer
         will advertise via :meth:`SigningProvider.key_id`.
-    :param purpose: Which AdCP signing profile this key is for. Sets
-        ``adcp_use``. Generate distinct keys per purpose — sharing
-        material across request-signing and webhook-signing is a spec
-        violation, not just a convention.
+    :param purpose: Which AdCP signing purpose this key is for. Sets
+        ``adcp_use``. Any lowercase hyphenated token is accepted; see
+        :func:`generate_signing_keypair` for the vocabulary and why an
+        open one is safe. Generate distinct keys per purpose.
     :param password: Passphrase if ``pem`` is an encrypted private
         key.
 
     :returns: Public JWK ready to publish in the agent's ``jwks_uri``.
         The private scalar (``d``) is NEVER included in the output.
 
-    :raises ValueError: ``purpose`` is not in
-        ``("request-signing", "webhook-signing")``; the PEM is not
-        Ed25519 or ECDSA-P-256; the EC curve is not P-256.
+    :raises ValueError: ``purpose`` is not a lowercase hyphenated token;
+        the PEM is not Ed25519 or ECDSA-P-256; the EC curve is not P-256.
     """
-    if purpose not in _ADCP_USE_VALUES:
-        raise ValueError(f"purpose must be one of {_ADCP_USE_VALUES}, got {purpose!r}")
+    purpose = _check_purpose(purpose)
     if not kid:
         raise ValueError("kid must be a non-empty string")
 
@@ -215,7 +244,7 @@ def generate_signing_keypair(
     *,
     alg: Literal["ed25519", "es256"] = "ed25519",
     kid: str | None = None,
-    purpose: Literal["request-signing", "webhook-signing"] = "request-signing",
+    purpose: str = ADCP_USE_REQUEST,
     passphrase: bytes | None = None,
 ) -> tuple[bytes, dict[str, Any]]:
     """Generate an AdCP signing keypair.
@@ -234,11 +263,20 @@ def generate_signing_keypair(
         collision-resistant within a single process but does not
         guarantee uniqueness across processes; rotation tooling needs
         its own identifier scheme to track retirement / revocation.
-    :param purpose: Which AdCP signing profile this key is for. Sets the
-        JWK ``adcp_use`` claim. **Request-signing and webhook-signing
-        keys MUST be distinct** — a signature from one surface cannot
-        replay as the other, and every conformant verifier enforces the
-        claim. Generate separate keys per purpose.
+    :param purpose: Which AdCP signing purpose this key is for. Sets the
+        JWK ``adcp_use`` claim. The spec names ``"request-signing"`` (RFC
+        9421 requests, and webhooks from new signers),
+        ``"response-signing"`` (designated-task response JWS),
+        ``"governance-signing"`` and the deprecated ``"webhook-signing"``;
+        the constants are in :mod:`adcp.signing.constants`
+        (``ADCP_USE_REQUEST``, ...). Any other lowercase hyphenated token
+        is accepted for a surface the vocabulary does not name yet.
+        An open vocabulary is safe because purpose matching is
+        fail-closed: a verifier accepts a key only when ``adcp_use``
+        equals the purpose of the surface it verifies (webhook verifiers
+        accept ``request-signing`` or ``webhook-signing``), so a key
+        published under any other purpose verifies nothing there.
+        Generate separate keys per purpose.
     :param passphrase: When provided, the PEM is encrypted with
         ``BestAvailableEncryption``. Typical only for dev-laptop keys;
         automated deployments usually leave the PEM unencrypted and
@@ -256,7 +294,8 @@ def generate_signing_keypair(
         publish at your ``jwks_uri``. The private scalar is NOT in the
         JWK — only in the PEM.
 
-    :raises ValueError: ``alg`` or ``purpose`` is unsupported.
+    :raises ValueError: ``alg`` is unsupported, or ``purpose`` is not a
+        lowercase hyphenated token.
 
     Example:
         >>> pem, jwk = generate_signing_keypair(
@@ -267,8 +306,7 @@ def generate_signing_keypair(
     """
     if alg not in ("ed25519", "es256"):
         raise ValueError(f"alg must be 'ed25519' or 'es256', got {alg!r}")
-    if purpose not in _ADCP_USE_VALUES:
-        raise ValueError(f"purpose must be one of {_ADCP_USE_VALUES}, got {purpose!r}")
+    purpose = _check_purpose(purpose)
     resolved_kid = kid or _default_kid(alg)
     if alg == "ed25519":
         return generate_ed25519(resolved_kid, passphrase=passphrase, adcp_use=purpose)
@@ -291,10 +329,17 @@ def _prompt_passphrase_bytes() -> bytes:
     return unicodedata.normalize("NFC", first).encode("utf-8")
 
 
+def _purpose_arg(value: str) -> str:
+    try:
+        return _check_purpose(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="adcp-keygen",
-        description="Generate a signing keypair for the AdCP request-signing profile.",
+        description="Generate an AdCP signing keypair (PEM private key + public JWK).",
     )
     parser.add_argument(
         "--alg",
@@ -328,13 +373,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--purpose",
-        choices=list(_ADCP_USE_VALUES),
-        default="request-signing",
+        type=_purpose_arg,
+        default=ADCP_USE_REQUEST,
+        metavar="PURPOSE",
         help=(
-            "Which AdCP signing profile this key is for (sets the JWK `adcp_use` "
-            "claim). `request-signing` for outbound tool calls; `webhook-signing` "
-            "for keys a sender uses to sign outbound webhooks to buyers. Verifiers "
-            "enforce the claim, so mixing the two silently fails at first delivery."
+            "Which AdCP signing purpose this key is for (sets the JWK `adcp_use` "
+            f"claim): {', '.join(_KNOWN_ADCP_USES)}, or another lowercase "
+            "hyphenated token. `request-signing` (default) signs outbound tool "
+            "calls and, for new signers, webhooks; `response-signing` signs "
+            "designated-task response envelopes; `webhook-signing` is deprecated. "
+            "Verifiers enforce the claim, so a key under the wrong purpose fails "
+            "at first use."
         ),
     )
     args = parser.parse_args(argv)
