@@ -386,6 +386,27 @@ async def test_revocation_and_regrant_without_backfill() -> None:
 
 
 @pytest.mark.asyncio
+async def test_withheld_count_uses_the_delivery_hook_when_present() -> None:
+    world = World()
+    delivered: set[str] = {"2026-10-01T04:00:00Z"}
+
+    async def is_period_delivered(principal, account_id, period, *, by):
+        assert by == at("2026-10-04T08:00:00Z")
+        return period.period_start in delivered
+
+    world.host.is_period_delivered = is_period_delivered  # type: ignore[attr-defined]
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-12T04:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-04T08:00:00Z")
+    await world.reconcile("2026-10-04T08:00:00Z")
+    # Oct 2 and Oct 3 ended before the loss and were not delivered.
+    entry = (await world.state("analytics")).accounts_unauthorized[0]
+    assert entry.withheld_period_count == 2
+
+
+@pytest.mark.asyncio
 async def test_revocation_and_regrant_with_backfill() -> None:
     world = World(support=ReportingSubscriptionSupport(backfill_on_regrant=True))
     world.grant("acct-1", "2026-09-01T00:00:00Z")

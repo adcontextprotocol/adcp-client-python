@@ -117,6 +117,25 @@ class ReportingSubscriptionHost(Protocol):
     ) -> Sequence[SubscriptionBuy]: ...
 
 
+class ReportingSubscriptionDeliveryHost(Protocol):
+    """Optional: delivery facts, for an exact ``withheld_period_count``.
+
+    Without it the engine counts the owed periods not yet due
+    (``period_end + delivery_sla``) when authority ended, as the TypeScript SDK
+    does. With it, a period is withheld when it ended at or before
+    ``unauthorized_at`` and was not delivered by then.
+    """
+
+    async def is_period_delivered(
+        self,
+        principal: PrincipalIdentity,
+        account_id: str,
+        period: ExpectedSubscriptionPeriod,
+        *,
+        by: datetime,
+    ) -> bool: ...
+
+
 class ReportingSubscriptionPrecedenceHost(Protocol):
     """Optional: the caller's own account-level configurations, for precedence."""
 
@@ -442,6 +461,18 @@ class ReportingSubscriptionEngine:
                         ),
                     )
                 )
+        delivered = getattr(self._host, "is_period_delivered", None)
+        for _subscription_id, _with_exceptions, unauthorized in updates:
+            for lost_entry in unauthorized:
+                ended = lost_entry.pop("_ended")
+                if delivered is None:
+                    continue
+                lost = datetime.fromisoformat(lost_entry["unauthorized_at"].replace("Z", "+00:00"))
+                count = 0
+                for period in ended:
+                    if not await delivered(identity, lost_entry["account_id"], period, by=lost):
+                        count += 1
+                lost_entry["withheld_period_count"] = count
         for subscription_id, with_exceptions, unauthorized in updates:
             await self._principals.update_subscription_status(
                 identity,
@@ -683,6 +714,12 @@ class ReportingSubscriptionEngine:
                 "account_id": account_id,
                 "unauthorized_at": iso_z(lost),
                 "withheld_period_count": sum(1 for item in owed if item.withheld),
+                # Owed periods that ended by the loss, for a delivery hook.
+                "_ended": [
+                    item
+                    for item in owed
+                    if datetime.fromisoformat(item.period_end.replace("Z", "+00:00")) <= lost
+                ],
             }
             if schedules:
                 entry["last_owed_period_end"] = iso_z(
@@ -980,6 +1017,7 @@ __all__ = [
     "AuthorizedAccount",
     "AuthorizedAccountPage",
     "InMemoryReportingSubscriptionStore",
+    "ReportingSubscriptionDeliveryHost",
     "ReportingSubscriptionEngine",
     "ReportingSubscriptionHost",
     "ReportingSubscriptionPrecedenceHost",
