@@ -630,10 +630,20 @@ def _log_advertised_tools(
 #: buyer enforces is worse than no warning.
 BUYER_RESPONSE_BYTE_BUDGET: int = 4 * 1024 * 1024
 
+#: The default JSON member bound an SDK 10 buyer applies to one agent
+#: response after the byte budget (``adcp._json_bounds.MAX_JSON_MEMBERS``
+#: there: the 4 MiB budget at eight bytes per member; 10.0.0b0 and b1
+#: enforced 100,000). A ``tools/list`` is read through the same bound as a
+#: tool result, and the MCP client lists tools before it calls one, so a
+#: listing over this bound fails *every* tool call, not just discovery
+#: (#1692). This SDK line has no client-side member bound of its own.
+BUYER_RESPONSE_MEMBER_BUDGET: int = 524_288
+
 #: Where to start telling the operator. Half the budget, because the payload
 #: grows with every tool a seller implements and the operator wants to hear
 #: about it while there is still room, not once buyers are already failing.
 _DISCOVERY_PAYLOAD_WARN_BYTES: int = BUYER_RESPONSE_BYTE_BUDGET // 2
+_DISCOVERY_PAYLOAD_WARN_MEMBERS: int = BUYER_RESPONSE_MEMBER_BUDGET // 2
 
 
 def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
@@ -659,6 +669,25 @@ def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
             "and FastMCP will not be able to serialize it either"
         )
         return 0
+
+
+def _discovery_payload_members(tool_defs: Sequence[dict[str, Any]]) -> int:
+    """JSON object members plus array elements in the ``tools/list`` result.
+
+    The quantity the buyer's member bound counts, measured the same way: every
+    key of every object and every element of every array, at every depth.
+    """
+    pending: list[Any] = [{"tools": [_discovery_entry(tool_def) for tool_def in tool_defs]}]
+    members = 0
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict):
+            members += len(node)
+            pending.extend(node.values())
+        elif isinstance(node, list):
+            members += len(node)
+            pending.extend(node)
+    return members
 
 
 def _discovery_entry(tool_def: dict[str, Any]) -> dict[str, Any]:
@@ -695,40 +724,44 @@ def warn_if_discovery_payload_is_oversized(
     Returns the measured size so callers can log or assert on it.
     """
     size = _discovery_payload_bytes(tool_defs)
+    members = _discovery_payload_members(tool_defs)
     logger.info(
-        "mcp server tools/list payload: %d bytes across %d tools",
+        "mcp server tools/list payload: %d bytes and %d JSON members across %d tools",
         size,
+        members,
         len(tool_defs),
     )
-    if size <= _DISCOVERY_PAYLOAD_WARN_BYTES:
+    if size <= _DISCOVERY_PAYLOAD_WARN_BYTES and members <= _DISCOVERY_PAYLOAD_WARN_MEMBERS:
         return size
 
-    over_budget = size > BUYER_RESPONSE_BYTE_BUDGET
+    over_budget = size > BUYER_RESPONSE_BYTE_BUDGET or members > BUYER_RESPONSE_MEMBER_BUDGET
+    bounds = f"{BUYER_RESPONSE_BYTE_BUDGET} bytes, {BUYER_RESPONSE_MEMBER_BUDGET} JSON members"
     verdict = (
-        "Buyers applying the AdCP default response budget "
-        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes) will REJECT this tools/list, so "
-        "the agent will look unreachable rather than verbose."
+        f"Buyers applying the AdCP default response bounds ({bounds}) will "
+        "REJECT this tools/list, so the agent will look unreachable rather "
+        "than verbose."
         if over_budget
-        else "That is over half the AdCP default buyer response budget "
-        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes); the next few tools may not fit."
+        else f"That is over half the AdCP default buyer response bounds ({bounds}); "
+        "the next few tools may not fit."
     )
     advice = (
         "Advertise only the tools this agent serves (declare "
         "``advertised_tools`` and drop advertise_all=True)"
         if advertise_all
-        else "Advertise only the tools this agent serves (declare " "``advertised_tools``)"
+        else "Advertise only the tools this agent serves (declare ``advertised_tools``)"
     )
     # A UserWarning alone is not enough: PYTHONWARNINGS=ignore and a
     # simplefilter in app bootstrap are both common, and this failure is
     # undiagnosable from the seller side. Put it on the log channel too.
     (logger.error if over_budget else logger.warning)(
-        "mcp server tools/list is %d bytes across %d tools. %s",
+        "mcp server tools/list is %d bytes and %d JSON members across %d tools. %s",
         size,
+        members,
         len(tool_defs),
         verdict,
     )
     warnings.warn(
-        f"mcp server tools/list is {size} bytes across "
+        f"mcp server tools/list is {size} bytes and {members} JSON members across "
         f"{len(tool_defs)} tools. {verdict}\n\n"
         f"{advice}, and keep schema_mode at its default 'compact' — "
         "'inline' expands every shared subtree once per reference and is "

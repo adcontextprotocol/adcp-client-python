@@ -24,13 +24,17 @@ from adcp.validation.schema_validator import validate_request
 
 PINS = ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-beta.6")
 
-# Canonical JSON digests captured from unchanged e9a1c8fc before adding
-# the materialization cache. These are transformed public schemas,
-# not a claim of byte identity with the signed upstream schema files.
+# Canonical JSON digests of the compact public definitions a pinned handler
+# advertises (``schema_mode="compact"`` compacts the bundled wire schema since
+# #1692; the digests before that were of the exact schema). These are
+# transformed public schemas, not a claim of byte identity with the signed
+# upstream schema files. Recompute with
+# ``hashlib.sha256(canonical(public_definitions(version))).hexdigest()`` when
+# the compaction rules change deliberately.
 EXPECTED_PUBLIC_SHA256 = {
-    "3.2.0-rc.3": "6656874ca37ea0732e65a5f0313c8ead7b56ed12460bdbae297c4c648fa26f14",
-    "3.2.0-rc.6": "d712168e85932dfabad8a76b49a24aa6411dc11748832d18dd0ae00ad7106b3e",
-    "3.2.0-beta.6": "e9a10b9f1ee5654a51219c91329089f591c953b972e57a913450a1b9acdb810c",
+    "3.2.0-rc.3": "38078a94e57b1a6c6ed7b07ff5b240f88fa666ddd420aee34735b2e68799e236",
+    "3.2.0-rc.6": "14a611b33e5641fc37a784fc9efd122cbdafbcc98497df93af13802f3681988e",
+    "3.2.0-beta.6": "df13e396034d18c8c851d8fe77356da8fe587ec4dc5b3b120026af9a02f48f82",
 }
 
 

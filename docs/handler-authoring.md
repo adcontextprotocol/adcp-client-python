@@ -82,6 +82,29 @@ budget.
 ``schema_mode="defs"`` is also available when a client resolves references
 and needs the complete, unpruned Pydantic schema graph.
 
+**Pinned servers.** A server with an ``adcp_version`` pin advertises the bundled wire schemas of that release rather than the Pydantic
+graph. ``schema_mode`` applies there too: ``"compact"`` keeps every root field
+with its description and rules, every required nested field, every scalar
+with its constraints, and re-admits each dropped optional nested field as
+``true``, while dropping nested cross-field rules (``if``/``then``/``else``,
+``not``), nested ``x-`` metadata and definition descriptions; ``"defs"`` and
+``"inline"`` keep the exact bundled schema, complete ``$defs`` included. The
+exact schema is large — a single ``get_products`` response resolves about 280
+definitions — and MCP cannot share definitions between tools, so an
+eleven-tool seller advertising it listed 106,250 JSON members against a buyer
+member bound of 100,000 and could not be called at all (#1692). Compact, the
+same seller lists about 17,000.
+
+Buyers bound a response's JSON members (object keys plus array elements) as
+well as its bytes, and the MCP client lists tools before every call, so a
+listing over either bound fails every tool call. The startup line reports
+both figures and warns past half of either bound:
+
+```
+mcp server tools/list payload: 466730 bytes and 17181 JSON members across 11 tools
+```
+
+
 **Keeping discovery small.** The two levers are the number of tools you
 advertise (declare ``advertised_tools``; avoid ``advertise_all=True`` unless
 you mean it) and the schema mode. Both are visible in the startup line:
