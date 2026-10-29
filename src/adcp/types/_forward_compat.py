@@ -535,5 +535,10 @@ def _apply_forward_compat() -> None:
     )
     BundledCapabilitiesPortfolio.model_rebuild(force=True)
 
+    # Reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585).
+    from adcp.types._reporting_subscription_preview import apply_reporting_subscription_preview
+
+    apply_reporting_subscription_preview()
+
 
 _apply_forward_compat()

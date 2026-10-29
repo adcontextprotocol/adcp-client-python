@@ -161,6 +161,7 @@ _LAZY_SUBMODULES = frozenset(
         "service",
         "service_production",
         "source",
+        "subscriptions",
         "testing",
     }
 )
