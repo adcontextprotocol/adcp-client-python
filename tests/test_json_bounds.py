@@ -20,8 +20,11 @@ import pytest
 
 from adcp import ADCPClient, ValidationHookConfig
 from adcp._json_bounds import (
+    DEFAULT_MAX_INBOUND_BODY_BYTES,
+    MAX_INBOUND_JSON_MEMBERS,
     MAX_JSON_DEPTH,
     MAX_JSON_MEMBERS,
+    MIN_REALISTIC_BYTES_PER_MEMBER,
     JsonBoundsError,
     JsonBoundsScanner,
     SseJsonBoundsScanner,
@@ -58,9 +61,21 @@ def _scan(data: bytes, **bounds: int) -> JsonBoundsScanner:
 # ---------------------------------------------------------------------------
 
 
-def test_spec_values():
+def test_bound_values():
+    """The depth bound is the spec's; the member bounds are sized to their byte budgets.
+
+    An inbound body (1 MiB webhook cap) keeps the spec's 100,000. A response
+    (4 MiB budget) gets the budget at eight bytes per member, the floor for
+    keyed JSON, so any keyed document inside the byte budget is inside the
+    member bound too; see ``adcp._json_bounds`` for the derivation (#1692).
+    """
     assert MAX_JSON_DEPTH == 64
-    assert MAX_JSON_MEMBERS == 100_000
+    assert MIN_REALISTIC_BYTES_PER_MEMBER == 8
+    assert MAX_JSON_MEMBERS == DEFAULT_MAX_INBOUND_BODY_BYTES // MIN_REALISTIC_BYTES_PER_MEMBER
+    assert MAX_JSON_MEMBERS == 524_288
+    assert MAX_INBOUND_JSON_MEMBERS == 100_000
+    # Still a real bound: the densest JSON the byte budget admits is refused.
+    assert MAX_JSON_MEMBERS < DEFAULT_MAX_INBOUND_BODY_BYTES // 2
 
 
 def test_depth_64_passes_and_65_is_rejected():
@@ -80,11 +95,18 @@ def test_object_nesting_counts_the_same_as_arrays():
     check_json_bounds(b'{"a":' * 64 + b"1" + b"}" * 64)
 
 
-def test_members_100000_pass_and_100001_are_rejected():
-    check_json_bounds(_wide(100_000))
+def test_members_at_the_bound_pass_and_one_more_is_rejected():
+    check_json_bounds(_wide(MAX_JSON_MEMBERS))
     with pytest.raises(JsonBoundsError) as caught:
-        check_json_bounds(_wide(100_001))
+        check_json_bounds(_wide(MAX_JSON_MEMBERS + 1))
     assert caught.value.kind == "members"
+    assert caught.value.observed == MAX_JSON_MEMBERS + 1
+
+
+def test_inbound_bound_is_the_spec_figure():
+    check_json_bounds(_wide(100_000), max_members=MAX_INBOUND_JSON_MEMBERS)
+    with pytest.raises(JsonBoundsError) as caught:
+        check_json_bounds(_wide(100_001), max_members=MAX_INBOUND_JSON_MEMBERS)
     assert caught.value.observed == 100_001
 
 
@@ -93,8 +115,9 @@ def test_members_are_aggregated_across_containers():
     # hold them: 100,002 members, though no container is near the bound.
     doc = json.dumps([{"k": 0} for _ in range(50_001)]).encode()
     with pytest.raises(JsonBoundsError) as caught:
-        check_json_bounds(doc)
+        check_json_bounds(doc, max_members=100_000)
     assert caught.value.kind == "members"
+    assert caught.value.observed == 100_001
 
 
 def test_object_members_count_once_not_per_key_and_value():
@@ -344,7 +367,7 @@ async def test_deep_json_response_is_rejected_typed():
 
 async def test_wide_json_response_is_rejected_while_streaming():
     reads: list[int] = []
-    body = _wide(400_000)
+    body = _wide(3 * MAX_JSON_MEMBERS)
 
     def handler(request):
         async def stream():
@@ -359,7 +382,7 @@ async def test_wide_json_response_is_rejected_while_streaming():
         await client.post("https://agent.example/mcp")
 
     assert caught.value.bound == "members"
-    # Aborted near member 100,001 (~200 KB in), not after the whole 800 KB body.
+    # Aborted near member 524,289 (~1 MiB in), not after the whole 3 MiB body.
     assert len(reads) * 4096 < len(body) // 2
 
 
@@ -457,7 +480,7 @@ def test_text_fallback_is_bounded_before_json_loads():
 
 
 def test_text_fallback_error_path_is_bounded_too():
-    text = json.dumps({"adcp_error": {"code": "X"}, "pad": list(range(100_001))})
+    text = json.dumps({"adcp_error": {"code": "X"}, "pad": list(range(MAX_JSON_MEMBERS + 1))})
     with pytest.raises(ADCPResponseTooComplexError) as caught:
         extract_adcp_error(_text_result(text, is_error=True))
     assert caught.value.bound == "members"

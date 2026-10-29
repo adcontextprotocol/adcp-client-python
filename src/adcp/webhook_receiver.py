@@ -86,8 +86,8 @@ from pydantic import ValidationError
 
 from adcp._json_bounds import (
     DEFAULT_MAX_INBOUND_BODY_BYTES,
+    MAX_INBOUND_JSON_MEMBERS,
     MAX_JSON_DEPTH,
-    MAX_JSON_MEMBERS,
     JsonBoundsError,
     check_json_bounds,
 )
@@ -277,7 +277,7 @@ def _check_inbound_headers(headers: Mapping[str, str], *, max_bytes: int) -> Non
 
 def _check_body_structure(body: bytes) -> None:
     try:
-        check_json_bounds(body, max_depth=MAX_JSON_DEPTH, max_members=MAX_JSON_MEMBERS)
+        check_json_bounds(body, max_depth=MAX_JSON_DEPTH, max_members=MAX_INBOUND_JSON_MEMBERS)
     except JsonBoundsError as exc:
         raise InboundBodyRejectedError("body_too_complex", str(exc)) from None
 
