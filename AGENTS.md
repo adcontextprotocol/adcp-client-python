@@ -15,6 +15,8 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `sync_principal` | protocol | SyncPrincipalRequest | Synchronize authenticated principal configuration |
 | `get_products` | media_buy | GetProductsRequest | Return ad products matching a brief |
 | `list_products` | media_buy | ListProductsRequest | List products with the compact lifecycle |
+| `list_collections` | media_buy | ListCollectionsRequest | List collection cards (AdCP 3.3, experimental) |
+| `list_proposals` | media_buy | ListProposalsRequest | List open opportunities and proposals (AdCP 3.3, experimental) |
 | `request_proposals` | media_buy | RequestProposalsRequest | Request seller proposals |
 | `refine_proposals` | media_buy | RefineProposalsRequest | Refine seller proposals |
 | `decline_proposals` | media_buy | DeclineProposalsRequest | Decline seller proposals |
@@ -26,6 +28,8 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `update_media_buy` | media_buy | UpdateMediaBuyRequest | Update an existing media buy |
 | `get_media_buys` | media_buy | GetMediaBuysRequest | List media buys |
 | `get_media_buy_delivery` | media_buy | GetMediaBuyDeliveryRequest | Get delivery metrics |
+| `report_media_buy_issue` | media_buy | ReportMediaBuyIssueRequest | Report an urgent issue on a media buy (AdCP 3.3) |
+| `get_media_buy_issue` | media_buy | GetMediaBuyIssueRequest | Read an issue's acknowledgement and resolution (AdCP 3.3) |
 | `get_reporting_status` | media_buy | GetReportingStatusRequest | Read reporting delivery and reconciliation status |
 | `sync_reporting_receipts` | media_buy | SyncReportingReceiptsRequest | Submit reporting reconciliation receipts |
 | `provide_performance_feedback` | media_buy | ProvidePerformanceFeedbackRequest | Send conversion data |
@@ -39,6 +43,7 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `activate_signal` | signals | ActivateSignalRequest | Activate a signal |
 | `list_account_changes` | media_buy | ListAccountChangesRequest | Read the durable account change feed |
 | `list_accounts` | media_buy | ListAccountsRequest | List advertiser accounts |
+| `request_account` | media_buy | RequestAccountRequest | Request, match or change an advertiser account (AdCP 3.3, experimental) |
 | `sync_accounts` | media_buy | SyncAccountsRequest | Sync account data |
 | `get_account_financials` | media_buy | GetAccountFinancialsRequest | Get financial details |
 | `report_usage` | media_buy | ReportUsageRequest | Report usage metrics |
