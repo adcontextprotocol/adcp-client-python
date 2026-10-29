@@ -192,6 +192,13 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.0...v9.3.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **server:** compact a pinned seller's tools/list so an SDK 10 buyer can call it ([#1702](https://github.com/adcontextprotocol/adcp-client-python/issues/1702)) ([cc11643](https://github.com/adcontextprotocol/adcp-client-python/commit/cc11643352a078b977449f44dcd2d5687ad29bf6)), closes [#1692](https://github.com/adcontextprotocol/adcp-client-python/issues/1692)
+
 ## [9.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.2.0...v9.3.0) (2026-10-27)
 
 
