@@ -46,8 +46,9 @@ _REQUEST_VERSION_RESIDUE = frozenset({"creative/validate-input-request.json"})
 # their submitted arm is a bare ``$ref`` to ``core/compact-task-submitted.json``, so moving
 # the stubs into a root ``allOf`` would delete the field from that arm rather than relocate
 # it (see ``_has_bare_ref_root_arm``). Normalizing them would not have changed this residue
-# anyway -- the submitted arm gains no ancestry either way, so the all-arms answer is 70/79
-# (3.3 adds the two open-opportunity responses to the residue).
+# anyway -- the submitted arm gains no ancestry either way, so the all-arms answer is 71/82
+# (3.3 adds the two open-opportunity responses to the residue, and 3.3.0-beta.1 the two
+# media-buy issue responses, which declare no envelope at all).
 # with or without. Upstream: adcp#7892 plus the commitment / compact-task-submitted
 # components, which is upstream ask four.
 _RESPONSE_VERSION_RESIDUE = frozenset(
@@ -56,15 +57,17 @@ _RESPONSE_VERSION_RESIDUE = frozenset(
         "media-buy/buy-products-response.json",
         "media-buy/control-media-buy-response.json",
         "media-buy/decline-proposals-response.json",
+        "media-buy/get-media-buy-issue-response.json",
         "media-buy/list-collections-response.json",
         "media-buy/list-products-response.json",
         "media-buy/list-proposals-response.json",
         "media-buy/refine-proposals-response.json",
+        "media-buy/report-media-buy-issue-response.json",
         "media-buy/request-proposals-response.json",
     }
 )
 
-# These twelve declare NO protocol-envelope fields of their own, against the envelope's own
+# These fourteen declare NO protocol-envelope fields of their own, against the envelope's own
 # "The ``status`` field is REQUIRED on every task response envelope". There is nothing
 # equivalent to lift, so unlike the version envelope this one cannot be normalized by
 # equivalence: composing it would change what validates. Upstream's to fix.
@@ -77,10 +80,12 @@ _RESPONSE_PROTOCOL_RESIDUE = frozenset(
         "media-buy/buy-products-response.json",
         "media-buy/control-media-buy-response.json",
         "media-buy/decline-proposals-response.json",
+        "media-buy/get-media-buy-issue-response.json",
         "media-buy/list-collections-response.json",
         "media-buy/list-products-response.json",
         "media-buy/list-proposals-response.json",
         "media-buy/refine-proposals-response.json",
+        "media-buy/report-media-buy-issue-response.json",
         "media-buy/request-proposals-response.json",
     }
 )
@@ -133,9 +138,9 @@ def _residue(rows: list[_TaskMessage], kind: str, ancestor: type[BaseModel]) -> 
 
 
 def test_registry_covers_every_task_in_both_directions(task_messages: list[_TaskMessage]) -> None:
-    """79 tasks, each with one request and one response, all resolving to real classes."""
-    assert len(task_messages) == 158, "the pinned bundle registers 79 tasks"
-    assert sum(1 for _, kind, _, _ in task_messages if kind == "request") == 79
+    """82 tasks, each with one request and one response, all resolving to real classes."""
+    assert len(task_messages) == 164, "the pinned bundle registers 82 tasks"
+    assert sum(1 for _, kind, _, _ in task_messages if kind == "request") == 82
     assert all(classes for *_, classes in task_messages)
 
 

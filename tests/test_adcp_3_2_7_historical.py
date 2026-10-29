@@ -1,6 +1,6 @@
 """AdCP 3.2.7 stays the installed, verifiable 3.2 contract after 3.3.0-beta.0 adoption.
 
-3.3.0-beta.0 is the live default (see ``test_adcp_3_3_0_beta_0_adoption``). 3.2.7 is
+3.3.0-beta.1 is the live default (see ``test_adcp_3_3_0_beta_1_adoption``). 3.2.7 is
 still synced as a preview bundle under the ``3.2`` cache key, so negotiation and
 translation with 3.2 peers run on its signed bytes; the audited pin, the packaged
 compliance provenance and its files are release-scoped and never overwritten.

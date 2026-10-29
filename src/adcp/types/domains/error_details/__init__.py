@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -22,6 +22,7 @@ from adcp.types.domains.error_details.accessibility_violation import (
     FailureKind1,
     Violation,
 )
+from adcp.types.domains.error_details.account_ambiguous import AccountAmbiguousDetails
 from adcp.types.domains.error_details.account_moved import AccountMovedDetails
 from adcp.types.domains.error_details.account_setup_required import AccountSetupRequiredDetails
 from adcp.types.domains.error_details.action_not_allowed import ActionNotAllowedDetails
@@ -56,6 +57,9 @@ from adcp.types.domains.error_details.governance_agent_not_accepted import (
 )
 from adcp.types.domains.error_details.macro_resolution_failed import MacroResolutionFailedDetails
 from adcp.types.domains.error_details.policy_violation import Origin, PolicyViolationDetails
+from adcp.types.domains.error_details.price_adjustments_mismatch import (
+    PriceAdjustmentsMismatchDetails,
+)
 from adcp.types.domains.error_details.rate_limited import RateLimitedDetails
 from adcp.types.domains.error_details.reference_definition_changed import (
     ReferenceDefinitionChangedDetails,
@@ -100,6 +104,7 @@ from adcp.types.domains.error_details.version_unsupported import (
 # Explicit exports
 __all__ = [
     "AccessibilityViolationDetails",
+    "AccountAmbiguousDetails",
     "AccountMovedDetails",
     "AccountSetupRequiredDetails",
     "ActionNotAllowedDetails",
@@ -130,6 +135,7 @@ __all__ = [
     "Origin",
     "OriginalError",
     "PolicyViolationDetails",
+    "PriceAdjustmentsMismatchDetails",
     "RateLimitedDetails",
     "Recovery",
     "ReferenceDefinitionChangedDetails",

@@ -72,7 +72,6 @@ REFUSING = frozenset(
         "brand/creative-approval-request.json",
         "brand/verify-brand-claims-response.json",
         "core/publisher-property-selector.json",
-        "core/reporting-delivery-capabilities.json",
         "media-buy/change-term.json",
     }
 )

@@ -22,8 +22,8 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.0`; bundle key `3.3.0-beta.0` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
-| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.0`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.0, 3.2-rc.7`. | done (1) |
+| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.1` (was `3.3.0-beta.0`, see section 11); bundle key `3.3.0-beta.1` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
+| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.1`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.1, 3.2-rc.7`. | done (1) |
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
@@ -230,3 +230,20 @@ Batches: **A** (before regeneration: #1562, #1635, #1636, #1637, #1643 downgrade
 - Schema defaults materialized on dump now include `include_collections: false` on discovery requests and `hold_extension: false` on `proposal_refinement` (the `default_emitted` class, #1613). The wire round-trip conformance suite from #1617 runs against the 3.3 bundle.
 - `make validate-generated` (`generate_types.py --check`, versioned stubs) is deterministic on the 3.3 tree. The versioned view modules (`adcp.types.v30/v31/v32`, `versioned_bases`) have no `v33` yet; `scripts/generate_versioned_stubs.VERSIONS` would need `"v33": "3.3-beta.0"`.
 - `skills/adcp-media-buy/SKILL.md` and the request-signing conformance vectors (`tests/conformance/vectors/request-signing/`, 130 files, manifest pinned) came from the 3.3 bundle.
+
+## 11. 3.3.0-beta.1 delta
+
+Adopted from the signed `3.3.0-beta.1` bundle (pinned in
+`schemas/releases/3.3.0-beta.1.json`). Sources: the bundle and the
+adcontextprotocol/adcp changesets released in it.
+
+| Item | Detail | SDK status |
+| --- | --- | --- |
+| Wire pin | `3.3.0-beta.1` / `3.3-beta.1`. `3.3-beta.0` is no longer advertised or accepted as a pin (as with the 3.2 candidates); its cache and compliance trees stay in the source tree and leave the wheel. | done |
+| `request_account` (new task) | Experimental `account.requests`: open or match an account, or with `account_id` change it (`revision`, `resolution: updated`, `request_id`). `core/account-request-record.json`, `core/pending-action.json`, `core/account-candidate.json`, `error-details/account-ambiguous.json`, `account_request.changed` webhook. | types generated; client, multi-agent client, handler stub, MCP/A2A adapters, MCP tool list, CLI and idempotent-task set wired |
+| `list_accounts` reads requests | `include_requests`, `request_ids`, `requests_pagination` → `account_requests[]`, `account_requests_pagination`. The unreleased `get_account_requests` task never shipped in a bundle the SDK pinned. `account.requests.read_task` is `list_accounts`. | generated |
+| `sync_accounts` | Stays stable; superseded by `request_account` where the seller supports `account.requests`. Subscription-only entries must name an existing account. | generated; no SDK behavior change |
+| `report_media_buy_issue`, `get_media_buy_issue` (new tasks) | Seller-side issue reports with acknowledgement and resolution status; product service commitments (`creative_review_sla`, `escalation_sla`, business calendars). Their responses compose neither envelope (pinned in `tests/test_task_message_lattice.py`). | types generated; client, handler, adapters, MCP tool list, CLI wired |
+| Reporting subscriptions | Experimental `media_buy.reporting_subscriptions`: `reporting_subscriptions` on `sync_principal` / `get_principal`, `subscription_coverage[]` on `get_reporting_status`, `configuration_tasks[]` and `subscriptions` on `media_buy.reporting_delivery`, `enums/reporting-dimension.json`, `principal.changed` reason `reporting_subscription_changed`. | generated; no SDK-side subscription engine yet |
+| `control_media_buy` responses | The response arms are open (`additionalProperties: true`). `tests/test_discovery_payload_size.py` now proves compaction keeps closed objects closed on the reporting `Limitation`. | generated |
+| Other beta.1 additions | Canonical product installments, invoice lines on account financials, selection-dependent price adjustments (`pricing-options/price-adjustments.json`, `INVALID_REQUEST` details `error-details/price-adjustments-mismatch.json`), signal delivery methods and pricing groups, portable gender targeting, product execution readiness, audience-evidence targets, purchase-rights scope. | generated |

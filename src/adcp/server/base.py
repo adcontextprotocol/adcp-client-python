@@ -55,6 +55,7 @@ from adcp.types import (
     GetCreativeFeaturesRequest,
     GetMediaBuyArtifactsRequest,
     GetMediaBuyDeliveryRequest,
+    GetMediaBuyIssueRequest,
     GetMediaBuysRequest,
     GetPlanAuditLogsRequest,
     GetPrincipalRequest,
@@ -79,9 +80,11 @@ from adcp.types import (
     LogEventRequest,
     ProvidePerformanceFeedbackRequest,
     RefineProposalsRequest,
+    ReportMediaBuyIssueRequest,
     ReportPlanAdjustmentRequest,
     ReportPlanOutcomeRequest,
     ReportUsageRequest,
+    RequestAccountRequest,
     RequestProposalsRequest,
     SiGetOfferingRequest,
     SiInitiateSessionRequest,
@@ -538,6 +541,29 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("list_proposals")
 
+    async def report_media_buy_issue(
+        self,
+        params: ReportMediaBuyIssueRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Report an urgent issue on a media buy (AdCP 3.3).
+
+        Override this to accept seller-side delivery, creative, safety or
+        tracking issue reports.
+        """
+        return self._not_supported("report_media_buy_issue")
+
+    async def get_media_buy_issue(
+        self,
+        params: GetMediaBuyIssueRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Read the acknowledgement and resolution of a media-buy issue (AdCP 3.3).
+
+        Override this to serve issue status.
+        """
+        return self._not_supported("get_media_buy_issue")
+
     # ========================================================================
     # Signal Operations
     # ========================================================================
@@ -595,6 +621,15 @@ class ADCPHandler(ABC, Generic[TContext]):
         Override this to provide functionality.
         """
         return self._not_supported("list_accounts")
+
+    async def request_account(
+        self, params: RequestAccountRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Request or change an advertiser account (AdCP 3.3, experimental ``account.requests``).
+
+        Override this to open, match or change accounts through account requests.
+        """
+        return self._not_supported("request_account")
 
     async def sync_accounts(
         self, params: SyncAccountsRequest | dict[str, Any], context: TContext | None = None

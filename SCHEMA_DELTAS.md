@@ -1,6 +1,261 @@
 # Generated-types delta
 
+## Files added
+
+- `account/request_account_request.py` — RequestAccountRequest
+- `account/request_account_response.py` — RequestAccountResponse1, RequestAccountResponse2
+- `brand/rights_scope.py` — Country, Exclusivity, RightsScope
+- `core/account_candidate.py` — AccountCandidate
+- `core/account_request_changed_webhook.py` — AccountRequestChangedWebhook
+- `core/account_request_record.py` — AccountRequest, Requested
+- `core/audience_evidence_target.py` — AudienceEvidenceTarget
+- `core/business_calendar.py` — BusinessCalendar, Day, WorkingPeriod
+- `core/canonical_installment.py` — CanonicalInstallment, DerivativeOf
+- `core/canonical_installment_ref.py` — CanonicalInstallmentReference, CollectionRef
+- `core/creative_review_sla.py` — CreativeReviewSla
+- `core/demographic_gender.py` — DemographicGender, Value
+- `core/escalation_sla.py` — EscalationSla
+- `core/execution_requirement_readiness.py` — Candidate, ExecutionRequirementReadiness, Resolved, UnknownReason
+- `core/installment_change_set.py` — Action, InstallmentChangeSet, InstallmentChangeSetItem
+- `core/invoice_line.py` — InvoiceLine, ReportingRevisionId
+- `core/media_buy_issue.py` — Category, MediaBuyIssue, Severity, Status
+- `core/pending_action.py` — PendingAction
+- `core/product_execution_readiness.py` — ProductExecutionReadiness
+- `core/reporting_subscription.py` — AccountId, Alignment, Destination, FeedPurpose, Match, OperatorDomain, ReportingSubscription, Scope, Selector
+- `core/reporting_subscription_coverage.py` — ExcludedItem, Gap, OverriddenBy, ReportingSubscriptionCoverage, ReportingSubscriptionExclusionReason, Status, TimezoneCutover
+- `core/reporting_subscription_state.py` — AccountsUnauthorizedItem, AccountsWithException, PriorVersion, Reason, ReportingSubscriptionState, State, WithheldReportingObligationId
+- `core/signal_delivery_method.py` — SignalDeliveryMethod1, SignalDeliveryMethod2, SignalDeliveryMethod3, SignalDeliveryMethod4, SignalDeliveryMethod5
+- `core/signal_pricing_group_rule.py` — PricingCombination, SignalPricingGroupRule
+- `enums/account_request_resolution.py` — AccountRequestResolution
+- `enums/account_request_state.py` — AccountRequestState
+- `enums/audience_evidence_relationship.py` — AudienceEvidenceRelationship
+- `enums/execution_readiness_status.py` — ExecutionReadinessStatus
+- `enums/invoice_kind.py` — InvoiceKind
+- `enums/pending_action_kind.py` — PendingActionKind
+- `enums/pending_action_party.py` — PendingActionParty
+- `enums/reporting_dimension.py` — ReportingDimension
+- `enums/signal_delivery_status.py` — SignalDeliveryStatus
+- `error_details/account_ambiguous.py` — AccountAmbiguousDetails
+- `error_details/price_adjustments_mismatch.py` — PriceAdjustmentsMismatchDetails
+- `media_buy/get_media_buy_issue_request.py` — GetMediaBuyIssueRequest
+- `media_buy/get_media_buy_issue_response.py` — GetMediaBuyIssueResponse1, GetMediaBuyIssueResponse2
+- `media_buy/package_forecast_input.py` — CommittedMetrics, CommittedMetrics1, CommittedMetrics2, PackageForecastInput, Qualifier
+- `media_buy/report_media_buy_issue_request.py` — Category, ReportMediaBuyIssueRequest, Severity
+- `media_buy/report_media_buy_issue_response.py` — ReportMediaBuyIssueResponse1, ReportMediaBuyIssueResponse2
+- `pricing_options/price_adjustments.py` — Kind, PriceAdjustments, PriceAdjustments1, PriceAdjustments2, PriceAdjustments3
+
 ## Field changes
 
-- `brand/search_brands_request.py`
-  - `SearchBrandsRequest`: `-adcp_major_version`
+- `a2ui/si_catalog.py`
+  - **classes added**: Action27
+  - **classes removed**: Action25
+- `account/get_account_financials_response.py`
+  - `Invoice`: `+adjusts_invoice_id`, `+invoice_kind`, `+lines`
+- `account/list_accounts_request.py`
+  - **classes added**: RequestId
+  - `ListAccountsRequest`: `+include_requests`, `+request_ids`, `+requests_pagination`
+- `account/list_accounts_response.py`
+  - `ListAccountsResponse`: `+account_requests`, `+account_requests_pagination`
+- `account/sync_accounts_response.py`
+  - `Account`: `+request_id`, `+resolution`
+  - `Setup`: `+kind`, `+waiting_on`
+- `brand/rights_terms.py`
+  - **classes removed**: Country, Exclusivity
+  - `RightsTerms`: `-end_date`, `-exclusivity`, `-start_date`, `-uses`
+- `brand_discovery.py`
+  - `RightUse`: `+content_reuse`, `+paid_amplification`
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - **classes added**: Billing, BrandKitOverride10, BrandKitOverride7, BrandKitOverride8, BrandKitOverride9, BusinessCalendar, ChangeableAttribute, ConfigurationTask, Day, DeliveryMethods1, DeliveryMethods2, DeliveryMethods3, DeliveryMethods4, Dimension, Format6, Gender, PendingActionKind, Requests, Requests3, Subscriptions, Vendor5, Vendor6, Vendor7, Vendor8, VerificationMode3, WorkingPeriod
+  - **classes removed**: ChangeFeed3, Format5
+  - `Account`: `+requests`
+  - `AvailableUs`: `+content_reuse`, `+paid_amplification`
+  - `Demographics`: `+gender`
+  - `Features1`: `+creative_start_policy`
+  - `GetAdcpCapabilitiesResponse`: `+business_calendars`
+  - `MediaBuy`: `+issue_reporting`
+  - `Metric`: `+name`
+  - `ReportingDelivery`: `+configuration_tasks`, `+subscriptions`
+  - `Signals`: `+delivery_methods`
+  - `SupportedDimension`: `+installment_changes`
+  - `SupportedSection`: `+reporting_subscriptions`
+- `core/account.py`
+  - `Setup`: `+kind`, `+waiting_on`
+- `core/account_authorization.py`
+  - `AccountAuthorization`: `+authorized_at`
+- `core/agent_onboarding_requirement.py`
+  - **classes added**: VerificationMode
+- `core/assets/asset_union.py`
+  - **classes added**: Field1, Location2, Location4, Location5
+  - **classes removed**: Location6
+- `core/assets/display_tag_asset.py`
+  - **classes added**: Field17, Location17, Location18
+- `core/canonical_media_buy_action.py`
+  - **classes added**: CanonicalMediaBuyAction4
+  - `Action`: `+update_creative_start_policy`
+  - `CanonicalMediaBuyAction1`: `+change_term_id`, `+mode`, `+sla`, `+terms_ref`
+- `core/canonical_media_buy_action_fields.py`
+  - `CanonicalMediaBuyActionFields`: `+review_sla`
+  - `Task`: `+report_media_buy_issue`
+- `core/canonical_performance_standard.py`
+  - `CanonicalPerformanceStandard`: `+metric_id`
+- `core/canonical_product.py`
+  - `CanonicalProduct`: `+creative_policy`, `+installments`
+- `core/creative_policy.py`
+  - `CreativePolicy`: `+review_sla`
+- `core/demographic_predicate.py`
+  - `DemographicPredicate`: `+gender`
+- `core/demographic_targeting_capability.py`
+  - **classes added**: ExecutionMode1, Gender, Value
+  - `DemographicTargetingCapability`: `+gender`
+- `core/demographic_targeting_intent.py`
+  - `DemographicTargetingIntent`: `+gender`
+- `core/demographic_targeting_resolution.py`
+  - **classes added**: Execution3, Execution4
+- `core/deployment.py`
+  - **classes added**: Delivery, Delivery1, Delivery2
+  - `Deployment2`: `+audience_size`, `+delivery`, `+delivery_error`, `+delivery_status`, `+effective_match_rate`, `+match_rate_basis`, `+match_status`, `+matched_count`
+- `core/destination.py`
+  - **classes added**: DeliveryMethod, Pattern
+  - `Destination2`: `+delivery_method`
+- `core/media_buy.py`
+  - `MediaBuy`: `+completed_at`
+- `core/media_buy_available_action.py`
+  - `MediaBuyAvailableAction`: `+review_sla`
+  - `Task`: `+report_media_buy_issue`
+- `core/media_buy_features.py`
+  - `MediaBuyFeatures`: `+creative_start_policy`
+- `core/package.py`
+  - `Package`: `+start_requires_all_creatives_approved`
+- `core/performance_standard.py`
+  - `PerformanceStandard`: `+metric_id`
+- `core/principal_changed_webhook.py`
+  - `Reason`: `+reporting_subscription_changed`
+- `core/principal_relationship.py`
+  - `Setup`: `+kind`, `+waiting_on`
+- `core/principal_state.py`
+  - `PrincipalState`: `+reporting_subscriptions`
+- `core/product_filters.py`
+  - `ProductFilters`: `+target_audiences`
+- `core/product_offer_filters.py`
+  - `RequiredPerformanceStandard`: `+metric_id`
+- `core/reporting_delivery_capabilities.py`
+  - **classes added**: ConfigurationTask, Subscriptions
+  - `ReportingDeliveryCapabilities`: `+configuration_tasks`, `+subscriptions`
+- `core/reporting_obligation.py`
+  - `ReportingObligation`: `+offering_id`
+- `core/signal_listing.py`
+  - `SignalListing`: `+pricing_group`
+- `core/signal_targeting_rules.py`
+  - `SignalTargetingRules`: `+signal_pricing_group_rules`
+- `core/sla_window.py`
+  - **classes added**: Clock
+  - `SlaWindow`: `+business_calendar_id`, `+clock`
+- `core/targeting_overlay_requirements.py`
+  - `Demographics`: `+gender`
+- `core/targeting_overlay_support.py`
+  - `Demographics`: `+gender`
+- `core/wholesale_feed_event.py`
+  - **classes added**: Payload19
+  - **classes removed**: Payload20
+  - `Payload`: `+removal_reason` `-canonical_pricing_options`, `-effective_at`, `-previous_pricing_option_ids`, `-pricing_options`, `-retracts_event_id`
+- `core/x_entity_types.py`
+  - `XEntityTypes`: `+business_calendar`, `+media_buy_issue`, `+reporting_subscription`
+- `enums/canonical_media_buy_action.py`
+  - `CanonicalMediaBuyActionName`: `+report_media_buy_issue`
+- `enums/notification_type.py`
+  - `NotificationType`: `+account_request_changed`
+- `enums/restricted_attribute.py`
+  - `RestrictedAttribute`: `+sex_gender`
+- `enums/right_use.py`
+  - `RightUse`: `+content_reuse`, `+paid_amplification`
+- `governance/sync_plans_response.py`
+  - **classes added**: Status52
+  - **classes removed**: Status50
+- `media_buy/get_media_buys_response.py`
+  - `MediaBuy`: `+completed_at`
+  - `Package`: `+start_requires_all_creatives_approved`
+- `media_buy/get_products_request.py`
+  - `GetProductsRequest`: `+include_execution_readiness`
+  - `Refine2`: `+package`
+- `media_buy/get_products_response.py`
+  - **classes added**: ExecutionReadiness
+  - `GetProductsResponse`: `+execution_readiness`
+  - `RefinementApplied2`: `+resolved_end_time`, `+resolved_start_time`, `+result_product_id`
+- `media_buy/get_reporting_status_response.py`
+  - `GetReportingStatusResponse`: `+subscription_coverage`
+- `media_buy/package_control.py`
+  - `PackageControl`: `+start_requires_all_creatives_approved`
+- `media_buy/package_request.py`
+  - **classes added**: CommittedMetrics, CommittedMetrics5
+  - **classes removed**: CommittedMetrics1, CommittedMetrics2
+  - `PackageRequest`: `+start_requires_all_creatives_approved`, `+target_audiences`
+- `media_buy/package_update.py`
+  - `PackageUpdate`: `+start_requires_all_creatives_approved`
+- `media_buy/product_fields.py`
+  - `ProductResponseField`: `+creative_policy`, `+installments`
+- `media_buy/product_purchase.py`
+  - `ProductPurchase`: `+installments`, `+rights`
+- `media_buy/product_refinement.py`
+  - **classes added**: Action13
+  - **classes removed**: Action12
+- `media_buy/proposal_refinement.py`
+  - **classes added**: ProposalRefinement11
+  - `ProposalRefinement10`: `+installment_changes`
+  - `ProposalRefinement2`: `+installment_changes`
+  - `ProposalRefinement3`: `+installment_changes`
+  - `ProposalRefinement4`: `+installment_changes`
+  - `ProposalRefinement5`: `+installment_changes`
+  - `ProposalRefinement6`: `+installment_changes`
+  - `ProposalRefinement7`: `+installment_changes`
+  - `ProposalRefinement8`: `+installment_changes`
+  - `ProposalRefinement9`: `+installment_changes`
+- `media_buy/refine_proposals_response.py`
+  - `Results10`: `+unsatisfied_installment_changes`
+  - `Results11`: `+unsatisfied_installment_changes`
+  - `Results12`: `+unsatisfied_installment_changes`
+  - `Results15`: `+unsatisfied_installment_changes`
+  - `Results16`: `+unsatisfied_installment_changes`
+  - `Results17`: `+unsatisfied_installment_changes`
+  - `Results9`: `+unsatisfied_installment_changes`
+- `pricing_options/cpc_option.py`
+  - `CpcPricingOption`: `+price_adjustments`
+- `pricing_options/cpcv_option.py`
+  - `CpcvPricingOption`: `+price_adjustments`
+- `pricing_options/cpm_option.py`
+  - `CpmPricingOption`: `+price_adjustments`
+- `pricing_options/cpp_option.py`
+  - `CppPricingOption`: `+price_adjustments`
+- `pricing_options/cpv_option.py`
+  - `CpvPricingOption`: `+price_adjustments`
+- `pricing_options/flat_rate_option.py`
+  - `FlatRatePricingOption`: `+price_adjustments`
+- `pricing_options/vcpm_option.py`
+  - `VcpmPricingOption`: `+price_adjustments`
+- `protocol/get_adcp_capabilities_response.py`
+  - **classes added**: ChangeableAttribute, Gender, GenerationProvider, Requests, Requests1
+  - **classes removed**: ChangeFeed1
+  - `Account`: `+requests`
+  - `Demographics`: `+gender`
+  - `GetAdcpCapabilitiesResponse`: `+business_calendars`
+  - `MediaBuy`: `+issue_reporting`
+  - `Metric`: `+name`
+  - `Signals`: `+delivery_methods`
+  - `SupportedDimension`: `+installment_changes`
+  - `SupportedSection`: `+reporting_subscriptions`
+- `protocol/sync_principal_request.py`
+  - `Configuration`: `+reporting_subscriptions`
+- `protocol/sync_principal_response.py`
+  - **classes added**: Action37
+  - **classes removed**: Action35
+- `signals/get_signals_response.py`
+  - `GetSignalsResponse`: `+signal_pricing_group_rules`
+  - `Signal`: `+pricing_group`
+- `sponsored_intelligence/si_capabilities.py`
+  - **classes added**: Format
+- `sponsored_intelligence/si_sponsored_context_receipt.py`
+  - **classes added**: Status47
+  - **classes removed**: Status45
+- `trusted_match/context_match_request.py`
+  - `ContextMatchRequest`: `+adcp_major_version`, `+adcp_version`
+- `trusted_match/identity_match_request.py`
+  - `IdentityMatchRequest`: `+adcp_major_version`, `+adcp_version`

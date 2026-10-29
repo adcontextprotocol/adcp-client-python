@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -39,6 +39,7 @@ from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     CapabilityReportingDeliveryMethod,
     ChangeFeed,
     ChangeFeed1,
+    ChangeableAttribute,
     ComplianceTesting,
     Component,
     CompromiseNotification,
@@ -61,6 +62,8 @@ from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     Features,
     Format,
     FrequencyCapping,
+    Gender,
+    GenerationProvider,
     GeoMetros,
     GeoProximity,
     GetAdcpCapabilitiesResponse,
@@ -118,6 +121,8 @@ from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     ReportingDestinationOffering,
     RepresentationResolution,
     RequestSigning,
+    Requests,
+    Requests1,
     RequiredForItem,
     Requirement,
     ResourceType,
@@ -203,7 +208,7 @@ from adcp.types.domains.protocol.sync_agent_notification_configs_response import
 )
 from adcp.types.domains.protocol.sync_principal_request import Configuration, SyncPrincipalRequest
 from adcp.types.domains.protocol.sync_principal_response import (
-    Action35,
+    Action37,
     PrincipalAppliedResult,
     PrincipalSyncFailedResult,
     PrincipalValidatedResult,
@@ -218,7 +223,7 @@ __all__ = [
     "AccessMode",
     "Account",
     "Accreditation",
-    "Action35",
+    "Action37",
     "Adcp",
     "AgeRestriction",
     "Algorithm",
@@ -233,6 +238,7 @@ __all__ = [
     "CapabilityReportingDeliveryMethod",
     "ChangeFeed",
     "ChangeFeed1",
+    "ChangeableAttribute",
     "ComplianceTesting",
     "Component",
     "CompromiseNotification",
@@ -263,6 +269,8 @@ __all__ = [
     "Filters",
     "Format",
     "FrequencyCapping",
+    "Gender",
+    "GenerationProvider",
     "GeoMetros",
     "GeoProximity",
     "GetAdcpCapabilitiesRequest",
@@ -338,6 +346,8 @@ __all__ = [
     "ReportingDestinationOffering",
     "RepresentationResolution",
     "RequestSigning",
+    "Requests",
+    "Requests1",
     "RequiredForItem",
     "Requirement",
     "ResourceType",

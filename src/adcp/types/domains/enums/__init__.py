@@ -10,13 +10,15 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
 from __future__ import annotations
 
 from adcp.types.domains.enums.account_currency_mode import AccountCurrencyMode
+from adcp.types.domains.enums.account_request_resolution import AccountRequestResolution
+from adcp.types.domains.enums.account_request_state import AccountRequestState
 from adcp.types.domains.enums.account_scope import AccountScope
 from adcp.types.domains.enums.account_status import AccountStatus
 from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedReason
@@ -37,6 +39,7 @@ from adcp.types.domains.enums.attestation_claim import AttestationClaim
 from adcp.types.domains.enums.attribution_methodology import AttributionMethodology
 from adcp.types.domains.enums.attribution_model import AttributionModel
 from adcp.types.domains.enums.audience_evidence_methodology import AudienceEvidenceMethodology
+from adcp.types.domains.enums.audience_evidence_relationship import AudienceEvidenceRelationship
 from adcp.types.domains.enums.audience_match_rate_basis import AudienceMatchRateBasis
 from adcp.types.domains.enums.audience_resolution_method import AudienceResolutionMethod
 from adcp.types.domains.enums.audience_size_precision import AudienceSizePrecision
@@ -110,6 +113,7 @@ from adcp.types.domains.enums.error_scope import ErrorScope
 from adcp.types.domains.enums.escalation_severity import EscalationSeverity
 from adcp.types.domains.enums.event_type import EventType
 from adcp.types.domains.enums.exclusivity import Exclusivity
+from adcp.types.domains.enums.execution_readiness_status import ExecutionReadinessStatus
 from adcp.types.domains.enums.feature_check_status import FeatureCheckStatus
 from adcp.types.domains.enums.feed_format import FeedFormat
 from adcp.types.domains.enums.feedback_source import FeedbackSource
@@ -135,6 +139,7 @@ from adcp.types.domains.enums.impairment_offline_state import ImpairmentOfflineS
 from adcp.types.domains.enums.impairment_reason_code import ImpairmentReasonCode
 from adcp.types.domains.enums.indicator_type import IndicatorType
 from adcp.types.domains.enums.installment_status import InstallmentStatus
+from adcp.types.domains.enums.invoice_kind import InvoiceKind
 from adcp.types.domains.enums.javascript_module_type import JavascriptModuleType
 from adcp.types.domains.enums.landing_page_requirement import LandingPageRequirement
 from adcp.types.domains.enums.later_proposal_reason import LaterProposalReason
@@ -170,6 +175,8 @@ from adcp.types.domains.enums.outcome_target_cost_strength import OutcomeTargetC
 from adcp.types.domains.enums.outcome_type import OutcomeType
 from adcp.types.domains.enums.pacing import Pacing
 from adcp.types.domains.enums.payment_terms import PaymentTerms
+from adcp.types.domains.enums.pending_action_kind import PendingActionKind
+from adcp.types.domains.enums.pending_action_party import PendingActionParty
 from adcp.types.domains.enums.performance_baseline import PerformanceBaseline
 from adcp.types.domains.enums.performance_standard_metric import PerformanceStandardMetric
 from adcp.types.domains.enums.pixel_tracking_event import PixelTrackingEvent
@@ -195,6 +202,7 @@ from adcp.types.domains.enums.reporting_custody import ReportingCustody
 from adcp.types.domains.enums.reporting_destination_setup_state import (
     ReportingDestinationSetupState,
 )
+from adcp.types.domains.enums.reporting_dimension import ReportingDimension
 from adcp.types.domains.enums.reporting_finality import ReportingFinality
 from adcp.types.domains.enums.reporting_frequency import ReportingFrequency
 from adcp.types.domains.enums.reporting_health import ReportingHealth
@@ -211,6 +219,7 @@ from adcp.types.domains.enums.scan_type import ScanType
 from adcp.types.domains.enums.seller_policy_decline_reason import SellerPolicyDeclineReason
 from adcp.types.domains.enums.si_session_status import SiSessionStatus
 from adcp.types.domains.enums.signal_catalog_type import SignalAvailabilityType, SignalCatalogType
+from adcp.types.domains.enums.signal_delivery_status import SignalDeliveryStatus
 from adcp.types.domains.enums.signal_source import SignalSource
 from adcp.types.domains.enums.signal_status import SignalStatus
 from adcp.types.domains.enums.signal_value_type import SignalValueType
@@ -255,6 +264,8 @@ from adcp.types.domains.enums.webhook_signing_profile import WebhookSigningProfi
 # Explicit exports
 __all__ = [
     "AccountCurrencyMode",
+    "AccountRequestResolution",
+    "AccountRequestState",
     "AccountScope",
     "AccountStatus",
     "ActionNotAllowedReason",
@@ -272,6 +283,7 @@ __all__ = [
     "AttributionMethodology",
     "AttributionModel",
     "AudienceEvidenceMethodology",
+    "AudienceEvidenceRelationship",
     "AudienceMatchRateBasis",
     "AudienceResolutionMethod",
     "AudienceSizePrecision",
@@ -347,6 +359,7 @@ __all__ = [
     "EscalationSeverity",
     "EventType",
     "Exclusivity",
+    "ExecutionReadinessStatus",
     "FeatureCheckStatus",
     "FeedFormat",
     "FeedbackSource",
@@ -371,6 +384,7 @@ __all__ = [
     "ImpairmentReasonCode",
     "IndicatorType",
     "InstallmentStatus",
+    "InvoiceKind",
     "JavascriptModuleType",
     "LandingPageRequirement",
     "LaterProposalReason",
@@ -403,6 +417,8 @@ __all__ = [
     "OutcomeType",
     "Pacing",
     "PaymentTerms",
+    "PendingActionKind",
+    "PendingActionParty",
     "PerformanceBaseline",
     "PerformanceStandardMetric",
     "PixelTrackingEvent",
@@ -428,6 +444,7 @@ __all__ = [
     "ReachUnit",
     "ReportingCustody",
     "ReportingDestinationSetupState",
+    "ReportingDimension",
     "ReportingFinality",
     "ReportingFrequency",
     "ReportingHealth",
@@ -442,6 +459,7 @@ __all__ = [
     "SiSessionStatus",
     "SignalAvailabilityType",
     "SignalCatalogType",
+    "SignalDeliveryStatus",
     "SignalSource",
     "SignalStatus",
     "SignalValueType",

@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -32,6 +32,7 @@ from adcp.types.domains.core.account_authorization import (
     AllowedTask,
     ScopeName,
 )
+from adcp.types.domains.core.account_candidate import AccountCandidate
 from adcp.types.domains.core.account_change import (
     AccountChange,
     Actor,
@@ -62,6 +63,8 @@ from adcp.types.domains.core.account_ref import (
     AccountReference1,
     AccountReference2,
 )
+from adcp.types.domains.core.account_request_changed_webhook import AccountRequestChangedWebhook
+from adcp.types.domains.core.account_request_record import AccountRequest, Requested
 from adcp.types.domains.core.account_status_changed_webhook import AccountStatusChangedWebhook
 from adcp.types.domains.core.account_timezone_capability import (
     AccountSelection,
@@ -75,7 +78,11 @@ from adcp.types.domains.core.agent_encryption_key import AgentEncryptionKey
 from adcp.types.domains.core.agent_notification_config import AgentNotificationConfig
 from adcp.types.domains.core.agent_notification_config_state import AgentNotificationConfigState
 from adcp.types.domains.core.agent_onboarding import AgentOnboardingPosture
-from adcp.types.domains.core.agent_onboarding_requirement import AgentOnboardingRequirement
+from adcp.types.domains.core.agent_onboarding_requirement import (
+    AgentOnboardingRequirement,
+    VerificationMode,
+    VerifiedSpecialism,
+)
 from adcp.types.domains.core.agent_onboarding_tier import AgentOnboardingTier
 from adcp.types.domains.core.agent_reporting_destination import (
     AcceptedFormat,
@@ -180,6 +187,7 @@ from adcp.types.domains.core.assets.display_tag_asset import (
     DisplayTagAsset4,
     DisplayTagAsset5,
     DisplayTagAsset6,
+    Field17,
     Location17,
     Location18,
     MacroDeclaration15,
@@ -379,6 +387,7 @@ from adcp.types.domains.core.audience_evidence import (
 from adcp.types.domains.core.audience_evidence_pin import AudienceEvidencePin
 from adcp.types.domains.core.audience_evidence_requirements import AudienceEvidenceRequirements
 from adcp.types.domains.core.audience_evidence_selection import AudienceEvidenceSelection
+from adcp.types.domains.core.audience_evidence_target import AudienceEvidenceTarget
 from adcp.types.domains.core.audience_member import AudienceMember
 from adcp.types.domains.core.audience_selector import (
     AudienceSelector,
@@ -432,6 +441,7 @@ from adcp.types.domains.core.budget_allocation import (
     Target7,
     Target8,
 )
+from adcp.types.domains.core.business_calendar import BusinessCalendar, Day, WorkingPeriod
 from adcp.types.domains.core.business_entity import Bank, BusinessEntity, Contact
 from adcp.types.domains.core.buyer_onboarding_posture import BuyerOnboardingPosture
 from adcp.types.domains.core.cancellation_policy import CancellationFee, CancellationPolicy
@@ -460,6 +470,11 @@ from adcp.types.domains.core.canonical_forecast_vendor_metric_value import (
 )
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.canonical_format_option import CanonicalFormatOption, FormatKind
+from adcp.types.domains.core.canonical_installment import CanonicalInstallment
+from adcp.types.domains.core.canonical_installment_ref import (
+    CanonicalInstallmentReference,
+    CollectionRef,
+)
 from adcp.types.domains.core.canonical_measurement_terms import CanonicalMeasurementTerms
 from adcp.types.domains.core.canonical_media_buy_action import (
     Action3,
@@ -468,6 +483,7 @@ from adcp.types.domains.core.canonical_media_buy_action import (
     CanonicalMediaBuyAction1,
     CanonicalMediaBuyAction2,
     CanonicalMediaBuyAction3,
+    CanonicalMediaBuyAction4,
 )
 from adcp.types.domains.core.canonical_media_buy_action_fields import CanonicalMediaBuyActionFields
 from adcp.types.domains.core.canonical_media_buy_features import CanonicalMediaBuyFeatures
@@ -593,6 +609,7 @@ from adcp.types.domains.core.creative_operation_format_declaration import (
 from adcp.types.domains.core.creative_policy import CreativePolicy, ProvenanceRequirements
 from adcp.types.domains.core.creative_representation import CreativeRepresentation
 from adcp.types.domains.core.creative_representation_set import CreativeRepresentationSet
+from adcp.types.domains.core.creative_review_sla import CreativeReviewSla
 from adcp.types.domains.core.creative_revision_id import CreativeRevisionId
 from adcp.types.domains.core.creative_variable import CreativeVariable, VariableType
 from adcp.types.domains.core.creative_variant import Artifact, CreativeVariant, GenerationContext
@@ -658,6 +675,7 @@ from adcp.types.domains.core.delivery_projection import DeliveryProjection
 from adcp.types.domains.core.delivery_provider import DeliveryProvider
 from adcp.types.domains.core.delivery_recipient import DeliveryRecipient
 from adcp.types.domains.core.demographic_age_range import DemographicAgeRange
+from adcp.types.domains.core.demographic_gender import DemographicGender
 from adcp.types.domains.core.demographic_predicate import DemographicPredicate
 from adcp.types.domains.core.demographic_reporting_capability import (
     DemographicReportingCapability,
@@ -666,20 +684,36 @@ from adcp.types.domains.core.demographic_reporting_capability import (
 from adcp.types.domains.core.demographic_targeting_capability import (
     DemographicTargetingCapability,
     ExecutionMode,
+    ExecutionMode1,
     UnknownHandling,
 )
 from adcp.types.domains.core.demographic_targeting_intent import DemographicTargetingIntent
 from adcp.types.domains.core.demographic_targeting_resolution import (
+    Age4,
+    Age5,
     DemographicTargetingResolution,
     Execution,
     Execution1,
     Execution2,
+    Execution3,
+    Execution4,
+    Gender2,
     IntervalId,
 )
-from adcp.types.domains.core.deployment import Deployment, Deployment1, Deployment2
-from adcp.types.domains.core.destination import Destination1, Destination2
+from adcp.types.domains.core.deployment import (
+    Delivery,
+    Delivery1,
+    Delivery2,
+    Delivery3,
+    Delivery4,
+    Delivery5,
+    Deployment,
+    Deployment1,
+    Deployment2,
+)
+from adcp.types.domains.core.destination import DeliveryMethod, Destination1, Destination2, Pattern
 from adcp.types.domains.core.destination_item import DestinationItem, DestinationType
-from adcp.types.domains.core.diagnostic_issue import DiagnosticIssue, Severity
+from adcp.types.domains.core.diagnostic_issue import DiagnosticIssue
 from adcp.types.domains.core.dooh_inventory_summary import DoohInventorySummary, DoohVenueCount
 from adcp.types.domains.core.downstream_connection_requirement import (
     ConnectionType,
@@ -689,6 +723,7 @@ from adcp.types.domains.core.downstream_connection_requirement import (
 from adcp.types.domains.core.duration import Duration
 from adcp.types.domains.core.education_item import DegreeType, EducationItem, Level, Modality
 from adcp.types.domains.core.error import BuyerReason, DiscriminatorItem, Issue, Recovery
+from adcp.types.domains.core.escalation_sla import EscalationSla
 from adcp.types.domains.core.evaluator_spec import (
     EvalBudget,
     EvaluatorSpec,
@@ -702,7 +737,13 @@ from adcp.types.domains.core.evaluator_spec import (
 from adcp.types.domains.core.event import Event
 from adcp.types.domains.core.event_custom_data import Content, EventCustomData
 from adcp.types.domains.core.event_source_health import Detail, EventSourceHealth
-from adcp.types.domains.core.event_surface import Category, EventSurface
+from adcp.types.domains.core.event_surface import EventSurface
+from adcp.types.domains.core.execution_requirement_readiness import (
+    Candidate,
+    ExecutionRequirementReadiness,
+    Resolved,
+    UnknownReason,
+)
 from adcp.types.domains.core.experimental_feature_id import ExperimentalFeatureId
 from adcp.types.domains.core.ext import ExtensionObject
 from adcp.types.domains.core.feature_requirement import FeatureRequirement, IfNotCovered
@@ -888,7 +929,11 @@ from adcp.types.domains.core.indicators_changed_webhook import (
 )
 from adcp.types.domains.core.industry_identifier import IndustryIdentifier
 from adcp.types.domains.core.insertion_order import InsertionOrder, PaymentTerms, Terms, TotalBudget
-from adcp.types.domains.core.installment import DerivativeOf, Installment
+from adcp.types.domains.core.installment import Installment
+from adcp.types.domains.core.installment_change_set import (
+    InstallmentChangeSet,
+    InstallmentChangeSetItem,
+)
 from adcp.types.domains.core.installment_deadlines import InstallmentDeadlines
 from adcp.types.domains.core.installment_delivery_metrics import InstallmentDeliveryMetrics
 from adcp.types.domains.core.installment_property_delivery_metrics import (
@@ -902,6 +947,11 @@ from adcp.types.domains.core.inventory_list_application import (
     InventoryListApplication2,
     Summary,
     Summary2,
+)
+from adcp.types.domains.core.invoice_line import (
+    InvoiceLine,
+    ReportingAdjustmentId,
+    ReportingRevisionId,
 )
 from adcp.types.domains.core.job_item import EmploymentType, ExperienceLevel, JobItem, Salary
 from adcp.types.domains.core.keyword_delivery_metrics import KeywordDeliveryMetrics
@@ -929,6 +979,7 @@ from adcp.types.domains.core.localized_creative_asset import (
     LocalizedCreativeAsset3,
     LocalizedCreativeAsset4,
     LocalizedCreativeAsset5,
+    LocalizedCreativeAsset6,
     LocalizedCreativeAsset7,
     LocalizedCreativeAsset8,
     LocalizedCreativeAsset9,
@@ -958,6 +1009,7 @@ from adcp.types.domains.core.media_buy_frequency_cap_requirement import (
     MediaBuyFrequencyCapRequirement,
 )
 from adcp.types.domains.core.media_buy_frequency_cap_support import MediaBuyFrequencyCapSupport
+from adcp.types.domains.core.media_buy_issue import MediaBuyIssue
 from adcp.types.domains.core.media_buy_legacy_terms_ref import MediaBuyTermsReference
 from adcp.types.domains.core.media_buy_support import ProductMediaBuySupport
 from adcp.types.domains.core.media_buy_support_requirements import (
@@ -1047,6 +1099,7 @@ from adcp.types.domains.core.package_signal_targeting_groups import PackageSigna
 from adcp.types.domains.core.package_targeting_resolution import PackageTargetingResolution
 from adcp.types.domains.core.pagination_request import PaginationRequest
 from adcp.types.domains.core.pagination_response import PaginationResponse
+from adcp.types.domains.core.pending_action import PendingAction
 from adcp.types.domains.core.performance_feedback import (
     MeasurementPeriod,
     Metric7,
@@ -1216,6 +1269,7 @@ from adcp.types.domains.core.product_audience_evidence_requirements import (
 )
 from adcp.types.domains.core.product_card_reference_asset import ProductCardReferenceAsset
 from adcp.types.domains.core.product_change_map import ProductChangeMap, ProductChangeMap1
+from adcp.types.domains.core.product_execution_readiness import ProductExecutionReadiness
 from adcp.types.domains.core.product_execution_requirement import (
     Connection,
     ProductExecutionRequirement,
@@ -1392,8 +1446,10 @@ from adcp.types.domains.core.reporting_dataset_share_destination import (
     ReportingDatasetShareDestination2,
 )
 from adcp.types.domains.core.reporting_delivery_capabilities import (
+    ConfigurationTask,
     OperationsContact,
     ReportingDeliveryCapabilities,
+    Subscriptions,
 )
 from adcp.types.domains.core.reporting_delivery_config import (
     AuthoritativeParty,
@@ -1482,6 +1538,31 @@ from adcp.types.domains.core.reporting_status_issue import (
     ReportingStatusIssue,
     ReportingStatusSeverity,
     ResponsibleParty,
+)
+from adcp.types.domains.core.reporting_subscription import (
+    AccountId,
+    Alignment,
+    ExcludeAccountId,
+    FeedPurpose,
+    Match,
+    OperatorDomain,
+    ReportingSubscription,
+)
+from adcp.types.domains.core.reporting_subscription_coverage import (
+    ExcludedItem,
+    Gap,
+    OverriddenBy,
+    ReportingSubscriptionCoverage,
+    ReportingSubscriptionExclusionReason,
+    TimezoneCutover,
+)
+from adcp.types.domains.core.reporting_subscription_state import (
+    AccountsUnauthorizedItem,
+    AccountsWithException,
+    PriorVersion,
+    ReportingSubscriptionState,
+    State,
+    WithheldReportingObligationId,
 )
 from adcp.types.domains.core.reporting_verification import (
     NativeCommitEvidence,
@@ -1585,6 +1666,14 @@ from adcp.types.domains.core.signal_coverage_forecast import (
 )
 from adcp.types.domains.core.signal_definition import AudienceScope, SignalDefinition, Tag
 from adcp.types.domains.core.signal_definition_enrichment import SignalDefinitionEnrichment
+from adcp.types.domains.core.signal_delivery_method import (
+    SignalDeliveryMethod,
+    SignalDeliveryMethod1,
+    SignalDeliveryMethod2,
+    SignalDeliveryMethod3,
+    SignalDeliveryMethod4,
+    SignalDeliveryMethod5,
+)
 from adcp.types.domains.core.signal_filters import SignalFilters
 from adcp.types.domains.core.signal_id import SignalId8, SignalId9
 from adcp.types.domains.core.signal_listing import SignalListing
@@ -1596,6 +1685,10 @@ from adcp.types.domains.core.signal_pricing import (
     VendorPricing3,
     VendorPricing4,
     VendorPricing5,
+)
+from adcp.types.domains.core.signal_pricing_group_rule import (
+    PricingCombination,
+    SignalPricingGroupRule,
 )
 from adcp.types.domains.core.signal_pricing_option import SignalPricingOption
 from adcp.types.domains.core.signal_ref import SignalRef, SignalRef1, SignalRef2, SignalRef3
@@ -1613,7 +1706,7 @@ from adcp.types.domains.core.signal_targeting_expression import (
     SignalTargetingExpression3,
 )
 from adcp.types.domains.core.signal_targeting_rules import ResolutionModel, SignalTargetingRules
-from adcp.types.domains.core.sla_window import SlaWindow
+from adcp.types.domains.core.sla_window import Clock, SlaWindow
 from adcp.types.domains.core.special import Special
 from adcp.types.domains.core.spot_reporting_capability import SpotReportingCapability
 from adcp.types.domains.core.start_timing import StartTiming
@@ -1623,7 +1716,6 @@ from adcp.types.domains.core.targeting import AgeRestriction, TargetingOverlay
 from adcp.types.domains.core.targeting_input import TargetingOverlayInput
 from adcp.types.domains.core.targeting_modification import (
     Path,
-    Selector,
     TargetingModification,
     TargetingModification1,
     TargetingModification2,
@@ -1786,7 +1878,7 @@ from adcp.types.domains.core.wholesale_feed_event import (
     AppliesTo2,
     Payload17,
     Payload18,
-    Payload20,
+    Payload19,
     Payload21,
     Payload22,
     Payload23,
@@ -1833,8 +1925,10 @@ __all__ = [
     "AcceptedIssuer",
     "Account",
     "AccountAuthorization",
+    "AccountCandidate",
     "AccountChange",
     "AccountChangeRecordedWebhook",
+    "AccountId",
     "AccountIdentityChange",
     "AccountIdentityChange1",
     "AccountIdentityChange2",
@@ -1845,11 +1939,15 @@ __all__ = [
     "AccountReference",
     "AccountReference1",
     "AccountReference2",
+    "AccountRequest",
+    "AccountRequestChangedWebhook",
     "AccountSelection",
     "AccountStatusChangedWebhook",
     "AccountTimezoneCapability",
     "AccountWithAuthorization",
     "AccountingPeriod",
+    "AccountsUnauthorizedItem",
+    "AccountsWithException",
     "Action3",
     "Action4",
     "ActivationKey",
@@ -1865,6 +1963,8 @@ __all__ = [
     "AdditionalItem",
     "AdjustmentMagnitudeItem",
     "AffectedEntityType",
+    "Age4",
+    "Age5",
     "AgeRestriction",
     "AgentDeclarations",
     "AgentEncryptionKey",
@@ -1883,6 +1983,7 @@ __all__ = [
     "AgentWebhookChallenge",
     "AgenticadvertisingOrgVerificationTokenClaims",
     "Aggregation",
+    "Alignment",
     "AllowedInterval",
     "AllowedTargetingMode",
     "AllowedTask",
@@ -1979,6 +2080,7 @@ __all__ = [
     "AudienceEvidencePin",
     "AudienceEvidenceRequirements",
     "AudienceEvidenceSelection",
+    "AudienceEvidenceTarget",
     "AudienceForecastDimension",
     "AudienceMember",
     "AudienceScope",
@@ -2037,6 +2139,7 @@ __all__ = [
     "BuildCreativeInputRequired",
     "BuildCreativeSubmitted",
     "BuildCreativeWorking",
+    "BusinessCalendar",
     "BusinessEntity",
     "BuyProductsInputRequired",
     "BuyProductsSubmitted",
@@ -2051,6 +2154,7 @@ __all__ = [
     "Calendar",
     "CancellationFee",
     "CancellationPolicy",
+    "Candidate",
     "CanonicalAccountReference",
     "CanonicalAccountReference1",
     "CanonicalAccountReference2",
@@ -2068,11 +2172,14 @@ __all__ = [
     "CanonicalForecastVendorMetricValue",
     "CanonicalFormatKind",
     "CanonicalFormatOption",
+    "CanonicalInstallment",
+    "CanonicalInstallmentReference",
     "CanonicalMeasurementTerms",
     "CanonicalMediaBuyAction",
     "CanonicalMediaBuyAction1",
     "CanonicalMediaBuyAction2",
     "CanonicalMediaBuyAction3",
+    "CanonicalMediaBuyAction4",
     "CanonicalMediaBuyActionFields",
     "CanonicalMediaBuyFeatures",
     "CanonicalMetricQualifier",
@@ -2146,10 +2253,10 @@ __all__ = [
     "CatalogSelection",
     "CatalogType",
     "Catchment",
-    "Category",
     "ChangedFields",
     "CirculationBasis",
     "Classification",
+    "Clock",
     "CloseReason",
     "Cloud",
     "Collection",
@@ -2161,6 +2268,7 @@ __all__ = [
     "CollectionListsSupport1",
     "CollectionPayload",
     "CollectionPropertyDeliveryMetrics",
+    "CollectionRef",
     "CollectionReference",
     "CollectionSelection",
     "CollectionSelection1",
@@ -2179,6 +2287,7 @@ __all__ = [
     "Compression",
     "Condition",
     "ConfidenceInterval",
+    "ConfigurationTask",
     "Connection",
     "ConnectionType",
     "Constraint",
@@ -2222,6 +2331,7 @@ __all__ = [
     "CreativePolicy",
     "CreativeRepresentation",
     "CreativeRepresentationSet",
+    "CreativeReviewSla",
     "CreativeRevisionId",
     "CreativeSlot",
     "CreativeVariable",
@@ -2249,6 +2359,7 @@ __all__ = [
     "DataThroughPrecision",
     "DateRange",
     "DatetimeRange",
+    "Day",
     "DaypartRequirement",
     "DaypartRequirement1",
     "DaypartSupport",
@@ -2265,9 +2376,16 @@ __all__ = [
     "DefinitionPin4",
     "DegreeType",
     "DelegationType",
+    "Delivery",
+    "Delivery1",
+    "Delivery2",
+    "Delivery3",
+    "Delivery4",
+    "Delivery5",
     "DeliveryBreakdownControls",
     "DeliveryForecast",
     "DeliveryMeasurement",
+    "DeliveryMethod",
     "DeliveryMetricAggregate",
     "DeliveryMetricAggregate1",
     "DeliveryMetricAggregate2",
@@ -2276,6 +2394,7 @@ __all__ = [
     "DeliveryProvider",
     "DeliveryRecipient",
     "DemographicAgeRange",
+    "DemographicGender",
     "DemographicPredicate",
     "DemographicReportingCapability",
     "DemographicTargetingCapability",
@@ -2284,7 +2403,6 @@ __all__ = [
     "Deployment",
     "Deployment1",
     "Deployment2",
-    "DerivativeOf",
     "Destination1",
     "Destination2",
     "DestinationItem",
@@ -2322,6 +2440,7 @@ __all__ = [
     "EmbeddedProvenanceMethod",
     "EmploymentType",
     "EmptyReport",
+    "EscalationSla",
     "EstimationBasis",
     "EvalBudget",
     "EvaluatorSpec",
@@ -2331,12 +2450,18 @@ __all__ = [
     "EventCustomData",
     "EventSourceHealth",
     "EventSurface",
+    "ExcludeAccountId",
     "ExcludedCountry",
+    "ExcludedItem",
     "Exclusion",
     "Execution",
     "Execution1",
     "Execution2",
+    "Execution3",
+    "Execution4",
     "ExecutionMode",
+    "ExecutionMode1",
+    "ExecutionRequirementReadiness",
     "Exemplars",
     "ExperienceLevel",
     "ExperimentalFeatureId",
@@ -2346,7 +2471,9 @@ __all__ = [
     "FeatureAgent",
     "FeatureRequirement",
     "FeedFormat",
+    "FeedPurpose",
     "Field0",
+    "Field17",
     "FieldModel",
     "FieldTruncation",
     "Filters",
@@ -2381,6 +2508,8 @@ __all__ = [
     "Freshness",
     "FuelType",
     "GBEnum",
+    "Gap",
+    "Gender2",
     "GenerationContext",
     "GenerationCredential",
     "Geo",
@@ -2476,6 +2605,8 @@ __all__ = [
     "InputFormat9",
     "InsertionOrder",
     "Installment",
+    "InstallmentChangeSet",
+    "InstallmentChangeSetItem",
     "InstallmentDeadlines",
     "InstallmentDeliveryMetrics",
     "InstallmentPropertyDeliveryMetrics",
@@ -2486,6 +2617,7 @@ __all__ = [
     "InventoryListApplication",
     "InventoryListApplication1",
     "InventoryListApplication2",
+    "InvoiceLine",
     "Issue",
     "IssueId",
     "IssueState",
@@ -2534,6 +2666,7 @@ __all__ = [
     "LocalizedCreativeAsset3",
     "LocalizedCreativeAsset4",
     "LocalizedCreativeAsset5",
+    "LocalizedCreativeAsset6",
     "LocalizedCreativeAsset7",
     "LocalizedCreativeAsset8",
     "LocalizedCreativeAsset9",
@@ -2581,6 +2714,7 @@ __all__ = [
     "MarkdownAssetRequirements",
     "MarkdownFlavor",
     "Market",
+    "Match",
     "MaterialDeadline",
     "MaterialStage",
     "MaterialSubmission",
@@ -2600,6 +2734,7 @@ __all__ = [
     "MediaBuyFrequencyCapCapability",
     "MediaBuyFrequencyCapRequirement",
     "MediaBuyFrequencyCapSupport",
+    "MediaBuyIssue",
     "MediaBuyTermsReference",
     "Metric7",
     "MetricOptimization",
@@ -2631,6 +2766,7 @@ __all__ = [
     "Operation",
     "OperationsContact",
     "Operator",
+    "OperatorDomain",
     "OperatorIdentity",
     "OperatorUnit",
     "OpportunityContext",
@@ -2652,6 +2788,7 @@ __all__ = [
     "OutcomeTargetCostPer",
     "OutputCapabilityId",
     "Overlay",
+    "OverriddenBy",
     "Package",
     "PackageDeliveryMetricValue",
     "PackageFormatSnapshot",
@@ -2704,6 +2841,7 @@ __all__ = [
     "Panel",
     "ParentLabel",
     "Path",
+    "Pattern",
     "Payload1",
     "Payload10",
     "Payload11",
@@ -2712,8 +2850,8 @@ __all__ = [
     "Payload14",
     "Payload17",
     "Payload18",
+    "Payload19",
     "Payload2",
-    "Payload20",
     "Payload21",
     "Payload22",
     "Payload23",
@@ -2730,6 +2868,7 @@ __all__ = [
     "Payload8",
     "Payload9",
     "PaymentTerms",
+    "PendingAction",
     "PerItemBindings",
     "PerformanceFeedback",
     "PerformanceFeedbackAssertion",
@@ -2809,6 +2948,7 @@ __all__ = [
     "Presence",
     "PreviewRendererMetadata",
     "Price",
+    "PricingCombination",
     "PricingModel",
     "PricingOption",
     "PrincipalChangedWebhook",
@@ -2817,6 +2957,7 @@ __all__ = [
     "PrincipalState",
     "PrintMetrics",
     "PriorDestinationRef",
+    "PriorVersion",
     "ProducerIdentity",
     "Product",
     "ProductAllocation",
@@ -2831,6 +2972,7 @@ __all__ = [
     "ProductDoohLocation",
     "ProductDoohPlacementAttributes",
     "ProductDoohScreenResolution",
+    "ProductExecutionReadiness",
     "ProductExecutionRequirement",
     "ProductExecutionRequirement1",
     "ProductExecutionRequirement2",
@@ -2962,6 +3104,7 @@ __all__ = [
     "ReplacedByValue",
     "ReportCalendarTimezoneBasis",
     "ReportingAdjustment",
+    "ReportingAdjustmentId",
     "ReportingAdjustmentReceipt",
     "ReportingAdjustmentRejectionCode",
     "ReportingBucket",
@@ -3013,12 +3156,17 @@ __all__ = [
     "ReportingReportDefinition",
     "ReportingResource",
     "ReportingRevision",
+    "ReportingRevisionId",
     "ReportingSchedule",
     "ReportingScheduleAlignment",
     "ReportingScheduleOffering",
     "ReportingStatusChangedWebhook",
     "ReportingStatusIssue",
     "ReportingStatusSeverity",
+    "ReportingSubscription",
+    "ReportingSubscriptionCoverage",
+    "ReportingSubscriptionExclusionReason",
+    "ReportingSubscriptionState",
     "ReportingVerification",
     "ReportingVerificationProfile",
     "ReportingVerificationProfileSet",
@@ -3033,10 +3181,12 @@ __all__ = [
     "RequestProposalsInputRequired",
     "RequestProposalsSubmitted",
     "RequestProposalsWorking",
+    "Requested",
     "Required",
     "RequiredGeoTargetingItem",
     "RequiredPerformanceStandard",
     "ResolutionModel",
+    "Resolved",
     "ResolvedAssets",
     "ResolvedAssets1",
     "ResolvedBy",
@@ -3067,19 +3217,24 @@ __all__ = [
     "ScopeName",
     "ScopedCreativeApproval",
     "Segment",
-    "Selector",
     "SellerAgentReference",
-    "Severity",
     "Signal",
     "SignalCoverageForecast",
     "SignalDefinition",
     "SignalDefinitionEnrichment",
+    "SignalDeliveryMethod",
+    "SignalDeliveryMethod1",
+    "SignalDeliveryMethod2",
+    "SignalDeliveryMethod3",
+    "SignalDeliveryMethod4",
+    "SignalDeliveryMethod5",
     "SignalFilters",
     "SignalForecastDimension",
     "SignalId8",
     "SignalId9",
     "SignalListing",
     "SignalModelingDisclosure",
+    "SignalPricingGroupRule",
     "SignalPricingOption",
     "SignalRef",
     "SignalRef1",
@@ -3111,6 +3266,7 @@ __all__ = [
     "Specification",
     "SpotReportingCapability",
     "StartTiming",
+    "State",
     "StoreItem",
     "Storyboard",
     "StoryboardStatus",
@@ -3144,6 +3300,7 @@ __all__ = [
     "Subject35",
     "Subject36",
     "Subject37",
+    "Subscriptions",
     "Summary",
     "Summary2",
     "Supported",
@@ -3204,6 +3361,7 @@ __all__ = [
     "TextDecoration",
     "TimeBasedView",
     "TimeForecastDimension",
+    "TimezoneCutover",
     "TotalBudget",
     "TrackerExecutionContract",
     "TrackerExecutionSelector",
@@ -3224,6 +3382,7 @@ __all__ = [
     "UnknownFormatAsset",
     "UnknownGroupAsset",
     "UnknownHandling",
+    "UnknownReason",
     "UpdateFrequency",
     "UpdateMediaBuyInputRequired",
     "UpdateMediaBuySubmitted",
@@ -3275,10 +3434,12 @@ __all__ = [
     "VendorPricingOption8",
     "VendorPricingOption9",
     "VenueBreakdownItem",
+    "VerificationMode",
     "VerificationPath",
     "VerificationTokenGradingProfile",
     "VerificationTokenMode",
     "VerifiedAttestationDigest",
+    "VerifiedSpecialism",
     "VerifyAgent1",
     "VerifyAgent10",
     "VideoAssetRequirements",
@@ -3313,5 +3474,7 @@ __all__ = [
     "WholesaleFeedEvent8",
     "WholesaleFeedEvent9",
     "WholesaleFeedWebhook",
+    "WithheldReportingObligationId",
+    "WorkingPeriod",
     "XEntityTypes",
 ]

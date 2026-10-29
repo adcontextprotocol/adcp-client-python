@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-10-29 01:57:19 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -27,6 +27,13 @@ from adcp.types.domains.pricing_options.cpv_option import (
     ViewThreshold1,
 )
 from adcp.types.domains.pricing_options.flat_rate_option import FlatRatePricingOption
+from adcp.types.domains.pricing_options.price_adjustments import (
+    Kind,
+    PriceAdjustments,
+    PriceAdjustments1,
+    PriceAdjustments2,
+    PriceAdjustments3,
+)
 from adcp.types.domains.pricing_options.price_breakdown import Adjustment, PriceBreakdown
 from adcp.types.domains.pricing_options.price_guidance import PriceGuidance
 from adcp.types.domains.pricing_options.revenue_share_option import RevenueSharePricingOption
@@ -43,6 +50,11 @@ __all__ = [
     "CppPricingOption",
     "CpvPricingOption",
     "FlatRatePricingOption",
+    "Kind",
+    "PriceAdjustments",
+    "PriceAdjustments1",
+    "PriceAdjustments2",
+    "PriceAdjustments3",
     "PriceBreakdown",
     "PriceGuidance",
     "RevenueSharePricingOption",

@@ -19,7 +19,7 @@ A server runs its handlers on one release, its *application version*:
 1. the server's `adcp_version` pin, when it has one (`adcp_version=` on a
    server factory, or the handler's `get_adcp_version()` / `_adcp_version`);
 2. else the newest release in its `supported_versions`;
-3. else the release packaged with the SDK (`3.3-beta.0` in SDK 10).
+3. else the release packaged with the SDK (`3.3-beta.1` in SDK 10).
 
 `adcp.server.version_policy.resolve_application_adcp_version` is the one
 resolver every dispatch path uses: `create_mcp_server`, `create_a2a_server`,
@@ -32,7 +32,7 @@ applies the unknown-field policy, application-schema validation and typed
 parsing. The handler answers in the application version; the SDK validates
 that answer against the application schema (under the configured response
 mode) and converts it to the buyer's version: up (a 3.2 server answering a
-`3.3-beta.0` buyer), unchanged (a same-release buyer), or down (a 3.1 or 3.0
+`3.3-beta.1` buyer), unchanged (a same-release buyer), or down (a 3.1 or 3.0
 buyer). A conversion the target schema refuses fails as a structured
 `VERSION_UNSUPPORTED` error rather than reaching the peer invalid.
 
@@ -50,7 +50,7 @@ class Seller(ADCPHandler):
     async def get_products(self, params: dict, context: ToolContext):
         assert params["adcp_version"] == "3.2"           # the application version
         assert context.application_adcp_version == "3.2"
-        buyer_version = context.resolved_adcp_version    # "3.1", "3.2" or "3.3-beta.0"
+        buyer_version = context.resolved_adcp_version    # "3.1", "3.2" or "3.3-beta.1"
         ...
 
 
@@ -92,7 +92,7 @@ Dict handlers, schema validation and the unknown-field policy are exact: on a
 3.2 server they use the bundled 3.2 schemas and nothing else. Typed handler
 parameters (`params: GetProductsRequest`) and typed responses still use the
 generated classes of the packaged release. Those classes are additive
-supersets of 3.2 (the only 3.2 property absent from `3.3-beta.0` is
+supersets of 3.2 (the only 3.2 property absent from `3.3-beta.1` is
 `evaluator.evaluator_id` on `build_creative`), so a 3.2 payload parses into
 them unchanged and dumps back as the same 3.2 payload. A field that 3.3 added
 reads as unset, its model default, on a 3.2 server; it is never written to the
