@@ -59,7 +59,7 @@ from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, PydanticCustomError, core_schema
 from pydantic_core.core_schema import ErrorType
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, defer_model_rebuild
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
 from adcp.types.canonical_creative import GetProductsRequest as _PublicGetProductsRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
@@ -244,8 +244,10 @@ def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: 
     """Replace a Pydantic model field's annotation in-place.
 
     Sets both model_fields (the FieldInfo dict Pydantic uses for schema
-    generation) and __annotations__ (for introspection), then forces a
-    schema rebuild. Preserves all constraints and metadata from the original field.
+    generation) and __annotations__ (for introspection). The caller then
+    invalidates the model with ``defer_model_rebuild`` so its next use builds
+    from the patched field. Preserves all constraints and metadata from the
+    original field.
     """
     old_fi = model.model_fields.get(field_name)
     if old_fi is None:
@@ -392,7 +394,7 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
             ),
         ],
     )
-    model.model_rebuild(force=True)
+    defer_model_rebuild(model)
 
 
 def _patch_package_forecast_targeting() -> None:
@@ -410,9 +412,12 @@ def _patch_package_forecast_targeting() -> None:
     forecast_model = forecast_module.PackageForecastInput
     _patch_targeting_overlay(forecast_model)
     request_module = import_module("adcp.types.domains.media_buy.get_products_request")
-    # _ergonomic eagerly builds get_products before this patch. Rebuild its
-    # product-scoped union arm first, then both public request parents. Names
-    # of generated anonymous union arms change during code generation.
+    # Invalidate every parent that nests the forecast input -- its
+    # product-scoped union arm, then both public request parents -- so none
+    # keeps a schema built before this patch (#1694 defers the builds to first
+    # use, so at import nothing is built yet; invalidating is what keeps that
+    # true whatever ran first). Names of generated anonymous union arms change
+    # during code generation.
     for model in vars(request_module).values():
         if (
             isinstance(model, type)
@@ -423,9 +428,9 @@ def _patch_package_forecast_targeting() -> None:
                 for field in model.model_fields.values()
             )
         ):
-            model.model_rebuild(force=True)
-    request_module.GetProductsRequest.model_rebuild(force=True)
-    _PublicGetProductsRequest.model_rebuild(force=True)
+            defer_model_rebuild(model)
+    defer_model_rebuild(request_module.GetProductsRequest)
+    defer_model_rebuild(_PublicGetProductsRequest)
 
 
 def _apply_forward_compat() -> None:
@@ -443,9 +448,9 @@ def _apply_forward_compat() -> None:
         _patch_targeting_overlay(model)
     _patch_package_forecast_targeting()
 
-    # _ergonomic eagerly builds this legacy parent before the targeting patch.
-    # Refresh its cached nested validator as well as the package model itself.
-    _GeneratedCreateMediaBuyRequest.model_rebuild(force=True)
+    # _ergonomic touched this legacy parent before the targeting patch.
+    # Invalidate it too, so its first build nests the patched package input.
+    defer_model_rebuild(_GeneratedCreateMediaBuyRequest)
 
     # Response manifests retain unknown future kinds because the field is
     # ``str`` everywhere. These patches thread the readback NODES through the
@@ -457,30 +462,30 @@ def _apply_forward_compat() -> None:
     # ``format_kind`` needs no patch: it is generated as ``str``, so a response
     # retains an unknown kind without one.
     _patch_model_field(DeliveryCreative, "variants", GenericAlias(list, _DeliveryVariant))
-    DeliveryCreative.model_rebuild(force=True)
-    GetCreativeDeliveryResponse.model_rebuild(force=True)
+    defer_model_rebuild(DeliveryCreative)
+    defer_model_rebuild(GetCreativeDeliveryResponse)
 
     _patch_model_field(PreviewCreativeResponse3, "manifest", _ReadbackCreativeManifest | None)
-    PreviewCreativeResponse3.model_rebuild(force=True)
+    defer_model_rebuild(PreviewCreativeResponse3)
     _patch_model_field(BuildCreativeResponse1, "creative_manifest", _ReadbackCreativeManifest)
-    BuildCreativeResponse1.model_rebuild(force=True)
+    defer_model_rebuild(BuildCreativeResponse1)
     _patch_model_field(
         BuildCreativeResponse3, "creative_manifests", GenericAlias(list, _ReadbackCreativeManifest)
     )
-    BuildCreativeResponse3.model_rebuild(force=True)
+    defer_model_rebuild(BuildCreativeResponse3)
     _patch_model_field(
         BuildCreativeResponse4, "creatives", GenericAlias(list, _BuildReadbackCreative)
     )
-    BuildCreativeResponse4.model_rebuild(force=True)
+    defer_model_rebuild(BuildCreativeResponse4)
 
     for response in (ContextMatchResponseRouterPublisher, ContextMatchResponseProviderRouter):
         _patch_model_field(response, "offers", GenericAlias(list, _ReadbackOffer))
-        response.model_rebuild(force=True)
+        defer_model_rebuild(response)
 
-    # This eager wrapper captured build/preview validators before the patches.
-    # Rebuilding it re-resolves AdcpAsyncResponseData, a union type alias, so
-    # completed task callbacks retain typed manifests.
-    McpWebhookPayload.model_rebuild(force=True)
+    # This wrapper nests the build/preview responses patched above.
+    # Invalidating it re-resolves AdcpAsyncResponseData, a union type alias,
+    # on first use, so completed task callbacks retain typed manifests.
+    defer_model_rebuild(McpWebhookPayload)
 
     # The 3.1 canonical-creatives capability was published after the bundled
     # generated model. Preserve it across code generation until the schema
@@ -507,7 +512,7 @@ def _apply_forward_compat() -> None:
             ),
         )
         features_model.__annotations__["canonical_creatives"] = canonical_creatives_annotation
-        features_model.model_rebuild(force=True)
+        defer_model_rebuild(features_model)
 
     # Canonical schemas referenced through the bundled capabilities schema are
     # generated a second time as identity-distinct Pydantic classes. Accept the
@@ -519,7 +524,7 @@ def _apply_forward_compat() -> None:
         BundledAcceptancePolicyDiscovery,
         AcceptancePolicyDiscovery | None,
     )
-    BundledCapabilitiesMediaBuy.model_rebuild(force=True)
+    defer_model_rebuild(BundledCapabilitiesMediaBuy)
 
     _patch_equivalent_model_field(
         BundledCapabilitiesPortfolio,
@@ -533,7 +538,7 @@ def _apply_forward_compat() -> None:
         BundledPrimaryCountry,
         list[PrimaryCountry] | None,
     )
-    BundledCapabilitiesPortfolio.model_rebuild(force=True)
+    defer_model_rebuild(BundledCapabilitiesPortfolio)
 
     # Reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585).
     from adcp.types._reporting_subscription_preview import apply_reporting_subscription_preview

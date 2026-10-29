@@ -104,7 +104,13 @@ from adcp.types._product_format_declaration import (
     check_declaration_rules,
 )
 from adcp.types._scalar import _ScalarRoot
-from adcp.types.base import _REFUSE_JSON_NULL, AdCPBaseModel, NoExplicitNull, inherit_field
+from adcp.types.base import (
+    _REFUSE_JSON_NULL,
+    AdCPBaseModel,
+    NoExplicitNull,
+    defer_model_rebuild,
+    inherit_field,
+)
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.domains.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
@@ -721,13 +727,14 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         are all unaffected. Measured scope: one such validator, on one model.
         """
 
+        super().__pydantic_init_subclass__(**kwargs)
         removed = [name for name in cls.model_fields if is_legacy_creative_identity_key(name)]
         for name in removed:
             del cls.model_fields[name]
             cls.__annotations__.pop(name, None)
             setattr(cls, name, None)
         if removed:
-            cls.model_rebuild(force=True)
+            defer_model_rebuild(cls)
 
     @model_validator(mode="before")
     @classmethod

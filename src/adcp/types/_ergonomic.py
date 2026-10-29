@@ -6,15 +6,18 @@
 """Apply type coercion to generated types for better ergonomics.
 
 This module patches the generated types to accept more flexible input types
-while maintaining type safety. It uses Pydantic's model_rebuild() to add
-BeforeValidator annotations to fields.
+while maintaining type safety. It edits the generated field metadata and then
+invalidates each patched model with ``defer_model_rebuild`` so pydantic
+re-derives its core schema, with the coercion validators included, on first use.
 
 Why import-time patching?
     We apply coercion at module load time rather than lazily because:
     1. Pydantic validation runs during __init__, before any lazy access
-    2. model_rebuild() is the standard Pydantic pattern for post-hoc changes
-    3. The cost is minimal (~10-20ms for all types, once at import)
-    4. After import, there is zero runtime overhead
+    2. Editing field metadata and rebuilding is the standard Pydantic pattern
+       for post-hoc changes
+    3. The patch itself is cheap; the rebuild it needs is deferred to the
+       model's first use rather than paid at import for every model (#1694)
+    4. After the first use of a model, there is zero runtime overhead
     5. This approach maintains full type checker compatibility
 
 Coercion rules applied:
@@ -38,6 +41,7 @@ from typing import Annotated, Any
 
 from pydantic import BeforeValidator, WrapValidator
 
+from adcp.types.base import defer_model_rebuild
 from adcp.types.coercion import (
     coerce_subclass_list,
     coerce_to_enum,
@@ -159,7 +163,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    ListCreativeFormatsRequest.model_rebuild(force=True)
+    defer_model_rebuild(ListCreativeFormatsRequest)
 
     # Apply coercion to ListCreativeFormatsRequestCreativeAgent
     # - type: Type | str | None
@@ -207,7 +211,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    ListCreativeFormatsRequestCreativeAgent.model_rebuild(force=True)
+    defer_model_rebuild(ListCreativeFormatsRequestCreativeAgent)
 
     # Apply coercion to ListCreativesRequest
     # - assignment_projection: AssignmentProjection | str | None
@@ -239,7 +243,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    ListCreativesRequest.model_rebuild(force=True)
+    defer_model_rebuild(ListCreativesRequest)
 
     # Apply coercion to Sort
     # - field: CreativeSortField | str | None
@@ -254,7 +258,7 @@ def _apply_coercion() -> None:
         "direction",
         Annotated[SortDirection | None, BeforeValidator(coerce_to_enum(SortDirection))],
     )
-    Sort.model_rebuild(force=True)
+    defer_model_rebuild(Sort)
 
     # Apply coercion to GetProductsRequest
     # - buying_mode: BuyingMode | str | None
@@ -284,7 +288,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    GetProductsRequest.model_rebuild(force=True)
+    defer_model_rebuild(GetProductsRequest)
 
     # Apply coercion to PackageRequest
     # - pacing: Pacing | str | None
@@ -323,7 +327,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    PackageRequest.model_rebuild(force=True)
+    defer_model_rebuild(PackageRequest)
 
     # Apply coercion to CreateMediaBuyRequest
     # - packages: Sequence[PackageRequest] (accepts subclass instances)
@@ -367,7 +371,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    CreateMediaBuyRequest.model_rebuild(force=True)
+    defer_model_rebuild(CreateMediaBuyRequest)
 
     # Apply coercion to PackageUpdate
     # - pacing: Pacing | str | None
@@ -406,7 +410,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    PackageUpdate.model_rebuild(force=True)
+    defer_model_rebuild(PackageUpdate)
 
     # Apply coercion to GetProductsResponse
     # - context: ContextObject | dict | None
@@ -451,7 +455,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    GetProductsResponse.model_rebuild(force=True)
+    defer_model_rebuild(GetProductsResponse)
 
     # Apply coercion to ListCreativesResponse
     # - context: ContextObject | dict | None
@@ -490,7 +494,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    ListCreativesResponse.model_rebuild(force=True)
+    defer_model_rebuild(ListCreativesResponse)
 
     # Apply coercion to ListCreativeFormatsResponse
     # - context: ContextObject | dict | None
@@ -544,7 +548,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    ListCreativeFormatsResponse.model_rebuild(force=True)
+    defer_model_rebuild(ListCreativeFormatsResponse)
 
     # Apply coercion to CreateMediaBuyResponse1
     # - context: ContextObject | dict | None
@@ -589,7 +593,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    CreateMediaBuyResponse1.model_rebuild(force=True)
+    defer_model_rebuild(CreateMediaBuyResponse1)
 
     # Apply coercion to UpdateMediaBuyResponse1
     # - context: ContextObject | dict | None
@@ -634,7 +638,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    UpdateMediaBuyResponse1.model_rebuild(force=True)
+    defer_model_rebuild(UpdateMediaBuyResponse1)
 
     # Apply coercion to GetMediaBuyDeliveryResponse
     # - context: ContextObject | dict | None
@@ -679,7 +683,7 @@ def _apply_coercion() -> None:
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
-    GetMediaBuyDeliveryResponse.model_rebuild(force=True)
+    defer_model_rebuild(GetMediaBuyDeliveryResponse)
 
 
 def _patch_unique_enum_list(
