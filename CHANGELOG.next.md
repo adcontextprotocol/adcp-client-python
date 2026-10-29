@@ -1,5 +1,21 @@
 # Changelog
 
+## [10.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.1...v10.0.0-beta.2) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.0. get_supported_adcp_versions() is ('3.0', '3.1', '3.2', '3.3-beta.1', '3.2-rc.7'); an adcp_version pin of "3.3-beta.0" / "3.3.0-beta.0" raises ConfigurationError, and a peer that advertises only 3.3-beta.0 among the 3.3 line is negotiated like any other unserved prerelease (down to 3.2). Re-pin to 3.3-beta.1 or omit the pin.
+
+### Features
+
+* **protocol:** adopt the signed AdCP 3.3.0-beta.1 bundle ([#1691](https://github.com/adcontextprotocol/adcp-client-python/issues/1691)) ([b603eac](https://github.com/adcontextprotocol/adcp-client-python/commit/b603eac1ee0133cafea7ca18d899a1d26f8635af))
+
+
+### Bug Fixes
+
+* **server:** compact a pinned seller's tools/list and size the client's member bound to the byte budget ([#1701](https://github.com/adcontextprotocol/adcp-client-python/issues/1701)) ([cb2ba54](https://github.com/adcontextprotocol/adcp-client-python/commit/cb2ba54d114e6139201048862948d56992f39059)), closes [#1692](https://github.com/adcontextprotocol/adcp-client-python/issues/1692)
+
 ## [10.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.0...v10.0.0-beta.1) (2026-10-29)
 
 
