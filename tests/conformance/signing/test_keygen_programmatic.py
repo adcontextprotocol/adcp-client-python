@@ -18,7 +18,15 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 
-from adcp.signing import generate_signing_keypair, public_key_from_jwk
+from adcp.signing import (
+    ADCP_USE_GOVERNANCE,
+    ADCP_USE_REQUEST,
+    ADCP_USE_RESPONSE,
+    ADCP_USE_WEBHOOK,
+    generate_signing_keypair,
+    public_key_from_jwk,
+)
+from adcp.signing.constants import WEBHOOK_ACCEPTED_ADCP_USES
 
 # ---------------------------------------------------------------------------
 # Core contract — returns (pem_bytes, public_jwk)
@@ -88,15 +96,81 @@ def test_webhook_signing_purpose_sets_adcp_use() -> None:
     assert jwk["adcp_use"] == "webhook-signing"
 
 
-def test_invalid_purpose_raises_value_error() -> None:
-    """Typos in ``purpose`` should fail loud — a silent fallback would
-    silently mint a key with an unexpected ``adcp_use``."""
-    with pytest.raises(ValueError, match="purpose must be one of"):
-        generate_signing_keypair(
-            alg="ed25519",
-            kid="test-kid",
-            purpose="requets-signing",  # type: ignore[arg-type] # typo
-        )
+@pytest.mark.parametrize(
+    "purpose",
+    [ADCP_USE_RESPONSE, ADCP_USE_GOVERNANCE, "oauth-access-token-signing", "x1"],
+)
+def test_purpose_vocabulary_is_open(purpose: str) -> None:
+    """``response-signing`` and purposes the spec does not name yet are
+    expressible (#1677); only the token's syntax is checked."""
+    _, jwk = generate_signing_keypair(alg="es256", kid="test-kid", purpose=purpose)
+    assert jwk["adcp_use"] == purpose
+
+
+@pytest.mark.parametrize(
+    "purpose",
+    [
+        "",
+        "Request-Signing",
+        "request_signing",
+        "request signing",
+        "-request",
+        "request-",
+        "request--signing",
+        "request-signing\n",
+        "a" * 65,
+        None,
+        b"request-signing",
+    ],
+)
+def test_malformed_purpose_raises_value_error(purpose: object) -> None:
+    """The vocabulary is open but the input is still validated: a value
+    that is not a lowercase hyphenated token fails loud rather than mint
+    a key with an unexpected ``adcp_use``."""
+    with pytest.raises(ValueError, match="purpose must be a lowercase hyphenated token"):
+        generate_signing_keypair(alg="ed25519", kid="test-kid", purpose=purpose)  # type: ignore[arg-type]
+
+
+def test_unregistered_purpose_fails_closed_at_the_request_verifier() -> None:
+    """An open vocabulary is safe because purpose matching is fail-closed:
+    a key minted under any purpose other than the verified surface's is
+    refused with ``request_signature_key_purpose_invalid``."""
+    from adcp.signing.errors import (
+        REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
+        SignatureVerificationError,
+    )
+    from adcp.signing.verifier import _check_key_purpose
+
+    for purpose in (ADCP_USE_RESPONSE, ADCP_USE_GOVERNANCE, "oauth-access-token-signing"):
+        _, jwk = generate_signing_keypair(alg="ed25519", kid="k", purpose=purpose)
+        with pytest.raises(SignatureVerificationError) as excinfo:
+            _check_key_purpose(jwk, "ed25519", expected_adcp_use=ADCP_USE_REQUEST)
+        assert excinfo.value.code == REQUEST_SIGNATURE_KEY_PURPOSE_INVALID
+        with pytest.raises(SignatureVerificationError):
+            _check_key_purpose(
+                jwk,
+                "ed25519",
+                expected_adcp_use=ADCP_USE_WEBHOOK,
+                accepted_adcp_uses=WEBHOOK_ACCEPTED_ADCP_USES,
+            )
+
+
+def test_cli_accepts_open_purpose_and_rejects_malformed(tmp_path, capsys) -> None:
+    import json
+
+    from adcp.signing import keygen
+
+    out = tmp_path / "response.pem"
+    rc = keygen.main(["--out", str(out), "--kid", "resp", "--purpose", "response-signing"])
+    assert rc == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["keys"][0]["adcp_use"] == "response-signing"
+
+    with pytest.raises(SystemExit) as excinfo:
+        keygen.main(["--out", str(tmp_path / "bad.pem"), "--purpose", "Response_Signing"])
+    assert excinfo.value.code == 2
+    assert "lowercase hyphenated token" in capsys.readouterr().err
+    assert not (tmp_path / "bad.pem").exists()
 
 
 def test_invalid_alg_raises_value_error() -> None:
