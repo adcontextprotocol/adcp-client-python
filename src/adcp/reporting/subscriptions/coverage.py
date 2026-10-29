@@ -9,9 +9,10 @@ two sides agree period by period by construction.
 For each covered buy and resolved offering, the owed periods are the complete
 periods of the offering's published schedule that
 
-1. start on or after the first boundary at or after the latest of the
-   subscription version's ``accepted_at``, the buy's ``confirmed_at`` and the
-   account's ``authorized_at``; and
+1. start on or after the first boundary at or after the later of the
+   subscription version's ``accepted_at`` and the account's ``authorized_at``,
+   and end after the buy's ``confirmed_at`` (adcp#8593: the confirmation
+   period is owed in full); and
 2. overlap the buy's flight from ``start_time`` to its stop time, the earliest
    of ``end_time``, ``canceled_at`` and ``completed_at``, with the flight taken
    as of the period's ``scope_resolved_at`` (its end).
@@ -943,14 +944,15 @@ def _first_owed_start(
 ) -> datetime:
     """The earliest start a buy's owed period may have under one regime.
 
-    The coverage rule: the first boundary at or after the latest of the
-    regime's handoff (``accepted_at`` or E) and the buy's ``confirmed_at``.
-    ``authorized_at`` is applied by the authority chains. This is the one
-    place that decides whether the period containing ``confirmed_at`` is owed
-    (it is not, today), so an owner decision changing that rule changes only
-    this function.
+    adcp#8593 (owner decision for 3.3.0-beta.2): the start bound is the first
+    boundary at or after the later of the version's ``accepted_at`` (or the
+    cutover E, the regime's handoff) and the account's ``authorized_at``,
+    which the authority chains apply. A buy is then owed every period that
+    ends after its ``confirmed_at``, so the period containing the
+    confirmation is owed in full. This is the one place the confirmation rule
+    lives.
     """
-    return calendar.ceil(max(handoff, confirmed_at))
+    return max(calendar.ceil(handoff), calendar.floor(confirmed_at))
 
 
 def _cutover_end(handoff: datetime, predecessor: _Regime | None, incoming: _Resolved) -> datetime:

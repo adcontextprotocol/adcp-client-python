@@ -230,9 +230,10 @@ class TestCoverageStart:
         assert first.expected_at == "2026-10-02T10:00:00Z"
         assert first.withheld is False
 
-    def test_mid_period_confirmation_starts_at_next_boundary(self) -> None:
-        # Confirmed 11:00 local on Oct 5 with a flight that began Oct 3: the
-        # Oct 5 local day started before confirmation and is never owed.
+    def test_mid_period_confirmation_owes_that_period_in_full(self) -> None:
+        # adcp#8593: confirmed 11:00 local on Oct 5, with a flight that began
+        # Oct 3. A buy is owed every period that ends after its confirmed_at,
+        # so the Oct 5 local day is owed in full; Oct 3 and 4 are not.
         result = starts(
             buys=[
                 buy(
@@ -242,7 +243,7 @@ class TestCoverageStart:
                 )
             ]
         )
-        assert result == days("2026-10-06", 2)
+        assert result == days("2026-10-05", 3)
 
     def test_confirmation_on_a_boundary_owes_that_period(self) -> None:
         result = starts(
@@ -1322,11 +1323,15 @@ def test_explicit_windows_and_exception_values() -> None:
 def test_start_is_the_first_boundary_after_the_latest_of_three(
     confirmed: str, accepted: str, granted: str
 ) -> None:
-    latest = max(at(confirmed), at(accepted), at(granted))
+    # adcp#8593: periods start at or after the later of accepted_at and
+    # authorized_at, and end after confirmed_at.
+    bound = max(at(accepted), at(granted))
     expected = [
         start
         for start in days("2026-09-30", 10)
-        if at(start) >= latest and at(start) < at("2026-10-08T04:00:00Z")
+        if at(start) >= bound
+        and at(start) + timedelta(days=1) > at(confirmed)
+        and at(start) < at("2026-10-08T04:00:00Z")
     ]
     result = starts(
         subscription=state(accepted),
