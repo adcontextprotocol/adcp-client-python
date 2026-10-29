@@ -460,3 +460,30 @@ def test_webhook_payload_schema_documents_push_notification_operation_id_source(
     assert "push_notification_config.operation_id" in description
     assert "reporting_webhook.operation_id" not in description
     assert McpWebhookPayload.model_fields["operation_id"].description == description
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_delivery_webhooks_never_send_aggregated_totals(
+    typed: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """AdCP 3.3: senders MUST NOT put aggregated_totals in a delivery webhook."""
+    report = {
+        **_DELIVERY_REPORT,
+        "aggregated_totals": {"impressions": 1000, "spend": 45.0, "media_buy_count": 1},
+    }
+    result: Any = MediaBuyDeliveryWebhookResult.model_validate(report) if typed else report
+    registration = {
+        "url": "https://buyer.example/reporting",
+        "authentication": _AUTHENTICATION,
+        "reporting_frequency": "daily",
+        "operation_id": "op_reporting_1",
+    }
+    with caplog.at_level(logging.WARNING, logger="adcp.webhooks"):
+        payload = create_media_buy_delivery_webhook_payload(
+            registration, task_id="delivery_report_000002", result=result
+        )
+    body = payload.model_dump(mode="json", exclude_none=True)["result"]
+    assert "aggregated_totals" not in body
+    assert body["media_buy_deliveries"] == _DELIVERY_REPORT["media_buy_deliveries"]
+    assert "Dropped aggregated_totals" in caplog.text
+    assert "aggregated_totals" in report  # the caller's object is not mutated
