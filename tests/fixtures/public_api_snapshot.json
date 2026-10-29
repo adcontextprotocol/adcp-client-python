@@ -938,6 +938,10 @@
   },
   "adcp.signing": {
     "resolves": {
+      "ADCP_USE_GOVERNANCE": "value:'governance-signing'",
+      "ADCP_USE_REQUEST": "value:'request-signing'",
+      "ADCP_USE_RESPONSE": "value:'response-signing'",
+      "ADCP_USE_WEBHOOK": "value:'webhook-signing'",
       "ALG_ED25519": "value:'ed25519'",
       "ALG_ES256": "value:'ecdsa-p256-sha256'",
       "ALLOWED_ALGS": "instance:builtins:frozenset",
