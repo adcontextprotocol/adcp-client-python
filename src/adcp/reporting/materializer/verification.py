@@ -65,6 +65,7 @@ from adcp.reporting.materializer.contracts import (
     object_path,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
+from adcp.types.domains.enums.reporting_custody import ReportingCustody
 
 _VERIFICATION_SEAL_KEY = secrets.token_bytes(32)
 
@@ -167,6 +168,10 @@ class ReportingRevisionVerifier(_ClosedValue):
     (value_type, optional unit, decimal scale). This explicit pinned subset has
     no expression evaluator, custom callbacks, mutable registration or network.
     Unsupported formats and definition semantics fail during construction.
+
+    The definition bytes are hashed exactly as installed, so every field they
+    carry, including AdCP 3.3's optional ``source.custody``, is covered by
+    ``report_definition_sha256``. :attr:`custody` exposes that claim.
     """
 
     key: ReportingVerificationKey
@@ -207,6 +212,7 @@ class ReportingRevisionVerifier(_ClosedValue):
             if hashlib.sha256(raw).hexdigest() != expected.lower():
                 raise failure("UNSUPPORTED_VERIFICATION")
         report = _mapping(parse_reporting_json(self.definition_bytes, self.limits))
+        _definition_custody(report)
         schema = _mapping(parse_reporting_json(self.schema_bytes, self.limits))
         contract = _mapping(parse_reporting_json(self.canonicalization_bytes, self.limits))
         if (
@@ -336,6 +342,22 @@ class ReportingRevisionVerifier(_ClosedValue):
     ) -> tuple[tuple[bytes, ...], tuple[ReportingControlTotalRecord, ...]]:
         """Useful to trusted publishers preparing expected evidence before storage."""
         return self._runtime().canonicalize(rows)
+
+    @property
+    def custody(self) -> ReportingCustody | None:
+        """The installed definition's ``source.custody`` claim, or ``None`` if it makes none.
+
+        AdCP 3.3 adds the optional claim: ``system_of_record`` when the producer
+        controls the numbers, ``upstream_derived`` when it obtained them from the
+        provider and system its ``source`` names. The definition digest fixes it
+        for every revision, so no revision carries its own copy. Read it with a
+        revision's ``finality_basis``: an ``upstream_derived`` definition that
+        finalizes by ``contractual_cutoff`` closes figures the producer does not
+        control. Construction already rejected a value outside the enum.
+        """
+        return _definition_custody(
+            _mapping(parse_reporting_json(self.definition_bytes, self.limits))
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -720,6 +742,17 @@ def _mapping(value: object) -> dict[str, Any]:
     if type(value) is not dict:
         raise failure("SOURCE_INVALID")
     return cast(dict[str, Any], value)
+
+
+def _definition_custody(report: dict[str, Any]) -> ReportingCustody | None:
+    """``source.custody`` from a parsed report definition; fail closed on a malformed claim."""
+    source = report.get("source")
+    if type(source) is not dict or "custody" not in source:
+        return None
+    custody = source["custody"]
+    if type(custody) is not str or custody not in {c.value for c in ReportingCustody}:
+        raise failure("UNSUPPORTED_VERIFICATION")
+    return ReportingCustody(custody)
 
 
 def _local_schema(schema: dict[str, Any]) -> None:

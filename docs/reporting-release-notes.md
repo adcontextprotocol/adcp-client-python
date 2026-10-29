@@ -1,5 +1,63 @@
 # Reliable Reporting upgrade and release notes
 
+## AdCP 3.3 reporting rules
+
+AdCP 3.3 changes several reporting rules
+([#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)).
+Here is what the SDK does for each, and what stays with the code that produces
+delivery.
+
+- **Delivery rows may omit `impressions`.** The generated delivery row types make
+  the field optional. Absence means "not measured", never zero. Only
+  `aggregated_totals` still requires it. `InlineReportingSource` stages such a
+  row without an `impressions` key. It publishes no `impressions` control total
+  unless every staged row carries the metric, so an unmeasured row is never
+  summed as zero. No SDK reader derives `cpm`, `ctr`, `completion_rate` or
+  `viewable_rate` from delivery rows. A seller that has no impression count for
+  a row omits the field, along with that row's impression-denominated rates. In a
+  response served below 3.3, it omits the row instead of sending
+  `impressions: 0`.
+- **Multi-qualifier metrics omit flat totals.** The SDK builds no buy or window
+  `totals`. A seller whose packages report one `metric_id` under more than one
+  qualifier set omits that metric's flat carrier, such as `viewability`, from
+  buy totals, window totals and per-buy webhook totals. Buyers read the package
+  rows instead.
+- **Receivers ignore `aggregated_totals` in delivery webhooks.** `WebhookReceiver`
+  and `ADCPClient.handle_webhook` accept a `media_buy_delivery` result that
+  carries it. Nothing in the SDK reads it. On `WebhookReceiver`'s typed result
+  it is an unmodelled extra; `handle_webhook` returns the result mapping as
+  received. Do not treat it as authoritative. Reconcile from
+  `get_media_buy_delivery` or the per-buy rows. Senders still must not include it.
+- **Property-grain rollups.** Under the `property_delivery_reporting` and
+  `installment_property_delivery_reporting` storyboards, a seller builds
+  `by_property`, `by_installment` and `by_installment_property` only from the
+  rows that `simulate_delivery` injects. The test-controller dispatcher rejects
+  these arrays with `INVALID_PARAMS` when they come with `delivery_date`,
+  because the arrays are undated. It also rejects them when the store's
+  `simulate_delivery` override does not declare the parameter: dropping the rows
+  would report success for rows the seller never received. The store rejects
+  multi-package buys itself.
+- **`source.custody` on report definitions.** A definition's `source` may claim
+  `system_of_record` or `upstream_derived`. The SDK hashes installed definition
+  bytes exactly as given, so `report_definition_sha256` covers the claim.
+  Adding the claim to a published definition therefore needs a new digest.
+  `ReportingRevisionVerifier.custody` returns the claim, or `None` when the
+  definition makes none. A value outside the enum fails construction with
+  `UNSUPPORTED_VERIFICATION`. The buyer-side `ManifestReportingInspector`
+  validates definitions with the generated `ReportingReportDefinition`, which
+  models the field.
+- **Superseded snapshot compaction is not permitted under 3.3.** The notice
+  takes effect no earlier than the first minor after November 20, 2026. The
+  ledger keeps every revision's content for its full retention window, which
+  stays conformant. When compaction becomes permitted, an exact read of a
+  compacted revision must return the same nondisclosing `REFERENCE_NOT_FOUND`
+  as an unknown ID, with `field: "reporting_revision_id"`. The SDK's not-found
+  answers do not set `field` yet. A revision still owed whose content cannot be
+  served stays a `REVISION_UNREADABLE` issue, served as `SERVICE_UNAVAILABLE`,
+  never a not-found. Buyers that need a superseded snapshot's rows should
+  persist them when read, or record a receipt or status statement naming the
+  revision.
+
 ## Protocol-shape control totals
 
 New Core revisions bind `{name, value, value_type[, unit]}` control totals in
