@@ -435,9 +435,9 @@ async def test_max_accounts_is_deterministic_and_reported() -> None:
 
 
 @pytest.mark.asyncio
-async def test_max_accounts_orders_by_the_current_grant_chain() -> None:
-    # acct-a was first granted earliest, but its re-grant came after the
-    # retention window, so its current chain starts later than acct-b's.
+async def test_max_accounts_slots_are_kept_by_served_accounts() -> None:
+    # acct-a lost its slot when it lost authority; acct-b, served since,
+    # keeps it when acct-a comes back.
     world = World(support=ReportingSubscriptionSupport(max_accounts=1), retention_days=2)
     world.grant("acct-a", "2026-09-01T00:00:00Z")
     await world.sync(subscription())
@@ -451,6 +451,14 @@ async def test_max_accounts_orders_by_the_current_grant_chain() -> None:
     state = await world.state("analytics")
     assert [(e.account_id, e.reasons) for e in state.accounts_with_exceptions] == [
         ("acct-a", ["capacity"])
+    ]
+    # A byte-lower account granted later does not displace the served one.
+    world.grant("acct-0", "2026-09-11T00:00:00Z")
+    await world.reconcile("2026-09-11T00:00:00Z")
+    state = await world.state("analytics")
+    assert [(e.account_id, e.reasons) for e in state.accounts_with_exceptions] == [
+        ("acct-0", ["capacity"]),
+        ("acct-a", ["capacity"]),
     ]
 
 

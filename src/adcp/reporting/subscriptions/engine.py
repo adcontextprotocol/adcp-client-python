@@ -25,10 +25,11 @@ computes owed periods with the same
 runs, so both sides agree period by period.
 
 ``max_accounts`` order
-    Accounts eligible to be served (in scope, authorized, not excluded or
-    overridden) are served in order of their coverage start (the account's
-    first ``authorized_at`` in the current grant chain), then ``account_id``
-    in byte order. Accounts beyond the limit get a ``capacity`` exception.
+    Among accounts eligible to be served (in scope, authorized, not excluded
+    or overridden), accounts already served keep their slots; the remaining
+    slots go to the others in ``account_id`` byte order. Accounts beyond the
+    limit get a ``capacity`` exception. A newly granted account never
+    displaces one being served. This matches the TypeScript SDK.
 """
 
 from __future__ import annotations
@@ -177,6 +178,8 @@ class _PrincipalState:
     )
     #: subscription_id -> accounts it ever covered
     covered: dict[str, set[str]] = field(default_factory=dict)
+    #: subscription_id -> accounts holding a max_accounts slot
+    served: dict[str, set[str]] = field(default_factory=dict)
     #: (subscription_id, account_id) -> exclusions, open and closed
     exclusions: dict[tuple[str, str], list[_Exclusion]] = field(default_factory=dict)
 
@@ -397,7 +400,14 @@ class ReportingSubscriptionEngine:
             for state in states:
                 subscription_id = str(state["subscription_id"])
                 desired = self._desired_exclusions(
-                    state, states, accounts, buys, configs, destinations, now
+                    state,
+                    states,
+                    accounts,
+                    buys,
+                    configs,
+                    destinations,
+                    now,
+                    served=principal.served.setdefault(subscription_id, set()),
                 )
                 covered = principal.covered.setdefault(subscription_id, set())
                 for account_id, wanted in desired.items():
@@ -455,8 +465,14 @@ class ReportingSubscriptionEngine:
         configs: Mapping[str, Sequence[AccountDeliveryConfig]],
         destinations: Mapping[str, Any],
         now: datetime,
+        *,
+        served: set[str],
     ) -> dict[str, list[_Exclusion]]:
-        """Per account the scope includes: the exclusions that should be open now."""
+        """Per account the scope includes: the exclusions that should be open now.
+
+        ``served`` holds the accounts with a ``max_accounts`` slot and is
+        updated in place.
+        """
         result: dict[str, list[_Exclusion]] = {}
         if not _active(state):
             return result
@@ -464,7 +480,7 @@ class ReportingSubscriptionEngine:
         scope = configuration["scope"]
         feed_purpose = configuration["selector"]["feed_purpose"]
         excluded_ids = set(configuration.get("exclude_account_ids") or ())
-        eligible: list[tuple[datetime, bytes, str]] = []
+        eligible: list[tuple[int, bytes, str]] = []
         for account_id, account in accounts.items():
             if not account.authorized:
                 continue
@@ -488,12 +504,15 @@ class ReportingSubscriptionEngine:
                 continue
             result[account_id] = []
             eligible.append(
-                (_chain_start(account, self._retention), account_id.encode("utf-8"), account_id)
+                (0 if account_id in served else 1, account_id.encode("utf-8"), account_id)
             )
         limit = self._support.max_accounts
-        if limit is not None:
-            for _start, _key, account_id in sorted(eligible)[limit:]:
-                result[account_id] = [_Exclusion("capacity", now)]
+        ranked = [account_id for _held, _key, account_id in sorted(eligible)]
+        kept = ranked if limit is None else ranked[:limit]
+        served.clear()
+        served.update(kept)
+        for account_id in ranked[len(kept) :]:
+            result[account_id] = [_Exclusion("capacity", now)]
         for account_id, entries in result.items():
             if entries:
                 continue
@@ -897,22 +916,6 @@ class ReportingSubscriptionEngine:
 
 
 # -- helpers -------------------------------------------------------------------
-
-
-def _chain_start(account: _Account, retention: timedelta) -> datetime:
-    """The first ``authorized_at`` of the account's current grant chain.
-
-    A re-grant at or after ``unauthorized_at + status_retention_days`` is a
-    fresh coverage start, as in the coverage rule, so it starts a new chain.
-    """
-    if not account.grants:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    start = account.grants[0].authorized_at
-    for earlier, later in zip(account.grants, account.grants[1:]):
-        lost = earlier.unauthorized_at
-        if lost is not None and later.authorized_at - lost >= retention:
-            start = later.authorized_at
-    return start
 
 
 def _operator_selected(configuration: Mapping[str, Any], account: _Account) -> bool:

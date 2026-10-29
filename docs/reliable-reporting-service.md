@@ -372,8 +372,8 @@ current in `get_principal` (each change fires `principal.changed` with reason
 `get_reporting_status`, and computes `owed_periods(...)` with the same function
 the buyer runs.
 
-`max_accounts` serves eligible accounts in order of their coverage start, then
-`account_id` in byte order; the rest get a `capacity` exception.
+Under `max_accounts`, accounts already served keep their slots and the rest are
+filled in `account_id` byte order; the remainder get a `capacity` exception.
 
 `subscription_capabilities(...)` and `advertise_reporting_subscriptions(...)`
 project `configuration_tasks`, the deprecated `configuration_task`, the
