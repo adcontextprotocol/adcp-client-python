@@ -103,6 +103,14 @@ from adcp.server.discovery import (
     build_manifest,
     make_discovery_route,
 )
+from adcp.server.feed_version import (
+    FRESHNESS_FIELDS,
+    PRICING_FIELDS,
+    check_feed_preconditions,
+    feed_unchanged,
+    pricing_version,
+    wholesale_feed_version,
+)
 from adcp.server.governance import GovernanceHandler
 from adcp.server.governance_enforcement import (
     GovernanceEnforcementDecision,
@@ -364,4 +372,11 @@ __all__ = [
     "sync_creatives_response",
     "sync_governance_response",
     "update_media_buy_response",
+    # Wholesale feed versions (conditional get_products / get_signals reads)
+    "FRESHNESS_FIELDS",
+    "PRICING_FIELDS",
+    "check_feed_preconditions",
+    "feed_unchanged",
+    "pricing_version",
+    "wholesale_feed_version",
 ]
