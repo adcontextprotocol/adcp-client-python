@@ -166,7 +166,6 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "DiscoveryMethod",
         "DivergenceReport",
         "EntryErrorKind",
-        "AdagentsFetcher",
         "CrossDomainFailureReason",
         "CrossDomainVerification",
         "PublisherDivergence",
@@ -1612,7 +1611,6 @@ __all__ = [
     "resolve_properties_for_agent",
     "properties_for_publisher_domain",
     "verify_cross_domain_properties",
-    "AdagentsFetcher",
     "CrossDomainFailureReason",
     "CrossDomainVerification",
     "UnverifiedProperty",
@@ -1837,7 +1835,6 @@ if TYPE_CHECKING:
     from adcp.adagents import (
         AdagentsCacheEntry,
         AdagentsEntryError,
-        AdagentsFetcher,
         AdagentsFetchResult,
         AdagentsTransportFactory,
         AdagentsValidationReport,
