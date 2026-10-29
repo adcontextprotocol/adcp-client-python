@@ -76,8 +76,17 @@ expands every shared subtree once per reference, so a response model whose
 compact form is 25 KB can go out at 4.8 MB. Measure before shipping it:
 a buyer applying the AdCP default 4 MiB response budget rejects an oversized
 ``tools/list`` outright, and the agent then looks unreachable rather than
-verbose. The SDK logs the payload size at startup and warns past half the
-budget.
+verbose. The buyer also bounds a response at 100,000 JSON object members and
+array elements, and JSON Schema is member-dense: a 2.5 MB ``tools/list`` can
+cross it. An MCP buyer lists tools before every call, so a listing over
+either bound fails every call. The SDK logs both numbers at startup and warns
+past half of either bound.
+
+A version-pinned server (``_adcp_version``, ``adcp_version=``, or any
+decisioning ``serve()`` seller) advertises its release's bundled wire
+schemas. Under the default ``"compact"`` mode the request schema is exact and
+the response schema is pruned the same way Pydantic outputs are; ``"defs"``
+and ``"inline"`` advertise the exact bundled response schema too.
 
 ``schema_mode="defs"`` is also available when a client resolves references
 and needs the complete, unpruned Pydantic schema graph.
@@ -88,7 +97,7 @@ you mean it) and the schema mode. Both are visible in the startup line:
 
 ```
 mcp server advertising 13 of 13 tools
-mcp server tools/list payload: 1351670 bytes across 13 tools
+mcp server tools/list payload: 1434610 bytes, 33190 JSON members across 13 tools
 ```
 
 **Declaring ``advertised_tools`` makes that class a discovery base.** Once

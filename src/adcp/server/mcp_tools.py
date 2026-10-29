@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import difflib
+import json
 import logging
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Literal
@@ -2013,6 +2014,254 @@ def _prune_schema_node(
     return value
 
 
+#: Keywords whose value is a map of name -> subschema (not a schema itself).
+_SCHEMA_MAP_KEYS: frozenset[str] = frozenset(
+    {"$defs", "definitions", "patternProperties", "dependentSchemas"}
+)
+
+#: Keywords whose value is data, never a subschema. ``enum`` joins the
+#: Pydantic literal set here because bundled schemas carry object enums.
+_WIRE_LITERAL_KEYS: frozenset[str] = _SCHEMA_LITERAL_KEYS | {"enum"}
+
+#: Subschemas where loosening is not a relaxation: a looser ``not`` or
+#: ``if`` rejects, or switches branches for, a response the original
+#: accepted, and a looser ``contains`` can overrun ``maxContains``. Bundled
+#: compaction copies them unchanged.
+_WIRE_VERBATIM_KEYS: frozenset[str] = frozenset({"not", "if", "contains"})
+
+_SCALAR_JSON_TYPES: frozenset[str] = frozenset({"boolean", "integer", "number", "string"})
+
+#: Compact bundled response schemas, memoized per (pin, tool) as JSON text so
+#: every caller gets an independent tree, alongside the loader state they came
+#: from.
+_COMPACT_WIRE_OUTPUT_SCHEMAS: dict[tuple[str, str], tuple[Any, str]] = {}
+
+
+def _json_pointer_segments(ref: str) -> tuple[str, ...]:
+    """Split a local ``#/...`` reference into unescaped pointer segments."""
+    fragment = ref[1:]
+    if not fragment:
+        return ()
+    return tuple(
+        segment.replace("~1", "/").replace("~0", "~") for segment in fragment.split("/")[1:]
+    )
+
+
+def _local_json_refs(value: Any, found: list[str]) -> list[str]:
+    """Collect every document-local ``$ref`` (``#...``) in ``value``."""
+    if isinstance(value, dict):
+        ref = value.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#"):
+            found.append(ref)
+        for key, item in value.items():
+            if key not in _WIRE_LITERAL_KEYS:
+                _local_json_refs(item, found)
+    elif isinstance(value, list):
+        for item in value:
+            _local_json_refs(item, found)
+    return found
+
+
+_MISSING = object()
+
+
+def _resolve_json_pointer(document: Any, ref: str) -> Any:
+    """Follow a local ``#/...`` reference; :data:`_MISSING` if it dangles."""
+    node = document
+    for segment in _json_pointer_segments(ref):
+        if isinstance(node, dict) and segment in node:
+            node = node[segment]
+        elif isinstance(node, list) and segment.isdigit() and int(segment) < len(node):
+            node = node[int(segment)]
+        else:
+            return _MISSING
+    return node
+
+
+def _compact_wire_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Compact a bundled wire schema the way ``schema_mode="compact"`` does.
+
+    A version-pinned server advertises the bundle's own JSON Schema rather
+    than a Pydantic-derived one, and that schema carries every optional
+    nested subtree: a 3.2 ``get_products`` response is about 15,000 JSON
+    members on its own, and a full sales seller's ``tools/list`` crosses the
+    100,000-member parse bound an SDK buyer applies to every response
+    (:data:`adcp._json_bounds.MAX_JSON_MEMBERS`, issue #1692).
+
+    The rule matches :func:`_prune_to_required_fields`: properties of the
+    root object (and of the root's own ``oneOf`` / ``anyOf`` / ``allOf``
+    arms) are kept; inside nested objects required and scalar properties are
+    kept, and every other property is re-admitted by name with the
+    permissive schema ``true``. A closed object stays closed and its field
+    inventory survives, but a real response still validates.
+
+    That last property is load-bearing — the MCP client rejects a tool
+    result whose ``structuredContent`` fails the advertised ``outputSchema``
+    — so the result must accept everything the bundled schema accepts.
+    Loosening is only a relaxation outside negation, so ``not``, ``if`` and
+    ``contains`` (and everything they reference) are copied unchanged, and a
+    ``oneOf`` whose arms were loosened is advertised as ``anyOf``.
+
+    Bundled schemas, unlike Pydantic's, reference arbitrary JSON pointers
+    (``#/oneOf/0/properties/fonts/definitions/font_role``,
+    ``#/$defs/external:core~1format.json/$defs/baseGroupAsset``), so any
+    subtree on the path to a reference target is kept, definitions are
+    dropped only when nothing that survives reaches them, and the original
+    schema is returned unchanged if a reference would still dangle.
+    """
+    targets = {_json_pointer_segments(ref) for ref in _local_json_refs(schema, [])}
+    on_ref_path = {target[:end] for target in targets for end in range(len(target) + 1)}
+
+    # Whatever a verbatim subschema references must stay verbatim too, or a
+    # ``not: {"$ref": ...}`` would negate a loosened target.
+    verbatim_refs: list[str] = []
+
+    def collect_verbatim_refs(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key in _WIRE_VERBATIM_KEYS:
+                    _local_json_refs(item, verbatim_refs)
+                elif key not in _WIRE_LITERAL_KEYS:
+                    collect_verbatim_refs(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect_verbatim_refs(item)
+
+    collect_verbatim_refs(schema)
+    verbatim_targets: set[tuple[str, ...]] = set()
+    while verbatim_refs:
+        ref = verbatim_refs.pop()
+        segments = _json_pointer_segments(ref)
+        if segments in verbatim_targets:
+            continue
+        verbatim_targets.add(segments)
+        _local_json_refs(_resolve_json_pointer(schema, ref), verbatim_refs)
+
+    def is_scalar(node: Any, seen: frozenset[str] = frozenset()) -> bool:
+        if not isinstance(node, dict):
+            return False
+        node_type = node.get("type")
+        if isinstance(node_type, str):
+            return node_type in _SCALAR_JSON_TYPES
+        if isinstance(node_type, list) and node_type:
+            non_null = [item for item in node_type if item != "null"]
+            return bool(non_null) and all(item in _SCALAR_JSON_TYPES for item in non_null)
+        if "const" in node:
+            return not isinstance(node["const"], (dict, list))
+        enum = node.get("enum")
+        if isinstance(enum, list) and enum:
+            return all(not isinstance(item, (dict, list)) for item in enum)
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#"):
+            if ref in seen:
+                return False
+            return is_scalar(_resolve_json_pointer(schema, ref), seen | {ref})
+        for keyword in ("anyOf", "oneOf"):
+            branches = node.get(keyword)
+            if isinstance(branches, list):
+                non_null_branches = [
+                    branch
+                    for branch in branches
+                    if not (isinstance(branch, dict) and branch.get("type") == "null")
+                ]
+                return bool(non_null_branches) and all(
+                    is_scalar(branch, seen) for branch in non_null_branches
+                )
+        return False
+
+    def prune(node: Any, path: tuple[str, ...], is_root: bool) -> Any:
+        if path in verbatim_targets:
+            return node
+        if isinstance(node, list):
+            return [prune(item, (*path, str(index)), False) for index, item in enumerate(node)]
+        if not isinstance(node, dict):
+            return node
+        required_value = node.get("required")
+        required = set(required_value) if isinstance(required_value, list) else set()
+        result: dict[str, Any] = {}
+        for key, value in node.items():
+            key_path = (*path, key)
+            if key in _WIRE_LITERAL_KEYS or key in _WIRE_VERBATIM_KEYS:
+                result[key] = value
+            elif key in _SCHEMA_MAP_KEYS and isinstance(value, dict):
+                result[key] = {
+                    name: prune(item, (*key_path, name), False) for name, item in value.items()
+                }
+            elif key == "properties" and isinstance(value, dict):
+                kept: dict[str, Any] = {}
+                for name, item in value.items():
+                    item_path = (*key_path, name)
+                    if is_root or name in required or item_path in on_ref_path or is_scalar(item):
+                        kept[name] = prune(item, item_path, False)
+                    else:
+                        kept[name] = True
+                result[key] = kept
+            elif key == "oneOf" and isinstance(value, list):
+                if key_path in on_ref_path or "anyOf" in node:
+                    # Renaming would break a reference into it or collide.
+                    result[key] = value
+                    continue
+                branches = [
+                    prune(item, (*key_path, str(index)), is_root)
+                    for index, item in enumerate(value)
+                ]
+                # Relaxed arms can overlap, and an instance matching two arms
+                # fails ``oneOf``. ``anyOf`` keeps the relaxation a relaxation.
+                result["anyOf" if branches != value else key] = branches
+            elif is_root and key in {"anyOf", "allOf"} and isinstance(value, list):
+                result[key] = [
+                    prune(item, (*key_path, str(index)), True) for index, item in enumerate(value)
+                ]
+            else:
+                result[key] = prune(value, key_path, False)
+        return result
+
+    compact: dict[str, Any] = prune(schema, (), True)
+    defs = compact.get("$defs")
+    if isinstance(defs, dict):
+        body = {key: value for key, value in compact.items() if key != "$defs"}
+        reachable: set[str] = set()
+        pending = [_json_pointer_segments(ref) for ref in _local_json_refs(body, [])]
+        while pending:
+            segments = pending.pop()
+            if len(segments) < 2 or segments[0] != "$defs":
+                continue
+            name = segments[1]
+            if name in reachable or name not in defs:
+                continue
+            reachable.add(name)
+            pending.extend(_json_pointer_segments(ref) for ref in _local_json_refs(defs[name], []))
+        if reachable:
+            body["$defs"] = {name: item for name, item in defs.items() if name in reachable}
+        compact = body
+    if any(
+        _resolve_json_pointer(compact, ref) is _MISSING for ref in _local_json_refs(compact, [])
+    ):
+        return schema
+    return compact
+
+
+def _compact_wire_output_schema(tool_name: str, version: str) -> dict[str, Any] | None:
+    """Return the bundled response schema for ``tool_name``, compacted.
+
+    Memoized against the loader state that produced it, so a loader reset
+    (or a different bundle behind the same version string) recomputes.
+    """
+    from adcp.validation.schema_loader import _ensure_state
+
+    state = _ensure_state(version)
+    key = (version, tool_name)
+    cached = _COMPACT_WIRE_OUTPUT_SCHEMAS.get(key)
+    if cached is None or cached[0] is not state:
+        schema = get_mcp_schema(tool_name, "sync", version=version)
+        if schema is None:
+            return None
+        cached = (state, json.dumps(_compact_wire_schema(schema), separators=(",", ":")))
+        _COMPACT_WIRE_OUTPUT_SCHEMAS[key] = cached
+    result: dict[str, Any] = json.loads(cached[1])
+    return result
+
+
 def _model_to_json_schema(
     model_type: Any,
     *,
@@ -2843,8 +3092,11 @@ def get_tools_for_handler(
             modes regenerate input *and* output schemas on every call with no
             memoization — seconds per construction for a 13-tool handler —
             where ``"compact"`` reads the memoized registry.
-            Version-pinned handlers continue to advertise their exact bundled
-            wire schemas.
+            Version-pinned handlers advertise their release's bundled wire
+            schemas: the request schema exactly, and the response schema
+            pruned the same way under ``"compact"`` (exact under ``"defs"``
+            and ``"inline"``) so a full seller's ``tools/list`` stays inside
+            the JSON member bound an SDK buyer enforces.
 
     Returns:
         Filtered list of tool definitions.
@@ -2991,7 +3243,17 @@ def get_tools_for_handler(
             versioned.append(definition)
             continue
         definition["inputSchema"] = input_schema
-        output_schema = get_mcp_schema(name, "sync", version=resolved_version)
+        # The bundled response schema keeps every optional nested subtree,
+        # and these dominate a pinned seller's tools/list: unpruned, a full
+        # 3.2 sales seller exceeds the 100,000-member bound an SDK buyer
+        # applies to every response (#1692). ``"compact"`` prunes them the
+        # way it prunes Pydantic outputs; ``"defs"`` / ``"inline"`` keep the
+        # exact bundled schema for a client that wants it.
+        output_schema = (
+            _compact_wire_output_schema(name, resolved_version)
+            if schema_mode == "compact"
+            else get_mcp_schema(name, "sync", version=resolved_version)
+        )
         if output_schema is not None:
             output_schema.setdefault("type", "object")
             definition["outputSchema"] = output_schema

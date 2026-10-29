@@ -27,6 +27,8 @@ PINS = ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-beta.6")
 # Canonical JSON digests captured from unchanged e9a1c8fc before adding
 # the materialization cache. These are transformed public schemas,
 # not a claim of byte identity with the signed upstream schema files.
+# They are the exact (``schema_mode="defs"``) definitions; the default
+# ``"compact"`` mode prunes pinned output schemas (#1692).
 EXPECTED_PUBLIC_SHA256 = {
     "3.2.0-rc.3": "6656874ca37ea0732e65a5f0313c8ead7b56ed12460bdbae297c4c648fa26f14",
     "3.2.0-rc.6": "d712168e85932dfabad8a76b49a24aa6411dc11748832d18dd0ae00ad7106b3e",
@@ -79,8 +81,8 @@ def mutable_ids(value: Any) -> set[int]:
     return seen
 
 
-def public_definitions(version: str) -> list[dict[str, Any]]:
-    return mcp_tools.get_tools_for_handler(PinnedSchemaHandler(version))
+def public_definitions(version: str, schema_mode: str = "compact") -> list[dict[str, Any]]:
+    return mcp_tools.get_tools_for_handler(PinnedSchemaHandler(version), schema_mode=schema_mode)
 
 
 def count_materializations(monkeypatch):
@@ -117,7 +119,7 @@ def test_public_handler_pins_have_isolated_materializations(monkeypatch):
     calls = count_materializations(monkeypatch)
     saved = {}
     for version in PINS:
-        definitions = public_definitions(version)
+        definitions = public_definitions(version, "defs")
         saved[version] = canonical(definitions)
         assert hashlib.sha256(saved[version]).hexdigest() == EXPECTED_PUBLIC_SHA256[version]
         for definition in definitions:
@@ -125,7 +127,7 @@ def test_public_handler_pins_have_isolated_materializations(monkeypatch):
             if "outputSchema" in definition:
                 definition["outputSchema"].clear()
     for version in reversed(PINS):
-        definitions = public_definitions(version)
+        definitions = public_definitions(version, "defs")
         assert canonical(definitions) == saved[version]
     assert {key[0] for key in calls} == set(PINS)
     assert calls and set(calls.values()) == {1}
@@ -216,8 +218,10 @@ def test_pinned_schemas_do_not_copy_superseded_current_models(monkeypatch):
     monkeypatch.setitem(definition, "inputSchema", SupersededSchema())
     monkeypatch.setitem(definition, "outputSchema", SupersededSchema())
     monkeypatch.setattr(mcp_tools, "_ensure_pydantic_schemas_applied", unexpected_generation)
-    definitions = public_definitions(PINS[1])
+    definitions = public_definitions(PINS[1], "defs")
     assert hashlib.sha256(canonical(definitions)).hexdigest() == (EXPECTED_PUBLIC_SHA256[PINS[1]])
+    compact = public_definitions(PINS[1])
+    assert canonical(compact) != canonical(definitions)
 
 
 def test_current_model_fallback_retains_exact_definitions_and_mutation_isolation():
@@ -245,6 +249,7 @@ def test_unsupported_public_pin_never_reuses_a_warm_supported_schema():
 @pytest.mark.asyncio
 async def test_mutation_cannot_change_mounted_discovery_registration_or_validation(version):
     initial = public_definitions(version)
+    pristine = canonical(initial)
     expected = next(t for t in initial if t["name"] == "get_products")
     expected_input = deepcopy(expected["inputSchema"])
     expected_output = deepcopy(expected["outputSchema"])
@@ -296,8 +301,9 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
             response = await client.get(path)
             assert response.status_code == 200
             assert "get_products" in {skill["id"] for skill in response.json()["skills"]}
-    repeated = public_definitions(version)
+    repeated = public_definitions(version, "defs")
     assert hashlib.sha256(canonical(repeated)).hexdigest() == (EXPECTED_PUBLIC_SHA256[version])
+    assert canonical(public_definitions(version)) == pristine
 
 
 def test_cached_current_schema_retains_all_signed_summary_and_period_controls():

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Literal
 logger = logging.getLogger("adcp.server")
 _ADCP_MCP_REQUEST_CONTEXT: ContextVar[Any] = ContextVar("adcp_mcp_request_context")
 
+from adcp._json_bounds import MAX_JSON_MEMBERS
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.helpers import ResponseEnhancer
@@ -636,6 +637,25 @@ BUYER_RESPONSE_BYTE_BUDGET: int = 4 * 1024 * 1024
 #: about it while there is still room, not once buyers are already failing.
 _DISCOVERY_PAYLOAD_WARN_BYTES: int = BUYER_RESPONSE_BYTE_BUDGET // 2
 
+#: The second bound a buyer applies after the byte cap: aggregate JSON object
+#: members plus array elements in one response (AdCP 3.3 ``security.mdx``
+#: §Response Size Bounds). This SDK's buyer enforces it on ``tools/list`` like
+#: any other response, and the MCP client lists tools before every
+#: ``call_tool`` — so a listing over it fails every call, not just discovery,
+#: even when it is well under the byte budget (#1692). Bundled JSON Schema is
+#: member-dense: a 2.5 MB listing can hold more than 100,000 members.
+BUYER_RESPONSE_MEMBER_BOUND: int = MAX_JSON_MEMBERS
+
+#: Half the member bound, for the same reason as the byte threshold.
+_DISCOVERY_PAYLOAD_WARN_MEMBERS: int = BUYER_RESPONSE_MEMBER_BOUND // 2
+
+#: ``jsonrpc``, ``id`` and ``result`` around the ``{"tools": [...]}`` result.
+_JSONRPC_ENVELOPE_MEMBERS = 3
+
+
+def _discovery_payload(tool_defs: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    return {"tools": [_discovery_entry(tool_def) for tool_def in tool_defs]}
+
 
 def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
     """Serialized size of the ``tools/list`` result these definitions produce.
@@ -649,7 +669,7 @@ def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
     try:
         return len(
             json.dumps(
-                {"tools": [_discovery_entry(tool_def) for tool_def in tool_defs]},
+                _discovery_payload(tool_defs),
                 separators=(",", ":"),
                 default=str,
             )
@@ -660,6 +680,27 @@ def _discovery_payload_bytes(tool_defs: Sequence[dict[str, Any]]) -> int:
             "and FastMCP will not be able to serialize it either"
         )
         return 0
+
+
+def _discovery_payload_members(tool_defs: Sequence[dict[str, Any]]) -> int:
+    """JSON members a buyer counts in the ``tools/list`` response.
+
+    Counts what :class:`adcp._json_bounds.JsonBoundsScanner` counts — every
+    object member and array element — over the whole JSON-RPC response, so
+    the number is directly comparable to :data:`BUYER_RESPONSE_MEMBER_BOUND`.
+    Like the byte measure it errs high by counting ``annotations``.
+    """
+    members = _JSONRPC_ENVELOPE_MEMBERS
+    pending: list[Any] = [_discovery_payload(tool_defs)]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, dict):
+            members += len(value)
+            pending.extend(value.values())
+        elif isinstance(value, (list, tuple)):
+            members += len(value)
+            pending.extend(value)
+    return members
 
 
 def _discovery_entry(tool_def: dict[str, Any]) -> dict[str, Any]:
@@ -690,28 +731,51 @@ def warn_if_discovery_payload_is_oversized(
     unreachable agent. Measuring it here, once, at startup, puts the number in
     front of the one person who can act on it.
 
+    Both buyer bounds are checked: the byte budget
+    (:data:`BUYER_RESPONSE_BYTE_BUDGET`) and the JSON member bound
+    (:data:`BUYER_RESPONSE_MEMBER_BOUND`). Past half of either it warns;
+    past either bound it also logs an error, because an SDK buyer will refuse
+    the listing and with it every tool call. It does not refuse to start: a
+    buyer without the member bound can still use the agent, and the operator
+    is the one who decides what to cut.
+
     MCP only — an A2A agent card advertises skills by name and description,
     with no JSON Schema, so it has no equivalent growth.
 
-    Returns the measured size so callers can log or assert on it.
+    Returns the measured size in bytes so callers can log or assert on it.
     """
     size = _discovery_payload_bytes(tool_defs)
+    members = _discovery_payload_members(tool_defs)
     logger.info(
-        "mcp server tools/list payload: %d bytes across %d tools",
+        "mcp server tools/list payload: %d bytes, %d JSON members across %d tools",
         size,
+        members,
         len(tool_defs),
     )
-    if size <= _DISCOVERY_PAYLOAD_WARN_BYTES:
+    if size <= _DISCOVERY_PAYLOAD_WARN_BYTES and members <= _DISCOVERY_PAYLOAD_WARN_MEMBERS:
         return size
 
-    over_budget = size > BUYER_RESPONSE_BYTE_BUDGET
+    exceeded = [
+        description
+        for description, over in (
+            (f"the {BUYER_RESPONSE_BYTE_BUDGET}-byte budget", size > BUYER_RESPONSE_BYTE_BUDGET),
+            (
+                f"the {BUYER_RESPONSE_MEMBER_BOUND}-member JSON bound",
+                members > BUYER_RESPONSE_MEMBER_BOUND,
+            ),
+        )
+        if over
+    ]
+    over_budget = bool(exceeded)
     verdict = (
-        "Buyers applying the AdCP default response budget "
-        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes) will REJECT this tools/list, so "
-        "the agent will look unreachable rather than verbose."
+        "Buyers applying the AdCP default response bounds "
+        f"({' and '.join(exceeded)}) will REJECT this tools/list, and an MCP "
+        "buyer lists tools before every call, so the agent will look "
+        "unreachable rather than verbose."
         if over_budget
-        else "That is over half the AdCP default buyer response budget "
-        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes); the next few tools may not fit."
+        else "That is over half an AdCP default buyer response bound "
+        f"({BUYER_RESPONSE_BYTE_BUDGET} bytes, {BUYER_RESPONSE_MEMBER_BOUND} "
+        "JSON members); the next few tools may not fit."
     )
     advice = (
         "Advertise only the tools this agent serves (declare "
@@ -723,17 +787,18 @@ def warn_if_discovery_payload_is_oversized(
     # simplefilter in app bootstrap are both common, and this failure is
     # undiagnosable from the seller side. Put it on the log channel too.
     (logger.error if over_budget else logger.warning)(
-        "mcp server tools/list is %d bytes across %d tools. %s",
+        "mcp server tools/list is %d bytes and %d JSON members across %d tools. %s",
         size,
+        members,
         len(tool_defs),
         verdict,
     )
     warnings.warn(
-        f"mcp server tools/list is {size} bytes across "
+        f"mcp server tools/list is {size} bytes and {members} JSON members across "
         f"{len(tool_defs)} tools. {verdict}\n\n"
         f"{advice}, and keep schema_mode at its default 'compact' — "
-        "'inline' expands every shared subtree once per reference and is "
-        "what makes this payload large.",
+        "'inline' expands every shared subtree once per reference, and "
+        "'inline' or 'defs' advertise unpruned output schemas.",
         UserWarning,
         stacklevel=stacklevel,
     )
