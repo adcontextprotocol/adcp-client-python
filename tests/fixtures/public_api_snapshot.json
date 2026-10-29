@@ -72,6 +72,7 @@
       "AdagentsCacheEntry": "adcp.adagents",
       "AdagentsEntryError": "adcp.adagents",
       "AdagentsFetchResult": "adcp.adagents",
+      "AdagentsFetcher": "union[instance:builtins:list,union[union[builtins:str,typing:Any]]]",
       "AdagentsHTTPError": "adcp.exceptions",
       "AdagentsNotFoundError": "adcp.exceptions",
       "AdagentsTimeoutError": "adcp.exceptions",
@@ -184,6 +185,8 @@
       "CreativeManifest": "adcp.types.canonical_creative",
       "CreativeStatus": "enums.creative_status",
       "CreativeVariant": "adcp.types.canonical_creative",
+      "CrossDomainFailureReason": "union[value:'domain_limit',value:'fetch_failed',value:'invalid_domain',value:'not_vouched']",
+      "CrossDomainVerification": "adcp.adagents",
       "CssContent": "core.assets.css_asset:CssAsset",
       "CursorStore": "adcp.registry_sync",
       "DEFAULT_ACCEPTANCE_CATALOG_CACHE_ENTRIES": "value:64",
@@ -601,6 +604,7 @@
       "UniversalMacroTranslationError": "adcp.substitution",
       "UniversalMacroTranslationErrorCode": "union[value:'unsafe_native_mapping']",
       "UnknownFieldPolicy": "adcp.validation.client_hooks",
+      "UnverifiedProperty": "adcp.adagents",
       "UpdateContentStandardsErrorResponse": "content_standards.update_content_standards_response:UpdateContentStandardsResponse2",
       "UpdateContentStandardsResponse1": "content_standards.update_content_standards_response",
       "UpdateContentStandardsSuccessResponse": "content_standards.update_content_standards_response:UpdateContentStandardsResponse1",
@@ -719,6 +723,7 @@
       "normalize_identifier": "adcp.identifiers",
       "parse_managerdomains": "adcp.adagents",
       "project_available_actions": "adcp.media_buy_actions",
+      "properties_for_publisher_domain": "adcp.adagents",
       "reassess_media_buy_action": "adcp.media_buy_actions",
       "resolve_properties_for_agent": "adcp.adagents",
       "route_media_buy_action": "adcp.media_buy_actions",
@@ -746,7 +751,8 @@
       "validate_publisher_properties_item": "adcp.validation.legacy",
       "validate_webhook_challenge_response": "adcp.webhooks",
       "verify_agent_authorization": "adcp.adagents",
-      "verify_agent_for_property": "adcp.adagents"
+      "verify_agent_for_property": "adcp.adagents",
+      "verify_cross_domain_properties": "adcp.adagents"
     }
   },
   "adcp.reporting": {
