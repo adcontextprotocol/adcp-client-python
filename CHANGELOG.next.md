@@ -1,5 +1,28 @@
 # Changelog
 
+## [10.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.0...v10.0.0-beta.1) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** handlers on a pinned or ``supported_versions``-restricted server now receive that release instead of the packaged ``3.3-beta.0``, and ``resolve_requested_adcp_version(params)`` inside them returns it.
+* **types:** AdCPBaseModel keeps unknown keys (extra='allow') instead of dropping them. A stray keyword argument on an open model goes to the wire; set ADCP_STRICT_VALIDATION=1 in tests to find them. Closed schema objects keep refusing unknown keys.
+* **codegen:** model_dump() and model_dump_json() leave an unset schema-optional default off. A model built in Python no longer carries sandbox: false, timezone: "inventory_local", assignment_limit: 50 and the other schema defaults unless the caller set them; the attribute still reads the default. Pass exclude_unset=False for the SDK 9 output. Code that relied on a default reaching the peer must set it. model_dump_as_received() is deprecated. Generated root models dump with exclude_none=True.
+* **types:** a received null on a null-admitting property is written back as null by model_dump(). Model(x=None), model.x = None and model_copy(update={"x": None}) leave x unset: it is omitted from the dump, from model_dump(exclude_unset=True), and from model_fields_set, so a root required-group rule no longer counts it as supplied. A None inside a dict passed to model_validate is a wire null. canonical_creative.Format refuses a JSON null on its optional properties, as its schema does.
+* **types:** model_dump() and model_dump_json() write wire names for aliased fields. Code that read a dump by the Python name (dump["pass_"], dump["field_schema"]) must read the wire name (dump["pass"], dump["$schema"]); pass by_alias=False for the SDK 9 output.
+
+### Features
+
+* **codegen:** mark wire-required fields, and leave an unset schema default off the dump ([#1683](https://github.com/adcontextprotocol/adcp-client-python/issues/1683)) ([d0ea184](https://github.com/adcontextprotocol/adcp-client-python/commit/d0ea1840a51aee259ce0853f5176ca17252b0651))
+* **types:** dump wire names by default ([#1679](https://github.com/adcontextprotocol/adcp-client-python/issues/1679)) ([9c9b1f8](https://github.com/adcontextprotocol/adcp-client-python/commit/9c9b1f80065d1e34107c1ff6d70da11e737372be))
+* **types:** let the schema decide which unknown keys a model keeps ([#1687](https://github.com/adcontextprotocol/adcp-client-python/issues/1687)) ([69ccd70](https://github.com/adcontextprotocol/adcp-client-python/commit/69ccd702a0170cc99575012d15751e03d26dc6e4))
+* **types:** re-emit a received null, and read a None keyword argument as unset ([#1681](https://github.com/adcontextprotocol/adcp-client-python/issues/1681)) ([c048a8c](https://github.com/adcontextprotocol/adcp-client-python/commit/c048a8c0a8e77b4562551ba35b8b6d2937c1db2a))
+
+
+### Bug Fixes
+
+* **server:** let a server's version pin set the release its handlers run on ([#1689](https://github.com/adcontextprotocol/adcp-client-python/issues/1689)) ([24d40e0](https://github.com/adcontextprotocol/adcp-client-python/commit/24d40e0127a0236694f3b261aed74a35fca2c05e))
+
 ## [10.0.0-beta.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.3...v10.0.0-beta.0) (2026-10-27)
 
 
