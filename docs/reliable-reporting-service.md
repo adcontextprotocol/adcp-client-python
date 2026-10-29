@@ -335,7 +335,10 @@ they feed `evaluate_reporting_ledger` and the consumer-status planner as they
 are.
 
 **Seller.** Opt in on the principal runtime and link it to the engine. Without
-`reporting_subscriptions=`, `PrincipalService` keeps its 3.2 behavior.
+`reporting_subscriptions=`, `PrincipalService` rejects the section with
+`UNSUPPORTED_FEATURE`, as the spec requires for an unsupported section.
+`replace_account_configs: true` is also rejected with `UNSUPPORTED_FEATURE`
+until the engine can deactivate account-level configurations.
 
 ```python
 from adcp.reporting.subscriptions import (
@@ -350,7 +353,7 @@ engine = ReportingSubscriptionEngine(
     principals=principals,
     host=my_host,  # list_authorized_accounts, account_buys[, account_delivery_configs]
     offerings=[
-        SubscriptionOffering.from_offering(daily_offering, dimensions=("package",)),
+        SubscriptionOffering.from_offering(daily_offering),  # reads standard_dimensions
     ],
     support=ReportingSubscriptionSupport(max_accounts=500),
 )
@@ -360,12 +363,22 @@ principals.set_reporting_subscriptions(
 ```
 
 The host supplies only what it alone knows: the accounts a principal may read
-(`list_authorized_accounts`, paged), each account's buys with their products'
-`reporting_delivery_offering_ids` (`account_buys`), and optionally the caller's
+(`list_authorized_accounts`, paged), each with its IANA `timezone` and the
+`authorized_at` that `list_accounts` serves (the engine never substitutes
+either); each account's buys with their products'
+`reporting_delivery_offering_ids` (`account_buys`); and optionally the caller's
 own active `sync_accounts` configurations (`account_delivery_configs`), which
-take precedence. Call `engine.reconcile(principal)` on a schedule and after
-anything changes; call `engine.authorization_changed(...)` when you learn of a
-grant or revocation directly. The engine records exceptions as cutover
+take precedence. Give each configuration its `active_from` so the `overridden`
+exception opens at that instant; otherwise run `engine.reconcile(principal)`
+synchronously with every `sync_accounts` write. Call `engine.reconcile` on a
+schedule and after anything changes, and `engine.authorization_changed(...)`
+when you learn of a grant or revocation directly. A subscription that cannot
+be evaluated (for example an account with no timezone yet) is isolated and
+listed in `engine.evaluation_errors`; the others carry on. `subscription_coverage`
+answers from the engine's last-reconciled authority, so re-check authority
+before serving it. Use `render_path_template(...)` to expand a destination
+`path_template`, and `PrincipalService.reporting_subscription_ids(...)` to make
+`sync_accounts` reject a `delivery_config_id` that equals a subscription id. The engine records exceptions as cutover
 intervals, keeps `accounts_with_exceptions[]` and `accounts_unauthorized[]`
 current in `get_principal` (each change fires `principal.changed` with reason
 `reporting_subscription_changed`), serves `subscription_coverage(...)` for

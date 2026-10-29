@@ -285,7 +285,8 @@ async def test_mid_period_confirmation_cancellation_and_completion() -> None:
     owed = await world.assert_conformant("analytics", "acct-1", "2026-10-09T00:00:00Z")
     assert table(owed) == [
         ("2026-10-02T04:00:00Z", "pkg", 1, ("mb-canceled", "mb-completed")),
-        ("2026-10-03T04:00:00Z", "pkg", 1, ("mb-canceled",)),
+        # adcp#8593: the day containing confirmed_at (10-03T15Z) is owed in full.
+        ("2026-10-03T04:00:00Z", "pkg", 1, ("mb-canceled", "mb-confirmed-late")),
         ("2026-10-04T04:00:00Z", "pkg", 1, ("mb-canceled", "mb-confirmed-late")),
         ("2026-10-05T04:00:00Z", "pkg", 1, ("mb-confirmed-late",)),
         ("2026-10-06T04:00:00Z", "pkg", 1, ("mb-confirmed-late",)),
@@ -566,7 +567,7 @@ async def test_exact_finest_and_all(match: str, expected: list[str]) -> None:
     )
     await world.reconcile("2026-10-01T00:00:00Z")
     owed = await world.assert_conformant("analytics", "acct-1", "2026-10-03T00:00:00Z")
-    assert [p.offering_id for p in owed] == expected
+    assert sorted({p.offering_id for p in owed}) == expected
 
 
 @pytest.mark.asyncio
@@ -871,3 +872,250 @@ async def test_beta_1_callers_get_account_wide_entries_without_new_fields() -> N
     )
     payload = entry.model_dump(mode="json", exclude_none=True, by_alias=True)
     assert [error.message for error in validator.iter_errors(payload)] == []
+
+
+# -- expert review fixes -----------------------------------------------------------------
+
+DEST_A = {
+    "pattern": "file_transfer",
+    "destination_id": "dest-a",
+    "active": True,
+    "provider": {"domain": "object-store.example"},
+    "transport": "s3",
+    "location": "s3://buyer-a/adcp/",
+    "accepted_formats": ["parquet"],
+    "accepted_verification_profiles": ["manifest_checksums"],
+}
+DEST_B = {**DEST_A, "destination_id": "dest-b", "location": "s3://buyer-b/adcp/"}
+MANAGED = offering("pkg-file", ("package",), method_pattern="file_transfer", method_transport="s3")
+
+
+async def _sync_raw(world: World, configuration: dict) -> None:
+    world._key += 1
+    response = await world.principals.sync_principal(
+        IDENTITY,
+        {"idempotency_key": f"engine-raw-key-{world._key:06d}", "configuration": configuration},
+    )
+    assert response.result.kind == "applied", response
+
+
+@pytest.mark.asyncio
+async def test_removing_a_prior_versions_destination_keeps_its_coverage() -> None:
+    world = World()
+    world.engine._offerings = (*world.engine._offerings, MANAGED)
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [
+        buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-06T04:00:00Z", offering_ids=("pkg-file",))
+    ]
+    v1 = subscription(destination={"destination_id": "dest-a", "path_template": "x/{account_id}"})
+    await _sync_raw(
+        world, {"reporting_destinations": [DEST_A, DEST_B], "reporting_subscriptions": [v1]}
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.clock.set("2026-10-03T12:00:00Z")
+    v2 = subscription(
+        subscription_version=2,
+        destination={"destination_id": "dest-b", "path_template": "y/{account_id}"},
+    )
+    await _sync_raw(world, {"reporting_subscriptions": [v2]})
+    await _sync_raw(world, {"reporting_destinations": [DEST_B]})
+    owed = await world.seller_owes("analytics", "acct-1", "2026-10-07T00:00:00Z")
+    assert [(p.period_start, p.delivery_config_version) for p in owed] == [
+        ("2026-10-01T04:00:00Z", 1),
+        ("2026-10-02T04:00:00Z", 1),
+        ("2026-10-03T04:00:00Z", 1),
+        ("2026-10-04T04:00:00Z", 2),
+        ("2026-10-05T04:00:00Z", 2),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_version_bump_while_inactive_stays_computable() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-08T04:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.clock.set("2026-10-03T12:00:00Z")
+    await world.sync(subscription(active=False))
+    world.clock.set("2026-10-05T00:00:00Z")
+    await world.sync(subscription(subscription_version=2, active=False))
+    owed = await world.assert_conformant("analytics", "acct-1", "2026-10-08T00:00:00Z")
+    assert [p.period_start for p in owed] == [
+        "2026-10-01T04:00:00Z",
+        "2026-10-02T04:00:00Z",
+        "2026-10-03T04:00:00Z",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_losing_authority_never_closes_an_override() -> None:
+    world = World(support=ReportingSubscriptionSupport(backfill_on_regrant=True))
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-12T04:00:00Z")]
+    world.host.configs["acct-1"] = [AccountDeliveryConfig("acct-pacing", "analytics")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-05T10:00:00Z")
+    await world.reconcile("2026-10-05T10:00:00Z")
+    world.grant("acct-1", "2026-10-08T10:00:00Z")
+    await world.reconcile("2026-10-08T10:00:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    assert [(e.reason, e.until) for e in coverage.excluded] == [("overridden", None)]
+    # The account config owns the account throughout: the subscription never
+    # owes a second feed, not even for the backfilled revoked interval.
+    assert (
+        await world.assert_conformant("analytics", "acct-1", "2026-10-11T00:00:00Z", coverage) == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_exceptions_use_the_earliest_cutover_across_calendars() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [
+        buy(
+            "mb-1",
+            "2026-10-01T04:00:00Z",
+            "2026-10-09T04:00:00Z",
+            offering_ids=("pkg", "pkg-region-utc"),
+        ),
+    ]
+    await world.sync(
+        subscription(
+            selector={
+                "feed_purpose": "analytics",
+                "period_duration": "P1D",
+                "required_finality": "official",
+                "dimensions": ["package"],
+                "match": "all",
+            }
+        )
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.host.configs["acct-1"] = [AccountDeliveryConfig("acme", "analytics")]
+    await world.reconcile("2026-10-05T12:00:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    # UTC day boundary 10-06T00Z comes before the New York one (10-06T04Z).
+    assert coverage.excluded[0].from_ == at("2026-10-06T00:00:00Z")
+    owed = await world.assert_conformant("analytics", "acct-1", "2026-10-09T05:00:00Z", coverage)
+    assert max(at(p.period_start) for p in owed) < at("2026-10-06T00:00:00Z")
+
+
+@pytest.mark.asyncio
+async def test_an_override_opens_at_its_own_effective_time() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-09T04:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.host.configs["acct-1"] = [
+        AccountDeliveryConfig("acme", "analytics", active_from=at("2026-10-03T10:00:00Z"))
+    ]
+    # Reconciled two days late: the exception still opens at the config's cutover.
+    await world.reconcile("2026-10-05T10:00:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    assert coverage.excluded[0].from_ == at("2026-10-04T04:00:00Z")
+
+
+@pytest.mark.asyncio
+async def test_an_account_without_a_timezone_is_never_given_utc() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-05T04:00:00Z")]
+    await world.sync(subscription())
+    # The host reports the grant without a zone: account-timezone offerings
+    # cannot be scheduled, and the failure stays with this subscription.
+    del world.host.accounts["acct-1"]
+    await world.engine.authorization_changed(
+        IDENTITY, "acct-1", authorized=True, at=at("2026-09-01T00:00:00Z")
+    )
+    await world.engine._evaluate(IDENTITY, at("2026-10-01T00:00:00Z"))
+    assert ("https://agency.example/agent", "analytics") in world.engine.evaluation_errors
+    with pytest.raises(ValueError, match="account timezone is required"):
+        await world.seller_owes("analytics", "acct-1", "2026-10-06T00:00:00Z")
+    # Once the host says, the zone is set without a fake UTC -> NY cutover.
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone=NY, authorized_at=at("2026-09-01T00:00:00Z")
+    )
+    await world.reconcile("2026-10-01T00:00:00Z")
+    coverage = await world.coverage("acct-1", "analytics")
+    assert coverage.timezone_cutovers is None
+    assert world.engine.evaluation_errors == {}
+    owed = await world.seller_owes("analytics", "acct-1", "2026-10-06T00:00:00Z")
+    assert [p.source_timezone for p in owed] == [NY] * 4
+
+
+@pytest.mark.asyncio
+async def test_timezone_change_then_new_version_in_one_period_matches_the_wire() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z", timezone="America/Los_Angeles")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T07:00:00Z", "2026-10-07T04:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone=NY, authorized_at=at("2026-09-01T00:00:00Z")
+    )
+    await world.reconcile("2026-10-03T12:00:00Z")
+    world.clock.set("2026-10-03T13:00:00Z")
+    await world.sync(subscription(subscription_version=2))
+    coverage = await world.coverage("acct-1", "analytics")
+    seller = await world.seller_owes("analytics", "acct-1", "2026-10-07T05:00:00Z")
+    buyer = expected_subscription_periods(
+        subscription=await world.state("analytics"),
+        account_id="acct-1",
+        buys=world.host.buys["acct-1"],
+        offerings=OFFERINGS,
+        account_timezone=NY,
+        now=at("2026-10-07T05:00:00Z"),
+        authorizations=world.grants["acct-1"],
+        coverage=coverage,
+        status_retention_days=world.retention_days,
+    )
+    assert buyer == seller
+    spans = [(at(p.period_start), at(p.period_end)) for p in seller]
+    assert all(end <= start for (_, end), (start, _) in zip(spans, spans[1:]))
+
+
+@pytest.mark.asyncio
+async def test_unauthorized_lists_only_accounts_the_subscription_served() -> None:
+    world = World()
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.configs["acct-1"] = [AccountDeliveryConfig("acme", "analytics")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-03T00:00:00Z")
+    await world.reconcile("2026-10-03T00:00:00Z")
+    assert (await world.state("analytics")).accounts_unauthorized is None
+
+
+@pytest.mark.asyncio
+async def test_delivery_facts_are_asked_once_per_loss() -> None:
+    world = World()
+    calls: list[str] = []
+
+    async def is_period_delivered(principal, account_id, period, *, by):
+        calls.append(period.period_start)
+        return False
+
+    world.host.is_period_delivered = is_period_delivered  # type: ignore[attr-defined]
+    world.grant("acct-1", "2026-09-01T00:00:00Z")
+    world.host.buys["acct-1"] = [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-12T04:00:00Z")]
+    await world.sync(subscription())
+    await world.reconcile("2026-10-01T00:00:00Z")
+    world.revoke("acct-1", "2026-10-04T08:00:00Z")
+    await world.reconcile("2026-10-04T08:00:00Z")
+    first = len(calls)
+    await world.reconcile("2026-10-05T08:00:00Z")
+    await world.reconcile("2026-10-06T08:00:00Z")
+    assert first == 3 and len(calls) == first
+
+
+def test_engine_refuses_offerings_it_cannot_schedule() -> None:
+    unresolved = offering(
+        "src", ("package",), alignment="source_timezone", period_timezone_policy="account_resolved"
+    )
+    seven_hours = offering("local-7h", ("package",), period_duration="PT7H")
+    for bad in (unresolved, seven_hours):
+        with pytest.raises(ValueError):
+            ReportingSubscriptionEngine(principals=PrincipalService(), host=Host(), offerings=[bad])

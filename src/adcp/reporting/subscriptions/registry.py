@@ -37,6 +37,7 @@ import re
 from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 from adcp.reporting.subscriptions._clock import iso_z, require_zone, utc_instant
 from adcp.types.domains.core.reporting_subscription import ReportingSubscription
@@ -65,7 +66,26 @@ def _dump(value: Any) -> dict[str, Any]:
 
 
 def _semantic(configuration: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in configuration.items() if key not in _IN_PLACE_FIELDS}
+    """The semantic content of a version, canonicalized.
+
+    ``uniqueItems`` arrays compare as sets and an explicit default ``match``
+    equals an omitted one, so a resend that only reorders or spells out a
+    default is the same version.
+    """
+    payload = {key: value for key, value in configuration.items() if key not in _IN_PLACE_FIELDS}
+    scope = dict(payload.get("scope") or {})
+    if "account_ids" in scope:
+        scope["account_ids"] = sorted(scope["account_ids"])
+    payload["scope"] = scope
+    for name in ("exclude_account_ids", "operator_domains"):
+        if name in payload:
+            payload[name] = sorted(payload[name])
+    selector = dict(payload.get("selector") or {})
+    if "dimensions" in selector:
+        selector["dimensions"] = sorted(selector["dimensions"])
+    selector.setdefault("match", "exact" if "dimensions" in selector else "finest")
+    payload["selector"] = selector
+    return payload
 
 
 def _destinations(destinations: Sequence[Any]) -> dict[str, dict[str, Any]]:
@@ -108,6 +128,13 @@ def _validate_one(
         raise ReportingSubscriptionError(
             f"{where}.exclude_account_ids is valid only with all_authorized_accounts scope"
         )
+    if configuration.get("replace_account_configs") is True:
+        # Not applied yet: accepting it would leave the caller's account-level
+        # configurations in force while it believes they were cut over.
+        raise ReportingSubscriptionError(
+            f"{where}.replace_account_configs is not supported by this seller",
+            code="UNSUPPORTED_FEATURE",
+        )
     selector = configuration["selector"]
     period_timezone = selector.get("period_timezone")
     if period_timezone is not None:
@@ -140,9 +167,13 @@ def _validate_one(
     template = destination.get("path_template")
     if template is not None:
         unknown = {name for name in _PLACEHOLDER.findall(template)} - _ALLOWED_PLACEHOLDERS
-        if unknown or template.count("{") != template.count("}"):
+        if unknown:
             raise ReportingSubscriptionError(
                 f"{where}.destination.path_template uses unknown placeholders {sorted(unknown)}"
+            )
+        if "{" in _PLACEHOLDER.sub("", template) or "}" in _PLACEHOLDER.sub("", template):
+            raise ReportingSubscriptionError(
+                f"{where}.destination.path_template has braces outside a placeholder"
             )
     if _multi_account(configuration):
         pattern = (target.get("configuration") or target).get("pattern")
@@ -281,7 +312,13 @@ _MAX_INACTIVE_INTERVALS = 64
 
 
 def _intervals(intervals: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    return [dict(item) for item in intervals][-_MAX_INACTIVE_INTERVALS:]
+    """Every interval, or an error: dropping one would make its periods owed again."""
+    if len(intervals) > _MAX_INACTIVE_INTERVALS:
+        raise ReportingSubscriptionError(
+            f"the subscription has reached {_MAX_INACTIVE_INTERVALS} inactive intervals, the "
+            "readback's limit; register a new subscription_id instead of deactivating again"
+        )
+    return [dict(item) for item in intervals]
 
 
 def _next_state(
@@ -323,6 +360,8 @@ def _next_state(
                     "subscription_version": old_version,
                     "accepted_at": old["accepted_at"],
                     "superseded_at": stamp,
+                    # adcp#8588: sellers MUST include the version's configuration.
+                    "configuration": old["configuration"],
                 },
                 *(old.get("prior_versions") or ()),
             ]
@@ -369,6 +408,42 @@ def _destination_issue(target: Mapping[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def render_path_template(
+    template: str,
+    *,
+    account_id: str,
+    subscription_id: str,
+    offering_id: str,
+    period_start: datetime,
+) -> str:
+    """Expand a subscription ``path_template`` for one delivery.
+
+    Each substituted value fills exactly one path segment: a value containing
+    ``/`` is percent-encoded (RFC 3986), and a value equal to ``.`` or ``..`` is
+    encoded too, so no value can add or escape a segment.
+    ``period_start`` is written as ``YYYY-MM-DDTHH:MM:SSZ``.
+    """
+    values = {
+        "account_id": account_id,
+        "subscription_id": subscription_id,
+        "offering_id": offering_id,
+        "period_start": iso_z(period_start),
+    }
+
+    def segment(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name not in values:
+            raise ValueError(f"unknown path_template placeholder {{{name}}}")
+        value = values[name]
+        if value in {".", ".."}:
+            return value.replace(".", "%2E")
+        if "/" in value:
+            return quote(value, safe="")
+        return value
+
+    return _PLACEHOLDER.sub(segment, template)
+
+
 def refresh_destination_states(
     states: Sequence[ReportingSubscriptionState | Mapping[str, Any]],
     destinations: Sequence[Any],
@@ -406,4 +481,5 @@ __all__ = [
     "ReportingSubscriptionError",
     "apply_reporting_subscriptions",
     "refresh_destination_states",
+    "render_path_template",
 ]

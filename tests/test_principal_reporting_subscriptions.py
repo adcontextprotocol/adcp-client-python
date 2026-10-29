@@ -109,18 +109,16 @@ def error_code(response) -> str:
 
 
 @pytest.mark.asyncio
-async def test_without_the_option_the_section_keeps_todays_behavior() -> None:
+async def test_without_the_option_the_section_is_rejected() -> None:
+    # Unsupported sections are rejected, not ignored (sync_principal.mdx): a
+    # buyer told "applied" would believe it registered and receive nothing.
     principals = PrincipalService()
     response = await sync(principals, {"reporting_subscriptions": [subscription()]})
-    assert response.result.kind == "applied"
-    assert response.result.configuration.reporting_subscriptions is None
-    current = await principals.get_principal(IDENTITY)
-    assert current.result.configuration.reporting_subscriptions is None
-    # Even an invalid subscription is not inspected: nothing changes.
-    invalid = subscription(scope={"all_authorized_accounts": True, "account_ids": ["a"]})
-    assert (await sync(principals, {"reporting_subscriptions": [invalid]})).result.kind == (
-        "applied"
-    )
+    assert error_code(response) == "UNSUPPORTED_FEATURE"
+    assert (await principals.get_principal(IDENTITY)).result.kind == "unconfigured"
+    # The other sections behave exactly as before.
+    other = await sync(principals, {"reporting_destinations": [DESTINATION]})
+    assert other.result.kind == "applied"
 
 
 # -- acceptance and readback -----------------------------------------------------------
@@ -216,25 +214,32 @@ async def test_reused_version_with_new_semantics_is_rejected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_active_and_replace_account_configs_change_in_place() -> None:
+async def test_active_changes_in_place() -> None:
     principals, clock = service()
     await sync(principals, {"reporting_subscriptions": [subscription()]})
     clock.advance(hours=5)
-    response = await sync(
-        principals,
-        {"reporting_subscriptions": [subscription(active=False, replace_account_configs=True)]},
-    )
+    response = await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
     state = states(response)["analytics-daily"]
     assert state["subscription_version"] == 1
     assert state["state"] == "inactive"
     assert state["deactivated_at"] == "2026-10-01T17:00:00Z"
     assert state["accepted_at"] == "2026-10-01T12:00:00Z"
     clock.advance(hours=1)
-    again = await sync(
-        principals,
-        {"reporting_subscriptions": [subscription(active=False, replace_account_configs=True)]},
-    )
+    again = await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
     assert states(again)["analytics-daily"]["deactivated_at"] == "2026-10-01T17:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_replace_account_configs_is_refused_until_implemented() -> None:
+    principals, _clock = service()
+    response = await sync(
+        principals, {"reporting_subscriptions": [subscription(replace_account_configs=True)]}
+    )
+    assert error_code(response) == "UNSUPPORTED_FEATURE"
+    allowed = await sync(
+        principals, {"reporting_subscriptions": [subscription(replace_account_configs=False)]}
+    )
+    assert allowed.result.kind == "applied"
 
 
 @pytest.mark.asyncio
@@ -599,3 +604,110 @@ async def test_seller_status_updates_do_not_bump_the_configuration_version() -> 
     assert states(resend)["analytics-daily"]["accounts_with_exceptions"] == [
         {"account_id": "acct-1", "reasons": ["capacity"]}
     ]
+
+
+@pytest.mark.asyncio
+async def test_resends_that_reorder_or_spell_out_defaults_are_the_same_version() -> None:
+    principals, _clock = service()
+    first = subscription(scope={"account_ids": ["b", "a"]})
+    await sync(principals, {"reporting_subscriptions": [first]})
+    reordered = subscription(
+        scope={"account_ids": ["a", "b"]},
+        selector={**first["selector"], "match": "exact"},
+    )
+    response = await sync(principals, {"reporting_subscriptions": [reordered]})
+    assert response.result.kind == "applied"
+
+
+@pytest.mark.asyncio
+async def test_braces_outside_placeholders_are_refused() -> None:
+    principals, _clock = service()
+    for template in ("a/{{account_id}}", "a/}{account_id}{", "a/{account_id}/x}"):
+        response = await sync(
+            principals,
+            {
+                "reporting_destinations": [DESTINATION],
+                "reporting_subscriptions": [
+                    subscription(
+                        destination={"destination_id": "archive", "path_template": template}
+                    )
+                ],
+            },
+        )
+        assert error_code(response) == "INVALID_REQUEST", template
+
+
+def test_render_path_template() -> None:
+    from adcp.reporting.subscriptions import render_path_template
+
+    rendered = render_path_template(
+        "analytics/{account_id}/{offering_id}/{period_start}",
+        account_id="acme/eu",
+        subscription_id="analytics-daily",
+        offering_id="..",
+        period_start=datetime(2026, 10, 1, 4, tzinfo=timezone.utc),
+    )
+    # A value with "/" or equal to "." / ".." fills exactly one segment.
+    assert rendered == "analytics/acme%2Feu/%2E%2E/2026-10-01T04:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_inactive_intervals_are_never_dropped() -> None:
+    principals, clock = service()
+    await sync(principals, {"reporting_subscriptions": [subscription()]})
+    for _ in range(64):
+        clock.advance(hours=1)
+        await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
+        clock.advance(hours=1)
+        await sync(principals, {"reporting_subscriptions": [subscription()]})
+    clock.advance(hours=1)
+    response = await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
+    assert error_code(response) == "INVALID_REQUEST"
+    current = await principals.get_principal(IDENTITY, context=BETA_2)
+    assert len(current.result.configuration.reporting_subscriptions[0].inactive_intervals) == 64
+
+
+@pytest.mark.asyncio
+async def test_prior_versions_carry_their_configuration_for_beta_2() -> None:
+    principals, clock = service()
+    await sync(principals, {"reporting_subscriptions": [subscription()]})
+    clock.advance(days=1)
+    await sync(
+        principals,
+        {
+            "reporting_subscriptions": [
+                subscription(subscription_version=2, exclude_account_ids=["x"])
+            ]
+        },
+    )
+    served = await principals.get_principal(IDENTITY, context=BETA_2)
+    (prior,) = served.result.configuration.reporting_subscriptions[0].prior_versions
+    assert prior.configuration.subscription_version == 1
+    older = await principals.get_principal(IDENTITY)
+    assert (
+        older.result.configuration.reporting_subscriptions[0].prior_versions[0].configuration
+        is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_subscription_ids_for_the_reverse_namespace_check() -> None:
+    principals, _clock = service()
+    await sync(
+        principals,
+        {
+            "reporting_subscriptions": [
+                subscription(),
+                subscription(
+                    "pacing",
+                    selector={
+                        "feed_purpose": "pacing",
+                        "period_duration": "PT1H",
+                        "required_finality": "snapshot",
+                    },
+                ),
+            ]
+        },
+    )
+    await sync(principals, {"reporting_subscriptions": [subscription()]})
+    assert await principals.reporting_subscription_ids(IDENTITY) == {"analytics-daily", "pacing"}

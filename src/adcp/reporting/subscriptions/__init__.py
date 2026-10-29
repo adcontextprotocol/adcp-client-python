@@ -58,6 +58,7 @@ from adcp.reporting.subscriptions.registry import (
     ReportingSubscriptionError,
     apply_reporting_subscriptions,
     refresh_destination_states,
+    render_path_template,
 )
 from adcp.reporting.subscriptions.resolution import (
     STANDARD_REPORTING_DIMENSIONS,
@@ -88,6 +89,7 @@ __all__ = [
     "ReportingSubscriptionPrecedenceHost",
     "apply_reporting_subscriptions",
     "refresh_destination_states",
+    "render_path_template",
     "REPORTING_SUBSCRIPTIONS_FEATURE",
     "REPORTING_SUBSCRIPTIONS_SECTION",
     "STANDARD_REPORTING_DIMENSIONS",

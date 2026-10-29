@@ -222,7 +222,11 @@ def _gate_subscription_fields(response: _ResponseT, context: ToolContext | None)
         getattr(context, "resolved_adcp_version", None)
     ):
         return response
-    if not any(getattr(item, "inactive_intervals", None) for item in states):
+    if not any(
+        getattr(item, "inactive_intervals", None)
+        or any(getattr(prior, "configuration", None) for prior in item.prior_versions or ())
+        for item in states
+    ):
         return response
     envelope = response.model_dump(mode="json", exclude_none=True)
     envelope["result"]["configuration"]["reporting_subscriptions"] = [
@@ -905,6 +909,13 @@ class PrincipalService:
             )
         if self._subscriptions is not None:
             await self._replace_subscriptions(identity, previous, desired, payload)
+        elif "reporting_subscriptions" in fields:
+            # Unsupported sections are rejected, not ignored: a buyer told
+            # "applied" would believe it registered and receive nothing.
+            raise _PrincipalValidationError(
+                "UNSUPPORTED_FEATURE",
+                "reporting_subscriptions is not a supported section on this seller",
+            )
         state = PrincipalState.model_validate(payload)
         active_notifications = [
             config for config in state.notification_configs or [] if config.active is not False
@@ -976,13 +987,16 @@ class PrincipalService:
         *,
         accounts_with_exceptions: Sequence[Mapping[str, Any]] | None = None,
         accounts_unauthorized: Sequence[Mapping[str, Any]] | None = None,
+        changed_at: datetime | None = None,
     ) -> bool:
         """Record seller-derived subscription status without version churn.
 
         Like destination proof transitions, this does not advance the
         caller-owned ``configuration_version``. A change emits
-        ``principal.changed`` with reason ``reporting_subscription_changed``.
-        Returns whether anything changed.
+        ``principal.changed`` with reason ``reporting_subscription_changed``,
+        dated ``changed_at`` (the instant the seller recorded the transition;
+        buyers date continuing re-grants from it). Returns whether anything
+        changed.
         """
         while True:
             record = await self._store.get(identity.subject)
@@ -1024,7 +1038,7 @@ class PrincipalService:
                 PrincipalChange(
                     record.principal_id,
                     identity.subject,
-                    datetime.now(timezone.utc),
+                    changed_at or self._now(),
                     "reporting_subscription_changed",
                     subscription_id=subscription_id,
                 )
@@ -1042,6 +1056,14 @@ class PrincipalService:
             item.model_copy(deep=True)
             for item in record.configuration.reporting_subscriptions or []
         ]
+
+    async def reporting_subscription_ids(self, identity: PrincipalIdentity) -> set[str]:
+        """Every subscription_id the caller holds, inactive ones included.
+
+        ``sync_accounts`` must reject a ``delivery_config_id`` equal to one of
+        them; subscription_id and delivery_config_id share one namespace.
+        """
+        return {item.subscription_id for item in await self.reporting_subscriptions(identity)}
 
     async def reporting_destinations(
         self, identity: PrincipalIdentity

@@ -35,12 +35,13 @@ runs, so both sides agree period by period.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Protocol
 
-from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, utc_instant
+from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_zone, utc_instant
 from adcp.reporting.subscriptions.capabilities import ReportingSubscriptionSupport
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
@@ -65,6 +66,8 @@ from adcp.types.domains.core.reporting_subscription_coverage import (
 )
 from adcp.types.domains.core.reporting_subscription_state import ReportingSubscriptionState
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from adcp.server.principal import (
         DeliveryConfigIdsHook,
@@ -81,15 +84,23 @@ if TYPE_CHECKING:
 class AuthorizedAccount:
     """One account the principal may read, as the host answers it.
 
-    ``authorized_at`` is when the current grant began (the account's
-    ``authorization.authorized_at``); ``None`` lets the engine stamp the
-    instant it first observes the grant.
+    ``timezone`` is the account's IANA zone; the engine never substitutes one.
+    ``authorized_at`` is the start of the caller's current authorization chain,
+    exactly what ``list_accounts`` serves as ``authorization.authorized_at``
+    (sellers advertising subscriptions MUST populate it), so the buyer and the
+    engine start coverage at the same instant.
     """
 
     account_id: str
-    timezone: str = "UTC"
+    timezone: str
+    authorized_at: datetime
     operator: str | None = None
-    authorized_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        require_zone(self.timezone, field="AuthorizedAccount.timezone")
+        object.__setattr__(
+            self, "authorized_at", utc_instant(self.authorized_at, field="authorized_at")
+        )
 
 
 @dataclass(frozen=True)
@@ -100,10 +111,18 @@ class AuthorizedAccountPage:
 
 @dataclass(frozen=True)
 class AccountDeliveryConfig:
-    """The caller's own active ``sync_accounts`` ``reporting_delivery_configs`` entry."""
+    """The caller's own active ``sync_accounts`` ``reporting_delivery_configs`` entry.
+
+    ``active_from`` is when it took effect. The ``overridden`` exception opens
+    at the cutover at that instant rather than at the reconcile that first sees
+    it, so the two registrations never both owe a period. Without it, run
+    :meth:`ReportingSubscriptionEngine.reconcile` synchronously with every
+    ``sync_accounts`` write.
+    """
 
     delivery_config_id: str
     feed_purpose: str
+    active_from: datetime | None = None
 
 
 class ReportingSubscriptionHost(Protocol):
@@ -150,11 +169,22 @@ class ReportingSubscriptionPrecedenceHost(Protocol):
 
 @dataclass
 class _Account:
-    timezone: str
+    #: ``None`` while the host has not said; account-timezone offerings then
+    #: fail for this account (isolated per subscription) rather than use UTC.
+    timezone: str | None
     operator: str | None
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
-    initial_timezone: str | None = None
+
+    def set_timezone(self, timezone: str | None, at: datetime) -> None:
+        """Record a zone; a change away from an unknown zone is not a cutover."""
+        if timezone is None or timezone == self.timezone:
+            return
+        if self.timezone is not None:
+            self.timezone_changes.append(
+                AccountTimezoneChange(at, timezone, previous_timezone=self.timezone)
+            )
+        self.timezone = timezone
 
     @property
     def authorized(self) -> bool:
@@ -169,6 +199,8 @@ class _Exclusion:
     media_buy_id: str | None = None
     package_ids: tuple[str, ...] = ()
     overridden_by: tuple[str, str] | None = None
+    #: When the cause took effect, if known; the exception opens at its cutover.
+    effective_at: datetime | None = None
 
     @property
     def key(self) -> tuple[Any, ...]:
@@ -198,6 +230,12 @@ class _PrincipalState:
     served: dict[str, set[str]] = field(default_factory=dict)
     #: (subscription_id, account_id) -> exclusions, open and closed
     exclusions: dict[tuple[str, str], list[_Exclusion]] = field(default_factory=dict)
+    #: (subscription_id, version) -> the named destination's configuration,
+    #: snapshotted at acceptance so a later removal never breaks old versions
+    destinations: dict[tuple[str, int], Any] = field(default_factory=dict)
+    #: (subscription_id, account_id, unauthorized_at) -> withheld count from the
+    #: host's delivery facts; delivery by a past instant never changes
+    withheld: dict[tuple[str, str, datetime], int] = field(default_factory=dict)
 
 
 class InMemoryReportingSubscriptionStore:
@@ -240,6 +278,18 @@ class ReportingSubscriptionEngine:
         ids = [item.offering_id for item in offerings]
         if len(set(ids)) != len(ids):
             raise ValueError("offering_id values must be unique")
+        for offering in offerings:
+            # Refuse what would otherwise fail mid-evaluation for every
+            # subscription that resolves the offering.
+            if offering.alignment == "source_timezone" and offering.period_timezone is None:
+                raise ValueError(
+                    f"offering {offering.offering_id!r} resolves its source timezone per "
+                    "account; register it with the resolved period_timezone"
+                )
+            if offering.alignment != "account_timezone":
+                offering.calendar(None)
+            else:
+                offering.calendar("UTC")  # validates the duration for a local alignment
         self._principals = principals
         self._host = host
         self._offerings = tuple(offerings)
@@ -248,6 +298,16 @@ class ReportingSubscriptionEngine:
         self._retention_days = status_retention_days
         self._store = store or InMemoryReportingSubscriptionStore()
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._errors: dict[tuple[str, str], Exception] = {}
+
+    @property
+    def evaluation_errors(self) -> Mapping[tuple[str, str], Exception]:
+        """``(principal subject, subscription_id)`` -> the last evaluation failure.
+
+        One subscription that cannot be evaluated never stops the others; its
+        failure stays here until a later reconcile succeeds for it.
+        """
+        return dict(self._errors)
 
     @property
     def support(self) -> ReportingSubscriptionSupport:
@@ -276,14 +336,23 @@ class ReportingSubscriptionEngine:
         """Keep every version's configuration; the readback keeps only the current one.
 
         In-place reactivations need no engine state: the readback's
-        ``inactive_intervals`` (adcp#8585) carry them.
+        ``inactive_intervals`` (adcp#8585) carry them. Each version's named
+        destination is snapshotted, so removing it later never breaks that
+        version's coverage.
         """
+        destinations = await self._destinations(identity)
         async with self._store.lock:
             principal = self._store.principal(identity.subject)
             for state in states:
                 payload = _dump(state)
                 key = (str(payload["subscription_id"]), int(payload["subscription_version"]))
-                principal.versions.setdefault(key, dict(payload["configuration"]))
+                configuration = dict(payload["configuration"])
+                principal.versions.setdefault(key, configuration)
+                destination = configuration.get("destination")
+                if destination is not None and key not in principal.destinations:
+                    target = destinations.get(destination["destination_id"])
+                    if target is not None:
+                        principal.destinations[key] = target
 
     async def authorization_changed(
         self,
@@ -303,15 +372,13 @@ class ReportingSubscriptionEngine:
             if account is None:
                 if not authorized:
                     return
+                if timezone is not None:
+                    require_zone(timezone, field="timezone")
                 account = principal.accounts[account_id] = _Account(
-                    timezone=timezone or "UTC", operator=operator, initial_timezone=timezone
+                    timezone=timezone, operator=operator
                 )
             self._apply_grant(account, authorized=authorized, at=instant)
-            if timezone is not None and timezone != account.timezone:
-                account.timezone_changes.append(
-                    AccountTimezoneChange(instant, timezone, previous_timezone=account.timezone)
-                )
-                account.timezone = timezone
+            account.set_timezone(timezone, instant)
             if operator is not None:
                 account.operator = operator
 
@@ -357,28 +424,21 @@ class ReportingSubscriptionEngine:
                 account = principal.accounts.get(account_id)
                 if account is None:
                     account = principal.accounts[account_id] = _Account(
-                        timezone=item.timezone,
-                        operator=item.operator,
-                        initial_timezone=item.timezone,
+                        timezone=item.timezone, operator=item.operator
                     )
                 if not account.authorized:
-                    granted = instant
                     lost = account.grants[-1].unauthorized_at if account.grants else None
-                    if item.authorized_at is not None:
-                        reported = utc_instant(item.authorized_at)
-                        # A host that does not reset authorized_at on a
-                        # re-grant reports the old grant; the re-grant is
-                        # then the instant this reconcile observes it.
-                        if lost is None or reported > lost:
-                            granted = min(reported, instant)
+                    reported = item.authorized_at
+                    # adcp#8585: authorized_at is the chain start. A later one
+                    # is a new chain starting then; an unchanged one is a
+                    # re-grant within retention, which the wire does not
+                    # date, so it is stamped when this reconcile observes it.
+                    if lost is None or reported > lost:
+                        granted = min(reported, instant)
+                    else:
+                        granted = instant
                     self._apply_grant(account, authorized=True, at=granted)
-                if item.timezone != account.timezone:
-                    account.timezone_changes.append(
-                        AccountTimezoneChange(
-                            instant, item.timezone, previous_timezone=account.timezone
-                        )
-                    )
-                    account.timezone = item.timezone
+                account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
             for account_id, account in principal.accounts.items():
                 if account_id not in listed and account.authorized:
@@ -406,68 +466,111 @@ class ReportingSubscriptionEngine:
             principal = self._store.principal(identity.subject)
             for state in states:
                 subscription_id = str(state["subscription_id"])
-                desired = self._desired_exclusions(
-                    state,
-                    states,
-                    accounts,
-                    buys,
-                    configs,
-                    destinations,
-                    now,
-                    served=principal.served.setdefault(subscription_id, set()),
-                )
-                covered = principal.covered.setdefault(subscription_id, set())
-                for account_id, wanted in desired.items():
-                    if not any(item.reason == "excluded_by_buyer" for item in wanted):
-                        covered.add(account_id)
-                    self._sync_exclusions(
-                        principal,
-                        subscription_id,
-                        account_id,
-                        wanted,
-                        state,
-                        accounts,
-                        buys.get(account_id, ()),
-                        destinations,
-                        now,
+                try:
+                    updates.append(
+                        self._evaluate_subscription(
+                            principal, state, states, accounts, buys, configs, destinations, now
+                        )
                     )
-                # Accounts no longer authorized or no longer in scope close
-                # their open exclusions.
-                for (sub_id, account_id), entries in principal.exclusions.items():
-                    if sub_id == subscription_id and account_id not in desired:
-                        for entry in entries:
-                            if entry.until is None:
-                                entry.until = self._cutover(
-                                    state, accounts.get(account_id), (), destinations, now
-                                )
-                updates.append(
-                    (
+                except Exception as error:  # noqa: BLE001 - isolate one subscription
+                    self._errors[(identity.subject, subscription_id)] = error
+                    logger.warning(
+                        "reporting subscription %s could not be evaluated: %s",
                         subscription_id,
-                        self._accounts_with_exceptions(principal, subscription_id, now),
-                        self._accounts_unauthorized(
-                            principal, state, accounts, buys, destinations, now
-                        ),
+                        error,
                     )
-                )
+                else:
+                    self._errors.pop((identity.subject, subscription_id), None)
         delivered = getattr(self._host, "is_period_delivered", None)
-        for _subscription_id, _with_exceptions, unauthorized in updates:
+        for subscription_id, _with_exceptions, unauthorized in updates:
             for lost_entry in unauthorized:
                 ended = lost_entry.pop("_ended")
                 if delivered is None:
                     continue
                 lost = datetime.fromisoformat(lost_entry["unauthorized_at"].replace("Z", "+00:00"))
-                count = 0
-                for period in ended:
-                    if not await delivered(identity, lost_entry["account_id"], period, by=lost):
-                        count += 1
-                lost_entry["withheld_period_count"] = count
+                cache_key = (subscription_id, lost_entry["account_id"], lost)
+                async with self._store.lock:
+                    cached = self._store.principal(identity.subject).withheld.get(cache_key)
+                if cached is None:
+                    # Delivery by a past instant never changes: ask once per loss.
+                    cached = 0
+                    for period in ended:
+                        if not await delivered(identity, lost_entry["account_id"], period, by=lost):
+                            cached += 1
+                    async with self._store.lock:
+                        self._store.principal(identity.subject).withheld[cache_key] = cached
+                lost_entry["withheld_period_count"] = cached
         for subscription_id, with_exceptions, unauthorized in updates:
             await self._principals.update_subscription_status(
                 identity,
                 subscription_id,
                 accounts_with_exceptions=with_exceptions,
                 accounts_unauthorized=unauthorized,
+                changed_at=now,
             )
+
+    def _evaluate_subscription(
+        self,
+        principal: _PrincipalState,
+        state: Mapping[str, Any],
+        states: Sequence[Mapping[str, Any]],
+        accounts: Mapping[str, _Account],
+        buys: Mapping[str, Sequence[SubscriptionBuy]],
+        configs: Mapping[str, Sequence[AccountDeliveryConfig]],
+        destinations: Mapping[str, Any],
+        now: datetime,
+    ) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
+        subscription_id = str(state["subscription_id"])
+        desired = self._desired_exclusions(
+            state,
+            states,
+            accounts,
+            buys,
+            configs,
+            destinations,
+            now,
+            served=principal.served.setdefault(subscription_id, set()),
+        )
+        covered = principal.covered.setdefault(subscription_id, set())
+        for account_id, wanted in desired.items():
+            # Covered: served, with no account-level exception.
+            if not any(item.media_buy_id is None for item in wanted):
+                covered.add(account_id)
+                # Surface an account the schedules cannot be derived for (no
+                # timezone yet) now, rather than at the first owed_periods.
+                self._schedules(
+                    state, accounts[account_id], buys.get(account_id, ()), destinations, now
+                )
+            self._sync_exclusions(
+                principal,
+                subscription_id,
+                account_id,
+                wanted,
+                state,
+                accounts,
+                buys.get(account_id, ()),
+                destinations,
+                now,
+            )
+        # Exceptions close only when their cause ends. While the caller has
+        # lost authority for an account they stay as they were: closing them
+        # would owe the revoked interval again on a backfilled re-grant.
+        for (sub_id, account_id), entries in principal.exclusions.items():
+            if sub_id != subscription_id or account_id in desired:
+                continue
+            account = accounts.get(account_id)
+            if account is not None and not account.authorized:
+                continue
+            for entry in entries:
+                if entry.until is None:
+                    entry.until = self._cutover(
+                        state, account, buys.get(account_id, ()), destinations, now
+                    )
+        return (
+            subscription_id,
+            self._accounts_with_exceptions(principal, subscription_id, now),
+            self._accounts_unauthorized(principal, state, accounts, buys, destinations, now),
+        )
 
     async def _destinations(self, identity: PrincipalIdentity) -> dict[str, Any]:
         return {
@@ -519,7 +622,15 @@ class ReportingSubscriptionEngine:
                 configs.get(account_id, ()),
             )
             if overriding is not None:
-                result[account_id] = [_Exclusion("overridden", now, overridden_by=overriding)]
+                kind, identifier, effective_at = overriding
+                result[account_id] = [
+                    _Exclusion(
+                        "overridden",
+                        now,
+                        overridden_by=(kind, identifier),
+                        effective_at=effective_at,
+                    )
+                ]
                 continue
             result[account_id] = []
             eligible.append(
@@ -606,8 +717,11 @@ class ReportingSubscriptionEngine:
         for entry in wanted:
             if entry.key in open_keys:
                 continue
-            cutover = cutover or self._cutover(state, account, buys, destinations, now)
-            entry.from_ = cutover
+            if entry.effective_at is not None and entry.effective_at <= now:
+                entry.from_ = self._cutover(state, account, buys, destinations, entry.effective_at)
+            else:
+                cutover = cutover or self._cutover(state, account, buys, destinations, now)
+                entry.from_ = cutover
             entries.append(entry)
 
     def _schedules(
@@ -623,22 +737,23 @@ class ReportingSubscriptionEngine:
             return []
         selector = SubscriptionSelector.from_subscription(state["configuration"])
         destination = _destination_for(selector, destinations)
-        offering_ids: set[str] = set()
-        for buy in buys:
-            for _package, ids in buy.product_offering_ids():
-                offering_ids.update(ids)
-        if not offering_ids:
-            offering_ids = {item.offering_id for item in self._offerings}
-        resolution = resolve_subscription_offerings(
-            selector,
-            self._offerings,
-            product_offering_ids=offering_ids,
-            destination=destination,
-            at=now,
-        )
+        products = [ids for buy in buys for _package, ids in buy.product_offering_ids()]
+        if not products:
+            products = [tuple(item.offering_id for item in self._offerings)]
+        found: dict[str, SubscriptionOffering] = {}
+        for offering_ids in products:
+            # Per product, as the coverage rule resolves it.
+            for item in resolve_subscription_offerings(
+                selector,
+                self._offerings,
+                product_offering_ids=offering_ids,
+                destination=destination,
+                at=now,
+            ).offerings:
+                found[item.offering_id] = item
         return [
             (item.offering_id, item.calendar(account.timezone, selector.period_timezone))
-            for item in resolution.offerings
+            for item in sorted(found.values(), key=lambda value: value.offering_id.encode())
         ]
 
     def _cutover(
@@ -649,11 +764,17 @@ class ReportingSubscriptionEngine:
         destinations: Mapping[str, Any],
         now: datetime,
     ) -> datetime:
-        """E at ``now``: the latest first boundary at or after it among resolved schedules."""
+        """The cutover instant for an account-level exception changing at ``now``.
+
+        The earliest E among the resolved schedules: no schedule has a boundary
+        in ``[now, E)``, so nothing is owed twice and nothing is lost, whereas
+        the latest E would leave a finer schedule owing periods after the
+        change.
+        """
         schedules = self._schedules(state, account, buys, destinations, now)
         if not schedules:
             return now
-        return max(calendar.ceil(now) for _offering_id, calendar in schedules)
+        return min(calendar.ceil(now) for _offering_id, calendar in schedules)
 
     def _accounts_with_exceptions(
         self, principal: _PrincipalState, subscription_id: str, now: datetime
@@ -826,8 +947,9 @@ class ReportingSubscriptionEngine:
         now: datetime,
     ) -> list[dict[str, Any]]:
         cutovers = []
-        zone = account.initial_timezone or account.timezone
         for change in account.timezone_changes:
+            # Each change carries the zone it replaced, which the wire reports.
+            zone = change.previous_timezone
             selector = SubscriptionSelector.from_subscription(state["configuration"])
             resolution = resolve_subscription_offerings(
                 selector,
@@ -858,7 +980,6 @@ class ReportingSubscriptionEngine:
                 cutovers.extend(
                     _per_offering([(offering_id, at, at) for offering_id, at in effective], cutover)
                 )
-            zone = change.timezone
         return cutovers
 
     async def owed_periods(
@@ -916,8 +1037,18 @@ class ReportingSubscriptionEngine:
             for e in principal.exclusions.get((subscription_id, account_id), [])
             if not e.package_ids
         ]
-        windows: tuple[SubscriptionVersionWindow, ...] = subscription_version_windows(
-            state, version_configurations=versions
+        # The seller never guesses a prior version's configuration, and each
+        # version resolves against the destination it named when accepted.
+        windows: tuple[SubscriptionVersionWindow, ...] = tuple(
+            replace(
+                window,
+                destination=principal.destinations.get(
+                    (subscription_id, window.subscription_version)
+                ),
+            )
+            for window in subscription_version_windows(
+                state, version_configurations=versions, require_prior_configurations=True
+            )
         )
         return expected_subscription_periods(
             subscription=windows,
@@ -1026,11 +1157,11 @@ def _override(
     account: _Account,
     states: Sequence[Mapping[str, Any]],
     configs: Sequence[AccountDeliveryConfig],
-) -> tuple[str, str] | None:
+) -> tuple[str, str, datetime | None] | None:
     """The caller's own registration that takes this account and purpose, if any."""
     for config in sorted(configs, key=lambda item: item.delivery_config_id.encode("utf-8")):
         if config.feed_purpose == feed_purpose:
-            return ("delivery_config_id", config.delivery_config_id)
+            return ("delivery_config_id", config.delivery_config_id, config.active_from)
     if "all_authorized_accounts" in scope:
         for other in states:
             other_config = other["configuration"]
@@ -1040,7 +1171,7 @@ def _override(
                 and other_config["selector"]["feed_purpose"] == feed_purpose
                 and _scope_selects(other_config, account_id, account)
             ):
-                return ("subscription_id", str(other["subscription_id"]))
+                return ("subscription_id", str(other["subscription_id"]), None)
     return None
 
 
