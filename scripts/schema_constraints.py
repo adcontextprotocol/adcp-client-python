@@ -206,6 +206,12 @@ NON_ASSERTING_KEYS = frozenset(
         # ``enum`` is what asserts.
         "x-accessibility",
         "x-extensible",
+        # Advance notice of the bounds AdCP 4.0 will enforce (3.3.0-beta.1
+        # writes them beside ``maxLength``/``maxItems``-free strings and
+        # arrays). Documentation of a future release, not a constraint on a
+        # 3.3 instance; the sibling keywords assert what holds today.
+        "x-max-length-4.0",
+        "x-max-items-4.0",
         # Marks a field whose object value is carried through unmodelled.
         # A rendering instruction, not a constraint on the document.
         "x-adcp-open-payload",
