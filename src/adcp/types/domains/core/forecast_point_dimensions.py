@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from typing import Any, Annotated
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 from . import (
     forecast_dimension_audience,
@@ -20,7 +21,7 @@ from . import (
 
 
 class ForecastPointDimensions(
-    RootModel[
+    AdCPRootModel[
         list[
             forecast_dimension_geo.GeoForecastDimension
             | forecast_dimension_placement.PlacementForecastDimension

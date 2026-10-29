@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel
+from pydantic import ConfigDict, Field
 
 from . import seller_agent_ref
 
@@ -45,7 +45,7 @@ class PlacementIdentity2(AdCPBaseModel):
     ]
 
 
-class PlacementIdentity(RootModel[PlacementIdentity1 | PlacementIdentity2]):
+class PlacementIdentity(AdCPRootModel[PlacementIdentity1 | PlacementIdentity2]):
     root: Annotated[
         PlacementIdentity1 | PlacementIdentity2,
         Field(

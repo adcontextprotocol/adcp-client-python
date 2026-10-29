@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
 from adcp.types._scalar import ScalarStr
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import ConfigDict, Field
 
 from ..core import media_buy_change_term_id
 from ..enums import seller_policy_decline_reason
@@ -27,7 +27,7 @@ class EnvelopeField1Item(ScalarStr):
     _constraints = {'min_length': 1}
 
 
-class EnvelopeField1(RootModel[list[EnvelopeField1Item]]):
+class EnvelopeField1(AdCPRootModel[list[EnvelopeField1Item]]):
     root: Annotated[
         list[EnvelopeField1Item],
         Field(

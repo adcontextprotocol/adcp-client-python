@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel, StrictBool, StrictFloat
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat
 
 from ..enums import (
     available_metric,
@@ -2612,7 +2612,7 @@ class CanonicalParameters33(CanonicalParameters16, CanonicalParameters17):
 
 
 class CanonicalParameters(
-    RootModel[
+    AdCPRootModel[
         CanonicalParameters18
         | CanonicalParameters19
         | CanonicalParameters20

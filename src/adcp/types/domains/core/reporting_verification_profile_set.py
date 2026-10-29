@@ -7,7 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
 class ReportingVerificationProfileSetEnum(StrEnum):
@@ -16,7 +17,7 @@ class ReportingVerificationProfileSetEnum(StrEnum):
     canonical_digest = 'canonical_digest'
 
 
-class ReportingVerificationProfileSet(RootModel[list[ReportingVerificationProfileSetEnum]]):
+class ReportingVerificationProfileSet(AdCPRootModel[list[ReportingVerificationProfileSetEnum]]):
     root: Annotated[
         list[ReportingVerificationProfileSetEnum],
         Field(

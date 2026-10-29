@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime
+from pydantic import ConfigDict, Field
 
 from ..core import format_id as format_id_1
 from ..core import provenance as provenance_1
@@ -122,7 +122,7 @@ class AssetAccess3(AdCPBaseModel):
     method: Literal['signed_url'] = 'signed_url'
 
 
-class AssetAccess(RootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
+class AssetAccess(AdCPRootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
     root: Annotated[
         AssetAccess1 | AssetAccess2 | AssetAccess3,
         Field(

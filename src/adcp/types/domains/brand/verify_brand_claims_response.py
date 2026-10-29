@@ -8,8 +8,8 @@ from adcp.types.base import AdcpResponse
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, WireAnyUrl
+from pydantic import ConfigDict, Field
 
 from ..core import context as context_1
 from ..core import error as error_1
@@ -59,7 +59,7 @@ class ResultEntry2(AdCPBaseModel):
     error: error_1.Error
 
 
-class ResultEntry(RootModel[ResultEntry1 | ResultEntry2]):
+class ResultEntry(AdCPRootModel[ResultEntry1 | ResultEntry2]):
     root: Annotated[
         ResultEntry1 | ResultEntry2,
         Field(

@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel, StrictBool
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field, StrictBool
 
 from ...enums import daast_tracking_event
 from ...enums import daast_version as daast_version_1
@@ -353,7 +353,7 @@ class DaastAsset4(AdCPBaseModel):
     content: Annotated[str, Field(description='Inline DAAST XML content')]
 
 
-class DaastAsset(RootModel[DaastAsset3 | DaastAsset4]):
+class DaastAsset(AdCPRootModel[DaastAsset3 | DaastAsset4]):
     root: Annotated[
         DaastAsset3 | DaastAsset4,
         Field(

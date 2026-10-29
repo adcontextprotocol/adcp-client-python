@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, RootModel, model_validator
+from adcp.types.base import AdCPBaseModel, AdCPRootModel
+from pydantic import ConfigDict, Field, model_validator
 
 from ..enums import legacy_postal_system, postal_system
 
@@ -380,7 +380,7 @@ class PostalArea121(PostalArea110):
 
 
 class PostalArea1(
-    RootModel[
+    AdCPRootModel[
         PostalArea112
         | PostalArea113
         | PostalArea114
@@ -417,7 +417,7 @@ class PostalArea1(
 
 
 
-class PostalArea(RootModel[PostalArea2 | PostalArea1]):
+class PostalArea(AdCPRootModel[PostalArea2 | PostalArea1]):
     root: Annotated[
         PostalArea2 | PostalArea1,
         Field(

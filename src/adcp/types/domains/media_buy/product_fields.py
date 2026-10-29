@@ -7,7 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
 class ProductResponseField(StrEnum):
@@ -51,7 +52,7 @@ class ProductResponseField(StrEnum):
     allowed_actions = 'allowed_actions'
 
 
-class ProductResponseFields(RootModel[list[ProductResponseField]]):
+class ProductResponseFields(AdCPRootModel[list[ProductResponseField]]):
     root: Annotated[
         list[ProductResponseField],
         Field(

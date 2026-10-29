@@ -8,11 +8,11 @@ from adcp.types._scalar import ScalarStr
 
 from typing import Annotated
 
-from adcp.types.base import WireAnyUrl
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel, WireAnyUrl
+from pydantic import Field
 
 
-class MacroBearingUrl3(RootModel[WireAnyUrl]):
+class MacroBearingUrl3(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(

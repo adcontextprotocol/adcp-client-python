@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
-class MediaBuyFrequencyCapControlMode(RootModel[Literal['max_impressions']]):
+class MediaBuyFrequencyCapControlMode(AdCPRootModel[Literal['max_impressions']]):
     root: Annotated[
         Literal['max_impressions'],
         Field(

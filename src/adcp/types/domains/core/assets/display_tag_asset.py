@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel, StrictBool
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field, StrictBool
 
 from .. import macro_bearing_url
 from .. import provenance as provenance_1
@@ -430,7 +430,7 @@ class DisplayTagAsset6(AdCPBaseModel):
     ]
 
 
-class DisplayTagAsset(RootModel[DisplayTagAsset4 | DisplayTagAsset5 | DisplayTagAsset6]):
+class DisplayTagAsset(AdCPRootModel[DisplayTagAsset4 | DisplayTagAsset5 | DisplayTagAsset6]):
     root: Annotated[
         DisplayTagAsset4 | DisplayTagAsset5 | DisplayTagAsset6,
         Field(

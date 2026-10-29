@@ -6,7 +6,7 @@ INHERITS that model's legacy creative identity (``format_id``, ``format_ids``,
 ``CanonicalBoundaryModel.__pydantic_init_subclass__`` removes those inherited
 declarations, and it does so through pydantic internals: it deletes from
 ``cls.model_fields``, pops ``__annotations__``, binds the name to ``None`` and
-forces ``model_rebuild``. None of that is a supported pydantic API. It works on
+defers the rebuild to first use. None of that is a supported pydantic API. It works on
 2.13; a minor release could change any of it without saying so.
 
 This module is the alarm for that. For every canonical model that inherits a

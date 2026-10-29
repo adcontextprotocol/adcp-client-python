@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from adcp.types.base import WireAnyUrl
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel, WireAnyUrl
+from pydantic import Field
 
 
 class GeographicPlaceIdentifierSystem1(StrEnum):
@@ -17,7 +17,7 @@ class GeographicPlaceIdentifierSystem1(StrEnum):
     microsoft_ads = 'microsoft_ads'
 
 
-class GeographicPlaceIdentifierSystem2(RootModel[WireAnyUrl]):
+class GeographicPlaceIdentifierSystem2(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(

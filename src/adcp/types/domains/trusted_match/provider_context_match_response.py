@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt
+from pydantic import ConfigDict, Field
 
 from ..core.protocol_envelope import ProtocolEnvelope
 from ..core.version_envelope import AdcpVersionEnvelope
@@ -27,7 +27,7 @@ class TargetingKv(AdCPBaseModel):
     value: Annotated[str, Field(description='Targeting value that the router preserves unchanged.')]
 
 
-class TargetingKvs(RootModel[list[TargetingKv]]):
+class TargetingKvs(AdCPRootModel[list[TargetingKv]]):
     root: Annotated[
         list[TargetingKv],
         Field(

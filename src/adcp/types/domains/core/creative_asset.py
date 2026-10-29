@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
-from pydantic import ConfigDict, Field, RootModel, StrictFloat, StringConstraints, model_validator
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
+from pydantic import ConfigDict, Field, StrictFloat, StringConstraints, model_validator
 
 from ..enums import creative_status
 from . import creative_assets
@@ -40,7 +40,7 @@ class Input(AdCPBaseModel):
     ] = None
 
 
-class Assets(RootModel[list[asset_union.AssetVariant]]):
+class Assets(AdCPRootModel[list[asset_union.AssetVariant]]):
     root: Annotated[list[asset_union.AssetVariant], Field(min_length=1)]
 
 

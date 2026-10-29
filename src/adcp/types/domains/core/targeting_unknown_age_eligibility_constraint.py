@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
-class TargetingUnknownAgeEligibilityConstraint(RootModel[Any]):
+class TargetingUnknownAgeEligibilityConstraint(AdCPRootModel[Any]):
     root: Annotated[
         Any,
         Field(

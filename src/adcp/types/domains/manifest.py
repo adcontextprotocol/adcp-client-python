@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import RootModel
+from adcp.types.base import AdCPRootModel
 
 
-class Model(RootModel[Any]):
+class Model(AdCPRootModel[Any]):
     root: Any
 
 

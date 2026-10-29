@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl
-from pydantic import ConfigDict, Field, RootModel, StrictBool
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl
+from pydantic import ConfigDict, Field, StrictBool
 
 from ...enums import vast_tracking_event
 from ...enums import vast_version as vast_version_1
@@ -363,7 +363,7 @@ class VastAsset4(AdCPBaseModel):
     content: Annotated[str, Field(description='Inline VAST XML content')]
 
 
-class VastAsset(RootModel[VastAsset3 | VastAsset4]):
+class VastAsset(AdCPRootModel[VastAsset3 | VastAsset4]):
     root: Annotated[
         VastAsset3 | VastAsset4,
         Field(

@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
-from adcp.types.base import WireAnyUrl
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel, WireAnyUrl
+from pydantic import Field
 
 
 class GeographicPlaceType1(StrEnum):
@@ -30,7 +30,7 @@ class GeographicPlaceType1(StrEnum):
     ward = 'ward'
 
 
-class GeographicPlaceType2(RootModel[WireAnyUrl]):
+class GeographicPlaceType2(AdCPRootModel[WireAnyUrl]):
     root: Annotated[
         WireAnyUrl,
         Field(

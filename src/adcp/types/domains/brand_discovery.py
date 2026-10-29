@@ -7,15 +7,9 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Dict, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireEmail
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull, SchemaInt, WireAnyUrl, WireDatetime, WireEmail
 from adcp.types._scalar import ScalarFloat, ScalarInt, ScalarStr
-from pydantic import (
-    ConfigDict,
-    Field,
-    RootModel,
-    StrictBool,
-    StrictFloat,
-)
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat
 
 
 class RedirectReason(StrEnum):
@@ -186,11 +180,11 @@ class PortfolioEntry(AdCPBaseModel):
     ] = None
 
 
-class LocalizedName(RootModel[dict[str, str]]):
+class LocalizedName(AdCPRootModel[dict[str, str]]):
     root: Annotated[dict[str, str], Field(max_length=1, min_length=1)]
 
 
-class LocalizedScalar1(RootModel[list[LocalizedName]]):
+class LocalizedScalar1(AdCPRootModel[list[LocalizedName]]):
     root: Annotated[
         list[LocalizedName],
         Field(
@@ -200,7 +194,7 @@ class LocalizedScalar1(RootModel[list[LocalizedName]]):
     ]
 
 
-class LocalizedScalar(RootModel[str | LocalizedScalar1]):
+class LocalizedScalar(AdCPRootModel[str | LocalizedScalar1]):
     root: Annotated[
         str | LocalizedScalar1,
         Field(
@@ -215,11 +209,11 @@ class LocalizedScalar(RootModel[str | LocalizedScalar1]):
 
 
 
-class LocalizedStringListEntry(RootModel[dict[str, list[str]]]):
+class LocalizedStringListEntry(AdCPRootModel[dict[str, list[str]]]):
     root: Annotated[dict[str, list[str]], Field(max_length=1, min_length=1)]
 
 
-class LocalizedStringList1(RootModel[list[LocalizedStringListEntry]]):
+class LocalizedStringList1(AdCPRootModel[list[LocalizedStringListEntry]]):
     root: Annotated[
         list[LocalizedStringListEntry],
         Field(
@@ -229,7 +223,7 @@ class LocalizedStringList1(RootModel[list[LocalizedStringListEntry]]):
     ]
 
 
-class LocalizedStringList(RootModel[list[str] | LocalizedStringList1]):
+class LocalizedStringList(AdCPRootModel[list[str] | LocalizedStringList1]):
     root: Annotated[
         list[str] | LocalizedStringList1,
         Field(
@@ -301,11 +295,11 @@ class ColorValue2Item(ColorValue1):
     pass
 
 
-class ColorValue2(RootModel[list[ColorValue2Item]]):
+class ColorValue2(AdCPRootModel[list[ColorValue2Item]]):
     root: Annotated[list[ColorValue2Item], Field(min_length=1)]
 
 
-class ColorValue(RootModel[ColorValue1 | ColorValue2]):
+class ColorValue(AdCPRootModel[ColorValue1 | ColorValue2]):
     root: ColorValue1 | ColorValue2
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -394,7 +388,7 @@ class ColorRef3(AdCPBaseModel):
     ]
 
 
-class ColorRef(RootModel[ColorRef1 | ColorRef2 | ColorRef3]):
+class ColorRef(AdCPRootModel[ColorRef1 | ColorRef2 | ColorRef3]):
     root: Annotated[
         ColorRef1 | ColorRef2 | ColorRef3,
         Field(
@@ -501,7 +495,7 @@ class FontRole1(AdCPBaseModel):
     ] = None
 
 
-class FontRole(RootModel[str | FontRole1]):
+class FontRole(AdCPRootModel[str | FontRole1]):
     root: Annotated[
         str | FontRole1,
         Field(
@@ -656,7 +650,7 @@ class Tone(AdCPBaseModel):
     ] = None
 
 
-class Tagline(RootModel[list[LocalizedName]]):
+class Tagline(AdCPRootModel[list[LocalizedName]]):
     root: Annotated[
         list[LocalizedName],
         Field(description='Localized taglines with BCP 47 locale codes', min_length=1),
@@ -2299,7 +2293,7 @@ class BrandAgentEntry(AdCPBaseModel):
     ] = None
 
 
-class Agents(RootModel[list[BrandAgentEntry]]):
+class Agents(AdCPRootModel[list[BrandAgentEntry]]):
     root: Annotated[
         list[BrandAgentEntry],
         Field(

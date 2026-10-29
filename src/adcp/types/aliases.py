@@ -39,6 +39,7 @@ from typing import Any, Literal, TypeAlias
 from pydantic import BeforeValidator, Discriminator
 
 from adcp.types import _generated as _g
+from adcp.types.base import defer_model_rebuild
 from adcp.types._generated import (
     # Account reference variants
     AccountReference1,
@@ -2686,8 +2687,9 @@ def _attach_selector_xor_validator(cls: type) -> None:
     generated selector classes can't carry the validator without
     modifying generated code (forbidden — overwritten on next regen).
     This walks the same `_internal._decorators` machinery the decorator
-    syntax uses, then forces a `model_rebuild` so Pydantic re-derives
-    its core schema with the new validator included.
+    syntax uses, then invalidates the built schema (`defer_model_rebuild`)
+    so Pydantic re-derives its core schema with the new validator included
+    on first use.
     """
     cls._selector_xor_validate = _selector_xor_validate  # type: ignore[attr-defined]
     info = _ModelValidatorDecoratorInfo(mode="after")
@@ -2700,7 +2702,7 @@ def _attach_selector_xor_validator(cls: type) -> None:
     cls.__pydantic_decorators__.model_validators[  # type: ignore[attr-defined]
         "_selector_xor_validate"
     ] = decorator
-    cls.model_rebuild(force=True)  # type: ignore[attr-defined]
+    defer_model_rebuild(cls)
 
 
 _attach_selector_xor_validator(_Selector1)

@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field, RootModel
+from adcp.types.base import AdCPRootModel
+from pydantic import Field
 
 
-class FrequencyCapScope(RootModel[Literal['package']]):
+class FrequencyCapScope(AdCPRootModel[Literal['package']]):
     root: Annotated[
         Literal['package'],
         Field(description='Scope for frequency cap application', title='Frequency Cap Scope'),

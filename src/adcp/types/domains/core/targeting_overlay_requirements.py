@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, NoExplicitNull
-from pydantic import ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, AdCPRootModel, NoExplicitNull
+from pydantic import ConfigDict, Field
 
 from ..enums import browser_family, daypart_timezone_mode, match_type, metro_system, transport_mode
 from . import ext as ext_1
@@ -20,7 +20,7 @@ from . import (
 )
 
 
-class Required(RootModel[Literal[True]]):
+class Required(AdCPRootModel[Literal[True]]):
     root: Literal[True]
 
 
@@ -31,7 +31,7 @@ class MetroRequirement1(AdCPBaseModel):
     systems: Annotated[list[metro_system.MetroAreaSystem], Field(min_length=1)]
 
 
-class MetroRequirement(RootModel[Required | MetroRequirement1]):
+class MetroRequirement(AdCPRootModel[Required | MetroRequirement1]):
     root: Required | MetroRequirement1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -48,7 +48,7 @@ class KeywordRequirement1(AdCPBaseModel):
     supported_match_types: Annotated[list[match_type.MatchType], Field(min_length=1)]
 
 
-class KeywordRequirement(RootModel[Required | KeywordRequirement1]):
+class KeywordRequirement(AdCPRootModel[Required | KeywordRequirement1]):
     root: Required | KeywordRequirement1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -65,7 +65,7 @@ class BrowserRequirement1(AdCPBaseModel):
     families: Annotated[list[browser_family.BrowserFamily], Field(min_length=1)]
 
 
-class BrowserRequirement(RootModel[Required | BrowserRequirement1]):
+class BrowserRequirement(AdCPRootModel[Required | BrowserRequirement1]):
     root: Required | BrowserRequirement1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
@@ -90,7 +90,7 @@ class DaypartRequirement1(AdCPBaseModel):
     ] = None
 
 
-class DaypartRequirement(RootModel[Required | DaypartRequirement1]):
+class DaypartRequirement(AdCPRootModel[Required | DaypartRequirement1]):
     root: Required | DaypartRequirement1
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to the wrapped type."""
