@@ -28,32 +28,28 @@ entry removes the periods whose start falls in ``[from, until)``. Lost
 authority removes periods the same way unless ``backfill_on_regrant`` keeps
 them.
 
-Pairing rule for cutovers (where the spec is silent)
-    Cutovers are paired per product. An offering present on both sides of T
-    continues from E of its own outgoing schedule. When offerings leave and
-    others arrive at the same T (a resolution or selector change), each
-    arriving offering starts at the latest E among the leaving ones, so no
-    period is owed twice. An offering that arrives with nothing leaving starts
-    at T, under the ordinary start rule.
+Rules where the spec is silent (identical in the TypeScript SDK)
+    Time is split per buy at every version ``accepted_at`` / ``superseded_at``,
+    deactivation and reactivation instant, offering ``available_from`` /
+    ``withdrawn_at`` and account timezone cutover. Each stretch with an active,
+    in-scope version and an unchanged resolution (the union over the buy's
+    packages) is a regime. An offering continuing into the next regime hands
+    off at E of its own outgoing calendar; a newly resolved offering starts at
+    the latest E across everything the previous regime resolved; after a regime
+    that resolved nothing, or no active version, the ordinary start rule applies.
+    A re-grant before ``unauthorized_at + status_retention_days`` continues the
+    authority chain; a later one starts a new chain.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from adcp.reporting._reconcile import ExpectedReportingPeriod
-from adcp.reporting.ledger.models import ReportingScheduleSpec
-from adcp.reporting.subscriptions._clock import (
-    delivery_sla,
-    first_boundary_at_or_after,
-    iso_z,
-    iter_periods,
-    last_boundary_at_or_before,
-    utc_instant,
-)
+from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_zone, utc_instant
 from adcp.reporting.subscriptions.resolution import (
     SubscriptionOffering,
     SubscriptionSelector,
@@ -62,7 +58,6 @@ from adcp.reporting.subscriptions.resolution import (
     resolve_subscription_offerings,
 )
 
-_FAR_FUTURE = datetime(9999, 1, 1, tzinfo=timezone.utc)
 #: Exclusion reasons that remove periods. ``package_ids`` entries never do.
 _REASONS = frozenset(
     {"offering_unsupported", "capacity", "overridden", "excluded_by_buyer", "action_required"}
@@ -313,6 +308,12 @@ class SubscriptionVersionWindow:
     accepted_at: datetime
     ends_at: datetime | None
     configuration: Any
+    #: ``(from, until)`` stretches during which the version was inactive in
+    #: place (``active: false`` then ``true`` without a new version); ``until``
+    #: ``None`` is still inactive. Reactivation is a fresh start at ``until``.
+    inactive_intervals: tuple[tuple[datetime, datetime | None], ...] = ()
+    #: The pattern and transport of the destination this version names.
+    destination: Any | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "accepted_at", utc_instant(self.accepted_at, field="accepted_at"))
@@ -320,9 +321,26 @@ class SubscriptionVersionWindow:
             object.__setattr__(self, "ends_at", utc_instant(self.ends_at, field="ends_at"))
             if self.ends_at < self.accepted_at:
                 raise ValueError("a version cannot end before it was accepted")
+        intervals = []
+        for start, until in self.inactive_intervals:
+            start = utc_instant(start, field="inactive_intervals.from")
+            if until is not None:
+                until = utc_instant(until, field="inactive_intervals.until")
+                if until <= start:
+                    raise ValueError("an inactive interval must end after it starts")
+            intervals.append((start, until))
+        object.__setattr__(self, "inactive_intervals", tuple(intervals))
+
+    def active_at(self, instant: datetime) -> bool:
+        if not (self.accepted_at <= instant and (self.ends_at is None or instant < self.ends_at)):
+            return False
+        return not any(
+            start <= instant and (until is None or instant < until)
+            for start, until in self.inactive_intervals
+        )
 
     def contains(self, instant: datetime) -> bool:
-        return self.accepted_at <= instant and (self.ends_at is None or instant < self.ends_at)
+        return self.active_at(instant)
 
 
 def subscription_version_windows(
@@ -368,8 +386,8 @@ def subscription_version_windows(
     for earlier, later in zip(windows, windows[1:]):
         if earlier.subscription_version >= later.subscription_version:
             raise ValueError("subscription versions must increase with accepted_at")
-        if earlier.ends_at is None or earlier.ends_at > later.accepted_at:
-            raise ValueError("a prior version must be superseded no later than its successor")
+        if earlier.ends_at != later.accepted_at:
+            raise ValueError("superseded_at must equal the next version's accepted_at")
     return tuple(windows)
 
 
@@ -379,7 +397,8 @@ def subscription_covers_account(
     """Whether a subscription version's scope selects the account.
 
     ``exclude_account_ids`` and ``operator_domains`` narrow the scope; the
-    seller also reports an excluded account as ``excluded_by_buyer``.
+    seller also reports an excluded account as ``excluded_by_buyer``. With
+    ``operator_domains``, an account whose operator is unknown is not selected.
     """
     if hasattr(configuration, "model_dump"):
         configuration = configuration.model_dump(mode="json", exclude_none=True)
@@ -395,11 +414,9 @@ def subscription_covers_account(
         return False
     domains = _value(configuration, "operator_domains")
     if domains:
-        if account_operator is None:
-            raise ValueError(
-                "the subscription filters by operator_domains; pass the account's operator"
-            )
-        return account_operator in {_text(item) for item in domains}
+        return account_operator is not None and account_operator in {
+            _text(item) for item in domains
+        }
     return True
 
 
@@ -433,33 +450,32 @@ class ExpectedSubscriptionPeriod(ExpectedReportingPeriod):
 
 
 @dataclass(frozen=True)
-class _Slot:
-    """One (version, offering, zone) feed a product resolves to in one segment."""
-
-    version: int
+class _Resolved:
     offering: SubscriptionOffering
-    zone: str
-    schedule: ReportingScheduleSpec
+    calendar: PeriodCalendar
 
-    def same_feed(self, other: _Slot) -> bool:
-        return (
-            self.version == other.version
-            and self.offering.offering_id == other.offering.offering_id
-            and self.zone == other.zone
-        )
+    @property
+    def key(self) -> tuple[str, str, datetime]:
+        return (self.offering.offering_id, self.calendar.zone_name, self.calendar.origin)
 
 
 @dataclass
-class _SlotState:
-    slot: _Slot
-    lower: datetime
+class _Regime:
+    start: datetime
+    until: datetime | None
+    version: int
+    resolved: tuple[_Resolved, ...]
 
 
-@dataclass(frozen=True)
-class _Loss:
-    unauthorized_at: datetime
-    regranted_at: datetime | None
-    expired: bool
+@dataclass
+class _Chain:
+    """Continuous authority: a first grant, retained interruptions, an optional end."""
+
+    start: datetime
+    interruptions: list[tuple[datetime, datetime]] = field(default_factory=list)
+    end: datetime | None = None
+    #: The re-grant that started this chain after an expired entry, if any.
+    after_expiry_of: datetime | None = None
 
 
 @dataclass
@@ -474,35 +490,95 @@ class _Owed:
     media_buy_ids: set[str] = field(default_factory=set)
 
 
-def _losses(
+def _chains(
     authorizations: Sequence[SubscriptionAuthorization], retention: timedelta | None
-) -> tuple[datetime | None, tuple[_Loss, ...]]:
+) -> list[_Chain]:
     ordered = sorted(authorizations, key=lambda item: item.authorized_at)
-    for earlier, later in zip(ordered, ordered[1:]):
-        if earlier.unauthorized_at is None or earlier.unauthorized_at > later.authorized_at:
-            raise ValueError("authorization grants must not overlap")
-    losses: list[_Loss] = []
+    chains: list[_Chain] = []
+    previous_end: datetime | None = None
     for index, grant in enumerate(ordered):
-        if grant.unauthorized_at is None:
+        if index > 0 and previous_end is None:
+            raise ValueError("only the last grant may be unrevoked")
+        if previous_end is not None and grant.authorized_at < previous_end:
+            raise ValueError("authorization grants must not overlap")
+        if chains and previous_end is not None:
+            if retention is None:
+                raise ValueError("status_retention_days is required to evaluate a re-grant")
+            if grant.authorized_at < previous_end + retention:
+                chains[-1].interruptions.append((previous_end, grant.authorized_at))
+                chains[-1].end = None
+            else:
+                chains.append(_Chain(grant.authorized_at, after_expiry_of=previous_end))
+        else:
+            chains.append(_Chain(grant.authorized_at))
+        if grant.unauthorized_at is not None:
+            chains[-1].end = grant.unauthorized_at
+        previous_end = grant.unauthorized_at
+    return chains
+
+
+def _authorized(
+    chains: Sequence[_Chain], calendar: PeriodCalendar, start: datetime, backfill: bool
+) -> bool:
+    if not chains:
+        return True  # authorized_at is not advertised and authority never lapsed
+    for chain in chains:
+        if start < calendar.ceil(chain.start):
             continue
-        regranted = ordered[index + 1].authorized_at if index + 1 < len(ordered) else None
-        expired = (
-            regranted is not None
-            and retention is not None
-            and regranted - grant.unauthorized_at > retention
-        )
-        losses.append(_Loss(grant.unauthorized_at, regranted, expired))
-    return (ordered[0].authorized_at if ordered else None), tuple(losses)
+        if chain.end is not None and start >= calendar.floor(chain.end):
+            continue
+        if not backfill and any(
+            calendar.floor(lost) <= start < calendar.ceil(regranted)
+            for lost, regranted in chain.interruptions
+        ):
+            continue
+        return True
+    return False
 
 
-def _zone_at(
-    instant: datetime, account_timezone: str, changes: Sequence[AccountTimezoneChange]
-) -> str:
-    zone = account_timezone
+def _expected_at(
+    chains: Sequence[_Chain],
+    calendar: PeriodCalendar,
+    start: datetime,
+    end: datetime,
+    backfill: bool,
+) -> tuple[datetime | None, bool]:
+    """When a period is due, and whether it is withheld for lost authority."""
+    sla = calendar.delivery_sla
+    expected: datetime = end + sla
+    for chain in chains:
+        for lost, regranted in chain.interruptions:
+            pending = end <= calendar.floor(lost) and expected > lost
+            backfilled = backfill and calendar.floor(lost) <= start < calendar.ceil(regranted)
+            if pending or backfilled:
+                expected = max(expected, regranted + sla)
+        if chain.end is not None and end <= calendar.floor(chain.end) and expected > chain.end:
+            return None, True
+    return expected, False
+
+
+def _timezone_at(
+    instant: datetime, initial: str | None, changes: Sequence[AccountTimezoneChange]
+) -> str | None:
+    zone = initial
     for change in changes:
         if change.changed_at <= instant:
             zone = change.timezone
     return zone
+
+
+def _windows(
+    subscription: Any, version_configurations: Mapping[int, Any] | None
+) -> tuple[SubscriptionVersionWindow, ...]:
+    if isinstance(subscription, Sequence) and not isinstance(subscription, (str, bytes, Mapping)):
+        windows = tuple(subscription)
+        for earlier, later in zip(windows, windows[1:]):
+            if later.subscription_version <= earlier.subscription_version or (
+                earlier.ends_at != later.accepted_at
+            ):
+                raise ValueError("versions must be ordered and each superseded at the next")
+        return windows
+    return subscription_version_windows(subscription, version_configurations=version_configurations)
 
 
 def expected_subscription_periods(
@@ -511,11 +587,12 @@ def expected_subscription_periods(
     account_id: str,
     buys: Sequence[SubscriptionBuy],
     offerings: Sequence[SubscriptionOffering],
-    account_timezone: str,
+    account_timezone: str | None,
     now: datetime,
     authorizations: Sequence[SubscriptionAuthorization] = (),
     exceptions: Sequence[Any] = (),
     gaps: Sequence[Any] = (),
+    coverage: Any | None = None,
     backfill_on_regrant: bool = False,
     status_retention_days: int | None = None,
     destinations: Mapping[str, Any] | None = None,
@@ -532,8 +609,9 @@ def expected_subscription_periods(
     :param buys: the confirmed buys in the account the caller can see.
         A buy without ``confirmed_at`` is not covered.
     :param offerings: offerings with the seller's dimension mapping.
-    :param account_timezone: the account's timezone before the first entry of
-        ``timezone_changes`` (its current timezone when there are none).
+    :param account_timezone: the account's timezone before the first timezone
+        change (its current timezone when there are none). Required when an
+        ``account_timezone`` offering resolves without a ``period_timezone``.
     :param now: periods are owed once resolved, at their end; a period ending
         after ``now`` is returned only with ``include_unresolved``.
     :param authorizations: the account's grant history. Empty means the seller
@@ -541,30 +619,68 @@ def expected_subscription_periods(
     :param exceptions: ``subscription_coverage[].excluded`` entries, or
         :class:`SubscriptionException` values.
     :param gaps: ``subscription_coverage[].gaps`` entries.
+    :param coverage: a whole ``subscription_coverage[]`` entry; its
+        ``excluded``, ``gaps`` and ``timezone_cutovers`` are applied too.
     :param backfill_on_regrant: the seller's ``subscriptions.backfill_on_regrant``.
-    :param status_retention_days: the seller's status retention; a re-grant
-        later than this after a loss is a fresh coverage start.
+    :param status_retention_days: the seller's status retention; required when
+        a grant was revoked and re-granted.
     :param destinations: the caller's ``reporting_destinations`` by
         ``destination_id``, needed when a version names a destination.
-    :param account_operator: the account's operator, needed with
-        ``operator_domains``.
+    :param account_operator: the account's operator, for ``operator_domains``.
+    :param timezone_changes: account timezone changes, each a cutover at its
+        ``changed_at`` (``timezone_cutovers[].effective_at``).
     """
     now = utc_instant(now, field="now")
-    windows = (
-        tuple(subscription)
-        if isinstance(subscription, Sequence)
-        and not isinstance(subscription, (str, bytes, Mapping))
-        else subscription_version_windows(
-            subscription, version_configurations=version_configurations
-        )
-    )
+    windows = _windows(subscription, version_configurations)
     if not windows:
         return []
     subscription_id = _subscription_id(subscription, windows)
     retention = None if status_retention_days is None else timedelta(days=status_retention_days)
-    chain_start, losses = _losses(authorizations, retention)
-    removals = subscription_exceptions(exceptions, gaps)
-    tz_changes = tuple(sorted(timezone_changes, key=lambda item: item.changed_at))
+    chains = _chains(authorizations, retention)
+    excluded = list(exceptions)
+    gap_entries = list(gaps)
+    changes = list(timezone_changes)
+    if coverage is not None:
+        excluded.extend(_value(coverage, "excluded") or ())
+        gap_entries.extend(_value(coverage, "gaps") or ())
+        for entry in _value(coverage, "timezone_cutovers") or ():
+            changes.append(
+                AccountTimezoneChange(
+                    _require_instant(_value(entry, "effective_at"), field="effective_at"),
+                    _text(_value(entry, "timezone")),
+                )
+            )
+    if account_timezone is not None:
+        require_zone(account_timezone, field="account_timezone")
+    for change in changes:
+        require_zone(change.timezone, field="timezone_cutovers.timezone")
+    if changes and account_timezone is None:
+        raise ValueError("account_timezone is required with timezone changes")
+    changes.sort(key=lambda item: item.changed_at)
+    removals = subscription_exceptions(excluded, gap_entries)
+    ids = [item.offering_id for item in offerings]
+    if len(set(ids)) != len(ids):
+        raise ValueError("offering_id values must be unique")
+    buy_ids = [item.media_buy_id for item in buys]
+    if len(set(buy_ids)) != len(buy_ids):
+        raise ValueError("media_buy_id values must be unique")
+
+    points: set[datetime] = set()
+    for window in windows:
+        points.add(window.accepted_at)
+        if window.ends_at is not None:
+            points.add(window.ends_at)
+        for start, until in window.inactive_intervals:
+            points.add(start)
+            if until is not None:
+                points.add(until)
+    for item in offerings:
+        if item.available_from is not None:
+            points.add(item.available_from)
+        if item.withdrawn_at is not None:
+            points.add(item.withdrawn_at)
+    points.update(change.changed_at for change in changes)
+    ordered = sorted(points)
     selectors = {
         window.subscription_version: SubscriptionSelector.from_subscription(window.configuration)
         for window in windows
@@ -575,69 +691,66 @@ def expected_subscription_periods(
         )
         for window in windows
     }
-    instants = {window.accepted_at for window in windows}
-    instants.update(window.ends_at for window in windows if window.ends_at is not None)
-    instants.update(item.available_from for item in offerings if item.available_from is not None)
-    instants.update(item.withdrawn_at for item in offerings if item.withdrawn_at is not None)
-    instants.update(change.changed_at for change in tz_changes)
-    first = windows[0].accepted_at
-    boundaries = sorted(instant for instant in instants if instant >= first)
 
     owed: dict[tuple[int, str, str, datetime], _Owed] = {}
     for buy in buys:
         if buy.confirmed_at is None:
             continue
-        floor = max(item for item in (buy.confirmed_at, chain_start) if item is not None)
-        ceiling = buy._latest_stop()
-        if not include_unresolved:
-            ceiling = min(ceiling, now)
-        for _package_id, offering_ids in buy.product_offering_ids():
-            previous: dict[str, _SlotState] = {}
-            for index, segment_start in enumerate(boundaries):
-                segment_end = boundaries[index + 1] if index + 1 < len(boundaries) else None
-                window = next((item for item in windows if item.contains(segment_start)), None)
-                slots: dict[str, _Slot] = {}
-                if window is not None and in_scope[window.subscription_version]:
-                    zone_name = _zone_at(segment_start, account_timezone, tz_changes)
-                    selector = selectors[window.subscription_version]
-                    destination = None
-                    if selector.destination_id is not None:
-                        if destinations is None or selector.destination_id not in destinations:
-                            raise ValueError(
-                                f"destination {selector.destination_id!r} is not in destinations"
-                            )
-                        destination = destinations[selector.destination_id]
-                    resolution = resolve_subscription_offerings(
-                        selector,
-                        offerings,
-                        product_offering_ids=offering_ids,
-                        account_timezone=zone_name,
-                        destination=destination,
-                        at=segment_start,
-                    )
-                    for offering in resolution.offerings:
-                        zone = offering.zone(zone_name)
-                        slots[offering.offering_id] = _Slot(
-                            window.subscription_version,
-                            offering,
-                            zone,
-                            offering.schedule(zone_name),
+        regimes = _regimes(
+            buy,
+            ordered,
+            windows,
+            selectors,
+            in_scope,
+            offerings,
+            destinations,
+            account_timezone,
+            changes,
+        )
+        flights_start = buy._earliest_start()
+        latest_stop = buy._latest_stop()
+        for index, regime in enumerate(regimes):
+            if regime is None:
+                continue
+            predecessor = regimes[index - 1] if index > 0 else None
+            for resolved in regime.resolved:
+                calendar = resolved.calendar
+                handoff = _cutover_end(regime.start, predecessor, resolved)
+                lower = max(
+                    calendar.ceil(max(handoff, buy.confirmed_at)),
+                    calendar.floor(flights_start),
+                )
+                upper = latest_stop if regime.until is None else min(regime.until, latest_stop)
+                if not include_unresolved:
+                    upper = min(upper, now)
+                if lower >= upper:
+                    continue
+                for start, end in calendar.periods(starts_from=lower, starts_before=upper):
+                    if not include_unresolved and end > now:
+                        break
+                    flight_start, flight_stop = buy.flight_at(end)
+                    if not (start < flight_stop and end > flight_start):
+                        continue
+                    if not _authorized(chains, calendar, start, backfill_on_regrant):
+                        continue
+                    if any(item.removes(start, buy.media_buy_id) for item in removals):
+                        continue
+                    key = (regime.version, resolved.offering.offering_id, calendar.zone_name, start)
+                    entry = owed.get(key)
+                    if entry is None:
+                        expected_at, withheld = _expected_at(
+                            chains, calendar, start, end, backfill_on_regrant
                         )
-                current = _pair(previous, slots, segment_start)
-                for state in current.values():
-                    _collect(
-                        owed,
-                        state,
-                        buy=buy,
-                        floor=floor,
-                        starts_before=min(segment_end or _FAR_FUTURE, ceiling),
-                        now=now,
-                        include_unresolved=include_unresolved,
-                        removals=removals,
-                        losses=losses,
-                        backfill=backfill_on_regrant,
-                    )
-                previous = current
+                        entry = owed[key] = _Owed(
+                            regime.version,
+                            resolved.offering,
+                            calendar.zone_name,
+                            start,
+                            end,
+                            expected_at,
+                            withheld,
+                        )
+                    entry.media_buy_ids.add(buy.media_buy_id)
 
     periods = [
         ExpectedSubscriptionPeriod(
@@ -646,7 +759,7 @@ def expected_subscription_periods(
             report_definition_id=item.offering.report_definition_id,
             feed_purpose=item.offering.feed_purpose,
             reporting_profile=item.offering.reporting_profile,
-            media_buy_ids=tuple(sorted(item.media_buy_ids)),
+            media_buy_ids=tuple(sorted(item.media_buy_ids, key=lambda value: value.encode())),
             period_start=iso_z(item.start),
             period_end=iso_z(item.end),
             source_timezone=item.zone,
@@ -660,13 +773,79 @@ def expected_subscription_periods(
     ]
     periods.sort(
         key=lambda item: (
-            item.period_start,
-            item.period_end,
-            item.offering_id.encode("utf-8"),
+            utc_instant(datetime.fromisoformat(item.period_start.replace("Z", "+00:00"))),
             item.delivery_config_version,
+            item.offering_id.encode("utf-8"),
         )
     )
     return periods
+
+
+def _regimes(
+    buy: SubscriptionBuy,
+    ordered: Sequence[datetime],
+    windows: Sequence[SubscriptionVersionWindow],
+    selectors: Mapping[int, SubscriptionSelector],
+    in_scope: Mapping[int, bool],
+    offerings: Sequence[SubscriptionOffering],
+    destinations: Mapping[str, Any] | None,
+    account_timezone: str | None,
+    changes: Sequence[AccountTimezoneChange],
+) -> list[_Regime | None]:
+    """Maximal stretches with one active, in-scope version and one resolution."""
+    regimes: list[_Regime | None] = []
+    for index, start in enumerate(ordered):
+        until = ordered[index + 1] if index + 1 < len(ordered) else None
+        window = next((item for item in windows if item.active_at(start)), None)
+        if window is None or not in_scope[window.subscription_version]:
+            if regimes and regimes[-1] is not None:
+                regimes.append(None)
+            continue
+        selector = selectors[window.subscription_version]
+        destination = window.destination
+        if destination is None and selector.destination_id is not None:
+            if destinations is None or selector.destination_id not in destinations:
+                raise ValueError(
+                    f"version {window.subscription_version} names destination "
+                    f"{selector.destination_id!r}; pass its pattern and transport"
+                )
+            destination = destinations[selector.destination_id]
+        zone = _timezone_at(start, account_timezone, changes)
+        found: dict[str, SubscriptionOffering] = {}
+        for _package_id, offering_ids in buy.product_offering_ids():
+            resolution = resolve_subscription_offerings(
+                selector,
+                offerings,
+                product_offering_ids=offering_ids,
+                destination=destination,
+                at=start,
+            )
+            for item in resolution.offerings:
+                found[item.offering_id] = item
+        resolved = tuple(
+            _Resolved(item, item.calendar(zone, selector.period_timezone))
+            for item in sorted(found.values(), key=lambda value: value.offering_id.encode())
+        )
+        previous = regimes[-1] if regimes else None
+        if (
+            previous is not None
+            and previous.version == window.subscription_version
+            and [item.key for item in previous.resolved] == [item.key for item in resolved]
+        ):
+            previous.until = until
+            continue
+        regimes.append(_Regime(start, until, window.subscription_version, resolved))
+    return regimes
+
+
+def _cutover_end(handoff: datetime, predecessor: _Regime | None, incoming: _Resolved) -> datetime:
+    """E for an incoming offering at ``handoff``; the regime start with no predecessor."""
+    if predecessor is None or not predecessor.resolved:
+        return handoff
+    for item in predecessor.resolved:
+        if item.offering.offering_id == incoming.offering.offering_id:
+            return item.calendar.ceil(handoff)
+    return max(item.calendar.ceil(handoff) for item in predecessor.resolved)
 
 
 def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWindow]) -> str:
@@ -681,111 +860,6 @@ def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWin
     if value is None:
         raise ValueError("subscription_id is required")
     return _text(value)
-
-
-def _pair(
-    previous: Mapping[str, _SlotState], slots: Mapping[str, _Slot], at: datetime
-) -> dict[str, _SlotState]:
-    """Apply the cutover rule between consecutive segments of one product."""
-    leaving = [state for key, state in previous.items() if key not in slots]
-    current: dict[str, _SlotState] = {}
-    for key, slot in slots.items():
-        before = previous.get(key)
-        if before is not None:
-            if before.slot.same_feed(slot):
-                lower = max(at, before.lower)
-            else:
-                lower = max(first_boundary_at_or_after(before.slot.schedule, at), before.lower)
-        elif leaving:
-            lower = max(
-                max(first_boundary_at_or_after(state.slot.schedule, at), state.lower)
-                for state in leaving
-            )
-        else:
-            lower = at
-        current[key] = _SlotState(slot, lower)
-    return current
-
-
-def _collect(
-    owed: dict[tuple[int, str, str, datetime], _Owed],
-    state: _SlotState,
-    *,
-    buy: SubscriptionBuy,
-    floor: datetime,
-    starts_before: datetime,
-    now: datetime,
-    include_unresolved: bool,
-    removals: Sequence[SubscriptionException],
-    losses: Sequence[_Loss],
-    backfill: bool,
-) -> None:
-    slot = state.slot
-    schedule = slot.schedule
-    lower = max(state.lower, floor)
-    # Skip straight to the period containing the earliest flight start; a
-    # period that ends at or before every flight start can never overlap.
-    earliest = buy._earliest_start()
-    if earliest > lower:
-        lower = max(lower, last_boundary_at_or_before(schedule, earliest))
-    if lower >= starts_before:
-        return
-    sla = delivery_sla(schedule)
-    gates = [
-        (
-            loss,
-            last_boundary_at_or_before(schedule, loss.unauthorized_at),
-            (
-                None
-                if loss.regranted_at is None
-                else first_boundary_at_or_after(schedule, loss.regranted_at)
-            ),
-        )
-        for loss in losses
-    ]
-    for start, end in iter_periods(schedule, starts_from=lower, starts_before=starts_before):
-        if not include_unresolved and end > now:
-            break
-        flight_start, flight_stop = buy.flight_at(end)
-        if not (start < flight_stop and end > flight_start):
-            continue
-        if any(item.removes(start, buy.media_buy_id) for item in removals):
-            continue
-        expected_at: datetime | None = end + sla
-        withheld = False
-        removed = False
-        for loss, gap_from, gap_until in gates:
-            if start >= gap_from:
-                if gap_until is None:
-                    removed = True
-                    break
-                if start < gap_until:
-                    if backfill and not loss.expired:
-                        assert loss.regranted_at is not None
-                        expected_at = _later(expected_at, loss.regranted_at + sla)
-                    else:
-                        removed = True
-                        break
-            elif expected_at is not None and expected_at > loss.unauthorized_at:
-                # Owed before the loss but not yet due when authority ended:
-                # withheld, and due again only on a retained re-grant.
-                if loss.regranted_at is None or loss.expired:
-                    expected_at, withheld = None, True
-                else:
-                    expected_at = _later(expected_at, loss.regranted_at + sla)
-        if removed:
-            continue
-        key = (slot.version, slot.offering.offering_id, slot.zone, start)
-        entry = owed.get(key)
-        if entry is None:
-            entry = owed[key] = _Owed(
-                slot.version, slot.offering, slot.zone, start, end, expected_at, withheld
-            )
-        entry.media_buy_ids.add(buy.media_buy_id)
-
-
-def _later(current: datetime | None, candidate: datetime) -> datetime | None:
-    return None if current is None else max(current, candidate)
 
 
 __all__ = [

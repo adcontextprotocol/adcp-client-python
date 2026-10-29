@@ -31,8 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
-from adcp.reporting.ledger.models import ReportingScheduleSpec, iso_duration_to_timedelta
-from adcp.reporting.subscriptions._clock import civil_schedule, require_zone, utc_instant
+from adcp.reporting.subscriptions._clock import PeriodCalendar, require_zone, utc_instant
 
 #: The 3.3 standard breakdown vocabulary (``enums/reporting-dimension.json``).
 #: It is extensible: a selector naming a value no offering maps matches nothing.
@@ -42,6 +41,29 @@ STANDARD_REPORTING_DIMENSIONS: frozenset[str] = frozenset(
 
 SubscriptionMatch = Literal["exact", "finest", "all"]
 _ALIGNMENTS = frozenset({"utc", "account_timezone", "source_timezone", "billing_cycle"})
+#: Zone names a ``utc`` schedule can produce periods in under ``period_timezone``.
+UTC_ZONE_NAMES: frozenset[str] = frozenset(
+    {
+        "UTC",
+        "Etc/UTC",
+        "Etc/UCT",
+        "UCT",
+        "Etc/Universal",
+        "Universal",
+        "Etc/Zulu",
+        "Zulu",
+        "GMT",
+        "Etc/GMT",
+        "Etc/GMT+0",
+        "Etc/GMT-0",
+        "Etc/GMT0",
+        "GMT+0",
+        "GMT-0",
+        "GMT0",
+        "Etc/Greenwich",
+        "Greenwich",
+    }
+)
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
@@ -73,8 +95,11 @@ class SubscriptionOffering:
 
     ``period_timezone`` is the schedule's IANA zone for ``source_timezone``
     (fixed, or the seller's account-resolved upstream zone) and fixed
-    ``billing_cycle`` offerings. ``available_from`` and ``withdrawn_at`` bound
-    when the offering is a candidate; a change in resolution is a cutover.
+    ``billing_cycle`` offerings. ``period_timezone_policy`` is the
+    ``source_timezone`` policy: an ``account_resolved`` schedule can produce
+    periods in any zone a ``period_timezone`` override names.
+    ``available_from`` and ``withdrawn_at`` bound when the offering is a
+    candidate; a change in resolution is a cutover.
     """
 
     offering_id: str
@@ -91,6 +116,7 @@ class SubscriptionOffering:
     period_timezone: str | None = None
     period_anchor: datetime | None = None
     period_anchor_policy: str | None = None
+    period_timezone_policy: str | None = None
     method_pattern: str | None = None
     method_transport: str | None = None
     available_from: datetime | None = None
@@ -169,6 +195,7 @@ class SubscriptionOffering:
                 datetime.fromisoformat(str(anchor).replace("Z", "+00:00")) if anchor else None
             ),
             period_anchor_policy=schedule.get("period_anchor_policy"),
+            period_timezone_policy=schedule.get("period_timezone_policy"),
             method_pattern=method.get("pattern"),
             method_transport=method.get("transport"),
             available_from=available_from,
@@ -184,42 +211,72 @@ class SubscriptionOffering:
     def schedulable(self) -> bool:
         """Whether a subscription can derive this offering's boundaries.
 
-        A subscription carries no billing anchor, so a ``configurable``
-        ``billing_cycle`` offering (which needs one per configuration) and a
-        ``source_timezone`` offering whose zone is unresolved cannot be
-        scheduled, and calendar months and years are not derivable by the
-        shared clock.
+        A subscription carries no billing anchor, so a ``billing_cycle``
+        offering whose anchor is not fixed is never resolvable.
         """
-        if self.alignment == "billing_cycle" and (
-            self.period_anchor is None or self.period_timezone is None
-        ):
-            return False
-        if self.alignment == "source_timezone" and self.period_timezone is None:
-            return False
-        try:
-            iso_duration_to_timedelta(self.period_duration)
-            iso_duration_to_timedelta(self.delivery_sla)
-        except ValueError:
-            return False
-        return True
+        return self.alignment != "billing_cycle" or (
+            self.period_anchor is not None and self.period_timezone is not None
+        )
 
-    def zone(self, account_timezone: str) -> str:
-        """The IANA zone this offering's periods use for an account."""
+    def can_produce(self, period_timezone: str | None) -> bool:
+        """Whether the schedule can produce periods in a ``period_timezone`` override.
+
+        A ``utc`` schedule only in a UTC alias; a fixed-timezone schedule only
+        in that zone; an ``account_timezone`` or ``account_resolved`` schedule
+        in any zone.
+        """
+        if not self.schedulable:
+            return False
+        if period_timezone is None:
+            return True
+        if self.alignment == "utc":
+            return period_timezone in UTC_ZONE_NAMES
+        if self.alignment == "account_timezone":
+            return True
+        if self.alignment == "source_timezone":
+            return self.period_timezone_policy != "fixed" or self.period_timezone == period_timezone
+        return self.period_timezone == period_timezone
+
+    def zone(self, account_timezone: str | None, period_timezone: str | None = None) -> str:
+        """The IANA zone this offering's periods use for an account.
+
+        ``period_timezone`` is a single-account subscription's override; it
+        applies to ``account_timezone`` and ``account_resolved`` schedules.
+        """
         if self.alignment == "utc":
             return "UTC"
         if self.alignment == "account_timezone":
-            return account_timezone
+            zone = period_timezone or account_timezone
+            if zone is None:
+                raise ValueError(
+                    f"offering {self.offering_id!r} is account_timezone aligned; "
+                    "the account timezone is required"
+                )
+            return zone
+        if self.alignment == "source_timezone":
+            zone = (
+                self.period_timezone
+                if self.period_timezone_policy == "fixed"
+                else (period_timezone or self.period_timezone)
+            )
+            if zone is None:
+                raise ValueError(
+                    f"offering {self.offering_id!r} resolves its source timezone per account; "
+                    "pass the resolved zone as period_timezone"
+                )
+            return zone
         if self.period_timezone is None:
-            raise ValueError(f"offering {self.offering_id!r} has no resolved period_timezone")
+            raise ValueError(f"offering {self.offering_id!r} has no period_timezone")
         return self.period_timezone
 
-    def schedule(self, account_timezone: str) -> ReportingScheduleSpec:
-        """The ledger schedule with the normative origin for this offering."""
-        zone = self.zone(account_timezone)
-        return civil_schedule(
+    def calendar(
+        self, account_timezone: str | None, period_timezone: str | None = None
+    ) -> PeriodCalendar:
+        """This offering's normative period calendar for an account."""
+        return PeriodCalendar.for_schedule(
             period_duration=self.period_duration,
             delivery_sla=self.delivery_sla,
-            zone_name=zone,
+            zone_name=self.zone(account_timezone, period_timezone),
             anchor=self.period_anchor if self.alignment == "billing_cycle" else None,
         )
 
@@ -320,7 +377,6 @@ def _is_candidate(
     selector: SubscriptionSelector,
     *,
     destination: SubscriptionDestination | None,
-    account_timezone: str,
 ) -> bool:
     if (
         offering.feed_purpose != selector.feed_purpose
@@ -334,17 +390,12 @@ def _is_candidate(
     if destination is None:
         if offering.method_pattern is not None:
             return False
-    elif offering.method_pattern != destination.pattern or (
-        destination.transport is not None and offering.method_transport != destination.transport
+    elif (
+        offering.method_pattern != destination.pattern
+        or offering.method_transport != destination.transport
     ):
         return False
-    if not offering.schedulable:
-        return False
-    if selector.period_timezone is not None:
-        # The override selects only offerings whose published schedule already
-        # produces periods in that zone; the SDK never re-buckets a schedule.
-        return offering.zone(account_timezone) == selector.period_timezone
-    return True
+    return offering.can_produce(selector.period_timezone)
 
 
 def resolve_subscription_offerings(
@@ -352,7 +403,6 @@ def resolve_subscription_offerings(
     offerings: Sequence[SubscriptionOffering],
     *,
     product_offering_ids: Iterable[str],
-    account_timezone: str,
     destination: Any | None = None,
     at: datetime | None = None,
 ) -> SubscriptionResolution:
@@ -382,9 +432,7 @@ def resolve_subscription_offerings(
             for offering in offerings
             if offering.offering_id in listed
             and (instant is None or offering.available_at(instant))
-            and _is_candidate(
-                offering, selector, destination=target, account_timezone=account_timezone
-            )
+            and _is_candidate(offering, selector, destination=target)
         ),
         key=lambda item: _byte_key(item.offering_id),
     )
@@ -412,6 +460,7 @@ def resolve_subscription_offerings(
 
 __all__ = [
     "STANDARD_REPORTING_DIMENSIONS",
+    "UTC_ZONE_NAMES",
     "SubscriptionDestination",
     "SubscriptionMatch",
     "SubscriptionOffering",

@@ -63,6 +63,7 @@ def offering(
     method_transport: str | None = None,
     period_timezone: str | None = None,
     period_anchor: datetime | None = None,
+    period_timezone_policy: str | None = None,
     available_from: datetime | None = None,
     withdrawn_at: datetime | None = None,
 ) -> SubscriptionOffering:
@@ -82,6 +83,7 @@ def offering(
         method_transport=method_transport,
         period_timezone=period_timezone,
         period_anchor=period_anchor,
+        period_timezone_policy=period_timezone_policy,
         available_from=available_from,
         withdrawn_at=withdrawn_at,
     )
@@ -613,7 +615,6 @@ ALL_IDS = tuple(item.offering_id for item in BREAKDOWNS)
 
 
 def resolved(config: dict, *, product: tuple[str, ...] = ALL_IDS, **kwargs) -> tuple[str, ...]:
-    kwargs.setdefault("account_timezone", NY)
     return resolve_subscription_offerings(
         config, kwargs.pop("offerings", BREAKDOWNS), product_offering_ids=product, **kwargs
     ).offering_ids
@@ -696,27 +697,50 @@ class TestResolution:
         with pytest.raises(ValueError):
             resolved(config, offerings=both, product=product)
 
-    def test_period_timezone_selects_offerings_already_in_that_zone(self) -> None:
-        source = offering("src", alignment="source_timezone", period_timezone="America/Chicago")
-        offers = [DAILY, source]
-        product = ("daily-pkg", "src")
-        chicago = subscription_config(
-            dimensions=["package"],
-            scope={"account_ids": ["acct-1"]},
+    def test_period_timezone_override(self) -> None:
+        # account_timezone and account-resolved schedules can produce periods
+        # in any zone; fixed-zone schedules only in theirs; utc only in UTC.
+        source = offering(
+            "src",
+            alignment="source_timezone",
             period_timezone="America/Chicago",
+            period_timezone_policy="fixed",
         )
-        assert resolved(chicago, offerings=offers, product=product) == ("src",)
-        new_york = subscription_config(
-            dimensions=["package"], scope={"account_ids": ["acct-1"]}, period_timezone=NY
-        )
-        assert resolved(new_york, offerings=offers, product=product) == ("daily-pkg",)
+        utc_daily = offering("utc-daily", alignment="utc")
+        offers = [DAILY, source, utc_daily]
+        product = ("daily-pkg", "src", "utc-daily")
 
-    def test_unschedulable_offerings_are_not_candidates(self) -> None:
-        monthly = offering("monthly", duration="P1M")
+        def override(zone: str) -> dict:
+            return subscription_config(
+                dimensions=["package"],
+                match="all",
+                scope={"account_ids": ["acct-1"]},
+                period_timezone=zone,
+            )
+
+        assert resolved(override("America/Chicago"), offerings=offers, product=product) == (
+            "daily-pkg",
+            "src",
+        )
+        assert resolved(override("Etc/UTC"), offerings=offers, product=product) == (
+            "daily-pkg",
+            "utc-daily",
+        )
+        # The override moves an account_timezone schedule into its zone.
+        result = periods(
+            subscription=state("2026-10-01T00:00:00Z", config=override("America/Chicago")),
+            offerings=[DAILY],
+            buys=[buy(end_time="2026-10-03T05:00:00Z")],
+        )
+        assert result[0] == ("2026-10-01T05:00:00Z", "2026-10-02T05:00:00Z")
+
+    def test_configurable_billing_cycles_are_never_candidates(self) -> None:
+        # A subscription has no way to supply a billing anchor.
         configurable = offering("cycle", alignment="billing_cycle")
-        config = subscription_config(duration="P1M")
-        assert resolved(config, offerings=[monthly], product=("monthly",)) == ()
         assert resolved(subscription_config(), offerings=[configurable], product=("cycle",)) == ()
+        monthly = offering("monthly", duration="P1M")
+        config = subscription_config(duration="P1M")
+        assert resolved(config, offerings=[monthly], product=("monthly",)) == ("monthly",)
 
     def test_from_wire_offering(self) -> None:
         wire = {
@@ -853,8 +877,8 @@ class TestResolutionInCoverage:
         )
         assert run(subscription=operator, buys=[buy()], account_operator="other.example") == []
         assert run(subscription=operator, buys=[buy()], account_operator="agency.example")
-        with pytest.raises(ValueError):
-            run(subscription=operator, buys=[buy()])
+        # An account whose operator is unknown is not selected.
+        assert run(subscription=operator, buys=[buy()]) == []
 
 
 # -- exceptions ----------------------------------------------------------------
@@ -1029,6 +1053,7 @@ class TestLostAuthority:
         # boundary at or after the re-grant (Oct 7 04:00Z).
         result = run(
             buys=[buy(end_time="2026-10-09T04:00:00Z")],
+            status_retention_days=30,
             authorizations=[
                 SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
                 SubscriptionAuthorization(at("2026-10-06T15:00:00Z")),
@@ -1048,6 +1073,7 @@ class TestLostAuthority:
         result = run(
             buys=[buy(end_time="2026-10-09T04:00:00Z")],
             backfill_on_regrant=True,
+            status_retention_days=30,
             authorizations=[
                 SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
                 SubscriptionAuthorization(at("2026-10-06T15:00:00Z")),
@@ -1085,12 +1111,47 @@ class TestLostAuthority:
     def test_loss_on_a_boundary(self) -> None:
         result = starts(
             buys=[buy(end_time="2026-10-09T04:00:00Z")],
+            status_retention_days=30,
             authorizations=[
                 SubscriptionAuthorization(GRANT, at("2026-10-04T04:00:00Z")),
                 SubscriptionAuthorization(at("2026-10-06T04:00:00Z")),
             ],
         )
         assert result == [*days("2026-10-01", 3), *days("2026-10-06", 3)]
+
+    def test_regrant_needs_status_retention_days(self) -> None:
+        with pytest.raises(ValueError):
+            run(
+                buys=[buy()],
+                authorizations=[
+                    SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
+                    SubscriptionAuthorization(at("2026-10-06T15:00:00Z")),
+                ],
+            )
+
+    def test_regrant_exactly_at_retention_is_a_fresh_start(self) -> None:
+        # A re-grant continues the chain only before unauthorized_at + retention.
+        kwargs = dict(
+            buys=[buy(end_time="2026-10-09T04:00:00Z")],
+            backfill_on_regrant=True,
+            status_retention_days=2,
+        )
+        inside = run(
+            authorizations=[
+                SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
+                SubscriptionAuthorization(at("2026-10-06T07:59:59Z")),
+            ],
+            **kwargs,
+        )
+        at_limit = run(
+            authorizations=[
+                SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
+                SubscriptionAuthorization(at("2026-10-06T08:00:00Z")),
+            ],
+            **kwargs,
+        )
+        assert "2026-10-04T04:00:00Z" in [p.period_start for p in inside]
+        assert "2026-10-04T04:00:00Z" not in [p.period_start for p in at_limit]
 
     def test_overlapping_grants_are_rejected(self) -> None:
         with pytest.raises(ValueError):
