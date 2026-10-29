@@ -169,6 +169,16 @@ _LEGACY_OPTIONAL_SCENARIO_PARAMS: dict[str, tuple[str, ...]] = {
 }
 
 
+#: ``simulate_delivery`` params whose rows the seller must report verbatim
+#: (AdCP 3.3): ``by_property``, ``by_installment`` and ``by_installment_property``
+#: are built only from them.
+_INJECTED_DELIVERY_ROWS = (
+    "property_delivery",
+    "installment_delivery",
+    "installment_property_delivery",
+)
+
+
 class TestControllerError(Exception):
     """Typed error for test controller store methods.
 
@@ -491,7 +501,20 @@ class TestControllerStore:
         ``installment_property_delivery`` (AdCP 3.3) carry the property-grain,
         installment and installment-by-property rows the seller reports under
         ``supports_property_breakdown`` /
-        ``supports_installment_property_breakdown``.
+        ``supports_installment_property_breakdown``. Build ``by_property``,
+        ``by_installment`` and ``by_installment_property`` from exactly these
+        rows (applying ``limit``, ``sort_by`` and ``sort_direction``), never
+        from catalog eligibility. Each array replaces the previous one, is not
+        dated and is not added to totals. Reject a multi-package buy with
+        ``TestControllerError("INVALID_PARAMS", ...)``. The dispatcher already
+        rejects these arrays alongside ``delivery_date``, and rejects them when
+        an override does not declare the parameter, rather than dropping rows
+        the seller would then fail to report.
+
+        ``impressions`` is optional. When a batch carries none, record no
+        impression count rather than zero: AdCP 3.3 delivery rows omit
+        ``impressions`` when it was not measured, and a response served below
+        3.3 omits such a row instead of reporting ``impressions: 0``.
 
         Returns:
             {"simulated": {...}, "cumulative": {...} | None}
@@ -1382,6 +1405,22 @@ async def _handle_test_controller(
                 method_kwargs["result"] = result_value
         elif scenario == "simulate_delivery":
             _require_scenario_params(scenario_params, "media_buy_id")
+            injected = [name for name in _INJECTED_DELIVERY_ROWS if name in scenario_params]
+            if injected and "delivery_date" in scenario_params:
+                # The injected arrays replace the previous rows and are never
+                # dated (AdCP 3.3), so a dated batch cannot carry them.
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"{injected[0]} rows are undated; delivery_date is not allowed with them",
+                )
+            unsupported = [name for name in injected if name not in method_kwargs]
+            if unsupported:
+                # The seller must build the breakdown from exactly these rows.
+                # Dropping them would report success for rows it never received.
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"{unsupported[0]} is not supported by this agent's simulate_delivery",
+                )
         elif scenario == "force_media_buy_confirmation":
             _require_scenario_params(scenario_params, "action")
             action = scenario_params["action"]
