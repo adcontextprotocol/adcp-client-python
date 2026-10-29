@@ -512,10 +512,15 @@ async def test_destination_needing_action_moves_the_subscription_to_action_requi
     assert subscription_state.issues[0].code == "DESTINATION_NOT_READY"
     reasons = [(item.reason, item.subscription_id) for item in emitted]
     assert ("reporting_subscription_changed", "analytics-daily") in reasons
+    emitted.clear()
     await principals.transition_destination(IDENTITY, "archive", "ready")
     state = (await principals.get_principal(IDENTITY)).result.configuration
     assert state.reporting_subscriptions[0].state == "active"
     assert state.reporting_subscriptions[0].issues is None
+    # The recovery is announced too.
+    assert ("reporting_subscription_changed", "analytics-daily") in [
+        (item.reason, item.subscription_id) for item in emitted
+    ]
 
 
 @pytest.mark.asyncio

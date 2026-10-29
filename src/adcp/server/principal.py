@@ -688,12 +688,11 @@ class PrincipalService:
                     destination_id,
                 )
             )
+            # Moving to action_required fires principal.changed, and so does
+            # the recovery, so a cached readback never stays action_required.
             before = {item.subscription_id: str(item.state) for item in subscriptions_before}
             for item in subscriptions_after:
-                if (
-                    str(item.state) == "action_required"
-                    and before.get(item.subscription_id) != "action_required"
-                ):
+                if str(item.state) != before.get(item.subscription_id):
                     await self._emit_change(
                         PrincipalChange(
                             record.principal_id,
