@@ -223,5 +223,11 @@ def test_every_subscription_in_the_table_is_schema_valid() -> None:
     )
     for case in CASES:
         for version in case["input"]["versions"]:
-            errors = [error.message for error in validator.iter_errors(version["configuration"])]
+            errors = [
+                error.message
+                for error in validator.iter_errors(version["configuration"])
+                # The dimension vocabulary is x-extensible: receivers MUST
+                # accept values the beta.1 enum does not list.
+                if not (error.validator == "enum" and "dimensions" in list(error.absolute_path))
+            ]
             assert errors == [], (case["name"], version["subscription_version"], errors)

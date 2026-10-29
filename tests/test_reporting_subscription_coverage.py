@@ -1153,14 +1153,29 @@ class TestLostAuthority:
         assert "2026-10-04T04:00:00Z" in [p.period_start for p in inside]
         assert "2026-10-04T04:00:00Z" not in [p.period_start for p in at_limit]
 
-    def test_overlapping_grants_are_rejected(self) -> None:
+    def test_a_grant_repeating_the_chain_start_continues_the_chain(self) -> None:
+        # adcp#8585: list_accounts keeps authorized_at at the chain start after
+        # a re-grant inside retention, so the re-grant instant is unknown and
+        # the seller's gaps[] decide what the interruption removed.
+        result = starts(
+            buys=[buy(end_time="2026-10-08T04:00:00Z")],
+            authorizations=[
+                SubscriptionAuthorization(GRANT, at("2026-10-04T08:00:00Z")),
+                SubscriptionAuthorization(GRANT),
+            ],
+            gaps=[
+                {
+                    "from": "2026-10-04T04:00:00Z",
+                    "until": "2026-10-06T04:00:00Z",
+                    "reason": "unauthorized",
+                }
+            ],
+        )
+        assert result == [*days("2026-10-01", 3), *days("2026-10-06", 2)]
         with pytest.raises(ValueError):
             run(
                 buys=[buy()],
-                authorizations=[
-                    SubscriptionAuthorization(GRANT, at("2026-10-05T00:00:00Z")),
-                    SubscriptionAuthorization(at("2026-10-04T00:00:00Z")),
-                ],
+                authorizations=[SubscriptionAuthorization(GRANT), SubscriptionAuthorization(GRANT)],
             )
 
 

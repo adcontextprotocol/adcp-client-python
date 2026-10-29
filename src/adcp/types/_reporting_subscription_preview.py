@@ -32,10 +32,10 @@ from adcp.types.base import AdCPBaseModel, NoExplicitNull, WireDatetime
 from adcp.types.domains.bundled.protocol import (
     get_adcp_capabilities_response as _bundled_capabilities,
 )
-from adcp.types.domains.core import reporting_delivery_offering as _offering
-from adcp.types.domains.core import reporting_subscription_coverage as _coverage
 from adcp.types.domains.core import reporting_delivery_capabilities as _capabilities
+from adcp.types.domains.core import reporting_delivery_offering as _offering
 from adcp.types.domains.core import reporting_subscription as _subscription
+from adcp.types.domains.core import reporting_subscription_coverage as _coverage
 from adcp.types.domains.core import reporting_subscription_state as _state
 
 #: One value of the extensible ``enums/reporting-dimension.json`` vocabulary.

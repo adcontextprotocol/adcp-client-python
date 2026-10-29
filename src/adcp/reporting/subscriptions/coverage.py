@@ -203,6 +203,10 @@ class SubscriptionAuthorization:
     Pass the account's grant history, oldest first. A loss followed by a
     re-grant within ``status_retention_days`` continues coverage, with a gap
     unless the seller backfills; a later re-grant is a fresh coverage start.
+    A grant whose ``authorized_at`` is at or before the previous loss, such as
+    one listed with the chain-start ``authorized_at`` that ``list_accounts``
+    keeps after a re-grant inside retention (adcp#8585), continues the chain
+    at an unknown instant: the seller's ``gaps[]`` say which periods it removed.
     """
 
     authorized_at: datetime
@@ -521,7 +525,9 @@ class _Chain:
     """Continuous authority: a first grant, retained interruptions, an optional end."""
 
     start: datetime
-    interruptions: list[tuple[datetime, datetime]] = field(default_factory=list)
+    #: (lost, regranted); regranted is None when only the chain-start
+    #: authorized_at says authority returned (the re-grant instant is unknown).
+    interruptions: list[tuple[datetime, datetime | None]] = field(default_factory=list)
     end: datetime | None = None
     #: The re-grant that started this chain after an expired entry, if any.
     after_expiry_of: datetime | None = None
@@ -542,15 +548,18 @@ class _Owed:
 def _chains(
     authorizations: Sequence[SubscriptionAuthorization], retention: timedelta | None
 ) -> list[_Chain]:
-    ordered = sorted(authorizations, key=lambda item: item.authorized_at)
     chains: list[_Chain] = []
     previous_end: datetime | None = None
-    for index, grant in enumerate(ordered):
+    for index, grant in enumerate(authorizations):
         if index > 0 and previous_end is None:
             raise ValueError("only the last grant may be unrevoked")
-        if previous_end is not None and grant.authorized_at < previous_end:
-            raise ValueError("authorization grants must not overlap")
-        if chains and previous_end is not None:
+        if chains and previous_end is not None and grant.authorized_at <= previous_end:
+            # adcp#8585 keeps authorized_at at the chain start after a re-grant
+            # inside retention, so a grant listed with it continues the chain
+            # at an unknown instant; the seller's gaps[] says what it removed.
+            chains[-1].interruptions.append((previous_end, None))
+            chains[-1].end = None
+        elif chains and previous_end is not None:
             if retention is None:
                 raise ValueError("status_retention_days is required to evaluate a re-grant")
             if grant.authorized_at < previous_end + retention:
@@ -579,6 +588,7 @@ def _authorized(
         if not backfill and any(
             calendar.floor(lost) <= start < calendar.ceil(regranted)
             for lost, regranted in chain.interruptions
+            if regranted is not None
         ):
             continue
         return True
@@ -597,6 +607,8 @@ def _expected_at(
     expected: datetime = end + sla
     for chain in chains:
         for lost, regranted in chain.interruptions:
+            if regranted is None:
+                continue  # an undated re-grant: the original deadline stands
             pending = end <= calendar.floor(lost) and expected > lost
             backfilled = backfill and calendar.floor(lost) <= start < calendar.ceil(regranted)
             if pending or backfilled:
@@ -788,7 +800,7 @@ def expected_subscription_periods(
                 calendar = resolved.calendar
                 handoff = regime.handoffs[resolved.offering.offering_id]
                 lower = max(
-                    calendar.ceil(max(handoff, buy.confirmed_at)),
+                    _first_owed_start(calendar, handoff, buy.confirmed_at),
                     calendar.floor(flights_start),
                 )
                 upper = latest_stop if regime.until is None else min(regime.until, latest_stop)
@@ -924,6 +936,21 @@ def _regimes(
         }
         regimes.append(regime)
     return regimes
+
+
+def _first_owed_start(
+    calendar: PeriodCalendar, handoff: datetime, confirmed_at: datetime
+) -> datetime:
+    """The earliest start a buy's owed period may have under one regime.
+
+    The coverage rule: the first boundary at or after the latest of the
+    regime's handoff (``accepted_at`` or E) and the buy's ``confirmed_at``.
+    ``authorized_at`` is applied by the authority chains. This is the one
+    place that decides whether the period containing ``confirmed_at`` is owed
+    (it is not, today), so an owner decision changing that rule changes only
+    this function.
+    """
+    return calendar.ceil(max(handoff, confirmed_at))
 
 
 def _cutover_end(handoff: datetime, predecessor: _Regime | None, incoming: _Resolved) -> datetime:
