@@ -5,20 +5,30 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 from pydantic import TypeAdapter
 from typing_extensions import TypeForm
 
 from adcp.account_identity import account_key, account_key_payload
+from adcp.account_outcomes import (
+    AccountAmbiguous,
+    AccountOutcome,
+    AccountPending,
+    AccountReady,
+    AccountRejected,
+    AccountVia,
+    PendingAction,
+    _errors,
+)
 from adcp.exceptions import (
     AccountNotFoundError,
     AccountPaymentRequiredError,
+    AccountRequestError,
     AccountSetupRequiredError,
-    classify_task_error,
 )
 from adcp.types import AccountReference, SyncAccountsRequest
 
@@ -51,12 +61,21 @@ _PUBLIC_DISCOVERY_TASKS = frozenset(
 
 @dataclass(frozen=True)
 class AccountRecord:
-    """A successful provisioning result; pending setup still means provisioned."""
+    """What the registry knows about one natural key at one seller.
+
+    ``request_id``, ``request_state`` and ``pending_action`` track an
+    ``account.requests`` request (or a ``sync_accounts`` account pending
+    approval), so a repeat ``ensure`` returns its current state and never
+    opens a duplicate.
+    """
 
     account_id: str | None
     status: str | None
     wire_key: dict[str, Any] | None = None
     wire_version: str | None = None
+    request_id: str | None = None
+    request_state: str | None = None
+    pending_action: dict[str, Any] | None = None
 
 
 class AccountStorage(Protocol):
@@ -75,6 +94,17 @@ class AccountStorage(Protocol):
     async def delete(self, seller: str, key: str) -> None: ...
 
 
+class ListableAccountStorage(AccountStorage, Protocol):
+    """Optional: storage that can enumerate a seller's records.
+
+    ``AccountRegistry.pending()`` and ``refresh()`` use it to find open
+    requests across restarts; without it they see the keys this process
+    touched.
+    """
+
+    async def items(self, seller: str) -> list[tuple[str, AccountRecord]]: ...
+
+
 class InMemoryAccountStorage:
     """Default storage; pass a durable adapter to survive process restarts."""
 
@@ -89,6 +119,9 @@ class InMemoryAccountStorage:
 
     async def delete(self, seller: str, key: str) -> None:
         self._records.pop((seller, key), None)
+
+    async def items(self, seller: str) -> list[tuple[str, AccountRecord]]:
+        return [(key, record) for (owner, key), record in self._records.items() if owner == seller]
 
 
 def _payload(value: Any) -> dict[str, Any]:
@@ -144,6 +177,64 @@ def _sync_key(
     return next(iter(matches.values())) if len(matches) == 1 else None
 
 
+_OPEN_REQUEST_STATES = frozenset({"in_review", "ambiguous"})
+_SELLER_REVIEW = {"waiting_on": "seller", "kind": "review", "message": "The seller is reviewing"}
+
+
+def _requests_supported(caps: Any) -> bool:
+    """Whether the seller advertises ``account.requests`` (request_account)."""
+    requests = getattr(getattr(caps, "account", None), "requests", None)
+    if requests is None:
+        return False
+    supported = getattr(requests, "supported", None)
+    if supported is None and hasattr(requests, "root"):
+        supported = getattr(requests.root, "supported", None)
+    if supported is None and isinstance(requests, Mapping):
+        supported = requests.get("supported")
+    return supported is True
+
+
+def _key_payload(key: str) -> dict[str, Any]:
+    import json
+
+    return cast(dict[str, Any], json.loads(key))
+
+
+def _request_outcome(
+    wire: Mapping[str, Any], *, choose: Callable[[str, str], Awaitable[AccountOutcome]]
+) -> AccountOutcome:
+    """The outcome of one wire ``account_request`` record."""
+    state = str(wire["state"])
+    request_id = str(wire["request_id"])
+    if state == "resolved":
+        account = wire.get("account") if isinstance(wire.get("account"), Mapping) else None
+        return AccountReady(
+            account_id=str(wire["account_id"]),
+            status=str((account or {}).get("status") or "active"),
+            via="request_account",
+            request_id=request_id,
+            account=account,
+        )
+    if state == "in_review":
+        return AccountPending(
+            action=PendingAction.from_wire(wire.get("pending_action") or _SELLER_REVIEW),
+            via="request_account",
+            request_id=request_id,
+        )
+    if state == "ambiguous":
+        return AccountAmbiguous(
+            candidates=tuple(dict(item) for item in wire.get("candidates") or ()),
+            request_id=request_id,
+            _choose=choose,
+        )
+    return AccountRejected(
+        errors=_errors(wire.get("errors"))
+        or ({"code": "ACCOUNT_REQUEST_REJECTED", "message": "The seller declined the request"},),
+        via="request_account",
+        request_id=request_id,
+    )
+
+
 def has_natural_reference(request: Any) -> bool:
     """Return True when ``request`` carries a buyer-declared natural account key."""
     if "account" not in getattr(type(request), "model_fields", {}):
@@ -160,6 +251,8 @@ class AccountRegistry:
         self._storage = storage if storage is not None else InMemoryAccountStorage()
         self._seller = client.agent_config.agent_uri
         self._ensure_lock = asyncio.Lock()
+        #: Keys this process recorded, for storage that cannot enumerate.
+        self._touched: set[str] = set()
 
     async def get(self, key: AccountReference | Mapping[str, Any]) -> AccountRecord | None:
         return await self._storage.load(self._seller, account_key(key))
@@ -233,65 +326,301 @@ class AccountRegistry:
         self,
         key: AccountReference | Mapping[str, Any],
         *,
-        billing: str,
+        billing: str | None = None,
         payment_terms: str | None = None,
         billing_entity: Any = None,
-    ) -> AccountRecord:
-        """Provision once through sync_accounts, retaining the ID and status.
+        currency: str | None = None,
+        timezone: str | None = None,
+    ) -> AccountOutcome:
+        """Get an account for a natural key at this seller; returns an :data:`AccountOutcome`.
 
-        Billing and payment terms are supplied only on first provisioning;
-        use sync_accounts explicitly for subsequent settings changes.
+        Routes by capability: ``request_account`` when the seller advertises
+        ``account.requests``, otherwise ``sync_accounts`` (which needs
+        ``billing``). Either way the outcome is one of
+        :class:`~adcp.account_outcomes.AccountReady`,
+        :class:`~adcp.account_outcomes.AccountPending`,
+        :class:`~adcp.account_outcomes.AccountAmbiguous` or
+        :class:`~adcp.account_outcomes.AccountRejected`; pending, ambiguous and
+        rejected are values, not errors. Only a failure to process the call
+        raises :class:`~adcp.exceptions.AccountRequestError`.
+
+        Idempotent per (seller, buyer identity, natural key): a repeat call
+        returns the account, or the open request's current state, and never
+        opens a duplicate. ``currency`` and ``timezone`` join the key when it
+        does not carry them. Billing terms are sent only when an account is
+        first requested; change them later with ``request_account`` or
+        ``sync_accounts``.
         """
-        ref = account_key_payload(TypeAdapter(AccountReference).validate_python(key))
+        raw = _payload(TypeAdapter(AccountReference).validate_python(key))
+        for name, value in (("currency", currency), ("timezone", timezone)):
+            if value is not None:
+                raw.setdefault(name, value)
+        ref = account_key_payload(TypeAdapter(AccountReference).validate_python(raw))
         if "account_id" in ref:
             raise ValueError("ensure requires a buyer-declared natural key")
+        terms: dict[str, Any] = {}
+        if billing is not None:
+            terms["billing"] = billing
+        if payment_terms is not None:
+            terms["payment_terms"] = payment_terms
+        if billing_entity is not None:
+            terms["billing_entity"] = _payload(billing_entity)
         async with self._ensure_lock:
+            caps = await self._client.fetch_capabilities()
+            requests = _requests_supported(caps)
             existing = await self.get(ref)
             if existing is not None:
-                return existing
-            caps = await self._client.fetch_capabilities()
+                outcome = await self._known_outcome(ref, existing, requests=requests)
+                if outcome is not None:
+                    return outcome
+            if requests:
+                return await self._request_account(ref, {**ref, **terms})
             if getattr(caps.account, "require_operator_auth", False) is True:
                 self._raise_setup("sync_accounts", "Discover an account_id through list_accounts")
-            entry = {**ref, "billing": billing}
-            if payment_terms is not None:
-                entry["payment_terms"] = payment_terms
-            if billing_entity is not None:
-                entry["billing_entity"] = _payload(billing_entity)
-            result = await self._client.sync_accounts(
-                SyncAccountsRequest.model_validate(
+            if billing is None:
+                raise ValueError(
+                    "this seller provisions through sync_accounts, which needs billing=; "
+                    "pass the invoiced party"
+                )
+            return await self._sync_account(ref, {**ref, **terms})
+
+    async def _known_outcome(
+        self, ref: dict[str, Any], record: AccountRecord, *, requests: bool
+    ) -> AccountOutcome | None:
+        """The outcome a stored record already answers, or ``None`` to request again."""
+        if record.request_id and record.request_state in _OPEN_REQUEST_STATES and requests:
+            refreshed = await self._read_requests([record.request_id])
+            wire = refreshed.get(record.request_id)
+            if wire is not None:
+                return await self._record_request(ref, wire)
+            # The seller no longer knows the request (expired or dropped).
+            return None
+        if record.request_state == "rejected" and record.account_id is None:
+            return None
+        if record.account_id is None and record.status is None:
+            return None
+        via: AccountVia = "request_account" if record.request_id else "sync_accounts"
+        if record.status == "pending_approval":
+            return AccountPending(
+                action=PendingAction.from_wire(record.pending_action or _SELLER_REVIEW),
+                via=via,
+                request_id=record.request_id,
+                account_id=record.account_id,
+                status=record.status,
+            )
+        return AccountReady(
+            account_id=record.account_id,
+            status=record.status,
+            via=via,
+            request_id=record.request_id,
+        )
+
+    def _failure(self, operation: str, result: Any, body: Mapping[str, Any]) -> AccountRequestError:
+        errors = body.get("errors") or [
+            result.adcp_error
+            or {"code": "SERVICE_UNAVAILABLE", "message": result.error or f"{operation} failed"}
+        ]
+        return AccountRequestError(operation, list(errors), agent_id=self._client.agent_config.id)
+
+    async def _request_account(self, ref: dict[str, Any], entry: dict[str, Any]) -> AccountOutcome:
+        from adcp.types import RequestAccountRequest
+
+        result = await self._client.request_account(
+            RequestAccountRequest.model_validate({"idempotency_key": str(uuid.uuid4()), **entry})
+        )
+        body = _payload(result.data)
+        request = body.get("request")
+        if not result.success or body.get("adcp_error") or not isinstance(request, Mapping):
+            raise self._failure("request_account", result, body)
+        return await self._record_request(ref, request)
+
+    async def _choose(
+        self, ref: dict[str, Any], request_id: str, account_id: str
+    ) -> AccountOutcome:
+        from adcp.types import RequestAccountRequest
+
+        async with self._ensure_lock:
+            result = await self._client.request_account(
+                RequestAccountRequest.model_validate(
                     {
                         "idempotency_key": str(uuid.uuid4()),
-                        "accounts": [entry],
+                        "request_id": request_id,
+                        "account_id": account_id,
                     }
                 )
             )
             body = _payload(result.data)
+            request = body.get("request")
+            if not result.success or body.get("adcp_error") or not isinstance(request, Mapping):
+                raise self._failure("request_account", result, body)
+            return await self._record_request(ref, request)
+
+    async def _record_request(self, ref: dict[str, Any], wire: Mapping[str, Any]) -> AccountOutcome:
+        """Persist a request's state under its natural key and return its outcome."""
+        outcome = _request_outcome(
+            wire, choose=lambda request_id, account_id: self._choose(ref, request_id, account_id)
+        )
+        previous = await self.get(ref)
+        ready = outcome if isinstance(outcome, AccountReady) else None
+        await self._storage.save(
+            self._seller,
+            account_key(ref),
+            AccountRecord(
+                account_id=None if ready is None else ready.account_id,
+                status=None if ready is None else ready.status,
+                wire_key=previous.wire_key if previous is not None else None,
+                wire_version=previous.wire_version if previous is not None else None,
+                request_id=str(wire["request_id"]),
+                request_state=str(wire["state"]),
+                pending_action=(
+                    outcome.action.to_wire() if isinstance(outcome, AccountPending) else None
+                ),
+            ),
+        )
+        self._touched.add(account_key(ref))
+        return outcome
+
+    async def _sync_account(self, ref: dict[str, Any], entry: dict[str, Any]) -> AccountOutcome:
+        result = await self._client.sync_accounts(
+            SyncAccountsRequest.model_validate(
+                {"idempotency_key": str(uuid.uuid4()), "accounts": [entry]}
+            )
+        )
+        body = _payload(result.data)
+        if not result.success or body.get("errors"):
+            raise self._failure("sync_accounts", result, body)
+        rows = body.get("accounts", [])
+        if not rows:
+            raise self._failure("sync_accounts", result, body)
+        row = rows[0]
+        if row.get("action") == "failed" or row.get("status") == "rejected":
+            return AccountRejected(
+                errors=_errors(row.get("errors"))
+                or ({"code": "ACCOUNT_REJECTED", "message": "The seller declined the account"},),
+                via="sync_accounts",
+            )
+        record = await self.get(ref)
+        if record is None:
+            self._raise_setup("sync_accounts", "Seller did not confirm account provisioning")
+        assert record is not None
+        self._touched.add(account_key(ref))
+        if record.status == "pending_approval":
+            action = PendingAction.from_wire(row.get("setup") or _SELLER_REVIEW)
+            await self._storage.save(
+                self._seller,
+                account_key(ref),
+                replace(record, pending_action=action.to_wire()),
+            )
+            return AccountPending(
+                action=action,
+                via="sync_accounts",
+                account_id=record.account_id,
+                status=record.status,
+            )
+        return AccountReady(account_id=record.account_id, status=record.status, via="sync_accounts")
+
+    async def _read_requests(self, request_ids: list[str]) -> dict[str, Mapping[str, Any]]:
+        """Read the caller's own requests back through ``list_accounts``."""
+        from adcp.types import ListAccountsRequest
+
+        found: dict[str, Mapping[str, Any]] = {}
+        cursor: str | None = None
+        for _page in range(100):
+            payload: dict[str, Any] = {"account_request_ids": request_ids}
+            if cursor:
+                payload["requests_pagination"] = {"cursor": cursor}
+            result = await self._client.list_accounts(ListAccountsRequest.model_validate(payload))
+            body = _payload(result.data)
             if not result.success or body.get("errors"):
-                raise classify_task_error(
-                    "sync_accounts",
-                    body.get("errors")
-                    or [
-                        result.adcp_error
-                        or {
-                            "code": "ACCOUNT_NOT_FOUND",
-                            "message": result.error or "Provisioning failed",
-                        }
-                    ],
-                    agent_id=self._client.agent_config.id,
+                raise self._failure("list_accounts", result, body)
+            await self.observe("list_accounts", payload, result, fetch_capabilities=False)
+            for item in body.get("account_requests") or ():
+                if isinstance(item, Mapping) and item.get("request_id"):
+                    found[str(item["request_id"])] = item
+            pagination = body.get("account_requests_pagination") or {}
+            cursor = pagination.get("cursor") if pagination.get("has_more") else None
+            if not cursor:
+                break
+        return found
+
+    async def _known(self) -> list[tuple[str, AccountRecord]]:
+        items = getattr(self._storage, "items", None)
+        if callable(items):
+            return list(await items(self._seller))
+        known = []
+        for key in sorted(self._touched):
+            record = await self._storage.load(self._seller, key)
+            if record is not None:
+                known.append((key, record))
+        return known
+
+    async def pending(self) -> list[AccountOutcome]:
+        """The outcomes still waiting: open requests and accounts pending approval.
+
+        Read from storage; no network call. Use :meth:`refresh` to learn what moved.
+        """
+        result: list[AccountOutcome] = []
+        for _key, record in await self._known():
+            if record.request_state == "ambiguous":
+                continue  # its candidates live with the seller; refresh() reads them
+            if record.request_state == "in_review" or record.status == "pending_approval":
+                result.append(
+                    AccountPending(
+                        action=PendingAction.from_wire(record.pending_action or _SELLER_REVIEW),
+                        via="request_account" if record.request_id else "sync_accounts",
+                        request_id=record.request_id,
+                        account_id=record.account_id,
+                        status=record.status,
+                    )
                 )
-            rows = body.get("accounts", [])
-            if not rows or rows[0].get("action") == "failed":
-                raise classify_task_error(
-                    "sync_accounts",
-                    (rows[0].get("errors") if rows else None)
-                    or [{"code": "ACCOUNT_NOT_FOUND", "message": "Provisioning failed"}],
-                    agent_id=self._client.agent_config.id,
-                )
-            record = await self.get(ref)
-            if record is None:
-                self._raise_setup("sync_accounts", "Seller did not confirm account provisioning")
-            assert record is not None
-            return record
+        return result
+
+    async def refresh(self) -> list[AccountOutcome]:
+        """Re-read open requests and pending accounts; return the outcomes whose state moved.
+
+        Call it from a cron job or an ``account_request.changed`` webhook. One
+        ``list_accounts`` read covers every open request (``account_request_ids``)
+        and the first page of accounts.
+        """
+        known = await self._known()
+        open_requests = {
+            str(record.request_id): (key, record)
+            for key, record in known
+            if record.request_id and record.request_state in _OPEN_REQUEST_STATES
+        }
+        pending_accounts = {
+            key: record
+            for key, record in known
+            if not record.request_id and record.status == "pending_approval"
+        }
+        if not open_requests and not pending_accounts:
+            return []
+        moved: list[AccountOutcome] = []
+        if open_requests:
+            wire = await self._read_requests(sorted(open_requests))
+        else:
+            from adcp.types import ListAccountsRequest
+
+            listing = await self._client.list_accounts(ListAccountsRequest())
+            await self.observe("list_accounts", {}, listing, fetch_capabilities=False)
+            wire = {}
+        for request_id, (key, record) in open_requests.items():
+            current = wire.get(request_id)
+            if current is None:
+                continue
+            ref = _key_payload(key)
+            if str(current["state"]) == record.request_state and (
+                current.get("pending_action") or None
+            ) == (record.pending_action or None):
+                continue
+            moved.append(await self._record_request(ref, current))
+        for key, record in pending_accounts.items():
+            latest = await self._storage.load(self._seller, key)
+            if latest is not None and latest.status != record.status:
+                outcome = await self._known_outcome(_key_payload(key), latest, requests=False)
+                if outcome is not None:
+                    moved.append(outcome)
+        return moved
 
     async def observe(
         self,
@@ -388,14 +717,24 @@ class AccountRegistry:
                 if account_key(reduced) != account_key(key):
                     wire_key = account_key_payload(reduced)
                     wire_version = observed_version
+            status = row.get("status")
             await self._storage.save(
                 self._seller,
                 account_key(key),
                 AccountRecord(
                     account_id=row.get("account_id"),
-                    status=row.get("status"),
+                    status=status,
                     wire_key=wire_key,
                     wire_version=wire_version,
+                    request_id=previous.request_id if previous is not None else None,
+                    request_state=previous.request_state if previous is not None else None,
+                    pending_action=(
+                        (row.get("setup") or previous.pending_action)
+                        if previous is not None and status == "pending_approval"
+                        else row.get("setup")
+                        if status == "pending_approval"
+                        else None
+                    ),
                 ),
             )
 
