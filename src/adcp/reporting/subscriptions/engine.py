@@ -35,11 +35,12 @@ runs, so both sides agree period by period.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_zone, utc_instant
 from adcp.reporting.subscriptions.capabilities import ReportingSubscriptionSupport
@@ -67,6 +68,11 @@ from adcp.types.domains.core.reporting_subscription_coverage import (
 from adcp.types.domains.core.reporting_subscription_state import ReportingSubscriptionState
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
+
+#: Attempts at a compare-and-swap write before giving up under contention.
+_MAX_STATE_WRITE_ATTEMPTS = 8
 
 if TYPE_CHECKING:
     from adcp.server.principal import (
@@ -238,15 +244,266 @@ class _PrincipalState:
     withheld: dict[tuple[str, str, datetime], int] = field(default_factory=dict)
 
 
+#: Version of the persisted engine-state document; bump on a breaking change.
+STATE_DOCUMENT_VERSION = 1
+
+
+@dataclass(frozen=True)
+class StoredReportingSubscriptionState:
+    """One principal's persisted engine state and its store revision."""
+
+    document: Mapping[str, Any]
+    revision: int
+
+
+class ReportingSubscriptionStateStore(Protocol):
+    """Durable engine state: one JSON document per principal, written by CAS.
+
+    The engine loads a principal's document, applies a change, and writes it
+    back with :meth:`compare_and_swap`; on a conflict it reloads and reapplies
+    the change, so every worker sharing the backing store sees one history.
+    The document holds grants and losses, timezone changes, version
+    configurations and destination snapshots, ``max_accounts`` slots,
+    exceptions and withheld-period counts. It is plain JSON; stores persist it
+    verbatim and never interpret it.
+    """
+
+    async def load(self, subject: str) -> StoredReportingSubscriptionState | None:
+        """Return the principal's document and revision, or ``None`` if none is stored."""
+        ...
+
+    async def compare_and_swap(
+        self,
+        subject: str,
+        expected_revision: int | None,
+        document: Mapping[str, Any],
+    ) -> bool:
+        """Store ``document`` if the current revision is ``expected_revision``.
+
+        ``expected_revision=None`` inserts only when nothing is stored. A
+        successful write sets the revision to ``expected_revision + 1`` (``1``
+        for an insert) and returns ``True``; any other current state returns
+        ``False`` and changes nothing.
+        """
+        ...
+
+
 class InMemoryReportingSubscriptionStore:
-    """Process-local engine state. Durable storage is a later slice."""
+    """Process-local :class:`ReportingSubscriptionStateStore` for tests and single workers.
+
+    State is lost on restart. Production sellers use a durable store, such as
+    ``adcp_reporting_storage``'s PostgreSQL implementation.
+    """
 
     def __init__(self) -> None:
-        self.principals: dict[str, _PrincipalState] = {}
-        self.lock = asyncio.Lock()
+        self._documents: dict[str, StoredReportingSubscriptionState] = {}
+        self._lock = asyncio.Lock()
 
-    def principal(self, subject: str) -> _PrincipalState:
-        return self.principals.setdefault(subject, _PrincipalState())
+    async def load(self, subject: str) -> StoredReportingSubscriptionState | None:
+        async with self._lock:
+            stored = self._documents.get(subject)
+            if stored is None:
+                return None
+            return StoredReportingSubscriptionState(_copy(stored.document), stored.revision)
+
+    async def compare_and_swap(
+        self,
+        subject: str,
+        expected_revision: int | None,
+        document: Mapping[str, Any],
+    ) -> bool:
+        async with self._lock:
+            current = self._documents.get(subject)
+            if (current.revision if current is not None else None) != expected_revision:
+                return False
+            self._documents[subject] = StoredReportingSubscriptionState(
+                _copy(document), 1 if expected_revision is None else expected_revision + 1
+            )
+            return True
+
+
+class ReportingSubscriptionStateConflictError(RuntimeError):
+    """The engine could not write its state after repeated concurrent changes."""
+
+
+def _copy(document: Mapping[str, Any]) -> dict[str, Any]:
+    copied = json.loads(json.dumps(document))
+    assert isinstance(copied, dict)
+    return copied
+
+
+# -- state document codec ------------------------------------------------------
+
+
+def _instant(value: str | None) -> datetime | None:
+    return None if value is None else datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _required_instant(value: str) -> datetime:
+    instant = _instant(value)
+    assert instant is not None
+    return instant
+
+
+def _iso(value: datetime | None) -> str | None:
+    return None if value is None else iso_z(value)
+
+
+def _json_value(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json", exclude_none=True)
+    return json.loads(json.dumps(value))
+
+
+def encode_principal_state(
+    principal: _PrincipalState, *, prune_closed_before: datetime | None = None
+) -> dict[str, Any]:
+    """Serialize engine state to a JSON document.
+
+    Exceptions closed before ``prune_closed_before`` are dropped: the spec
+    lets a seller forget them ``status_retention_days`` after they close.
+    Version configurations and destination snapshots are never pruned, so
+    ``prior_versions`` stay answerable for as long as obligations cite them.
+    """
+    exclusions: list[dict[str, Any]] = []
+    for (subscription_id, account_id), entries in sorted(principal.exclusions.items()):
+        kept = [
+            entry
+            for entry in entries
+            if prune_closed_before is None
+            or entry.until is None
+            or entry.until >= prune_closed_before
+        ]
+        exclusions.append(
+            {
+                "subscription_id": subscription_id,
+                "account_id": account_id,
+                "entries": [
+                    {
+                        "reason": entry.reason,
+                        "from": iso_z(entry.from_),
+                        "until": _iso(entry.until),
+                        "media_buy_id": entry.media_buy_id,
+                        "package_ids": list(entry.package_ids),
+                        "overridden_by": (
+                            None if entry.overridden_by is None else list(entry.overridden_by)
+                        ),
+                        "effective_at": _iso(entry.effective_at),
+                    }
+                    for entry in kept
+                ],
+            }
+        )
+    return {
+        "document_version": STATE_DOCUMENT_VERSION,
+        "accounts": {
+            account_id: {
+                "timezone": account.timezone,
+                "operator": account.operator,
+                "grants": [
+                    {
+                        "authorized_at": iso_z(grant.authorized_at),
+                        "unauthorized_at": _iso(grant.unauthorized_at),
+                    }
+                    for grant in account.grants
+                ],
+                "timezone_changes": [
+                    {
+                        "changed_at": iso_z(change.changed_at),
+                        "timezone": change.timezone,
+                        "offering_id": change.offering_id,
+                        "previous_timezone": change.previous_timezone,
+                    }
+                    for change in account.timezone_changes
+                ],
+            }
+            for account_id, account in sorted(principal.accounts.items())
+        },
+        "versions": [
+            {"subscription_id": sid, "version": version, "configuration": _json_value(config)}
+            for (sid, version), config in sorted(principal.versions.items())
+        ],
+        "covered": {sid: sorted(ids) for sid, ids in sorted(principal.covered.items())},
+        "served": {sid: sorted(ids) for sid, ids in sorted(principal.served.items())},
+        "exclusions": exclusions,
+        "destinations": [
+            {"subscription_id": sid, "version": version, "destination": _json_value(target)}
+            for (sid, version), target in sorted(principal.destinations.items())
+        ],
+        "withheld": [
+            {
+                "subscription_id": sid,
+                "account_id": account_id,
+                "unauthorized_at": iso_z(lost),
+                "count": count,
+            }
+            for (sid, account_id, lost), count in sorted(principal.withheld.items())
+        ],
+    }
+
+
+def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
+    """Rebuild engine state from :func:`encode_principal_state` output."""
+    version = document.get("document_version")
+    if version != STATE_DOCUMENT_VERSION:
+        raise ValueError(f"unsupported reporting-subscription state document version {version!r}")
+    principal = _PrincipalState()
+    for account_id, raw in document["accounts"].items():
+        principal.accounts[account_id] = _Account(
+            timezone=raw["timezone"],
+            operator=raw["operator"],
+            grants=[
+                SubscriptionAuthorization(
+                    _required_instant(grant["authorized_at"]), _instant(grant["unauthorized_at"])
+                )
+                for grant in raw["grants"]
+            ],
+            timezone_changes=[
+                AccountTimezoneChange(
+                    _required_instant(change["changed_at"]),
+                    change["timezone"],
+                    offering_id=change["offering_id"],
+                    previous_timezone=change["previous_timezone"],
+                )
+                for change in raw["timezone_changes"]
+            ],
+        )
+    for item in document["versions"]:
+        principal.versions[(item["subscription_id"], int(item["version"]))] = dict(
+            item["configuration"]
+        )
+    principal.covered = {sid: set(ids) for sid, ids in document["covered"].items()}
+    principal.served = {sid: set(ids) for sid, ids in document["served"].items()}
+    for item in document["exclusions"]:
+        principal.exclusions[(item["subscription_id"], item["account_id"])] = [
+            _Exclusion(
+                reason=entry["reason"],
+                from_=_required_instant(entry["from"]),
+                until=_instant(entry["until"]),
+                media_buy_id=entry["media_buy_id"],
+                package_ids=tuple(entry["package_ids"]),
+                overridden_by=(
+                    None
+                    if entry["overridden_by"] is None
+                    else (entry["overridden_by"][0], entry["overridden_by"][1])
+                ),
+                effective_at=_instant(entry["effective_at"]),
+            )
+            for entry in item["entries"]
+        ]
+    for item in document["destinations"]:
+        principal.destinations[(item["subscription_id"], int(item["version"]))] = item[
+            "destination"
+        ]
+    for item in document["withheld"]:
+        principal.withheld[
+            (
+                item["subscription_id"],
+                item["account_id"],
+                _required_instant(item["unauthorized_at"]),
+            )
+        ] = int(item["count"])
+    return principal
 
 
 def _dump(value: Any) -> dict[str, Any]:
@@ -272,7 +529,7 @@ class ReportingSubscriptionEngine:
         offerings: Sequence[SubscriptionOffering],
         support: ReportingSubscriptionSupport | None = None,
         status_retention_days: int = 400,
-        store: InMemoryReportingSubscriptionStore | None = None,
+        store: ReportingSubscriptionStateStore | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         ids = [item.offering_id for item in offerings]
@@ -328,6 +585,41 @@ class ReportingSubscriptionEngine:
     def _now(self, now: datetime | None) -> datetime:
         return utc_instant(now if now is not None else self._clock(), field="now")
 
+    async def _read(self, subject: str) -> _PrincipalState:
+        stored = await self._store.load(subject)
+        return _PrincipalState() if stored is None else decode_principal_state(stored.document)
+
+    async def _mutate(
+        self,
+        subject: str,
+        change: Callable[[_PrincipalState], _T],
+        *,
+        now: datetime | None = None,
+    ) -> _T:
+        """Apply ``change`` to the stored state and write it back by CAS.
+
+        ``change`` may run more than once: on a conflicting concurrent write
+        the state is reloaded and ``change`` reapplied. Nothing is written
+        when the document is unchanged.
+        """
+        prune = None if now is None else now - self._retention
+        for _attempt in range(_MAX_STATE_WRITE_ATTEMPTS):
+            stored = await self._store.load(subject)
+            principal = (
+                _PrincipalState() if stored is None else decode_principal_state(stored.document)
+            )
+            result = change(principal)
+            document = encode_principal_state(principal, prune_closed_before=prune)
+            if stored is not None and document == stored.document:
+                return result
+            if await self._store.compare_and_swap(
+                subject, None if stored is None else stored.revision, document
+            ):
+                return result
+        raise ReportingSubscriptionStateConflictError(
+            f"reporting-subscription state for {subject!r} kept changing concurrently"
+        )
+
     # -- recording -------------------------------------------------------------
 
     async def record_versions(
@@ -341,10 +633,10 @@ class ReportingSubscriptionEngine:
         version's coverage.
         """
         destinations = await self._destinations(identity)
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            for state in states:
-                payload = _dump(state)
+        payloads = [_dump(state) for state in states]
+
+        def change(principal: _PrincipalState) -> None:
+            for payload in payloads:
                 key = (str(payload["subscription_id"]), int(payload["subscription_version"]))
                 configuration = dict(payload["configuration"])
                 principal.versions.setdefault(key, configuration)
@@ -352,7 +644,9 @@ class ReportingSubscriptionEngine:
                 if destination is not None and key not in principal.destinations:
                     target = destinations.get(destination["destination_id"])
                     if target is not None:
-                        principal.destinations[key] = target
+                        principal.destinations[key] = _json_value(target)
+
+        await self._mutate(identity.subject, change)
 
     async def authorization_changed(
         self,
@@ -366,14 +660,14 @@ class ReportingSubscriptionEngine:
     ) -> None:
         """Record a grant or a loss of authority at ``at``."""
         instant = utc_instant(at, field="at")
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
+        if timezone is not None:
+            require_zone(timezone, field="timezone")
+
+        def change(principal: _PrincipalState) -> None:
             account = principal.accounts.get(account_id)
             if account is None:
                 if not authorized:
                     return
-                if timezone is not None:
-                    require_zone(timezone, field="timezone")
                 account = principal.accounts[account_id] = _Account(
                     timezone=timezone, operator=operator
                 )
@@ -381,6 +675,8 @@ class ReportingSubscriptionEngine:
             account.set_timezone(timezone, instant)
             if operator is not None:
                 account.operator = operator
+
+        await self._mutate(identity.subject, change, now=instant)
 
     @staticmethod
     def _apply_grant(account: _Account, *, authorized: bool, at: datetime) -> None:
@@ -418,8 +714,8 @@ class ReportingSubscriptionEngine:
         """
         instant = self._now(now)
         listed = {item.account_id: item for item in await self._list_accounts(identity)}
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
+
+        def change(principal: _PrincipalState) -> None:
             for account_id, item in listed.items():
                 account = principal.accounts.get(account_id)
                 if account is None:
@@ -443,16 +739,17 @@ class ReportingSubscriptionEngine:
             for account_id, account in principal.accounts.items():
                 if account_id not in listed and account.authorized:
                     self._apply_grant(account, authorized=False, at=instant)
+
+        await self._mutate(identity.subject, change, now=instant)
         await self._evaluate(identity, instant)
 
     async def _evaluate(self, identity: PrincipalIdentity, now: datetime) -> None:
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
         precedence = getattr(self._host, "account_delivery_configs", None)
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            accounts = dict(principal.accounts)
-            covered_ids = set().union(*principal.covered.values()) if principal.covered else set()
+        snapshot = await self._read(identity.subject)
+        accounts = dict(snapshot.accounts)
+        covered_ids = set().union(*snapshot.covered.values()) if snapshot.covered else set()
         buys: dict[str, Sequence[SubscriptionBuy]] = {}
         configs: dict[str, Sequence[AccountDeliveryConfig]] = {}
         for account_id, account in accounts.items():
@@ -461,13 +758,14 @@ class ReportingSubscriptionEngine:
             if account.authorized and precedence is not None:
                 configs[account_id] = await precedence(identity, account_id)
 
-        updates: list[tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = []
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
+        def change(
+            principal: _PrincipalState,
+        ) -> list[tuple[str, list[dict[str, Any]], list[dict[str, Any]]]]:
+            evaluated: list[tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = []
             for state in states:
                 subscription_id = str(state["subscription_id"])
                 try:
-                    updates.append(
+                    evaluated.append(
                         self._evaluate_subscription(
                             principal, state, states, accounts, buys, configs, destinations, now
                         )
@@ -481,6 +779,9 @@ class ReportingSubscriptionEngine:
                     )
                 else:
                     self._errors.pop((identity.subject, subscription_id), None)
+            return evaluated
+
+        updates = await self._mutate(identity.subject, change, now=now)
         delivered = getattr(self._host, "is_period_delivered", None)
         for subscription_id, _with_exceptions, unauthorized in updates:
             for lost_entry in unauthorized:
@@ -489,16 +790,22 @@ class ReportingSubscriptionEngine:
                     continue
                 lost = datetime.fromisoformat(lost_entry["unauthorized_at"].replace("Z", "+00:00"))
                 cache_key = (subscription_id, lost_entry["account_id"], lost)
-                async with self._store.lock:
-                    cached = self._store.principal(identity.subject).withheld.get(cache_key)
+                cached = (await self._read(identity.subject)).withheld.get(cache_key)
                 if cached is None:
                     # Delivery by a past instant never changes: ask once per loss.
-                    cached = 0
+                    count = 0
                     for period in ended:
                         if not await delivered(identity, lost_entry["account_id"], period, by=lost):
-                            cached += 1
-                    async with self._store.lock:
-                        self._store.principal(identity.subject).withheld[cache_key] = cached
+                            count += 1
+
+                    def record(
+                        principal: _PrincipalState,
+                        key: tuple[str, str, datetime] = cache_key,
+                        count: int = count,
+                    ) -> int:
+                        return principal.withheld.setdefault(key, count)
+
+                    cached = await self._mutate(identity.subject, record)
                 lost_entry["withheld_period_count"] = cached
         for subscription_id, with_exceptions, unauthorized in updates:
             await self._principals.update_subscription_status(
@@ -861,45 +1168,44 @@ class ReportingSubscriptionEngine:
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
         buys = await self._host.account_buys(identity, account_id)
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            account = principal.accounts.get(account_id)
-            if account is None or not account.authorized:
-                return []
-            result = []
-            for state in states:
-                configuration = state["configuration"]
-                if not _scope_includes(configuration, account_id, account):
-                    continue
-                entries = principal.exclusions.get((str(state["subscription_id"]), account_id), [])
-                account_level = [e for e in entries if e.until is None and e.media_buy_id is None]
-                status = "active"
-                if any(e.reason == "action_required" for e in account_level):
-                    status = "action_required"
-                elif account_level:
-                    status = "excluded"
-                payload: dict[str, Any] = {
-                    "subscription_id": state["subscription_id"],
-                    "subscription_version": state["subscription_version"],
-                    "status": status,
-                    "excluded": [
-                        entry.wire()
-                        for entry in entries
-                        if entry.until is None or instant - entry.until <= self._retention
-                    ],
-                }
-                gaps = self._gaps(state, account, buys, destinations, instant)
-                if gaps:
-                    payload["gaps"] = gaps
-                cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
-                if cutovers:
-                    payload["timezone_cutovers"] = cutovers
-                result.append(
-                    ReportingSubscriptionCoverage.model_validate(
-                        project_subscription_coverage(payload, adcp_version)
-                    )
+        principal = await self._read(identity.subject)
+        account = principal.accounts.get(account_id)
+        if account is None or not account.authorized:
+            return []
+        result = []
+        for state in states:
+            configuration = state["configuration"]
+            if not _scope_includes(configuration, account_id, account):
+                continue
+            entries = principal.exclusions.get((str(state["subscription_id"]), account_id), [])
+            account_level = [e for e in entries if e.until is None and e.media_buy_id is None]
+            status = "active"
+            if any(e.reason == "action_required" for e in account_level):
+                status = "action_required"
+            elif account_level:
+                status = "excluded"
+            payload: dict[str, Any] = {
+                "subscription_id": state["subscription_id"],
+                "subscription_version": state["subscription_version"],
+                "status": status,
+                "excluded": [
+                    entry.wire()
+                    for entry in entries
+                    if entry.until is None or instant - entry.until <= self._retention
+                ],
+            }
+            gaps = self._gaps(state, account, buys, destinations, instant)
+            if gaps:
+                payload["gaps"] = gaps
+            cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
+            if cutovers:
+                payload["timezone_cutovers"] = cutovers
+            result.append(
+                ReportingSubscriptionCoverage.model_validate(
+                    project_subscription_coverage(payload, adcp_version)
                 )
-            return result
+            )
+        return result
 
     def _gaps(
         self,
@@ -1009,12 +1315,11 @@ class ReportingSubscriptionEngine:
             raise KeyError(subscription_id)
         destinations = await self._destinations(identity)
         buys = await self._host.account_buys(identity, account_id)
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            account = principal.accounts.get(account_id)
-            if account is None:
-                return []
-            return self._owed(principal, state, account_id, account, buys, destinations, instant)
+        principal = await self._read(identity.subject)
+        account = principal.accounts.get(account_id)
+        if account is None:
+            return []
+        return self._owed(principal, state, account_id, account, buys, destinations, instant)
 
     def _owed(
         self,
@@ -1074,25 +1379,24 @@ class ReportingSubscriptionEngine:
         account-level exception.
         """
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            account = principal.accounts.get(account_id)
-            if account is None or not account.authorized:
-                return []
-            result = []
-            for state in states:
-                configuration = state["configuration"]
-                if (
-                    not _active(state)
-                    or configuration["reconciliation_mode"] != "consumer_receipt"
-                    or not _scope_includes(configuration, account_id, account)
-                ):
-                    continue
-                entries = principal.exclusions.get((str(state["subscription_id"]), account_id), [])
-                if any(e.until is None and e.media_buy_id is None for e in entries):
-                    continue
-                result.append(str(state["subscription_id"]))
-            return sorted(result)
+        principal = await self._read(identity.subject)
+        account = principal.accounts.get(account_id)
+        if account is None or not account.authorized:
+            return []
+        result = []
+        for state in states:
+            configuration = state["configuration"]
+            if (
+                not _active(state)
+                or configuration["reconciliation_mode"] != "consumer_receipt"
+                or not _scope_includes(configuration, account_id, account)
+            ):
+                continue
+            entries = principal.exclusions.get((str(state["subscription_id"]), account_id), [])
+            if any(e.until is None and e.media_buy_id is None for e in entries):
+                continue
+            result.append(str(state["subscription_id"]))
+        return sorted(result)
 
 
 # -- helpers -------------------------------------------------------------------
@@ -1193,4 +1497,10 @@ __all__ = [
     "ReportingSubscriptionEngine",
     "ReportingSubscriptionHost",
     "ReportingSubscriptionPrecedenceHost",
+    "ReportingSubscriptionStateConflictError",
+    "ReportingSubscriptionStateStore",
+    "STATE_DOCUMENT_VERSION",
+    "StoredReportingSubscriptionState",
+    "decode_principal_state",
+    "encode_principal_state",
 ]

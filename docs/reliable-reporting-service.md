@@ -400,6 +400,18 @@ the buyer runs.
 Under `max_accounts`, accounts already served keep their slots and the rest are
 filled in `account_id` byte order; the remainder get a `capacity` exception.
 
+**Engine state.** The engine keeps each principal's state (grants and losses,
+timezone changes, every version's configuration and destination snapshot,
+`max_accounts` slots, exceptions and withheld counts) as one JSON document in a
+`ReportingSubscriptionStateStore`, written by compare-and-swap. On a conflicting
+concurrent write it reloads and reapplies the change, and it raises
+`ReportingSubscriptionStateConflictError` if the document keeps changing. The
+default `InMemoryReportingSubscriptionStore` is lost on restart; pass a durable
+`store=` in production, and share it, with the `PrincipalService` record store,
+across every worker. Version configurations are never pruned, so
+`prior_versions` stay answerable while obligations cite them; exceptions are
+dropped `status_retention_days` after they close.
+
 `subscription_capabilities(...)` and `advertise_reporting_subscriptions(...)`
 project `configuration_tasks`, the deprecated `configuration_task`, the
 `subscriptions` block, the feature id and the principal section. The engine

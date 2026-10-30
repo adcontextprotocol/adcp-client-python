@@ -188,6 +188,58 @@ class InMemoryPrincipalRecordStore:
             return True
 
 
+#: Version of the :func:`principal_record_to_document` format.
+PRINCIPAL_RECORD_DOCUMENT_VERSION = 1
+
+
+def principal_record_to_document(record: PrincipalRecord) -> dict[str, Any]:
+    """Serialize a :class:`PrincipalRecord` to plain JSON for a durable store.
+
+    ``store_revision`` is not part of the document: a durable store keeps it
+    alongside, as its compare-and-swap fence.
+    """
+    return {
+        "document_version": PRINCIPAL_RECORD_DOCUMENT_VERSION,
+        "subject": record.subject,
+        "principal_id": record.principal_id,
+        "principal_kind": record.principal_kind,
+        "configuration_version": record.configuration_version,
+        "configuration": (
+            None
+            if record.configuration is None
+            else record.configuration.model_dump(mode="json", exclude_none=True)
+        ),
+        "idempotency": {
+            key: {"digest": digest, "response": response.model_dump(mode="json", exclude_none=True)}
+            for key, (digest, response) in sorted(record.idempotency.items())
+        },
+    }
+
+
+def principal_record_from_document(
+    document: Mapping[str, Any], *, store_revision: int
+) -> PrincipalRecord:
+    """Rebuild a :class:`PrincipalRecord` from :func:`principal_record_to_document` output."""
+    version = document.get("document_version")
+    if version != PRINCIPAL_RECORD_DOCUMENT_VERSION:
+        raise ValueError(f"unsupported principal record document version {version!r}")
+    configuration = document.get("configuration")
+    return PrincipalRecord(
+        subject=document["subject"],
+        principal_id=document["principal_id"],
+        principal_kind=document["principal_kind"],
+        configuration_version=document.get("configuration_version"),
+        configuration=(
+            None if configuration is None else PrincipalState.model_validate(configuration)
+        ),
+        idempotency={
+            key: (entry["digest"], SyncPrincipalResponse.model_validate(entry["response"]))
+            for key, entry in document.get("idempotency", {}).items()
+        },
+        store_revision=store_revision,
+    )
+
+
 def _copy_record(record: PrincipalRecord) -> PrincipalRecord:
     return PrincipalRecord(
         subject=record.subject,
@@ -1161,7 +1213,10 @@ __all__ = [
     "PrincipalIdentity",
     "PrincipalRecord",
     "PrincipalRecordStore",
+    "PRINCIPAL_RECORD_DOCUMENT_VERSION",
     "PrincipalService",
     "ReportingSubscriptionOptions",
     "SubscriptionVersionsHook",
+    "principal_record_from_document",
+    "principal_record_to_document",
 ]

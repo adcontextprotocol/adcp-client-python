@@ -66,6 +66,11 @@ from adcp.reporting.subscriptions.engine import (
     ReportingSubscriptionEngine,
     ReportingSubscriptionHost,
     ReportingSubscriptionPrecedenceHost,
+    ReportingSubscriptionStateConflictError,
+    ReportingSubscriptionStateStore,
+    StoredReportingSubscriptionState,
+    decode_principal_state,
+    encode_principal_state,
 )
 from adcp.reporting.subscriptions.registry import (
     ReportingSubscriptionError,
@@ -108,6 +113,11 @@ __all__ = [
     "ReportingSubscriptionError",
     "ReportingSubscriptionHost",
     "ReportingSubscriptionPrecedenceHost",
+    "ReportingSubscriptionStateConflictError",
+    "ReportingSubscriptionStateStore",
+    "StoredReportingSubscriptionState",
+    "decode_principal_state",
+    "encode_principal_state",
     "apply_reporting_subscriptions",
     "refresh_destination_states",
     "render_path_template",
