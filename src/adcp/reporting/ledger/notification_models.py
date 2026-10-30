@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, TypeAlias
 from uuid import uuid4
@@ -26,6 +26,7 @@ from adcp.reporting.ledger.models import (
     ReportingHealth,
     ReportingIssueLifecycle,
     ReportingObligationRecord,
+    ledger_asdict,
 )
 from adcp.validation.schema_loader import get_named_validator
 
@@ -333,7 +334,7 @@ class ReportingStatusScope(_ClosedValue):
         return decode_status_scope(
             {
                 "account_id": obligation.account_id,
-                "generation_key": asdict(obligation.generation_key),
+                "generation_key": ledger_asdict(obligation.generation_key),
                 "reporting_obligation_id": obligation.reporting_obligation_id,
                 "consumer_id": obligation.consumer_id if consumer_id is None else consumer_id,
                 "feed_purpose": obligation.feed_purpose,
@@ -456,7 +457,7 @@ def iso(value: datetime) -> str:
 
 
 def event_storage(event: ReportingDomainEvent) -> dict[str, Any]:
-    return dict(json.loads(json.dumps(asdict(event), default=iso)))
+    return dict(json.loads(json.dumps(ledger_asdict(event), default=iso)))
 
 
 @deferred_adapter
@@ -475,7 +476,7 @@ def _dirty_adapter() -> TypeAdapter[ReportingStatusDirty]:
 
 
 def dirty_storage(record: ReportingStatusDirty) -> dict[str, Any]:
-    return dict(json.loads(json.dumps(asdict(record), default=iso)))
+    return dict(json.loads(json.dumps(ledger_asdict(record), default=iso)))
 
 
 def decode_dirty(value: object) -> ReportingStatusDirty:
@@ -504,7 +505,7 @@ def decode_event(value: object) -> ReportingDomainEvent:
 def decode_status_scope(value: object) -> ReportingStatusScope:
     try:
         scope = _scope_adapter().validate_python(value)
-        if asdict(scope) == value:
+        if ledger_asdict(scope) == value:
             return scope
     except (ValidationError, ValueError, TypeError):
         # Leave the parsing exception context before emitting the closed classification.

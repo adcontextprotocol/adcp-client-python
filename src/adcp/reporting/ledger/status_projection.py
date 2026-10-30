@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -37,6 +37,7 @@ from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingHealth,
     ReportingIssue,
@@ -44,6 +45,7 @@ from adcp.reporting.ledger.models import (
     ReportingObligationRecord,
     ReportingRevisionRecord,
     iso_duration_to_timedelta,
+    ledger_asdict,
 )
 from adcp.reporting.ledger.notification_models import (
     ReportingNotificationError,
@@ -70,6 +72,9 @@ class ReportingStatusSnapshot:
     adjustments: tuple[ReportingAdjustmentRecord, ...] = ()
     # Sequence, record kind, ID, authenticated generation/status owner.
     changes: tuple[tuple[int, str, str, str], ...] = ()
+    #: Reporting-subscription owed sets: the horizon each owed-set generation's
+    #: obligations are frozen through. A scope ending after it is not closed.
+    owed_through: tuple[tuple[ReportingConfigurationGenerationKey, datetime], ...] = ()
 
     @property
     def max_sequence(self) -> int:
@@ -562,7 +567,7 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             ReportingIssue(
                 issue_id=issue_id_for(
                     "retained-scope-history-unavailable-v2",
-                    canonical_json_utf8_v1(asdict(scope)).hex(),
+                    canonical_json_utf8_v1(ledger_asdict(scope)).hex(),
                 ),
                 code="HISTORY_UNAVAILABLE",
                 severity="action_required",
@@ -852,7 +857,7 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
         health = "delayed"
     canonical = {
         "version": 1,
-        "scope": asdict(scope),
+        "scope": ledger_asdict(scope),
         "health": health,
         "issues": [i.to_wire() for i in full_issues],
         "filters": {

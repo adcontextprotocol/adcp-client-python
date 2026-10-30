@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol, get_args, runtime_checkable
 from uuid import UUID
@@ -24,6 +24,7 @@ from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 from adcp.reporting.materializer._errors import ReportingMaterializerUsageError
 from adcp.reporting.materializer.contracts import (
@@ -59,11 +60,11 @@ MaterializerReason = Literal[
 
 
 def scope_id(scope: ReportingDeliveryScope) -> str:
-    return hashlib.sha256(canonical_json_utf8_v1(asdict(scope))).hexdigest()
+    return hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(scope))).hexdigest()
 
 
 def verification_key_id(key: ReportingVerificationKey) -> str:
-    return hashlib.sha256(canonical_json_utf8_v1(asdict(key))).hexdigest()
+    return hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(key))).hexdigest()
 
 
 def key_for(

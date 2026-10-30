@@ -5,13 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
-from dataclasses import asdict, astuple, fields
+from dataclasses import astuple, fields
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import aware_utc
+from adcp.reporting.ledger.models import ledger_asdict
 from adcp.reporting.ledger.notification_models import (
     DirtyReason,
     ReportingDomainEvent,
@@ -117,7 +118,7 @@ async def mark_dirty(
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
 
     await PgReportingLedgerStore._lock_account(connection, scope.account_id)
-    scope_hash = hashlib.sha256(canonical_json_utf8_v1(asdict(scope))).hexdigest()
+    scope_hash = hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(scope))).hexdigest()
     evidence = after or before
     cause_id = evidence.record_id if evidence is not None else scope_hash
     consumer = scope.consumer_id or ""
