@@ -168,9 +168,9 @@ async def test_a_four_column_schema_is_widened_losslessly() -> None:
 
 
 async def test_a_foreign_reference_to_the_key_refuses_the_widening() -> None:
-    from psycopg.errors import RaiseException
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        from psycopg.errors import RaiseException
+
         ledger = files("adcp_reporting_storage.ledger")
         async with pool.connection() as connection:
             await connection.execute(ledger.joinpath("reporting_ledger.sql").read_text())
