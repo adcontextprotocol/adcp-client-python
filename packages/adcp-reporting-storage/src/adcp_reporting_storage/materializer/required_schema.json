@@ -339,10 +339,6 @@
     "enabled": true,
     "fingerprint": "d2dc21e781a468c735dd8b305b5405e779c85c27657683c19570cb1ba4b94aa7"
   },
-  "constraint:reporting_materializer_discovery.reporting_materializer_discovery_account_generation": {
-    "enabled": true,
-    "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
-  },
   "constraint:reporting_materializer_discovery.reporting_materializer_discovery_delivery_config_version_check": {
     "enabled": true,
     "fingerprint": "aa64b81d15585376b0e6a0904344e39bc5010257097cee5c8118967efdac4d34"
@@ -353,7 +349,7 @@
   },
   "constraint:reporting_materializer_discovery.reporting_materializer_discovery_pkey": {
     "enabled": true,
-    "fingerprint": "cb0658b07aa5249a6934cca6248293967db4ab1a848d706c3d5310fa98f08785"
+    "fingerprint": "32ac40fcb53b3780f37f76b062d5a06465e786ee5007f31748b6c964b7b0d20f"
   },
   "constraint:reporting_materializer_notification_events.reporting_materializer_notifi_account_id_consumer_namespac_fkey": {
     "enabled": true,
@@ -577,7 +573,7 @@
   },
   "function:reporting_materializer_binding_dirty()": {
     "enabled": true,
-    "fingerprint": "eea2454f1ded0e1bc966fac4cb567e43520182595e9961cd6052c6b7f5cf94e3"
+    "fingerprint": "7eb581b8d9e8dbaf55bbcfb3e2ba5fa2e2831b2a2bf5b38cfab9a236f0446eef"
   },
   "function:reporting_materializer_dirty(a text, c text, d text, v bigint, o text)": {
     "enabled": true,
@@ -593,7 +589,7 @@
   },
   "function:reporting_materializer_source_dirty()": {
     "enabled": true,
-    "fingerprint": "b7f635fe5457d6f32114fef36ce994df40dcb4904eff4fa083fcbe34f603d850"
+    "fingerprint": "611195faa8ecbb85d1bc70e66c7430461a30d34095a4696df72894bfdd613bdf"
   },
   "function:reporting_materializer_wake(a text)": {
     "enabled": true,
@@ -633,7 +629,7 @@
   },
   "index:reporting_materializer_discovery.reporting_materializer_discovery_pkey": {
     "enabled": true,
-    "fingerprint": "b6b8787db0e681f9bee61e99514097d8d0c150fcb78102e439a92c0483521f62"
+    "fingerprint": "d4f791f892c75bfc2fa84f19e6a16caa1dfe7ea49e4a5c053ff9f48889a37d2b"
   },
   "index:reporting_materializer_notification_events.reporting_materializer_notifi_account_id_consumer_namespace_key": {
     "enabled": true,

@@ -640,7 +640,8 @@ BEGIN
         SELECT o.account_id, o.consumer_id, o.delivery_config_id, o.delivery_config_version,
             o.reporting_obligation_id,o.period_end FROM reporting_obligations o
         JOIN reporting_production_generations g
-            USING(account_id, consumer_id, delivery_config_id, delivery_config_version)
+            USING(account_id, consumer_id, delivery_config_id, delivery_config_version,
+                  offering_id)
         WHERE o.reporting_obligation_id=NEW.reporting_obligation_id
             AND o.account_id=NEW.account_id
         ON CONFLICT(account_id,reporting_obligation_id) DO UPDATE SET state='pending';
@@ -675,3 +676,27 @@ BEGIN
     END IF;
 END
 $production_source_progress$;
+
+-- Reporting-subscription owed sets under managed delivery. Private SDK state:
+-- the adcp_ prefix keeps it outside the reporting_* catalog contract, and like
+-- the owed-set progress it has no foreign key. An owed set is enrolled once
+-- with its producer and frozen managed destination binding. Each owed
+-- obligation freezes the constituents it owes from the host's authorized pool,
+-- written in the obligation's transaction. Neither is ever rewritten.
+CREATE TABLE IF NOT EXISTS adcp_reporting_production_owed_sets (
+    account_id              TEXT COLLATE "C" NOT NULL,
+    consumer_id             TEXT COLLATE "C" NOT NULL,
+    delivery_config_id      TEXT COLLATE "C" NOT NULL,
+    delivery_config_version INTEGER          NOT NULL,
+    offering_id             TEXT COLLATE "C" NOT NULL CHECK (offering_id <> ''),
+    producer_key            TEXT COLLATE "C" NOT NULL CHECK (producer_key ~ '^[0-9a-f]{64}$'),
+    method                  JSONB            NOT NULL CHECK (jsonb_typeof(method) = 'object'),
+    PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+);
+CREATE TABLE IF NOT EXISTS adcp_reporting_production_owed_constituents (
+    account_id              TEXT COLLATE "C" NOT NULL,
+    reporting_obligation_id TEXT COLLATE "C" NOT NULL,
+    constituents            JSONB            NOT NULL CHECK (
+        jsonb_typeof(constituents) = 'array' AND jsonb_array_length(constituents) > 0),
+    PRIMARY KEY (account_id, reporting_obligation_id)
+);

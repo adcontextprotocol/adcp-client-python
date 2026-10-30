@@ -1061,7 +1061,7 @@
   },
   "function:reporting_production_source_dirty()": {
     "enabled": true,
-    "fingerprint": "e63cafa384ff68fb1de7f2daaf538cd936018f994ecdc7a27b36c395c5677f5a"
+    "fingerprint": "bbdb62b36233bc7d388404ea4c34c58bf4820b0c535a7b8ae52077e3ad0b1db2"
   },
   "function:reporting_production_source_progress_guard()": {
     "enabled": true,

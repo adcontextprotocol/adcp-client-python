@@ -68,9 +68,18 @@ In PostgreSQL this is a **stopped-worker maintenance upgrade**:
    - `reporting_consumer_statuses` gains `offering_id`;
    - the SDK's own references (reconciliation records, materializer discovery,
      status scope checkpoints, production generations) are re-pointed at the
-     widened key. They hold account-level generations only, enforced by a
-     `CHECK`, until each feature serves subscriptions.
+     widened key. Reconciliation records, materializer discovery and status
+     scope checkpoints also hold subscription generations, for managed
+     delivery. Production generations hold account-level generations only,
+     enforced by a `CHECK`.
 3. Restart the workers on the new release.
+
+A schema created by a release that widened the key but did not yet serve
+managed subscription delivery still carries an account-only `CHECK` on
+reconciliation records, materializer discovery and status scope checkpoints,
+and a four-column materializer discovery key. `create_schema()` drops those
+checks and widens the discovery key in place, losslessly and idempotently.
+Earlier workers refuse the upgraded schema, so stop them first here too.
 
 A foreign key outside the SDK that references `reporting_configurations`
 refuses the upgrade with a maintenance error, rather than being dropped.

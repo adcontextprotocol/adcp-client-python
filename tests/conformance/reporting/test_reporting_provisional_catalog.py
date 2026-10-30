@@ -56,7 +56,7 @@ async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
                 .read_text()
             )
         )
-    assert len(expected_parent) == 774
+    assert len(expected_parent) == 772
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection, connection.transaction():
             for name in chain:
