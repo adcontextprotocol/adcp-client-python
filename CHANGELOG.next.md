@@ -1,5 +1,38 @@
 # Changelog
 
+## [10.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.2...v10.0.0-beta.3) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.1. get_supported_adcp_versions() is ('3.0', '3.1', '3.2', '3.3-beta.2', '3.2-rc.7'); an adcp_version pin of "3.3-beta.1" / "3.3.0-beta.1" raises ConfigurationError, and a peer that advertises only 3.3-beta.1 among the 3.3 line is negotiated like any other unserved prerelease (down to 3.2). Re-pin to 3.3-beta.2 or omit the pin. The definition-pin, purchase-rights and installment-selection types and TestControllerStore.definition_pin_probe are removed.
+* **decisioning:** create_property_list / update_property_list fail with INVALID_REQUEST on mixed-case, trailing-dot or URL-shaped domain identifiers, and MCPPropertyListFetcher fails a resolution carrying one. get_products / list_products fail with INTERNAL_ERROR when a product advertises an undeclared measurement_window. get_adcp_capabilities truncates oversized publisher_domains / data_provider_domains. PrincipalService accepts "3.3" async versions by default.
+* **compat:** a 3.3 request the 3.2 contract cannot express (a webhook without authentication, a minute-level daypart) now fails with ADCPVersionConversionError / UNSUPPORTED_FEATURE before sending. Earlier SDK 10 betas sent some of these to the peer invalid, for example when the request carried start_time "asap".
+
+### Features
+
+* **compat:** semantic 3.3 → 3.2 downgrade rules ([#1717](https://github.com/adcontextprotocol/adcp-client-python/issues/1717)) ([fab1adf](https://github.com/adcontextprotocol/adcp-client-python/commit/fab1adf1ca606dbe174820deb901d0a62333d849)), closes [#1667](https://github.com/adcontextprotocol/adcp-client-python/issues/1667)
+* **decisioning:** AdCP 3.3 seller-side rules ([#1720](https://github.com/adcontextprotocol/adcp-client-python/issues/1720)) ([fbf13c9](https://github.com/adcontextprotocol/adcp-client-python/commit/fbf13c9d180e8e2a9ecd47daedba6c6b246a6bee))
+* **examples:** serve the AdCP 3.3 property breakdowns from injected rows in the reference seller ([#1715](https://github.com/adcontextprotocol/adcp-client-python/issues/1715)) ([a998b82](https://github.com/adcontextprotocol/adcp-client-python/commit/a998b82242d262ad45ffded430a8386111cbceec)), closes [#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)
+* **protocol:** adopt the signed AdCP 3.3.0-beta.2 bundle ([#1732](https://github.com/adcontextprotocol/adcp-client-python/issues/1732)) ([3e23bec](https://github.com/adcontextprotocol/adcp-client-python/commit/3e23becd8a2cb392ba9cd4df343f0a9a05456394))
+* **reporting-storage:** add PostgreSQL stores for reporting subscriptions ([#1724](https://github.com/adcontextprotocol/adcp-client-python/issues/1724)) ([46a1e01](https://github.com/adcontextprotocol/adcp-client-python/commit/46a1e01a65e01d547a22a05a3858709c3309a011)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** accept reporting subscriptions on sync_principal and track what they owe ([#1698](https://github.com/adcontextprotocol/adcp-client-python/issues/1698)) ([04238b2](https://github.com/adcontextprotocol/adcp-client-python/commit/04238b2a5a18732bddecf03ac925eccb39db2538))
+* **reporting:** add buyer client helpers and a tracker for reporting subscriptions ([#1699](https://github.com/adcontextprotocol/adcp-client-python/issues/1699)) ([8a7f482](https://github.com/adcontextprotocol/adcp-client-python/commit/8a7f48206a695e3c5dc3cc7ca46aea1df3c02609))
+* **reporting:** apply the AdCP 3.3 reporting rules ([#1707](https://github.com/adcontextprotocol/adcp-client-python/issues/1707)) ([3e177e6](https://github.com/adcontextprotocol/adcp-client-python/commit/3e177e69fc0fcceafc40a8854f2b7099ad905ca0)), closes [#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)
+* **reporting:** compute owed reporting-subscription periods and their capabilities ([#1696](https://github.com/adcontextprotocol/adcp-client-python/issues/1696)) ([58e825a](https://github.com/adcontextprotocol/adcp-client-python/commit/58e825a2c0f802b85edd1eba1a9e3aa7f2f160eb))
+* **reporting:** persist reporting-subscription engine state through a CAS store ([#1722](https://github.com/adcontextprotocol/adcp-client-python/issues/1722)) ([10643c7](https://github.com/adcontextprotocol/adcp-client-python/commit/10643c7fb31f22ef24956c6841c23f6315da698a)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **server:** seller helper for wholesale feed versions ([#1706](https://github.com/adcontextprotocol/adcp-client-python/issues/1706)) ([b014066](https://github.com/adcontextprotocol/adcp-client-python/commit/b014066004782ef312966a90ce0871ac01f2cca2)), closes [#1676](https://github.com/adcontextprotocol/adcp-client-python/issues/1676)
+* **signing:** accept any well-formed adcp_use purpose in keygen ([#1708](https://github.com/adcontextprotocol/adcp-client-python/issues/1708)) ([612f97a](https://github.com/adcontextprotocol/adcp-client-python/commit/612f97af9afd66512dc97289d4e8c7f299bcc4e7))
+
+
+### Bug Fixes
+
+* **codegen:** find generated classes by name, and derive emitted envelope bases from the bundle ([#1705](https://github.com/adcontextprotocol/adcp-client-python/issues/1705)) ([50fe9e8](https://github.com/adcontextprotocol/adcp-client-python/commit/50fe9e8fc73ebc21635e3636d49fd3cbf512a35e)), closes [#1680](https://github.com/adcontextprotocol/adcp-client-python/issues/1680)
+* **examples:** stop zero-filling impressions and flat multi-standard viewability in the reference seller ([#1709](https://github.com/adcontextprotocol/adcp-client-python/issues/1709)) ([a63836f](https://github.com/adcontextprotocol/adcp-client-python/commit/a63836f21dbe138d5ce021f9fab7e0a8954dbe20)), closes [#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)
+* **media-buy-actions:** project change_term_id for AdCP 3.3 prereleases ([#1721](https://github.com/adcontextprotocol/adcp-client-python/issues/1721)) ([ac5d410](https://github.com/adcontextprotocol/adcp-client-python/commit/ac5d4100778534cfaf235846f275a05cd7d2283b)), closes [#1668](https://github.com/adcontextprotocol/adcp-client-python/issues/1668)
+* **types:** defer the import-time model rebuilds that cost adcp.client 560 MiB RSS ([#1713](https://github.com/adcontextprotocol/adcp-client-python/issues/1713)) ([ab39d63](https://github.com/adcontextprotocol/adcp-client-python/commit/ab39d63e0333f94fb6879a8419e6680fdf4ccfb4))
+* **webhooks:** drop aggregated_totals from media_buy_delivery webhook results ([#1716](https://github.com/adcontextprotocol/adcp-client-python/issues/1716)) ([875a4fe](https://github.com/adcontextprotocol/adcp-client-python/commit/875a4fed49cba9b92aa92d2007c6c69f3467cc94)), closes [#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)
+
 ## [10.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.1...v10.0.0-beta.2) (2026-10-29)
 
 
