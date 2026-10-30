@@ -896,13 +896,17 @@ class AdCPBaseModel(BaseModel):
                 if not product_event:
                     value.pop("product_payload_view", None)
                 elif "product_payload_view" not in value:
-                    # A product subscription declares its payload view even when
-                    # the caller left it at the default (the one schema default
-                    # the SDK keeps emitting unset; see ``_drop_unset_defaults``).
+                    # Releases whose schema defaults the view (3.2) emit it on a
+                    # product subscription even when the caller left it unset
+                    # (the one schema default the SDK keeps emitting unset; see
+                    # ``_drop_unset_defaults``). From 3.3.0-beta.2 the default is
+                    # prose only (absent means legacy), so an unset view stays
+                    # absent rather than becoming an explicit null.
                     view = getattr(self, "product_payload_view")
-                    value["product_payload_view"] = (
-                        getattr(view, "value", view) if info.mode == "json" else view
-                    )
+                    if view is not None:
+                        value["product_payload_view"] = (
+                            getattr(view, "value", view) if info.mode == "json" else view
+                        )
         return value
 
     # -- Explicit nulls (#1615) --------------------------------------------
