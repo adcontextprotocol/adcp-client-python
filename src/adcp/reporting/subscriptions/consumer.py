@@ -28,6 +28,7 @@ from datetime import datetime, timedelta
 from typing import Any, Protocol
 from uuid import uuid4
 
+from adcp.exceptions import ADCPError, RecoveryLiteral, _normalize_recovery
 from adcp.reporting.subscriptions._clock import require_zone, utc_instant
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
@@ -56,12 +57,85 @@ from adcp.types.domains.core.reporting_subscription_state import ReportingSubscr
 REPORTING_SUBSCRIPTION_CHANGED = "reporting_subscription_changed"
 
 
-class ReportingSubscriptionClientError(RuntimeError):
-    """The seller refused or failed a subscription read or write."""
+#: The SDK's own reporting-subscription error codes, with their recovery and
+#: whether the SDK refuses them before sending anything (DX plan section 2.12).
+REPORTING_SUBSCRIPTION_ERROR_CODES: Mapping[str, tuple[RecoveryLiteral, bool]] = {
+    "SUBSCRIPTION_WOULD_DEACTIVATE": ("correctable", True),
+    "DESTINATION_WOULD_REVOKE": ("correctable", True),
+    "SUBSCRIPTION_ID_CLASH": ("correctable", True),
+    "SUBSCRIPTION_OPERATOR_SCOPE_REQUIRED": ("correctable", True),
+    "SUBSCRIPTION_SELECTOR_UNMATCHED": ("correctable", True),
+    "SUBSCRIPTION_CONFLICT_EXHAUSTED": ("transient", False),
+    "SUBSCRIPTION_READBACK_MISMATCH": ("terminal", False),
+}
 
-    def __init__(self, message: str, *, code: str | None = None) -> None:
+
+class ReportingSubscriptionError(ADCPError):
+    """A reporting-subscription read or write was refused or failed (buyer side).
+
+    Attributes:
+        code: One of :data:`REPORTING_SUBSCRIPTION_ERROR_CODES`, or the
+            seller's wire code (``INVALID_REQUEST``, ``CONFLICT``, ...).
+            ``None`` when the seller gave none.
+        recovery: ``"transient"``, ``"correctable"`` or ``"terminal"``: the
+            SDK code's classification, else the seller's wire ``recovery``,
+            else the code table.
+        dispatched: ``False`` when the SDK refused the write before sending
+            it. See :func:`adcp.exceptions.is_pre_dispatch_error`.
+        would_deactivate: The subscription ids a refused write would have
+            deactivated (``SUBSCRIPTION_WOULD_DEACTIVATE``).
+        readback: The seller's readback (``SUBSCRIPTION_READBACK_MISMATCH``).
+
+    The message ends with the fix.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        recovery: RecoveryLiteral | None = None,
+        would_deactivate: Sequence[str] = (),
+        readback: ReportingSubscriptionReadback | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
+        known = REPORTING_SUBSCRIPTION_ERROR_CODES.get(code or "")
+        if known is not None:
+            self.recovery = known[0]
+            if known[1]:
+                self.dispatched = False
+        else:
+            self.recovery = recovery or _code_recovery(code)
+        self.would_deactivate = tuple(would_deactivate)
+        self.readback = readback
+
+
+def _code_recovery(code: str | None) -> RecoveryLiteral | None:
+    """A wire code's registered classification; an unknown code is transient."""
+    if not code:
+        return None
+    from adcp.server.helpers import CORRECTABLE_CODES, TERMINAL_CODES
+
+    if code in TERMINAL_CODES:
+        return "terminal"
+    if code in CORRECTABLE_CODES:
+        return "correctable"
+    return "transient"
+
+
+def __getattr__(name: str) -> Any:
+    if name == "ReportingSubscriptionClientError":
+        import warnings
+
+        warnings.warn(
+            "ReportingSubscriptionClientError is renamed ReportingSubscriptionError, "
+            "now an ADCPError; the old name is removed in the next beta",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ReportingSubscriptionError
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class PrincipalClient(Protocol):
@@ -105,7 +179,7 @@ def _dump(value: Any) -> dict[str, Any]:
 def _readback(result: Any, *, task: str) -> ReportingSubscriptionReadback:
     response = getattr(result, "data", None)
     if not getattr(result, "success", False) or response is None:
-        raise ReportingSubscriptionClientError(
+        raise ReportingSubscriptionError(
             f"{task} failed: {getattr(result, 'error', None) or 'no response'}"
         )
     outcome = response.result
@@ -113,9 +187,11 @@ def _readback(result: Any, *, task: str) -> ReportingSubscriptionReadback:
     if kind == "failed":
         errors = list(getattr(outcome, "errors", None) or [])
         first = errors[0] if errors else None
-        raise ReportingSubscriptionClientError(
+        recovery = getattr(first, "recovery", None)
+        raise ReportingSubscriptionError(
             f"{task} was rejected: {getattr(first, 'message', 'unknown error')}",
-            code=None if first is None else str(getattr(first, "code", "")),
+            code=None if first is None else (str(getattr(first, "code", "")) or None),
+            recovery=_normalize_recovery(getattr(recovery, "value", recovery)),
         )
     configuration = getattr(outcome, "configuration", None)
     states = tuple(getattr(configuration, "reporting_subscriptions", None) or ())
@@ -186,7 +262,7 @@ async def load_subscription_coverage(
     result = await client.get_reporting_status(request)
     response = getattr(result, "data", None)
     if not getattr(result, "success", False) or response is None:
-        raise ReportingSubscriptionClientError(
+        raise ReportingSubscriptionError(
             f"get_reporting_status failed: {getattr(result, 'error', None) or 'no response'}"
         )
     return tuple(getattr(response, "subscription_coverage", None) or ())
@@ -493,7 +569,8 @@ class ReportingSubscriptionTracker:
 __all__ = [
     "REPORTING_SUBSCRIPTION_CHANGED",
     "PrincipalClient",
-    "ReportingSubscriptionClientError",
+    "REPORTING_SUBSCRIPTION_ERROR_CODES",
+    "ReportingSubscriptionError",
     "ReportingSubscriptionReadback",
     "ReportingSubscriptionTracker",
     "SubscriptionStatusClient",
