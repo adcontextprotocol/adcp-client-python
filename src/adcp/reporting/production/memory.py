@@ -108,6 +108,10 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         self._production_closed: dict[ReportingConfigurationGenerationKey, datetime] = {}
         self._production_source_turns: dict[ReportingConfigurationGenerationKey, int] = {}
         self._production_source_work: dict[str, _SourceWork] = {}
+        #: Reporting-subscription generations (owed sets) and each owed
+        #: obligation's constituents, frozen at planning from the host's pool.
+        self._production_owed_sets: set[ReportingConfigurationGenerationKey] = set()
+        self._production_obligation_constituents: dict[str, tuple[ReportingConstituent, ...]] = {}
 
     def _owner(self) -> ReportingProductionSupport:
         from adcp.reporting.production.service import production_owner
@@ -243,6 +247,100 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
                 configuration, offering._producer_key, binding, service_context=service_context
             )
 
+    async def admit_subscription_generation(
+        self,
+        configuration: ReportingConfiguration,
+        binding: ReportingDestinationBinding,
+        *,
+        offering_id: str,
+    ) -> None:
+        """Install a reporting subscription's generation with its managed binding.
+
+        An owed set has no generation-wide source denominator: each obligation
+        freezes its own constituents (``commit_subscription_obligation``).
+        Idempotent; a changed generation or binding is a conflict.
+        """
+        offering = self._owner()._subscription_offering(
+            configuration, binding, offering_id=offering_id
+        )
+        async with self._mutation():
+            await self.put_configuration(configuration)
+            await self.put_destination_binding(binding)
+            self._enroll_owed_set(configuration, offering._producer_key, binding)
+
+    def _enroll_owed_set(
+        self,
+        configuration: ReportingConfiguration,
+        producer_key: str,
+        destination: ReportingDestinationBinding,
+    ) -> None:
+        owner = self._owner()
+        previous = self._production_generations.setdefault(
+            configuration.generation_key, producer_key
+        )
+        if previous != producer_key:
+            raise ReportingNotificationError("reporting_production_source_conflict")
+        offering = owner._subscription_offering(configuration, destination)
+        document = canonical_json_utf8_v1(owner._destination_binding(destination, offering).wire())
+        original = self._production_destination_bindings.setdefault(
+            (configuration.generation_key, destination.consumer_id), document
+        )
+        if original != document:
+            raise ReportingNotificationError("reporting_production_destination_conflict")
+        self._production_owed_sets.add(configuration.generation_key)
+
+    async def subscription_generation_admitted(self, configuration: ReportingConfiguration) -> bool:
+        """Whether this exact generation is already admitted (it is bound once)."""
+        async with self._lock:
+            return (
+                configuration.generation_key in self._production_owed_sets
+                and self._configurations.get(configuration.generation_key) == configuration
+            )
+
+    async def commit_subscription_obligation(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        constituents: tuple[ReportingConstituent, ...],
+    ) -> ReportingObligationRecord:
+        """Commit an owed obligation with the constituents it freezes, atomically."""
+        if obligation.generation_key != configuration.generation_key or not constituents:
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "owed obligation is unbound")
+        async with self._mutation():
+            self._check_source_generation(configuration)
+            stored = await self.commit_obligation(obligation)
+            frozen = self._production_obligation_constituents.setdefault(
+                stored.reporting_obligation_id, constituents
+            )
+            if frozen != constituents:
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "owed obligation constituents are immutable"
+                )
+            return stored
+
+    async def production_owed_sets(
+        self, producer_keys: Sequence[str]
+    ) -> tuple[ReportingConfiguration, ...]:
+        """Admitted owed-set generations of these producers, in key order."""
+        async with self._lock:
+            return tuple(
+                self._configurations[key]
+                for key in sorted(
+                    self._production_owed_sets,
+                    key=lambda k: (
+                        k.account_id,
+                        k.consumer_id,
+                        k.delivery_config_id,
+                        k.delivery_config_version,
+                        k.offering_id or "",
+                    ),
+                )
+                if key.account_id in self._production_accounts
+                and self._production_generations.get(key) in producer_keys
+                and key in self._configurations
+                and not self._configurations[key].quarantined
+            )
+
     def _enroll(
         self,
         configuration: ReportingConfiguration,
@@ -284,7 +382,7 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         return dict(json.loads(raw)) if raw is not None else None
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
-        if configuration.quarantined:
+        if configuration.quarantined or configuration.owed_set:
             return False
         try:
             self._check_source_generation(configuration)
@@ -294,6 +392,22 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
 
     def _check_source_generation(self, configuration: ReportingConfiguration) -> None:
         producer_key = self._production_generations.get(configuration.generation_key)
+        if configuration.owed_set:
+            # The host's pool is checked at each dispatch and publication.
+            owner = self._owner()
+            # Planning commits outside a producer turn: any ready offering's
+            # producer qualifies; dispatch re-checks within its own turn.
+            ready = {o._producer_key for o in owner.offerings if owner._offering_ready(o)}
+            if (
+                configuration.account_id not in self._production_accounts
+                or configuration.generation_key not in self._production_owed_sets
+                or producer_key not in ready
+                or self._configurations.get(configuration.generation_key) != configuration
+            ):
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "producer generation is unavailable"
+                )
+            return
         binding = self._production_source_bindings.get(configuration.generation_key)
         if (
             configuration.account_id not in self._production_accounts
@@ -329,6 +443,15 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
     ) -> tuple[ReportingConstituent, ...]:
         async with self._lock:
             self._check_source_generation(configuration)
+            if configuration.owed_set:
+                frozen = self._production_obligation_constituents.get(
+                    obligation.reporting_obligation_id
+                )
+                if obligation.generation_key != configuration.generation_key or frozen is None:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "owed obligation constituents are unavailable"
+                    )
+                return frozen
             if obligation.generation_key != configuration.generation_key or set(
                 obligation.media_buy_ids
             ) != set(configuration.media_buy_ids):
@@ -419,6 +542,14 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
                     and record.principal.account_id == account_id
                 ):
                     configuration = self._configurations[record.generation_key]
+                    if configuration.owed_set:
+                        try:
+                            offering = owner._subscription_offering(configuration, record)
+                        # Unsupported or unavailable bindings remain unadmitted.
+                        except Exception:  # nosec B112
+                            continue
+                        self._enroll_owed_set(configuration, offering._producer_key, record)
+                        continue
                     try:
                         offering = owner._configuration_offering(configuration, record)
                     # Unsupported or unavailable bindings remain unadmitted.

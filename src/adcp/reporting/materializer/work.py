@@ -113,7 +113,9 @@ class MaterializerContext:
 
     def selection(self, now: datetime) -> tuple[ReportingRevisionRecord | None, MaterializerReason]:
         config = self.configuration
-        if (
+        # An owed-set obligation exists only because the subscription owes it,
+        # so it is delivered whatever the subscription's later state.
+        if not config.owed_set and (
             config.activated_at is None
             or config.activated_at > now
             or (config.deactivated_at is not None and config.deactivated_at <= now)

@@ -213,7 +213,14 @@ class ReportingProductionSourceBinding:
             != hashlib.sha256(canonical_json_utf8_v1(_config_payload(configuration))).hexdigest()
             or capabilities.scope != "effective_account"
             or self.capabilities_sha256 != capabilities.capabilities_sha256
-            or {pair[0] for pair in self.media_buy_products} != set(configuration.media_buy_ids)
+            # A reporting subscription's owed set has no generation-wide
+            # denominator: each obligation freezes its own constituents, which
+            # must lie within this current pool (see ReportingProducer).
+            or (
+                not configuration.owed_set
+                and {pair[0] for pair in self.media_buy_products}
+                != set(configuration.media_buy_ids)
+            )
             or (self.media_buy_products and "media_buy" not in offering.constituent_kinds)
             or any(pair[1] not in offering.product_ids for pair in self.media_buy_products)
         ):

@@ -492,12 +492,43 @@ grant's `authorization.allowed_tasks`.
 The beta.2 spec text still describes a post-revocation window; the beta.3
 change replaces it with this rule.
 
+**Managed delivery (production).** With `production=` options, subscriptions
+are delivered through managed delivery, following adcontextprotocol/adcp-client#3523.
+Supply `bind_managed_generation(configuration, version)`.
+
+- **Binding.** The service calls the hook once per (version, offering)
+  generation, before that generation's first obligation is written. The hook
+  resolves the version's `destination.destination_id` to the owner's current
+  destination generation, authorizes it for the account and returns the
+  `ReportingDestinationBinding`. Its `path_template` must equal the version
+  destination's. A failure writes nothing, and the next turn retries.
+- **Constituents.** Each owed obligation freezes the constituents of exactly its
+  media buys from the source's `configuration_binding(configuration)`, the
+  host's authorized pool for the generation.
+  - A media buy outside the pool fails that subscription's planning for the
+    turn, and nothing is written.
+  - At each dispatch and publication, the frozen constituents must still lie
+    within the current pool.
+- **Delivery.**
+  - Owed obligations are produced and materialized like account obligations,
+    whatever the subscription's later state.
+  - Objects land under the expanded `path_template`: each delivery's
+    `ReportingPreparedRevision.delivery_path`. Destination writers must place a
+    subscription's objects under it.
+  - Every row carries `account_id`, so the report definition's row schema must
+    admit it.
+- **Authority.** `engine.authorizes_delivery` is re-checked before preparing,
+  before writing and after writing each attempt. A loss holds the delivery: it
+  stays pending under the same identity and is retried.
+- **Requests.** The mounted production handler checks each task against the
+  grant and adds `subscription_coverage`.
+
 **Limits.** These are not served yet:
 
-- the service refuses `production` options;
-- subscriptions that resolve a managed or receipt-reconciled offering;
-- status notifications for subscription generations: a PostgreSQL store with
-  them enabled refuses an owed set. `PgReportingLedgerStore` otherwise holds
+- subscriptions that resolve a receipt-reconciled (`consumer_receipt`) offering;
+- PostgreSQL production stores for subscriptions (they are refused at startup);
+- status notifications for subscription generations: a PostgreSQL ledger store
+  with them enabled refuses an owed set. `PgReportingLedgerStore` otherwise holds
   owed sets, after the generation-key widening described in
   [ledger migrations](reporting-ledger-migration.md).
 

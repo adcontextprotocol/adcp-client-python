@@ -206,6 +206,19 @@ def revision_content_sha256(
     ).hexdigest()
 
 
+def _constituent_keys(
+    constituents: Sequence[ReportingConstituent],
+) -> list[tuple[str, str | None, str | None]]:
+    return [
+        (
+            item.constituent_id,
+            getattr(item, "media_buy_id", None),
+            getattr(item, "product_id", None),
+        )
+        for item in constituents
+    ]
+
+
 def subscription_rows(
     obligation: ReportingObligationRecord, rows: Sequence[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -1599,11 +1612,17 @@ class ReportingProducer:
                 if type(binding) is not ReportingProductionSourceBinding:
                     raise failure("BINDING_MISMATCH")
                 binding.check(configuration, self._source.capabilities, offering_id)
-                if (
-                    admitted_constituents is not None
-                    and binding.constituents() != admitted_constituents
-                ):
-                    raise failure("BINDING_MISMATCH")
+                if admitted_constituents is not None:
+                    pool = binding.constituents()
+                    if configuration.owed_set:
+                        # An owed obligation froze its own constituents at
+                        # planning; the host must still authorize every one.
+                        if not set(_constituent_keys(admitted_constituents)) <= set(
+                            _constituent_keys(pool)
+                        ):
+                            raise failure("BINDING_MISMATCH")
+                    elif pool != admitted_constituents:
+                        raise failure("BINDING_MISMATCH")
             except _SourceAuthorizationRevokedError:
                 raise
             except Exception:

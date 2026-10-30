@@ -56,7 +56,13 @@ CurrencyResolver = Callable[[ReportingConfiguration], str]
 #: Installs one generation through the host's trusted path (for example
 #: ``ReliableReportingService``, which resolves and validates the account
 #: context and persists the generation). Defaults to ``put_configuration``.
-GenerationInstaller = Callable[[ReportingConfiguration], Awaitable[None]]
+GenerationInstaller = Callable[[ReportingConfiguration, Mapping[str, Any]], Awaitable[None]]
+#: Commits one owed obligation of a generation; production commits it with the
+#: constituents it freezes from the host's current pool. Defaults to
+#: ``commit_obligation``.
+ObligationCommitter = Callable[
+    [ReportingConfiguration, ReportingObligationRecord], Awaitable[ReportingObligationRecord]
+]
 
 
 @dataclass(frozen=True)
@@ -166,6 +172,7 @@ class SubscriptionObligationPlanner:
         automated_recovery_window: timedelta = timedelta(hours=6),
         status_retention_days: int = 400,
         install: GenerationInstaller | None = None,
+        commit: ObligationCommitter | None = None,
     ) -> None:
         if not isinstance(store, ReportingSubscriptionLedger):
             raise TypeError(
@@ -179,7 +186,32 @@ class SubscriptionObligationPlanner:
         self._definitions = dict(definitions or {})
         self._window = automated_recovery_window
         self._retention_days = status_retention_days
-        self._install = install or store.put_configuration
+        self._install = install or self._put_configuration
+        self._commit = commit or self._commit_obligation
+
+    async def _put_configuration(
+        self, configuration: ReportingConfiguration, version: Mapping[str, Any]
+    ) -> None:
+        del version
+        await self._store.put_configuration(configuration)
+
+    async def _commit_obligation(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> ReportingObligationRecord:
+        del configuration
+        return await self._store.commit_obligation(obligation)
+
+    def _version(self, owed: FrozenOwedSet, version: int) -> Mapping[str, Any]:
+        configuration = owed.versions.get(version)
+        if configuration is None:
+            raise ValueError(
+                f"subscription {owed.subscription_id!r} version {version} has no known "
+                "configuration"
+            )
+        if hasattr(configuration, "model_dump"):
+            dumped: Mapping[str, Any] = configuration.model_dump(mode="json", exclude_none=True)
+            return dumped
+        return dict(configuration)
 
     def _currency_for(self, configuration: ReportingConfiguration) -> str:
         value = self._currency if isinstance(self._currency, str) else self._currency(configuration)
@@ -251,7 +283,9 @@ class SubscriptionObligationPlanner:
             )
             key = configuration.generation_key
             if key not in installed:
-                await self._install(configuration)
+                await self._install(
+                    configuration, self._version(owed, period.delivery_config_version)
+                )
                 installed[key] = configuration
             existing = await self._store.find_obligation(
                 account_id=owed.account_id,
@@ -299,8 +333,10 @@ class SubscriptionObligationPlanner:
                 definition=configuration.definition,
                 currency=self._currency_for(configuration),
                 offering_id=offering.offering_id,
+                # Planned at the horizon, never ahead of the planning clock.
+                created_at=through,
             )
-            stored = await self._store.commit_obligation(obligation)
+            stored = await self._commit(configuration, obligation)
             written.append(stored.reporting_obligation_id)
         owned = [
             item.generation_key
@@ -322,6 +358,7 @@ __all__ = [
     "CurrencyResolver",
     "FrozenOwedSet",
     "GenerationInstaller",
+    "ObligationCommitter",
     "SubscriptionObligationPlanner",
     "SubscriptionPlanResult",
     "subscription_obligation_id",
