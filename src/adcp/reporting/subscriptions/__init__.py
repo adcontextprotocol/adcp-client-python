@@ -15,6 +15,9 @@ its principal through ``sync_principal`` instead of once per account through
 * :func:`apply_reporting_subscriptions` -- validation and versioning of the
   ``sync_principal`` section, used by ``PrincipalService`` when it is given
   ``reporting_subscriptions=`` options.
+* :class:`ReportingSubscriptionTracker` and :func:`sync_reporting_subscriptions`
+  -- the buyer's client side: register, read back, refresh on
+  ``principal.changed``, and compute expected periods from its own records.
 * :class:`ReportingSubscriptionEngine` -- the seller runtime: host hooks,
   lost authority, exceptions, ``subscription_coverage[]`` and owed periods.
 """
@@ -29,6 +32,16 @@ from adcp.reporting.subscriptions.capabilities import (
     reporting_configuration_tasks,
     subscription_capabilities,
     with_subscription_dimensions,
+)
+from adcp.reporting.subscriptions.consumer import (
+    REPORTING_SUBSCRIPTION_CHANGED,
+    ReportingSubscriptionClientError,
+    ReportingSubscriptionReadback,
+    ReportingSubscriptionTracker,
+    is_subscription_change,
+    load_subscription_coverage,
+    read_reporting_subscriptions,
+    sync_reporting_subscriptions,
 )
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
@@ -78,6 +91,14 @@ from adcp.reporting.subscriptions.wire import (
 )
 
 __all__ = [
+    "REPORTING_SUBSCRIPTION_CHANGED",
+    "ReportingSubscriptionClientError",
+    "ReportingSubscriptionReadback",
+    "ReportingSubscriptionTracker",
+    "is_subscription_change",
+    "load_subscription_coverage",
+    "read_reporting_subscriptions",
+    "sync_reporting_subscriptions",
     "AccountDeliveryConfig",
     "AuthorizedAccount",
     "AuthorizedAccountPage",
