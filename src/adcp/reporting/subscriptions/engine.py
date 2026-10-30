@@ -87,6 +87,10 @@ if TYPE_CHECKING:
 # -- host facts ----------------------------------------------------------------
 
 
+#: The task whose grant carries subscription coverage.
+REPORTING_STATUS_TASK = "get_reporting_status"
+
+
 @dataclass(frozen=True)
 class AuthorizedAccount:
     """One account the principal may read, as the host answers it.
@@ -102,9 +106,19 @@ class AuthorizedAccount:
     timezone: str
     authorized_at: datetime
     operator: str | None = None
+    #: The grant's ``authorization.allowed_tasks``; ``None`` when the host does
+    #: not scope tasks. Access means access: coverage continues only while the
+    #: grant lists ``get_reporting_status``, and every reporting task is checked
+    #: against the grant. A seller that wants a buyer to finish reconciliation
+    #: keeps a reduced grant (for example ``get_reporting_status``,
+    #: ``sync_reporting_receipts`` and ``sync_reporting_status``) rather than
+    #: revoking; after revocation the account is unknown to every task.
+    allowed_tasks: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
         require_zone(self.timezone, field="AuthorizedAccount.timezone")
+        if self.allowed_tasks is not None:
+            object.__setattr__(self, "allowed_tasks", frozenset(self.allowed_tasks))
         object.__setattr__(
             self, "authorized_at", utc_instant(self.authorized_at, field="authorized_at")
         )
@@ -182,6 +196,11 @@ class _Account:
     operator: str | None
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
+    #: The current grant's ``allowed_tasks``; ``None`` when the host does not scope tasks.
+    allowed_tasks: frozenset[str] | None = None
+
+    def grants_task(self, task: str) -> bool:
+        return self.authorized and (self.allowed_tasks is None or task in self.allowed_tasks)
 
     def set_timezone(self, timezone: str | None, at: datetime) -> None:
         """Record a zone; a change away from an unknown zone is not a cutover."""
@@ -401,6 +420,13 @@ def encode_principal_state(
             account_id: {
                 "timezone": account.timezone,
                 "operator": account.operator,
+                # Present only when the host scopes tasks, so documents written
+                # before allowed_tasks existed stay byte-identical.
+                **(
+                    {"allowed_tasks": sorted(account.allowed_tasks)}
+                    if account.allowed_tasks is not None
+                    else {}
+                ),
                 "grants": [
                     {
                         "authorized_at": iso_z(grant.authorized_at),
@@ -453,6 +479,9 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
         principal.accounts[account_id] = _Account(
             timezone=raw["timezone"],
             operator=raw["operator"],
+            allowed_tasks=(
+                frozenset(raw["allowed_tasks"]) if raw.get("allowed_tasks") is not None else None
+            ),
             grants=[
                 SubscriptionAuthorization(
                     _required_instant(grant["authorized_at"]), _instant(grant["unauthorized_at"])
@@ -723,7 +752,13 @@ class ReportingSubscriptionEngine:
         ``reporting_subscription_changed``.
         """
         instant = self._now(now)
-        listed = {item.account_id: item for item in await self._list_accounts(identity)}
+        # A grant that no longer lists get_reporting_status ends coverage, as a
+        # revocation does: access means access.
+        listed = {
+            item.account_id: item
+            for item in await self._list_accounts(identity)
+            if item.allowed_tasks is None or REPORTING_STATUS_TASK in item.allowed_tasks
+        }
 
         def change(principal: _PrincipalState) -> None:
             for account_id, item in listed.items():
@@ -746,9 +781,12 @@ class ReportingSubscriptionEngine:
                     self._apply_grant(account, authorized=True, at=granted)
                 account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
+                account.allowed_tasks = item.allowed_tasks
             for account_id, account in principal.accounts.items():
                 if account_id not in listed and account.authorized:
                     self._apply_grant(account, authorized=False, at=instant)
+                if account_id not in listed:
+                    account.allowed_tasks = None
 
         await self._mutate(identity.subject, change, now=instant)
         await self._evaluate(identity, instant)
@@ -1435,6 +1473,15 @@ class ReportingSubscriptionEngine:
                         )
                     )
         return result
+
+    async def grants_task(self, identity: PrincipalIdentity, account_id: str, task: str) -> bool:
+        """Whether the principal's current grant on the account allows ``task``.
+
+        From the engine's last reconcile of the host's grants. There is no
+        window after a loss of authority: a revoked account allows nothing.
+        """
+        account = (await self._read(identity.subject)).accounts.get(account_id)
+        return account is not None and account.grants_task(task)
 
     async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
         """Active ``consumer_receipt`` subscriptions covering the account.

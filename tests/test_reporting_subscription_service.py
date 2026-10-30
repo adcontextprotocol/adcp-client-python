@@ -126,7 +126,13 @@ def _buy(media_buy_id: str, start: str, end: str) -> SubscriptionBuy:
 
 
 class _Seller:
-    def __init__(self, *, principals=(AGENCY, OTHER), **options: Any) -> None:
+    def __init__(
+        self,
+        *,
+        principals=(AGENCY, OTHER),
+        service_kwargs: dict[str, Any] | None = None,
+        **options: Any,
+    ) -> None:
         self.clock = DeterministicReportingClock(NOW)
         # Subscriptions are accepted before the buys run; the engine owes
         # nothing before acceptance.
@@ -159,14 +165,18 @@ class _Seller:
             clock=self.clock,
             read_jitter_window=timedelta(0),
             reporting_subscriptions=self.options,
+            **(service_kwargs or {}),
         )
         self.service.sources.register("gam", self.source)
         self._key = 0
 
-    async def subscribe(self, identity: PrincipalIdentity, buys) -> None:
+    async def subscribe(self, identity: PrincipalIdentity, buys, allowed_tasks=None) -> None:
         self.engine_clock.set("2026-11-01T00:00:00Z")
         self.host.accounts[ACCOUNT] = AuthorizedAccount(
-            ACCOUNT, timezone="UTC", authorized_at=datetime(2026, 10, 1, tzinfo=timezone.utc)
+            ACCOUNT,
+            timezone="UTC",
+            authorized_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+            allowed_tasks=allowed_tasks,
         )
         self.host.buys[ACCOUNT] = list(buys)
         self._key += 1
