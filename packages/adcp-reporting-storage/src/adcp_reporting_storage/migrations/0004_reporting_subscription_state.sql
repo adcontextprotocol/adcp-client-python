@@ -1,0 +1,4 @@
+-- adcp-migration: 0004 reporting_subscription_state
+-- AdCP 3.3 reporting subscriptions: durable principal records and engine
+-- state (grant journal, exceptions, version snapshots). Online-safe.
+-- include: subscriptions/reporting_subscriptions.sql

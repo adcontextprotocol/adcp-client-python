@@ -397,6 +397,24 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
   (from `adcp.server`). It lists only `REPORTING_WIND_DOWN_TASKS`
   (`get_reporting_status`, `sync_reporting_receipts`, `sync_reporting_status`)
   and keeps `authorized_at`, so coverage continues.
+- **Storage: one decision.** Pass `storage=memory_storage()` or
+  `storage=postgres_storage(dsn=...)` (or `pool=`) from `adcp.storage`. One
+  object holds the ledger, staged source objects and seals, principal records
+  and the subscription engine state; durability is a property of the storage,
+  never a flag.
+  - Process-local storage is refused for reporting subscriptions outside
+    development with `REPORTING_STORAGE_NOT_DURABLE`; pytest and
+    `ADCP_ENV=development` or `test` allow it. Without `storage=`, every store
+    the managed path uses must declare `is_durable = True` (the SDK's
+    PostgreSQL stores do).
+  - The PostgreSQL schema is managed by versioned migration files, applied in
+    order by `python -m adcp migrate [--dsn URL] [--status | --dry-run]`
+    (`--dsn` defaults to `$ADCP_DATABASE_URL`, then `$DATABASE_URL`). Startup
+    never changes the schema: it refuses one that is behind with
+    `REPORTING_SCHEMA_BEHIND`, naming the command and the pending versions.
+  - `0002 reporting_subscription_generations` widens the generation key and
+    is a stopped-worker upgrade: stop every reporting worker before running
+    it. `--status` flags it.
 - **Principals.** Reporting APIs name a principal with
   `PrincipalRef(tenant_id, principal_id)`; `grants_task` and
   `authorizes_delivery` take it. One service serves one tenant.
