@@ -139,4 +139,5 @@ def require_durable(durable: bool, *, stores: str) -> None:
         "which do not survive a restart. Pass storage=postgres_storage(dsn=...) to "
         "ReliableReportingService, or set ADCP_ENV=development to run in memory.",
         code="REPORTING_STORAGE_NOT_DURABLE",
+        config_field="storage",
     )

@@ -88,6 +88,7 @@ def postgres_storage(
                 f"the reporting schema is behind this SDK (pending: {versions}). "
                 f'Run "{MIGRATE_COMMAND}" against this database{note}.',
                 code="REPORTING_SCHEMA_BEHIND",
+                config_field="python -m adcp migrate",
             )
         await staging.check_ready()
 

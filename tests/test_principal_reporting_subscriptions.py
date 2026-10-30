@@ -581,14 +581,14 @@ async def test_seller_status_updates_do_not_bump_the_configuration_version() -> 
     emitted: list[PrincipalChange] = []
     principals, _clock = service(emitted=emitted)
     first = await sync(principals, {"reporting_subscriptions": [subscription()]})
-    changed = await principals.update_subscription_status(
+    changed = await principals.record_subscription_readback(
         IDENTITY,
         "analytics-daily",
         accounts_with_exceptions=[{"account_id": "acct-1", "reasons": ["capacity"]}],
         accounts_unauthorized=[],
     )
     assert changed is True
-    unchanged = await principals.update_subscription_status(
+    unchanged = await principals.record_subscription_readback(
         IDENTITY,
         "analytics-daily",
         accounts_with_exceptions=[{"account_id": "acct-1", "reasons": ["capacity"]}],

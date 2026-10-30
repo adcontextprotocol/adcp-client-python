@@ -70,6 +70,7 @@ from adcp.reporting._reconcile import (
 )
 
 if TYPE_CHECKING:
+    from adcp.reporting import advanced as advanced
     from adcp.reporting import canonical_json as canonical_json
     from adcp.reporting import conformance as conformance
     from adcp.reporting import currency as currency
@@ -119,9 +120,6 @@ if TYPE_CHECKING:
         ReportingServiceOffering as ReportingServiceOffering,
     )
     from adcp.reporting.service_subscriptions import (
-        ReportingSubscriptionServiceOptions as ReportingSubscriptionServiceOptions,
-    )
-    from adcp.reporting.service_subscriptions import (
         SubscriptionOptions as SubscriptionOptions,
     )
     from adcp.reporting.testing import (
@@ -157,6 +155,7 @@ if TYPE_CHECKING:
 
 _LAZY_SUBMODULES = frozenset(
     {
+        "advanced",
         "canonical_json",
         "conformance",
         "currency",
@@ -189,10 +188,6 @@ _LAZY_EXPORTS = {
     "ReportingAdapter": ("service", "ReportingAdapter"),
     "ReportingProductionOptions": ("service_production", "ReportingProductionOptions"),
     "ReportingServiceOffering": ("service_production", "ReportingServiceOffering"),
-    "ReportingSubscriptionServiceOptions": (
-        "service_subscriptions",
-        "ReportingSubscriptionServiceOptions",
-    ),
     "SubscriptionOptions": ("service_subscriptions", "SubscriptionOptions"),
     "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
     "FaultInjectingReportingSealStore": ("testing", "FaultInjectingReportingSealStore"),
@@ -250,7 +245,6 @@ __all__ = [
     "ReportingProductionOptions",
     "ReportingServiceOffering",
     "PrincipalRef",
-    "ReportingSubscriptionServiceOptions",
     "SubscriptionOptions",
     "DeterministicReportingClock",
     "FaultInjectingReportingSealStore",

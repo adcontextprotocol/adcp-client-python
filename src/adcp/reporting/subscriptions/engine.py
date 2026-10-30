@@ -73,6 +73,9 @@ logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
 
+#: Pages one roster walk may take before it is refused as incomplete.
+_MAX_ROSTER_PAGES = 10_000
+
 #: Attempts at a compare-and-swap write before giving up under contention.
 _MAX_STATE_WRITE_ATTEMPTS = 8
 
@@ -404,8 +407,57 @@ class InMemoryReportingSubscriptionStore:
             return sorted(self._documents)
 
 
-class ReportingSubscriptionStateConflictError(RuntimeError):
+#: Runtime codes of :class:`ReportingSubscriptionEngineError`, as the TypeScript
+#: SDK names them. The spec's ``error-codes.json`` has no seller runtime codes.
+ENGINE_ERROR_CODES = frozenset(
+    {
+        "SUBSCRIPTION_STATE_CONFLICT",
+        "SUBSCRIPTION_STATE_CORRUPT",
+        "SUBSCRIPTION_ROSTER_INCOMPLETE",
+        "SUBSCRIPTION_HOST_FACT_INVALID",
+    }
+)
+
+
+class ReportingSubscriptionEngineError(RuntimeError):
+    """A reporting-subscription engine runtime failure, with ``code`` and ``recovery``.
+
+    ``SUBSCRIPTION_STATE_CONFLICT`` (transient): the state kept changing
+    concurrently. ``SUBSCRIPTION_STATE_CORRUPT`` (terminal): a stored document
+    cannot be read. ``SUBSCRIPTION_ROSTER_INCOMPLETE`` (transient): the host's
+    account roster did not finish paging. ``SUBSCRIPTION_HOST_FACT_INVALID``
+    (terminal): a host hook returned the wrong shape. ``dispatched`` is
+    always ``None``: the engine sends nothing.
+    """
+
+    dispatched = None
+    _RECOVERY = {
+        "SUBSCRIPTION_STATE_CONFLICT": "transient",
+        "SUBSCRIPTION_STATE_CORRUPT": "terminal",
+        "SUBSCRIPTION_ROSTER_INCOMPLETE": "transient",
+        "SUBSCRIPTION_HOST_FACT_INVALID": "terminal",
+    }
+
+    def __init__(self, code: str, message: str) -> None:
+        if code not in ENGINE_ERROR_CODES:
+            raise ValueError(f"unknown reporting-subscription engine code {code!r}")
+        super().__init__(message)
+        self.code = code
+        self.recovery = self._RECOVERY[code]
+
+
+class ReportingSubscriptionStateConflictError(ReportingSubscriptionEngineError):
     """The engine could not write its state after repeated concurrent changes."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__("SUBSCRIPTION_STATE_CONFLICT", message)
+
+
+class ReportingSubscriptionStateCorruptError(ReportingSubscriptionEngineError, ValueError):
+    """A stored engine-state document cannot be read (still a ``ValueError``)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__("SUBSCRIPTION_STATE_CORRUPT", message)
 
 
 def _copy(document: Mapping[str, Any]) -> dict[str, Any]:
@@ -556,7 +608,9 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
     """Rebuild engine state from :func:`encode_principal_state` output."""
     version = document.get("document_version")
     if version != STATE_DOCUMENT_VERSION:
-        raise ValueError(f"unsupported reporting-subscription state document version {version!r}")
+        raise ReportingSubscriptionStateCorruptError(
+            f"unsupported reporting-subscription state document version {version!r}"
+        )
     principal = _PrincipalState()
     for account_id, raw in document["accounts"].items():
         principal.accounts[account_id] = _Account(
@@ -855,7 +909,10 @@ class ReportingSubscriptionEngine:
             reported = None if item.authorized_at is None else utc_instant(item.authorized_at)
             prepared.append((item, tasks, _covers(tasks), reported))
 
+        regressions: list[tuple[str, datetime]] = []
+
         def change(state: _PrincipalState) -> dict[str, datetime | None]:
+            regressions.clear()  # the change may rerun on a write conflict
             served: dict[str, datetime | None] = {}
             for item, tasks, covered, reported in prepared:
                 account = state.accounts.get(item.account_id)
@@ -865,9 +922,11 @@ class ReportingSubscriptionEngine:
                         continue
                     account = _Account(timezone=item.timezone, operator=item.operator)
                     state.accounts[item.account_id] = account
-                self._observe(
+                if self._observe(
                     account, covered=covered, reported=reported, at=instant, source="listed"
-                )
+                ):
+                    assert reported is not None
+                    regressions.append((item.account_id, reported))
                 account.allowed_tasks = tasks if covered else None
                 account.set_timezone(item.timezone, instant)
                 if item.operator is not None:
@@ -877,7 +936,9 @@ class ReportingSubscriptionEngine:
 
         if not prepared:
             return {}
-        return await self._mutate(principal.subject, change, now=instant)
+        served = await self._mutate(principal.subject, change, now=instant)
+        self._report_regressions(regressions)
+        return served
 
     async def refresh(self, principal: PrincipalLike, *, now: datetime | None = None) -> None:
         """Re-evaluate exceptions from the journal without listing the host's accounts.
@@ -1064,17 +1125,22 @@ class ReportingSubscriptionEngine:
             self._apply_grant(account, authorized=True, at=granted, source=source)
             return False
         start = self._chain_start(account)
-        if reported is not None and start is not None and reported < start:
+        return reported is not None and start is not None and reported < start
+
+    def _report_regressions(self, regressions: Sequence[tuple[str, datetime]]) -> None:
+        """Count and log rejected ``authorized_at`` values once, after the state write.
+
+        Called outside ``_mutate``, whose change may run more than once.
+        """
+        for account_id, reported in regressions:
             self._regressions += 1
             logger.warning(
-                "authorized_at_regressed: the host reported authorized_at %s, before the "
-                "chain start %s the grant journal holds; the journal keeps its value",
+                "authorized_at_regressed: the host reported authorized_at %s for account %s, "
+                "before the chain start the grant journal holds; the journal keeps its value",
                 iso_z(reported),
-                iso_z(start),
+                account_id,
                 extra={"event": "reporting.subscription.authorized_at_regressed"},
             )
-            return True
-        return False
 
     def _chain_start(self, account: _Account) -> datetime | None:
         return authorization_chain_start(account.grants, status_retention_days=self._retention_days)
@@ -1096,14 +1162,43 @@ class ReportingSubscriptionEngine:
             )
 
     async def _list_accounts(self, identity: PrincipalLike) -> list[AuthorizedAccount]:
+        """Walk every page of the roster; a walk that does not finish is refused, never partial."""
         accounts: list[AuthorizedAccount] = []
         cursor: str | None = None
-        while True:
+        for _page in range(_MAX_ROSTER_PAGES):
             page = await self._host.list_authorized_accounts(identity, cursor=cursor)
+            if not isinstance(page, AuthorizedAccountPage) or not all(
+                isinstance(item, AuthorizedAccount) for item in page.accounts
+            ):
+                raise ReportingSubscriptionEngineError(
+                    "SUBSCRIPTION_HOST_FACT_INVALID",
+                    "list_authorized_accounts must return an AuthorizedAccountPage of "
+                    "AuthorizedAccount values",
+                )
             accounts.extend(page.accounts)
             if not page.next_cursor:
                 return accounts
             cursor = page.next_cursor
+        raise ReportingSubscriptionEngineError(
+            "SUBSCRIPTION_ROSTER_INCOMPLETE",
+            f"the account roster did not finish within {_MAX_ROSTER_PAGES} pages; "
+            "the partial roster is not used",
+        )
+
+    async def _account_buys(
+        self, identity: PrincipalLike, account_id: str
+    ) -> Sequence[SubscriptionBuy]:
+        buys: Any = await self._host.account_buys(identity, account_id)
+        if (
+            not isinstance(buys, Sequence)
+            or isinstance(buys, (str, bytes))
+            or not all(isinstance(item, SubscriptionBuy) for item in buys)
+        ):
+            raise ReportingSubscriptionEngineError(
+                "SUBSCRIPTION_HOST_FACT_INVALID",
+                "account_buys must return SubscriptionBuy values",
+            )
+        return tuple(buys)
 
     # -- reconcile -------------------------------------------------------------
 
@@ -1126,20 +1221,24 @@ class ReportingSubscriptionEngine:
             if _covers(item.allowed_tasks)
         }
 
+        regressions: list[tuple[str, datetime]] = []
+
         def change(principal: _PrincipalState) -> None:
+            regressions.clear()  # the change may rerun on a write conflict
             for account_id, item in listed.items():
                 account = principal.accounts.get(account_id)
                 if account is None:
                     account = principal.accounts[account_id] = _Account(
                         timezone=item.timezone, operator=item.operator
                     )
-                self._observe(
+                if self._observe(
                     account,
                     covered=True,
                     reported=item.authorized_at,
                     at=instant,
                     source="listed",
-                )
+                ):
+                    regressions.append((account_id, item.authorized_at))
                 account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
                 account.allowed_tasks = item.allowed_tasks
@@ -1151,6 +1250,7 @@ class ReportingSubscriptionEngine:
             principal.reconciled_at = max(instant, principal.reconciled_at or instant)
 
         await self._mutate(identity.subject, change, now=instant)
+        self._report_regressions(regressions)
         await self._apply_replacements(identity, instant)
         await self._evaluate(identity, instant)
 
@@ -1196,7 +1296,7 @@ class ReportingSubscriptionEngine:
                         configuration, account_id, account
                     ):
                         continue
-                    buys = await self._host.account_buys(identity, account_id)
+                    buys = await self._account_buys(identity, account_id)
                     product_ids = _buy_offering_ids(buys) or [
                         item.offering_id for item in self._offerings
                     ]
@@ -1235,7 +1335,7 @@ class ReportingSubscriptionEngine:
         configs: dict[str, Sequence[AccountDeliveryConfig]] = {}
         for account_id, account in accounts.items():
             if account.authorized or account_id in covered_ids:
-                buys[account_id] = await self._host.account_buys(identity, account_id)
+                buys[account_id] = await self._account_buys(identity, account_id)
             if account.authorized and precedence is not None:
                 configs[account_id] = await precedence(identity, account_id)
 
@@ -1289,7 +1389,7 @@ class ReportingSubscriptionEngine:
                     cached = await self._mutate(identity.subject, record)
                 lost_entry["withheld_period_count"] = cached
         for subscription_id, with_exceptions, unauthorized in updates:
-            await self._principals.update_subscription_status(
+            await self._principals.record_subscription_readback(
                 identity,
                 subscription_id,
                 accounts_with_exceptions=with_exceptions,
@@ -1648,7 +1748,7 @@ class ReportingSubscriptionEngine:
         instant = self._now(now)
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
-        buys = await self._host.account_buys(identity, account_id)
+        buys = await self._account_buys(identity, account_id)
         principal = await self._read(identity.subject)
         account = principal.accounts.get(account_id)
         if account is None or not account.authorized:
@@ -1832,7 +1932,7 @@ class ReportingSubscriptionEngine:
         if state is None:
             raise KeyError(subscription_id)
         destinations = await self._destinations(identity)
-        buys = await self._host.account_buys(identity, account_id)
+        buys = await self._account_buys(identity, account_id)
         principal = await self._read(identity.subject)
         account = principal.accounts.get(account_id)
         if account is None:
@@ -1914,7 +2014,7 @@ class ReportingSubscriptionEngine:
             for key, value in principal.accounts.items()
             if account_id is None or key == account_id
         }
-        buys = {key: await self._host.account_buys(identity, key) for key in accounts}
+        buys = {key: await self._account_buys(identity, key) for key in accounts}
         result: list[FrozenOwedSet] = []
         for state in states:
             subscription_id = str(state["subscription_id"])
@@ -2084,6 +2184,9 @@ def _destination_for(
 
 
 __all__ = [
+    "ENGINE_ERROR_CODES",
+    "ReportingSubscriptionEngineError",
+    "ReportingSubscriptionStateCorruptError",
     "GrantObservation",
     "AccountDeliveryConfig",
     "AuthorizedAccount",
