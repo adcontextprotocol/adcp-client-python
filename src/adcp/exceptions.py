@@ -953,6 +953,15 @@ class AccountPaymentRequiredError(_BuyerAccountError):
     """Account exists but needs payment before use."""
 
 
+class AccountRequestError(ADCPTaskError):
+    """``client.accounts.ensure`` could not be processed (AdCP 3.3).
+
+    Raised only when the seller could not process the call; ``errors`` carry
+    the wire codes. A pending, ambiguous or rejected account is a value
+    (``AccountPending``, ``AccountAmbiguous``, ``AccountRejected``), never this.
+    """
+
+
 ACCOUNT_ERROR_CODE_MAP: dict[str, type[ADCPTaskError]] = {
     "ACCOUNT_NOT_FOUND": AccountNotFoundError,
     "ACCOUNT_REQUIRED": AccountSetupRequiredError,

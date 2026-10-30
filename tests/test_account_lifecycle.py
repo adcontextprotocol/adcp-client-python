@@ -11,6 +11,7 @@ from pydantic import TypeAdapter
 from adcp import (
     AccountNotFoundError,
     AccountPaymentRequiredError,
+    AccountReady,
     AccountRecord,
     AccountSetupRequiredError,
     ADCPClient,
@@ -263,8 +264,9 @@ async def test_ensure_ignores_echoed_seller_assigned_timezone():
     client = make_client(timezone={"mode": "seller_fixed", "fixed_timezone": "UTC"})
     key = {name: value for name, value in KEY.items() if name != "timezone"}
     mock_sync(client)
-    record = await client.accounts.ensure(key, billing="agent")
-    assert record == AccountRecord("seller-handle", "active")
+    outcome = await client.accounts.ensure(key, billing="agent")
+    assert outcome == AccountReady("seller-handle", "active", via="sync_accounts")
+    assert await client.accounts.get(key) == AccountRecord("seller-handle", "active")
 
 
 @pytest.mark.asyncio
