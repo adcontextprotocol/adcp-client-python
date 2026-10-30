@@ -23,7 +23,11 @@ from adcp._version import (
     resolve_adcp_version_alias,
 )
 from adcp.exceptions import ADCPFeatureUnsupportedError
-from adcp.validation.schema_loader import Direction, get_portable_schema
+from adcp.validation.schema_loader import (
+    Direction,
+    _build_format_checker,
+    get_portable_schema,
+)
 
 logger = logging.getLogger(__name__)
 CONVERSION_METADATA_KEY = "adcp_version_conversion"
@@ -33,6 +37,30 @@ _SUMMARY_POINTER_LIMIT = 10
 #: Compiled node validators keyed by schema identity; see :func:`_refusal`.
 _NODE_VALIDATORS: dict[tuple[int, int, bool], tuple[Any, Any, Any]] = {}
 _NODE_VALIDATOR_LIMIT = 4096
+#: Response rows the older release cannot carry without a field it requires
+#: there and the newer release made optional. The row is omitted, never
+#: completed: an absent ``impressions`` means "not measured", never zero, and
+#: a spot without ``aired_at`` (``scheduled`` / ``preempted``) has not aired.
+_ROW_OMISSIONS = {
+    "aired_at": "row_omitted_not_aired",
+    "impressions": "row_omitted_impressions_not_measured",
+}
+#: Newer fields whose removal would change what the rest of the object says,
+#: in a request or a response: refused, never dropped or rounded.
+_REFUSED_FIELDS = {
+    ("Daypart Target", field): (
+        "a minute-level daypart window has no form in the older release; "
+        "it is refused, never rounded to whole hours"
+    )
+    for field in ("start_time", "end_time")
+}
+#: Newer fields sent to older peers under the interim ``ext.adcp`` binding.
+#: On upgrade a top-level value wins; the interim one fills only its absence.
+_INTERIM_EXT_FIELDS = frozenset({"age_determination_bases"})
+#: Objects meaningful only whole: a member the older release refuses makes
+#: the object unrepresentable rather than shorter. A price breakdown without
+#: its ``operator_fee`` rows would no longer walk list_price to fixed_price.
+_WHOLE_OBJECTS = frozenset({"Price Breakdown"})
 
 
 @dataclass(frozen=True)
@@ -357,7 +385,10 @@ def _refusal(
                 "__adcp_conversion_node": _shape_schema(schema, root) if shape else schema,
             },
         }
-        cached = (schema, root, validator_for(root)(document))
+        # Formats as the SDK validators check them: unchecked, a ``date-time``
+        # string also matches its ``const: asap`` sibling and fails a oneOf.
+        validator = validator_for(root)(document, format_checker=_build_format_checker())
+        cached = (schema, root, validator)
         _NODE_VALIDATORS[key] = cached
     try:
         error = best_match(cached[2].iter_errors(value))
@@ -371,6 +402,9 @@ def _refusal(
     return pointer, _describe(error)
 
 
+_NO_SPELLING = "value has no spelling in the older release"
+
+
 def _describe(error: Any) -> str:
     """A value-free reason: diagnostics never echo payload contents."""
     keyword = error.validator
@@ -381,7 +415,7 @@ def _describe(error: Any) -> str:
         unit = "item" if keyword == "minItems" else "field"
         return f"needs at least {error.validator_value} {unit}(s)"
     if keyword in {"enum", "const"}:
-        return "value has no spelling in the older release"
+        return _NO_SPELLING
     if keyword is None:
         return "the older schema allows no value here"
     return f"fails the older schema's {keyword} constraint"
@@ -441,6 +475,16 @@ def _project(
     if isinstance(value, dict) and _coarsens_to_boolean(raw_source, target, source_root):
         losses.append(ConversionLoss(path, source_version, target_version, "coarsened_to_boolean"))
         return _declares_support(value)
+    if isinstance(value, dict) and source.get("title") in _WHOLE_OBJECTS:
+        refusal = _refusal(raw_target, target_root, value, shape=False)
+        if refusal is not None and _refusal(raw_source, source_root, value, shape=False) is None:
+            if refusal[1] == _NO_SPELLING:
+                losses.append(
+                    ConversionLoss(
+                        path + refusal[0], source_version, target_version, "enum_unavailable"
+                    )
+                )
+            raise _UnrepresentableError(path + refusal[0], refusal[1])
     if isinstance(value, dict):
         if target_version == "3.0" and source.get("title") in {
             "Postal Area",
@@ -474,6 +518,7 @@ def _project(
                 value["system"] = next(iter(aliases))
                 source = _view(source, value, source_root)
         projected = {}
+        interim: dict[str, Any] = {}
         for key, child in value.items():
             child_path = _pointer(path, key)
             if key in _OPAQUE_FIELDS:
@@ -482,12 +527,27 @@ def _project(
             source_child = _property(source, key)
             target_child = _property(target, key)
             if source_child is not None and target_child is None:
+                refused = _REFUSED_FIELDS.get((source.get("title"), key))
+                if refused is not None:
+                    raise ADCPVersionConversionError(
+                        pointer=child_path,
+                        source_version=source_version,
+                        target_version=target_version,
+                        reason=refused,
+                    )
                 if (
-                    response
-                    and not path
-                    and key == "message"
-                    and target.get("additionalProperties", True) is not False
+                    key in _INTERIM_EXT_FIELDS
+                    and isinstance(value.get("ext", {}), dict)
+                    and ("ext" in target["properties"] or _is_open(target))
                 ):
+                    interim[key] = child
+                    losses.append(
+                        ConversionLoss(
+                            child_path, source_version, target_version, "moved_to_ext_adcp"
+                        )
+                    )
+                    continue
+                if response and not path and key == "message" and _is_open(target):
                     # Human-readable MCP summaries predate the protocol
                     # envelope; older open response objects can retain them.
                     projected[key] = child
@@ -510,6 +570,17 @@ def _project(
                 else:
                     losses.append(ConversionLoss(child_path, source_version, target_version))
                     continue
+            if (
+                key in source["properties"]
+                and key not in target["properties"]
+                and target_child is target.get("additionalProperties")
+                and _refusal(target_child, target_root, child, shape=False) is not None
+            ):
+                # A field the newer release declares is not an application
+                # key of the older open map, which refuses its value: 3.3's
+                # ``catalog_ingestion`` object in 3.2's boolean-only features.
+                losses.append(ConversionLoss(child_path, source_version, target_version))
+                continue
             if source_child is None or target_child is None:
                 projected[key] = child
                 continue
@@ -580,6 +651,11 @@ def _project(
                         child_path, source_version, target_version, "unrepresentable_in_target"
                     )
                 )
+        if interim:
+            # The top-level value wins over an interim one already present.
+            ext = projected.get("ext", {})
+            adcp = ext.get("adcp") if isinstance(ext.get("adcp"), dict) else {}
+            projected["ext"] = {**ext, "adcp": {**adcp, **interim}}
         _check_representable(
             projected,
             value,
@@ -597,6 +673,12 @@ def _project(
         for index, child in enumerate(value):
             source_item = _view(source.get("items", {}), child, source_root)
             target_item = _view(target.get("items", {}), child, target_root)
+            omitted = _omitted_row(child, source_item, target_item) if response else None
+            if omitted is not None:
+                losses.append(
+                    ConversionLoss(_pointer(path, index), source_version, target_version, omitted)
+                )
+                continue
             if (
                 not isinstance(child, (dict, list))
                 and "enum" in source_item
@@ -651,6 +733,24 @@ def _project(
         )
         return projected_items
     return value
+
+
+def _is_open(schema: dict[str, Any]) -> bool:
+    return schema.get("additionalProperties", True) is not False
+
+
+def _omitted_row(row: Any, source_item: dict[str, Any], target_item: dict[str, Any]) -> str | None:
+    """The loss reason when a response row lacks a field only the older release requires."""
+    if not isinstance(row, dict):
+        return None
+    for field, reason in _ROW_OMISSIONS.items():
+        if (
+            field not in row
+            and field in target_item["required"]
+            and field not in source_item["required"]
+        ):
+            return reason
+    return None
 
 
 def _check_representable(
@@ -722,6 +822,45 @@ def _rejects_null(schema: dict[str, Any]) -> bool:
         and types != "null"
         and (not isinstance(types, list) or "null" not in types)
     )
+
+
+def _carries_interim_ext(value: Any) -> bool:
+    """Whether any object carries an ``ext.adcp`` interim field (cheap pre-check)."""
+    if isinstance(value, list):
+        return any(_carries_interim_ext(child) for child in value)
+    if not isinstance(value, dict):
+        return False
+    ext = value.get("ext")
+    adcp = ext.get("adcp") if isinstance(ext, dict) else None
+    if isinstance(adcp, dict) and not _INTERIM_EXT_FIELDS.isdisjoint(adcp):
+        return True
+    return any(
+        _carries_interim_ext(child) for key, child in value.items() if key not in _OPAQUE_FIELDS
+    )
+
+
+def _hoist_interim_ext(value: Any, schema: Any, root: dict[str, Any]) -> None:
+    """Spell an interim ``ext.adcp`` field top-level where the newer schema declares it.
+
+    A top-level value already present wins. The extension bag stays opaque
+    and unchanged.
+    """
+    if not isinstance(value, (dict, list)):
+        return
+    view = _view(schema, value, root)
+    if isinstance(value, list):
+        for child in value:
+            _hoist_interim_ext(child, view.get("items", {}), root)
+        return
+    for key, child in value.items():
+        child_schema = _property(view, key)
+        if key not in _OPAQUE_FIELDS and child_schema is not None:
+            _hoist_interim_ext(child, child_schema, root)
+    ext = value.get("ext")
+    adcp = ext.get("adcp") if isinstance(ext, dict) else None
+    if isinstance(adcp, dict):
+        for key in _INTERIM_EXT_FIELDS & adcp.keys() & view["properties"].keys():
+            value.setdefault(key, deepcopy(adcp[key]))
 
 
 def _upgrade_media_buy_metadata(tool: str, payload: dict[str, Any]) -> None:
@@ -1024,6 +1163,8 @@ def _convert_payload(
                     "account" if request is None or request.get("account") is not None else "public"
                 )
                 result.setdefault("cache_scope", scope)
+        if step > 0 and _carries_interim_ext(result):
+            _hoist_interim_ext(result, target_schema, target_schema)
         if step < 0:
             try:
                 result = _project(
