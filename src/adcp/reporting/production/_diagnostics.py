@@ -43,6 +43,40 @@ def _worker_stopped(*, boundary: _WorkerBoundary) -> None:
         return
 
 
+def _owed_sets_failed(*, failed: int, total: int) -> None:
+    """Some reporting-subscription owed sets could not run this production turn.
+
+    Each owed set is isolated, so the worker keeps running and the next turn
+    retries; a subscription that fails every turn repeats this signal. Only the
+    two integer counters are recorded, never an identifier, an exception or a
+    provider message.
+    """
+    if not _LOGGER.isEnabledFor(logging.WARNING):
+        return
+    record = logging.LogRecord(
+        _LOGGER.name,
+        logging.WARNING,
+        "",
+        0,
+        "Reporting subscription owed sets could not run",
+        (),
+        None,
+    )
+    record.threadName = None
+    record.processName = None
+    if hasattr(record, "taskName"):
+        record.taskName = None
+    record.__dict__.update(
+        code="REPORTING_PRODUCTION_OWED_SET_FAILED",
+        failed=failed if type(failed) is int else 0,
+        total=total if type(total) is int else 0,
+    )
+    try:
+        _LOGGER.handle(record)
+    except Exception:
+        return
+
+
 _MAINTENANCE_OPERATIONS = frozenset(
     {"intent_sweep", "row_pruning", "period_retirement", "change_pruning"}
 )

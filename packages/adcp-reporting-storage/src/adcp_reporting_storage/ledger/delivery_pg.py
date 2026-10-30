@@ -22,6 +22,7 @@ from adcp.reporting.ledger._delivery_state import (
 )
 from adcp.reporting.ledger._record_rows import (
     _ADJUSTMENT_COLUMNS,
+    _CONFIGURATION_COLUMNS,
     _OBLIGATION_COLUMNS,
     _REVISION_COLUMNS,
     _adjustment_from_row,
@@ -321,19 +322,16 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
             )
             row = await (
                 await connection.execute(
-                    "SELECT delivery_config_id, delivery_config_version, account_id,"
-                    " report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                    " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days, definition,"
-                    " authoritative_party, consumer_id, quarantined"
+                    f"SELECT {_CONFIGURATION_COLUMNS}"  # nosec B608
                     " FROM reporting_configurations WHERE account_id = %s"
                     " AND consumer_id = %s AND delivery_config_id = %s AND delivery_co"
-                    "nfig_version = %s",
+                    "nfig_version = %s AND offering_id = %s",
                     (
                         who.account_id,
                         who.consumer_id,
                         generation.delivery_config_id,
                         generation.delivery_config_version,
+                        generation.offering_id or "",
                     ),
                 )
             ).fetchone()

@@ -71,6 +71,10 @@ if TYPE_CHECKING:
     from adcp.reporting.production.contracts import ReportingProductionSourceBinding
     from adcp.reporting.production.service import ReportingProductionSupport
     from adcp.reporting.service_production import ReportingProductionOptions
+    from adcp.reporting.service_subscriptions import (
+        ReportingSubscriptionServiceOptions,
+        SubscriptionPlanningFailure,
+    )
 
 __all__ = [
     "AdapterRegistration",
@@ -436,6 +440,12 @@ class ReliableReportingTurn:
     )
     extension_results: list[Any] = field(default_factory=list)
     extension_errors: dict[str, BaseException] = field(default_factory=dict)
+    #: Reporting-subscription obligations written this turn.
+    subscription_obligations_written: int = 0
+    #: (principal subject, account_id, subscription_id) -> why it was not planned.
+    subscription_errors: dict[tuple[str, str | None, str | None], BaseException] = field(
+        default_factory=dict
+    )
 
     @property
     def did_work(self) -> bool:
@@ -444,6 +454,8 @@ class ReliableReportingTurn:
             or bool(self.extension_results)
             or bool(self.configuration_errors)
             or bool(self.extension_errors)
+            or bool(self.subscription_obligations_written)
+            or bool(self.subscription_errors)
         )
 
 
@@ -481,10 +493,14 @@ class ReliableReportingService:
         staging: ReportingStagingStore | None = None,
         seals: ReportingSealStore | None = None,
         initialize_source_storage: Callable[[], Awaitable[None]] | None = None,
+        reporting_subscriptions: ReportingSubscriptionServiceOptions | None = None,
     ) -> None:
         """``staging``/``seals`` are the default source stores adapters register with;
         ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
-        so a durable storage distribution can install its own schema."""
+        so a durable storage distribution can install its own schema.
+        ``reporting_subscriptions`` serves AdCP 3.3 principal-level reporting
+        subscriptions (see :mod:`adcp.reporting.service_subscriptions`); without
+        it the service is unchanged."""
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -499,6 +515,15 @@ class ReliableReportingService:
         ):
             raise ReliableReportingConfigurationError(
                 "production options compose their own workers, admission and receipt handlers"
+            )
+        if (
+            production is not None
+            and reporting_subscriptions is not None
+            and reporting_subscriptions.bind_managed_generation is None
+        ):
+            raise ReliableReportingConfigurationError(
+                "production serves reporting subscriptions through managed delivery; "
+                "supply reporting_subscriptions.bind_managed_generation"
             )
         effective_clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
@@ -544,6 +569,23 @@ class ReliableReportingService:
             ReportingConfigurationGenerationKey, ReportingConfiguration
         ] = {}
         self._turn_lock = asyncio.Lock()
+        self._subscriptions = reporting_subscriptions
+        self._subscription_planner: Any | None = None
+        if reporting_subscriptions is not None and production is None:
+            from adcp.reporting.subscriptions.ledger import SubscriptionObligationPlanner
+
+            try:
+                self._subscription_planner = SubscriptionObligationPlanner(
+                    store,
+                    offerings=reporting_subscriptions.engine.offerings,
+                    currency=self._subscription_currency,
+                    definitions=reporting_subscriptions.definitions,
+                    automated_recovery_window=automated_recovery_window,
+                    status_retention_days=status_retention_days,
+                    install=self._install_subscription_generation,
+                )
+            except TypeError as error:
+                raise ReliableReportingConfigurationError(str(error)) from None
         self._lifecycle = _ServiceLifecycle(
             self._initialize,
             resources=(
@@ -635,6 +677,7 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "production options require a memory or postgres production store"
             )
+        subscriptions = self._subscriptions
         self._production = self._production_options._compose(
             store=self.store,
             sources=self.sources,
@@ -642,9 +685,145 @@ class ReliableReportingService:
             clock=self._clock,
             escalation=self._escalation,
             consumer_status_enabled=self._consumer_status_enabled,
+            authorize_subscription_delivery=(
+                subscriptions.engine.authorizes_delivery if subscriptions is not None else None
+            ),
         )
         self._production._service_lifecycle = self._lifecycle
+        if subscriptions is not None:
+            self._compose_production_subscriptions()
         self.sources.freeze()
+
+    def _compose_production_subscriptions(self) -> None:
+        """Serve reporting subscriptions through production managed delivery."""
+        from adcp.reporting.service_subscriptions import ProductionSubscriptionHooks
+        from adcp.reporting.subscriptions.ledger import SubscriptionObligationPlanner
+
+        support, subscriptions = self._production, self._subscriptions
+        assert support is not None and subscriptions is not None
+        if not all(
+            callable(getattr(self.store, name, None))
+            for name in (
+                "admit_subscription_generation",
+                "subscription_generation_admitted",
+                "commit_subscription_obligation",
+                "production_owed_sets",
+            )
+        ):
+            raise ReliableReportingConfigurationError(
+                "this production store cannot hold reporting-subscription owed sets"
+            )
+        offerings = {item.offering_id: item for item in support.offerings}
+        try:
+            self._subscription_planner = SubscriptionObligationPlanner(
+                self.store,
+                offerings=subscriptions.engine.offerings,
+                # The installed verification key is the definition each
+                # managed generation must report against.
+                definitions={
+                    offering_id: item.verification_key.definition
+                    for offering_id, item in offerings.items()
+                },
+                currency=lambda configuration: self._production_offering(
+                    configuration
+                ).producer._offerings.currency,
+                automated_recovery_window=support.automated_recovery_window,
+                status_retention_days=support.status_retention_days,
+                install=self._install_production_generation,
+                commit=self._commit_production_obligation,
+            )
+        except TypeError as error:
+            raise ReliableReportingConfigurationError(str(error)) from None
+        support.subscription_cycle = self._production_subscription_cycle
+        support.subscription_hooks = ProductionSubscriptionHooks(subscriptions, self.store)
+
+    def _production_offering(self, configuration: ReportingConfiguration) -> Any:
+        assert self._production is not None and configuration.subscription is not None
+        wanted = configuration.subscription.offering_id
+        matches = [o for o in self._production.offerings if o.offering_id == wanted]
+        if len(matches) != 1:
+            raise ReliableReportingConfigurationError(
+                f"offering {wanted!r} is not a production offering"
+            )
+        return matches[0]
+
+    async def _install_production_generation(
+        self, configuration: ReportingConfiguration, version: Mapping[str, Any]
+    ) -> None:
+        """Bind, admit and activate a managed subscription generation (idempotent)."""
+        from adcp.reporting.service_subscriptions import check_managed_binding
+
+        assert self._production is not None and self._subscriptions is not None
+        binder = self._subscriptions.bind_managed_generation
+        assert binder is not None and configuration.subscription is not None
+        if await self.store.subscription_generation_admitted(  # type: ignore[attr-defined]
+            configuration
+        ):
+            return  # bound once, before its first obligation
+        binding = await _resolve(binder(configuration, version))
+        check_managed_binding(binding, configuration, version)
+        await self.store.admit_subscription_generation(  # type: ignore[attr-defined]
+            configuration, binding, offering_id=configuration.subscription.offering_id
+        )
+        await self._production.activate(account_id=configuration.account_id)
+
+    async def _commit_production_obligation(
+        self, configuration: ReportingConfiguration, obligation: Any
+    ) -> Any:
+        """Commit an owed obligation with the constituents of exactly its media buys.
+
+        The host's current source binding is the authorized pool; every media
+        buy the obligation owes must be in it, or the subscription fails to
+        plan this turn and nothing is written.
+        """
+        from adcp.reporting.production.contracts import (
+            ReportingProductionSource,
+            ReportingProductionSourceBinding,
+        )
+        from adcp.reporting.source import MediaBuyConstituentV1
+
+        offering = self._production_offering(configuration)
+        source = offering.producer._source
+        if not isinstance(source, ReportingProductionSource):
+            raise ReliableReportingConfigurationError("production source is unavailable")
+        binding = source.configuration_binding(configuration)
+        if type(binding) is not ReportingProductionSourceBinding:
+            raise LedgerConflictError(
+                "SOURCE_UNAUTHORIZED", "the source does not authorize this generation"
+            )
+        binding.check(configuration, source.capabilities, offering.source_offering_id)
+        pool = dict(binding.media_buy_products)
+        missing = sorted(set(obligation.media_buy_ids) - set(pool))
+        if missing:
+            raise LedgerConflictError(
+                "SOURCE_UNAUTHORIZED",
+                "the source does not authorize every media buy the subscription owes",
+            )
+        constituents = tuple(
+            MediaBuyConstituentV1(
+                constituent_id=media_buy_id,
+                media_buy_id=media_buy_id,
+                product_id=pool[media_buy_id],
+            )
+            for media_buy_id in sorted(obligation.media_buy_ids)
+        )
+        return await self.store.commit_subscription_obligation(  # type: ignore[attr-defined]
+            configuration, obligation, constituents
+        )
+
+    async def _production_subscription_cycle(self) -> None:
+        from adcp.reporting.service_subscriptions import plan_subscription_cycle
+
+        assert self._production is not None and self._subscriptions is not None
+        production = self._production
+        _, failures = await plan_subscription_cycle(
+            self._subscriptions,
+            self._subscription_planner,
+            now=self._clock(),
+            stopping=lambda: production._stop.is_set(),
+        )
+        for failure in failures:
+            await self._report_planning_failure(failure)
 
     async def _close_production(self) -> None:
         if self._production is not None:
@@ -693,7 +872,12 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "resolved account context does not match the configuration account"
                 )
-            if context.account_timezone != configuration.account_timezone:
+            # An owed set never derives periods from its schedule: each
+            # obligation carries its own period and source timezone.
+            if (
+                not configuration.owed_set
+                and context.account_timezone != configuration.account_timezone
+            ):
                 raise ReliableReportingConfigurationError(
                     "resolved account timezone does not match the configuration timezone"
                 )
@@ -752,6 +936,47 @@ class ReliableReportingService:
         explicit ``configure`` call after the underlying facts are fixed.
         """
         return MappingProxyType(self._initialization_errors)
+
+    async def _install_subscription_generation(
+        self, configuration: ReportingConfiguration, version: Mapping[str, Any]
+    ) -> None:
+        """Install one subscription generation through the trusted configure path."""
+        async with self._configuration_lock:
+            await self._configure(configuration)
+
+    def _subscription_currency(self, configuration: ReportingConfiguration) -> str:
+        return self._bindings[configuration.generation_key].context.currency
+
+    async def _plan_subscriptions(self, turn: ReliableReportingTurn, *, now: datetime) -> None:
+        from adcp.reporting.service_subscriptions import plan_subscription_cycle
+
+        assert self._subscriptions is not None
+        written, failures = await plan_subscription_cycle(
+            self._subscriptions,
+            self._subscription_planner,
+            now=now,
+            stopping=lambda: self._lifecycle.stopping,
+        )
+        turn.subscription_obligations_written += written
+        for failure in failures:
+            turn.subscription_errors[failure.key] = failure.error
+            await self._report_planning_failure(failure)
+
+    async def _report_planning_failure(self, failure: SubscriptionPlanningFailure) -> None:
+        assert self._subscriptions is not None
+        handler = self._subscriptions.planning_error_handler
+        if handler is None:
+            await self._report_worker_error(
+                "subscription:"
+                f"{failure.principal.subject}:{failure.account_id or ''}:"
+                f"{failure.subscription_id or ''}",
+                failure.error,
+            )
+            return
+        try:
+            await _resolve(handler(failure))
+        except Exception:
+            logger.error("Reliable Reporting subscription planning error handler failed")
 
     async def _recover_configuration(
         self, configuration: ReportingConfiguration, *, retrying: bool = False
@@ -877,6 +1102,8 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "a notification worker requires durable notification attempt storage"
             )
+        if self._subscriptions is not None:
+            self._validate_subscriptions()
         if self._receipt_handler is not None and self._materialization_worker is None:
             raise ReliableReportingConfigurationError(
                 "receipt handling requires managed delivery/materialization"
@@ -901,6 +1128,42 @@ class ReliableReportingService:
                         raise ReliableReportingConfigurationError(
                             "consumer_receipt offerings require reconciled billing"
                         )
+
+    def _validate_subscriptions(self) -> None:
+        assert self._subscriptions is not None
+        engine = self._subscriptions.engine
+        if engine.status_retention_days != self._status_retention_days:
+            raise ReliableReportingConfigurationError(
+                "the reporting subscription engine must use the status_retention_days this "
+                "service advertises"
+            )
+        mapped = {item.offering_id for item in engine.offerings}
+        if self._production_options is not None:
+            for item in self._production_options.offerings:
+                wire = _wire(item.offering)
+                if wire["offering_id"] not in mapped:
+                    raise ReliableReportingConfigurationError(
+                        f"offering {wire['offering_id']!r} has no subscription dimension "
+                        "mapping; register it with the reporting subscription engine"
+                    )
+                if wire["reconciliation_mode"] != "delivery_only":
+                    raise ReliableReportingConfigurationError(
+                        "reporting subscriptions do not yet serve receipt-reconciled offerings"
+                    )
+        for name in self.sources.names:
+            for offering in self.sources.get(name).capability_offerings:
+                # adcp#8585: every advertised offering publishes standard_dimensions,
+                # so buyers resolve a selector from the wire as the engine does.
+                if offering["offering_id"] not in mapped:
+                    raise ReliableReportingConfigurationError(
+                        f"offering {offering['offering_id']!r} has no subscription dimension "
+                        "mapping; register it with the reporting subscription engine"
+                    )
+                if offering.get("method") or offering["reconciliation_mode"] != "delivery_only":
+                    raise ReliableReportingConfigurationError(
+                        "reporting subscriptions do not yet serve managed or receipt-reconciled "
+                        "offerings"
+                    )
 
     async def initialize(self) -> None:
         """Prepare resources once; start/run_worker opens reporting admission."""
@@ -1032,6 +1295,9 @@ class ReliableReportingService:
                         break
                     await self._recover_configuration(configuration, retrying=True)
                 turn.configuration_errors.update(self._initialization_errors)
+            if self._subscriptions is not None and not self._lifecycle.stopping:
+                # Plan first, so newly frozen obligations run in this turn.
+                await self._plan_subscriptions(turn, now=now or self._clock())
             with source_turn():
                 for key, binding in sorted(
                     self._bindings.items(),
@@ -1039,6 +1305,8 @@ class ReliableReportingService:
                         item[0].account_id,
                         item[0].delivery_config_id,
                         item[0].delivery_config_version,
+                        item[0].consumer_id,
+                        item[0].offering_id or "",
                     ),
                 ):
                     if self._lifecycle.stopping:
@@ -1119,13 +1387,43 @@ class ReliableReportingService:
             return _wire(await self._production.handler.get_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
 
+    async def _require_grant(
+        self, request: Any, context: Any | None, caller: ReportingStatusCaller, task: str
+    ) -> None:
+        if self._subscriptions is None:
+            return
+        from adcp.reporting.service_subscriptions import require_subscription_grant
+
+        await require_subscription_grant(
+            self._subscriptions,
+            self.store,
+            request=request,
+            context=context,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+            task=task,
+        )
+
     async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
         caller = await self.caller_for(request, context)
-        return await ReportingStatusHandler(
+        await self._require_grant(request, context, caller, "get_reporting_status")
+        response = await ReportingStatusHandler(
             self.store,
             consumer_status_enabled=self._consumer_status_enabled,
             escalation=self._escalation,
         ).handle(_wire(request), caller=caller)
+        if self._subscriptions is None:
+            return response
+        from adcp.reporting.service_subscriptions import with_subscription_coverage
+
+        return await with_subscription_coverage(
+            response,
+            self._subscriptions,
+            request=request,
+            context=context,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+        )
 
     async def sync_reporting_status(
         self, request: Any, context: Any | None = None
@@ -1138,6 +1436,7 @@ class ReliableReportingService:
         if not self._consumer_status_enabled:
             raise ReliableReportingConfigurationError("consumer status ingest is disabled")
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "sync_reporting_status")
         return await ConsumerStatusIngest(self.store, enabled=True, clock=self._clock).handle(
             _wire(request),
             account_id=caller.account_id,
@@ -1155,6 +1454,7 @@ class ReliableReportingService:
         if self._receipt_handler is None:
             raise ReliableReportingConfigurationError("reporting receipt handling is disabled")
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "sync_reporting_receipts")
         return await self._receipt_handler.handle(
             _wire(request), account_id=caller.account_id, consumer_id=caller.consumer_id
         )
@@ -1174,6 +1474,7 @@ class ReliableReportingService:
                 "MISSING_REVISION_ID", "an exact revision read requires reporting_revision_id"
             )
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "get_media_buy_delivery")
         cursor = (payload.get("pagination") or {}).get("cursor")
         limit = int((payload.get("pagination") or {}).get("limit") or 500)
         if limit < 1 or limit > 1000:
@@ -1221,8 +1522,25 @@ class ReliableReportingService:
             response["context"] = payload["context"]
         return response
 
-    def capability_block(self) -> dict[str, Any]:
-        """Project only components and offerings this service actually installed."""
+    def capability_block(self, *, adcp_version: str | None = None) -> dict[str, Any]:
+        """Project only components and offerings this service actually installed.
+
+        ``adcp_version`` is the release the response is served at; it decides
+        which reporting-subscription fields appear when subscriptions are served.
+        """
+        block = self._capability_block()
+        if self._subscriptions is None or not block:
+            return block
+        from adcp.reporting.service_subscriptions import subscription_capability_block
+
+        try:
+            return subscription_capability_block(
+                block, self._subscriptions, adcp_version=adcp_version
+            )
+        except (KeyError, ValueError) as error:
+            raise ReliableReportingConfigurationError(str(error)) from None
+
+    def _capability_block(self) -> dict[str, Any]:
         if self._production is not None:
             return dict(self._production._declared_capabilities()["reporting_delivery"])
         if self._production_options is not None:
@@ -1278,10 +1596,12 @@ class ReliableReportingService:
             payload["receipt_task"] = "sync_reporting_receipts"
         return payload
 
-    def inject_capabilities(self, response: Any) -> dict[str, Any]:
+    def inject_capabilities(
+        self, response: Any, *, adcp_version: str | None = None
+    ) -> dict[str, Any]:
         """Merge the truthful reporting block into a base capability response."""
         payload = _wire(response)
-        block = self.capability_block()
+        block = self.capability_block(adcp_version=adcp_version)
         if not block:
             return payload
         media_buy = dict(payload.get("media_buy") or {})
@@ -1295,6 +1615,15 @@ class ReliableReportingService:
         if "media_buy.reporting_delivery" not in experimental:
             experimental.append("media_buy.reporting_delivery")
         payload["experimental_features"] = experimental
+        if self._subscriptions is not None:
+            from adcp.reporting.service_subscriptions import advertise_subscriptions
+
+            try:
+                payload = advertise_subscriptions(
+                    payload, self._subscriptions, adcp_version=adcp_version
+                )
+            except ValueError as error:
+                raise ReliableReportingConfigurationError(str(error)) from None
         return payload
 
     def install(self, platform: Any) -> Any:
@@ -1384,7 +1713,9 @@ class ReliableReportingService:
                 instance: Any, params: Any, context: Any | None = None
             ) -> Any:
                 result = await _resolve(original.get_adcp_capabilities(instance, params, context))
-                return service.inject_capabilities(result)
+                return service.inject_capabilities(
+                    result, adcp_version=getattr(context, "resolved_adcp_version", None)
+                )
 
             async def get_media_buy_delivery(
                 instance: Any, params: Any, context: Any | None = None

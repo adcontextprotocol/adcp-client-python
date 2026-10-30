@@ -414,9 +414,125 @@ dropped `status_retention_days` after they close.
 
 `subscription_capabilities(...)` and `advertise_reporting_subscriptions(...)`
 project `configuration_tasks`, the deprecated `configuration_task`, the
-`subscriptions` block, the feature id and the principal section. The engine
-does not yet write ledger obligations, so do not advertise the capability
-until obligations are materialized for the periods it owes.
+`subscriptions` block, the feature id and the principal section.
+
+**Serving subscriptions from the service.** Pass
+`reporting_subscriptions=ReportingSubscriptionServiceOptions(...)` to
+`ReliableReportingService`. Without it, capabilities, responses and worker
+turns are unchanged.
+
+```python
+from adcp.reporting.service_subscriptions import ReportingSubscriptionServiceOptions
+
+reporting = ReliableReportingService(
+    store=store,
+    account_context=resolve_account_context,  # also receives subscription generations
+    reporting_subscriptions=ReportingSubscriptionServiceOptions(
+        engine=engine,
+        list_principals=list_subscribing_principals,
+        resolve_principal=resolve_authenticated_principal,
+        definitions={"daily_v1": daily_definition},  # content-addressed, per offering
+    ),
+)
+```
+
+What the service does with it:
+
+- **Planning.** Each worker turn first plans every listed principal's frozen
+  owed set, then executes those obligations alongside the account
+  configurations.
+  - A subscription generation is one per (account, principal,
+    `subscription_id`, version, resolved `offering_id`). Its `consumer_id` is
+    the principal's `subject`.
+  - Each generation is installed through the same trusted path as
+    `configure()`. `account_context` receives it with
+    `configuration.subscription` set and returns the source route, currency
+    and advertised offering. The service validates these as it does for an
+    account configuration.
+  - Obligations are written only for periods ending by
+    `min(engine through, turn clock)`. Each carries exactly that period's
+    media buys and is never rewritten.
+  - A subscription that cannot be planned is recorded in
+    `turn.subscription_errors` and reported to `planning_error_handler` (or
+    the worker error handler). It never stops another subscription or an
+    account configuration.
+- **Capabilities.** The service adds `configuration_tasks`, the
+  `subscriptions` block, `standard_dimensions` on every offering, the feature
+  id and the principal section, at the release each caller is served.
+  - Callers served below 3.3 see the pre-3.3 block.
+  - The adcp#8585 offering fields reach only 3.3.0-beta.2 callers.
+  - Advertise `adcp.principal` yourself. The service refuses to advertise
+    subscriptions without it.
+- **Status.** `get_reporting_status` summary and periods views gain
+  `subscription_coverage[]`.
+- **Visibility.** Ledger reads and `sync_reporting_status` are scoped by the
+  caller's `consumer_id`, so a principal sees only its own subscription
+  periods. The caller resolver must therefore yield the principal's `subject`;
+  the service checks `resolve_principal` against it.
+
+**Grants: access means access.** `AuthorizedAccount.allowed_tasks` carries the
+grant's `authorization.allowed_tasks`.
+
+- Coverage continues only while the grant lists `get_reporting_status`; a grant
+  reduced below that ends coverage exactly like a revocation.
+- For a caller holding subscription generations on the account, the service
+  checks each reporting task against the current grant:
+  - `get_reporting_status`;
+  - `get_media_buy_delivery` exact reads;
+  - `sync_reporting_status`;
+  - `sync_reporting_receipts`.
+
+  A task the grant does not list fails with `ACCOUNT_NOT_FOUND`.
+- There is no window after a loss of authority: a revoked account is unknown to
+  every task, receipts and statuses included.
+- To let a buyer finish reconciliation, keep a reduced grant (for example
+  `get_reporting_status`, `sync_reporting_receipts` and `sync_reporting_status`)
+  rather than revoking.
+
+The beta.2 spec text still describes a post-revocation window; the beta.3
+change replaces it with this rule.
+
+**Managed delivery (production).** With `production=` options, subscriptions
+are delivered through managed delivery, following adcontextprotocol/adcp-client#3523.
+Supply `bind_managed_generation(configuration, version)`.
+
+- **Binding.** The service calls the hook once per (version, offering)
+  generation, before that generation's first obligation is written. The hook
+  resolves the version's `destination.destination_id` to the owner's current
+  destination generation, authorizes it for the account and returns the
+  `ReportingDestinationBinding`. Its `path_template` must equal the version
+  destination's. A failure writes nothing, and the next turn retries.
+- **Constituents.** Each owed obligation freezes the constituents of exactly its
+  media buys from the source's `configuration_binding(configuration)`, the
+  host's authorized pool for the generation.
+  - A media buy outside the pool fails that subscription's planning for the
+    turn, and nothing is written.
+  - At each dispatch and publication, the frozen constituents must still lie
+    within the current pool.
+- **Delivery.**
+  - Owed obligations are produced and materialized like account obligations,
+    whatever the subscription's later state.
+  - Objects land under the expanded `path_template`: each delivery's
+    `ReportingPreparedRevision.delivery_path`. Destination writers must place a
+    subscription's objects under it.
+  - Every row carries `account_id`, so the report definition's row schema must
+    admit it.
+- **Authority.** `engine.authorizes_delivery` is re-checked before preparing,
+  before writing and after writing each attempt. A loss holds the delivery: it
+  stays pending under the same identity and is retried.
+- **Requests.** The mounted production handler checks each task against the
+  grant and adds `subscription_coverage`.
+
+**Limits.** These are not served yet:
+
+- subscriptions that resolve a receipt-reconciled (`consumer_receipt`) offering;
+- PostgreSQL production stores for subscriptions (they are refused at startup);
+- status notifications for subscription generations: a PostgreSQL ledger store
+  with them enabled refuses an owed set. `PgReportingLedgerStore` otherwise holds
+  owed sets, after the generation-key widening described in
+  [ledger migrations](reporting-ledger-migration.md).
+
+Keep the engine's `status_retention_days` equal to the service's.
 
 ## Advanced composition
 

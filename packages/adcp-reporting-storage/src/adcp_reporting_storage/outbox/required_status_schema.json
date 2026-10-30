@@ -335,6 +335,10 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
+  "column:reporting_status_scope_checkpoints.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_status_scope_checkpoints.publishable": {
     "enabled": true,
     "fingerprint": "1abe3a1c570fbe885784dab5d979307c373d50f567ff4481ce3996869bf58fed"
@@ -675,9 +679,9 @@
     "enabled": true,
     "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
   },
-  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkp_account_id_consumer_namespac_fkey": {
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_account_generation": {
     "enabled": true,
-    "fingerprint": "502bb33130d68b0108f0fa28f1ee42350de103082b0d4dcbbf7144abece7b89a"
+    "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_account_id_fkey": {
     "enabled": true,
@@ -722,6 +726,10 @@
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_generation_check": {
     "enabled": true,
     "fingerprint": "90a4cf92e02d8d38334792956867fc8308bbc6fb142e7b0a07b6e21a47855f0d"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_generation_fkey": {
+    "enabled": true,
+    "fingerprint": "a306793f3ca65342fe7cd60e06058f661453b3d746d1da301a06e35d1e16d6e9"
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
     "enabled": true,

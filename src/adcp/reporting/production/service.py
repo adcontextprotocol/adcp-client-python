@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import json
 import weakref
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import timedelta
@@ -27,9 +27,13 @@ from adcp.reporting.materializer.reference import (
     ReferenceReportingResolver,
 )
 from adcp.reporting.materializer.service import ReportingMaterializerService
-from adcp.reporting.materializer.verification import ReportingDestinationIO
+from adcp.reporting.materializer.verification import ReportingDestinationIO, _same_definition
 from adcp.reporting.materializer.work import MaterializerContext, verification_key_id
-from adcp.reporting.production._diagnostics import _worker_stopped, _WorkerBoundary
+from adcp.reporting.production._diagnostics import (
+    _owed_sets_failed,
+    _worker_stopped,
+    _WorkerBoundary,
+)
 from adcp.reporting.production.configuration import (
     ReportingConfigurationAdmission,
     ReportingProductionConfigurationTask,
@@ -231,6 +235,13 @@ class ReportingProductionSupport:
             adcp_version=adcp_version,
         )
         self._mounts: list[_MountedProduction] = []
+        #: Plans reporting-subscription owed sets at the start of each turn
+        #: (ReliableReportingService(reporting_subscriptions=...)). It
+        #: isolates its own failures.
+        self.subscription_cycle: Callable[[], Awaitable[None]] | None = None
+        #: Per-task grant checks and coverage for reporting subscriptions
+        #: (adcp.reporting.service_subscriptions.ProductionSubscriptionHooks).
+        self.subscription_hooks: Any | None = None
         self._task: asyncio.Task[None] | None = None
         self._notification_task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
@@ -461,6 +472,60 @@ class ReportingProductionSupport:
             raise failure("BINDING_MISMATCH")
         return matches[0]
 
+    def _subscription_offering(
+        self,
+        configuration: ReportingConfiguration,
+        binding: ReportingDestinationBinding,
+        *,
+        offering_id: str | None = None,
+    ) -> ReportingProductionOffering:
+        """The managed offering a reporting subscription's generation is bound to.
+
+        The generation names its resolved offering. Its contract, finality,
+        definition and binding must match that offering as for an account
+        configuration; an owed set has no period grid or generation-wide
+        denominator to check.
+        """
+        self._assert_components()
+        writer = self.materializer.writer
+        assert isinstance(writer, ReportingProductionDestination)
+        wanted = configuration.subscription.offering_id if configuration.subscription else None
+        if wanted is None or (offering_id is not None and offering_id != wanted):
+            raise failure("BINDING_MISMATCH")
+        matches = [o for o in self.offerings if o.offering_id == wanted and self._offering_ready(o)]
+        if len(matches) != 1:
+            raise failure("BINDING_MISMATCH")
+        offering = matches[0]
+        raw, key = offering.wire(), offering.verification_key
+        if (
+            binding.generation_key != configuration.generation_key
+            or (
+                configuration.report_definition_id,
+                configuration.reporting_profile,
+                configuration.feed_purpose,
+            )
+            != (key.report_definition_id, key.reporting_profile, raw["feed_purpose"])
+            or configuration.required_finality not in raw["supported_finality"]
+            or not _same_definition(key, configuration.definition)
+            or configuration.authoritative_party != "seller"
+            or binding.reconciliation_mode != raw["reconciliation_mode"]
+            or binding.feed_purpose != raw["feed_purpose"]
+            or (binding.method, binding.transport, binding.format, binding.verification_profile)
+            != (
+                key.capability.method,
+                key.capability.transport,
+                key.capability.format,
+                key.capability.verification_profile,
+            )
+            or binding.resource_retention_days != writer.resource_retention_days
+            or binding.reader_compatibility != tuple(raw["method"].get("reader_compatibility", ()))
+            or configuration.automated_recovery_window != self.automated_recovery_window
+            or configuration.status_retention_days < self.status_retention_days
+        ):
+            raise failure("BINDING_MISMATCH")
+        self._destination_binding(binding, offering)
+        return offering
+
     def _destination_binding(
         self, binding: ReportingDestinationBinding, offering: ReportingProductionOffering
     ) -> ReportingProductionDestinationBinding:
@@ -568,10 +633,17 @@ class ReportingProductionSupport:
     ) -> None:
         if producer_key is None:
             raise failure("BINDING_MISMATCH")
-        offering = self._configuration_offering(
-            context.configuration, context.binding, producer_key=producer_key
-        )
-        self._check_source_binding(context.configuration, producer_key, source_binding)
+        if context.configuration.owed_set:
+            # A reporting subscription's generation: each obligation froze its
+            # own constituents, checked against the host's pool at dispatch.
+            offering = self._subscription_offering(context.configuration, context.binding)
+            if offering._producer_key != producer_key or source_binding is not None:
+                raise failure("BINDING_MISMATCH")
+        else:
+            offering = self._configuration_offering(
+                context.configuration, context.binding, producer_key=producer_key
+            )
+            self._check_source_binding(context.configuration, producer_key, source_binding)
         if self._destination_binding(context.binding, offering).wire() != destination_binding:
             raise failure("BINDING_MISMATCH")
         if (
@@ -644,12 +716,16 @@ class ReportingProductionSupport:
             while not self._stop.is_set():
                 # Each producer leases a generation through the reviewed fair
                 # indexed acquisition path; no account enumeration is required.
+                if self.subscription_cycle is not None:
+                    boundary = "producer"
+                    await self.subscription_cycle()
                 with source_turn():
                     for producer in dict.fromkeys(o.producer for o in self.offerings):
                         boundary = "producer"
                         token = self._producer_turn.set(producer)
                         try:
                             await producer.run_worker()
+                            await self._run_owed_sets(producer)
                         finally:
                             self._producer_turn.reset(token)
                 boundary = "materializer"
@@ -675,6 +751,26 @@ class ReportingProductionSupport:
                 _worker_stopped(boundary=boundary)
         finally:
             self._started.set()
+
+    async def _run_owed_sets(self, producer: ReportingProducer) -> None:
+        """Run this producer's reporting-subscription owed sets; they are never leased.
+
+        One owed set's failure never stops another's or the production turn.
+        Failures raise the closed ``REPORTING_PRODUCTION_OWED_SET_FAILED``
+        signal once per turn, so a subscription that never delivers is visible.
+        """
+        owed_sets = getattr(self.store, "production_owed_sets", None)
+        if owed_sets is None:
+            return
+        configurations = await owed_sets(self._producer_keys())
+        failed = 0
+        for configuration in configurations:
+            try:
+                await producer.run_configuration(configuration)
+            except Exception:  # noqa: BLE001 - isolate one owed set
+                failed += 1
+        if failed:
+            _owed_sets_failed(failed=failed, total=len(configurations))
 
     async def _maintain(self) -> None:
         """Scheduled retention: abandoned uploads, expired periods, old change rows.

@@ -763,6 +763,10 @@ async def backfill_legacy_reporting(
                         selected.append(sql.SQL("TRUE"))
                     elif column in {"lease_worker_id", "lease_expires_at"}:
                         selected.append(sql.SQL("NULL"))
+                    elif column == "offering_id" and column not in row:
+                        # Legacy evidence predates reporting subscriptions: it is
+                        # all account-level generations.
+                        selected.append(sql.SQL("''"))
                     elif column in row:
                         selected.append(sql.Identifier(column))
                     else:

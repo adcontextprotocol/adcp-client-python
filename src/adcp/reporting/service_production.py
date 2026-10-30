@@ -19,6 +19,7 @@ from adcp.reporting.materializer import (
     ReportingRevisionVerifierRegistry,
     ReportingVerificationKey,
 )
+from adcp.reporting.materializer.service import SubscriptionDeliveryAuthority
 from adcp.reporting.outbox.routing import ReportingEnvelopeCipher, ReportingSubscriptionResolver
 from adcp.reporting.outbox.worker import ReportingNotificationWorker
 from adcp.reporting.production import (
@@ -132,6 +133,7 @@ class ReportingProductionOptions:
         clock: Callable[[], datetime],
         escalation: ReportingDeliveryEscalation,
         consumer_status_enabled: bool,
+        authorize_subscription_delivery: SubscriptionDeliveryAuthority | None = None,
     ) -> ReportingProductionSupport:
         if set(sources.names) != {item.adapter for item in self.offerings}:
             raise ValueError("every registered production adapter must have an offering")
@@ -188,7 +190,10 @@ class ReportingProductionOptions:
             )
         return ReportingProductionSupport(
             ReportingMaterializerService(
-                store, ReportingDestinationIO(self.registry, self.destination), self.destination
+                store,
+                ReportingDestinationIO(self.registry, self.destination),
+                self.destination,
+                authorize_subscription_delivery=authorize_subscription_delivery,
             ),
             projection,
             offerings=tuple(offerings),

@@ -206,6 +206,48 @@ def revision_content_sha256(
     ).hexdigest()
 
 
+def _constituent_keys(
+    constituents: Sequence[ReportingConstituent],
+) -> list[tuple[str, str | None, str | None]]:
+    return [
+        (
+            item.constituent_id,
+            getattr(item, "media_buy_id", None),
+            getattr(item, "product_id", None),
+        )
+        for item in constituents
+    ]
+
+
+def subscription_rows(
+    obligation: ReportingObligationRecord, rows: Sequence[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Every row of a reporting-subscription revision carries its ``account_id``.
+
+    AdCP 3.3: "Every delivered row carries account_id", so a principal reading
+    one subscription's feed across accounts can attribute each row. The
+    producer stamps it before the revision is bound, so the Core revision
+    digest (``revision_content_sha256``) and, for managed delivery, the
+    canonical content digest both cover it. A row that already names an
+    account must name this one. The report definition's row schema must admit
+    an ``account_id`` string; otherwise managed publication fails closed with
+    ``SOURCE_INVALID``. Account-level obligations are returned unchanged, so
+    their rows and digests are byte-for-byte what they were.
+    """
+    if obligation.offering_id is None:
+        return list(rows)
+    stamped = []
+    for row in rows:
+        named = row.get("account_id", obligation.account_id)
+        if named != obligation.account_id:
+            raise LedgerConflictError(
+                "ROW_ACCOUNT_MISMATCH",
+                "a reporting-subscription row names another account",
+            )
+        stamped.append({**row, "account_id": obligation.account_id})
+    return stamped
+
+
 RevisionBindingAlgorithm = Literal["rfc8785_jcs_v1", "legacy_py_core_pairs_v0"]
 
 
@@ -594,6 +636,10 @@ class ReportingProducer:
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
+        if configuration.owed_set:
+            # A subscription's owed set is written by its planner, never filled
+            # from a period grid.
+            return []
         progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
         after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
@@ -712,6 +758,9 @@ class ReportingProducer:
     ) -> None:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
+        if configuration.owed_set:
+            await self._acquire_owed_set(configuration, turn, now=now)
+            return
         if isinstance(self._store, ReportingProducerProgress):
             await self._acquire_progress(self._store, configuration, turn, now=now)
             return
@@ -751,6 +800,50 @@ class ReportingProducer:
                     obligation.reporting_obligation_id,
                     error.code,
                 )
+                turn.slices_failed.append(obligation.reporting_obligation_id)
+                self._note_escalation(obligation, turn, now=now)
+
+    async def _acquire_owed_set(
+        self, configuration: ReportingConfiguration, turn: WorkerTurn, *, now: datetime
+    ) -> None:
+        """Acquire a subscription's frozen obligations that have elapsed.
+
+        The owed set is exactly the stored obligations; there is no grid to
+        walk. Satisfied obligations are left alone by ``acquire_obligation``,
+        and those with an official revision are skipped before dispatch.
+        """
+        from adcp.reporting.ledger.store import ReportingSubscriptionLedger
+
+        if not isinstance(self._store, ReportingSubscriptionLedger):
+            raise LedgerConflictError(
+                "UNSUPPORTED_STORE", "this store cannot hold reporting-subscription owed sets"
+            )
+        worked = 0
+        for obligation in await self._store.list_generation_obligations(
+            configuration.generation_key
+        ):
+            if worked >= self._max_periods_per_turn or _utc(obligation.period.end) > _utc(now):
+                break
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if any(item.finality == "official" for item in revisions):
+                continue
+            if not await self._automatic_read_ready(configuration, obligation, now=now):
+                continue
+            worked += 1
+            try:
+                policy = self._settling_policy(configuration, obligation)
+                if policy is None:
+                    await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                else:
+                    await self._acquire_with_settling_policy(
+                        configuration, obligation, policy=policy, turn=turn, now=now
+                    )
+            except (ReportingCurrencyError, LedgerConflictError) as error:
+                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                    raise
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
 
@@ -1519,11 +1612,17 @@ class ReportingProducer:
                 if type(binding) is not ReportingProductionSourceBinding:
                     raise failure("BINDING_MISMATCH")
                 binding.check(configuration, self._source.capabilities, offering_id)
-                if (
-                    admitted_constituents is not None
-                    and binding.constituents() != admitted_constituents
-                ):
-                    raise failure("BINDING_MISMATCH")
+                if admitted_constituents is not None:
+                    pool = binding.constituents()
+                    if configuration.owed_set:
+                        # An owed obligation froze its own constituents at
+                        # planning; the host must still authorize every one.
+                        if not set(_constituent_keys(admitted_constituents)) <= set(
+                            _constituent_keys(pool)
+                        ):
+                            raise failure("BINDING_MISMATCH")
+                    elif pool != admitted_constituents:
+                        raise failure("BINDING_MISMATCH")
             except _SourceAuthorizationRevokedError:
                 raise
             except Exception:
@@ -1744,6 +1843,7 @@ class ReportingProducer:
         Replaying a publication retains its original creation time and parent.
         """
         obligation = await self._stored_obligation(obligation)
+        rows = subscription_rows(obligation, rows)
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:

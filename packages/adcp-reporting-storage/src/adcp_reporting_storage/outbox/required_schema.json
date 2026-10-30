@@ -103,6 +103,10 @@
     "enabled": true,
     "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
   },
+  "column:reporting_configurations.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_configurations.quarantined": {
     "enabled": true,
     "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
@@ -166,6 +170,10 @@
   "column:reporting_consumer_statuses.observed_revision_content_sha256": {
     "enabled": true,
     "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:reporting_consumer_statuses.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
   },
   "column:reporting_consumer_statuses.period_end": {
     "enabled": true,
@@ -519,6 +527,10 @@
     "enabled": true,
     "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
   },
+  "column:reporting_obligations.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_obligations.package_ids": {
     "enabled": true,
     "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
@@ -670,6 +682,10 @@
   "column:reporting_reconciliation_records.namespace": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_reconciliation_records.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
   },
   "column:reporting_reconciliation_records.payload": {
     "enabled": true,
@@ -985,7 +1001,7 @@
   },
   "constraint:reporting_configurations.reporting_configurations_pkey": {
     "enabled": true,
-    "fingerprint": "cb0658b07aa5249a6934cca6248293967db4ab1a848d706c3d5310fa98f08785"
+    "fingerprint": "32ac40fcb53b3780f37f76b062d5a06465e786ee5007f31748b6c964b7b0d20f"
   },
   "constraint:reporting_consumer_statuses.reporting_consumer_statuses_pkey": {
     "enabled": true,
@@ -1151,10 +1167,6 @@
     "enabled": true,
     "fingerprint": "4d853add149814edf9eadd3f752bf43f1f7164cba2bd079f0349d4d540a7f20c"
   },
-  "constraint:reporting_reconciliation_records.reporting_reconciliation_reco_account_id_consumer_id_deliv_fkey": {
-    "enabled": true,
-    "fingerprint": "f7048f0b5f2303f298df7ee94bd56f6186581db3b90f20fe6de7e20cc101a296"
-  },
   "constraint:reporting_reconciliation_records.reporting_reconciliation_reco_account_id_consumer_id_names_fkey": {
     "enabled": true,
     "fingerprint": "cd64aa115b1b5e4c228fd2692533f86a726b6b22c0e712748cf07d8d7dddd328"
@@ -1174,6 +1186,10 @@
   "constraint:reporting_reconciliation_records.reporting_reconciliation_reco_account_id_reporting_revisio_fkey": {
     "enabled": true,
     "fingerprint": "6336638ff31659c0ea0a0fa6c67a7ed65e1b1bf792d17b5fbaec138fa6869c17"
+  },
+  "constraint:reporting_reconciliation_records.reporting_reconciliation_records_account_generation": {
+    "enabled": true,
+    "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
   },
   "constraint:reporting_reconciliation_records.reporting_reconciliation_records_attempt_number_check": {
     "enabled": true,
@@ -1202,6 +1218,10 @@
   "constraint:reporting_reconciliation_records.reporting_reconciliation_records_content_sha256_check": {
     "enabled": true,
     "fingerprint": "9640003b982e9fc0198392d3f62b9faca4c5f1d433b26bf9d986c82d26582133"
+  },
+  "constraint:reporting_reconciliation_records.reporting_reconciliation_records_generation_fkey": {
+    "enabled": true,
+    "fingerprint": "05e3c53d3b2a3593b3b9a62c1b15a274d72b63858790615edb160faa5cc80c53"
   },
   "constraint:reporting_reconciliation_records.reporting_reconciliation_records_payload_check": {
     "enabled": true,
@@ -1437,7 +1457,7 @@
   },
   "function:reporting_reconciliation_validate(r reporting_reconciliation_records)": {
     "enabled": true,
-    "fingerprint": "c4790a050f91451c7b7d5974c4513a8f9d2c5703c520604c4b87ba7aea443e8a"
+    "fingerprint": "7f041091b87305a1f802f091e6caaa4cb2eb235f03e97324bbfe04a792485161"
   },
   "function:reporting_sorted_strings(document jsonb)": {
     "enabled": true,
@@ -1485,7 +1505,7 @@
   },
   "index:reporting_configurations.reporting_configurations_pkey": {
     "enabled": true,
-    "fingerprint": "477da25b66a532603d65020ecb7cf334aacf0c68906c04d1c842036ea3c8db74"
+    "fingerprint": "eda08de76fe16b747ca7e52a358fffd02b32043f626933c7e9cfed8b59c3ab9e"
   },
   "index:reporting_consumer_statuses.reporting_consumer_statuses_chain_idx": {
     "enabled": true,
@@ -1577,7 +1597,7 @@
   },
   "index:reporting_obligations.reporting_obligations_period_key": {
     "enabled": true,
-    "fingerprint": "d21697e53fd171d1c462124684fe855a85d978e99ee015389600fddcb724f1df"
+    "fingerprint": "fd6c0095813ea82b1f3ebfaba85c1f90a528bbbd3207734069184bc4ebebdc9b"
   },
   "index:reporting_obligations.reporting_obligations_pkey": {
     "enabled": true,

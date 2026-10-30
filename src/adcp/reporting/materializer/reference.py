@@ -227,7 +227,13 @@ class _Session(ReportingDestinationSession):
                 )
             return existing.locator
         cap = request.verification_key.capability
-        prefix = request.external_id
+        # A reporting subscription's objects sit under its expanded
+        # path_template, below the collision-free attempt prefix.
+        prefix = (
+            f"{request.external_id}/{content.delivery_path}"
+            if content.delivery_path is not None
+            else request.external_id
+        )
         objects: tuple[tuple[str, bytes], ...] = ()
         manifest: bytes | None = None
         if cap.method == "file_transfer":
