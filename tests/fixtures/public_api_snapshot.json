@@ -8941,6 +8941,7 @@
   },
   "adcp_reporting_storage": {
     "resolves": {
+      "PgPrincipalRecordStore": "adcp_reporting_storage.subscriptions.pg",
       "PgReportingActivityUnionStore": "adcp_reporting_storage.outbox.status_activity_pg",
       "PgReportingFeedStore": "adcp_reporting_storage.feed.pg",
       "PgReportingLedgerStore": "adcp_reporting_storage.ledger.pg",
@@ -8957,6 +8958,7 @@
       "PgReportingStatusOutbox": "adcp_reporting_storage.outbox.status_pg",
       "PgReportingStatusProjection": "adcp_reporting_storage.projection.pg",
       "PgReportingSubmissionIntentStore": "adcp_reporting_storage.submissions.pg",
+      "PgReportingSubscriptionStateStore": "adcp_reporting_storage.subscriptions.pg",
       "PgStatusNotificationStore": "adcp_reporting_storage.outbox.status_pg",
       "ReportingChangeCursorExpiredError": "adcp_reporting_storage.ledger.change_feed",
       "ReportingChangeKindV1": "union[value:'adjustment',value:'obligation',value:'retirement',value:'revision']",

@@ -205,6 +205,12 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.submissions.pg import (
         PgReportingSubmissionIntentStore as PgReportingSubmissionIntentStore,
     )
+    from adcp_reporting_storage.subscriptions.pg import (
+        PgPrincipalRecordStore as PgPrincipalRecordStore,
+    )
+    from adcp_reporting_storage.subscriptions.pg import (
+        PgReportingSubscriptionStateStore as PgReportingSubscriptionStateStore,
+    )
 
 #: Public name -> (module under this package, attribute). Resolved on first use.
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
@@ -214,6 +220,11 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "PgReportingMaterializerStore": ("materializer.pg", "PgReportingMaterializerStore"),
     "PgReportingReceiptStore": ("receipts.pg", "PgReportingReceiptStore"),
     "PgReportingFeedStore": ("feed.pg", "PgReportingFeedStore"),
+    "PgPrincipalRecordStore": ("subscriptions.pg", "PgPrincipalRecordStore"),
+    "PgReportingSubscriptionStateStore": (
+        "subscriptions.pg",
+        "PgReportingSubscriptionStateStore",
+    ),
     "PgReportingProjectionStore": ("projection.pg", "PgReportingProjectionStore"),
     "PgReportingStatusProjection": ("projection.pg", "PgReportingStatusProjection"),
     "PgReportingProjectionOutbox": ("projection.notifications", "PgReportingProjectionOutbox"),
@@ -320,6 +331,7 @@ _LAZY_SUBMODULES = frozenset(
         "receipts",
         "service",
         "submissions",
+        "subscriptions",
     }
 )
 
