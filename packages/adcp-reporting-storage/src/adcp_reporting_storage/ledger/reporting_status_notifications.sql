@@ -34,8 +34,12 @@ BEGIN
         lease_expires_at TIMESTAMPTZ,
         PRIMARY KEY (account_id, consumer_namespace, delivery_config_id, version,
                      scope_kind, obligation_namespace),
-        FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version) REFERENCES reporting_configurations
-            (account_id, consumer_id, delivery_config_id, delivery_config_version),
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
+            CONSTRAINT reporting_status_scope_checkpoints_account_generation CHECK (offering_id = ''),
+        CONSTRAINT reporting_status_scope_checkpoints_generation_fkey
+            FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version, offering_id)
+            REFERENCES reporting_configurations
+            (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id),
         CHECK ((scope_kind = 'configuration') = (obligation_namespace = '')),
         CHECK ((lease_token IS NULL) = (lease_expires_at IS NULL)),
         CHECK ((scope->>'account_id') IS NOT DISTINCT FROM account_id),

@@ -16,7 +16,7 @@ import re
 import secrets
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 from typing import Any, Protocol, cast
@@ -38,6 +38,7 @@ from adcp.reporting.ledger.models import (
     ReportingDefinitionBinding,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 from adcp.reporting.ledger.producer import revision_content_sha256
 from adcp.reporting.ledger.store import LedgerConflictError, ReportingRowPage, revision_row_offset
@@ -107,9 +108,9 @@ def _verification_seal(value: ReportingVerifiedDestination) -> bytes:
     content = json.loads(
         json.dumps(
             [
-                asdict(value.request),
-                asdict(value.resource),
-                asdict(value.verification),
+                ledger_asdict(value.request),
+                ledger_asdict(value.resource),
+                ledger_asdict(value.verification),
                 getattr(value, "_materializer_fence", None),
             ],
             default=lambda at: at.isoformat(),

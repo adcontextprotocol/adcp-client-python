@@ -46,6 +46,37 @@ reuses an ID for a different logical period now raises
 account's obligation in memory. When filtering consumer statements by
 obligation IDs, the named obligations must exist in the requested account.
 
+## Reporting-subscription generations: the widened key (AdCP 3.3)
+
+Reporting subscriptions keep one generation per resolved offering of a
+subscription version, so the generation key gains `offering_id`:
+`(account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)`.
+`ReportingConfigurationGenerationKey.offering_id` is `None` for every
+account-level generation, and their digests, work keys and persisted scopes are
+unchanged.
+
+In PostgreSQL this is a **stopped-worker maintenance upgrade**:
+
+1. Stop every reporting worker. Workers of earlier releases refuse the widened
+   schema; mixed-version workers are unsupported.
+2. Run `create_schema()` (or your usual migration entry point) once with the new
+   release. Under the schema lock it widens the key in place and losslessly:
+   - `reporting_configurations` gains `offering_id` (`''` for existing rows),
+     and its primary key includes it;
+   - `reporting_obligations` gains `offering_id`, and its period unique index
+     includes it;
+   - `reporting_consumer_statuses` gains `offering_id`;
+   - the SDK's own references (reconciliation records, materializer discovery,
+     status scope checkpoints, production generations) are re-pointed at the
+     widened key. They hold account-level generations only, enforced by a
+     `CHECK`, until each feature serves subscriptions.
+3. Restart the workers on the new release.
+
+A foreign key outside the SDK that references `reporting_configurations`
+refuses the upgrade with a maintenance error, rather than being dropped.
+Re-point it at the widened key, then run the upgrade. The upgrade is
+idempotent; a fresh schema is created in the widened layout directly.
+
 ## Historical account-generation upgrade
 
 The following notes describe the pre-ownership SDK release and are retained for

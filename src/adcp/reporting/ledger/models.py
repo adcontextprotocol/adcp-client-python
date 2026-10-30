@@ -23,7 +23,7 @@ Four facts define the model:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
 from zoneinfo import ZoneInfo
@@ -337,6 +337,33 @@ class ReportingCaller(Protocol):
     def consumer_id(self) -> str: ...
 
 
+_GENERATION_KEY_FIELDS = frozenset(
+    {"account_id", "consumer_id", "delivery_config_id", "delivery_config_version", "offering_id"}
+)
+
+
+def _ledger_dict(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    if (
+        len(pairs) == len(_GENERATION_KEY_FIELDS)
+        and {name for name, _ in pairs} == _GENERATION_KEY_FIELDS
+        and dict(pairs)["offering_id"] is None
+    ):
+        return {name: value for name, value in pairs if name != "offering_id"}
+    return dict(pairs)
+
+
+def ledger_asdict(value: Any) -> dict[str, Any]:
+    """``dataclasses.asdict`` that keeps account-level generation keys byte-stable.
+
+    A generation key's ``offering_id`` is set only for a reporting
+    subscription's generation. Left unset it is omitted, so every digest,
+    work key and persisted scope derived from an account-level generation is
+    exactly what it was before subscriptions existed. Use this, never bare
+    ``asdict``, for any value that may contain a generation key.
+    """
+    return asdict(value, dict_factory=_ledger_dict)
+
+
 @dataclass(frozen=True)
 class ReportingConfigurationGenerationKey:
     """The caller/account-qualified identity of one accepted configuration generation.
@@ -350,10 +377,41 @@ class ReportingConfigurationGenerationKey:
     consumer_id: str
     delivery_config_id: str
     delivery_config_version: int
+    #: Set only for a principal-level reporting subscription's generation: one
+    #: generation per resolved offering of a subscription version, since
+    #: ``match: all`` and per-product resolution give one version several.
+    offering_id: str | None = None
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
         consumer_reference(self.consumer_id)
+
+
+@dataclass(frozen=True)
+class ReportingSubscriptionGeneration:
+    """Marks a configuration generation as a reporting subscription's owed set.
+
+    ``delivery_config_id`` is the ``subscription_id`` and
+    ``delivery_config_version`` the ``subscription_version``; the consumer is
+    the owning principal. The generation holds exactly the obligations the
+    subscription engine froze (an owed set). The ledger never fills a period
+    grid for it: its obligations are sparse by construction, because a
+    subscription owes only the periods its buys' flights and exceptions leave.
+    """
+
+    subscription_id: str
+    offering_id: str
+
+    def __post_init__(self) -> None:
+        if not self.subscription_id or not self.offering_id:
+            raise ValueError("subscription generations need subscription_id and offering_id")
+
+    def to_storage(self) -> dict[str, str]:
+        return {
+            "subscription_id": self.subscription_id,
+            "offering_id": self.offering_id,
+            "ownership": "owed_set",
+        }
 
 
 @dataclass(frozen=True)
@@ -390,10 +448,25 @@ class ReportingConfiguration:
     authoritative_party: Literal["seller", "consumer"] = "seller"
     # Maintenance imports are read-only; recovery requires a new generation.
     quarantined: bool = False
+    #: Set for a reporting subscription's generation (an owed set); see
+    #: :class:`ReportingSubscriptionGeneration`.
+    subscription: ReportingSubscriptionGeneration | None = None
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
         consumer_reference(self.consumer_id)
+        if (
+            self.subscription is not None
+            and self.subscription.subscription_id != self.delivery_config_id
+        ):
+            raise ValueError(
+                "a subscription generation's delivery_config_id is its subscription_id"
+            )
+
+    @property
+    def owed_set(self) -> bool:
+        """Whether the generation holds a subscription's sparse owed set."""
+        return self.subscription is not None
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
@@ -402,6 +475,7 @@ class ReportingConfiguration:
             consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
+            offering_id=None if self.subscription is None else self.subscription.offering_id,
         )
 
 
@@ -436,6 +510,9 @@ class ReportingObligationRecord:
     # None describes legacy evidence only. New writes must freeze a currency;
     # neither a restart nor a source response may fill an unknown historical one.
     currency: str | None = None
+    #: The resolved offering of a reporting subscription's obligation; ``None``
+    #: for account-level configurations. Authoritative for its timing.
+    offering_id: str | None = None
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
@@ -444,6 +521,7 @@ class ReportingObligationRecord:
             consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
+            offering_id=self.offering_id,
         )
 
     def __post_init__(self) -> None:
@@ -615,6 +693,9 @@ class ConsumerStatusRecord:
     seller_ledger_snapshot_id: str | None = None
     seller_ledger_as_of: datetime | None = None
     superseded: bool = False
+    #: A reporting subscription's resolved offering, set when ingest matched
+    #: the statement to an owed obligation. Not part of the chain key.
+    offering_id: str | None = None
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
@@ -627,6 +708,7 @@ class ConsumerStatusRecord:
             consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
+            offering_id=self.offering_id,
         )
 
     @property

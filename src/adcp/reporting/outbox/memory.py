@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import TYPE_CHECKING
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import aware_utc
+from adcp.reporting.ledger.models import ledger_asdict
 from adcp.reporting.ledger.notification_models import (
     DirtyReason,
     ReportingDomainEvent,
@@ -124,7 +125,7 @@ class NotificationState:
         cause_id = (
             evidence.record_id
             if evidence is not None
-            else hashlib.sha256(canonical_json_utf8_v1(asdict(scope))).hexdigest()
+            else hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(scope))).hexdigest()
         )
         generation = (
             sum(
