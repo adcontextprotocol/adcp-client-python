@@ -14,7 +14,7 @@ import json
 import logging
 import re
 import socket
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,7 +34,11 @@ from adcp.exceptions import (
     AdagentsValidationError,
 )
 from adcp.signing._strict_json import parse_strict_json
-from adcp.signing.etld import registrable_domain, same_registrable_domain
+from adcp.signing.etld import (
+    registrable_domain,
+    same_development_brand_domain,
+    same_registrable_domain,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
@@ -614,6 +618,120 @@ def identifiers_match(
                     return True
 
     return False
+
+
+def _publisher_attribution_domain(domain: object) -> str:
+    """Canonical hostname for publisher attribution, including the www alias."""
+    from adcp.identifiers import IdentifierValidationError, validate_publisher_domain
+
+    if not isinstance(domain, str):
+        raise AdagentsValidationError("Invalid publisher domain for property attribution")
+    try:
+        canonical = validate_publisher_domain(domain)
+    except IdentifierValidationError as exc:
+        raise AdagentsValidationError("Invalid publisher domain for property attribution") from exc
+    if canonical.startswith("www."):
+        alias = canonical.removeprefix("www.")
+        if same_registrable_domain(canonical, alias) or same_development_brand_domain(
+            canonical, alias
+        ):
+            return alias
+    return canonical
+
+
+def _domain_is_under_publisher(domain: object, publisher_domain: str) -> bool:
+    from adcp.identifiers import IdentifierValidationError, validate_publisher_domain
+
+    if not isinstance(domain, str):
+        return False
+    try:
+        domain = validate_publisher_domain(domain)
+    except IdentifierValidationError:
+        return False
+    return domain_matches(domain, publisher_domain) or domain_matches(
+        domain, f"*.{publisher_domain}"
+    )
+
+
+def _property_domain_identifiers(
+    prop: dict[str, Any], *, include_subdomains: bool = False
+) -> list[dict[str, Any]]:
+    identifiers = prop.get("identifiers")
+    if not isinstance(identifiers, list):
+        return []
+    domain_types = {"domain", "subdomain"} if include_subdomains else {"domain"}
+    return [
+        i
+        for i in identifiers
+        if isinstance(i, dict) and isinstance(i.get("type"), str) and i["type"] in domain_types
+    ]
+
+
+def _property_identity_identifier(identifier: Any) -> dict[str, str] | None:
+    """Canonicalize domain identities while preserving opaque identifier values."""
+    from adcp.identifiers import IdentifierValidationError, normalize_domain
+
+    if (
+        not isinstance(identifier, dict)
+        or not isinstance(identifier.get("type"), str)
+        or not isinstance(identifier.get("value"), str)
+        or not identifier["value"]
+    ):
+        return None
+    kind, value = identifier["type"], identifier["value"]
+    if kind in {"domain", "subdomain"}:
+        try:
+            value = normalize_domain(value, allow_wildcard=kind == "domain").value
+        except IdentifierValidationError:
+            return None
+    return {"type": kind, "value": value}
+
+
+def _domain_identifier_is_under_publisher(identifier: dict[str, Any], domain: str) -> bool:
+    normalized = _property_identity_identifier(identifier)
+    return normalized is not None and _domain_is_under_publisher(
+        normalized["value"].removeprefix("*."), domain
+    )
+
+
+def properties_for_publisher_domain(
+    properties: list[dict[str, Any]],
+    publisher_domain: str,
+    *,
+    include_unattributed: bool = True,
+) -> list[dict[str, Any]]:
+    """Attribute already-resolved properties to a publisher without network I/O.
+
+    An explicit ``publisher_domain`` takes precedence and must name the same
+    publisher (case, trailing dots and a leading ``www.`` are normalized).
+    Otherwise, a domain or subdomain identifier must name the publisher or any subdomain,
+    using :func:`domain_matches`. Properties without either kind of domain,
+    such as bundle-only apps, are kept unless ``include_unattributed=False``.
+    Invalid domain claims are excluded rather than treated as unattributed.
+
+    Returns the original property objects in input order without mutation.
+    This is attribution of trusted claims, not proof of authorization; use
+    :func:`verify_cross_domain_properties` to verify cross-domain claims.
+
+    Raises AdagentsValidationError if ``publisher_domain`` is not a hostname.
+    """
+    domain = _publisher_attribution_domain(publisher_domain)
+    selected: list[dict[str, Any]] = []
+    for prop in properties:
+        if "publisher_domain" in prop:
+            try:
+                if _publisher_attribution_domain(prop["publisher_domain"]) == domain:
+                    selected.append(prop)
+            except AdagentsValidationError:
+                # An invalid explicit publisher claim cannot fall back to identifiers.
+                logger.debug("Skipping property with invalid publisher_domain")
+            continue
+        domain_ids = _property_domain_identifiers(prop, include_subdomains=True)
+        if any(_domain_identifier_is_under_publisher(i, domain) for i in domain_ids) or (
+            not domain_ids and include_unattributed
+        ):
+            selected.append(prop)
+    return selected
 
 
 def verify_agent_authorization(
@@ -2099,6 +2217,7 @@ def resolve_properties_for_agent(
     agent_url: str,
     *,
     mode: PropertyResolutionMode = "strict",
+    publisher_domain: str | None = None,
 ) -> list[dict[str, Any]]:
     """Resolve properties for an agent with an explicit strict/permissive mode.
 
@@ -2115,11 +2234,18 @@ def resolve_properties_for_agent(
     explicit or unknown selector field, or has multiple same-URL entries, the
     resolver still returns the strict result.
 
+    ``publisher_domain`` gates only bare-entry fallback: a property must have
+    a domain identifier naming that publisher or a subdomain. Self-declared
+    ``publisher_domain`` values cannot satisfy the gate; apps and venues with
+    no matching domain identifier are excluded. Typed selectors are unchanged.
+
     Args:
         adagents_data: Parsed adagents.json data
         agent_url: URL of the agent to filter by
         mode: ``"strict"`` for spec-conformant resolution, ``"permissive"``
             to opt into bare-entry top-level property fallback.
+        publisher_domain: Optional hostname attested by the caller's fetch
+            origin, used to restrict permissive bare-entry fallback.
 
     Returns:
         List of properties for the specified agent.
@@ -2128,19 +2254,17 @@ def resolve_properties_for_agent(
         AdagentsValidationError: If adagents_data is malformed
         ValueError: If mode is not ``"strict"`` or ``"permissive"``
     """
-    if mode == "strict":
-        return _resolve_properties_for_agent(
-            adagents_data,
-            agent_url,
-            permissive_bare_top_level=False,
-        )
-    if mode == "permissive":
-        return _resolve_properties_for_agent(
-            adagents_data,
-            agent_url,
-            permissive_bare_top_level=True,
-        )
-    raise ValueError("mode must be 'strict' or 'permissive'")
+    if mode not in {"strict", "permissive"}:
+        raise ValueError("mode must be 'strict' or 'permissive'")
+    domain = (
+        _publisher_attribution_domain(publisher_domain) if publisher_domain is not None else None
+    )
+    return _resolve_properties_for_agent(
+        adagents_data,
+        agent_url,
+        permissive_bare_top_level=mode == "permissive",
+        publisher_domain=domain,
+    )
 
 
 def _resolve_properties_for_agent(
@@ -2148,6 +2272,7 @@ def _resolve_properties_for_agent(
     agent_url: str,
     *,
     permissive_bare_top_level: bool,
+    publisher_domain: str | None = None,
 ) -> list[dict[str, Any]]:
     """Implementation shared by strict and opt-in permissive property resolution."""
     matches = find_authorized_agent_entries(adagents_data, agent_url)
@@ -2185,9 +2310,152 @@ def _resolve_properties_for_agent(
         and len(matches) == 1
         and _is_bare_authorized_agent_entry(matches[0])
     ):
-        return [p for p in revoked_top_level if isinstance(p, dict)]
+        return [
+            p
+            for p in revoked_top_level
+            if isinstance(p, dict)
+            and (
+                publisher_domain is None
+                or any(
+                    _domain_identifier_is_under_publisher(i, publisher_domain)
+                    for i in _property_domain_identifiers(p)
+                )
+            )
+        ]
 
     return []
+
+
+def _same_authorized_property(claim: dict[str, Any], authorized: dict[str, Any]) -> bool:
+    """Compare inventory identity without trusting file-local IDs over identifiers."""
+    if claim.get("property_type") != authorized.get("property_type"):
+        return False
+    identifiers = claim.get("identifiers")
+    if identifiers is not None and not isinstance(identifiers, list):
+        return False
+    if isinstance(identifiers, list) and identifiers:
+        authorized_ids = authorized.get("identifiers")
+        if not isinstance(authorized_ids, list):
+            return False
+        valid_ids = [
+            normalized
+            for i in authorized_ids
+            if (normalized := _property_identity_identifier(i)) is not None
+        ]
+        return all(
+            (normalized := _property_identity_identifier(i)) is not None
+            and identifiers_match([normalized], valid_ids)
+            for i in identifiers
+        )
+    property_id = claim.get("property_id")
+    return (
+        isinstance(property_id, str)
+        and bool(property_id)
+        and property_id == authorized.get("property_id")
+    )
+
+
+async def verify_cross_domain_properties(
+    properties: list[dict[str, Any]],
+    publisher_domain: str,
+    agent_url: str,
+    *,
+    fetcher: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """Return the subset of resolved properties vouched for by their domains.
+
+    ``publisher_domain`` is the trusted origin of the source manifest, not a
+    value read from that manifest. First resolve its agent selectors with
+    :func:`get_properties_by_agent` or :func:`resolve_properties_for_agent`.
+
+    Every external ``publisher_domain``, domain or subdomain identifier must
+    authorize the same inventory for ``agent_url`` in strict resolution. Domain
+    identifiers take precedence over file-local property IDs when comparing
+    inventory. Inventory with no identifiers uses its publisher anchor and
+    property ID. Remote authorizations must be attributable to the checked
+    domain; unanchored apps in a shared manager file cannot vouch for it.
+    Local properties (including subdomains) and unanchored non-domain inventory
+    pass through; the latter cannot be verified by this helper.
+
+    The default fetcher is :func:`fetch_adagents`, including its SSRF gates,
+    ``authoritative_location`` following and ads.txt MANAGERDOMAIN discovery.
+    Delegated manifests must still authorize the particular property; merely
+    listing an agent or delegating to a manager is insufficient. A custom async
+    ``fetcher(domain)`` must provide the same secure discovery semantics.
+
+    Each external domain is fetched once per call, sequentially. Missing,
+    invalid, revoked or unavailable authorizations are excluded, with failures
+    logged at debug level. No recursive property verification is performed.
+    Returns original objects in input order without mutation.
+    """
+    source = _publisher_attribution_domain(publisher_domain)
+    fetch = fetcher if fetcher is not None else fetch_adagents
+    authorizations: dict[str, list[dict[str, Any]]] = {}
+    verified: list[dict[str, Any]] = []
+
+    for prop in properties:
+        try:
+            anchor = (
+                _publisher_attribution_domain(prop["publisher_domain"])
+                if "publisher_domain" in prop
+                else None
+            )
+            domains = [anchor] if anchor is not None else []
+            for identifier in _property_domain_identifiers(prop, include_subdomains=True):
+                normalized = _property_identity_identifier(identifier)
+                if normalized is None:
+                    raise AdagentsValidationError("Invalid property domain identifier")
+                domain = _publisher_attribution_domain(normalized["value"].removeprefix("*."))
+                if domain not in domains:
+                    domains.append(domain)
+        except AdagentsValidationError:
+            continue
+
+        for domain in domains:
+            if _domain_is_under_publisher(domain, source):
+                continue
+            # The anchor is checked first. Its verified authorization covers
+            # its own subdomains, matching the source-domain trust boundary.
+            if (
+                anchor is not None
+                and domain != anchor
+                and _domain_is_under_publisher(domain, anchor)
+            ):
+                continue
+            if domain not in authorizations:
+                try:
+                    data = await fetch(domain)
+                    revoked = {
+                        _publisher_attribution_domain(d)
+                        for d in _get_revoked_publisher_domains(data)
+                    }
+                    try:
+                        candidates = get_properties_by_agent(data, agent_url)
+                    except (TypeError, ValueError) as exc:
+                        raise AdagentsValidationError(
+                            "Malformed remote property authorization"
+                        ) from exc
+                    authorizations[domain] = (
+                        []
+                        if domain in revoked
+                        else properties_for_publisher_domain(
+                            candidates, domain, include_unattributed=False
+                        )
+                    )
+                except (
+                    AdagentsNotFoundError,
+                    AdagentsValidationError,
+                    AdagentsTimeoutError,
+                    httpx.HTTPError,
+                    OSError,
+                ) as exc:
+                    logger.debug("Cross-domain authorization failed for %s: %s", domain, exc)
+                    authorizations[domain] = []
+            if not any(_same_authorized_property(prop, p) for p in authorizations[domain]):
+                break
+        else:
+            verified.append(prop)
+    return verified
 
 
 def _reference_renderer_catalog_errors(

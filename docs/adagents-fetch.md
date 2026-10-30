@@ -10,9 +10,15 @@ from adcp import fetch_adagents, validate_adagents_structure, resolve_properties
 async def inspect_publisher(domain: str, agent_url: str):
     document = await fetch_adagents(domain, validate_structure=False)
     report = validate_adagents_structure(document)
-    properties = resolve_properties_for_agent(document, agent_url, mode="permissive")
+    properties = resolve_properties_for_agent(
+        document, agent_url, mode="permissive", publisher_domain=domain
+    )
     return report, properties
 ```
+
+The domain gate restricts bare-entry fallback to properties with a matching
+domain identifier. See [publisher agent discovery](adagents-discovery.md) for
+publisher attribution and cross-domain verification.
 
 The opt-out preserves JSON-object and endpoint checks, authorization-array shape,
 renderer catalog trust checks, URL/DNS SSRF gates, response size caps, and redirect
