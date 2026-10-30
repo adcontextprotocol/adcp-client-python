@@ -24,6 +24,17 @@ def _service(authorize) -> ReportingMaterializerService:
     return service
 
 
+def _context(seconds: float = 30):
+    import asyncio
+    from datetime import datetime, timedelta, timezone
+
+    from adcp.reporting.materializer.contracts import ReportingIOContext
+
+    return ReportingIOContext(
+        datetime.now(timezone.utc) + timedelta(seconds=seconds), asyncio.Event(), None
+    )
+
+
 def _target(offering_id: str | None):
     key = ReportingConfigurationGenerationKey(
         ACCOUNT, AGENCY.subject, "analytics-hourly", 1, offering_id
@@ -39,7 +50,9 @@ async def test_account_generations_never_consult_the_subscription_authority() ->
         calls.append((subject, account_id))
         return False
 
-    await _service(authorize)._require_subscription_authority(_target(None), effect="not_started")
+    await _service(authorize)._require_subscription_authority(
+        _target(None), context=_context(), effect="not_started"
+    )
     assert calls == []
 
 
@@ -52,7 +65,7 @@ async def test_a_lost_grant_holds_the_attempt_under_the_same_identity(effect: st
 
     with pytest.raises(ReportingWriterError) as held:
         await _service(authorize)._require_subscription_authority(
-            _target("GAM_SNAPSHOT_V1"), effect=effect  # type: ignore[arg-type]
+            _target("GAM_SNAPSHOT_V1"), context=_context(), effect=effect  # type: ignore[arg-type]
         )
     failure = held.value.failure
     assert (failure.code, failure.retry, failure.effect, failure.retry_after_seconds) == (
@@ -69,7 +82,25 @@ async def test_a_current_grant_delivers() -> None:
         return True
 
     await _service(authorize)._require_subscription_authority(
-        _target("GAM_SNAPSHOT_V1"), effect="not_started"
+        _target("GAM_SNAPSHOT_V1"), context=_context(), effect="not_started"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_hung_hook_is_bounded_by_the_attempt_deadline() -> None:
+    import asyncio
+
+    async def authorize(subject: str, account_id: str) -> bool:
+        await asyncio.sleep(30)
+        return True
+
+    with pytest.raises(ReportingWriterError) as held:
+        await _service(authorize)._require_subscription_authority(
+            _target("GAM_SNAPSHOT_V1"), context=_context(0.2), effect="not_started"
+        )
+    assert (held.value.failure.code, held.value.failure.retry) == (
+        "DEADLINE_EXCEEDED",
+        "same_identity",
     )
 
 

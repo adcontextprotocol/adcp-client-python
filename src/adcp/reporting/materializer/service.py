@@ -89,7 +89,8 @@ class ReportingMaterializerService:
     #: Re-checks a reporting subscription's authority at each delivery attempt
     #: (AdCP 3.3: no new data after a loss of authority, checked at each
     #: attempt including retries). Called with (owning principal, account_id)
-    #: before preparing, before writing and after writing. A loss holds the
+    #: before preparing, before writing and after writing, each bounded by the
+    #: attempt's I/O deadline (``io_timeout_seconds``). A loss holds the
     #: materialization: it stays pending under the same identity and is
     #: retried after ``authority_hold_seconds``; it is never failed.
     authorize_subscription_delivery: SubscriptionDeliveryAuthority | None = field(
@@ -110,12 +111,18 @@ class ReportingMaterializerService:
             raise ValueError("the authority hold requires 1..300 seconds")
 
     async def _require_subscription_authority(
-        self, target: Any, *, effect: ReportingExternalEffect
+        self, target: Any, *, context: ReportingIOContext, effect: ReportingExternalEffect
     ) -> None:
         key = target.binding.generation_key
-        if key.offering_id is None or self.authorize_subscription_delivery is None:
+        authorize = self.authorize_subscription_delivery
+        if key.offering_id is None or authorize is None:
             return  # account-level generations follow the destination authority only
-        allowed = await self.authorize_subscription_delivery(key.consumer_id, key.account_id)
+        # Bounded by the attempt's I/O deadline and cancellation, like every
+        # destination call: a hung hook becomes DEADLINE_EXCEEDED under the
+        # same identity (held), never a lease renewed forever.
+        allowed = await context.run(
+            lambda: authorize(key.consumer_id, key.account_id), effect=effect
+        )
         if allowed is not True:
             raise ReportingWriterError(
                 ReportingWriterFailure(
@@ -154,7 +161,9 @@ class ReportingMaterializerService:
             try:
                 await self.store.authorize_materialization(reserved)
                 target = reserved.context
-                await self._require_subscription_authority(target, effect="not_started")
+                await self._require_subscription_authority(
+                    target, context=context, effect="not_started"
+                )
                 if target.delivery is None:
                     raise failure("BINDING_MISMATCH")
                 prepared = await self.io.registry.prepare(
@@ -168,12 +177,16 @@ class ReportingMaterializerService:
                     context=context,
                 )
                 await self.store.authorize_materialization(reserved)
-                await self._require_subscription_authority(target, effect="not_started")
+                await self._require_subscription_authority(
+                    target, context=context, effect="not_started"
+                )
                 locator = await self.io.write(prepared, context=context)
                 await self.store.authorize_materialization(reserved)
                 # The bytes may be written; a loss now re-delivers under the
                 # same identity after a re-grant.
-                await self._require_subscription_authority(target, effect="unknown")
+                await self._require_subscription_authority(
+                    target, context=context, effect="unknown"
+                )
                 verified = await self.io.verify(prepared, locator, context=context)
                 turn = await self.store.finish_materialization(
                     reserved, prepared=prepared, verified=verified
