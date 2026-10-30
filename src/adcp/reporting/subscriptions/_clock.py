@@ -87,6 +87,17 @@ class CoverageInputError(ADCPError, ValueError):
             else "COVERAGE_INPUT_INVALID"
         )
 
+    @classmethod
+    def budget_exceeded(cls, budget: str, message: str) -> CoverageInputError:
+        """``COVERAGE_BUDGET_EXCEEDED``: ``budget`` is ``max_periods`` or ``max_iterations``."""
+        if budget not in {"max_periods", "max_iterations"}:
+            raise AssertionError(f"unknown coverage budget {budget!r}")
+        error = cls.__new__(cls)
+        super(CoverageInputError, error).__init__(message)
+        error.detail = budget
+        error.code = "COVERAGE_BUDGET_EXCEEDED"
+        return error
+
 
 _DURATION = re.compile(r"P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
 _SLA = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
