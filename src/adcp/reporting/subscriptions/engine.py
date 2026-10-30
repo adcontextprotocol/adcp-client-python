@@ -1277,7 +1277,14 @@ class ReportingSubscriptionEngine:
         """Whether some owed period of the account is still within status retention."""
         try:
             periods = self._owed(principal, state, account_id, account, buys, destinations, now)
-        except Exception:  # noqa: BLE001 - an unevaluable account keeps its entry
+        except Exception as error:  # noqa: BLE001 - an unevaluable account keeps its entry
+            # Fail open: keep the entry rather than drop a subscription the
+            # buyer may still be owed, and say so.
+            logger.warning(
+                "reporting subscription %s retention could not be evaluated for an account: %s",
+                state.get("subscription_id"),
+                type(error).__name__,
+            )
             return True
         horizon = now - self._retention
         return any(
