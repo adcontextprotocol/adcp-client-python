@@ -351,6 +351,7 @@ def _roster_unavailable(principal: PrincipalRef, cause: str) -> ReliableReportin
         f"under its identity ({cause}); reporting subscriptions never read that as an empty "
         "roster. Supply SubscriptionOptions.accounts to list them another way.",
         code="SUBSCRIPTION_ROSTER_UNAVAILABLE",
+        config_field="SubscriptionOptions.accounts",
     )
 
 
@@ -601,6 +602,7 @@ class ManagedSubscriptions:
                 "none is registered. Register each source with capability_offerings, publishing "
                 "standard_dimensions on every offering.",
                 code="SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
+                config_field="capability_offerings",
             )
         mapped: list[SubscriptionOffering] = []
         for offering in offerings:
@@ -614,6 +616,7 @@ class ManagedSubscriptions:
                     "standard_dimensions (empty for totals only) in its capability_offerings "
                     "entry.",
                     code="SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
+                    config_field="capability_offerings",
                 )
             try:
                 mapped.append(SubscriptionOffering.from_offering(offering))
@@ -644,6 +647,7 @@ class ManagedSubscriptions:
                 "and this platform does not serve list_accounts. Implement list_accounts (a "
                 "decisioning platform's accounts.list), or supply SubscriptionOptions.accounts.",
                 code="SUBSCRIPTION_ROSTER_UNAVAILABLE",
+                config_field="SubscriptionOptions.accounts",
             )
         if self.options.buys is None and not self._platform.decisioning:
             from adcp.server import ADCPHandler
@@ -912,6 +916,7 @@ class ManagedSubscriptions:
                     f"account {account_id!r} has no IANA timezone, and coverage never "
                     "substitutes one. Serve timezone on every account list_accounts returns.",
                     code="SUBSCRIPTION_ROSTER_UNAVAILABLE",
+                    config_field="SubscriptionOptions.accounts",
                 )
             authorization = account.get("authorization")
             tasks = None
