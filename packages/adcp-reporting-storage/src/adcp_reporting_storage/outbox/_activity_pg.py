@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from dataclasses import asdict
 from datetime import datetime
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any
 
+from adcp.reporting.ledger.models import ledger_asdict
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.outbox.activity import (
     ActivityOutcome,
@@ -150,7 +150,7 @@ class _PgReportingActivity:
                 b.consumer_namespace,
                 lease.token,
                 reservation,
-                json.dumps(asdict(b)),
+                json.dumps(ledger_asdict(b)),
                 at,
                 request.url,
                 request.payload_size_bytes,
@@ -222,7 +222,7 @@ class _PgReportingActivity:
                     attempt.request.url,
                     attempt.request.payload_size_bytes,
                     attempt.lease_token,
-                    json.dumps(asdict(b)),
+                    json.dumps(ledger_asdict(b)),
                 ),
             )
             return bool(cursor.rowcount)

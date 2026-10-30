@@ -14,7 +14,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from types import TracebackType
 from typing import Any, Literal, Protocol, TypeVar
@@ -47,6 +47,7 @@ from adcp.reporting.ledger.models import (
     ReportingDefinitionBinding,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 
 ReportingIOPhase = Literal["write", "readback"]
@@ -203,7 +204,7 @@ class ReportingVerificationKey(_ClosedValue):
 
 
 def binding_fingerprint(binding: ReportingDestinationBinding) -> str:
-    value = asdict(binding)
+    value = ledger_asdict(binding)
     value["created_at"] = binding.created_at.isoformat()
     return hashlib.sha256(canonical_json_utf8_v1(value)).hexdigest()
 
@@ -276,7 +277,7 @@ class ReportingDestinationRequest(_ClosedValue):
     @property
     def external_id(self) -> str:
         """Stable across pending retries; isolated across tenants and revision attempts."""
-        return "rwm_" + hashlib.sha256(canonical_json_utf8_v1(asdict(self))).hexdigest()
+        return "rwm_" + hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(self))).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

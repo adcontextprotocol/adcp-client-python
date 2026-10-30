@@ -7,7 +7,7 @@ import hashlib
 import json
 import secrets
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import principal_reference, reporting_identifier
+from adcp.reporting.ledger.models import ledger_asdict
 from adcp.reporting.ledger.notification_models import (
     ReportingDomainEvent,
     ReportingNotificationError,
@@ -132,7 +133,7 @@ class ReportingNotificationSubscription:
 
     @property
     def fingerprint(self) -> str:
-        return hashlib.sha256(canonical_json_utf8_v1(asdict(self))).hexdigest()
+        return hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(self))).hexdigest()
 
     def matches(self, event: ReportingDomainEvent) -> bool:
         return (
@@ -212,7 +213,7 @@ def _decode_subscription(value: Any) -> ReportingNotificationSubscription:
     if auth is not None:
         candidate["authentication"] = ReportingLegacyAuthentication(**auth)
     subscription = ReportingNotificationSubscription(**candidate)
-    normalized = json.loads(canonical_json_utf8_v1(asdict(subscription)))
+    normalized = json.loads(canonical_json_utf8_v1(ledger_asdict(subscription)))
     if normalized != value:
         raise ReportingNotificationError("integrity_failure")
     return subscription
@@ -243,7 +244,9 @@ class ReportingEnvelopeCipher:
 
     @staticmethod
     def _aad(binding: DeliveryBinding) -> bytes:
-        return canonical_json_utf8_v1({"purpose": "adcp.reporting.delivery", **asdict(binding)})
+        return canonical_json_utf8_v1(
+            {"purpose": "adcp.reporting.delivery", **ledger_asdict(binding)}
+        )
 
     def prepare(
         self,
@@ -282,7 +285,7 @@ class ReportingEnvelopeCipher:
         )
         plaintext = canonical_json_utf8_v1(
             {
-                "subscription": asdict(subscription),
+                "subscription": ledger_asdict(subscription),
                 "event": event_storage(event),
                 "body": base64.b64encode(body).decode("ascii"),
             }

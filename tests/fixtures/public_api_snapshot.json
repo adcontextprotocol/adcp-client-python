@@ -898,6 +898,8 @@
       "ReportingStatusParticipant": "adcp.reporting.ledger.status_snapshot",
       "ReportingStatusSnapshot": "adcp.reporting.ledger.status_projection",
       "ReportingStatusView": "union[value:'periods',value:'revision',value:'summary']",
+      "ReportingSubscriptionGeneration": "adcp.reporting.ledger.models",
+      "ReportingSubscriptionLedger": "adcp.reporting.ledger.store",
       "ReportingVerificationRecord": "adcp.reporting.ledger.delivery_models",
       "ReportingWorkerRetryPolicy": "adcp.reporting.ledger.store",
       "RestatementCheckpoint": "adcp.reporting.ledger.store",
