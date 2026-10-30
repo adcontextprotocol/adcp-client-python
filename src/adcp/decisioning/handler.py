@@ -186,6 +186,7 @@ from adcp.types import (
     GetMediaBuysResponse,
     GetPlanAuditLogsRequest,
     GetPlanAuditLogsResponse,
+    GetPrincipalRequest,
     GetProductsRequest,
     GetProductsResponse,
     GetPropertyListRequest,
@@ -227,6 +228,7 @@ from adcp.types import (
     SyncCreativesSuccessResponse,
     SyncPlansRequest,
     SyncPlansResponse,
+    SyncPrincipalRequest,
     SyncReportingReceiptsRequest,
     SyncReportingStatusRequest,
     UpdateCollectionListRequest,
@@ -3093,14 +3095,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             name, lambda: getattr(reporting, name)(params, tool_ctx), decisioning=True
         )
 
-    async def get_principal(
-        self, params: Any, context: ToolContext | None = None
+    async def get_principal(  # type: ignore[override]
+        self, params: GetPrincipalRequest, context: ToolContext | None = None
     ) -> Any:
         """Served by an installed ``ReliableReportingService(subscriptions=...)``."""
         return await self._invoke_principal_method("get_principal", params, context)
 
-    async def sync_principal(
-        self, params: Any, context: ToolContext | None = None
+    async def sync_principal(  # type: ignore[override]
+        self, params: SyncPrincipalRequest, context: ToolContext | None = None
     ) -> Any:
         """Served by an installed ``ReliableReportingService(subscriptions=...)``."""
         return await self._invoke_principal_method("sync_principal", params, context)
