@@ -191,6 +191,17 @@ class ReportingSubscriptionPrecedenceHost(Protocol):
     ) -> Sequence[AccountDeliveryConfig]: ...
 
 
+@dataclass(frozen=True)
+class GrantObservation:
+    """One account's grant as a served ``list_accounts``/``sync_accounts`` showed it."""
+
+    account_id: str
+    allowed_tasks: Collection[str] | None
+    authorized_at: datetime | None = None
+    timezone: str | None = None
+    operator: str | None = None
+
+
 class AccountConfigsEnder(Protocol):
     """Ends the caller's own account-level configurations for ``replace_account_configs``.
 
@@ -801,28 +812,60 @@ class ReportingSubscriptionEngine:
         backwards. Absence from a response never revokes: responses are paged
         and filtered. Returns the chain start to serve, or ``None``.
         """
+        observed = await self.observe_grants(
+            principal,
+            [GrantObservation(account_id, allowed_tasks, authorized_at, timezone, operator)],
+            at=at,
+        )
+        return observed.get(account_id)
+
+    async def observe_grants(
+        self,
+        principal: PrincipalLike,
+        observations: Sequence[GrantObservation],
+        *,
+        at: datetime | None = None,
+    ) -> dict[str, datetime | None]:
+        """:meth:`observe_grant` for a whole response page, in one state write.
+
+        Returns ``account_id`` -> the chain start to serve (``None`` without a
+        grant). One load and at most one compare-and-swap per call.
+        """
         instant = self._now(at)
-        tasks = None if allowed_tasks is None else frozenset(str(item) for item in allowed_tasks)
-        covered = _covers(tasks)
-        reported = None if authorized_at is None else utc_instant(authorized_at)
-        if timezone is not None:
-            require_zone(timezone, field="timezone")
+        prepared = []
+        for item in observations:
+            tasks = (
+                None
+                if item.allowed_tasks is None
+                else frozenset(str(task) for task in item.allowed_tasks)
+            )
+            if item.timezone is not None:
+                require_zone(item.timezone, field="timezone")
+            reported = None if item.authorized_at is None else utc_instant(item.authorized_at)
+            prepared.append((item, tasks, _covers(tasks), reported))
 
-        def change(state: _PrincipalState) -> datetime | None:
-            account = state.accounts.get(account_id)
-            if account is None:
-                if not covered:
-                    return None
-                account = state.accounts[account_id] = _Account(
-                    timezone=timezone, operator=operator
+        def change(state: _PrincipalState) -> dict[str, datetime | None]:
+            served: dict[str, datetime | None] = {}
+            for item, tasks, covered, reported in prepared:
+                account = state.accounts.get(item.account_id)
+                if account is None:
+                    if not covered:
+                        served[item.account_id] = None
+                        continue
+                    account = _Account(timezone=item.timezone, operator=item.operator)
+                    state.accounts[item.account_id] = account
+                self._observe(
+                    account, covered=covered, reported=reported, at=instant, source="listed"
                 )
-            self._observe(account, covered=covered, reported=reported, at=instant, source="listed")
-            account.allowed_tasks = tasks if covered else None
-            account.set_timezone(timezone, instant)
-            if operator is not None:
-                account.operator = operator
-            return self._chain_start(account)
+                account.allowed_tasks = tasks if covered else None
+                account.set_timezone(item.timezone, instant)
+                if item.operator is not None:
+                    account.operator = item.operator
+                served[item.account_id] = self._chain_start(account)
+            return served
 
+        if not prepared:
+            return {}
         return await self._mutate(principal.subject, change, now=instant)
 
     async def refresh(self, principal: PrincipalLike, *, now: datetime | None = None) -> None:
@@ -2030,6 +2073,7 @@ def _destination_for(
 
 
 __all__ = [
+    "GrantObservation",
     "AccountDeliveryConfig",
     "AuthorizedAccount",
     "AuthorizedAccountPage",

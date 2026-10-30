@@ -1011,38 +1011,46 @@ class ManagedSubscriptions:
             principal = await self.resolve(None, context)
             if not await self._subscribed(principal):
                 return response
-            accounts: list[Any] = []
-            for raw in payload["accounts"]:
-                accounts.append(await self._project_account(principal, raw))
+            accounts = await self._project_page(principal, list(payload["accounts"]))
         except Exception:  # noqa: BLE001 - the projection never fails the read
             logger.exception("reporting subscription authorized_at projection failed")
             return response
         return {**payload, "accounts": accounts}
 
-    async def _project_account(self, principal: PrincipalRef, raw: Any) -> Any:
+    async def _project_page(self, principal: PrincipalRef, page: list[Any]) -> list[Any]:
+        """Observe every shown grant in one journal write, then serve its ``authorized_at``."""
         from adcp.reporting.subscriptions._clock import iso_z
+        from adcp.reporting.subscriptions.engine import GrantObservation
 
-        if not isinstance(raw, Mapping):
-            return raw
-        authorization = raw.get("authorization")
-        account_id = raw.get("account_id")
-        if (
-            not account_id
-            or not isinstance(authorization, Mapping)
-            or authorization.get("allowed_tasks") is None
-        ):
-            return raw
-        start = await self.engine.observe_grant(
-            principal,
-            str(account_id),
-            allowed_tasks=[str(item) for item in authorization["allowed_tasks"]],
-            authorized_at=_instant(authorization.get("authorized_at")),
-            timezone=raw.get("timezone") or None,
-            operator=raw.get("operator"),
-        )
-        if start is None:
-            return raw
-        return {**raw, "authorization": {**authorization, "authorized_at": iso_z(start)}}
+        observations: list[GrantObservation] = []
+        for raw in page:
+            authorization = raw.get("authorization") if isinstance(raw, Mapping) else None
+            if (
+                isinstance(raw, Mapping)
+                and raw.get("account_id")
+                and isinstance(authorization, Mapping)
+                and authorization.get("allowed_tasks") is not None
+            ):
+                observations.append(
+                    GrantObservation(
+                        str(raw["account_id"]),
+                        [str(item) for item in authorization["allowed_tasks"]],
+                        _instant(authorization.get("authorized_at")),
+                        raw.get("timezone") or None,
+                        raw.get("operator"),
+                    )
+                )
+        served = await self.engine.observe_grants(principal, observations)
+        projected: list[Any] = []
+        for raw in page:
+            start = served.get(str(raw.get("account_id"))) if isinstance(raw, Mapping) else None
+            if start is None:
+                projected.append(raw)
+                continue
+            authorization = dict(raw["authorization"])
+            authorization["authorized_at"] = iso_z(start)
+            projected.append({**raw, "authorization": authorization})
+        return projected
 
     # -- capabilities ----------------------------------------------------------
 

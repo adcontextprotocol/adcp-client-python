@@ -292,3 +292,27 @@ async def test_callers_without_subscriptions_are_served_unchanged() -> None:
     listed = await world.platform.list_accounts({}, _ctx("https://stranger.example/agent"))
     assert listed["accounts"][0]["authorization"]["authorized_at"] == "2026-10-01T00:00:00Z"
     assert await world.service._managed.engine.list_principals() == []
+
+
+@pytest.mark.asyncio
+async def test_a_served_page_is_observed_in_one_journal_write() -> None:
+    world = _World()
+    for index in range(3):
+        world.seller.accounts[f"account-{index}"] = {
+            **world.seller.accounts[ACCOUNT],
+            "account_id": f"account-{index}",
+        }
+    await world.subscribe()
+    store = world.service._managed.engine.store
+    loads = 0
+    original = store.load
+
+    async def counting(subject: str) -> Any:
+        nonlocal loads
+        loads += 1
+        return await original(subject)
+
+    store.load = counting  # type: ignore[method-assign]
+    listed = await world.platform.list_accounts({}, _ctx())
+    assert len(listed["accounts"]) == 4
+    assert loads == 1
