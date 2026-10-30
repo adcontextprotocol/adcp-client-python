@@ -75,7 +75,7 @@ async def test_the_subscription_stores_list_principals_and_declare_durability() 
 async def test_the_cli_migrates_and_reports_status(capsys) -> None:
     import os
 
-    from adcp.storage._cli import _run
+    from adcp_reporting_storage.migrations.cli import _run
 
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with pool.connection() as connection:

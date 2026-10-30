@@ -97,14 +97,28 @@ def postgres_storage(
     clock: Callable[[], datetime] | None = None,
     max_size: int = 10,
 ) -> ReportingStorage:
-    """Durable storage over PostgreSQL; see :mod:`adcp_reporting_storage.storage`."""
-    try:
-        from adcp_reporting_storage.storage import postgres_storage as build
-    except ImportError as error:  # pragma: no cover - optional distribution
-        raise ImportError(
-            'postgres_storage ships in adcp-reporting-storage: pip install "adcp-reporting-storage"'
-        ) from error
-    return build(pool=pool, dsn=dsn, clock=clock, max_size=max_size)  # type: ignore[no-any-return]
+    """Durable storage over PostgreSQL, from the ``adcp-reporting-storage`` distribution.
+
+    Resolved through the distribution's ``adcp.storage`` entry point, so
+    ``adcp`` never imports it by name.
+    """
+    build = _plugin("adcp.storage", "postgres")
+    storage = build(pool=pool, dsn=dsn, clock=clock, max_size=max_size)
+    if not isinstance(storage, ReportingStorage):
+        raise TypeError("the adcp.storage postgres entry point must return ReportingStorage")
+    return storage
+
+
+def _plugin(group: str, name: str) -> Any:
+    """Load an entry point a companion distribution registers."""
+    from importlib.metadata import entry_points
+
+    for entry in entry_points(group=group):
+        if entry.name == name:
+            return entry.load()
+    raise ImportError(
+        f"{group}:{name} ships in adcp-reporting-storage: pip install 'adcp-reporting-storage[pg]'"
+    )
 
 
 def development_environment() -> bool:

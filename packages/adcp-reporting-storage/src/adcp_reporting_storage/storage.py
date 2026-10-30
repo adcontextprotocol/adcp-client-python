@@ -44,7 +44,7 @@ def postgres_storage(
     ``search_path`` selects the schema, or a ``dsn`` for a pool the storage
     opens at startup and closes at shutdown.
     """
-    from adcp.reporting._errors import ReliableReportingConfigurationError
+    from adcp.reporting import ReliableReportingConfigurationError
     from adcp.storage import ReportingStorage
 
     if (pool is None) == (dsn is None):

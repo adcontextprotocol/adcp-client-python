@@ -132,8 +132,31 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
 
 
 def test_migrate_cli_requires_a_database(capsys) -> None:
-    from adcp.storage._cli import main
+    from adcp_reporting_storage.migrations.cli import main
 
     with pytest.raises(SystemExit):
         main(["--status", "--dsn", ""])
     assert "DATABASE_URL" in capsys.readouterr().err
+
+
+def test_python_m_adcp_migrate_dispatches_to_the_storage_distribution(monkeypatch, capsys) -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    import sys
+
+    from adcp.__main__ import main
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("ADCP_DATABASE_URL", raising=False)
+    monkeypatch.setattr(sys, "argv", ["adcp", "migrate", "--status"])
+    with pytest.raises(SystemExit):
+        main()
+    assert "DATABASE_URL" in capsys.readouterr().err
+
+
+def test_postgres_storage_resolves_through_the_entry_point() -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    from adcp_reporting_storage.storage import postgres_storage as direct
+
+    from adcp.storage import _plugin
+
+    assert _plugin("adcp.storage", "postgres") is direct

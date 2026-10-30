@@ -1,4 +1,9 @@
-"""``python -m adcp migrate``: apply the reporting storage migrations."""
+"""``python -m adcp migrate``: apply the reporting storage migrations.
+
+Registered as the ``migrate`` entry point of the ``adcp.commands`` group, which
+``python -m adcp`` dispatches to, so ``adcp`` never imports this distribution.
+Also runnable as ``python -m adcp_reporting_storage.migrations.cli``.
+"""
 
 from __future__ import annotations
 
@@ -44,8 +49,9 @@ def main(argv: Sequence[str]) -> int:
 
 
 async def _run(dsn: str, *, status: bool, dry_run: bool) -> int:
-    from adcp_reporting_storage.migrations import describe, migrate, migration_status
     from psycopg import AsyncConnection
+
+    from adcp_reporting_storage.migrations import describe, migrate, migration_status
 
     async with await AsyncConnection.connect(dsn, autocommit=True) as connection:
         if status:
@@ -63,3 +69,7 @@ async def _run(dsn: str, *, status: bool, dry_run: bool) -> int:
         if not planned:
             print("up to date")
         return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main(sys.argv[1:]))
