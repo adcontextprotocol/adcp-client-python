@@ -23,14 +23,32 @@ BEGIN
         delivery_config_version BIGINT NOT NULL CHECK (delivery_config_version > 0),
         after_obligation_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         complete BOOLEAN NOT NULL DEFAULT FALSE,
-        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-            CONSTRAINT reporting_materializer_discovery_account_generation CHECK (offering_id = ''),
-        PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version),
+        -- '' for an account-level generation; a reporting subscription's
+        -- generation names its resolved offering (managed delivery).
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
+        PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version,
+            offering_id),
         CONSTRAINT reporting_materializer_discovery_generation_fkey
             FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
             REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
                                                 delivery_config_version, offering_id)
     );
+    -- A schema created by an earlier release keyed discovery without the
+    -- offering and refused subscription generations: widen it losslessly.
+    IF EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'reporting_materializer_discovery'::regclass
+          AND conname = 'reporting_materializer_discovery_account_generation') THEN
+        ALTER TABLE reporting_materializer_discovery
+            DROP CONSTRAINT IF EXISTS reporting_materializer_discovery_account_generation;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint pk
+        WHERE pk.conrelid = 'reporting_materializer_discovery'::regclass AND pk.contype = 'p'
+          AND array_length(pk.conkey, 1) = 4) THEN
+        ALTER TABLE reporting_materializer_discovery
+            DROP CONSTRAINT reporting_materializer_discovery_pkey,
+            ADD CONSTRAINT reporting_materializer_discovery_pkey PRIMARY KEY
+                (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id);
+    END IF;
     CREATE INDEX IF NOT EXISTS reporting_materializer_discovery_pending
         ON reporting_materializer_discovery (account_id, consumer_id, delivery_config_id,
             delivery_config_version) WHERE NOT complete;
@@ -295,6 +313,7 @@ BEGIN
                 WHERE account_id = NEW.account_id AND consumer_id = NEW.consumer_id
                 AND delivery_config_id = NEW.delivery_config_id
                     AND delivery_config_version = NEW.delivery_config_version
+                    AND offering_id = NEW.offering_id
                 ORDER BY consumer_id
             LOOP
                 PERFORM reporting_materializer_dirty(NEW.account_id, r.consumer_id,
@@ -312,8 +331,9 @@ BEGIN
         IF NEW.record_kind = 'destination_binding' THEN
             PERFORM pg_advisory_xact_lock(hashtext('adcp.reporting:' || NEW.account_id));
             INSERT INTO reporting_materializer_discovery
-                (account_id, consumer_id, delivery_config_id, delivery_config_version)
-            VALUES (NEW.account_id, NEW.consumer_id, NEW.delivery_config_id, NEW.delivery_config_version)
+                (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+            VALUES (NEW.account_id, NEW.consumer_id, NEW.delivery_config_id,
+                    NEW.delivery_config_version, NEW.offering_id)
             ON CONFLICT DO NOTHING;
             PERFORM reporting_materializer_wake(NEW.account_id);
         ELSIF NEW.record_kind = 'materialization_check' THEN
@@ -412,8 +432,8 @@ BEGIN
     -- One-time indexed backfill seeds bindings, not account enumeration or
     -- recurring whole-ledger scans. Reinstall never rewinds a discovery cursor.
     INSERT INTO reporting_materializer_discovery
-        (account_id, consumer_id, delivery_config_id, delivery_config_version)
-    SELECT account_id, consumer_id, delivery_config_id, delivery_config_version
+        (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+    SELECT account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id
         FROM reporting_reconciliation_records WHERE record_kind='destination_binding'
     ON CONFLICT DO NOTHING;
     INSERT INTO reporting_materializer_accounts (account_id, due_at)

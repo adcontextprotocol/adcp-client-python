@@ -197,3 +197,46 @@ async def test_status_notifications_refuse_subscription_generations() -> None:
         with pytest.raises(LedgerConflictError) as refused:
             await _plan(world, AGENCY, store, "2026-10-04T00:00:00Z")
         assert refused.value.code == "UNSUPPORTED_FEATURE"
+
+
+async def test_an_account_only_managed_delivery_schema_is_upgraded() -> None:
+    """A schema whose managed-delivery tables still refuse subscription generations."""
+    from adcp_reporting_storage.production.pg import PgReportingProductionStore
+
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingProductionStore(pool=pool, notifications=True)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            for table in (
+                "reporting_reconciliation_records",
+                "reporting_materializer_discovery",
+                "reporting_status_scope_checkpoints",
+            ):
+                await connection.execute(
+                    f"ALTER TABLE {table} ADD CONSTRAINT {table}_account_generation"  # nosec B608
+                    " CHECK (offering_id = '')"
+                )
+            await connection.execute(
+                "ALTER TABLE reporting_materializer_discovery"
+                " DROP CONSTRAINT reporting_materializer_discovery_pkey,"
+                " ADD CONSTRAINT reporting_materializer_discovery_pkey PRIMARY KEY"
+                " (account_id, consumer_id, delivery_config_id, delivery_config_version)"
+            )
+        for _ in range(2):  # idempotent
+            await store.create_schema()
+        async with pool.connection() as connection:
+            checks = await (
+                await connection.execute(
+                    "SELECT conname FROM pg_constraint WHERE conname LIKE '%account_generation'"
+                    " ORDER BY conname"
+                )
+            ).fetchall()
+            primary = await (
+                await connection.execute(
+                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
+                    " WHERE conname = 'reporting_materializer_discovery_pkey'"
+                )
+            ).fetchone()
+        # Production generations still serve account-level generations only.
+        assert checks == [("reporting_production_generations_account_generation",)]
+        assert primary[0].endswith("delivery_config_version, offering_id)")

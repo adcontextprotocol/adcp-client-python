@@ -522,14 +522,25 @@ Supply `bind_managed_generation(configuration, version)`.
   stays pending under the same identity and is retried.
 - **Requests.** The mounted production handler checks each task against the
   grant and adds `subscription_coverage`.
+- **Stores.** The memory and PostgreSQL production stores both serve managed
+  subscription delivery, with or without status notifications. PostgreSQL
+  keeps each owed set's enrollment, and each owed obligation's frozen
+  constituents, in the private `adcp_reporting_production_owed_sets` and
+  `adcp_reporting_production_owed_constituents` tables. Its reconciliation
+  records, materializer discovery and status checkpoints record the
+  generation's offering. Running `create_schema` with this release lifts
+  those tables' account-only checks and widens the discovery key in place.
 
 **Limits.** These are not served yet:
 
 - subscriptions that resolve a receipt-reconciled (`consumer_receipt`) offering;
-- PostgreSQL production stores for subscriptions (they are refused at startup);
-- status notifications for subscription generations: a PostgreSQL ledger store
-  with them enabled refuses an owed set. `PgReportingLedgerStore` otherwise holds
-  owed sets, after the generation-key widening described in
+- more than one offering of one subscription version for the same account and
+  owner under production. Status checkpoints hold one configuration scope per
+  version, so admitting a second offering fails that subscription's planning
+  with `reporting_production_offering_conflict`;
+- status notifications for subscription generations outside production: a
+  `PgReportingLedgerStore` with them enabled refuses an owed set. It otherwise
+  holds owed sets, after the generation-key widening described in
   [ledger migrations](reporting-ledger-migration.md).
 
 Keep the engine's `status_retention_days` equal to the service's.

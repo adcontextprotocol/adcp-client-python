@@ -75,6 +75,7 @@ _IDENTITY_COLUMNS = (
     "receipt_chain_key",
     "receipt_status",
     "supersedes_receipt_id",
+    "offering_id",
 )
 _SELECT_IDENTITY = ", ".join("r." + column for column in _IDENTITY_COLUMNS)
 _FEED_JOIN = (
@@ -377,9 +378,9 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
             " (account_id, consumer_id, namespace, record_id, record_kind, delivery_config_id,"
             " delivery_config_version, reporting_obligation_id, reporting_revision_id,"
             " reporting_materialization_id, reporting_adjustment_id, attempt_number,"
-            " receipt_chain_key, receipt_status, supersedes_receipt_id, payload,"
+            " receipt_chain_key, receipt_status, supersedes_receipt_id, offering_id, payload,"
             " content_sha256, change_id)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
             " %s::jsonb, %s, %s)",
             (
                 *storage_identity(record),

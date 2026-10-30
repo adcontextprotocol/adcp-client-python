@@ -192,6 +192,8 @@ def storage_identity(record: ReportingDeliveryRecord) -> tuple[str | int | None,
         receipt_chain(receipt) if receipt is not None else None,
         receipt.status if receipt is not None else None,
         receipt.supersedes_reporting_receipt_id if receipt is not None else None,
+        # '' for an account-level generation, as stored.
+        generation.offering_id or "",
     )
 
 

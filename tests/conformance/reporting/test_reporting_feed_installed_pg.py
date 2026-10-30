@@ -110,7 +110,7 @@ async def test_installed_python310_cold_continuation_freezes_mutable_history_and
         )
         assert ready["result"] == {
             "installed": True,
-            "materializer_objects": 189,
+            "materializer_objects": 188,
             "receipt_objects": 102,
             "feed_objects": 33,
         }

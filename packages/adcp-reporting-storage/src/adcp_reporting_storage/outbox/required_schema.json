@@ -1187,10 +1187,6 @@
     "enabled": true,
     "fingerprint": "6336638ff31659c0ea0a0fa6c67a7ed65e1b1bf792d17b5fbaec138fa6869c17"
   },
-  "constraint:reporting_reconciliation_records.reporting_reconciliation_records_account_generation": {
-    "enabled": true,
-    "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
-  },
   "constraint:reporting_reconciliation_records.reporting_reconciliation_records_attempt_number_check": {
     "enabled": true,
     "fingerprint": "f9dafc82e1fb7cbb9f2557001d24a8f78ecd56b79335ed1d32b655ff1b2ded90"
@@ -1437,7 +1433,7 @@
   },
   "function:reporting_reconciliation_evidence(r reporting_reconciliation_records)": {
     "enabled": true,
-    "fingerprint": "cfa4e3f5b4c6505d2fe72d9828d95d3760555b1957b6d0754e3bac86c925bfdf"
+    "fingerprint": "a4da1979850b457d288924c30e1b8c6494d88a0fbc872c421d3aee7916159971"
   },
   "function:reporting_reconciliation_guard()": {
     "enabled": true,
@@ -1453,11 +1449,11 @@
   },
   "function:reporting_reconciliation_reference_immutable()": {
     "enabled": true,
-    "fingerprint": "56fa1c28e2461a3ca5d7a68f8356f6ffb7652c0418dfaa6fad87963c849a92c1"
+    "fingerprint": "79878862c9c677cf09565ccd0165628b218c8ef6ef0d0f1b6db4f83190b65175"
   },
   "function:reporting_reconciliation_validate(r reporting_reconciliation_records)": {
     "enabled": true,
-    "fingerprint": "7f041091b87305a1f802f091e6caaa4cb2eb235f03e97324bbfe04a792485161"
+    "fingerprint": "b54f5cd5ca5ee8e47cd94fb3747fe88dfbe66103e139909fa255e3ccaca5627b"
   },
   "function:reporting_sorted_strings(document jsonb)": {
     "enabled": true,
