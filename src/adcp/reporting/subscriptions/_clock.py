@@ -41,7 +41,53 @@ from datetime import date, datetime, time, timedelta, timezone
 from functools import lru_cache
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
+from adcp.exceptions import ADCPError, RecoveryLiteral
+
 UTC = timezone.utc
+
+#: COVERAGE_INPUT_INCOMPLETE and COVERAGE_INPUT_INVALID details, from the
+#: spec's frozen error-codes.json (vocabulary_version 1).
+COVERAGE_INPUT_DETAILS = frozenset(
+    {
+        "missing_account_timezone",
+        "missing_source_timezone",
+        "missing_previous_timezone",
+        "missing_standard_dimensions",
+        "missing_status_retention_days",
+        "missing_version_configuration",
+        "missing_destination_method",
+        "invalid_timezone",
+        "invalid_period_duration",
+        "invalid_instant",
+        "invalid_input",
+    }
+)
+
+
+class CoverageInputError(ADCPError, ValueError):
+    """Coverage cannot be computed from this input (spec ``error-codes.json``).
+
+    ``code`` is ``COVERAGE_INPUT_INCOMPLETE`` when the input lacks a value the
+    rule needs and ``COVERAGE_INPUT_INVALID`` when a value is malformed;
+    ``detail`` names the cause. ``recovery`` is ``correctable``. It is a
+    local computation, so ``dispatched`` is not set. It stays a
+    ``ValueError`` for callers that already catch one.
+    """
+
+    recovery: RecoveryLiteral | None = "correctable"
+
+    def __init__(self, detail: str, message: str) -> None:
+        if detail not in COVERAGE_INPUT_DETAILS:
+            raise AssertionError(f"unknown coverage input detail {detail!r}")
+        super().__init__(message)
+        self.detail = detail
+        self.code = (
+            "COVERAGE_INPUT_INCOMPLETE"
+            if detail.startswith("missing_")
+            else "COVERAGE_INPUT_INVALID"
+        )
+
+
 _DURATION = re.compile(r"P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
 _SLA = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
 
@@ -49,7 +95,7 @@ _SLA = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
 def utc_instant(value: datetime, *, field: str = "timestamp") -> datetime:
     """Return ``value`` in UTC, refusing naive datetimes."""
     if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError(f"{field} must be timezone-aware")
+        raise CoverageInputError("invalid_instant", f"{field} must be timezone-aware")
     return value.astimezone(UTC)
 
 
@@ -61,23 +107,42 @@ def _iana_zones() -> frozenset[str]:
 def require_zone(name: str | None, *, field: str = "timezone") -> ZoneInfo:
     """A recognized IANA zone; numeric offsets, unknown names and keys that are
     not IANA zone names (``posixrules``, ``right/UTC``, ``posix/...``) are refused."""
-    if not name or name[0] in "+-" or name[0].isdigit() or name not in _iana_zones():
-        raise ValueError(f"{field} {name!r} is not a recognized IANA timezone")
+    if not name:
+        detail = (
+            "missing_source_timezone"
+            if "source" in field
+            else "missing_previous_timezone"
+            if "previous" in field
+            else "missing_account_timezone"
+        )
+        raise CoverageInputError(detail, f"{field} is required. Supply the IANA zone name.")
+    if name[0] in "+-" or name[0].isdigit() or name not in _iana_zones():
+        raise CoverageInputError(
+            "invalid_timezone",
+            f"{field} {name!r} is not a recognized IANA timezone. Use an IANA zone name; "
+            "a numeric offset is not one.",
+        )
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError) as error:
-        raise ValueError(f"{field} {name!r} is not a recognized IANA timezone") from error
+        raise CoverageInputError(
+            "invalid_timezone", f"{field} {name!r} is not a recognized IANA timezone"
+        ) from error
 
 
 def parse_period_duration(value: str) -> tuple[int, int, int, int]:
     """``(years, months, days, seconds)`` of a strictly positive duration."""
     match = _DURATION.fullmatch(value)
     if match is None or value in {"P", "PT"} or value.endswith("T"):
-        raise ValueError(f"{value!r} is not an ISO 8601 period duration")
+        raise CoverageInputError(
+            "invalid_period_duration",
+            f"{value!r} is not a schedule period_duration. Use Y, M and D date and H, M "
+            "and S time components; there is no W designator (a week is P7D).",
+        )
     years, months, days, hours, minutes, seconds = (int(item or 0) for item in match.groups())
     exact = hours * 3600 + minutes * 60 + seconds
     if not (years or months or days or exact):
-        raise ValueError("period_duration must be positive")
+        raise CoverageInputError("invalid_period_duration", "period_duration must be positive")
     return years, months, days, exact
 
 
@@ -133,14 +198,16 @@ class PeriodCalendar:
             raise ValueError("origin is local civil time and must be naive")
         years, months, days, exact = parts
         if self.local and exact and (years or months or days):
-            raise ValueError(
+            raise CoverageInputError(
+                "invalid_period_duration",
                 f"period_duration {self.period_duration!r} mixes date and time components, "
-                "which a local alignment does not allow"
+                "which a local alignment does not allow",
             )
         if self.local and exact and not (years or months or days) and 86400 % exact:
-            raise ValueError(
+            raise CoverageInputError(
+                "invalid_period_duration",
                 f"period_duration {self.period_duration!r} must divide 24 hours "
-                "under a local alignment"
+                "under a local alignment",
             )
         approx = years * 365.2425 * 86400 + months * 30.436875 * 86400 + days * 86400 + exact
         object.__setattr__(self, "_approx", approx)

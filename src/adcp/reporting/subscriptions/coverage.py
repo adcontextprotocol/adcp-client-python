@@ -52,7 +52,13 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from adcp.reporting._reconcile import ExpectedReportingPeriod
-from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_zone, utc_instant
+from adcp.reporting.subscriptions._clock import (
+    CoverageInputError,
+    PeriodCalendar,
+    iso_z,
+    require_zone,
+    utc_instant,
+)
 from adcp.reporting.subscriptions.resolution import (
     SubscriptionOffering,
     SubscriptionSelector,
@@ -80,7 +86,7 @@ def _instant(value: Any, *, field: str) -> datetime | None:
 def _require_instant(value: Any, *, field: str) -> datetime:
     instant = _instant(value, field=field)
     if instant is None:
-        raise ValueError(f"{field} is required")
+        raise CoverageInputError("invalid_input", f"{field} is required")
     return instant
 
 
@@ -156,7 +162,7 @@ class SubscriptionBuy:
 
     def __post_init__(self) -> None:
         if not self.media_buy_id:
-            raise ValueError("media_buy_id is required")
+            raise CoverageInputError("invalid_input", "media_buy_id is required")
         for name in ("confirmed_at", "start_time", "end_time", "canceled_at", "completed_at"):
             value = getattr(self, name)
             if value is not None:
@@ -224,7 +230,9 @@ class SubscriptionAuthorization:
                 utc_instant(self.unauthorized_at, field="unauthorized_at"),
             )
             if self.unauthorized_at <= self.authorized_at:
-                raise ValueError("unauthorized_at must be after authorized_at")
+                raise CoverageInputError(
+                    "invalid_input", "unauthorized_at must be after authorized_at"
+                )
 
 
 @dataclass(frozen=True)
@@ -257,7 +265,8 @@ class SubscriptionException:
     from_: datetime
     until: datetime | None = None
     media_buy_id: str | None = None
-    #: A ``gaps[]`` entry for one offering's boundaries; ``None`` is every offering.
+    #: An entry for one offering's boundaries (``excluded[]`` or ``gaps[]``
+    #: ``offering_id``); ``None`` is every offering.
     offering_id: str | None = None
 
     def __post_init__(self) -> None:
@@ -293,14 +302,21 @@ def subscription_exceptions(
             continue
         reason = _text(_value(entry, "reason"))
         if reason not in _REASONS:
-            raise ValueError(f"unknown subscription exclusion reason {reason!r}")
+            raise CoverageInputError(
+                "invalid_input", f"unknown subscription exclusion reason {reason!r}"
+            )
         media_buy_id = _value(entry, "media_buy_id")
+        offering_id = _value(entry, "offering_id")
         result.append(
             SubscriptionException(
                 reason=reason,
                 from_=_require_instant(_value(entry, "from", _value(entry, "from_")), field="from"),
                 until=_instant(_value(entry, "until"), field="until"),
                 media_buy_id=None if media_buy_id is None else _text(media_buy_id),
+                # An offering-scoped entry (for example capacity under match
+                # "all" across offerings with different boundaries) removes
+                # only that offering's periods.
+                offering_id=None if offering_id is None else _text(offering_id),
             )
         )
     for gap in gaps:
@@ -342,14 +358,18 @@ class SubscriptionVersionWindow:
         if self.ends_at is not None:
             object.__setattr__(self, "ends_at", utc_instant(self.ends_at, field="ends_at"))
             if self.ends_at < self.accepted_at:
-                raise ValueError("a version cannot end before it was accepted")
+                raise CoverageInputError(
+                    "invalid_input", "a version cannot end before it was accepted"
+                )
         intervals = []
         for start, until in self.inactive_intervals:
             start = utc_instant(start, field="inactive_intervals.from")
             if until is not None:
                 until = utc_instant(until, field="inactive_intervals.until")
                 if until <= start:
-                    raise ValueError("an inactive interval must end after it starts")
+                    raise CoverageInputError(
+                        "invalid_input", "an inactive interval must end after it starts"
+                    )
             intervals.append((start, until))
         object.__setattr__(self, "inactive_intervals", tuple(intervals))
 
@@ -386,11 +406,15 @@ def subscription_version_windows(
     current_version = int(_value(subscription, "subscription_version"))
     current_configuration = _value(subscription, "configuration")
     if current_configuration is None:
-        raise ValueError("subscription state has no configuration")
+        raise CoverageInputError(
+            "missing_version_configuration", "subscription state has no configuration"
+        )
     state = _text(_value(subscription, "state", "active"))
     deactivated_at = _instant(_value(subscription, "deactivated_at"), field="deactivated_at")
     if state == "inactive" and deactivated_at is None:
-        raise ValueError("an inactive subscription must carry deactivated_at")
+        raise CoverageInputError(
+            "invalid_input", "an inactive subscription must carry deactivated_at"
+        )
     accepted_at = _require_instant(_value(subscription, "accepted_at"), field="accepted_at")
     windows = [
         SubscriptionVersionWindow(
@@ -409,8 +433,9 @@ def subscription_version_windows(
         configuration = configurations.get(version, _value(prior, "configuration"))
         if configuration is None:
             if require_prior_configurations:
-                raise ValueError(
-                    f"no configuration is known for prior subscription_version {version}"
+                raise CoverageInputError(
+                    "missing_version_configuration",
+                    f"no configuration is known for prior subscription_version {version}",
                 )
             configuration = current_configuration
         windows.append(
@@ -435,9 +460,13 @@ def subscription_version_windows(
     windows.sort(key=lambda item: (item.accepted_at, item.subscription_version))
     for earlier, later in zip(windows, windows[1:]):
         if earlier.subscription_version >= later.subscription_version:
-            raise ValueError("subscription versions must increase with accepted_at")
+            raise CoverageInputError(
+                "invalid_input", "subscription versions must increase with accepted_at"
+            )
         if earlier.ends_at != later.accepted_at:
-            raise ValueError("superseded_at must equal the next version's accepted_at")
+            raise CoverageInputError(
+                "invalid_input", "superseded_at must equal the next version's accepted_at"
+            )
     return tuple(windows)
 
 
@@ -553,7 +582,7 @@ def _chains(
     previous_end: datetime | None = None
     for index, grant in enumerate(authorizations):
         if index > 0 and previous_end is None:
-            raise ValueError("only the last grant may be unrevoked")
+            raise CoverageInputError("invalid_input", "only the last grant may be unrevoked")
         if chains and previous_end is not None and grant.authorized_at <= previous_end:
             # adcp#8585 keeps authorized_at at the chain start after a re-grant
             # inside retention, so a grant listed with it continues the chain
@@ -562,7 +591,10 @@ def _chains(
             chains[-1].end = None
         elif chains and previous_end is not None:
             if retention is None:
-                raise ValueError("status_retention_days is required to evaluate a re-grant")
+                raise CoverageInputError(
+                    "missing_status_retention_days",
+                    "status_retention_days is required to evaluate a re-grant",
+                )
             if grant.authorized_at < previous_end + retention:
                 chains[-1].interruptions.append((previous_end, grant.authorized_at))
                 chains[-1].end = None
@@ -650,7 +682,9 @@ def _windows(
             if later.subscription_version <= earlier.subscription_version or (
                 earlier.ends_at != later.accepted_at
             ):
-                raise ValueError("versions must be ordered and each superseded at the next")
+                raise CoverageInputError(
+                    "invalid_input", "versions must be ordered and each superseded at the next"
+                )
         return windows
     return subscription_version_windows(subscription, version_configurations=version_configurations)
 
@@ -736,19 +770,20 @@ def expected_subscription_periods(
         require_zone(change.timezone, field="timezone_cutovers.timezone")
     for change in changes:
         if change.previous_timezone is None:
-            raise ValueError(
+            raise CoverageInputError(
+                "missing_previous_timezone",
                 "a timezone change needs previous_timezone: the account's current timezone "
-                "already shows the new zone"
+                "already shows the new zone",
             )
         require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
     changes.sort(key=lambda item: item.changed_at)
     removals = subscription_exceptions(excluded, gap_entries)
     ids = [item.offering_id for item in offerings]
     if len(set(ids)) != len(ids):
-        raise ValueError("offering_id values must be unique")
+        raise CoverageInputError("invalid_input", "offering_id values must be unique")
     buy_ids = [item.media_buy_id for item in buys]
     if len(set(buy_ids)) != len(buy_ids):
-        raise ValueError("media_buy_id values must be unique")
+        raise CoverageInputError("invalid_input", "media_buy_id values must be unique")
 
     points: set[datetime] = set()
     for window in windows:
@@ -896,9 +931,10 @@ def _regimes(
         destination = window.destination
         if destination is None and selector.destination_id is not None:
             if destinations is None or selector.destination_id not in destinations:
-                raise ValueError(
+                raise CoverageInputError(
+                    "missing_destination_method",
                     f"version {window.subscription_version} names destination "
-                    f"{selector.destination_id!r}; pass its pattern and transport"
+                    f"{selector.destination_id!r}; pass its pattern and transport",
                 )
             destination = destinations[selector.destination_id]
         found: dict[str, SubscriptionOffering] = {}
@@ -988,7 +1024,7 @@ def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWin
             configuration = configuration.model_dump(mode="json", exclude_none=True)
         value = _value(configuration, "subscription_id")
     if value is None:
-        raise ValueError("subscription_id is required")
+        raise CoverageInputError("invalid_input", "subscription_id is required")
     return _text(value)
 
 

@@ -189,6 +189,7 @@ def check_complete_set(
                 "Omitting a destination revokes it for every account. Pass "
                 "allow_revocation=True.",
                 "DESTINATION_WOULD_REVOKE",
+                would_revoke=revoked,
             )
 
 
@@ -536,28 +537,28 @@ class ReportingClient:
                 ):
                     raise _refused(
                         f"subscription_id {subscription_id!r} is already a delivery_config_id "
-                        f"on account {_value(account, 'account_id')!r}. Choose another "
-                        "subscription_id.",
+                        f"on account {_value(account, 'account_id')!r}. Choose a "
+                        "subscription_id that no account-level delivery config uses.",
                         "SUBSCRIPTION_ID_CLASH",
+                        delivery_config_id=subscription_id,
+                        account_id=_text(_value(account, "account_id")),
                     )
         scope = wanted.get("scope") or {}
+        # error-codes.json: an all_authorized_accounts subscription that names
+        # a destination and no operator_domains follows every account the
+        # principal is granted, including another operator's, into it.
         if (
             scope.get("all_authorized_accounts") is True
+            and destination is not None
             and not wanted.get("operator_domains")
             and not acknowledge_cross_operator
         ):
-            operators = {
-                _text(_value(_value(account, "operator"), "domain", _value(account, "operator")))
-                for account in accounts or ()
-                if _value(account, "operator") is not None
-            }
-            if len(operators) > 1 or (destination or {}).get("operator_id"):
-                raise _refused(
-                    "An all-accounts subscription follows every grant, including accounts "
-                    "another operator grants later, into one destination. Add "
-                    "operator_domains, or pass acknowledge_cross_operator=True.",
-                    "SUBSCRIPTION_OPERATOR_SCOPE_REQUIRED",
-                )
+            raise _refused(
+                "An all-accounts subscription follows every grant, including accounts "
+                "another operator grants later, into one destination. Add "
+                "operator_domains, or pass acknowledge_cross_operator=True.",
+                "SUBSCRIPTION_OPERATOR_SCOPE_REQUIRED",
+            )
         return await self._resolve_selector(wanted, destination)
 
     async def _roster(self) -> list[Any] | None:
@@ -623,13 +624,18 @@ class ReportingClient:
         if resolution.offering_ids:
             return resolution.offering_ids
         selector = wanted.get("selector") or {}
-        nearest = ", ".join(
-            f"{o.offering_id} ({_mismatch(o, selector, wanted)})" for o in offerings[:5]
+        failing = sorted(
+            ((o.offering_id, _mismatches(o, selector, wanted, destination)) for o in offerings),
+            key=lambda item: (len(item[1]), item[0].encode()),
         )
+        fewest = len(failing[0][1]) if failing else 0
+        nearest = tuple(item for item in failing if len(item[1]) == fewest)[:5]
+        listed = ", ".join(f"{offering_id} ({', '.join(fails)})" for offering_id, fails in nearest)
         raise _refused(
-            f"No advertised offering matches this selector. Nearest: {nearest}. Adjust the "
-            "selector to an offering the seller advertises.",
+            f"No advertised offering matches this selector. Nearest: {listed}. Change the "
+            "selector; the nearest offerings and the attributes each one failed are listed.",
             "SUBSCRIPTION_SELECTOR_UNMATCHED",
+            nearest=nearest,
         )
 
     # -- the guarded write ---------------------------------------------------------------
@@ -794,20 +800,33 @@ class _Plan:
         return SubscribeResult(self.action, state, self.version, destination, readback)
 
 
-def _mismatch(offering: Any, selector: Mapping[str, Any], wanted: Mapping[str, Any]) -> str:
-    """The first selector attribute an offering fails, for SUBSCRIPTION_SELECTOR_UNMATCHED."""
+def _mismatches(
+    offering: Any,
+    selector: Mapping[str, Any],
+    wanted: Mapping[str, Any],
+    destination: Mapping[str, Any] | None,
+) -> tuple[str, ...]:
+    """Every selector attribute an offering fails, for SUBSCRIPTION_SELECTOR_UNMATCHED."""
+    failed: list[str] = []
     if offering.feed_purpose != selector.get("feed_purpose"):
-        return f"feed_purpose {offering.feed_purpose}"
+        failed.append("feed_purpose")
     if offering.period_duration != selector.get("period_duration"):
-        return f"period_duration {offering.period_duration}"
-    if selector.get("required_finality") not in offering.supported_finality:
-        return f"finality {'/'.join(sorted(offering.supported_finality))}"
+        failed.append("period_duration")
     if offering.reconciliation_mode != wanted.get("reconciliation_mode", "delivery_only"):
-        return f"reconciliation_mode {offering.reconciliation_mode}"
+        failed.append("reconciliation_mode")
+    if selector.get("required_finality") not in offering.supported_finality:
+        failed.append("required_finality")
+    if selector.get("alignment") is not None and offering.alignment != selector.get("alignment"):
+        failed.append("alignment")
+    pattern = None if destination is None else destination.get("pattern")
+    if offering.method_pattern != pattern or (
+        destination is not None and offering.method_transport != destination.get("transport")
+    ):
+        failed.append("destination method")
     wanted_dimensions = set(selector.get("dimensions") or ())
     if not wanted_dimensions <= set(offering.dimensions):
-        return f"dimensions {'/'.join(sorted(offering.dimensions))}"
-    return "destination method"
+        failed.append("dimensions")
+    return tuple(failed)
 
 
 __all__ = [

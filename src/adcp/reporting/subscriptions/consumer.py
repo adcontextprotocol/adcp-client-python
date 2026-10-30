@@ -84,7 +84,16 @@ class ReportingSubscriptionError(ADCPError):
             it. See :func:`adcp.exceptions.is_pre_dispatch_error`.
         would_deactivate: The subscription ids a refused write would have
             deactivated (``SUBSCRIPTION_WOULD_DEACTIVATE``).
+        would_revoke: The destination ids it would have revoked
+            (``DESTINATION_WOULD_REVOKE``).
+        delivery_config_id, account_id: The clashing delivery config and its
+            account (``SUBSCRIPTION_ID_CLASH``).
+        nearest: The offerings failing on the fewest attributes, each with
+            the attributes it fails (``SUBSCRIPTION_SELECTOR_UNMATCHED``).
         readback: The seller's readback (``SUBSCRIPTION_READBACK_MISMATCH``).
+
+    Codes, recovery classes and context names follow the spec's frozen
+    ``error-codes.json`` (vocabulary_version 1).
 
     The message ends with the fix.
     """
@@ -97,6 +106,10 @@ class ReportingSubscriptionError(ADCPError):
         recovery: RecoveryLiteral | None = None,
         dispatched: Literal[False] | None = None,
         would_deactivate: Sequence[str] = (),
+        would_revoke: Sequence[str] = (),
+        delivery_config_id: str | None = None,
+        account_id: str | None = None,
+        nearest: Sequence[tuple[str, tuple[str, ...]]] = (),
         readback: ReportingSubscriptionReadback | None = None,
     ) -> None:
         super().__init__(message)
@@ -111,6 +124,10 @@ class ReportingSubscriptionError(ADCPError):
         if dispatched is False:
             self.dispatched = False
         self.would_deactivate = tuple(would_deactivate)
+        self.would_revoke = tuple(would_revoke)
+        self.delivery_config_id = delivery_config_id
+        self.account_id = account_id
+        self.nearest = tuple(nearest)
         self.readback = readback
 
 

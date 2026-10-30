@@ -160,6 +160,7 @@ async def test_omitting_a_destination_is_refused_unless_allowed() -> None:
             destination={"destination_id": "warehouse", "path_template": "a/{account_id}"}
         ),
         register_destination=DESTINATION,
+        acknowledge_cross_operator=True,
     )
     raw = SyncPrincipalRequest.model_validate(
         {"idempotency_key": "raw-write-0000000003", "configuration": {"reporting_destinations": []}}
@@ -167,6 +168,7 @@ async def test_omitting_a_destination_is_refused_unless_allowed() -> None:
     with pytest.raises(ReportingSubscriptionError) as refused:
         await guard_sync_principal(client, raw)
     assert refused.value.code == "DESTINATION_WOULD_REVOKE"
+    assert refused.value.would_revoke == ("warehouse",)
     await guard_sync_principal(client, raw, allow_revocation=True)
 
 
@@ -300,7 +302,7 @@ def _account(account_id: str, operator: str, configs=()) -> dict[str, Any]:
     }
 
 
-async def test_roster_checks_refuse_an_id_clash_and_cross_operator_scope() -> None:
+async def test_roster_checks_refuse_an_id_clash() -> None:
     clash = Roster(
         Seller(),
         [
@@ -311,12 +313,23 @@ async def test_roster_checks_refuse_an_id_clash_and_cross_operator_scope() -> No
     )
     with pytest.raises(ReportingSubscriptionError) as refused:
         await ReportingClient(clash).subscribe(_subscription())
-    assert refused.value.code == "SUBSCRIPTION_ID_CLASH" and is_pre_dispatch_error(refused.value)
-    two = Roster(Seller(), [_account("a", "op-a.example"), _account("b", "op-b.example")])
+    error = refused.value
+    assert error.code == "SUBSCRIPTION_ID_CLASH" and is_pre_dispatch_error(error)
+    assert (error.delivery_config_id, error.account_id) == ("analytics", "acct-1")
+
+
+async def test_an_all_accounts_subscription_naming_a_destination_needs_operator_domains() -> None:
+    to_warehouse = _subscription(
+        destination={"destination_id": "warehouse", "path_template": "a/{account_id}"}
+    )
+    reporting = ReportingClient(Client(Seller()))
     with pytest.raises(ReportingSubscriptionError) as scoped:
-        await ReportingClient(two).subscribe(_subscription())
+        await reporting.subscribe(to_warehouse, register_destination=DESTINATION)
     assert scoped.value.code == "SUBSCRIPTION_OPERATOR_SCOPE_REQUIRED"
-    created = await ReportingClient(two).subscribe(_subscription(), acknowledge_cross_operator=True)
+    assert is_pre_dispatch_error(scoped.value)
+    created = await reporting.subscribe(
+        {**to_warehouse, "operator_domains": ["op-a.example"]}, register_destination=DESTINATION
+    )
     assert created.action == "created"
 
 
@@ -339,7 +352,8 @@ async def test_a_selector_no_advertised_offering_matches_is_refused_before_dispa
         await ReportingClient(hourly).subscribe(_subscription())
     error = unmatched.value
     assert error.code == "SUBSCRIPTION_SELECTOR_UNMATCHED" and is_pre_dispatch_error(error)
-    assert "hourly (period_duration PT1H)" in str(error)
+    assert error.nearest == (("hourly", ("period_duration",)),)
+    assert "hourly (period_duration)" in str(error)
     daily = Roster(Seller(), [], offerings=[_offering("pkg", "P1D", ["package"])])
     preview = await ReportingClient(daily).preview(_subscription())
     assert (preview.would_be, preview.subscription_version) == ("created", 1)
