@@ -1437,7 +1437,7 @@
   },
   "function:reporting_reconciliation_validate(r reporting_reconciliation_records)": {
     "enabled": true,
-    "fingerprint": "c4790a050f91451c7b7d5974c4513a8f9d2c5703c520604c4b87ba7aea443e8a"
+    "fingerprint": "6e1be3ec1aa59ba6b7b3e0fdc78deba9d36ff37f72f81373a64c3bda13832d65"
   },
   "function:reporting_sorted_strings(document jsonb)": {
     "enabled": true,
