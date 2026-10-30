@@ -79,6 +79,12 @@ from adcp.reporting.subscriptions.ledger import (
     SubscriptionPlanResult,
     subscription_obligation_id,
 )
+from adcp.reporting.subscriptions.facade import (
+    PreviewResult,
+    ReportingClient,
+    SubscribeResult,
+    guard_sync_principal,
+)
 from adcp.reporting.subscriptions.registry import (
     ReportingSubscriptionValidationError,
     apply_reporting_subscriptions,
@@ -103,6 +109,10 @@ from adcp.reporting.subscriptions.wire import (
 )
 
 __all__ = [
+    "PreviewResult",
+    "ReportingClient",
+    "SubscribeResult",
+    "guard_sync_principal",
     "FrozenOwedSet",
     "SubscriptionObligationPlanner",
     "SubscriptionPlanResult",
