@@ -381,3 +381,21 @@ async def test_a_restarted_tracker_reads_prior_configurations_from_the_readback(
         "2026-10-02T04:00:00Z",
         "2026-10-03T04:00:00Z",
     ]
+
+
+@pytest.mark.asyncio
+async def test_coverage_for_another_subscription_is_refused() -> None:
+    seller = Seller()
+    client = Client(seller)
+    tracker = ReportingSubscriptionTracker(client, offerings=[DAILY])
+    granted = at("2026-09-01T00:00:00Z")
+    seller.accounts["acct-1"] = AuthorizedAccount("acct-1", timezone=NY, authorized_at=granted)
+    tracker.observe_account("acct-1", authorized_at=granted, timezone=NY)
+    await tracker.sync([SUBSCRIPTION])
+    await seller.reconcile("2026-10-01T00:00:00Z")
+    (coverage,) = await load_subscription_coverage(client, account={"account_id": "acct-1"})
+    other = coverage.model_copy(update={"subscription_id": "pacing"})
+    with pytest.raises(ValueError, match="pacing"):
+        tracker.expected_periods(
+            "analytics", "acct-1", buys=[BUY], now=at("2026-10-05T00:00:00Z"), coverage=other
+        )

@@ -450,6 +450,13 @@ class ReportingSubscriptionTracker:
         ``require_prior_configurations`` is false, which assumes the current
         configuration.
         """
+        if coverage is not None and coverage.subscription_id != subscription_id:
+            # Another subscription's gaps and cutovers would silently reshape
+            # this one's owed periods; fail closed on the mix-up.
+            raise ValueError(
+                f"coverage is for subscription {coverage.subscription_id!r}, "
+                f"not {subscription_id!r}"
+            )
         state = self._readback.get(subscription_id)
         if state is None:
             raise KeyError(subscription_id)
