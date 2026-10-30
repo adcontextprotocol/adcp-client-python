@@ -103,3 +103,53 @@ def test_configuration_errors_name_the_key_to_change() -> None:
     )
     assert error.config_field == "SubscriptionOptions.accounts"
     assert ReliableReportingConfigurationError("y").config_field is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("returned", [None, 7, "mb-1", ({"media_buy_id": "x"},)])
+async def test_account_buys_of_the_wrong_shape_are_refused(returned) -> None:
+    from datetime import datetime, timezone
+
+    from adcp.reporting.advanced import ReportingSubscriptionEngineError
+    from adcp.reporting.subscriptions import AuthorizedAccount
+
+    world = World()
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone="UTC", authorized_at=datetime(2026, 9, 1, tzinfo=timezone.utc)
+    )
+
+    async def wrong(principal, account_id):
+        return returned
+
+    world.host.account_buys = wrong  # type: ignore[method-assign]
+    with pytest.raises(ReportingSubscriptionEngineError) as refused:
+        await world.engine._account_buys(IDENTITY, "acct-1")
+    assert refused.value.code == "SUBSCRIPTION_HOST_FACT_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_a_regression_is_counted_once_under_write_conflicts() -> None:
+    from datetime import datetime, timezone
+
+    from adcp.reporting.subscriptions import AuthorizedAccount
+    from tests.test_reporting_subscription_state_store import _ConflictingStore
+
+    world = World()
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone="UTC", authorized_at=datetime(2026, 9, 1, tzinfo=timezone.utc)
+    )
+    await world.engine.reconcile(IDENTITY)
+    store = _ConflictingStore(conflicts=2)
+    store._documents = world.engine._store._documents  # same state, conflicting writes
+    world.engine._store = store
+    world.host.accounts["acct-1"] = AuthorizedAccount(
+        "acct-1", timezone="UTC", authorized_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
+    )
+    await world.engine.observe_grant(
+        IDENTITY,
+        "acct-1",
+        allowed_tasks=["get_reporting_status"],  # a change, so the write is attempted
+        authorized_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+    )
+    assert store.attempts == 3  # the change ran three times
+    assert world.engine.authorized_at_regressions == 1

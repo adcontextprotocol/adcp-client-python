@@ -909,7 +909,10 @@ class ReportingSubscriptionEngine:
             reported = None if item.authorized_at is None else utc_instant(item.authorized_at)
             prepared.append((item, tasks, _covers(tasks), reported))
 
+        regressions: list[tuple[str, datetime]] = []
+
         def change(state: _PrincipalState) -> dict[str, datetime | None]:
+            regressions.clear()  # the change may rerun on a write conflict
             served: dict[str, datetime | None] = {}
             for item, tasks, covered, reported in prepared:
                 account = state.accounts.get(item.account_id)
@@ -919,9 +922,11 @@ class ReportingSubscriptionEngine:
                         continue
                     account = _Account(timezone=item.timezone, operator=item.operator)
                     state.accounts[item.account_id] = account
-                self._observe(
+                if self._observe(
                     account, covered=covered, reported=reported, at=instant, source="listed"
-                )
+                ):
+                    assert reported is not None
+                    regressions.append((item.account_id, reported))
                 account.allowed_tasks = tasks if covered else None
                 account.set_timezone(item.timezone, instant)
                 if item.operator is not None:
@@ -931,7 +936,9 @@ class ReportingSubscriptionEngine:
 
         if not prepared:
             return {}
-        return await self._mutate(principal.subject, change, now=instant)
+        served = await self._mutate(principal.subject, change, now=instant)
+        self._report_regressions(regressions)
+        return served
 
     async def refresh(self, principal: PrincipalLike, *, now: datetime | None = None) -> None:
         """Re-evaluate exceptions from the journal without listing the host's accounts.
@@ -1118,17 +1125,22 @@ class ReportingSubscriptionEngine:
             self._apply_grant(account, authorized=True, at=granted, source=source)
             return False
         start = self._chain_start(account)
-        if reported is not None and start is not None and reported < start:
+        return reported is not None and start is not None and reported < start
+
+    def _report_regressions(self, regressions: Sequence[tuple[str, datetime]]) -> None:
+        """Count and log rejected ``authorized_at`` values once, after the state write.
+
+        Called outside ``_mutate``, whose change may run more than once.
+        """
+        for account_id, reported in regressions:
             self._regressions += 1
             logger.warning(
-                "authorized_at_regressed: the host reported authorized_at %s, before the "
-                "chain start %s the grant journal holds; the journal keeps its value",
+                "authorized_at_regressed: the host reported authorized_at %s for account %s, "
+                "before the chain start the grant journal holds; the journal keeps its value",
                 iso_z(reported),
-                iso_z(start),
+                account_id,
                 extra={"event": "reporting.subscription.authorized_at_regressed"},
             )
-            return True
-        return False
 
     def _chain_start(self, account: _Account) -> datetime | None:
         return authorization_chain_start(account.grants, status_retention_days=self._retention_days)
@@ -1177,8 +1189,10 @@ class ReportingSubscriptionEngine:
         self, identity: PrincipalLike, account_id: str
     ) -> Sequence[SubscriptionBuy]:
         buys: Any = await self._host.account_buys(identity, account_id)
-        if isinstance(buys, (str, bytes)) or not all(
-            isinstance(item, SubscriptionBuy) for item in buys
+        if (
+            not isinstance(buys, Sequence)
+            or isinstance(buys, (str, bytes))
+            or not all(isinstance(item, SubscriptionBuy) for item in buys)
         ):
             raise ReportingSubscriptionEngineError(
                 "SUBSCRIPTION_HOST_FACT_INVALID",
@@ -1207,20 +1221,24 @@ class ReportingSubscriptionEngine:
             if _covers(item.allowed_tasks)
         }
 
+        regressions: list[tuple[str, datetime]] = []
+
         def change(principal: _PrincipalState) -> None:
+            regressions.clear()  # the change may rerun on a write conflict
             for account_id, item in listed.items():
                 account = principal.accounts.get(account_id)
                 if account is None:
                     account = principal.accounts[account_id] = _Account(
                         timezone=item.timezone, operator=item.operator
                     )
-                self._observe(
+                if self._observe(
                     account,
                     covered=True,
                     reported=item.authorized_at,
                     at=instant,
                     source="listed",
-                )
+                ):
+                    regressions.append((account_id, item.authorized_at))
                 account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
                 account.allowed_tasks = item.allowed_tasks
@@ -1232,6 +1250,7 @@ class ReportingSubscriptionEngine:
             principal.reconciled_at = max(instant, principal.reconciled_at or instant)
 
         await self._mutate(identity.subject, change, now=instant)
+        self._report_regressions(regressions)
         await self._apply_replacements(identity, instant)
         await self._evaluate(identity, instant)
 

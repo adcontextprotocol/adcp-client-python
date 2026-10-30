@@ -99,8 +99,8 @@ _ALL_BUY_STATUSES = (
     "rejected",
     "canceled",
 )
-#: Hard cap on pages walked for one principal's roster or one account's buys;
-#: a walk that does not end is refused, never truncated.
+#: Hard cap on pages walked for one account's buys; a walk that does not end is
+#: refused, never truncated. The engine caps the roster walk the same way.
 _MAX_PAGES = 10_000
 
 
