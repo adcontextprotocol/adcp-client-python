@@ -361,7 +361,9 @@ def create_media_buy_delivery_webhook_payload(
         registration: The buyer's ``reporting_webhook`` as stored by the seller.
         task_id: Seller-generated identifier for this report, for example
             ``"delivery_report_67_2026_04_000031"``.
-        result: The ``MediaBuyDeliveryWebhookResult`` body, kept byte-for-byte.
+        result: The ``MediaBuyDeliveryWebhookResult`` body, kept byte-for-byte
+            except that ``aggregated_totals``, which senders must not include,
+            is dropped with a warning.
         status: Envelope status, normally ``"completed"``. It is distinct from
             ``media_buy_deliveries[].status``.
         timestamp: When the report was first generated. Defaults to now (UTC).
@@ -395,11 +397,20 @@ def create_media_buy_delivery_webhook_payload(
             },
         )
         raise ReportingWebhookOperationIdMissingError(media_buy_ids=media_buy_ids)
+    body = result.model_dump(mode="json") if isinstance(result, PydanticBaseModel) else result
+    if "aggregated_totals" in body:
+        # Senders MUST NOT put aggregated_totals in a delivery webhook result;
+        # receivers ignore it. Drop it rather than send a non-conformant body.
+        logger.warning(
+            "Dropped aggregated_totals from a media_buy_delivery webhook result",
+            extra={"task_type": "media_buy_delivery"},
+        )
+        body = {key: value for key, value in body.items() if key != "aggregated_totals"}
     return create_mcp_webhook_payload(
         task_id=task_id,
         status=status,
         task_type=TaskType.media_buy_delivery,
-        result=result,
+        result=body,
         timestamp=timestamp,
         operation_id=webhook.operation_id,
         message=message,
