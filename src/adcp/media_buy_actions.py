@@ -1305,7 +1305,8 @@ def _supports_change_term_id(version: str) -> bool:
     beta = int(match.group(3)) if match.group(3) is not None else None
     if (major, minor) < (3, 2):
         return False
-    return beta is None or beta >= 9
+    # change_term_id landed in 3.2.0-beta.9; later lines carry it in every prerelease.
+    return (major, minor) > (3, 2) or beta is None or beta >= 9
 
 
 def _supports_action_task(version: str) -> bool:

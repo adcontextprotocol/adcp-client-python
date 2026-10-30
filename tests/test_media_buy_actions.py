@@ -664,6 +664,17 @@ def test_resolved_condition_allows_seller_managed_standard_async_action() -> Non
                 "change_term_id": "right_increase",
             },
         ),
+        (
+            # The 3.2 beta.9 floor does not apply to 3.3 prereleases.
+            "3.3.0-beta.1",
+            {
+                "action": "increase_budget",
+                "mode": "seller_managed",
+                "task": "control_media_buy",
+                "sla": {"response_max": "PT30M"},
+                "change_term_id": "right_increase",
+            },
+        ),
     ],
 )
 def test_projection_version_matrix(version: str, expected: dict[str, Any]) -> None:
