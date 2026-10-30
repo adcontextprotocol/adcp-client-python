@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import logging
 import weakref
 from collections.abc import Awaitable, Callable, Mapping
 from contextvars import ContextVar
@@ -30,7 +29,11 @@ from adcp.reporting.materializer.reference import (
 from adcp.reporting.materializer.service import ReportingMaterializerService
 from adcp.reporting.materializer.verification import ReportingDestinationIO, _same_definition
 from adcp.reporting.materializer.work import MaterializerContext, verification_key_id
-from adcp.reporting.production._diagnostics import _worker_stopped, _WorkerBoundary
+from adcp.reporting.production._diagnostics import (
+    _owed_sets_failed,
+    _worker_stopped,
+    _WorkerBoundary,
+)
 from adcp.reporting.production.configuration import (
     ReportingConfigurationAdmission,
     ReportingProductionConfigurationTask,
@@ -50,8 +53,6 @@ from adcp.reporting.production.store import (
     ReportingProductionStore,
 )
 from adcp.reporting.receipts.handler import ReceiptAccountResolver
-
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgentRegistry
@@ -755,17 +756,21 @@ class ReportingProductionSupport:
         """Run this producer's reporting-subscription owed sets; they are never leased.
 
         One owed set's failure never stops another's or the production turn.
+        Failures raise the closed ``REPORTING_PRODUCTION_OWED_SET_FAILED``
+        signal once per turn, so a subscription that never delivers is visible.
         """
         owed_sets = getattr(self.store, "production_owed_sets", None)
         if owed_sets is None:
             return
-        for configuration in await owed_sets(self._producer_keys()):
+        configurations = await owed_sets(self._producer_keys())
+        failed = 0
+        for configuration in configurations:
             try:
                 await producer.run_configuration(configuration)
-            except Exception as error:  # noqa: BLE001 - isolate one owed set
-                logger.warning(
-                    "reporting subscription generation could not run: %s", type(error).__name__
-                )
+            except Exception:  # noqa: BLE001 - isolate one owed set
+                failed += 1
+        if failed:
+            _owed_sets_failed(failed=failed, total=len(configurations))
 
     async def _maintain(self) -> None:
         """Scheduled retention: abandoned uploads, expired periods, old change rows.
