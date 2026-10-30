@@ -168,5 +168,6 @@ def assert_reporting_request_supported(tool_name: str, params: Any) -> None:
         [
             f"{issue.detail} at {issue.field} requires AdCP 3.2-beta.6 or newer "
             f"(target is {target_version}); no request was sent"
-        ]
+        ],
+        dispatched=False,
     )

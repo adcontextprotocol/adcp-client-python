@@ -272,6 +272,8 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "AccountPaymentRequiredError",
         "ConfigurationError",
         "extract_adcp_error_info",
+        "is_pre_dispatch_error",
+        "is_pre_dispatch_error",
         "IdempotencyConflictError",
         "IdempotencyExpiredError",
         "IdempotencyScopeError",
@@ -853,6 +855,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "uses_deprecated_assets_field",
     ),
     "adcp.validation": (
+        "RequestValidationError",
         "SchemaValidationError",
         "UnknownFieldPolicy",
         "ValidationError",
@@ -1652,6 +1655,7 @@ __all__ = [
     "RegistryErrorDetails",
     "RegistryValidationIssue",
     # Validation utilities
+    "RequestValidationError",
     "SchemaValidationError",
     "UnknownFieldPolicy",
     "ValidationError",
@@ -1902,6 +1906,7 @@ if TYPE_CHECKING:
         RegistryErrorDetails,
         RegistryValidationIssue,
         extract_adcp_error_info,
+        is_pre_dispatch_error,
     )
     from adcp.feed_mirror import (
         EventHandler,
@@ -2576,6 +2581,7 @@ if TYPE_CHECKING:
         uses_deprecated_assets_field,
     )
     from adcp.validation import (
+        RequestValidationError,
         SchemaValidationError,
         UnknownFieldPolicy,
         ValidationError,

@@ -129,8 +129,45 @@ def extract_adcp_error_info(err: Any) -> AdcpErrorInfo:
     )
 
 
+def is_pre_dispatch_error(error: object) -> bool:
+    """Whether the SDK refused this request locally, before sending any of it.
+
+    Such errors carry ``dispatched = False``: no bytes of the task's request
+    left this process, so the agent cannot have acted on it, and the failure
+    says nothing about the agent's health. The SDK sets the marker only on
+    refusals it decides by itself: request schema validation, the version and
+    feature gates, and refusals that follow already-known capabilities.
+
+    Failures that involve contacting the agent are never marked, even when the
+    task itself was not sent: endpoint discovery, OAuth token fetches and the
+    ``get_adcp_capabilities`` fetch. A refused connection, a 5xx or a 429 there
+    is an agent failure.
+
+    This checks the attribute, not the class, so it also accepts a
+    :class:`~adcp.types.core.TaskResult` carrying ``dispatched=False`` and an
+    error from another copy of the SDK.
+    """
+    return getattr(error, "dispatched", None) is False
+
+
 class ADCPError(Exception):
-    """Base exception for all AdCP client errors."""
+    """Base exception for all AdCP client errors.
+
+    Attributes:
+        dispatched: ``False`` when the SDK refused the request locally and no
+            bytes of the task's request left this process (see
+            :func:`is_pre_dispatch_error`). ``None`` otherwise: the request
+            may have been sent.
+        recovery: How to recover, in the AdCP ``error.recovery`` vocabulary:
+            ``"transient"`` (retry later), ``"correctable"`` (fix the request
+            or configuration, then retry) or ``"terminal"`` (needs human
+            action). ``None`` when the SDK cannot classify the failure.
+            :class:`ADCPTimeoutError` keeps its own ``recovery``: the
+            :class:`~adcp.task_options.TaskRecoveryMetadata` for a safe retry.
+    """
+
+    dispatched: Literal[False] | None = None
+    recovery: RecoveryLiteral | None = None
 
     def __init__(
         self,
@@ -164,6 +201,8 @@ class ADCPError(Exception):
 class ADCPConnectionError(ADCPError):
     """Connection to agent failed."""
 
+    recovery: RecoveryLiteral | None = "transient"
+
     def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
         """Initialize connection error."""
         suggestion = (
@@ -193,6 +232,8 @@ class ADCPAuthenticationError(ADCPError):
     ``www_authenticate`` when available, preserving the server's challenge
     for credential recovery.
     """
+
+    recovery: RecoveryLiteral | None = "correctable"
 
     def __init__(
         self,
@@ -233,7 +274,10 @@ class ADCPTimeoutError(ADCPError):
         self.timeout = timeout
         self.task_name = task_name
         self.operation_id = operation_id
-        self.recovery = recovery
+        # The safe-retry identity, not the base class's classification: a
+        # timeout is always retryable (see ``is_retryable``), and
+        # ``recovery.outcome_unknown`` says the mutation may have applied.
+        self.recovery = recovery  # type: ignore[assignment]
         suggestion = (
             f"The request took longer than {timeout}s." if timeout else "The request timed out."
         )
@@ -479,7 +523,15 @@ class RegistryError(ADCPError):
 
 
 class ADCPFeatureUnsupportedError(ADCPError):
-    """Seller does not support one or more required features."""
+    """Seller does not support one or more required features.
+
+    ``dispatched`` is ``False`` where the SDK refused the task from
+    already-known capabilities or its own version and feature gates, before
+    sending any of it. It is ``None`` where the refusal follows a response,
+    for example a response that cannot be converted to the caller's version.
+    """
+
+    recovery: RecoveryLiteral | None = "correctable"
 
     def __init__(
         self,
@@ -487,6 +539,8 @@ class ADCPFeatureUnsupportedError(ADCPError):
         declared_features: list[str] | None = None,
         agent_id: str | None = None,
         agent_uri: str | None = None,
+        *,
+        dispatched: Literal[False] | None = None,
     ):
         """Initialize feature unsupported error.
 
@@ -495,7 +549,11 @@ class ADCPFeatureUnsupportedError(ADCPError):
             declared_features: Features the seller does declare.
             agent_id: Optional agent ID for context.
             agent_uri: Optional agent URI for context.
+            dispatched: Pass ``False`` only where no bytes of the task's
+                request left the process. See :func:`is_pre_dispatch_error`.
         """
+        if dispatched is False:
+            self.dispatched = False
         self.unsupported_features = unsupported_features
         self.declared_features = declared_features or []
 
@@ -639,6 +697,11 @@ class ADCPTaskError(ADCPError):
         self.error_codes = [
             code for err in errors if isinstance((code := _access(err, "code")), str) and code
         ]
+        recoveries = self._effective_recoveries()
+        # The most demanding entry decides: terminal over correctable over transient.
+        self.recovery = next(
+            (r for r in ("terminal", "correctable", "transient") if r in recoveries), None
+        )
 
         message = f"{operation} failed"
         if errors:
@@ -703,6 +766,11 @@ class ADCPTaskError(ADCPError):
         `correctable` entry blocks (caller must fix the request first — a
         retry as-is would re-trigger the same error).
         """
+        effective = self._effective_recoveries()
+        return bool(effective) and all(r == "transient" for r in effective)
+
+    def _effective_recoveries(self) -> list[RecoveryLiteral]:
+        """Each entry's recovery: the wire value, else the code table, else transient."""
         from adcp.server.helpers import CORRECTABLE_CODES, TERMINAL_CODES, TRANSIENT_CODES
 
         effective: list[RecoveryLiteral] = []
@@ -725,10 +793,7 @@ class ADCPTaskError(ADCPError):
                 # against a producer that ships a new code before the SDK
                 # learns about it.
                 effective.append("transient")
-
-        if not effective:
-            return False
-        return not any(r in ("terminal", "correctable") for r in effective)
+        return effective
 
 
 class IdempotencyConflictError(ADCPTaskError):
@@ -827,8 +892,12 @@ class IdempotencyUnsupportedError(ADCPError):
     declares ``supported=False``, or declares ``supported=True`` without a
     ``replay_ttl_seconds`` window. Per AdCP spec, clients MUST NOT assume a
     default — a seller that does not positively declare support cannot be
-    safely retried.
+    safely retried. The mutating task is never sent (``dispatched`` is
+    ``False``).
     """
+
+    dispatched: Literal[False] | None = False
+    recovery: RecoveryLiteral | None = "correctable"
 
     def __init__(
         self,

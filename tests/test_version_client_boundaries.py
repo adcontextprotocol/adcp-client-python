@@ -132,6 +132,7 @@ async def test_version_preflight_failure_is_a_failed_result_without_dispatch(pro
     assert result.data is None
     assert result.adcp_error["code"] == "UNSUPPORTED_FEATURE"
     assert result.adcp_error["details"]["wire_response_received"] is False
+    assert result.dispatched is False  # refused before any of the task was sent
     if case == "null_clear":
         assert result.adcp_error["details"]["pointer"] == "/frequency_cap"
         assert result.idempotency_key == "unsupported-null-clear-1551"

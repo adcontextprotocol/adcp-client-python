@@ -516,6 +516,7 @@
       "ReportingTrustedOriginPolicy": "union[builtins:bool,instance:builtins:list]",
       "RequestProposalsRequest": "media_buy.request_proposals_request",
       "RequestProposalsResponse": "union[instance:pydantic.fields:FieldInfo,union[media_buy.request_proposals_response:RequestProposalsResponse1,media_buy.request_proposals_response:RequestProposalsResponse2,media_buy.request_proposals_response:RequestProposalsResponse3,media_buy.request_proposals_response:RequestProposalsResponse4]]",
+      "RequestValidationError": "adcp.validation.schema_validator",
       "ResolvedBrand": "adcp.types.core",
       "ResolvedProperty": "adcp.types.core",
       "ResolvedPropertyList": "adcp.property_lists",

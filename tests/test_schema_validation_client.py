@@ -67,6 +67,8 @@ class TestMCPAdapterHooks:
             result.error or ""
         )
         session.call_tool.assert_not_called()
+        # Nothing was sent, so the result is marked as a local refusal.
+        assert result.dispatched is False
 
     @pytest.mark.asyncio
     async def test_strict_response_fails_task_on_drift(self) -> None:

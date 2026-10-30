@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from adcp.validation.schema_validator import (
+    RequestValidationError,
     SchemaValidationError,
     ValidationIssue,
     _issue_to_wire,
@@ -43,8 +44,11 @@ def build_validation_error(
     """Build a :class:`SchemaValidationError` carrying every failure.
 
     Strict-mode client hooks raise this so callers can inspect the full
-    pointer list via ``.issues`` and the ``details`` dict.
+    pointer list via ``.issues`` and the ``details`` dict. A request-side
+    failure is a :class:`RequestValidationError` (``dispatched`` is ``False``).
     """
+    if side == "request":
+        return RequestValidationError(tool, issues)
     return SchemaValidationError(tool, side, issues)
 
 
