@@ -43,7 +43,10 @@ from adcp.reporting.production import (
 from adcp.reporting.receipts import ReportingReceiptError
 from adcp.reporting.service import ReliableReportingService, ReportingAccountContext
 from adcp.reporting.service_production import ReportingProductionOptions, ReportingServiceOffering
-from adcp.reporting.service_subscriptions import ReportingSubscriptionServiceOptions
+from adcp.reporting.service_subscriptions import (
+    ReportingSubscriptionServiceOptions,
+    SubscriptionOptions,
+)
 from adcp.reporting.subscriptions import (
     AuthorizedAccount,
     ReportingSubscriptionEngine,
@@ -152,16 +155,17 @@ async def _seller(
     *,
     pool_buys: tuple[str, ...] = ("mb-1",),
     notifications: bool = False,
+    managed: bool = False,
 ):
     async with AsyncExitStack() as stack:
         clock = DeterministicReportingClock(END)
         store = await _store(stack, backend, notifications=notifications)
-        async with _composed(tmp_path, clock, store, pool_buys, notifications) as h:
+        async with _composed(tmp_path, clock, store, pool_buys, notifications, managed) as h:
             yield h
 
 
 @asynccontextmanager
-async def _composed(tmp_path, clock, store, pool_buys, notifications):
+async def _composed(tmp_path, clock, store, pool_buys, notifications, managed=False):
     verifier = _subscription_verifier()
     key = verifier.key
     writer = SQLiteDestination(tmp_path / "destination.sqlite", key)
@@ -308,27 +312,36 @@ async def _composed(tmp_path, clock, store, pool_buys, notifications):
     )
     failures: list[Any] = []
     h.failures = failures
-    subscriptions = ReportingSubscriptionServiceOptions(
-        engine=engine,
-        list_principals=lambda: [AGENCY],
-        resolve_principal=lambda _request, _context: AGENCY,
-        bind_managed_generation=bind,
-        planning_error_handler=failures.append,
-    )
+    composition: dict[str, Any]
+    if managed:
+        composition = {
+            "subscriptions": SubscriptionOptions(
+                accounts=host.list_authorized_accounts,
+                buys=host.account_buys,
+                resolve_principal=lambda _request, _context: AGENCY,
+                bind_managed_generation=bind,
+                planning_error_handler=failures.append,
+                # The served 3.3.0-beta.1 offering contract has no standard_dimensions.
+                standard_dimensions={OFFERING_ID: ["package"]},
+            )
+        }
+    else:
+        composition = {
+            "reporting_subscriptions": ReportingSubscriptionServiceOptions(
+                engine=engine,
+                list_principals=lambda: [AGENCY],
+                resolve_principal=lambda _request, _context: AGENCY,
+                bind_managed_generation=bind,
+                planning_error_handler=failures.append,
+            )
+        }
     h.service = (
         ReliableReportingService.memory(
-            account_context=context,
-            clock=clock,
-            production=options,
-            reporting_subscriptions=subscriptions,
+            account_context=context, clock=clock, production=options, **composition
         )
         if store is None
         else ReliableReportingService(
-            store=store,
-            account_context=context,
-            clock=clock,
-            production=options,
-            reporting_subscriptions=subscriptions,
+            store=store, account_context=context, clock=clock, production=options, **composition
         )
     )
     h.service.sources.register(
@@ -337,6 +350,9 @@ async def _composed(tmp_path, clock, store, pool_buys, notifications):
         constituent_of=lambda row, request: request.coverage.constituents[0].constituent_id,
     )
     handler = h.service.install(_App())
+    h.handler = handler
+    if managed:
+        h.engine, h.principals = h.service._managed.engine, h.service.principals
     h.mount = create_mcp_server(handler)  # production requires a mounted handler
     h.production = h.service._production
     h.store = h.service.store
@@ -546,3 +562,57 @@ async def test_a_second_offering_of_one_version_is_refused(tmp_path, backend) ->
         assert h.failures[0].error.code == "reporting_production_offering_conflict"
         (key,) = h.bound
         assert await h.store.list_generation_obligations(key) == ()
+
+
+async def test_the_managed_path_serves_production_through_its_application(
+    tmp_path, backend
+) -> None:
+    """``subscriptions=`` with production: principal tasks reach the application."""
+    from adcp.server import ToolContext
+    from adcp.server.mcp_tools import get_tools_for_handler
+
+    async with _seller(tmp_path, backend, managed=True) as h:
+        tools = {item["name"] for item in get_tools_for_handler(h.handler, _include_schemas=False)}
+        assert {"get_principal", "sync_principal"} <= tools
+        h.host.accounts[ACCOUNT] = AuthorizedAccount(
+            ACCOUNT, timezone="UTC", authorized_at=at("2026-08-01T00:00:00Z")
+        )
+        h.host.buys[ACCOUNT] = [_buy("mb-1")]
+        h.clock.set(at("2026-08-31T22:30:00Z"))  # accepted before the buy runs
+        response = await h.handler.sync_principal(
+            {
+                "idempotency_key": "managed-production-0001",
+                "configuration": {
+                    "reporting_destinations": [DESTINATION],
+                    "reporting_subscriptions": [
+                        {
+                            "subscription_id": "analytics-hourly",
+                            "subscription_version": 1,
+                            "active": True,
+                            "scope": {"all_authorized_accounts": True},
+                            "selector": {
+                                "feed_purpose": "analytics",
+                                "period_duration": "PT1H",
+                                "required_finality": "snapshot",
+                                "dimensions": ["package"],
+                            },
+                            "reconciliation_mode": "delivery_only",
+                            "destination": {"destination_id": "warehouse", "path_template": PATH},
+                        }
+                    ],
+                },
+            },
+            ToolContext(),
+        )
+        assert response.result.kind == "applied", response
+        await h.service.drain_subscription_triggers()
+        assert await h.engine.account_ids(AGENCY) == {ACCOUNT}
+        h.clock.set(END)
+        await h.service.start()  # sweep, plan, produce
+        assert h.failures == []
+        (key,) = h.bound
+        obligations = await h.store.list_generation_obligations(key)
+        assert [o.period.start for o in obligations] == [
+            at("2026-08-31T23:00:00Z"),
+            at("2026-09-01T00:00:00Z"),
+        ]

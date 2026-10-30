@@ -144,6 +144,7 @@ class _World:
             _ctx(principal),
         )
         assert response.result.kind == "applied", response
+        await self.service.drain_subscription_triggers()
         return response
 
 
@@ -269,6 +270,7 @@ async def test_served_writes_reconcile_the_principals_concerned() -> None:
     await world.subscribe(OTHER)
     calls = len(world.seller.listings)
     await world.platform.create_media_buy({"account": {"account_id": ACCOUNT}}, _ctx())
+    await world.service.drain_subscription_triggers()
     # Both principals hold state for the account.
     assert len(world.seller.listings) == calls + 2
     await world.service.touch(account_id="unknown-account")
@@ -287,6 +289,7 @@ async def test_unchanged_sync_principal_does_not_reconcile() -> None:
         _ctx(),
     )
     assert response.result.action == "unchanged"
+    await world.service.drain_subscription_triggers()
     assert len(world.seller.listings) == 1
 
 
@@ -406,6 +409,7 @@ async def test_the_binding_keeps_no_credential_material() -> None:
         },
         context,
     )
+    await world.service.drain_subscription_triggers()
     binding = await world.service._managed.engine.binding(PrincipalRef(None, AGENCY))
     assert binding == {
         "tenant_id": None,
@@ -499,6 +503,7 @@ async def test_a_decisioning_platform_is_served_through_its_own_handler() -> Non
             context,
         )
         assert response.result.kind == "applied"
+        await service.drain_subscription_triggers()
         # The roster was read through accounts.list under the restored identity.
         [listing] = platform.accounts.listed
         assert listing.auth_info.principal == AGENCY
@@ -524,6 +529,46 @@ async def test_a_decisioning_platform_is_served_through_its_own_handler() -> Non
             ),
             ToolContext(metadata={"adcp.auth_info": {"kind": "bearer", "principal": AGENCY}}),
         )
+        await service.drain_subscription_triggers()
         assert len(platform.accounts.listed) == 3
     finally:
         current_principal.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_a_served_write_never_waits_for_its_reconcile() -> None:
+    import asyncio
+
+    world = _World()
+    await world.subscribe()
+    release = asyncio.Event()
+    listed = world.seller.list_accounts
+
+    async def slow(params: Any, context: Any = None) -> Any:
+        await release.wait()
+        return await listed(params, context)
+
+    world.seller.list_accounts = slow  # type: ignore[method-assign]
+    result = await asyncio.wait_for(
+        world.platform.create_media_buy({"account": {"account_id": ACCOUNT}}, _ctx()), 1
+    )
+    assert result["media_buy_id"] == "media-buy-new"
+    release.set()
+    await world.service.drain_subscription_triggers()
+    await world.service.close()
+
+
+@pytest.mark.asyncio
+async def test_a_hung_platform_read_is_bounded_by_read_timeout() -> None:
+    import asyncio
+
+    world = _World(read_timeout=timedelta(milliseconds=50))
+
+    async def hung(params: Any, context: Any = None) -> Any:
+        await asyncio.sleep(30)
+
+    world.seller.list_accounts = hung  # type: ignore[method-assign]
+    await world.subscribe()
+    [failure] = world.failures
+    assert failure.error.code == "SUBSCRIPTION_ROSTER_UNAVAILABLE"
+    assert "RuntimeError" in str(failure.error)

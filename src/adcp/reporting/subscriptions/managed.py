@@ -30,11 +30,12 @@ whose accounts are only reachable through a live upstream token supplies
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from adcp._principal_ref import PrincipalRef
@@ -137,10 +138,20 @@ class SubscriptionOptions:
       ``ToolContext.caller_identity``), with ``ToolContext.tenant_id``.
 
     ``reconcile_on_write`` (default on) reconciles a principal when a served
-    write changes what it is owed. ``principals``, ``principal_store`` and
-    ``state_store`` supply the principal runtime and the stores; share durable
-    stores across every worker in production. ``account_configuration``
-    keeps ``sync_accounts`` in ``configuration_tasks``.
+    write changes what it is owed. The reconcile runs after the response, on
+    a background drain, so a write's latency never depends on how many
+    principals share the account; the worker's boundary sweep catches anything
+    it misses. ``read_timeout`` bounds each read of the platform's
+    ``list_accounts``/``get_media_buys`` (``None`` for no bound).
+
+    ``principals``, ``principal_store`` and ``state_store`` supply the
+    principal runtime and the stores; share durable stores across every worker
+    in production. ``account_configuration`` keeps ``sync_accounts`` in
+    ``configuration_tasks``. ``standard_dimensions`` maps an ``offering_id``
+    to its standard dimensions for an offering whose declaration cannot carry
+    them yet: production offerings validate against the served 3.3.0-beta.1
+    contract, which lacks the field. It goes away once the SDK serves
+    3.3.0-beta.3.
     """
 
     max_accounts: int | None = None
@@ -155,6 +166,8 @@ class SubscriptionOptions:
     is_period_delivered: PeriodDeliveredOverride | None = None
     resolve_principal: ManagedPrincipalResolver | None = None
     reconcile_on_write: bool = True
+    read_timeout: timedelta | None = timedelta(seconds=30)
+    standard_dimensions: Mapping[str, Sequence[str]] | None = None
     account_configuration: bool = True
     principal_kind: str = "buyer_agent"
     principals: PrincipalService | None = None
@@ -170,6 +183,8 @@ class SubscriptionOptions:
             type(self.max_accounts) is not int or self.max_accounts < 1
         ):
             raise ValueError("SubscriptionOptions.max_accounts must be a positive integer")
+        if self.read_timeout is not None and self.read_timeout <= timedelta(0):
+            raise ValueError("SubscriptionOptions.read_timeout must be positive")
         if self.principals is not None and self.principal_store is not None:
             raise ValueError("pass principals or principal_store, not both")
         if self.end_account_configs is not None and self.account_delivery_configs is None:
@@ -424,6 +439,9 @@ class ManagedSubscriptions:
         self._engine: ReportingSubscriptionEngine | None = None
         self._principals: PrincipalService | None = options.principals
         self._service_options: ReportingSubscriptionServiceOptions | None = None
+        #: Served-write triggers waiting for the drain: (account_id, caller).
+        self._queued: dict[tuple[str | None, str | None], PrincipalRef | None] = {}
+        self._drain: asyncio.Task[None] | None = None
 
     # -- composition -----------------------------------------------------------
 
@@ -464,7 +482,7 @@ class ManagedSubscriptions:
         from adcp.server.principal import PrincipalService
 
         options = self.options
-        mapped = self._offerings(offerings)
+        mapped = self._offerings(offerings, options.standard_dimensions or {})
         dimensions = (
             tuple(options.dimensions)
             if options.dimensions is not None
@@ -511,7 +529,9 @@ class ManagedSubscriptions:
         return self._service_options
 
     @staticmethod
-    def _offerings(offerings: Sequence[Mapping[str, Any]]) -> list[SubscriptionOffering]:
+    def _offerings(
+        offerings: Sequence[Mapping[str, Any]], declared: Mapping[str, Sequence[str]]
+    ) -> list[SubscriptionOffering]:
         from adcp.reporting.subscriptions._clock import CoverageInputError
         from adcp.reporting.subscriptions.resolution import SubscriptionOffering
 
@@ -524,6 +544,9 @@ class ManagedSubscriptions:
             )
         mapped: list[SubscriptionOffering] = []
         for offering in offerings:
+            offering_id = str(offering.get("offering_id"))
+            if "standard_dimensions" not in offering and offering_id in declared:
+                offering = {**offering, "standard_dimensions": list(declared[offering_id])}
             if "standard_dimensions" not in offering:
                 raise ReliableReportingConfigurationError(
                     f"offering {offering.get('offering_id')!r} has no standard_dimensions, so "
@@ -647,12 +670,10 @@ class ManagedSubscriptions:
             self._identity(principal), params, context=context
         )
         result = getattr(response, "result", None)
-        if (
-            self.options.reconcile_on_write
-            and getattr(result, "kind", None) == "applied"
-            and str(getattr(result, "action", "")) != "unchanged"
+        if getattr(result, "kind", None) == "applied" and (
+            str(getattr(result, "action", "")) != "unchanged"
         ):
-            await self.reconcile(principal)
+            self._enqueue(None, principal)
         return response
 
     # -- scheduling ------------------------------------------------------------
@@ -674,21 +695,68 @@ class ManagedSubscriptions:
         return True
 
     async def touch(self, *, account_id: str | None, context: Any | None = None) -> None:
-        """Reconcile the principals a served write on ``account_id`` concerns.
+        """Reconcile now the principals a change on ``account_id`` concerns.
 
-        The caller, when it holds subscriptions, and every principal whose
-        engine state includes the account.
+        The caller ``context`` authenticates, when it holds subscriptions, and
+        every principal whose engine state includes the account. Awaited, for
+        hosts that want immediacy after a change the SDK did not serve.
         """
+        if not self.composed:
+            return
+        caller = await self._caller(context)
+        await self._reconcile_concerned(account_id, caller)
+
+    async def _caller(self, context: Any | None) -> PrincipalRef | None:
+        if context is None:
+            return None
+        try:
+            return await self.resolve(None, context)
+        except ReliableReportingConfigurationError:
+            return None
+
+    async def trigger(self, *, account_id: str | None, context: Any | None = None) -> None:
+        """Queue a reconcile after a served write; returns without waiting for it."""
         if not self.options.reconcile_on_write or not self.composed:
             return
-        concerned: dict[str, PrincipalRef] = {}
-        if context is not None:
+        self._enqueue(account_id, await self._caller(context))
+
+    def _enqueue(self, account_id: str | None, caller: PrincipalRef | None) -> None:
+        if not self.options.reconcile_on_write:
+            return
+        self._queued[(account_id, None if caller is None else caller.subject)] = caller
+        if self._drain is None or self._drain.done():
+            self._drain = asyncio.get_running_loop().create_task(
+                self._run_drain(), name="adcp-reporting-subscription-triggers"
+            )
+
+    async def _run_drain(self) -> None:
+        while self._queued:
+            (account_id, _subject), caller = next(iter(self._queued.items()))
+            del self._queued[(account_id, _subject)]
             try:
-                caller = await self.resolve(None, context)
-            except ReliableReportingConfigurationError:
-                caller = None
-            if caller is not None:
-                concerned[caller.subject] = caller
+                await self._reconcile_concerned(account_id, caller)
+            except Exception:  # noqa: BLE001 - the drain never dies on one trigger
+                logger.exception("Reliable Reporting subscription trigger failed")
+
+    async def drain(self) -> None:
+        """Wait until every queued served-write trigger has reconciled."""
+        while self._drain is not None and not self._drain.done():
+            await asyncio.shield(self._drain)
+
+    async def aclose(self) -> None:
+        """Stop the trigger drain; queued work is left to the boundary sweep."""
+        self._queued.clear()
+        task, self._drain = self._drain, None
+        if task is not None and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def _reconcile_concerned(
+        self, account_id: str | None, caller: PrincipalRef | None
+    ) -> None:
+        concerned: dict[str, PrincipalRef] = {}
+        if caller is not None:
+            concerned[caller.subject] = caller
         if account_id is not None:
             try:
                 principals = await self.list_principals()
@@ -737,7 +805,18 @@ class ManagedSubscriptions:
                 "reporting subscriptions derive accounts and buys from the installed platform; "
                 "call service.install(platform) first"
             )
-        response = _wire(await _resolve(getattr(target, tool)(request, context)))
+        timeout = self.options.read_timeout
+        try:
+            response = _wire(
+                await asyncio.wait_for(
+                    _resolve(getattr(target, tool)(request, context)),
+                    None if timeout is None else timeout.total_seconds(),
+                )
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f"{tool} did not answer within SubscriptionOptions.read_timeout"
+            ) from None
         if not isinstance(response, Mapping):
             raise TypeError(f"{tool} returned {type(response).__name__}")
         if response.get("supported") is False or response.get("errors"):

@@ -624,6 +624,10 @@ class ReliableReportingService:
                 )
             except TypeError as error:
                 raise ReliableReportingConfigurationError(str(error)) from None
+            owned_resources = (
+                *owned_resources,
+                ReportingServiceResource(close=self._managed.aclose),
+            )
         if reporting_subscriptions is not None and production is None:
             self._build_subscription_planner()
         self._lifecycle = _ServiceLifecycle(
@@ -788,13 +792,22 @@ class ReliableReportingService:
             self._managed.bind_handler(handler)
 
     async def _subscription_write(self, account_id: str | None, context: Any | None) -> None:
-        """Trigger: a served account or media-buy write may change what is owed."""
+        """Trigger: a served account or media-buy write may change what is owed.
+
+        Queues the reconcile on the background drain, so the buyer's write
+        never waits for it.
+        """
         if self._managed is None or not self._managed.composed:
             return
         try:
-            await self._managed.touch(account_id=account_id, context=context)
+            await self._managed.trigger(account_id=account_id, context=context)
         except Exception:  # noqa: BLE001 - a trigger never fails the buyer's write
             logger.exception("Reliable Reporting subscription trigger failed")
+
+    async def drain_subscription_triggers(self) -> None:
+        """Wait until every reconcile queued by served writes has run (tests, shutdown)."""
+        if self._managed is not None:
+            await self._managed.drain()
 
     def _compose_production(self) -> None:
         if self._production_options is None or self._production is not None:
@@ -1962,9 +1975,13 @@ class ReliableReportingService:
                 "sync_principal", lambda: service.sync_principal(params, context)
             )
 
+        from adcp.server import ADCPHandler
+
         def triggered(name: str) -> Callable[..., Any] | None:
             method = getattr(original, name, None)
-            if method is None:
+            # Only tasks the application implements: wrapping the base
+            # not-supported default would advertise a task nobody serves.
+            if method is None or method is getattr(ADCPHandler, name, None):
                 return None
 
             async def write(instance: Any, params: Any, context: Any | None = None) -> Any:

@@ -362,7 +362,11 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
   `Account(timezone=..., operator=...)` serves both on a decisioning platform.
 - **Scheduling.** `sync_principal`, `sync_accounts`, `create_media_buy` and
   `update_media_buy` served through the installed platform reconcile the
-  principals concerned (`reconcile_on_write`, on by default). Each worker turn
+  principals concerned (`reconcile_on_write`, on by default). The reconcile
+  runs after the response, on a background drain, so a write never waits for
+  it (`await reporting.drain_subscription_triggers()` waits, for tests). Each
+  read of the platform is bounded by `read_timeout` (30 seconds by default).
+  Each worker turn
   first reconciles every principal a period boundary has passed for since its
   last reconcile, then plans. Call `await reporting.touch(account_id=...)` after
   a change the SDK did not serve, such as a seller UI edit.
