@@ -330,9 +330,9 @@ def capture_feed(
                 and owners[owner_id].generation_key in bindings
                 and record.canonical_content_digest is not None
             ):
-                wires[identity][
-                    "canonical_content_digest"
-                ] = record.canonical_content_digest.to_wire()
+                wires[identity]["canonical_content_digest"] = (
+                    record.canonical_content_digest.to_wire()
+                )
             if record.supersedes_reporting_revision_id is not None:
                 predecessor = revisions.get(record.supersedes_reporting_revision_id)
                 if predecessor is None or predecessor.reporting_obligation_id != owner_id:
@@ -481,7 +481,9 @@ def capture_feed(
             finality = (
                 revisions[revision_id].finality
                 if revision_id in revisions
-                else owners[owner_id].required_finality if owner_id in owners else None
+                else owners[owner_id].required_finality
+                if owner_id in owners
+                else None
             )
             if finality not in finalities:
                 matches = False

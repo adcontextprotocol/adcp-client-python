@@ -258,7 +258,9 @@ def project_reconciliation(
         wire["reconciliation_status"] = (
             "rejected"
             if rejected
-            else "accepted" if accepted and not pending_adjustments else "pending"
+            else "accepted"
+            if accepted and not pending_adjustments
+            else "pending"
         )
     else:
         wire["reconciliation_status"] = "not_required"

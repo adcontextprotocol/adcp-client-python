@@ -143,6 +143,6 @@ async def test_a_managed_service_runs_on_postgres_storage() -> None:
             assert turn.subscription_errors == {}
             assert turn.subscription_obligations_written == 2
             engine = service._managed.engine
-            assert await engine.list_principals() == [PrincipalRef(None, AGENCY)]
+            assert await engine.list_subscription_principals() == [PrincipalRef(None, AGENCY)]
         finally:
             await service.close()

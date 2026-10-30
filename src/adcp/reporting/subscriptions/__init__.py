@@ -4,7 +4,7 @@
 its principal through ``sync_principal`` instead of once per account through
 ``sync_accounts``. This package holds the parts both sides share:
 
-* :func:`expected_subscription_periods` -- the pure coverage rule. A buyer runs
+* :func:`owed_subscription_periods` -- the pure coverage rule. A buyer runs
   it from its own records to learn exactly which periods it is owed; the
   seller runtime runs it over the same facts to decide which obligations it
   owes.
@@ -48,6 +48,7 @@ from adcp.reporting.subscriptions.consumer import (
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
     ExpectedSubscriptionPeriod,
+    OwedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
     SubscriptionBuyFlight,
@@ -56,6 +57,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionVersionWindow,
     authorization_chain_start,
     expected_subscription_periods,
+    owed_subscription_periods,
     subscription_covers_account,
     subscription_exceptions,
     subscription_version_windows,
@@ -164,6 +166,7 @@ __all__ = [
     "STANDARD_REPORTING_DIMENSIONS",
     "AccountTimezoneChange",
     "ExpectedSubscriptionPeriod",
+    "OwedSubscriptionPeriod",
     "ReportingSubscriptionSupport",
     "SubscriptionAuthorization",
     "SubscriptionBuy",
@@ -178,6 +181,7 @@ __all__ = [
     "SubscriptionVersionWindow",
     "advertise_reporting_subscriptions",
     "expected_subscription_periods",
+    "owed_subscription_periods",
     "reporting_configuration_tasks",
     "resolve_subscription_offerings",
     "subscription_capabilities",

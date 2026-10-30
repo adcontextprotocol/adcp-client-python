@@ -21,7 +21,7 @@ tracks lost authority, serves ``subscription_coverage[]`` for
 ``get_reporting_status``, keeps ``accounts_with_exceptions[]`` and
 ``accounts_unauthorized[]`` current in the ``get_principal`` readback, and
 computes owed periods with the same
-:func:`~adcp.reporting.subscriptions.expected_subscription_periods` a buyer
+:func:`~adcp.reporting.subscriptions.owed_subscription_periods` a buyer
 runs, so both sides agree period by period.
 
 ``max_accounts`` order
@@ -47,13 +47,13 @@ from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_z
 from adcp.reporting.subscriptions.capabilities import ReportingSubscriptionSupport
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
-    ExpectedSubscriptionPeriod,
+    OwedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
     SubscriptionException,
     SubscriptionVersionWindow,
     authorization_chain_start,
-    expected_subscription_periods,
+    owed_subscription_periods,
     subscription_covers_account,
     subscription_version_windows,
 )
@@ -177,7 +177,7 @@ class ReportingSubscriptionDeliveryHost(Protocol):
         self,
         principal: PrincipalLike,
         account_id: str,
-        period: ExpectedSubscriptionPeriod,
+        period: OwedSubscriptionPeriod,
         *,
         by: datetime,
     ) -> bool: ...
@@ -746,6 +746,17 @@ class ReportingSubscriptionEngine:
         return self._store
 
     async def list_principals(self) -> list[PrincipalRef]:
+        """Deprecated: renamed :meth:`list_subscription_principals`; kept for one beta."""
+        import warnings
+
+        warnings.warn(
+            "list_principals is renamed list_subscription_principals",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return await self.list_subscription_principals()
+
+    async def list_subscription_principals(self) -> list[PrincipalRef]:
         """Every principal the store holds engine state for, in subject order.
 
         Requires a store that implements ``list_principals()`` (both SDK stores
@@ -1802,10 +1813,10 @@ class ReportingSubscriptionEngine:
         account_id: str,
         *,
         now: datetime | None = None,
-    ) -> list[ExpectedSubscriptionPeriod]:
+    ) -> list[OwedSubscriptionPeriod]:
         """Every period this subscription owes the account: the seller's obligations.
 
-        The same :func:`expected_subscription_periods` a buyer runs, over the
+        The same :func:`owed_subscription_periods` a buyer runs, over the
         engine's records: every version's configuration, the grant history,
         timezone changes and every recorded exclusion.
         """
@@ -1837,7 +1848,7 @@ class ReportingSubscriptionEngine:
         buys: Sequence[SubscriptionBuy],
         destinations: Mapping[str, Any],
         now: datetime,
-    ) -> list[ExpectedSubscriptionPeriod]:
+    ) -> list[OwedSubscriptionPeriod]:
         subscription_id = str(state["subscription_id"])
         versions = {
             version: configuration
@@ -1862,7 +1873,7 @@ class ReportingSubscriptionEngine:
                 state, version_configurations=versions, require_prior_configurations=True
             )
         )
-        return expected_subscription_periods(
+        return owed_subscription_periods(
             subscription=windows,
             account_id=account_id,
             buys=buys,
