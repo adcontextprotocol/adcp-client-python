@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -67,6 +67,7 @@ from adcp.types.domains.enums.cloud_storage_protocol import CloudStorageProtocol
 from adcp.types.domains.enums.co_branding_requirement import CoBrandingRequirement
 from adcp.types.domains.enums.collection_cadence import CollectionCadence
 from adcp.types.domains.enums.collection_kind import CollectionKind
+from adcp.types.domains.enums.collection_mechanism import CollectionMechanism
 from adcp.types.domains.enums.collection_relationship import CollectionRelationship
 from adcp.types.domains.enums.collection_status import CollectionStatus
 from adcp.types.domains.enums.completion_source import CompletionSource
@@ -89,7 +90,6 @@ from adcp.types.domains.enums.daast_version import DaastVersion
 from adcp.types.domains.enums.day_of_week import DayOfWeek
 from adcp.types.domains.enums.daypart_time_granularity import DaypartTimeGranularity
 from adcp.types.domains.enums.daypart_timezone_mode import DaypartTimezoneMode
-from adcp.types.domains.enums.definition_pin_ref_kind import DefinitionPinReferenceKind
 from adcp.types.domains.enums.delegation_authority import DelegationAuthority
 from adcp.types.domains.enums.delivery_projection_basis import DeliveryProjectionBasis
 from adcp.types.domains.enums.delivery_projection_end_state import DeliveryProjectionEndState
@@ -170,6 +170,7 @@ from adcp.types.domains.enums.metro_system import MetroAreaSystem
 from adcp.types.domains.enums.moov_atom_position import MoovAtomPosition
 from adcp.types.domains.enums.motion_level import CreativeMotionLevel
 from adcp.types.domains.enums.notification_type import NotificationType
+from adcp.types.domains.enums.offer_reason import OfferReason
 from adcp.types.domains.enums.offering_availability_status import OfferingAvailabilityStatus
 from adcp.types.domains.enums.outcome_target_cost_strength import OutcomeTargetCostStrength
 from adcp.types.domains.enums.outcome_type import OutcomeType
@@ -192,6 +193,7 @@ from adcp.types.domains.enums.production_quality import ProductionQuality
 from adcp.types.domains.enums.property_type import PropertyType
 from adcp.types.domains.enums.proposal_decline_reason import ProposalDeclineReason
 from adcp.types.domains.enums.proposal_disposition import ProposalDisposition
+from adcp.types.domains.enums.proposal_initiator import ProposalInitiator
 from adcp.types.domains.enums.proposal_refinement_reason import ProposalRefinementReason
 from adcp.types.domains.enums.proposal_status import ProposalStatus
 from adcp.types.domains.enums.publisher_identifier_types import PublisherIdentifierTypes
@@ -310,6 +312,7 @@ __all__ = [
     "CoBrandingRequirement",
     "CollectionCadence",
     "CollectionKind",
+    "CollectionMechanism",
     "CollectionRelationship",
     "CollectionStatus",
     "CompletionSource",
@@ -335,7 +338,6 @@ __all__ = [
     "DayOfWeek",
     "DaypartTimeGranularity",
     "DaypartTimezoneMode",
-    "DefinitionPinReferenceKind",
     "DelegationAuthority",
     "DeliveryProjectionBasis",
     "DeliveryProjectionEndState",
@@ -412,6 +414,7 @@ __all__ = [
     "MetroAreaSystem",
     "MoovAtomPosition",
     "NotificationType",
+    "OfferReason",
     "OfferingAvailabilityStatus",
     "OutcomeTargetCostStrength",
     "OutcomeType",
@@ -436,6 +439,7 @@ __all__ = [
     "PropertyType",
     "ProposalDeclineReason",
     "ProposalDisposition",
+    "ProposalInitiator",
     "ProposalRefinementReason",
     "ProposalStatus",
     "PublisherIdentifierTypes",

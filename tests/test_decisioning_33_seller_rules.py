@@ -67,7 +67,7 @@ from adcp.types import (
 )
 from adcp.validation.schema_validator import validate_request, validate_response
 
-SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache" / "3.3.0-beta.1"
+SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache" / "3.3.0-beta.2"
 
 
 @pytest.fixture
@@ -91,9 +91,9 @@ def _handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor) -> Pla
     [
         (None, True),
         ("3.2", True),
-        ("3.3-beta.1", True),
+        ("3.3-beta.2", True),
         # Bundle precision used to fail to parse and read as pre-3.2.
-        ("3.3.0-beta.1", True),
+        ("3.3.0-beta.2", True),
         ("3.2.4", True),
         ("3.1", False),
         ("3.0.7", False),

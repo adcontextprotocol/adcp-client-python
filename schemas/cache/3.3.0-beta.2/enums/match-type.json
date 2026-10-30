@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Match Type",
+  "description": "Keyword targeting match type. broad: ads may serve on queries semantically related to the keyword. phrase: ads serve when the query contains the keyword phrase. exact: ads serve only when the query matches the keyword exactly.",
+  "type": "string",
+  "enum": [
+    "broad",
+    "phrase",
+    "exact"
+  ],
+  "enumDescriptions": {
+    "broad": "Ads may serve on queries semantically related to the keyword",
+    "phrase": "Ads serve when the query contains the keyword phrase in order",
+    "exact": "Ads serve only when the query matches the keyword exactly"
+  }
+}

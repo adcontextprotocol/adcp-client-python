@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -26,7 +26,6 @@ from adcp.types.domains.compliance.comply_test_controller_request import (
     InstallmentPropertyDeliveryItem,
     Kind,
     Metric,
-    Mutation,
     NotYetMeasurableVendorMetric,
     NotYetMeasurableVendorMetricsByPackageItem,
     Operation,
@@ -91,7 +90,6 @@ __all__ = [
     "Kind",
     "Method",
     "Metric",
-    "Mutation",
     "NotYetMeasurableVendorMetric",
     "NotYetMeasurableVendorMetricsByPackageItem",
     "Operation",

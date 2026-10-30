@@ -22,8 +22,8 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.1` (was `3.3.0-beta.0`, see section 11); bundle key `3.3.0-beta.1` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
-| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.1`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.1, 3.2-rc.7`. | done (1) |
+| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.2` (was `3.3.0-beta.0`, then `3.3.0-beta.1`; see sections 11 and 12); bundle key `3.3.0-beta.2` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
+| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.2`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.2, 3.2-rc.7`. | done (1) |
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
@@ -49,7 +49,7 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 | --- | --- | --- | --- |
 | `expected_confirmation_at` | `submitted` envelopes of `create_media_buy`, `buy_products`, `accept_proposal`, `refine_proposals`; `MediaBuy` on `get_media_buys` | Estimate. Send on `accept_proposal`, `buy_products`, `refine_proposals` only to 3.3 peers (safe on `create_media_buy`). | generated; buyer status scheduling and downgrade drop rule: (3), #1640 |
 | `predecessor_media_buy_id`, `lineage_reason` | `CreateMediaBuyRequest`, `BuyProductsRequest`, `AcceptProposalRequest`, `MediaBuy`, `GetMediaBuysRequest` filter; enum `media-buy-lineage-reason` | Experimental lineage. | generated |
-| `commercial_terms.definition_pins[]` | `media-buy/commercial-terms.json` via `core/definition-pin.json`; enum `definition-pin-ref-kind` | Required for callers negotiating 3.3. Drift returns `unable` with `definition_changed` and `drifted_pins[]` (`refine_proposals` `Results*`), or `REFERENCE_DEFINITION_CHANGED` before `accept_proposal` mutates. Never sent to callers below 3.3. | generated; pin minting, drift detection, downgrade stripping: (3), #1641 |
+| ~~`commercial_terms.definition_pins[]`~~ (withdrawn in 3.3.0-beta.2, section 12) | `media-buy/commercial-terms.json` via `core/definition-pin.json`; enum `definition-pin-ref-kind` | Required for callers negotiating 3.3. Drift returns `unable` with `definition_changed` and `drifted_pins[]` (`refine_proposals` `Results*`), or `REFERENCE_DEFINITION_CHANGED` before `accept_proposal` mutates. Never sent to callers below 3.3. | generated; pin minting, drift detection, downgrade stripping: (3), #1641 |
 | `criteria.outcome_target.goal` `kind: "vendor_metric"` | `media-buy/outcome-target.json` `Goal2`; `vendor_metric_values[]`; capability `VendorMetricOptimization.supported_metrics` | Buyer sends only to 3.3 peers. | generated; gate: (3) |
 | `criteria.product_ids_exclusive`, `terms_only` finalize, `committed` proposals | `product-discovery-criteria.json`; capability `media_buy.supports_exclusive_product_ids` | Experimental. | generated |
 | `hold_policy`, `extend_hold`, `holds`, `hold_rank`, `hold_placed_at`, `proposal_initiator` | `core/hold-policy.json`; `Product`, `CanonicalProduct`, `Proposal` (`refine_proposals`), `ProposalRefinement.Action.extend_hold`; capabilities `proposal_refinement.hold_extension`, `hold_semantics` | Experimental holds. `hold_extension` has a schema default `false`, so the generated capability model emits it. | generated |
@@ -151,12 +151,12 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 
 | Code / detail | Schema | Where it fires | SDK status |
 | --- | --- | --- | --- |
-| `REFERENCE_DEFINITION_CHANGED` | `error-details/reference-definition-changed.json` | `accept_proposal` when a pinned definition drifted; send only to 3.3 peers | generated; until then the 3.2 downgrade keeps it, since 3.2 `error.code` is open (#1667); minting and 3.2 downgrade mapping: (3), #1641 |
+| ~~`REFERENCE_DEFINITION_CHANGED`~~ (withdrawn in 3.3.0-beta.2, section 12) | `error-details/reference-definition-changed.json` | `accept_proposal` when a pinned definition drifted; send only to 3.3 peers | generated; until then the 3.2 downgrade keeps it, since 3.2 `error.code` is open (#1667); minting and 3.2 downgrade mapping: (3), #1641 |
 | `CREATIVE_MERGE_REJECTED` | `error-details/creative-merge-rejected.json` (`Rejection`, reason enum) | `sync_creatives` merges | `CreativeMergeRejectedError`, `creative_merge_rejected_details`: done (3), #1668 |
 | `RIGHTS_CHANNEL_VIOLATION` | `enums/error-code.json` | rights constraints `channels` / `excluded_channels` | `RightsChannelViolationError` (details `rights_id`, `channel`, `capability_id`; usable as an advisory `errors[]` entry via `to_wire()`), `rights_channel_violation_details`: done (3), #1668 |
 | `UNSUPPORTED_FEATURE` + `unsupported-targeting-dimension` | `error-details/unsupported-targeting-dimension.json` (`SupportedDimension`) | replaces adapter-minted `UNSUPPORTED_TARGETING_DIMENSION` / `DEPRECATED_TARGETING_DIMENSION` | generated; (3), #1642 |
 | `mutation_outcome` | `core/error.json` | every error (`not_applied`, `unknown`, `applied`) | generated; (3), #1642 |
-| `definition_changed` | `enums/proposal-refinement-reason.json` | `refine_proposals` `unable` with `drifted_pins[]` | generated |
+| ~~`definition_changed`~~ (withdrawn in 3.3.0-beta.2, section 12) | `enums/proposal-refinement-reason.json` | `refine_proposals` `unable` with `drifted_pins[]` | generated |
 | `REVISION_UNREADABLE` with `reporting_revision_id` | 3.2.4 | already in SDK 9 | done |
 | `request_body_malformed` | A2A hardening (strict unsigned-body parsing, Part shape rules, task-continuation binding) becomes MUST | | done (3), #1659 |
 | `request_target_uri_malformed` | conformance vector `negative/026-non-ascii-host` re-coded | adopted with 3.2.4 (#1479) | done |
@@ -174,10 +174,10 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 | `pixel-tracking-event` | `start`, `first_quartile`, `midpoint`, `third_quartile`, `complete` |
 | `adjustment-kind` | `operator_fee` |
 | `available-metric` | `print_metrics`, `publication` |
-| `error-code` | `CREATIVE_MERGE_REJECTED`, `REFERENCE_DEFINITION_CHANGED`, `RIGHTS_CHANNEL_VIOLATION` |
+| `error-code` | `CREATIVE_MERGE_REJECTED`, `REFERENCE_DEFINITION_CHANGED` (withdrawn in 3.3.0-beta.2), `RIGHTS_CHANNEL_VIOLATION` |
 | `indicator-type` | `flight_extension_opportunity`, `scale_budget_opportunity` |
 | `notification-type` / event types | `collection_card_removed`, `collection_card_updated`, `collection_catalog_bulk_change`, `proposal_created` |
-| `proposal-refinement-reason` | `definition_changed` |
+| `proposal-refinement-reason` | `definition_changed` (withdrawn in 3.3.0-beta.2) |
 | `specialism` | `sales_fixed_rate` |
 | `asset-content-type` | `video_brief` |
 | `format-kind` (canonical) | `coordinated_placements`, `seller_rendered_stateful_display` |
@@ -205,7 +205,7 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 - Responses conform to the served release (DR-0024); sellers stop listing releases they cannot serve; buyers parse tolerantly.
 - Signing buyers answer `get_adcp_capabilities` at their agent URL.
 - A2A invocation messages with more than one DataPart are rejected; the last-DataPart rule applies to responses only.
-- Compliance: `version_negotiation` gains an advisory 3.1-pinned response-shape scenario; new scenarios `media_buy_seller/stable_account_id`, `media_buy_seller/definition_pin_drift`, `governance/budget_periods`, property and outcome-target scenarios. Beta.0 issues no 3.3 badge. The packaged compliance assets are `src/adcp/_compliance/3.3.0-beta.0/` (4443 manifest files, 242 provenance files).
+- Compliance: `version_negotiation` gains an advisory 3.1-pinned response-shape scenario; new scenarios `media_buy_seller/stable_account_id`, `media_buy_seller/definition_pin_drift` (withdrawn in 3.3.0-beta.2), `governance/budget_periods`, property and outcome-target scenarios. Beta.0 issues no 3.3 badge. The packaged compliance assets are `src/adcp/_compliance/3.3.0-beta.0/` (4443 manifest files, 242 provenance files).
 
 ## 9. Feature-parity workstream (3) status
 
@@ -246,4 +246,23 @@ adcontextprotocol/adcp changesets released in it.
 | `report_media_buy_issue`, `get_media_buy_issue` (new tasks) | Seller-side issue reports with acknowledgement and resolution status; product service commitments (`creative_review_sla`, `escalation_sla`, business calendars). Their responses compose neither envelope (pinned in `tests/test_task_message_lattice.py`). | types generated; client, handler, adapters, MCP tool list, CLI wired |
 | Reporting subscriptions | Experimental `media_buy.reporting_subscriptions`: `reporting_subscriptions` on `sync_principal` / `get_principal`, `subscription_coverage[]` on `get_reporting_status`, `configuration_tasks[]` and `subscriptions` on `media_buy.reporting_delivery`, `enums/reporting-dimension.json`, `principal.changed` reason `reporting_subscription_changed`. | generated; no SDK-side subscription engine yet |
 | `control_media_buy` responses | The response arms are open (`additionalProperties: true`). `tests/test_discovery_payload_size.py` now proves compaction keeps closed objects closed on the reporting `Limitation`. | generated |
-| Other beta.1 additions | Canonical product installments, invoice lines on account financials, selection-dependent price adjustments (`pricing-options/price-adjustments.json`, `INVALID_REQUEST` details `error-details/price-adjustments-mismatch.json`), signal delivery methods and pricing groups, portable gender targeting, product execution readiness, audience-evidence targets, purchase-rights scope. | generated |
+| Other beta.1 additions | Canonical product installments, invoice lines on account financials, selection-dependent price adjustments (`pricing-options/price-adjustments.json`, `INVALID_REQUEST` details `error-details/price-adjustments-mismatch.json`), signal delivery methods and pricing groups, portable gender targeting, product execution readiness, audience-evidence targets, purchase-rights scope (withdrawn in 3.3.0-beta.2, section 12). | generated |
+
+## 12. 3.3.0-beta.2 delta
+
+Adopted from the signed `3.3.0-beta.2` bundle (pinned in
+`schemas/releases/3.3.0-beta.2.json`, source commit
+`53e7677df65ab0abd045b47257c93040952f687d`). Sources: the bundle's
+`CHANGELOG.md` and the adcontextprotocol/adcp changesets released in it.
+The protocol envelope composition (adcontextprotocol/adcp#8547) merged after
+beta.2 and is not in this bundle.
+
+| Item | Detail | SDK status |
+| --- | --- | --- |
+| Wire pin | `3.3.0-beta.2` / `3.3-beta.2`. `3.3-beta.1` is no longer advertised or accepted as a pin (as with `3.3-beta.0` and the 3.2 candidates); its cache and compliance trees stay in the source tree and leave the wheel. | done |
+| `request_account` separate accounts | Change requests gain `allow_separate_account` (default `false`). A change can resolve as `created` (a new `account_id` carrying the change, only when the request allowed it) or `matched` (an account the caller already holds); the named account is untouched either way. New correctable error code `ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`. A `sync_accounts` settings-update row under review carries the review's `request_id`. | generated; the error code's recovery comes from the pinned `enumMetadata` |
+| Reporting subscriptions | `standard_dimensions` / `unmapped_dimensions` on offerings, `inactive_intervals[]` and `prior_versions[].configuration` on the readback, `offering_id` on `gaps[]`, `timezone_cutovers[]` and `excluded[]`, `previous_timezone` on cutovers, plus the clarified period, cutover and authorization rules. | generated. `adcp.types._reporting_subscription_preview` still patches the same fields onto the models; it skips any field the generated model now declares and is removed by the reporting-subscriptions follow-up |
+| Seller offers | Experimental `media_buy.seller_offers`: `proposal_initiator` on canonical proposals (`enums/proposal-initiator.json`), `offer_reason` on `list_proposals` rows (`enums/offer-reason.json`), the `proposal.offered` notification (`core/proposal-offered-webhook.json`). | generated |
+| Measurement provenance | Experimental `media_buy.measurement_provenance`: `enums/collection-mechanism.json`, `measurement_terms.billing_measurement.counting_mechanisms[]`, `delivery-metrics.vendor_metric_provenance[]` (`core/vendor-metric-provenance.json`). | generated |
+| Withdrawn from 3.3 (adcontextprotocol/adcp#8537) | Definition pins (`commercial_terms.definition_pins[]`, `core/definition-pin.json`, `enums/definition-pin-ref-kind.json`, `definition_changed`, `drifted_pins[]`, `REFERENCE_DEFINITION_CHANGED` and its details, the `definition_pin_probe` controller scenario), purchase rights (`purchases[].rights[]`, `brand/rights-scope.json`, `right-use` values `paid_amplification` / `content_reuse`) and installment selection (`purchases[].installments[]`, `installment_changes`, `unsatisfied_installment_changes`, `core/installment-change-set.json`). All return in 4.0. | removed from the generated types; `ReferenceDefinitionChangedDetails` / `DefinitionPinReferenceKind` leave `adcp.types.error_details`; `TestControllerStore.definition_pin_probe` and its scenario are removed |
+| Other beta.2 changes | `principal_kind` / `expected_principal_kind` and `enums/principal-kind.json` deprecated; `setup_url` pattern loosened to `^https://`; `notification-config.json` `product_payload_view` loses its schema default; `get_adcp_capabilities` structural bounds are the limit, 64 KiB is a receiver backstop. | generated |

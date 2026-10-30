@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -208,7 +208,7 @@ from adcp.types.domains.protocol.sync_agent_notification_configs_response import
 )
 from adcp.types.domains.protocol.sync_principal_request import Configuration, SyncPrincipalRequest
 from adcp.types.domains.protocol.sync_principal_response import (
-    Action37,
+    Action35,
     PrincipalAppliedResult,
     PrincipalSyncFailedResult,
     PrincipalValidatedResult,
@@ -223,7 +223,7 @@ __all__ = [
     "AccessMode",
     "Account",
     "Accreditation",
-    "Action37",
+    "Action35",
     "Adcp",
     "AgeRestriction",
     "Algorithm",
