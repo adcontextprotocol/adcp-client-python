@@ -23,10 +23,11 @@ adopts a bundle that contains adcp#8585 and the fields are generated.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 
 from adcp.types.base import AdCPBaseModel, NoExplicitNull, WireDatetime
 from adcp.types.domains.bundled.protocol import (
@@ -158,6 +159,37 @@ def apply_reporting_subscription_preview() -> None:
                 description="The offering this entry applies to; absent for every offering.",
             ),
         )
+    # Drafted for 3.3.0-beta.3: a deactivated subscription reads inactive, with
+    # its deactivated_at, while it still has retained obligations for the
+    # account. Served only to callers at 3.3.0-beta.3 or later
+    # (adcp.reporting.subscriptions.wire). TODO(3.3.0-beta.3): drop with the bundle.
+    if "inactive" not in {item.value for item in _coverage.Status}:
+        status = Annotated[
+            _coverage.Status | Literal["inactive"],
+            Field(
+                description=(
+                    "Current account-level state; inactive: the subscription is deactivated "
+                    "and takes precedence over the other values."
+                )
+            ),
+        ]
+        _replace_field(
+            _coverage.ReportingSubscriptionCoverage,
+            "status",
+            status,
+            FieldInfo.from_annotated_attribute(cast(Any, status), PydanticUndefined),
+        )
+    _add_field(
+        _coverage.ReportingSubscriptionCoverage,
+        "deactivated_at",
+        *_optional(
+            WireDatetime,
+            description=(
+                "When the subscription was deactivated. Present when and only when status "
+                "is inactive."
+            ),
+        ),
+    )
 
 
 __all__ = [
