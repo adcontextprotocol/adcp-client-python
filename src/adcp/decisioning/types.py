@@ -478,6 +478,8 @@ class Account(Generic[TMeta]):
         publisher-identity grants. This is response metadata about the
         authenticated caller's access, not proof of downstream serving
         authorization for any individual request.
+    :param timezone: The account's IANA timezone, emitted as ``timezone``.
+    :param operator: The account's operator domain, emitted as ``operator``.
     :param mode: SDK-internal account mode — ``'live'`` (default,
         production), ``'sandbox'`` (adopter's test infra), or
         ``'mock'`` (Phase 2 — SDK routes to mock-server backend).
@@ -509,6 +511,12 @@ class Account(Generic[TMeta]):
     rate_card: str | None = None
     reporting_bucket: ReportingBucket | None = None
     authorization: AccountAuthorization | dict[str, Any] | None = None
+    #: The account's IANA timezone (wire ``timezone``). Sellers advertising
+    #: reporting subscriptions populate it: account-timezone offerings never
+    #: fall back to UTC.
+    timezone: str | None = None
+    #: The operator domain the account belongs to (wire ``operator``).
+    operator: str | None = None
 
     # SDK-internal account mode for sandbox-authority gating. Default
     # ``'live'`` preserves all existing-adopter behavior — pre-mode

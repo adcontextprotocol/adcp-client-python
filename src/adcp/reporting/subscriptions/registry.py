@@ -107,6 +107,7 @@ def _validate_one(
     *,
     destinations: Mapping[str, Mapping[str, Any]],
     delivery_config_ids: Collection[str],
+    replace_account_configs: bool = False,
 ) -> None:
     where = f"reporting_subscriptions[{index}]"
     subscription_id = configuration["subscription_id"]
@@ -130,9 +131,10 @@ def _validate_one(
         raise ReportingSubscriptionValidationError(
             f"{where}.exclude_account_ids is valid only with all_authorized_accounts scope"
         )
-    if configuration.get("replace_account_configs") is True:
-        # Not applied yet: accepting it would leave the caller's account-level
-        # configurations in force while it believes they were cut over.
+    if configuration.get("replace_account_configs") is True and not replace_account_configs:
+        # Accepting it without a runtime that applies it would leave the
+        # caller's account-level configurations in force while it believes
+        # they were cut over.
         raise ReportingSubscriptionValidationError(
             f"{where}.replace_account_configs is not supported by this seller",
             code="UNSUPPORTED_FEATURE",
@@ -254,12 +256,15 @@ def apply_reporting_subscriptions(
     destinations: Sequence[Any],
     now: datetime,
     delivery_config_ids: Collection[str] = (),
+    replace_account_configs: bool = False,
 ) -> list[ReportingSubscriptionState]:
     """Return the new subscription states for a ``sync_principal`` request.
 
     ``destinations`` are the caller's ``reporting_destinations`` states after
     this request applies. ``delivery_config_ids`` are every
     ``delivery_config_id`` the caller uses through ``sync_accounts``.
+    ``replace_account_configs`` accepts that flag; only a runtime that applies
+    it passes ``True``, and otherwise it is refused with ``UNSUPPORTED_FEATURE``.
     Engine-derived fields (``accounts_with_exceptions``,
     ``accounts_unauthorized``, ``issues``) carry over from ``previous``.
     """
@@ -281,6 +286,7 @@ def apply_reporting_subscriptions(
             index,
             destinations=targets,
             delivery_config_ids=delivery_config_ids,
+            replace_account_configs=replace_account_configs,
         )
     _validate_set([item for item in configurations if item.get("active", True)], targets)
 

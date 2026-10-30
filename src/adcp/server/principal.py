@@ -22,6 +22,7 @@ from uuid import uuid4
 from pydantic import BaseModel, TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
+from adcp._principal_ref import PrincipalRef
 from adcp._version import normalize_to_release_precision
 from adcp.server.idempotency import canonical_json_sha256
 from adcp.types import (
@@ -126,6 +127,10 @@ class ReportingSubscriptionOptions:
     delivery_config_ids: DeliveryConfigIdsHook | None = None
     record_versions: SubscriptionVersionsHook | None = None
     clock: Callable[[], datetime] | None = None
+    #: Accept ``replace_account_configs: true``. Only a runtime that applies it
+    #: (an engine built with ``end_account_configs``) sets this; otherwise the
+    #: flag is refused with ``UNSUPPORTED_FEATURE``.
+    replace_account_configs: bool = False
 
 
 @dataclass
@@ -1015,6 +1020,7 @@ class PrincipalService:
                     destinations=destinations,
                     now=self._now(),
                     delivery_config_ids=await hook(identity) if hook else (),
+                    replace_account_configs=self._subscriptions.replace_account_configs,
                 )
             elif prior and "reporting_destinations" in desired.model_fields_set:
                 names = {_destination_id(item) for item in destinations}
@@ -1040,7 +1046,7 @@ class PrincipalService:
 
     async def update_subscription_status(
         self,
-        identity: PrincipalIdentity,
+        identity: PrincipalIdentity | PrincipalRef,
         subscription_id: str,
         *,
         accounts_with_exceptions: Sequence[Mapping[str, Any]] | None = None,
@@ -1104,7 +1110,7 @@ class PrincipalService:
         return True
 
     async def reporting_subscriptions(
-        self, identity: PrincipalIdentity
+        self, identity: PrincipalIdentity | PrincipalRef
     ) -> list[ReportingSubscriptionState]:
         """The caller's stored subscription states, for the reporting runtime."""
         record = await self._store.get(identity.subject)
@@ -1115,7 +1121,9 @@ class PrincipalService:
             for item in record.configuration.reporting_subscriptions or []
         ]
 
-    async def reporting_subscription_ids(self, identity: PrincipalIdentity) -> set[str]:
+    async def reporting_subscription_ids(
+        self, identity: PrincipalIdentity | PrincipalRef
+    ) -> set[str]:
         """Every subscription_id the caller holds, inactive ones included.
 
         ``sync_accounts`` must reject a ``delivery_config_id`` equal to one of
@@ -1124,7 +1132,7 @@ class PrincipalService:
         return {item.subscription_id for item in await self.reporting_subscriptions(identity)}
 
     async def reporting_destinations(
-        self, identity: PrincipalIdentity
+        self, identity: PrincipalIdentity | PrincipalRef
     ) -> list[AgentReportingDestinationState]:
         """The caller's stored destination states, for the reporting runtime."""
         record = await self._store.get(identity.subject)

@@ -324,6 +324,68 @@ contracts, and [the wiring example](../examples/reporting_service_production.py)
 principal through `sync_principal`, rather than once per account through
 `sync_accounts`. `adcp.reporting.subscriptions` holds both halves.
 
+**Seller, managed path (recommended).** Add a `subscriptions` block to the
+service you already run. Its presence enables the feature; the SDK derives the
+rest from what the platform already serves.
+
+```python
+from adcp.reporting import ReliableReportingService, SubscriptionOptions
+
+reporting = ReliableReportingService(
+    store=store,
+    account_context=resolve_account_context,  # also receives subscription generations
+    subscriptions=SubscriptionOptions(max_accounts=500),
+)
+reporting.sources.register("gam", gam_source, capability_offerings=[daily_offering])
+platform = reporting.install(MySeller())  # then serve the platform as usual
+```
+
+| The SDK derives | From | Override on `SubscriptionOptions` |
+|---|---|---|
+| The principal runtime, `get_principal`/`sync_principal` and the principal section of capabilities | the service's own `PrincipalService` | `principals`, `principal_store` |
+| The accounts a principal may read | the platform's `list_accounts` (a decisioning platform's `accounts.list`), read under the principal's identity | `accounts(principal, *, cursor)` |
+| Each account's buys | the platform's `get_media_buys`, under the same identity | `buys(principal, account_id)` |
+| Each package's offerings | every registered offering | `buy_offerings(media_buy)` |
+| Offerings | the registered `capability_offerings`, each publishing `standard_dimensions` | none |
+| Report content per generation | `account_context` | `configure(generation)` |
+| The authenticated principal | the caller the reporting tasks resolve, with `ToolContext.tenant_id` | `resolve_principal(request, context)` |
+
+- **Identity outside a request.** Reads made for a principal outside a request
+  carry its last authenticated binding, recorded at `sync_principal`: the
+  tenant and a copy of its `AuthInfo` with no credential material (key ids,
+  client ids and verified signers only). A seller whose accounts are only
+  reachable through a live upstream token supplies `accounts`. A listing that
+  fails raises `SUBSCRIPTION_ROSTER_UNAVAILABLE` and is reported through
+  `planning_error_handler`; it never reads as an empty roster, so nothing is
+  revoked.
+- **Accounts must carry `timezone`.** Coverage never substitutes a zone.
+  `Account(timezone=..., operator=...)` serves both on a decisioning platform.
+- **Scheduling.** `sync_principal`, `sync_accounts`, `create_media_buy` and
+  `update_media_buy` served through the installed platform reconcile the
+  principals concerned (`reconcile_on_write`, on by default). The reconcile
+  runs after the response, on a background drain, so a write never waits for
+  it (`await reporting.drain_subscription_triggers()` waits, for tests). Each
+  read of the platform is bounded by `read_timeout` (30 seconds by default).
+  Each worker turn
+  first reconciles every principal a period boundary has passed for since its
+  last reconcile, then plans. Call `await reporting.touch(account_id=...)` after
+  a change the SDK did not serve, such as a seller UI edit.
+- **`replace_account_configs`.** Supply `account_delivery_configs` and
+  `end_account_configs(principal, account_id, ids, *, at)`. The flag is then
+  applied once per `subscription_version`, or when it changes to true.
+  Without them it is refused with `UNSUPPORTED_FEATURE`.
+- **Configuration errors.** Startup refuses an offering without
+  `standard_dimensions` (`SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS`) and a
+  platform that cannot list accounts (`SUBSCRIPTION_ROSTER_UNAVAILABLE`). Both
+  are `ReliableReportingConfigurationError` with `code` and
+  `recovery="correctable"`, and each message ends with the fix.
+- **Principals.** Reporting APIs name a principal with
+  `PrincipalRef(tenant_id, principal_id)`; `grants_task` and
+  `authorizes_delivery` take it. One service serves one tenant.
+
+The rest of this section describes the building blocks the managed path
+composes, for sellers who wire them by hand.
+
 **Buyer.** `expected_subscription_periods(...)` is the coverage rule as a pure
 function over plain data. Pass it the `get_principal` subscription readback,
 the buys you can see (`SubscriptionBuy`, with earlier flights when a buy was
@@ -346,11 +408,11 @@ coverage=...)` then returns what the seller owes. A withheld period carries no
 `sync_reporting_subscriptions`, `read_reporting_subscriptions` and
 `load_subscription_coverage` are the underlying client helpers.
 
-**Seller.** Opt in on the principal runtime and link it to the engine. Without
+**Seller, advanced composition.** Opt in on the principal runtime and link it to the engine. Without
 `reporting_subscriptions=`, `PrincipalService` rejects the section with
 `UNSUPPORTED_FEATURE`, as the spec requires for an unsupported section.
 `replace_account_configs: true` is also rejected with `UNSUPPORTED_FEATURE`
-until the engine can deactivate account-level configurations.
+unless the engine is built with `end_account_configs`.
 
 ```python
 from adcp.reporting.subscriptions import (

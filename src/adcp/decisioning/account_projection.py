@@ -249,6 +249,10 @@ def to_wire_account(account: DecisioningAccount[Any]) -> dict[str, Any]:
         authorization = _project_account_authorization(account.authorization)
         if authorization is not None:
             wire["authorization"] = authorization
+    if account.timezone is not None:
+        wire["timezone"] = account.timezone
+    if account.operator is not None:
+        wire["operator"] = account.operator
     return wire
 
 
