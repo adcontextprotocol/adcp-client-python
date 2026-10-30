@@ -1320,6 +1320,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             "get_reporting_status",
             "sync_reporting_status",
             "sync_reporting_receipts",
+            # Served only when an installed ReliableReportingService serves
+            # reporting subscriptions on the managed path.
+            "get_principal",
+            "sync_principal",
             "get_task_status",
             "list_tasks",
         }
@@ -1525,6 +1529,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             supported_versions, adcp_version=self._adcp_version
         )
         self._platform = platform
+        installed_reporting = getattr(platform, "_reliable_reporting_service", None)
+        if installed_reporting is not None:
+            # Managed reporting subscriptions read accounts and buys through
+            # this handler, under each principal's identity.
+            installed_reporting._bind_handler(self)
         self._account_activity = account_activity
         self._reporting_activity = reporting_activity
         self._reporting_status = reporting_status
@@ -2912,6 +2921,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             **webhook_kwargs,
         )
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
+        await self._reporting_subscription_write(account.id, tool_ctx)
         return cast("CreateMediaBuyResponse", result)
 
     async def update_media_buy(  # type: ignore[override]
@@ -2971,6 +2981,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("update_media_buy", params, result)
+        await self._reporting_subscription_write(account.id, tool_ctx)
         return cast("UpdateMediaBuySuccessResponse", result)
 
     async def sync_creatives(  # type: ignore[override]
@@ -3059,6 +3070,40 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             executor=self._executor,
             registry=self._registry,
         )
+
+    async def _reporting_subscription_write(
+        self, account_id: str | None, tool_ctx: ToolContext
+    ) -> None:
+        """Reconcile managed reporting subscriptions after a served write."""
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is not None:
+            await reporting._subscription_write(account_id, tool_ctx)
+
+    async def _invoke_principal_method(
+        self, name: str, params: Any, context: ToolContext | None
+    ) -> Any:
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is None or name not in reporting.reporting_tools:
+            return self._not_supported(name)
+        from adcp.reporting._errors import installed_reporting_call
+
+        tool_ctx = context or ToolContext()
+        await self._prime_auth_context(tool_ctx)
+        return await installed_reporting_call(
+            name, lambda: getattr(reporting, name)(params, tool_ctx), decisioning=True
+        )
+
+    async def get_principal(
+        self, params: Any, context: ToolContext | None = None
+    ) -> Any:
+        """Served by an installed ``ReliableReportingService(subscriptions=...)``."""
+        return await self._invoke_principal_method("get_principal", params, context)
+
+    async def sync_principal(
+        self, params: Any, context: ToolContext | None = None
+    ) -> Any:
+        """Served by an installed ``ReliableReportingService(subscriptions=...)``."""
+        return await self._invoke_principal_method("sync_principal", params, context)
 
     async def get_reporting_status(  # type: ignore[override]
         self, params: GetReportingStatusRequest, context: ToolContext | None = None
@@ -3266,7 +3311,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
         if inspect.isawaitable(result):
             result = await result
-        return cast("SyncAccountsResponse", _project_sync_accounts(result))
+        projected = _project_sync_accounts(result)
+        await self._reporting_subscription_write(None, tool_ctx)
+        return cast("SyncAccountsResponse", projected)
 
     async def list_accounts(  # type: ignore[override]
         self,

@@ -75,6 +75,7 @@ if TYPE_CHECKING:
         ReportingSubscriptionServiceOptions,
         SubscriptionPlanningFailure,
     )
+    from adcp.reporting.subscriptions.managed import ManagedSubscriptions, SubscriptionOptions
 
 __all__ = [
     "AdapterRegistration",
@@ -168,6 +169,26 @@ def _wire(value: Any) -> dict[str, Any]:
 
 async def _resolve(value: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
+
+
+#: Principal tasks the managed subscription path serves.
+_MANAGED_TASKS = frozenset({"get_principal", "sync_principal"})
+
+
+def _written_account(params: Any, context: Any | None) -> str | None:
+    """The account a served write names, when it names exactly one."""
+    account_id = getattr(context, "account_id", None)
+    if isinstance(account_id, str) and account_id:
+        return account_id
+    account = getattr(params, "account", None)
+    if account is None and isinstance(params, Mapping):
+        account = params.get("account")
+    value = getattr(account, "account_id", None)
+    if value is None and isinstance(account, Mapping):
+        value = account.get("account_id")
+    if value is None:
+        value = getattr(getattr(account, "root", None), "account_id", None)
+    return value if isinstance(value, str) and value else None
 
 
 @dataclass(frozen=True)
@@ -494,13 +515,19 @@ class ReliableReportingService:
         seals: ReportingSealStore | None = None,
         initialize_source_storage: Callable[[], Awaitable[None]] | None = None,
         reporting_subscriptions: ReportingSubscriptionServiceOptions | None = None,
+        subscriptions: SubscriptionOptions | None = None,
     ) -> None:
         """``staging``/``seals`` are the default source stores adapters register with;
         ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
         so a durable storage distribution can install its own schema.
-        ``reporting_subscriptions`` serves AdCP 3.3 principal-level reporting
-        subscriptions (see :mod:`adcp.reporting.service_subscriptions`); without
-        it the service is unchanged."""
+
+        ``subscriptions`` serves AdCP 3.3 principal-level reporting subscriptions
+        on the managed path (see :mod:`adcp.reporting.subscriptions.managed`):
+        its presence enables them, and the service derives the principal
+        runtime, roster, buys, offerings and scheduling from the platform it is
+        installed on. ``reporting_subscriptions`` is the advanced composition,
+        where the host builds and links the engine itself. Without either the
+        service is unchanged."""
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -516,6 +543,10 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "production options compose their own workers, admission and receipt handlers"
             )
+        if subscriptions is not None and reporting_subscriptions is not None:
+            raise ReliableReportingConfigurationError(
+                "pass subscriptions (managed) or reporting_subscriptions (advanced), not both"
+            )
         if (
             production is not None
             and reporting_subscriptions is not None
@@ -524,6 +555,15 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "production serves reporting subscriptions through managed delivery; "
                 "supply reporting_subscriptions.bind_managed_generation"
+            )
+        if (
+            production is not None
+            and subscriptions is not None
+            and subscriptions.bind_managed_generation is None
+        ):
+            raise ReliableReportingConfigurationError(
+                "production serves reporting subscriptions through managed delivery; "
+                "supply SubscriptionOptions.bind_managed_generation"
             )
         effective_clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
@@ -571,21 +611,21 @@ class ReliableReportingService:
         self._turn_lock = asyncio.Lock()
         self._subscriptions = reporting_subscriptions
         self._subscription_planner: Any | None = None
-        if reporting_subscriptions is not None and production is None:
-            from adcp.reporting.subscriptions.ledger import SubscriptionObligationPlanner
+        self._managed: ManagedSubscriptions | None = None
+        if subscriptions is not None:
+            from adcp.reporting.subscriptions.managed import ManagedSubscriptions
 
             try:
-                self._subscription_planner = SubscriptionObligationPlanner(
-                    store,
-                    offerings=reporting_subscriptions.engine.offerings,
-                    currency=self._subscription_currency,
-                    definitions=reporting_subscriptions.definitions,
-                    automated_recovery_window=automated_recovery_window,
+                self._managed = ManagedSubscriptions(
+                    subscriptions,
+                    clock=effective_clock,
                     status_retention_days=status_retention_days,
-                    install=self._install_subscription_generation,
+                    report=self._report_planning_failure,
                 )
             except TypeError as error:
                 raise ReliableReportingConfigurationError(str(error)) from None
+        if reporting_subscriptions is not None and production is None:
+            self._build_subscription_planner()
         self._lifecycle = _ServiceLifecycle(
             self._initialize,
             resources=(
@@ -664,6 +704,97 @@ class ReliableReportingService:
             production=production,
             **kwargs,
         )
+
+    def _build_subscription_planner(self) -> None:
+        from adcp.reporting.subscriptions.ledger import SubscriptionObligationPlanner
+
+        assert self._subscriptions is not None
+        try:
+            self._subscription_planner = SubscriptionObligationPlanner(
+                self.store,
+                offerings=self._subscriptions.engine.offerings,
+                currency=self._subscription_currency,
+                definitions=self._subscriptions.definitions,
+                automated_recovery_window=self._automated_recovery_window,
+                status_retention_days=self._status_retention_days,
+                install=self._install_subscription_generation,
+            )
+        except TypeError as error:
+            raise ReliableReportingConfigurationError(str(error)) from None
+
+    def _compose_managed(self) -> None:
+        """Build the managed subscription runtime from the registered offerings (once)."""
+        managed = self._managed
+        if managed is None or managed.composed:
+            return
+        if self._production_options is not None:
+            offerings = [_wire(item.offering) for item in self._production_options.offerings]
+        else:
+            offerings = [
+                dict(item)
+                for name in self.sources.names
+                for item in self.sources.get(name).capability_offerings
+            ]
+        self._subscriptions = managed.compose([_thaw(item) for item in offerings])
+        if self._production_options is None:
+            self._build_subscription_planner()
+
+    @property
+    def principals(self) -> Any:
+        """The principal runtime the managed subscription path owns.
+
+        A :class:`~adcp.server.PrincipalService`; use it, for example, to make
+        a ``sync_accounts`` implementation reject a ``delivery_config_id`` that
+        equals one of the caller's subscription ids.
+        """
+        if self._managed is None:
+            raise ReliableReportingConfigurationError(
+                "the principal runtime belongs to ReliableReportingService(subscriptions=...)"
+            )
+        self._compose_managed()
+        return self._managed.principals
+
+    async def get_principal(self, request: Any, context: Any | None = None) -> Any:
+        """Serve ``get_principal`` from the managed principal runtime."""
+        managed = self._require_managed()
+        return await managed.get_principal(request, context)
+
+    async def sync_principal(self, request: Any, context: Any | None = None) -> Any:
+        """Serve ``sync_principal`` and reconcile the principal when it changed."""
+        managed = self._require_managed()
+        return await managed.sync_principal(request, context)
+
+    async def touch(self, *, account_id: str | None = None, context: Any | None = None) -> None:
+        """Reconcile now after a change the SDK did not serve (a seller UI, a batch job).
+
+        Reconciles every principal whose subscriptions include ``account_id``
+        (and the principal ``context`` authenticates, if given). The worker's
+        boundary sweep catches such changes anyway; this is for immediacy.
+        """
+        managed = self._require_managed()
+        await managed.touch(account_id=account_id, context=context)
+
+    def _require_managed(self) -> ManagedSubscriptions:
+        if self._managed is None:
+            raise ReliableReportingConfigurationError(
+                "principal tasks are served by ReliableReportingService(subscriptions=...)"
+            )
+        self._compose_managed()
+        return self._managed
+
+    def _bind_handler(self, handler: Any) -> None:
+        """Called by the decisioning ``PlatformHandler`` serving the installed platform."""
+        if self._managed is not None:
+            self._managed.bind_handler(handler)
+
+    async def _subscription_write(self, account_id: str | None, context: Any | None) -> None:
+        """Trigger: a served account or media-buy write may change what is owed."""
+        if self._managed is None or not self._managed.composed:
+            return
+        try:
+            await self._managed.touch(account_id=account_id, context=context)
+        except Exception:  # noqa: BLE001 - a trigger never fails the buyer's write
+            logger.exception("Reliable Reporting subscription trigger failed")
 
     def _compose_production(self) -> None:
         if self._production_options is None or self._production is not None:
@@ -816,6 +947,9 @@ class ReliableReportingService:
 
         assert self._production is not None and self._subscriptions is not None
         production = self._production
+        if self._managed is not None:
+            for failure in await self._managed.sweep(now=self._clock()):
+                await self._report_planning_failure(failure)
         _, failures = await plan_subscription_cycle(
             self._subscriptions,
             self._subscription_planner,
@@ -859,8 +993,11 @@ class ReliableReportingService:
                     f"for account {key.account_id!r} is already frozen with other facts"
                 )
             return
+        resolver = self._context_resolver
+        if configuration.owed_set and self._managed is not None:
+            resolver = self._managed.options.configure or resolver
         try:
-            context = await _resolve(self._context_resolver(configuration))
+            context = await _resolve(resolver(configuration))
         except Exception as error:
             if recovering:
                 raise _AccountContextResolutionError(error) from error
@@ -1091,6 +1228,7 @@ class ReliableReportingService:
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
+        self._compose_managed()
         self._compose_production()
         if self._production is not None and self._production_options is None and self.sources.names:
             raise ReliableReportingConfigurationError(
@@ -1296,8 +1434,15 @@ class ReliableReportingService:
                     await self._recover_configuration(configuration, retrying=True)
                 turn.configuration_errors.update(self._initialization_errors)
             if self._subscriptions is not None and not self._lifecycle.stopping:
+                instant = now or self._clock()
+                if self._managed is not None:
+                    # The boundary sweep: freeze every period that ended since
+                    # its principal's last reconcile before planning it.
+                    for failure in await self._managed.sweep(now=instant):
+                        turn.subscription_errors[failure.key] = failure.error
+                        await self._report_planning_failure(failure)
                 # Plan first, so newly frozen obligations run in this turn.
-                await self._plan_subscriptions(turn, now=now or self._clock())
+                await self._plan_subscriptions(turn, now=instant)
             with source_turn():
                 for key, binding in sorted(
                     self._bindings.items(),
@@ -1528,6 +1673,7 @@ class ReliableReportingService:
         ``adcp_version`` is the release the response is served at; it decides
         which reporting-subscription fields appear when subscriptions are served.
         """
+        self._compose_managed()
         block = self._capability_block()
         if self._subscriptions is None or not block:
             return block
@@ -1616,8 +1762,13 @@ class ReliableReportingService:
             experimental.append("media_buy.reporting_delivery")
         payload["experimental_features"] = experimental
         if self._subscriptions is not None:
-            from adcp.reporting.service_subscriptions import advertise_subscriptions
+            from adcp.reporting.service_subscriptions import (
+                advertise_subscriptions,
+                serves_subscriptions,
+            )
 
+            if self._managed is not None and serves_subscriptions(adcp_version):
+                payload = self._managed.advertise_principal(payload)
             try:
                 payload = advertise_subscriptions(
                     payload, self._subscriptions, adcp_version=adcp_version
@@ -1635,14 +1786,23 @@ class ReliableReportingService:
         bind an ADCPHandler and return their exact production handler; use
         ``create_adcp_server_from_platform`` first for that composition.
         """
+        self._compose_managed()
         self._compose_production()
         if self._production is not None:
+            if self._managed is not None:
+                # The production handler delegates ordinary tasks to the
+                # application, so the principal tasks and write triggers
+                # are installed there.
+                platform = self._install_principal_tasks(platform)
+                self._managed.bind_platform(platform, decisioning=False)
             self._production.handler.bind_application(platform)
             return self._production.handler
         from adcp.server import ADCPHandler
         from adcp.server.mcp_tools import get_tools_for_handler
 
         decisioning = not isinstance(platform, ADCPHandler)
+        if self._managed is not None:
+            self._managed.bind_platform(platform, decisioning=decisioning)
         if decisioning:
             from adcp.decisioning.platform import DecisioningPlatform
 
@@ -1735,15 +1895,18 @@ class ReliableReportingService:
                 get_adcp_capabilities=get_adcp_capabilities,
                 get_media_buy_delivery=get_media_buy_delivery,
             )
+            if self._managed is not None:
+                attrs.update(self._principal_task_methods(original))
         reporting_methods = {
             "get_adcp_capabilities",
             "get_reporting_status",
             "sync_reporting_status",
             "sync_reporting_receipts",
             "get_media_buy_delivery",
+            *(_MANAGED_TASKS if self._managed is not None and not decisioning else ()),
         }
         for name in existing_tools:
-            if name in reporting_methods:
+            if name in reporting_methods or name in attrs:
                 continue
             method = getattr(original, name, None)
             if method is None:
@@ -1785,10 +1948,69 @@ class ReliableReportingService:
         setattr(platform, "_reliable_reporting_service", self)
         return platform
 
+    def _principal_task_methods(self, original: type) -> dict[str, Any]:
+        """``get_principal``/``sync_principal`` and the write triggers for an ADCPHandler."""
+        service = self
+
+        async def get_principal(instance: Any, params: Any, context: Any | None = None) -> Any:
+            return await installed_reporting_call(
+                "get_principal", lambda: service.get_principal(params, context)
+            )
+
+        async def sync_principal(instance: Any, params: Any, context: Any | None = None) -> Any:
+            return await installed_reporting_call(
+                "sync_principal", lambda: service.sync_principal(params, context)
+            )
+
+        def triggered(name: str) -> Callable[..., Any] | None:
+            method = getattr(original, name, None)
+            if method is None:
+                return None
+
+            async def write(instance: Any, params: Any, context: Any | None = None) -> Any:
+                result = await _resolve(method(instance, params, context))
+                await service._subscription_write(_written_account(params, context), context)
+                return result
+
+            write.__name__ = name
+            write.__qualname__ = f"ReliableReporting{original.__name__}.{name}"
+            return write
+
+        methods: dict[str, Any] = {
+            "get_principal": get_principal,
+            "sync_principal": sync_principal,
+        }
+        for name in ("sync_accounts", "create_media_buy", "update_media_buy"):
+            wrapped = triggered(name)
+            if wrapped is not None:
+                methods[name] = wrapped
+        return methods
+
+    def _install_principal_tasks(self, application: Any) -> Any:
+        """Install the managed principal tasks on a production application handler."""
+        from adcp.server import ADCPHandler
+
+        if not isinstance(application, ADCPHandler):
+            raise ReliableReportingConfigurationError(
+                "production installs bind an ADCPHandler application"
+            )
+        original = type(application)
+        attrs = {"__module__": original.__module__, **self._principal_task_methods(original)}
+        installed = type(f"ReliableReportingPrincipal{original.__name__}", (original,), attrs)
+        try:
+            application.__class__ = installed
+        except TypeError:
+            raise ReliableReportingConfigurationError(
+                "install() requires an ordinary mutable application instance"
+            ) from None
+        return application
+
     @property
     def reporting_tools(self) -> frozenset[str]:
         """Core task implementations mounted by ``install`` (independent of readiness)."""
         tasks = {"get_reporting_status", "get_media_buy_delivery"}
+        if self._managed is not None:
+            tasks.update(_MANAGED_TASKS)
         if self._consumer_status_enabled:
             tasks.add("sync_reporting_status")
         if self._receipt_handler is not None:

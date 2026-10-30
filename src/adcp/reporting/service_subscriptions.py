@@ -1,7 +1,12 @@
 """Reporting subscriptions in :class:`~adcp.reporting.service.ReliableReportingService`.
 
-Opt in with ``ReliableReportingService(reporting_subscriptions=...)``. Without
-it, capabilities, responses and worker turns are exactly what they were.
+Most sellers opt in with ``ReliableReportingService(subscriptions=SubscriptionOptions(...))``,
+the managed path (:mod:`adcp.reporting.subscriptions.managed`), which builds
+everything below from the platform the service is installed on.
+``ReliableReportingService(reporting_subscriptions=ReportingSubscriptionServiceOptions(...))``
+is the advanced composition, where the host builds the engine and links the
+principal runtime itself. Without either, capabilities, responses and worker
+turns are exactly what they were.
 
 With it, the service:
 
@@ -39,9 +44,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from adcp._principal_ref import PrincipalRef
 from adcp._version import is_adcp_version_at_least, resolve_adcp_version_alias
 from adcp.reporting._errors import ReliableReportingConfigurationError
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDefinitionBinding
+from adcp.reporting.subscriptions.managed import SubscriptionOptions
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.delivery_models import (
@@ -53,19 +60,23 @@ if TYPE_CHECKING:
 
 #: Every principal whose subscription obligations the service writes.
 PrincipalLister = Callable[
-    [], "Sequence[PrincipalIdentity] | Awaitable[Sequence[PrincipalIdentity]]"
+    [],
+    "Sequence[PrincipalIdentity | PrincipalRef] | Awaitable[Sequence[PrincipalIdentity | PrincipalRef]]",  # noqa: E501
 ]
 #: The authenticated principal of a request; never derived from request content.
-PrincipalResolver = Callable[[Any, Any], "PrincipalIdentity | Awaitable[PrincipalIdentity]"]
+PrincipalResolver = Callable[
+    [Any, Any],
+    "PrincipalIdentity | PrincipalRef | Awaitable[PrincipalIdentity | PrincipalRef]",
+]
 
 _FIRST_RELEASE = "3.3.0-beta.1"
 
 
 @dataclass(frozen=True)
 class SubscriptionPlanningFailure:
-    """One subscription (or one principal's listing) a turn could not plan."""
+    """One subscription (or one principal's listing or reconcile) a turn could not plan."""
 
-    principal: PrincipalIdentity
+    principal: PrincipalIdentity | PrincipalRef
     error: Exception
     account_id: str | None = None
     subscription_id: str | None = None
@@ -353,6 +364,7 @@ __all__ = [
     "ManagedGenerationBinder",
     "ProductionSubscriptionHooks",
     "ReportingSubscriptionServiceOptions",
+    "SubscriptionOptions",
     "SubscriptionPlanningFailure",
     "serves_subscriptions",
 ]

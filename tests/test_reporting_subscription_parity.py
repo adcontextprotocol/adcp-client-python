@@ -326,3 +326,23 @@ def test_reason_codes_match_the_frozen_spec_vocabulary() -> None:
     assert dict(COVERAGE_REASON_CODES) == {
         item["code"]: item.get("rule") for item in vocabulary["reasons"]
     }
+
+
+def test_seller_configuration_codes_match_the_frozen_spec_vocabulary() -> None:
+    from adcp.reporting._errors import (
+        SELLER_CONFIGURATION_CODES,
+        ReliableReportingConfigurationError,
+    )
+
+    vocabulary = json.loads((SPEC / "error-codes.json").read_text())
+    seller = {
+        entry["code"]: entry["recovery"]
+        for entry in vocabulary["codes"]
+        if entry["sdk_classes"]["python"] == "ReliableReportingConfigurationError"
+    }
+    assert set(seller) == SELLER_CONFIGURATION_CODES
+    for code, recovery in seller.items():
+        error = ReliableReportingConfigurationError("x", code=code)
+        assert (error.code, error.recovery, error.dispatched) == (code, recovery, None)
+    with pytest.raises(ValueError):
+        ReliableReportingConfigurationError("x", code="NOT_A_CODE")

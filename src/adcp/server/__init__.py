@@ -52,6 +52,7 @@ What the framework does automatically:
 
 from __future__ import annotations
 
+from adcp._principal_ref import PrincipalRef
 from adcp.capabilities import validate_capabilities
 from adcp.server._hooks import (
     PreValidationHook,
@@ -252,6 +253,7 @@ __all__ = [
     "PrincipalChange",
     "PrincipalChangeEmitter",
     "PrincipalIdentity",
+    "PrincipalRef",
     "PrincipalRecord",
     "PrincipalRecordStore",
     "PrincipalService",

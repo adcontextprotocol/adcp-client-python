@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from adcp.reporting import PrincipalRef
 from adcp.reporting.ledger import ReportingConfigurationGenerationKey
 from adcp.reporting.materializer.contracts import ReportingWriterError
 from adcp.reporting.materializer.service import ReportingMaterializerService
@@ -44,10 +45,10 @@ def _target(offering_id: str | None):
 
 @pytest.mark.asyncio
 async def test_account_generations_never_consult_the_subscription_authority() -> None:
-    calls: list[tuple[str, str]] = []
+    calls: list[tuple[PrincipalRef, str]] = []
 
-    async def authorize(subject: str, account_id: str) -> bool:
-        calls.append((subject, account_id))
+    async def authorize(principal: PrincipalRef, account_id: str) -> bool:
+        calls.append((principal, account_id))
         return False
 
     await _service(authorize)._require_subscription_authority(
@@ -59,8 +60,8 @@ async def test_account_generations_never_consult_the_subscription_authority() ->
 @pytest.mark.asyncio
 @pytest.mark.parametrize("effect", ["not_started", "unknown"])
 async def test_a_lost_grant_holds_the_attempt_under_the_same_identity(effect: str) -> None:
-    async def authorize(subject: str, account_id: str) -> bool:
-        assert (subject, account_id) == (AGENCY.subject, ACCOUNT)
+    async def authorize(principal: PrincipalRef, account_id: str) -> bool:
+        assert (principal, account_id) == (PrincipalRef(None, AGENCY.subject), ACCOUNT)
         return False
 
     with pytest.raises(ReportingWriterError) as held:
@@ -78,7 +79,7 @@ async def test_a_lost_grant_holds_the_attempt_under_the_same_identity(effect: st
 
 @pytest.mark.asyncio
 async def test_a_current_grant_delivers() -> None:
-    async def authorize(subject: str, account_id: str) -> bool:
+    async def authorize(principal: PrincipalRef, account_id: str) -> bool:
         return True
 
     await _service(authorize)._require_subscription_authority(
@@ -90,7 +91,7 @@ async def test_a_current_grant_delivers() -> None:
 async def test_a_hung_hook_is_bounded_by_the_attempt_deadline() -> None:
     import asyncio
 
-    async def authorize(subject: str, account_id: str) -> bool:
+    async def authorize(principal: PrincipalRef, account_id: str) -> bool:
         await asyncio.sleep(30)
         return True
 
@@ -112,7 +113,8 @@ async def test_the_engine_answers_from_the_grant() -> None:
         [_buy("media-buy-a1", "2026-11-01T01:00:00Z", "2026-11-01T03:00:00Z")],
         allowed_tasks=frozenset({"get_reporting_status"}),
     )
-    assert await seller.engine.authorizes_delivery(AGENCY.subject, ACCOUNT) is True
+    principal = PrincipalRef(None, AGENCY.subject)
+    assert await seller.engine.authorizes_delivery(principal, ACCOUNT) is True
     del seller.host.accounts[ACCOUNT]
     await seller.engine.reconcile(AGENCY)
-    assert await seller.engine.authorizes_delivery(AGENCY.subject, ACCOUNT) is False
+    assert await seller.engine.authorizes_delivery(principal, ACCOUNT) is False
