@@ -85,6 +85,7 @@ adcp_reporting_storage = [
     "production/*.json",
     "production/*.sql",
     "subscriptions/*.sql",
+    "migrations/*.sql",
 ]
 
 # Inside this repository the dependency is the checkout, not PyPI. uv ignores

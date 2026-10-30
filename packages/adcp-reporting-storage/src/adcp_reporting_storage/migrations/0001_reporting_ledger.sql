@@ -1,0 +1,4 @@
+-- adcp-migration: 0001 reporting_ledger
+-- The reporting ledger: configurations, obligations, revisions, adjustments,
+-- consumer statuses and issues. Online-safe: every statement is idempotent.
+-- include: ledger/reporting_ledger.sql

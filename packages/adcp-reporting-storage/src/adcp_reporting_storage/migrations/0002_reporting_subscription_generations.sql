@@ -1,0 +1,12 @@
+-- adcp-migration: 0002 reporting_subscription_generations
+-- adcp-upgrade: stopped-worker
+-- Widens the owned configuration-generation key to
+-- (account_id, consumer_id, delivery_config_id, delivery_config_version,
+-- offering_id), so a reporting subscription keeps one generation per resolved
+-- offering of a version (adcp-client-python#1729). Existing rows keep
+-- offering_id '' and their uniqueness.
+--
+-- This is a stopped-worker upgrade: stop every reporting worker before running
+-- it, because workers of earlier releases refuse the widened schema. Start the
+-- new release only after it commits. On a new schema it changes nothing.
+-- include: ledger/reporting_ledger_account_generations.sql

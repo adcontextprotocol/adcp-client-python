@@ -76,6 +76,7 @@ if TYPE_CHECKING:
         SubscriptionPlanningFailure,
     )
     from adcp.reporting.subscriptions.managed import ManagedSubscriptions, SubscriptionOptions
+    from adcp.storage import ReportingStorage
 
 __all__ = [
     "AdapterRegistration",
@@ -492,7 +493,7 @@ class ReliableReportingService:
     def __init__(
         self,
         *,
-        store: ReportingLedgerStore,
+        store: ReportingLedgerStore | None = None,
         account_context: ReportingContextResolver,
         caller_resolver: ReportingCallerResolver | None = None,
         consumer_status_enabled: bool = False,
@@ -516,6 +517,7 @@ class ReliableReportingService:
         initialize_source_storage: Callable[[], Awaitable[None]] | None = None,
         reporting_subscriptions: ReportingSubscriptionServiceOptions | None = None,
         subscriptions: SubscriptionOptions | None = None,
+        storage: ReportingStorage | None = None,
     ) -> None:
         """``staging``/``seals`` are the default source stores adapters register with;
         ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
@@ -527,7 +529,33 @@ class ReliableReportingService:
         runtime, roster, buys, offerings and scheduling from the platform it is
         installed on. ``reporting_subscriptions`` is the advanced composition,
         where the host builds and links the engine itself. Without either the
-        service is unchanged."""
+        service is unchanged.
+
+        ``storage`` is the one storage decision (:mod:`adcp.storage`):
+        ``memory_storage()`` or ``postgres_storage(...)``. It supplies the
+        ledger ``store``, the default ``staging``/``seals``, and the principal
+        and subscription-state stores of the managed subscription path. Durable
+        storage checks its schema version at startup instead of changing it.
+        Pass ``storage`` or ``store``, not both."""
+        if storage is not None:
+            from adcp.storage import ReportingStorage
+
+            if not isinstance(storage, ReportingStorage):
+                raise ReliableReportingConfigurationError(
+                    "storage must be memory_storage() or postgres_storage(...)"
+                )
+            if store is not None:
+                raise ReliableReportingConfigurationError("pass storage or store, not both")
+            store = storage.ledger
+            staging = staging if staging is not None else storage.staging
+            seals = seals if seals is not None else storage.seals
+            if storage.close is not None:
+                owned_resources = (*owned_resources, ReportingServiceResource(close=storage.close))
+        if store is None:
+            raise ReliableReportingConfigurationError(
+                "pass storage=memory_storage() or postgres_storage(...), or a ledger store="
+            )
+        self._storage = storage
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -621,6 +649,8 @@ class ReliableReportingService:
                     clock=effective_clock,
                     status_retention_days=status_retention_days,
                     report=self._report_planning_failure,
+                    principal_store=None if storage is None else storage.principals,
+                    state_store=None if storage is None else storage.subscriptions,
                 )
             except TypeError as error:
                 raise ReliableReportingConfigurationError(str(error)) from None
@@ -1334,10 +1364,33 @@ class ReliableReportingService:
         """Prepare resources once; start/run_worker opens reporting admission."""
         await self._lifecycle.initialize()
 
+    def _require_durable_subscriptions(self) -> None:
+        """Refuse process-local reporting-subscription storage outside development."""
+        managed = self._managed
+        if managed is None:
+            return
+        from adcp.storage import require_durable
+
+        if self._storage is not None:
+            require_durable(self._storage.durable, stores="memory_storage()")
+            return
+        stores = {
+            "the reporting ledger": self.store,
+            "the principal records": getattr(managed.principals, "_store", None),
+            "the subscription engine state": managed.engine.store,
+        }
+        volatile = [name for name, item in stores.items() if not getattr(item, "is_durable", False)]
+        require_durable(not volatile, stores=", ".join(volatile))
+
     async def _initialize(self) -> None:
         self.validate()
+        self._require_durable_subscriptions()
         async with self._configuration_lock:
-            await self.store.create_schema()
+            if self._storage is not None and self._storage.check_schema is not None:
+                # Migrations own the schema; startup only refuses one that is behind.
+                await self._storage.check_schema()
+            else:
+                await self.store.create_schema()
             if self._initialize_source_storage is not None:
                 await self._initialize_source_storage()
             for configuration in self._pending_configurations.values():
