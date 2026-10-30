@@ -30,7 +30,7 @@ shape, because a distinguishable "not found" is an enumeration oracle.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -47,6 +47,7 @@ from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingHealth,
     ReportingIssue,
@@ -388,6 +389,7 @@ class ReportingStatusHandler:
             ledger_as_of=snapshot.as_of,
             request=request,
             obligations=tuple(p.obligation for p in result.obligations),
+            owed_through=dict(getattr(snapshot, "owed_through", ()) or ()),
         )
         obligations = tuple(p.obligation for p in result.obligations)
         if view == "summary":
@@ -639,6 +641,7 @@ def _scope_to_wire(
     ledger_as_of: datetime,
     request: dict[str, Any],
     obligations: Sequence[ReportingObligationRecord] = (),
+    owed_through: Mapping[ReportingConfigurationGenerationKey, datetime] | None = None,
 ) -> dict[str, Any]:
     """The denominator this read's health was computed over.
 
@@ -657,13 +660,31 @@ def _scope_to_wire(
     retained_from = status_retained_from(configurations, ledger_as_of)
     horizon_start = _parse(requested.get("start")) or retained_from
     horizon_end = _parse(requested.get("end")) or _utc(ledger_as_of)
-    generations = {item.generation_key: item for item in configurations}
+    # A reporting subscription keeps one generation per resolved offering;
+    # they share (id, version, feed_purpose), which the wire lists once.
+    generations = {
+        (
+            item.account_id,
+            item.delivery_config_id,
+            item.delivery_config_version,
+            item.feed_purpose,
+        ): item
+        for item in configurations
+    }
+    owed = owed_through or {}
     return {
         "period_start": _iso(horizon_start),
         "period_end": _iso(horizon_end),
-        # No further obligation can enter a horizon that has already elapsed.
+        # No further obligation can enter a horizon that has already elapsed,
+        # and a subscription's owed set must also be frozen through it: until
+        # then a period may still be added, which is not missing history.
         "scope_closed": horizon_end <= _utc(ledger_as_of)
-        and all(o.period.end <= ledger_as_of for o in obligations),
+        and all(o.period.end <= ledger_as_of for o in obligations)
+        and all(
+            owed.get(item.generation_key) is not None and owed[item.generation_key] >= horizon_end
+            for item in configurations
+            if item.owed_set
+        ),
         # True when the caller named no media buys, so the scope is every buy
         # it can reach rather than an enumerated subset.
         "all_accessible_media_buys": not request.get("media_buy_ids"),
@@ -825,6 +846,10 @@ def _obligation_to_wire(
         "adjustment_count": 0,
         "issues": [issue.to_wire() for issue in issues],
     }
+    if obligation.offering_id is not None:
+        # 3.3 reporting-obligation.json: the subscription's resolved offering,
+        # authoritative for the obligation's timing.
+        payload["offering_id"] = obligation.offering_id
     if statuses:
         current = next((item for item in statuses if not item.superseded), None)
         payload["consumer_status_count"] = len(statuses)

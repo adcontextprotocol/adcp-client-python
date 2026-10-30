@@ -738,7 +738,7 @@ class PgReportingLedgerStore:
         *,
         enqueue: bool = True,
     ) -> None:
-        from dataclasses import asdict
+        from adcp.reporting.ledger.models import ledger_asdict
 
         has_scope_storage = await self._issue_scope_storage_on(connection)
         row = (
@@ -814,7 +814,7 @@ class PgReportingLedgerStore:
             "INSERT INTO reporting_issue_status_scopes (account_id, issue_id, scope)"
             " VALUES (%s,%s,%s::jsonb) ON CONFLICT (account_id, issue_id)"
             " DO UPDATE SET scope = EXCLUDED.scope",
-            (issue.account_id, issue.issue_id, _json(asdict(scope))),
+            (issue.account_id, issue.issue_id, _json(ledger_asdict(scope))),
         )
         if enqueue and (before != issue or existing != scope):
             await self._dirty_status(
@@ -1318,7 +1318,11 @@ class PgReportingLedgerStore:
         delivery_config_version: int,
         period_start: datetime,
         period_end: datetime,
+        offering_id: str | None = None,
     ) -> ReportingObligationRecord | None:
+        if offering_id is not None:
+            # This store does not hold reporting-subscription owed sets yet.
+            return None
         key = ReportingConfigurationGenerationKey(
             account_id=account_id,
             consumer_id=consumer_id,

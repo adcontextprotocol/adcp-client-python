@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, NewType, Protocol, get_args, runtime_checkable
 
@@ -16,6 +16,7 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingDestinationBinding,
     ReportingReconciliationRecordKind,
 )
+from adcp.reporting.ledger.models import ledger_asdict
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor, encode_cursor
 
 _FEED = "reporting-reconciliation-v1"
@@ -43,7 +44,7 @@ class ReportingReconciliationFilter:
 
     @property
     def fingerprint(self) -> str:
-        return hashlib.sha256(canonical_json_utf8_v1(asdict(self))).hexdigest()
+        return hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(self))).hexdigest()
 
     def matches(self, record: ReportingDeliveryRecord) -> bool:
         return (not self.record_kinds or record.kind in self.record_kinds) and (

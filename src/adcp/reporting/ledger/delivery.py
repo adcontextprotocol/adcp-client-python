@@ -7,7 +7,7 @@ The existing Core store protocol and construction contract remain unchanged.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, NoReturn, Protocol, cast, runtime_checkable
 
@@ -61,6 +61,7 @@ from adcp.reporting.ledger.models import (
     ReportingConfigurationGenerationKey,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 from adcp.reporting.ledger.store import InMemoryReportingLedgerStore, LedgerConflictError
 
@@ -192,7 +193,7 @@ class ReportingMaterializationView:
         assert resource is not None and verification is not None
         descriptor = {
             key: value
-            for key, value in asdict(resource).items()
+            for key, value in ledger_asdict(resource).items()
             if value is not None and key != "object_refs"
         }
         descriptor["expires_at"] = iso(resource.expires_at)
@@ -210,7 +211,7 @@ class ReportingMaterializationView:
             evidence["canonical_content_digest"] = verification.canonical_content_digest.to_wire()
         if verification.physical_checksums:
             evidence["physical_checksums"] = [
-                asdict(item) for item in verification.physical_checksums
+                ledger_asdict(item) for item in verification.physical_checksums
             ]
         if verification.native_version_ref is not None:
             evidence["native_commit_evidence"] = {
