@@ -107,7 +107,7 @@ async def test_pending_is_a_value_and_a_repeat_ensure_never_opens_a_duplicate() 
     assert isinstance(again, AccountPending)
     assert client.adapter.request_account.call_count == 1
     read = client.adapter.list_accounts.call_args.args[0]
-    assert read["account_request_ids"] == ["req-1"]
+    assert read["request_ids"] == ["req-1"]
     assert [item.request_id for item in await client.accounts.pending()] == ["req-1"]
 
 
@@ -253,3 +253,52 @@ def test_next_step_for_a_buyer_action_without_a_url() -> None:
         action=PendingAction("buyer", "grant", "Grant access"), via="request_account"
     )
     assert next_step(pending) == "contact_seller"
+
+
+@pytest.mark.asyncio
+async def test_instances_sharing_a_buyer_send_one_idempotency_key() -> None:
+    first = _requests_client(_record("in_review", pending_action=SIGN_UP))
+    second = _requests_client(_record("in_review", pending_action=SIGN_UP))
+    await first.accounts.ensure(KEY, billing="operator")
+    await second.accounts.ensure(KEY, billing="operator")
+    keys = [
+        client.adapter.request_account.call_args.args[0]["idempotency_key"]
+        for client in (first, second)
+    ]
+    assert keys[0] == keys[1] and keys[0].startswith("adcp-ensure-")
+
+
+@pytest.mark.asyncio
+async def test_refresh_rereads_pending_accounts_beside_open_requests() -> None:
+    from adcp.types import ListAccountsResponse
+
+    timezone = {
+        "mode": "account_fixed",
+        "account_selection": "buyer_selected",
+        "supported_timezones": ["UTC"],
+    }
+    storage = InMemoryAccountStorage()
+    client = make_client(storage=storage, timezone=timezone)
+    mock_sync(client, status="pending_approval", setup=SIGN_UP)
+    await client.accounts.ensure(KEY, billing="agent")
+    requests = make_client(requests=REQUESTS, storage=storage, timezone=timezone)
+    requests.adapter._parse_response = lambda raw, _type: raw
+    requests.adapter.request_account = AsyncMock(
+        return_value=_completed(
+            {"status": "completed", "request": _record("in_review", pending_action=SIGN_UP)}
+        )
+    )
+    await requests.accounts.ensure({**KEY, "currency": "EUR"})
+    active = ListAccountsResponse.model_validate(
+        {"accounts": [{**KEY, "account_id": "seller-handle", "name": "Acme", "status": "active"}]}
+    )
+    requests.adapter.list_accounts = AsyncMock(
+        side_effect=[
+            _listing(_record("in_review", pending_action=SIGN_UP)),
+            TaskResult(status=TaskStatus.COMPLETED, data=active),
+        ]
+    )
+    moved = await requests.accounts.refresh()
+    assert [type(item).__name__ for item in moved] == ["AccountReady"]
+    assert moved[0].account_id == "seller-handle"
+    assert requests.adapter.list_accounts.call_count == 2

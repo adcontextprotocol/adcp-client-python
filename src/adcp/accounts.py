@@ -194,6 +194,23 @@ def _requests_supported(caps: Any) -> bool:
     return supported is True
 
 
+def _ensure_key(seller: str, body: Mapping[str, Any], previous: str | None = None) -> str:
+    """A deterministic ``request_account`` idempotency key.
+
+    Registry instances sharing one buyer identity and durable storage send the
+    same key for the same request, so the seller replays one request instead
+    of opening two. ``previous`` (the request a new attempt follows, after a
+    rejection) starts a new key.
+    """
+    import hashlib
+    import json
+
+    digest = hashlib.sha256(
+        json.dumps([seller, body, previous], sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return f"adcp-ensure-{digest[:48]}"
+
+
 def _key_payload(key: str) -> dict[str, Any]:
     import json
 
@@ -425,8 +442,16 @@ class AccountRegistry:
     async def _request_account(self, ref: dict[str, Any], entry: dict[str, Any]) -> AccountOutcome:
         from adcp.types import RequestAccountRequest
 
+        previous = await self.get(ref)
         result = await self._client.request_account(
-            RequestAccountRequest.model_validate({"idempotency_key": str(uuid.uuid4()), **entry})
+            RequestAccountRequest.model_validate(
+                {
+                    "idempotency_key": _ensure_key(
+                        self._seller, entry, None if previous is None else previous.request_id
+                    ),
+                    **entry,
+                }
+            )
         )
         body = _payload(result.data)
         request = body.get("request")
@@ -443,7 +468,9 @@ class AccountRegistry:
             result = await self._client.request_account(
                 RequestAccountRequest.model_validate(
                     {
-                        "idempotency_key": str(uuid.uuid4()),
+                        "idempotency_key": _ensure_key(
+                            self._seller, {"request_id": request_id, "account_id": account_id}
+                        ),
                         "request_id": request_id,
                         "account_id": account_id,
                     }
@@ -526,7 +553,7 @@ class AccountRegistry:
         found: dict[str, Mapping[str, Any]] = {}
         cursor: str | None = None
         for _page in range(100):
-            payload: dict[str, Any] = {"account_request_ids": request_ids}
+            payload: dict[str, Any] = {"request_ids": request_ids}
             if cursor:
                 payload["requests_pagination"] = {"cursor": cursor}
             result = await self._client.list_accounts(ListAccountsRequest.model_validate(payload))
@@ -579,7 +606,7 @@ class AccountRegistry:
         """Re-read open requests and pending accounts; return the outcomes whose state moved.
 
         Call it from a cron job or an ``account_request.changed`` webhook. One
-        ``list_accounts`` read covers every open request (``account_request_ids``)
+        ``list_accounts`` read covers every open request (``request_ids``)
         and the first page of accounts.
         """
         known = await self._known()
@@ -596,14 +623,14 @@ class AccountRegistry:
         if not open_requests and not pending_accounts:
             return []
         moved: list[AccountOutcome] = []
-        if open_requests:
-            wire = await self._read_requests(sorted(open_requests))
-        else:
+        wire = await self._read_requests(sorted(open_requests)) if open_requests else {}
+        if pending_accounts:
             from adcp.types import ListAccountsRequest
 
+            # Request reads page account_requests[] only, so accounts pending
+            # approval are re-read on their own.
             listing = await self._client.list_accounts(ListAccountsRequest())
             await self.observe("list_accounts", {}, listing, fetch_capabilities=False)
-            wire = {}
         for request_id, (key, record) in open_requests.items():
             current = wire.get(request_id)
             if current is None:
