@@ -2,8 +2,16 @@
 
 A platform claiming any of the spec ``sales-*`` slugs
 (``sales-non-guaranteed``, ``sales-guaranteed``, ``sales-broadcast-tv``,
-``sales-dooh``, ``sales-social``, ``sales-proposal-mode``, ``sales-catalog-driven``)
-implements the methods on this Protocol. The slugs mirror
+``sales-fixed-rate``, ``sales-dooh``, ``sales-social``, ``sales-proposal-mode``,
+``sales-catalog-driven``) implements the methods on this Protocol.
+
+``sales-fixed-rate`` (AdCP 3.3) is a fixed-price, non-guaranteed seller in any
+medium: its pricing options carry ``fixed_price`` and no bid is ever sent. Such
+a seller MAY hold a buy for review: ``create_media_buy`` returns synchronous
+success with ``confirmed_at: None``, and the provisional buy reports
+``pending_creatives`` or ``pending_start``, never ``active``, until the seller
+commits. The ``sales_fixed_rate`` storyboard grades the hold phases only when
+the seller advertises the ``force_media_buy_confirmation`` controller scenario. The slugs mirror
 ``schemas/cache/enums/specialism.json``. The unified hybrid shape
 collapses 14 method names from v1's dual-method design
 (``createMediaBuy`` + ``createMediaBuyTask``) into 7: each mutating

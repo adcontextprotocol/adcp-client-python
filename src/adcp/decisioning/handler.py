@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from adcp._version import (
     is_adcp_version_at_least,
+    normalize_to_release_precision,
     resolve_adcp_version_alias,
 )
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -64,7 +65,9 @@ from adcp.decisioning.dispatch import (
     _internal_error_message,
     _invoke_platform_method,
 )
+from adcp.decisioning.domain_lists import bound_capability_domain_lists
 from adcp.decisioning.implementation_config import ProductConfigStore
+from adcp.decisioning.measurement_terms import check_advertised_measurement_terms
 from adcp.decisioning.negotiation import (
     preflight_refinement_batch_or_raise,
     snapshot_refinement_sources,
@@ -114,6 +117,7 @@ from adcp.decisioning.webhook_emit import (
     maybe_emit_sync_completion,
     task_webhook_owner_ready,
 )
+from adcp.property_lists import validate_property_list_identifiers
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 
 logger = logging.getLogger(__name__)
@@ -299,12 +303,24 @@ _BUYER_AGENT_METADATA_KEY = "adcp.buyer_agent"
 _AUTH_INFO_METADATA_KEY = "adcp.auth_info"
 
 
+def _response_products(response: Any) -> Any:
+    """Read ``products`` from a typed or dict discovery response."""
+    if isinstance(response, Mapping):
+        return response.get("products")
+    return getattr(response, "products", None)
+
+
 def _is_adcp_32_or_newer(version: str | None) -> bool:
-    """Treat an unnegotiated response as the SDK's current 3.2 release."""
+    """Whether a response is served at release 3.2 or later (3.3 included).
+
+    An unnegotiated response is the SDK's own release, which is 3.2 or later.
+    Bundle precision (``3.3.0-beta.1``) and wire precision (``3.3-beta.1``)
+    compare the same; a prerelease counts as its line.
+    """
     if version is None:
         return True
     try:
-        release = version.split("-", 1)[0]
+        release = normalize_to_release_precision(version).split("-", 1)[0]
         major_raw, minor_raw = release.split(".", 1)
         major, minor = int(major_raw), int(minor_raw)
     except (AttributeError, TypeError, ValueError):
@@ -571,6 +587,7 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": frozenset({"media_buy"}),
     "sales-guaranteed": frozenset({"media_buy"}),
     "sales-broadcast-tv": frozenset({"media_buy"}),
+    "sales-fixed-rate": frozenset({"media_buy"}),
     "sales-dooh": frozenset({"media_buy"}),
     "sales-social": frozenset({"media_buy"}),
     "sales-exchange": frozenset({"media_buy"}),
@@ -2242,6 +2259,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             adcp_version=(context.resolved_adcp_version if context is not None else None),
         )
 
+        # AdCP 3.3: counterparty-asserted domain lists (portfolio
+        # publisher_domains, signals data_provider_domains) are bounded;
+        # truncate and flag *_complete: false rather than serve them whole.
+        bound_capability_domain_lists(response)
+
         from adcp.reporting.outbox.status_support import validate_status_claims
         from adcp.reporting.outbox.support import validate_activity_claims
 
@@ -2306,6 +2328,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             filter_mode=self._property_list_filter_mode,
         )
         result = await self._invoke_compact_lifecycle("list_products", platform_params, context)
+        check_advertised_measurement_terms(_response_products(result))
         result = await maybe_apply_property_list_filter(
             params=params,
             response=result,
@@ -2725,6 +2748,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if isinstance(result, dict) and result.get("status") == "submitted":
             return cast("GetProductsResponse", result)
         response = cast("GetProductsResponse", result)
+        # AdCP 3.3: an advertised measurement_window must name a declared
+        # reporting_capabilities.measurement_windows[].window_id.
+        check_advertised_measurement_terms(_response_products(response))
         # Post-adapter: capability-gated property-list filter.
         response = cast(
             "GetProductsResponse",
@@ -4169,6 +4195,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: CreatePropertyListRequest,
         context: ToolContext | None = None,
     ) -> CreatePropertyListResponse:
+        # AdCP 3.3: malformed domain identifiers reject the whole request.
+        validate_property_list_identifiers(params)
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
             getattr(params, "account", None), tool_ctx, tool_name="create_property_list"
@@ -4191,6 +4219,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: UpdatePropertyListRequest,
         context: ToolContext | None = None,
     ) -> UpdatePropertyListResponse:
+        # AdCP 3.3: malformed domain identifiers reject the whole request.
+        validate_property_list_identifiers(params)
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(
             getattr(params, "account", None), tool_ctx, tool_name="update_property_list"

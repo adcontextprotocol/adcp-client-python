@@ -27,7 +27,7 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
-| Handler gate | `PlatformHandler.get_adcp_capabilities` used `startswith("3.2")` for the proposal-manager projection; it is now "3.2 or later". Audit every other `"3.2"` literal (`accounts.py`, `dispatch.py`, `signing/*`, `server/principal.py accepted_async_adcp_versions`) for 3.3 inclusion. | (3): #1668 |
+| Handler gate | `PlatformHandler.get_adcp_capabilities` used `startswith("3.2")` for the proposal-manager projection; it is now "3.2 or later". Audit of every other `"3.2"` literal: `dispatch.py` legacy-format gate, `accounts.py` key continuity, `server/principal.py` relationship gate and the `signing/*` profile map (`signing_profile_for_adcp_version` maps 3.3 to the 3.2 RFC 9421 profile) already include 3.3; the remaining `"3.2"` literals in `signing/*` and `governance.py` name the 3.2 signing / JWS profile, not a release floor. Fixed: the capabilities signing gate (`_is_adcp_32_or_newer`) now parses bundle precision (`3.3.0-beta.1` read as pre-3.2); `PrincipalService` accepts `3.3` async payload shapes by default (`("3.2", "3.3")`); account key continuity reduces from the SDK's own release rather than `3.2`. Open: `media_buy_actions._supports_change_term_id` treats `3.3-beta.N` (N < 9) as pre-3.2-beta.9. | done (3), #1668; `media_buy_actions` follow-up |
 | `adcp_version` on `list_products` responses | `ListProductsResponse1/2` gained `adcp_version`. | generated |
 | `search_brands` | `SearchBrandsRequest` gained `adcp_major_version`. | generated |
 
@@ -62,7 +62,7 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 | `history[].origin` | `get_media_buys` `HistoryItem.origin` (`seller_operator`, `seller_system`, `connected_platform`, `unknown`) | Seller `revision` advances on every committed change (DR-0031); buyers pass the latest revision and expect `CONFLICT`. | generated |
 | `creative_assignments_as_of`, `approval_status_as_of` | `get_media_buys` `Package`, `CreativeApproval`; `list_creatives` `AssignedPackage` | Timestamps. | generated |
 | `landing_page_url`, `trackers` on assignments | `core/creative-assignment.json`, `core/assignment-tracker.json`; `sync_creatives` `Assignment` / `AssignmentOperations1`; `list_creatives` `AssignedPackage`; `get_media_buys` `CreativeApproval`; capabilities `creative.supports_assignment_landing_page`, `creative.supports_assignment_trackers` | Per-assignment overrides. | generated |
-| `sync_creatives` `merges[]`, `AssignmentOperations4` | `sync_creatives` response `Merge`; error `CREATIVE_MERGE_REJECTED` with `error-details/creative-merge-rejected.json`; enum `creative-merge-rejection-reason`; capability `creative.supports_assignment_merge` | Creative merge. | generated; error-details narrowing: (3), #1668 |
+| `sync_creatives` `merges[]`, `AssignmentOperations4` | `sync_creatives` response `Merge`; error `CREATIVE_MERGE_REJECTED` with `error-details/creative-merge-rejected.json`; enum `creative-merge-rejection-reason`; capability `creative.supports_assignment_merge` | Creative merge. | generated; `CreativeMergeRejectedError` mints schema-valid details (field defaults to the first rejected `assignment_operations` entry) and `creative_merge_rejected_details` narrows them: done (3), #1668 |
 | `list_creatives` `platform_id`, `provenance`, `seller_revision`, `status_as_of`; request filter `provenance` | `creative/list-creatives-response.json`; `x-entity-types` `creative_seller_revision`; capability `creative.stable_creative_ids` | `platform_id` is native in 3.3 (adcp#8175). There was no forward-compat patch for it in this SDK; nothing to retire. | generated; `stable_creative_ids` seller support and `delete_missing` exclusion: (3), #1638 |
 | `validate_input` `Warning.field` | `creative/validate-input-result.json` | `field` is now declared as a string (#8212). | generated |
 | `build_creative` `errors` | `BuildCreativeResponse1/3` | Errors array on build responses. | generated |
@@ -101,7 +101,7 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 | Field | Where | SDK status |
 | --- | --- | --- |
 | `signal_status`, `source_audience_id`, `age_determination_bases` | `get_signals` request `Field1` and response `Signal`; `SignalDefinition`, `SignalDefinitionEnrichment`, `SignalListing`; enum `signal-status`; capability `signals.features.signal_lifecycle` | generated; interim `ext.adcp.age_determination_bases` for 3.2 peers (top-level wins): done (3), #1667 |
-| `signals.data_provider_domains_complete`, `media_buy.portfolio.publisher_domains_complete` | capabilities; byte budgets 8,192 per field / 16,384 combined, 100 entries, 253 chars each; absence is never a denial | generated; bound enforcement in `property_lists` / portfolio readers: (3), #1668 |
+| `signals.data_provider_domains_complete`, `media_buy.portfolio.publisher_domains_complete` | capabilities; byte budgets 8,192 per field / 16,384 combined, 100 entries, 253 chars each; absence is never a denial | `adcp.decisioning.bound_counterparty_domains` cuts a list to the bounds and reports `complete`; `get_adcp_capabilities` projection truncates an oversized declared list and sets `*_complete: false`. The SDK has no buyer-side reader that treats either list as an allowlist: done (3), #1668 |
 
 ### Accounts and identity
 
@@ -119,7 +119,7 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 | `error-details/unsupported-targeting-dimension.json` | under `UNSUPPORTED_FEATURE`; adapters minting `UNSUPPORTED_TARGETING_DIMENSION` / `DEPRECATED_TARGETING_DIMENSION` should migrate | | generated; decisioning error minting: (3), #1642 |
 | `error-details/agent-permission-denied.json` `Reason` | new nested enum | | generated |
 | `brand.json` fetch cap 2 MiB | all fetch paths; `MAX_JWKS_BYTES`, `MAX_CAPABILITIES_BYTES` unchanged | 3.2 verifiers may reject files between 256 KiB and 2 MiB. | done (3), #1654: 2 MiB, depth 32, 10 s total deadline, bounded concurrent fetches; follow-ups on #1635 |
-| Property `domain` / `subdomain` lowercase ASCII hostnames | property schemas; invalid values → `INVALID_REQUEST` | | validation and sender normalizer: (3), #1668 |
+| Property `domain` / `subdomain` lowercase ASCII hostnames | property schemas; invalid values → `INVALID_REQUEST` | | `PlatformHandler.create_property_list` / `update_property_list` reject invalid `domain` / `subdomain` identifiers with `INVALID_REQUEST` (`validate_property_list_identifiers`); `MCPPropertyListFetcher` rejects a snapshot carrying one instead of canonicalizing it; sender normalizer `adcp.property_lists.normalize_property_list_identifiers`: done (3), #1668 |
 | One agent-resolution rule | request signing, webhook signing, governance JWS `iss`, response signing, rights attestations; pinned `signing_keys` published in JWKS; RFC 7638 thumbprints; `key_origins`; `agent_url_match: canonical` | | `adcp.signing` audit: (3) |
 | RFC 9421 profile deprecation | `adcp/request-signing/v1`, `adcp/webhook-signing/v1` deprecated (removal no earlier than 4.0) in favour of Web Bot Auth | `rfc9421_deprecation_active()` keys on a 3.3 line in `COMPATIBLE_ADCP_VERSIONS`, so SDK 10 warns by default on legacy `SigningConfig` / `RequestSignatureVerification` construction. | done (1) |
 
@@ -144,7 +144,7 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 | `reporting_capabilities` | `available_installment_statuses[]`; `spot_reporting.available_statuses[]`, `supports_break_position` | generated |
 | `supported_indicator_types` / `indicator_type` | `flight_extension_opportunity`, `scale_budget_opportunity` | generated |
 | `notification event types` | `collection_card_removed`, `collection_card_updated`, `collection_catalog_bulk_change`, `proposal_created`; wholesale feed `EntityType.collection`, `WholesaleFeedEvent10/11/12`, `Payload26/27/28` | generated |
-| specialisms | `sales_fixed_rate` (new specialism for fixed-price, non-guaranteed sellers); `sales-broadcast-tv` 1.1.0 | generated; `adcp.decisioning.specialisms`: (3), #1668 |
+| specialisms | `sales_fixed_rate` (new specialism for fixed-price, non-guaranteed sellers); `sales-broadcast-tv` 1.1.0 | generated; `sales-fixed-rate` has `REQUIRED_METHODS` / recommended methods / advertised tools and rolls up to `media_buy` in `SPECIALISM_TO_PROTOCOLS`. The packaged compliance assets carry no specialism storyboards, so `sales_fixed_rate` runs from the protocol's compliance tree: done (3), #1668 |
 | `canonical_creatives` | still not declared by 3.3 | the `_forward_compat` capability patch stays |
 
 ## 5. Error codes and error details
@@ -152,16 +152,16 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 | Code / detail | Schema | Where it fires | SDK status |
 | --- | --- | --- | --- |
 | `REFERENCE_DEFINITION_CHANGED` | `error-details/reference-definition-changed.json` | `accept_proposal` when a pinned definition drifted; send only to 3.3 peers | generated; until then the 3.2 downgrade keeps it, since 3.2 `error.code` is open (#1667); minting and 3.2 downgrade mapping: (3), #1641 |
-| `CREATIVE_MERGE_REJECTED` | `error-details/creative-merge-rejected.json` (`Rejection`, reason enum) | `sync_creatives` merges | generated; (3), #1668 |
-| `RIGHTS_CHANNEL_VIOLATION` | `enums/error-code.json` | rights constraints `channels` / `excluded_channels` | generated; (3), #1668 |
+| `CREATIVE_MERGE_REJECTED` | `error-details/creative-merge-rejected.json` (`Rejection`, reason enum) | `sync_creatives` merges | `CreativeMergeRejectedError`, `creative_merge_rejected_details`: done (3), #1668 |
+| `RIGHTS_CHANNEL_VIOLATION` | `enums/error-code.json` | rights constraints `channels` / `excluded_channels` | `RightsChannelViolationError` (details `rights_id`, `channel`, `capability_id`; usable as an advisory `errors[]` entry via `to_wire()`), `rights_channel_violation_details`: done (3), #1668 |
 | `UNSUPPORTED_FEATURE` + `unsupported-targeting-dimension` | `error-details/unsupported-targeting-dimension.json` (`SupportedDimension`) | replaces adapter-minted `UNSUPPORTED_TARGETING_DIMENSION` / `DEPRECATED_TARGETING_DIMENSION` | generated; (3), #1642 |
 | `mutation_outcome` | `core/error.json` | every error (`not_applied`, `unknown`, `applied`) | generated; (3), #1642 |
 | `definition_changed` | `enums/proposal-refinement-reason.json` | `refine_proposals` `unable` with `drifted_pins[]` | generated |
 | `REVISION_UNREADABLE` with `reporting_revision_id` | 3.2.4 | already in SDK 9 | done |
 | `request_body_malformed` | A2A hardening (strict unsigned-body parsing, Part shape rules, task-continuation binding) becomes MUST | | done (3), #1659 |
 | `request_target_uri_malformed` | conformance vector `negative/026-non-ascii-host` re-coded | adopted with 3.2.4 (#1479) | done |
-| `TERMS_REJECTED` | must not fire for replayed advertised measurement terms; windows reference `reporting_capabilities.measurement_windows[].window_id` | | decisioning: (3), #1668 |
-| `COMPLIANCE_UNSATISFIED` | `build_creative` refinement that narrows inherited `required_disclosures` / `prohibited_claims` | | (3), #1668 |
+| `TERMS_REJECTED` | must not fire for replayed advertised measurement terms; windows reference `reporting_capabilities.measurement_windows[].window_id` | | `get_products` / `list_products` refuse a product advertising an undeclared window (`INTERNAL_ERROR`, `check_advertised_measurement_terms`); `TermsRejectedError(proposed_terms=, advertised_terms=)` refuses to reject a replay (`is_advertised_terms_replay`): done (3), #1668 |
+| `COMPLIANCE_UNSATISFIED` | `build_creative` refinement that narrows inherited `required_disclosures` / `prohibited_claims` | | not applicable: the SDK passes `build_creative` (including `refine_from_build_variant_id`) to the platform and retains no leaf compliance inputs, #1668 |
 | `ACCOUNT_NOT_FOUND` | discovery with an unresolved `account` | | done (#1288); storyboard confirmation: (3) |
 
 ## 6. Enum changes
@@ -191,7 +191,7 @@ Every new declaration is optional; 3.2 behaviour stands when undeclared.
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| `evaluator_id` source form removed | `core/evaluator-spec.json`: `EvaluatorSpec3` gone, `EvaluatorSpec2` gains `agent_url` and loses `evaluator_id`; `list_evaluators` withdrawn; the seller's evaluator goes in `creative_policy.accepted_verifiers[]`. No alias. | generated; any SDK helper that minted `evaluator_id`: (3), #1668; migration note in `MIGRATION_v9_to_v10.md` |
+| `evaluator_id` source form removed | `core/evaluator-spec.json`: `EvaluatorSpec3` gone, `EvaluatorSpec2` gains `agent_url` and loses `evaluator_id`; `list_evaluators` withdrawn; the seller's evaluator goes in `creative_policy.accepted_verifiers[]`. No alias. | generated; no SDK helper mints `evaluator_id` (only the 3.1 / 3.2 versioned views keep it): nothing to remove, #1668; migration note in `MIGRATION_v9_to_v10.md` |
 | `seller_id` on event source and audience results | deprecated for `platform_id`; sellers emit both with identical values | generated; seller dual emission and buyer preference: (3), #1639 |
 | Natural-key `AccountRef` after provisioning | deprecated; `account_id` with `account.stable_account_id` | (3), #1478 |
 | RFC 9421 signing profiles | deprecated for Web Bot Auth; verifiers keep accepting through 3.x | warning: done (1) |

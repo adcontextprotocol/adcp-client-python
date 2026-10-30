@@ -5,18 +5,192 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from collections import OrderedDict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar, cast
 
 from pydantic import RootModel
 
-from adcp.identifiers import NormalizedIdentifier, normalize_identifier
+from adcp.identifiers import (
+    IdentifierValidationError,
+    NormalizedIdentifier,
+    normalize_domain,
+    normalize_identifier,
+)
 
 logger = logging.getLogger(__name__)
+
+_Request = TypeVar("_Request")
+
+# ``core/identifier.json`` (AdCP 3.3): "Domain and subdomain values MUST be
+# lowercase ASCII hostnames (IDNs use lowercase A-label/punycode form), without
+# scheme, path, port, whitespace, or trailing dot. Domain permits one leading
+# '*.'; subdomain does not. [...] Invalid values MUST cause rejection of the
+# containing request; receivers MUST NOT silently discard identifiers." The
+# patterns and length limits below are the schema's.
+_HOSTNAME = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"
+_DOMAIN_IDENTIFIER_RE = re.compile(rf"(?:\*\.)?{_HOSTNAME}")
+_SUBDOMAIN_IDENTIFIER_RE = re.compile(_HOSTNAME)
+
+
+def is_valid_domain_identifier(identifier_type: str, value: Any) -> bool:
+    """Whether a ``domain`` / ``subdomain`` identifier value has the 3.3 format.
+
+    Checks exactly what ``core/identifier.json`` requires; no value is
+    rewritten. Identifier types other than ``domain`` and ``subdomain`` are not
+    constrained by this rule and return ``True``.
+    """
+    if identifier_type not in {"domain", "subdomain"}:
+        return True
+    if not isinstance(value, str):
+        return False
+    if identifier_type == "subdomain":
+        return len(value) <= 253 and _SUBDOMAIN_IDENTIFIER_RE.fullmatch(value) is not None
+    limit = 255 if value.startswith("*.") else 253
+    return len(value) <= limit and _DOMAIN_IDENTIFIER_RE.fullmatch(value) is not None
+
+
+class PropertyListIdentifierError(ValueError):
+    """A property-list domain identifier cannot be converted for submission.
+
+    ``field`` is the request path (``base_properties[0].identifiers[2].value``)
+    and ``reason`` the :class:`~adcp.identifiers.IdentifierValidationError`
+    reason. The message excludes the supplied value.
+    """
+
+    def __init__(self, field: str, identifier_type: str, reason: str):
+        self.field = field
+        self.identifier_type = identifier_type
+        self.reason = reason
+        super().__init__(f"Invalid {identifier_type} identifier at {field}: {reason}")
+
+
+def _wire_request(request: Any) -> dict[str, Any]:
+    if hasattr(request, "model_dump"):
+        return dict(request.model_dump(mode="json", exclude_none=True))
+    if isinstance(request, Mapping):
+        return deepcopy(dict(request))
+    raise TypeError("expected a property-list request model or mapping")
+
+
+def _identifier_members(request: Any) -> dict[str, Any]:
+    """Dump only the members that carry identifiers (``base_properties``, ``filters``).
+
+    The receiver check reads these alone, so it never serializes the rest of
+    the request (for example a buyer's ``push_notification_config``).
+    """
+
+    def dump(value: Any) -> Any:
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json", exclude_none=True)
+        if isinstance(value, (list, tuple)):
+            return [dump(item) for item in value]
+        return value
+
+    return {
+        name: dump(field(request, name))
+        for name in ("base_properties", "filters")
+        if field(request, name) is not None
+    }
+
+
+def _identifier_slots(wire: Mapping[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
+    """Yield ``(path, identifier)`` for every identifier object in the request.
+
+    Covers direct-identifier ``base_properties[]`` sources and
+    ``filters.exclude_identifiers[]``, the identifier slots of
+    ``create_property_list`` / ``update_property_list``.
+    """
+    for index, source in enumerate(wire.get("base_properties") or ()):
+        if isinstance(source, dict) and source.get("selection_type") == "identifiers":
+            for position, item in enumerate(source.get("identifiers") or ()):
+                if isinstance(item, dict):
+                    yield f"base_properties[{index}].identifiers[{position}]", item
+    filters = wire.get("filters")
+    if isinstance(filters, dict):
+        for position, item in enumerate(filters.get("exclude_identifiers") or ()):
+            if isinstance(item, dict):
+                yield f"filters.exclude_identifiers[{position}]", item
+
+
+def normalize_property_list_identifiers(request: _Request) -> _Request:
+    """Explicitly convert a property-list request's domain identifiers.
+
+    The sender-side conversion AdCP 3.3 asks for before submission: every
+    ``domain`` / ``subdomain`` identifier in ``base_properties[]`` and
+    ``filters.exclude_identifiers[]``, and every ``base_properties[]``
+    ``publisher_domain``, is lowercased, converted to its IDNA A-label and
+    stripped of surrounding whitespace and a trailing dot (``Example.com.``
+    becomes ``example.com``). A value that cannot be converted (a URL, a port,
+    an IP address, a misplaced wildcard, an invalid IDN) raises
+    :class:`PropertyListIdentifierError`; it is never silently reinterpreted.
+    In particular a pasted URL is refused rather than reduced to its host:
+    extract the hostname yourself once you have confirmed that is intended.
+
+    Returns a new request of the same kind (a generated request model or a
+    mapping); other identifier types are left unchanged. Receivers enforce the
+    format without rewriting, so convert before calling ``create_property_list``
+    or ``update_property_list``.
+    """
+    wire = _wire_request(request)
+    for path, item in _identifier_slots(wire):
+        kind, value = item.get("type"), item.get("value")
+        if kind not in {"domain", "subdomain"}:
+            continue
+        try:
+            # normalize_identifier refuses a non-string value (expected_string).
+            item["value"] = normalize_identifier(kind, cast(str, value)).value
+        except IdentifierValidationError as exc:
+            raise PropertyListIdentifierError(f"{path}.value", str(kind), exc.reason) from None
+    for index, source in enumerate(wire.get("base_properties") or ()):
+        if isinstance(source, dict) and "publisher_domain" in source:
+            try:
+                source["publisher_domain"] = normalize_domain(
+                    source["publisher_domain"], allow_wildcard=False
+                ).value
+            except IdentifierValidationError as exc:
+                raise PropertyListIdentifierError(
+                    f"base_properties[{index}].publisher_domain", "domain", exc.reason
+                ) from None
+    if hasattr(request, "model_validate"):
+        return type(request).model_validate(wire)  # type: ignore[no-any-return]
+    return wire  # type: ignore[return-value]
+
+
+def validate_property_list_identifiers(request: Any) -> None:
+    """Reject a property-list request whose domain identifiers are malformed.
+
+    Receiver side of the AdCP 3.3 rule: an invalid ``domain`` / ``subdomain``
+    value in ``base_properties[]`` or ``filters.exclude_identifiers[]`` fails
+    the whole request with ``INVALID_REQUEST`` (``field`` names the first
+    offending value); nothing is rewritten or dropped. The decisioning
+    framework runs this before ``create_property_list`` / ``update_property_list``
+    reach the platform.
+    """
+    from adcp.decisioning.types import AdcpError
+
+    for path, item in _identifier_slots(_identifier_members(request)):
+        kind = item.get("type")
+        if isinstance(kind, str) and not is_valid_domain_identifier(kind, item.get("value")):
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    f"{kind} identifiers must be lowercase ASCII hostnames (IDNs in "
+                    "A-label form) without scheme, path, port, whitespace or trailing "
+                    "dot; only domain permits a leading '*.'."
+                ),
+                recovery="correctable",
+                field=f"{path}.value",
+                suggestion=(
+                    "convert the value before submission, e.g. with "
+                    "adcp.property_lists.normalize_property_list_identifiers"
+                ),
+            )
 
 
 def field(value: Any, name: str, default: Any = None) -> Any:
@@ -191,6 +365,12 @@ class MCPPropertyListFetcher:
                         raise ValueError("property list exceeded max_identifiers")
                     for item in raw_identifiers:
                         identifier = normalize_identifier(field(item, "type"), field(item, "value"))
+                        # AdCP 3.3: an invalid domain identifier in a fetched
+                        # page invalidates the whole snapshot; never rewrite it.
+                        if not is_valid_domain_identifier(
+                            identifier.type, identifier.original_value
+                        ):
+                            raise ValueError("property list identifier is not a valid hostname")
                         # Include source/canonical strings and conservative object overhead
                         # so tiny pages cannot evade the aggregate response budget.
                         resolution_bytes += (
@@ -489,9 +669,13 @@ async def check_property_list_reference(
 
 __all__ = [
     "MCPPropertyListFetcher",
+    "PropertyListIdentifierError",
     "ResolvedPropertyList",
     "ProductPropertyPolicy",
     "ProductPropertyAssessment",
     "check_property_list_reference",
+    "is_valid_domain_identifier",
+    "normalize_property_list_identifiers",
     "request_property_list",
+    "validate_property_list_identifiers",
 ]
