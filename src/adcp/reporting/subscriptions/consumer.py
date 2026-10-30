@@ -10,7 +10,7 @@
   the buyer registered (the readback keeps only the current configuration),
   tracks lost authority from ``accounts_unauthorized[]``, and computes the
   buyer's expected periods with
-  :func:`~adcp.reporting.subscriptions.expected_subscription_periods`.
+  :func:`~adcp.reporting.subscriptions.owed_subscription_periods`.
 
 The expected periods are :class:`~adcp.reporting.ExpectedReportingPeriod`
 values, so they go straight into
@@ -32,10 +32,10 @@ from adcp.exceptions import ADCPError, RecoveryLiteral, _normalize_recovery
 from adcp.reporting.subscriptions._clock import require_zone, utc_instant
 from adcp.reporting.subscriptions.coverage import (
     AccountTimezoneChange,
-    ExpectedSubscriptionPeriod,
+    OwedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
-    expected_subscription_periods,
+    owed_subscription_periods,
     subscription_version_windows,
 )
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering
@@ -534,7 +534,7 @@ class ReportingSubscriptionTracker:
         coverage: ReportingSubscriptionCoverage | None = None,
         include_unresolved: bool = False,
         require_prior_configurations: bool = True,
-    ) -> list[ExpectedSubscriptionPeriod]:
+    ) -> list[OwedSubscriptionPeriod]:
         """What the seller owes this account under the subscription, from buyer records.
 
         ``coverage`` is the subscription's ``subscription_coverage[]`` entry
@@ -564,7 +564,7 @@ class ReportingSubscriptionTracker:
             version_configurations=self._sent.get(subscription_id),
             require_prior_configurations=require_prior_configurations,
         )
-        return expected_subscription_periods(
+        return owed_subscription_periods(
             subscription=windows,
             account_id=account_id,
             buys=buys,

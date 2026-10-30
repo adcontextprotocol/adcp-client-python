@@ -1,6 +1,6 @@
 # Coverage, explained
 
-Both sides compute which periods a subscription owes with one function, `expected_subscription_periods`, over the same facts. Never compute periods yourself.
+Both sides compute which periods a subscription owes with one function, `owed_subscription_periods`, over the same facts. Never compute periods yourself.
 
 ## The owed rules
 

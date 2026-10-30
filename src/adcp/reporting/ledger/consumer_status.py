@@ -258,7 +258,7 @@ class ConsumerStatusIngest:
                 and item.delivery_config_version == record.delivery_config_version
                 and item.report_definition_id == record.report_definition_id
             ),
-            key=lambda item: (item.subscription.offering_id if item.subscription else ""),
+            key=lambda item: item.subscription.offering_id if item.subscription else "",
         ):
             candidate = await self.store.find_obligation(
                 account_id=record.account_id,

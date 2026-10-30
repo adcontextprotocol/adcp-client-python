@@ -48,7 +48,7 @@ from adcp.reporting.ledger.models import (
 )
 from adcp.reporting.ledger.store import ReportingLedgerStore, ReportingSubscriptionLedger
 from adcp.reporting.subscriptions._clock import parse_delivery_sla, utc_instant
-from adcp.reporting.subscriptions.coverage import ExpectedSubscriptionPeriod
+from adcp.reporting.subscriptions.coverage import OwedSubscriptionPeriod
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering, _text, _value
 
 #: The frozen reporting currency of one generation, as its account context gives it.
@@ -78,7 +78,7 @@ class FrozenOwedSet:
     account_id: str
     subscription_id: str
     through: datetime
-    periods: tuple[ExpectedSubscriptionPeriod, ...]
+    periods: tuple[OwedSubscriptionPeriod, ...]
     versions: Mapping[int, Any] = field(default_factory=dict)
 
 

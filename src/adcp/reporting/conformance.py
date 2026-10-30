@@ -777,8 +777,7 @@ def _assert_cells_do_not_regress(
         if item.status in _AVAILABLE and (later is None or later.status not in _AVAILABLE):
             raise _fail(
                 "REVISION_SEQUENCE_INVALID",
-                f"{label} must not remove or degrade constituent availability from its "
-                "predecessor",
+                f"{label} must not remove or degrade constituent availability from its predecessor",
             )
         if item.data_through is not None and (
             later is None

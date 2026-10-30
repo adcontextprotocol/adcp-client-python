@@ -58,7 +58,7 @@ if TYPE_CHECKING:
         ReportingSubscriptionServiceOptions,
         SubscriptionPlanningFailure,
     )
-    from adcp.reporting.subscriptions.coverage import ExpectedSubscriptionPeriod
+    from adcp.reporting.subscriptions.coverage import OwedSubscriptionPeriod
     from adcp.reporting.subscriptions.engine import ReportingSubscriptionEngine
     from adcp.reporting.subscriptions.resolution import SubscriptionOffering
     from adcp.server.principal import (
@@ -398,7 +398,7 @@ class _ManagedHost:
         self,
         principal: Any,
         account_id: str,
-        period: ExpectedSubscriptionPeriod,
+        period: OwedSubscriptionPeriod,
         *,
         by: datetime,
     ) -> bool:
@@ -580,7 +580,7 @@ class ManagedSubscriptions:
         self._engine = engine
         self._service_options = ReportingSubscriptionServiceOptions(
             engine=engine,
-            list_principals=self.list_principals,
+            list_principals=self.list_subscription_principals,
             resolve_principal=self.resolve,
             planning_error_handler=options.planning_error_handler,
             definitions=options.definitions,
@@ -667,9 +667,9 @@ class ManagedSubscriptions:
 
     # -- principals ------------------------------------------------------------
 
-    async def list_principals(self) -> list[PrincipalRef]:
+    async def list_subscription_principals(self) -> list[PrincipalRef]:
         """Every principal with subscription state, from the engine store's index."""
-        return await self.engine.list_principals()
+        return await self.engine.list_subscription_principals()
 
     async def resolve(self, request: Any, context: Any) -> PrincipalRef:
         """The authenticated principal of a request; never derived from request content."""
@@ -819,7 +819,7 @@ class ManagedSubscriptions:
             concerned[caller.subject] = caller
         if account_id is not None:
             try:
-                principals = await self.list_principals()
+                principals = await self.list_subscription_principals()
             except Exception as error:  # noqa: BLE001 - reported, never raised to the buyer
                 logger.warning("reporting subscription principals could not be listed: %s", error)
                 principals = []
@@ -834,7 +834,7 @@ class ManagedSubscriptions:
         from adcp.reporting.service_subscriptions import SubscriptionPlanningFailure
 
         failures: list[SubscriptionPlanningFailure] = []
-        for principal in await self.list_principals():
+        for principal in await self.list_subscription_principals():
             try:
                 if not await self._subscribed(principal):
                     continue

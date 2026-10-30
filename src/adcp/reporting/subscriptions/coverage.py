@@ -509,7 +509,7 @@ def subscription_covers_account(
 
 
 @dataclass(frozen=True, kw_only=True)
-class ExpectedSubscriptionPeriod(ExpectedReportingPeriod):
+class OwedSubscriptionPeriod(ExpectedReportingPeriod):
     """One owed period of one (subscription version, resolved offering).
 
     An :class:`~adcp.reporting.ExpectedReportingPeriod`, so it feeds
@@ -711,7 +711,7 @@ def _windows(
     return subscription_version_windows(subscription, version_configurations=version_configurations)
 
 
-def expected_subscription_periods(
+def owed_subscription_periods(
     *,
     subscription: Any,
     account_id: str,
@@ -732,7 +732,7 @@ def expected_subscription_periods(
     include_unresolved: bool = False,
     max_periods: int = DEFAULT_MAX_PERIODS,
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
-) -> list[ExpectedSubscriptionPeriod]:
+) -> list[OwedSubscriptionPeriod]:
     """Every period one subscription owes one account, from plain data.
 
     Fails closed rather than return a partial set: more than ``max_periods``
@@ -930,7 +930,7 @@ def expected_subscription_periods(
                             )
 
     periods = [
-        ExpectedSubscriptionPeriod(
+        OwedSubscriptionPeriod(
             delivery_config_id=subscription_id,
             delivery_config_version=item.version,
             report_definition_id=item.offering.report_definition_id,
@@ -1079,11 +1079,31 @@ def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWin
     return _text(value)
 
 
+#: Deprecated alias of :class:`OwedSubscriptionPeriod`, kept for one beta.
+ExpectedSubscriptionPeriod = OwedSubscriptionPeriod
+
+
+def expected_subscription_periods(**kwargs: Any) -> list[OwedSubscriptionPeriod]:
+    """Deprecated: renamed :func:`owed_subscription_periods` ("owed" on both sides).
+
+    Kept for one beta; it warns and delegates.
+    """
+    import warnings
+
+    warnings.warn(
+        "expected_subscription_periods is renamed owed_subscription_periods",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return owed_subscription_periods(**kwargs)
+
+
 __all__ = [
     "AccountTimezoneChange",
     "DEFAULT_MAX_ITERATIONS",
     "DEFAULT_MAX_PERIODS",
     "ExpectedSubscriptionPeriod",
+    "OwedSubscriptionPeriod",
     "SubscriptionAuthorization",
     "SubscriptionBuy",
     "SubscriptionBuyFlight",
@@ -1092,6 +1112,7 @@ __all__ = [
     "SubscriptionVersionWindow",
     "authorization_chain_start",
     "expected_subscription_periods",
+    "owed_subscription_periods",
     "subscription_covers_account",
     "subscription_exceptions",
     "subscription_version_windows",

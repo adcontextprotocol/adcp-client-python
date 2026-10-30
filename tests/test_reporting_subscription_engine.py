@@ -1,7 +1,7 @@
 """Seller runtime for reporting subscriptions, and buyer/seller conformance.
 
 The conformance cases follow adcontextprotocol/adcp-client#3504: the buyer
-computes its expected periods with ``expected_subscription_periods`` from what
+computes its expected periods with ``owed_subscription_periods`` from what
 it can see (the ``get_principal`` readback, ``subscription_coverage[]``, its own
 buys and grant history), and the seller's owed periods must equal them period
 by period.
@@ -26,7 +26,7 @@ from adcp.reporting.subscriptions import (
     SubscriptionBuyFlight,
     SubscriptionBuyPackage,
     SubscriptionOffering,
-    expected_subscription_periods,
+    owed_subscription_periods,
 )
 from adcp.server import PrincipalChange, PrincipalIdentity, PrincipalService
 
@@ -223,7 +223,7 @@ class World:
         state = await self.state(subscription_id)
         excluded = coverage.excluded if coverage is not None else ()
         gaps = (coverage.gaps or ()) if coverage is not None else ()
-        return expected_subscription_periods(
+        return owed_subscription_periods(
             subscription=state,
             version_configurations=self.sent[subscription_id],
             account_id=account_id,
@@ -685,7 +685,7 @@ async def test_timezone_cutovers_carry_previous_timezone() -> None:
     # The buyer needs no timezone history of its own: list_accounts shows the
     # current zone, and previous_timezone gives the zone before the cutover.
     seller = await world.seller_owes("analytics", "acct-1", "2026-10-08T00:00:00Z")
-    buyer = expected_subscription_periods(
+    buyer = owed_subscription_periods(
         subscription=await world.state("analytics"),
         account_id="acct-1",
         buys=world.host.buys["acct-1"],
@@ -1065,7 +1065,7 @@ async def test_timezone_change_then_new_version_in_one_period_matches_the_wire()
     await world.sync(subscription(subscription_version=2))
     coverage = await world.coverage("acct-1", "analytics")
     seller = await world.seller_owes("analytics", "acct-1", "2026-10-07T05:00:00Z")
-    buyer = expected_subscription_periods(
+    buyer = owed_subscription_periods(
         subscription=await world.state("analytics"),
         account_id="acct-1",
         buys=world.host.buys["acct-1"],

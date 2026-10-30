@@ -74,7 +74,6 @@ class ReportingStatusClient(Protocol):
 
 
 class ReportingReconciliationClient(ReportingStatusClient, Protocol):
-
     async def sync_reporting_receipts(
         self, request: SyncReportingReceiptsRequest
     ) -> TaskResult[SyncReportingReceiptsResponse]:

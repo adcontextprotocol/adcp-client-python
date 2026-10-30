@@ -422,13 +422,13 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
 The rest of this section describes the building blocks the managed path
 composes, for sellers who wire them by hand.
 
-**Buyer.** `expected_subscription_periods(...)` is the coverage rule as a pure
+**Buyer.** `owed_subscription_periods(...)` is the coverage rule as a pure
 function over plain data. Pass it the `get_principal` subscription readback,
 the buys you can see (`SubscriptionBuy`, with earlier flights when a buy was
 extended or reinstated), the offerings with the seller's dimension mapping
 (`SubscriptionOffering`), the account timezone, the account's grant history,
 and the `subscription_coverage[]` exceptions and gaps. It returns
-`ExpectedSubscriptionPeriod` values, which are `ExpectedReportingPeriod`s, so
+`OwedSubscriptionPeriod` values, which are `ExpectedReportingPeriod`s, so
 they feed `evaluate_reporting_ledger` and the consumer-status planner as they
 are.
 

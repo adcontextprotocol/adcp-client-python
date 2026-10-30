@@ -291,7 +291,7 @@ async def test_callers_without_subscriptions_are_served_unchanged() -> None:
     world = _World()
     listed = await world.platform.list_accounts({}, _ctx("https://stranger.example/agent"))
     assert listed["accounts"][0]["authorization"]["authorized_at"] == "2026-10-01T00:00:00Z"
-    assert await world.service._managed.engine.list_principals() == []
+    assert await world.service._managed.engine.list_subscription_principals() == []
 
 
 @pytest.mark.asyncio
