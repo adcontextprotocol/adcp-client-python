@@ -1520,6 +1520,16 @@ class ReportingSubscriptionEngine:
         account = (await self._read(identity.subject)).accounts.get(account_id)
         return account is not None and account.grants_task(task)
 
+    async def authorizes_delivery(self, subject: str, account_id: str) -> bool:
+        """Whether a principal's current grant still carries its subscriptions on the account.
+
+        For managed delivery's per-attempt authority check
+        (``ReportingMaterializerService.authorize_subscription_delivery``): the
+        grant must list ``get_reporting_status``, as coverage requires.
+        """
+        account = (await self._read(subject)).accounts.get(account_id)
+        return account is not None and account.grants_task(REPORTING_STATUS_TASK)
+
     async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
         """Active ``consumer_receipt`` subscriptions covering the account.
 

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from adcp.reporting.materializer._errors import materializer_errors
 from adcp.reporting.materializer.contracts import (
     ReportingDestinationWriter,
+    ReportingExternalEffect,
     ReportingIOContext,
     ReportingWriterError,
     ReportingWriterFailure,
@@ -63,6 +66,11 @@ class _LeaseHeartbeat:
                 return
 
 
+#: (owning principal subject, account_id) -> whether its current grant still
+#: carries the subscription; for example ReportingSubscriptionEngine.authorizes_delivery.
+SubscriptionDeliveryAuthority = Callable[[str, str], Awaitable[bool]]
+
+
 @dataclass(frozen=True)
 class ReportingMaterializerService:
     """One autonomous turn; schedule repeatedly, including after process restart.
@@ -78,6 +86,16 @@ class ReportingMaterializerService:
     writer: ReportingDestinationWriter = field(repr=False)
     lease_seconds: int = 30
     io_timeout_seconds: int = 300
+    #: Re-checks a reporting subscription's authority at each delivery attempt
+    #: (AdCP 3.3: no new data after a loss of authority, checked at each
+    #: attempt including retries). Called with (owning principal, account_id)
+    #: before preparing, before writing and after writing. A loss holds the
+    #: materialization: it stays pending under the same identity and is
+    #: retried after ``authority_hold_seconds``; it is never failed.
+    authorize_subscription_delivery: SubscriptionDeliveryAuthority | None = field(
+        default=None, repr=False
+    )
+    authority_hold_seconds: int = 60
 
     def __post_init__(self) -> None:
         validate_lease_seconds(self.lease_seconds)
@@ -85,6 +103,28 @@ class ReportingMaterializerService:
             raise ValueError("materializer I/O deadline requires 1..3600 seconds")
         if type(self.io) is not ReportingDestinationIO:
             raise failure("UNSUPPORTED_VERIFICATION")
+        if (
+            type(self.authority_hold_seconds) is not int
+            or not 1 <= self.authority_hold_seconds <= 300
+        ):
+            raise ValueError("the authority hold requires 1..300 seconds")
+
+    async def _require_subscription_authority(
+        self, target: Any, *, effect: ReportingExternalEffect
+    ) -> None:
+        key = target.binding.generation_key
+        if key.offering_id is None or self.authorize_subscription_delivery is None:
+            return  # account-level generations follow the destination authority only
+        allowed = await self.authorize_subscription_delivery(key.consumer_id, key.account_id)
+        if allowed is not True:
+            raise ReportingWriterError(
+                ReportingWriterFailure(
+                    "AUTHORIZATION_DENIED",
+                    "same_identity",
+                    effect,
+                    retry_after_seconds=self.authority_hold_seconds,
+                )
+            )
 
     @materializer_errors
     async def run_once(self) -> ReportingMaterializerTurn:
@@ -114,6 +154,7 @@ class ReportingMaterializerService:
             try:
                 await self.store.authorize_materialization(reserved)
                 target = reserved.context
+                await self._require_subscription_authority(target, effect="not_started")
                 if target.delivery is None:
                     raise failure("BINDING_MISMATCH")
                 prepared = await self.io.registry.prepare(
@@ -127,8 +168,12 @@ class ReportingMaterializerService:
                     context=context,
                 )
                 await self.store.authorize_materialization(reserved)
+                await self._require_subscription_authority(target, effect="not_started")
                 locator = await self.io.write(prepared, context=context)
                 await self.store.authorize_materialization(reserved)
+                # The bytes may be written; a loss now re-delivers under the
+                # same identity after a re-grant.
+                await self._require_subscription_authority(target, effect="unknown")
                 verified = await self.io.verify(prepared, locator, context=context)
                 turn = await self.store.finish_materialization(
                     reserved, prepared=prepared, verified=verified
