@@ -487,9 +487,13 @@ BEGIN
         delivery_config_version INTEGER NOT NULL,
         producer_key TEXT COLLATE "C" NOT NULL CHECK (producer_key ~ '^[0-9a-f]{64}$'),
         source_binding JSONB NOT NULL CHECK (jsonb_typeof(source_binding)='object'),
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
+            CONSTRAINT reporting_production_generations_account_generation CHECK (offering_id = ''),
         PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version),
-        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
-            REFERENCES reporting_configurations
+        CONSTRAINT reporting_production_generations_generation_fkey
+            FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
+                                                delivery_config_version, offering_id)
     );
     CREATE INDEX IF NOT EXISTS reporting_production_source_generations
         ON reporting_production_generations(producer_key,account_id, consumer_id, delivery_config_id, delivery_config_version);

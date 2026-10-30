@@ -51,7 +51,7 @@ async def test_populated_repeated_concurrent_migration_preserves_parent_objects_
         async with pool.connection() as c:
             actual = await schema_objects(c)
         assert {key: actual[key] for key in original} == original
-        assert len(PARENT_MANIFEST) == 187
+        assert len(PARENT_MANIFEST) == 189
         assert {key: actual[key] for key in PARENT_MANIFEST} == PARENT_MANIFEST
         assert {
             key: value for key, value in actual.items() if "reporting_receipt_ingestion_" in key

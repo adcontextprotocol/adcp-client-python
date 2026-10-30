@@ -94,6 +94,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
 from adcp.reporting.ledger._record_rows import (
     _ADJUSTMENT_COLUMNS,
+    _CONFIGURATION_COLUMNS,
     _ISSUE_COLUMNS,
     _OBLIGATION_COLUMNS,
     _REVISION_COLUMNS,
@@ -771,12 +772,13 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "SELECT feed_purpose FROM reporting_configurations WHERE account_id = %s"
                     " AND consumer_id = %s AND delivery_config_id = %s AND delivery_co"
-                    "nfig_version = %s",
+                    "nfig_version = %s AND offering_id = %s",
                     (
                         scope.account_id,
                         key.consumer_id,
                         key.delivery_config_id,
                         key.delivery_config_version,
+                        key.offering_id or "",
                     ),
                 )
             ).fetchone()
@@ -787,8 +789,8 @@ class PgReportingLedgerStore:
         if scope.reporting_obligation_id is not None:
             obligation = await (
                 await connection.execute(
-                    "SELECT delivery_config_id, delivery_config_version, feed_purpose"
-                    " FROM reporting_obligations WHERE account_id = %s"
+                    "SELECT delivery_config_id, delivery_config_version, feed_purpose,"
+                    " offering_id FROM reporting_obligations WHERE account_id = %s"
                     " AND consumer_id = %s AND reporting_obligation_id = %s",
                     (scope.account_id, scope.consumer_id, scope.reporting_obligation_id),
                 )
@@ -797,10 +799,11 @@ class PgReportingLedgerStore:
                 obligation is None
                 or (
                     scope.generation_key is not None
-                    and obligation[:2]
+                    and (obligation[0], obligation[1], obligation[3] or None)
                     != (
                         scope.generation_key.delivery_config_id,
                         scope.generation_key.delivery_config_version,
+                        scope.generation_key.offering_id,
                     )
                 )
                 or (scope.feed_purpose is not None and obligation[2] != scope.feed_purpose)
@@ -928,6 +931,13 @@ class PgReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
+        if configuration.owed_set and self._notifications_enabled:
+            # Status checkpoints are keyed per account-level generation; they
+            # do not yet hold one per resolved offering.
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE",
+                "status notifications do not yet cover reporting-subscription generations",
+            )
         key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
@@ -939,11 +949,11 @@ class PgReportingLedgerStore:
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 "  automated_recovery_seconds, status_retention_days, definition,"
-                "  authoritative_party, content_sha256, consumer_id, quarantined)"
+                "  authoritative_party, content_sha256, consumer_id, quarantined, offering_id)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
-                "         %s::jsonb, %s, %s, %s, %s)"
+                "         %s::jsonb, %s, %s, %s, %s, %s)"
                 " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
-                "ry_config_version) DO NOTHING"
+                "ry_config_version, offering_id) DO NOTHING"
                 " RETURNING delivery_config_id",
                 (
                     key.delivery_config_id,
@@ -965,6 +975,7 @@ class PgReportingLedgerStore:
                     digest,
                     configuration.consumer_id,
                     configuration.quarantined,
+                    key.offering_id or "",
                 ),
             )
             inserted = await inserted_cursor.fetchone()
@@ -978,12 +989,13 @@ class PgReportingLedgerStore:
                     " automated_recovery_seconds, status_retention_days, quarantined"
                     " FROM reporting_configurations"
                     " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s FOR UPDATE",
+                    " AND delivery_config_version = %s AND offering_id = %s FOR UPDATE",
                     (
                         key.account_id,
                         key.consumer_id,
                         key.delivery_config_id,
                         key.delivery_config_version,
+                        key.offering_id or "",
                     ),
                 )
             ).fetchone()
@@ -1028,7 +1040,7 @@ class PgReportingLedgerStore:
                 "UPDATE reporting_configurations SET activated_at = %s, deactivated_at = %s,"
                 " automated_recovery_seconds = %s, status_retention_days = %s"
                 " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
-                " AND delivery_config_version = %s",
+                " AND delivery_config_version = %s AND offering_id = %s",
                 (
                     configuration.activated_at,
                     configuration.deactivated_at,
@@ -1038,6 +1050,7 @@ class PgReportingLedgerStore:
                     key.consumer_id,
                     key.delivery_config_id,
                     key.delivery_config_version,
+                    key.offering_id or "",
                 ),
             )
             if self._notifications_enabled:
@@ -1065,13 +1078,10 @@ class PgReportingLedgerStore:
         async with self._connection() as connection:
             rows = await (
                 await connection.execute(
-                    "SELECT delivery_config_id, delivery_config_version, account_id,"
-                    " report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                    " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days, definition,"
-                    " authoritative_party, consumer_id, quarantined"
+                    f"SELECT {_CONFIGURATION_COLUMNS}"  # noqa: S608  # nosec B608
                     " FROM reporting_configurations WHERE NOT quarantined"
-                    " ORDER BY account_id, consumer_id, delivery_config_id, delivery_config_version"
+                    " ORDER BY account_id, consumer_id, delivery_config_id,"
+                    " delivery_config_version, offering_id"
                 )
             ).fetchall()
         return tuple(_configuration_from_row(row) for row in rows)
@@ -1090,14 +1100,10 @@ class PgReportingLedgerStore:
             params.append(list(delivery_config_ids))
         rows = await (
             await connection.execute(
-                "SELECT delivery_config_id, delivery_config_version, account_id,"  # noqa: S608  # nosec B608
-                " report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                " automated_recovery_seconds, status_retention_days, definition,"
-                " authoritative_party, consumer_id, quarantined"
+                f"SELECT {_CONFIGURATION_COLUMNS}"  # noqa: S608  # nosec B608
                 " FROM reporting_configurations"
                 f" WHERE account_id = %s AND consumer_id = %s{clause}"  # noqa: S608 — clause is a literal
-                " ORDER BY delivery_config_id, delivery_config_version",
+                " ORDER BY delivery_config_id, delivery_config_version, offering_id",
                 tuple(params),
             )
         ).fetchall()
@@ -1110,12 +1116,14 @@ class PgReportingLedgerStore:
         row = await (
             await connection.execute(
                 "SELECT quarantined FROM reporting_configurations WHERE account_id=%s"
-                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                " AND offering_id=%s",
                 (
                     key.account_id,
                     key.consumer_id,
                     key.delivery_config_id,
                     key.delivery_config_version,
+                    key.offering_id or "",
                 ),
             )
         ).fetchone()
@@ -1194,12 +1202,14 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
                     " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
+                    " AND delivery_config_version = %s AND offering_id = %s"
+                    " AND period_start = %s AND period_end = %s",
                     (
                         key.account_id,
                         key.consumer_id,
                         key.delivery_config_id,
                         key.delivery_config_version,
+                        key.offering_id or "",
                         obligation.period.start,
                         obligation.period.end,
                     ),
@@ -1222,11 +1232,11 @@ class PgReportingLedgerStore:
                         "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                         "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                         "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                        "  schedule, definition, created_at, currency, consumer_id)"
+                        "  schedule, definition, created_at, currency, consumer_id, offering_id)"
                         " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s)"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s)"
                         " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
-                        "ry_config_version,"
+                        "ry_config_version, offering_id,"
                         "              period_start, period_end) DO NOTHING"
                         " RETURNING reporting_obligation_id",
                         (
@@ -1257,6 +1267,7 @@ class PgReportingLedgerStore:
                             obligation.created_at,
                             obligation.currency,
                             obligation.consumer_id,
+                            obligation.offering_id or "",
                         ),
                     )
                 ).fetchone()
@@ -1289,6 +1300,7 @@ class PgReportingLedgerStore:
             delivery_config_version=obligation.delivery_config_version,
             period_start=obligation.period.start,
             period_end=obligation.period.end,
+            offering_id=obligation.offering_id,
         )
         if existing is None:  # pragma: no cover - only under concurrent deletion
             raise LedgerConflictError(
@@ -1320,32 +1332,116 @@ class PgReportingLedgerStore:
         period_end: datetime,
         offering_id: str | None = None,
     ) -> ReportingObligationRecord | None:
-        if offering_id is not None:
-            # This store does not hold reporting-subscription owed sets yet.
-            return None
-        key = ReportingConfigurationGenerationKey(
-            account_id=account_id,
-            consumer_id=consumer_id,
-            delivery_config_id=delivery_config_id,
-            delivery_config_version=delivery_config_version,
-        )
         async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
                     " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
+                    " AND delivery_config_version = %s AND offering_id = %s"
+                    " AND period_start = %s AND period_end = %s",
                     (
-                        key.account_id,
-                        key.consumer_id,
-                        key.delivery_config_id,
-                        key.delivery_config_version,
+                        account_id,
+                        consumer_id,
+                        delivery_config_id,
+                        delivery_config_version,
+                        offering_id or "",
                         period_start,
                         period_end,
                     ),
                 )
             ).fetchone()
         return _obligation_from_row(row) if row else None
+
+    # -- reporting-subscription owed sets ----------------------------------
+
+    async def list_generation_obligations(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> tuple[ReportingObligationRecord, ...]:
+        """One generation's obligations in period order (an owed set is exactly these)."""
+        async with self._connection() as connection:
+            rows = await (
+                await connection.execute(
+                    f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
+                    " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
+                    " AND delivery_config_version = %s AND offering_id = %s"
+                    " ORDER BY period_start, period_end, reporting_obligation_id",
+                    (
+                        generation_key.account_id,
+                        generation_key.consumer_id,
+                        generation_key.delivery_config_id,
+                        generation_key.delivery_config_version,
+                        generation_key.offering_id or "",
+                    ),
+                )
+            ).fetchall()
+        return tuple(_obligation_from_row(row) for row in rows)
+
+    async def record_owed_set_progress(
+        self, generation_key: ReportingConfigurationGenerationKey, through: datetime
+    ) -> datetime:
+        """Advance an owed set's completeness horizon; it never moves backwards."""
+        async with self._connection() as connection, connection.transaction():
+            await self._lock_account(connection, generation_key.account_id)
+            row = await (
+                await connection.execute(
+                    "SELECT offering_id FROM reporting_configurations WHERE account_id=%s"
+                    " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                    " AND offering_id=%s",
+                    (
+                        generation_key.account_id,
+                        generation_key.consumer_id,
+                        generation_key.delivery_config_id,
+                        generation_key.delivery_config_version,
+                        generation_key.offering_id or "",
+                    ),
+                )
+            ).fetchone()
+            if row is None or not row[0]:
+                raise LedgerConflictError(
+                    "UNKNOWN_CONFIGURATION_GENERATION",
+                    "owed-set progress applies only to a reporting subscription generation",
+                )
+            stored = await (
+                await connection.execute(
+                    "INSERT INTO adcp_reporting_owed_set_progress (account_id, consumer_id,"
+                    " delivery_config_id, delivery_config_version, offering_id, owed_through)"
+                    " VALUES (%s, %s, %s, %s, %s, %s)"
+                    " ON CONFLICT (account_id, consumer_id, delivery_config_id,"
+                    " delivery_config_version, offering_id) DO UPDATE SET owed_through ="
+                    " GREATEST(adcp_reporting_owed_set_progress.owed_through,"
+                    " EXCLUDED.owed_through)"
+                    " RETURNING owed_through",
+                    (
+                        generation_key.account_id,
+                        generation_key.consumer_id,
+                        generation_key.delivery_config_id,
+                        generation_key.delivery_config_version,
+                        generation_key.offering_id,
+                        _utc(through),
+                    ),
+                )
+            ).fetchone()
+        return _utc(stored[0])
+
+    async def owed_set_through(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> datetime | None:
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT owed_through FROM adcp_reporting_owed_set_progress"
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s AND offering_id=%s",
+                    (
+                        generation_key.account_id,
+                        generation_key.consumer_id,
+                        generation_key.delivery_config_id,
+                        generation_key.delivery_config_version,
+                        generation_key.offering_id or "",
+                    ),
+                )
+            ).fetchone()
+        return _utc(row[0]) if row else None
 
     # -- revisions --------------------------------------------------------
 
@@ -2594,9 +2690,9 @@ class PgReportingLedgerStore:
                     "  supersedes_reporting_status_id, reporting_obligation_id,"
                     "  reporting_revision_id, observed_revision_content_sha256, failure_code,"
                     "  mismatch_code, consumer_commit_ref, seller_ledger_snapshot_id,"
-                    "  seller_ledger_as_of, superseded, content_sha256)"
+                    "  seller_ledger_as_of, superseded, content_sha256, offering_id)"
                     " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                    "         %s, %s, %s, %s, %s, FALSE, %s)",
+                    "         %s, %s, %s, %s, %s, FALSE, %s, %s)",
                     (
                         status.reporting_status_id,
                         status.account_id,
@@ -2620,6 +2716,7 @@ class PgReportingLedgerStore:
                         status.seller_ledger_snapshot_id,
                         status.seller_ledger_as_of,
                         digest,
+                        status.offering_id or "",
                     ),
                 )
             except Exception as error:
@@ -2736,6 +2833,7 @@ class PgReportingLedgerStore:
                 "     AND (o.reporting_obligation_id = s.reporting_obligation_id OR ("
                 "         o.delivery_config_id = s.delivery_config_id"
                 "     AND o.delivery_config_version = s.delivery_config_version"
+                "     AND o.offering_id = s.offering_id"
                 "     AND o.report_definition_id = s.report_definition_id"
                 "     AND o.period_start = s.period_start"
                 "     AND o.period_end = s.period_end)))"
@@ -3265,7 +3363,9 @@ class PgReportingLedgerStore:
                         "onfig_version)"
                         " = (c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_co"
                         "nfig_version)"
-                        " WHERE NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lea"
+                        # An owed set is never leased: its service runs it explicitly.
+                        " WHERE NOT c.quarantined AND c.offering_id = ''"
+                        " AND (c.lease_expires_at IS NULL OR c.lea"
                         "se_expires_at<=%s)"
                         + continuation
                         + " ORDER BY COALESCE(t.lease_turn,0),c.lease_expires_at NULLS FIRST,"
@@ -3328,14 +3428,16 @@ class PgReportingLedgerStore:
                         await connection.execute(
                             "UPDATE reporting_configurations SET lease_worker_id = %s,"
                             " lease_expires_at = %s"
-                            " WHERE (account_id,consumer_id,delivery_config_id,delivery_config"
+                            " WHERE offering_id = ''"
+                            " AND (account_id,consumer_id,delivery_config_id,delivery_config"
                             "_version) = ("
                             " SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.deliver"
                             "y_config_version"
                             " FROM reporting_configurations c WHERE c.account_id=%s"
                             " AND c.consumer_id=%s AND c.delivery_config_id=%s AND c.delivery_"
                             "config_version=%s"
-                            " AND NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lease"
+                            " AND NOT c.quarantined AND c.offering_id = ''"
+                            " AND (c.lease_expires_at IS NULL OR c.lease"
                             "_expires_at<=%s)"
                             " FOR UPDATE OF c SKIP LOCKED) RETURNING account_id",
                             (worker_id, expires, *row, moment),
@@ -3382,7 +3484,8 @@ class PgReportingLedgerStore:
                     "UPDATE reporting_configurations SET lease_worker_id = NULL,"
                     " lease_expires_at = NULL"
                     " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s AND lease_worker_id = %s"
+                    " AND delivery_config_version = %s AND offering_id = ''"
+                    " AND lease_worker_id = %s"
                     " AND lease_expires_at = %s RETURNING account_id",
                     (*identity, worker_id, lease.lease_expires_at),
                 )

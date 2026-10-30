@@ -75,6 +75,10 @@
     "enabled": true,
     "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
   },
+  "column:reporting_production_generations.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_production_generations.producer_key": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -643,9 +647,13 @@
     "enabled": true,
     "fingerprint": "cb0658b07aa5249a6934cca6248293967db4ab1a848d706c3d5310fa98f08785"
   },
-  "constraint:reporting_production_generations.reporting_production_generati_account_id_consumer_id_deliv_fkey": {
+  "constraint:reporting_production_generations.reporting_production_generations_account_generation": {
     "enabled": true,
-    "fingerprint": "f7048f0b5f2303f298df7ee94bd56f6186581db3b90f20fe6de7e20cc101a296"
+    "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
+  },
+  "constraint:reporting_production_generations.reporting_production_generations_generation_fkey": {
+    "enabled": true,
+    "fingerprint": "05e3c53d3b2a3593b3b9a62c1b15a274d72b63858790615edb160faa5cc80c53"
   },
   "constraint:reporting_production_generations.reporting_production_generations_pkey": {
     "enabled": true,

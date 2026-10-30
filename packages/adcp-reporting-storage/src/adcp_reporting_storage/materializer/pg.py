@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from adcp.reporting.ledger._delivery_state import RecordT
 from adcp.reporting.ledger._record_rows import (
+    _CONFIGURATION_COLUMNS,
     _OBLIGATION_COLUMNS,
     _REVISION_COLUMNS,
     _configuration_from_row,
@@ -191,18 +192,16 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         ).fetchone()
         config_row = await (
             await connection.execute(
-                "SELECT delivery_config_id, delivery_config_version, account_id,"
-                " report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                " automated_recovery_seconds, status_retention_days, definition,"
-                " authoritative_party, consumer_id, quarantined"
+                f"SELECT {_CONFIGURATION_COLUMNS}"  # nosec B608
                 " FROM reporting_configurations WHERE account_id=%s"
-                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                " AND offering_id=%s",
                 (
                     scope.principal.account_id,
                     scope.consumer_id,
                     scope.generation_key.delivery_config_id,
                     scope.generation_key.delivery_config_version,
+                    scope.generation_key.offering_id or "",
                 ),
             )
         ).fetchone()

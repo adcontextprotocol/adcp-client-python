@@ -23,9 +23,13 @@ BEGIN
         delivery_config_version BIGINT NOT NULL CHECK (delivery_config_version > 0),
         after_obligation_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         complete BOOLEAN NOT NULL DEFAULT FALSE,
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
+            CONSTRAINT reporting_materializer_discovery_account_generation CHECK (offering_id = ''),
         PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version),
-        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
-            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id, delivery_config_version)
+        CONSTRAINT reporting_materializer_discovery_generation_fkey
+            FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
+                                                delivery_config_version, offering_id)
     );
     CREATE INDEX IF NOT EXISTS reporting_materializer_discovery_pending
         ON reporting_materializer_discovery (account_id, consumer_id, delivery_config_id,
