@@ -316,3 +316,15 @@ async def test_a_served_page_is_observed_in_one_journal_write() -> None:
     listed = await world.platform.list_accounts({}, _ctx())
     assert len(listed["accounts"]) == 4
     assert loads == 1
+
+
+@pytest.mark.asyncio
+async def test_an_authorization_without_allowed_tasks_is_observed_as_a_full_grant() -> None:
+    world = _World()
+    await world.subscribe()
+    authorization = world.seller.accounts[ACCOUNT]["authorization"]
+    del authorization["allowed_tasks"]
+    authorization["authorized_at"] = "2026-09-01T00:00:00Z"  # regressed: rejected
+    listed = await world.platform.list_accounts({}, _ctx())
+    assert listed["accounts"][0]["authorization"]["authorized_at"] == "2026-10-01T00:00:00Z"
+    assert world.service._managed.engine.authorized_at_regressions == 1

@@ -1029,12 +1029,14 @@ class ManagedSubscriptions:
                 isinstance(raw, Mapping)
                 and raw.get("account_id")
                 and isinstance(authorization, Mapping)
-                and authorization.get("allowed_tasks") is not None
             ):
+                tasks = authorization.get("allowed_tasks")
                 observations.append(
                     GrantObservation(
                         str(raw["account_id"]),
-                        [str(item) for item in authorization["allowed_tasks"]],
+                        # An authorization without allowed_tasks restricts no
+                        # task, as the reconcile reads it.
+                        None if tasks is None else [str(item) for item in tasks],
                         _instant(authorization.get("authorized_at")),
                         raw.get("timezone") or None,
                         raw.get("operator"),
