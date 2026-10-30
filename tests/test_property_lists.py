@@ -86,7 +86,7 @@ async def test_pages_types_expiry_and_auth_isolated_cache(monkeypatch):
         monkeypatch,
         fetcher,
         [
-            page([{"type": "domain", "value": "EXAMPLE.com"}], cursor="next", expiry=expiry),
+            page([{"type": "domain", "value": "example.com"}], cursor="next", expiry=expiry),
             page([{"type": "roku_store_id", "value": "123"}], expiry=expiry),
             page([], expiry=expiry),
         ],
@@ -146,6 +146,13 @@ async def test_earliest_page_expiry_and_compliance_probe_bypasses_cache(monkeypa
             )
         ],
         [TaskResult(status=TaskStatus.FAILED, success=False, error="secret")],
+        # AdCP 3.3: an invalid domain identifier on any page invalidates the
+        # whole snapshot instead of being rewritten (here on the second page).
+        [
+            page([{"type": "domain", "value": "example.com"}], cursor="next"),
+            page([{"type": "domain", "value": "EXAMPLE.com"}]),
+        ],
+        [page([{"type": "subdomain", "value": "news.example.com."}])],
     ],
 )
 async def test_bad_pages_fail_without_credential_leak(monkeypatch, pages, caplog):

@@ -91,6 +91,17 @@ alongside the spec; they line up.
 - **`media_buy.features`** — `inline_creative_management`,
   `property_list_filtering`, `catalog_management` flags that gate
   buyer-side flow.
+- **`media_buy.portfolio.publisher_domains`** — the publishers you actually
+  represent, not every domain whose `adagents.json` names you. AdCP 3.3 bounds
+  this counterparty-asserted list (and `signals.data_provider_domains`): at most
+  100 unique entries of at most 253 characters, 8,192 bytes per field and
+  16,384 bytes for both, measured as compact JSON including the member name.
+  `bound_counterparty_domains(domains)` cuts a list to those bounds in declared
+  order and reports `complete`; set `publisher_domains_complete=False` (or
+  `data_provider_domains_complete=False`) when it is not. The framework applies
+  the same bound to every `get_adcp_capabilities` response it projects: a list
+  that does not fit is truncated, its `*_complete` flag set to `false`, and a
+  warning logged. Buyers must never treat either list as an allowlist.
 
 ### When you support other protocols
 

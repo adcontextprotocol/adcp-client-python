@@ -26,6 +26,10 @@ continuation cursors and mismatched list IDs. It retains identifier types,
 including app and CTV IDs. Connections use public-destination validation,
 IP-pinned delivery, disabled redirects, and disabled environment proxies.
 There is no assumed `/property-lists/{id}` or `/lists/{id}` REST route.
+AdCP 3.3 makes `domain` and `subdomain` identifiers lowercase ASCII hostnames
+(`core/identifier.json`); a fetched page carrying `Example.com`, `example.com.`
+or a URL invalidates the whole snapshot, so the resolution fails and any cached
+snapshot is kept, rather than the value being rewritten.
 
 Each resolver caches complete lists by URL, list ID, and credential digest.
 The earliest `cache_valid_until` across pages controls expiration; a missing
@@ -64,6 +68,32 @@ handler, executor, registry = create_adcp_server_from_platform(
     seller, property_list_filter_mode="platform",
 )
 ```
+
+# Domain identifiers
+
+AdCP 3.3 validates `domain` and `subdomain` identifier values as lowercase
+ASCII hostnames (IDNs in A-label form), with no scheme, path, port, whitespace
+or trailing dot; only `domain` permits a leading `*.`. An invalid value rejects
+the containing request with `INVALID_REQUEST`; receivers never rewrite or drop
+it. `PlatformHandler.create_property_list` and `update_property_list` enforce
+this on `base_properties[].identifiers[]` and `filters.exclude_identifiers[]`
+before the platform runs (`validate_property_list_identifiers`).
+
+Senders convert explicitly before submission:
+
+```python
+from adcp.property_lists import normalize_property_list_identifiers
+
+request = normalize_property_list_identifiers(request)  # Example.com. -> example.com
+await client.create_property_list(request)
+```
+
+The normalizer lowercases, converts IDNs to A-labels, and strips surrounding
+whitespace and a trailing dot, for identifiers and `base_properties[].publisher_domain`.
+It raises `PropertyListIdentifierError` (with `field` and `reason`) for what it
+cannot convert, including a pasted URL: extract the hostname yourself once you
+have confirmed that is what you mean. `is_valid_domain_identifier(type, value)`
+checks one value against the schema without rewriting it.
 
 # Buyer checks
 

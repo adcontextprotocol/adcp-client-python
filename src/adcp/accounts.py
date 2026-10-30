@@ -370,13 +370,16 @@ class AccountRegistry:
                 and isinstance(observed_version, str)
                 and observed_version in {"3.0", "3.1"}
             ):
+                from adcp._version import resolve_adcp_version
                 from adcp.compat.versions import convert_payload
 
                 reduced = convert_payload(
                     "sync_accounts",
                     {"accounts": [key]},
                     direction="request",
-                    source_version="3.2",
+                    # The outgoing request was reduced from the SDK's own
+                    # release (3.3-beta.1), not from 3.2.
+                    source_version=resolve_adcp_version(None),
                     target_version=observed_version,
                     # Recomputes the key the outgoing request already reduced;
                     # that conversion warned about these losses.
