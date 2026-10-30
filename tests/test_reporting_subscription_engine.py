@@ -1032,8 +1032,12 @@ async def test_an_account_without_a_timezone_is_never_given_utc() -> None:
     )
     await world.engine._evaluate(IDENTITY, at("2026-10-01T00:00:00Z"))
     assert ("https://agency.example/agent", "analytics") in world.engine.evaluation_errors
-    with pytest.raises(ValueError, match="account timezone is required"):
+    with pytest.raises(ValueError) as missing:  # CoverageInputError is a ValueError
         await world.seller_owes("analytics", "acct-1", "2026-10-06T00:00:00Z")
+    assert (missing.value.code, missing.value.detail) == (
+        "COVERAGE_INPUT_INCOMPLETE",
+        "missing_account_timezone",
+    )
     # Once the host says, the zone is set without a fake UTC -> NY cutover.
     world.host.accounts["acct-1"] = AuthorizedAccount(
         "acct-1", timezone=NY, authorized_at=at("2026-09-01T00:00:00Z")

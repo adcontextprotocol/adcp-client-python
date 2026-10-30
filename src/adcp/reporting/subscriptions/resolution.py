@@ -31,6 +31,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from adcp.reporting.subscriptions._clock import (
+    CoverageInputError,
     PeriodCalendar,
     parse_delivery_sla,
     parse_period_duration,
@@ -111,7 +112,9 @@ class SubscriptionOffering:
         if not self.offering_id:
             raise ValueError("offering_id is required")
         if self.alignment not in _ALIGNMENTS:
-            raise ValueError(f"unknown schedule alignment {self.alignment!r}")
+            raise CoverageInputError(
+                "invalid_input", f"unknown schedule alignment {self.alignment!r}"
+            )
         # Refuse what the shared calendar cannot derive, up front rather than
         # mid-evaluation: a delivery_sla with years or months, or an invalid
         # duration.
@@ -168,8 +171,10 @@ class SubscriptionOffering:
             if "standard_dimensions" not in offering:
                 # adcp#8585: sellers advertising subscriptions MUST publish it,
                 # and matching never guesses a breakdown.
-                raise ValueError(
-                    f"offering {offering.get('offering_id')!r} has no standard_dimensions"
+                raise CoverageInputError(
+                    "missing_standard_dimensions",
+                    f"offering {offering.get('offering_id')!r} has no standard_dimensions. "
+                    "The seller must publish standard_dimensions on every offering.",
                 )
             dimensions = tuple(offering["standard_dimensions"] or ())
         schedule = offering["schedule"]
@@ -260,21 +265,25 @@ class SubscriptionOffering:
         if self.alignment == "account_timezone":
             zone = period_timezone or account_timezone
             if zone is None:
-                raise ValueError(
+                raise CoverageInputError(
+                    "missing_account_timezone",
                     f"offering {self.offering_id!r} is account_timezone aligned; "
-                    "the account timezone is required"
+                    "supply the account timezone (list_accounts timezone).",
                 )
             return zone
         if self.alignment == "source_timezone":
             zone = self.period_timezone
             if zone is None:
-                raise ValueError(
+                raise CoverageInputError(
+                    "missing_source_timezone",
                     f"offering {self.offering_id!r} resolves its source timezone per account; "
-                    "pass the resolved zone as period_timezone"
+                    "pass the resolved zone as period_timezone.",
                 )
             return zone
         if self.period_timezone is None:
-            raise ValueError(f"offering {self.offering_id!r} has no period_timezone")
+            raise CoverageInputError(
+                "missing_source_timezone", f"offering {self.offering_id!r} has no period_timezone"
+            )
         return self.period_timezone
 
     def calendar(
@@ -343,6 +352,8 @@ class SubscriptionSelector:
         dimensions = (
             None if raw_dimensions is None else frozenset(_text(item) for item in raw_dimensions)
         )
+        # core/reporting-schedule.json period_duration: no W designator (P7D).
+        parse_period_duration(_text(_value(selector, "period_duration")))
         raw_match = _value(selector, "match")
         match: str = (
             _text(raw_match)
