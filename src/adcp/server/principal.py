@@ -677,7 +677,9 @@ class PrincipalService:
                 action = (
                     "would_clear"
                     if changed and cleared
-                    else "would_update" if changed else "would_be_unchanged"
+                    else "would_update"
+                    if changed
+                    else "would_be_unchanged"
                 )
                 return SyncPrincipalResponse.model_validate(
                     {
@@ -996,7 +998,7 @@ class PrincipalService:
     ) -> None:
         """Apply ``reporting_subscriptions`` against the destinations after this request."""
         from adcp.reporting.subscriptions.registry import (
-            ReportingSubscriptionError,
+            ReportingSubscriptionValidationError,
             apply_reporting_subscriptions,
             refresh_destination_states,
         )
@@ -1023,13 +1025,13 @@ class PrincipalService:
                         and configuration.destination is not None
                         and configuration.destination.destination_id not in names
                     ):
-                        raise ReportingSubscriptionError(
+                        raise ReportingSubscriptionValidationError(
                             f"subscription {item.subscription_id!r} names destination "
                             f"{configuration.destination.destination_id!r}, which this "
                             "request removes"
                         )
                 payload["reporting_subscriptions"] = refresh_destination_states(prior, destinations)
-        except ReportingSubscriptionError as error:
+        except ReportingSubscriptionValidationError as error:
             raise _PrincipalValidationError(error.code, str(error)) from None
 
     def _now(self) -> datetime:

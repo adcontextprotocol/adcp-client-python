@@ -11,12 +11,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from adcp.exceptions import ADCPError, is_pre_dispatch_error
 from adcp.reporting import plan_consumer_statuses
 from adcp.reporting.subscriptions import (
+    REPORTING_SUBSCRIPTION_ERROR_CODES,
     AuthorizedAccount,
     AuthorizedAccountPage,
-    ReportingSubscriptionClientError,
     ReportingSubscriptionEngine,
+    ReportingSubscriptionError,
     ReportingSubscriptionTracker,
     SubscriptionBuy,
     SubscriptionOffering,
@@ -148,9 +150,36 @@ async def test_sync_and_read_back() -> None:
 @pytest.mark.asyncio
 async def test_rejection_surfaces_the_seller_code() -> None:
     client = Client(Seller())
-    with pytest.raises(ReportingSubscriptionClientError) as raised:
+    with pytest.raises(ReportingSubscriptionError) as raised:
         await sync_reporting_subscriptions(client, [{**SUBSCRIPTION, "scope": {}}])
-    assert raised.value.code == "INVALID_REQUEST"
+    error = raised.value
+    assert isinstance(error, ADCPError)
+    assert error.code == "INVALID_REQUEST" and error.recovery == "correctable"
+    # The seller refused it: the request was sent.
+    assert not is_pre_dispatch_error(error)
+
+
+def test_sdk_codes_carry_their_recovery_and_dispatch() -> None:
+    for code, (recovery, local) in REPORTING_SUBSCRIPTION_ERROR_CODES.items():
+        error = ReportingSubscriptionError("refused. Fix it.", code=code)
+        assert error.recovery == recovery
+        assert is_pre_dispatch_error(error) is local
+    assert ReportingSubscriptionError("x", code="X_VENDOR_NEW").recovery == "transient"
+    assert ReportingSubscriptionError("x", code="CONFLICT", recovery="terminal").recovery == (
+        "terminal"
+    )
+    guarded = ReportingSubscriptionError(
+        "x", code="SUBSCRIPTION_WOULD_DEACTIVATE", would_deactivate=["pacing"]
+    )
+    assert guarded.would_deactivate == ("pacing",)
+
+
+def test_the_old_client_error_name_is_a_deprecated_alias() -> None:
+    import adcp.reporting.subscriptions as subscriptions
+
+    with pytest.warns(DeprecationWarning, match="renamed ReportingSubscriptionError"):
+        alias = subscriptions.ReportingSubscriptionClientError
+    assert alias is ReportingSubscriptionError
 
 
 def test_notification_filter() -> None:

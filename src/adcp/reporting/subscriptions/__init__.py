@@ -35,7 +35,8 @@ from adcp.reporting.subscriptions.capabilities import (
 )
 from adcp.reporting.subscriptions.consumer import (
     REPORTING_SUBSCRIPTION_CHANGED,
-    ReportingSubscriptionClientError,
+    REPORTING_SUBSCRIPTION_ERROR_CODES,
+    ReportingSubscriptionError,
     ReportingSubscriptionReadback,
     ReportingSubscriptionTracker,
     is_subscription_change,
@@ -79,7 +80,7 @@ from adcp.reporting.subscriptions.ledger import (
     subscription_obligation_id,
 )
 from adcp.reporting.subscriptions.registry import (
-    ReportingSubscriptionError,
+    ReportingSubscriptionValidationError,
     apply_reporting_subscriptions,
     refresh_destination_states,
     render_path_template,
@@ -107,7 +108,6 @@ __all__ = [
     "SubscriptionPlanResult",
     "subscription_obligation_id",
     "REPORTING_SUBSCRIPTION_CHANGED",
-    "ReportingSubscriptionClientError",
     "ReportingSubscriptionReadback",
     "ReportingSubscriptionTracker",
     "is_subscription_change",
@@ -120,7 +120,9 @@ __all__ = [
     "InMemoryReportingSubscriptionStore",
     "ReportingSubscriptionDeliveryHost",
     "ReportingSubscriptionEngine",
+    "REPORTING_SUBSCRIPTION_ERROR_CODES",
     "ReportingSubscriptionError",
+    "ReportingSubscriptionValidationError",
     "ReportingSubscriptionHost",
     "ReportingSubscriptionPrecedenceHost",
     "ReportingSubscriptionStateConflictError",
@@ -163,3 +165,11 @@ __all__ = [
     "project_subscription_state",
     "serves_settled_subscription_fields",
 ]
+
+
+def __getattr__(name: str) -> object:
+    if name == "ReportingSubscriptionClientError":
+        from adcp.reporting.subscriptions import consumer
+
+        return getattr(consumer, name)  # warns: renamed ReportingSubscriptionError
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
