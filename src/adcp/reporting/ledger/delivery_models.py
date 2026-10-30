@@ -186,6 +186,10 @@ class ReportingDestinationBinding(_ClosedValue):
     format: ReportingFormat | None = None
     reader_compatibility: tuple[str, ...] = ()
     success_status: Literal["available", "delivered"] = "available"
+    #: A reporting subscription's destination ``path_template`` (AdCP 3.3),
+    #: frozen at binding and expanded per delivery. Only a subscription
+    #: generation's binding carries one; account bindings are unchanged.
+    path_template: str | None = None
     kind: Literal["destination_binding"] = field(default="destination_binding", kw_only=True)
 
     def __post_init__(self) -> None:
@@ -215,10 +219,48 @@ class ReportingDestinationBinding(_ClosedValue):
             raise ValueError("dataset share requires representative-consumer availability")
         if self.feed_purpose == "billing" and self.verification_profile != "canonical_digest":
             raise ValueError("billing receipts require canonical digest verification")
+        if self.path_template is not None:
+            if self.generation_key.offering_id is None:
+                raise ValueError("only a reporting subscription's binding carries a path_template")
+            _validate_path_template(self.path_template)
 
     @property
     def principal(self) -> ReportingDeliveryPrincipal:
         return ReportingDeliveryPrincipal(self.generation_key.account_id, self.consumer_id)
+
+    def delivery_path(self, obligation_period_start: datetime) -> str | None:
+        """This binding's ``path_template`` expanded for one delivery, or ``None``."""
+        if self.path_template is None:
+            return None
+        from adcp.reporting.subscriptions.registry import render_path_template
+
+        key = self.generation_key
+        assert key.offering_id is not None
+        return render_path_template(
+            self.path_template,
+            account_id=key.account_id,
+            subscription_id=key.delivery_config_id,
+            offering_id=key.offering_id,
+            period_start=obligation_period_start,
+        )
+
+
+_PATH_PLACEHOLDERS = frozenset({"account_id", "subscription_id", "offering_id", "period_start"})
+
+
+def _validate_path_template(template: str) -> None:
+    """A relative path with no ``.``/``..`` segments and only the spec's placeholders."""
+    if (
+        not template
+        or len(template) > 1024
+        or template.startswith("/")
+        or "\\" in template
+        or any(segment in {"", ".", ".."} for segment in template.split("/"))
+    ):
+        raise ValueError("path_template must be a relative path without empty, . or .. segments")
+    names = set(re.findall(r"\{([^{}]*)\}", template))
+    if not names <= _PATH_PLACEHOLDERS or re.sub(r"\{[^{}]*\}", "", template).count("{"):
+        raise ValueError("path_template uses an unknown placeholder")
 
 
 @dataclass(frozen=True, slots=True)

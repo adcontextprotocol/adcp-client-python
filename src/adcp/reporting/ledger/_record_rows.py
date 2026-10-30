@@ -27,6 +27,7 @@ from adcp.reporting.ledger.models import (
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
     ReportingScheduleSpec,
+    ReportingSubscriptionGeneration,
 )
 from adcp.reporting.ledger.store import _utc, managed_revision_metadata
 
@@ -35,7 +36,17 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at, currency, consumer_id"
+    " package_ids, schedule, definition, created_at, currency, consumer_id, offering_id"
+)
+
+#: ``offering_id`` is '' for an account-level generation and the resolved
+#: offering for a reporting subscription's generation (AdCP 3.3).
+_CONFIGURATION_COLUMNS = (
+    "delivery_config_id, delivery_config_version, account_id,"
+    " report_definition_id, reporting_profile, feed_purpose, required_finality,"
+    " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
+    " automated_recovery_seconds, status_retention_days, definition,"
+    " authoritative_party, consumer_id, quarantined, offering_id"
 )
 
 
@@ -61,7 +72,8 @@ _STATUS_COLUMNS = (
     " s.period_source_timezone, s.consumer_status, s.status_as_of, s.recorded_at,"
     " s.supersedes_reporting_status_id, s.reporting_obligation_id, s.reporting_revision_id,"
     " s.observed_revision_content_sha256, s.failure_code, s.mismatch_code,"
-    " s.consumer_commit_ref, s.seller_ledger_snapshot_id, s.seller_ledger_as_of, s.superseded"
+    " s.consumer_commit_ref, s.seller_ledger_snapshot_id, s.seller_ledger_as_of, s.superseded,"
+    " s.offering_id"
 )
 
 
@@ -134,7 +146,19 @@ def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, A
         "media_buy_ids": sorted(configuration.media_buy_ids),
         "schedule": _schedule_payload(configuration.schedule),
         "definition": _definition_payload(configuration.definition),
+        # Only a subscription generation carries it, so account generations
+        # keep their content digest.
+        **(
+            {"subscription": configuration.subscription.to_storage()}
+            if configuration.subscription is not None
+            else {}
+        ),
     }
+
+
+def _offering(row: Sequence[Any], index: int) -> str | None:
+    """The trailing ``offering_id`` column; '' (or absent) is an account generation."""
+    return (row[index] or None) if len(row) > index else None
 
 
 def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
@@ -157,6 +181,11 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
         authoritative_party=row[15],
         consumer_id=row[16],
         quarantined=row[17],
+        subscription=(
+            ReportingSubscriptionGeneration(row[0], offering)
+            if (offering := _offering(row, 18)) is not None
+            else None
+        ),
     )
 
 
@@ -187,6 +216,7 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         created_at=_utc(row[20]),
         currency=row[21],
         consumer_id=row[22],
+        offering_id=_offering(row, 23),
     )
 
 
@@ -265,6 +295,7 @@ def _status_from_row(row: Sequence[Any]) -> ConsumerStatusRecord:
         seller_ledger_snapshot_id=row[19],
         seller_ledger_as_of=_utc(row[20]) if row[20] else None,
         superseded=row[21],
+        offering_id=_offering(row, 22),
     )
 
 

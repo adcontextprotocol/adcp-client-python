@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Annotated, Any, NoReturn, TypeVar, cast
 
@@ -33,6 +33,7 @@ from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 from adcp.reporting.ledger.store import (
     LedgerConflictError,
@@ -72,7 +73,7 @@ def iso(value: datetime) -> str:
 
 def payload(record: ReportingDeliveryRecord) -> dict[str, Any]:
     # Dataclass fields only: never __dict__, a provider object, or a wire extras bag.
-    result: dict[str, Any] = json.loads(json.dumps(asdict(record), default=iso))
+    result: dict[str, Any] = json.loads(json.dumps(ledger_asdict(record), default=iso))
     return result
 
 
@@ -108,7 +109,10 @@ def principal(record: ReportingDeliveryRecord) -> ReportingDeliveryPrincipal:
 def record_identity(record: ReportingDeliveryRecord) -> tuple[str, str]:
     if isinstance(record, ReportingDestinationBinding):
         generation = record.generation_key
-        return record.kind, hashlib.sha256(canonical_json_utf8_v1(asdict(generation))).hexdigest()
+        return (
+            record.kind,
+            hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(generation))).hexdigest(),
+        )
     if isinstance(record, ReportingObligationDeliveryRecord):
         return record.kind, record.scope.reporting_obligation_id
     if isinstance(record, ReportingMaterializationCheck):

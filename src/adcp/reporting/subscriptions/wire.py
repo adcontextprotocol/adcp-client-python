@@ -34,6 +34,34 @@ _VERSION = re.compile(r"^(\d+)\.(\d+)(?:\.\d+)?(?:-([A-Za-z]+)\.?(\d+)?)?$")
 _OFFERING_FIELDS = ("standard_dimensions", "unmapped_dimensions")
 
 
+def _at_least_beta(adcp_version: str | None, beta: int) -> bool:
+    if not adcp_version:
+        return False
+    match = _VERSION.match(adcp_version.strip())
+    if match is None:
+        return False
+    major, minor, tag, number = match.groups()
+    release = (int(major), int(minor))
+    if release != (3, 3):
+        return release > (3, 3)
+    if tag is None:
+        return True
+    tag = tag.lower()
+    if tag == "beta":
+        return int(number or 0) >= beta
+    return tag == "rc"
+
+
+def serves_inactive_coverage(adcp_version: str | None) -> bool:
+    """Whether coverage may read ``status: "inactive"`` with ``deactivated_at``.
+
+    Drafted for 3.3.0-beta.3: a deactivated subscription reads inactive while
+    it still has retained obligations for the account. Earlier releases close
+    the status enum, so their callers get the account-level status instead.
+    """
+    return _at_least_beta(adcp_version, 3)
+
+
 def serves_settled_subscription_fields(adcp_version: str | None) -> bool:
     """Whether a response served at ``adcp_version`` may carry the adcp#8585 fields.
 
@@ -95,10 +123,17 @@ def project_subscription_state(
 
 
 def project_subscription_coverage(
-    coverage: Mapping[str, Any], adcp_version: str | None
+    coverage: Mapping[str, Any], adcp_version: str | None, *, account_status: str = "active"
 ) -> dict[str, Any]:
-    """A ``subscription_coverage[]`` entry as served at ``adcp_version``."""
+    """A ``subscription_coverage[]`` entry as served at ``adcp_version``.
+
+    ``account_status`` is the account-level status (from exclusions) that an
+    inactive entry reads as for a caller served before 3.3.0-beta.3.
+    """
     payload = dict(coverage)
+    if payload.get("status") == "inactive" and not serves_inactive_coverage(adcp_version):
+        payload["status"] = account_status
+        payload.pop("deactivated_at", None)
     if serves_settled_subscription_fields(adcp_version):
         return payload
     if payload.get("gaps"):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import asdict, replace
+from dataclasses import replace
 from datetime import timedelta
 from importlib.resources import files
 from secrets import token_hex
@@ -19,7 +19,11 @@ from pydantic import TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
-from adcp.reporting.ledger.models import ReportingDeliveryEscalation, ReportingIssueLifecycle
+from adcp.reporting.ledger.models import (
+    ReportingDeliveryEscalation,
+    ReportingIssueLifecycle,
+    ledger_asdict,
+)
 from adcp.reporting.ledger.notification_models import (
     ReportingDomainEvent,
     ReportingNotificationError,
@@ -78,7 +82,7 @@ def _replay_storage(snapshot: ReportingStatusSnapshot) -> str:
         [
             {
                 "lifecycle": _lifecycle_adapter().dump_python(i, mode="json"),
-                "scope": asdict(scopes[i.issue_id]) if i.issue_id in scopes else None,
+                "scope": ledger_asdict(scopes[i.issue_id]) if i.issue_id in scopes else None,
             }
             for i in snapshot.lifecycles
         ]
@@ -293,7 +297,7 @@ class PgStatusNotificationStore:
                 " snapshot, source_sequence, baseline, publishable, selector_writer_floor)"
                 ' VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,\'{"health":"waiting"}\',0,FALSE,FALSE,2)'
                 f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
-                (*scope.checkpoint_key, json.dumps(asdict(scope)), "0" * 64),
+                (*scope.checkpoint_key, json.dumps(ledger_asdict(scope)), "0" * 64),
             )
         await (
             await connection.execute(
@@ -312,7 +316,7 @@ class PgStatusNotificationStore:
             " selector_writer_floor=%s"
             f" WHERE {_WHERE}",  # nosec B608
             (
-                json.dumps(asdict(checkpoint.scope)),
+                json.dumps(ledger_asdict(checkpoint.scope)),
                 checkpoint.fingerprint,
                 checkpoint.generation,
                 json.dumps(checkpoint.snapshot),

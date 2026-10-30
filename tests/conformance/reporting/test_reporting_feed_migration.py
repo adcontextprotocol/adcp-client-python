@@ -80,7 +80,7 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
                     .read_text()
                 )
             )
-        assert len(parent_manifest) == 767
+        assert len(parent_manifest) == 774
         assert {key: original[key] for key in parent_manifest} == parent_manifest
         assert original == {**parent_manifest, **PROVISIONAL_OBJECTS}
         new = PgReportingFeedStore(pool=pool, notifications=notifications)
@@ -96,7 +96,7 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
         assert actual == {**original, **MANIFEST}
         assert {k: v for k, v in actual.items() if "reporting_feed_" in k} == MANIFEST
         assert len(MANIFEST) == 33
-        for package, count in (("materializer", 187), ("receipts", 102)):
+        for package, count in (("materializer", 189), ("receipts", 102)):
             required = json.loads(
                 files("adcp_reporting_storage." + package)
                 .joinpath("required_schema.json")
