@@ -1391,43 +1391,40 @@ class ReportingSubscriptionEngine:
         instant = self._now(now)
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            accounts = {
-                key: value
-                for key, value in principal.accounts.items()
-                if account_id is None or key == account_id
-            }
+        principal = await self._read(identity.subject)
+        accounts = {
+            key: value
+            for key, value in principal.accounts.items()
+            if account_id is None or key == account_id
+        }
         buys = {key: await self._host.account_buys(identity, key) for key in accounts}
         result: list[FrozenOwedSet] = []
-        async with self._store.lock:
-            principal = self._store.principal(identity.subject)
-            for state in states:
-                subscription_id = str(state["subscription_id"])
-                versions = {
-                    version: configuration
-                    for (sub_id, version), configuration in principal.versions.items()
-                    if sub_id == subscription_id
-                }
-                for key, account in sorted(accounts.items()):
-                    try:
-                        periods = self._owed(
-                            principal, state, key, account, buys[key], destinations, instant
+        for state in states:
+            subscription_id = str(state["subscription_id"])
+            versions = {
+                version: configuration
+                for (sub_id, version), configuration in principal.versions.items()
+                if sub_id == subscription_id
+            }
+            for key, account in sorted(accounts.items()):
+                try:
+                    periods = self._owed(
+                        principal, state, key, account, buys[key], destinations, instant
+                    )
+                except Exception as error:  # noqa: BLE001 - isolate one owed set
+                    self._errors[(identity.subject, subscription_id)] = error
+                    continue
+                if periods:
+                    result.append(
+                        FrozenOwedSet(
+                            principal_id=identity.subject,
+                            account_id=key,
+                            subscription_id=subscription_id,
+                            through=instant,
+                            periods=tuple(periods),
+                            versions=versions,
                         )
-                    except Exception as error:  # noqa: BLE001 - isolate one owed set
-                        self._errors[(identity.subject, subscription_id)] = error
-                        continue
-                    if periods:
-                        result.append(
-                            FrozenOwedSet(
-                                principal_id=identity.subject,
-                                account_id=key,
-                                subscription_id=subscription_id,
-                                through=instant,
-                                periods=tuple(periods),
-                                versions=versions,
-                            )
-                        )
+                    )
         return result
 
     async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
