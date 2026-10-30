@@ -338,7 +338,20 @@ def test_reporting_only_notification_config_omits_product_default_without_mutati
             "event_types": ["product.updated"],
         }
     )
-    assert products.model_dump(mode="json")["product_payload_view"] == "legacy"
+    # AdCP 3.3.0-beta.2 states the default in prose (absent means legacy), so
+    # an unset view stays absent on product subscriptions too, never null.
+    for raw in (products.model_dump(mode="json"), json.loads(products.model_dump_json())):
+        assert "product_payload_view" not in raw
+        assert not list(validator.iter_errors(raw))
+    explicit = NotificationConfig.model_validate(
+        {
+            "subscriber_id": "products",
+            "url": "https://buyer.example/products",
+            "event_types": ["product.updated"],
+            "product_payload_view": "canonical",
+        }
+    )
+    assert explicit.model_dump(mode="json")["product_payload_view"] == "canonical"
 
 
 def test_adopter_subclasses_and_nested_wire_models_keep_the_explicit_field_allowlist():
