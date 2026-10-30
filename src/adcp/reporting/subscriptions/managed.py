@@ -418,6 +418,56 @@ class _Platform:
     sync_accounts_seen: set[str] = field(default_factory=set)
 
 
+class SubscriptionGrants:
+    """Push grant changes into the grant journal: ``reporting.grants``.
+
+    For sellers whose entitlement service emits events: a pushed change is
+    dated exactly, where a listing can only observe it. The journal then
+    re-evaluates the principal's exceptions without listing the host's
+    accounts, so a listing that lags the push cannot undo it. Listings
+    observed later must agree with what was pushed.
+    """
+
+    def __init__(self, managed: ManagedSubscriptions) -> None:
+        self._managed = managed
+
+    async def changed(
+        self,
+        principal: Any,
+        account_id: str,
+        *,
+        at: datetime,
+        authorized: bool,
+        allowed_tasks: Sequence[str] | None = None,
+        timezone: str | None = None,
+        operator: str | None = None,
+    ) -> None:
+        """Record that ``principal``'s grant on ``account_id`` changed at ``at``.
+
+        ``authorized=False`` is a revocation: no access at all from ``at``.
+        ``allowed_tasks`` is the new grant's task list (``None`` restricts no
+        task); a grant without ``get_reporting_status`` ends coverage exactly
+        like a revocation, and :func:`~adcp.server.wind_down_grant`'s tasks
+        keep it. A re-grant inside ``status_retention_days`` continues the
+        chain, so the ``authorized_at`` served on ``list_accounts`` does not
+        move.
+        """
+        managed = self._managed
+        ref = PrincipalRef.coerce(principal)
+        await managed.engine.authorization_changed(
+            ref,
+            account_id,
+            authorized=authorized,
+            at=at,
+            timezone=timezone,
+            operator=operator,
+            allowed_tasks=allowed_tasks,
+            source="pushed",
+        )
+        if await managed._subscribed(ref):
+            await managed.engine.refresh(ref)
+
+
 class ManagedSubscriptions:
     """The SDK-owned composition behind ``ReliableReportingService(subscriptions=...)``.
 
@@ -446,6 +496,7 @@ class ManagedSubscriptions:
         #: Served-write triggers waiting for the drain: (account_id, caller).
         self._queued: dict[tuple[str | None, str | None], PrincipalRef | None] = {}
         self._drain: asyncio.Task[None] | None = None
+        self.grants = SubscriptionGrants(self)
 
     # -- composition -----------------------------------------------------------
 
@@ -936,6 +987,73 @@ class ManagedSubscriptions:
             ),
         )
 
+    # -- authorized_at projection ----------------------------------------------
+
+    async def project_accounts(self, response: Any, context: Any) -> Any:
+        """Serve the journal's ``authorized_at`` on a ``list_accounts``/``sync_accounts`` response.
+
+        Each account shown with an authorization is first observed by the
+        journal (a new grant, a re-grant, a reduction, or a regressed
+        ``authorized_at``, which is rejected), so grant checks read what the
+        caller was just shown. The served ``authorized_at`` is the value
+        coverage uses. Only callers holding subscriptions are touched, and a
+        failure here never fails the response.
+        """
+        if not self.composed:
+            return response
+        metadata = getattr(context, "metadata", None)
+        if isinstance(metadata, Mapping) and metadata.get("adcp.reporting.service_context"):
+            return response
+        payload = _wire(response)
+        if not isinstance(payload, Mapping) or not isinstance(payload.get("accounts"), list):
+            return response
+        try:
+            principal = await self.resolve(None, context)
+            if not await self._subscribed(principal):
+                return response
+            accounts = await self._project_page(principal, list(payload["accounts"]))
+        except Exception:  # noqa: BLE001 - the projection never fails the read
+            logger.exception("reporting subscription authorized_at projection failed")
+            return response
+        return {**payload, "accounts": accounts}
+
+    async def _project_page(self, principal: PrincipalRef, page: list[Any]) -> list[Any]:
+        """Observe every shown grant in one journal write, then serve its ``authorized_at``."""
+        from adcp.reporting.subscriptions._clock import iso_z
+        from adcp.reporting.subscriptions.engine import GrantObservation
+
+        observations: list[GrantObservation] = []
+        for raw in page:
+            authorization = raw.get("authorization") if isinstance(raw, Mapping) else None
+            if (
+                isinstance(raw, Mapping)
+                and raw.get("account_id")
+                and isinstance(authorization, Mapping)
+            ):
+                tasks = authorization.get("allowed_tasks")
+                observations.append(
+                    GrantObservation(
+                        str(raw["account_id"]),
+                        # An authorization without allowed_tasks restricts no
+                        # task, as the reconcile reads it.
+                        None if tasks is None else [str(item) for item in tasks],
+                        _instant(authorization.get("authorized_at")),
+                        raw.get("timezone") or None,
+                        raw.get("operator"),
+                    )
+                )
+        served = await self.engine.observe_grants(principal, observations)
+        projected: list[Any] = []
+        for raw in page:
+            start = served.get(str(raw.get("account_id"))) if isinstance(raw, Mapping) else None
+            if start is None:
+                projected.append(raw)
+                continue
+            authorization = dict(raw["authorization"])
+            authorization["authorized_at"] = iso_z(start)
+            projected.append({**raw, "authorization": authorization})
+        return projected
+
     # -- capabilities ----------------------------------------------------------
 
     @staticmethod
@@ -961,6 +1079,7 @@ class ManagedSubscriptions:
 
 
 __all__ = [
+    "SubscriptionGrants",
     "AccountConfigsOverride",
     "AccountsOverride",
     "BuyOfferingsOverride",

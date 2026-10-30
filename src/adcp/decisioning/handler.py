@@ -3314,6 +3314,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if inspect.isawaitable(result):
             result = await result
         projected = _project_sync_accounts(result)
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is not None:
+            projected = await reporting._project_accounts(projected, tool_ctx)
         await self._reporting_subscription_write(None, tool_ctx)
         return cast("SyncAccountsResponse", projected)
 
@@ -3354,9 +3357,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             from adcp.reporting.outbox.activity import omit_account_activity
 
             projected = omit_account_activity(projected)
-        return cast(
-            "ListAccountsResponse", strip_credentials_from_wire_result("list_accounts", projected)
-        )
+        served = strip_credentials_from_wire_result("list_accounts", projected)
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is not None:
+            # Managed reporting subscriptions serve the grant journal's
+            # authorized_at, the value coverage uses.
+            served = await reporting._project_accounts(served, tool_ctx)
+        return cast("ListAccountsResponse", served)
 
     # ----- Optional-method gate -----
 

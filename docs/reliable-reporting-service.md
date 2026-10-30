@@ -379,6 +379,24 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
   platform that cannot list accounts (`SUBSCRIPTION_ROSTER_UNAVAILABLE`). Both
   are `ReliableReportingConfigurationError` with `code` and
   `recovery="correctable"`, and each message ends with the fix.
+- **Grants and `authorized_at`.** The SDK journals every grant it learns of and
+  is the only source of `authorization.authorized_at`. It applies the chain
+  rule: a re-grant before `unauthorized_at + status_retention_days` continues
+  the chain, so `authorized_at` does not move; a later re-grant starts a new
+  one. Served `list_accounts` and `sync_accounts` responses carry the
+  journal's value, the same one coverage uses. A host value is adopted on
+  first observation; a later one that moves backwards is rejected and logged
+  as `authorized_at_regressed`. Those responses also update the journal, as
+  does `await reporting.grants.changed(principal, account_id, at=...,
+  authorized=..., allowed_tasks=...)` for sellers whose entitlement service
+  emits events. Grant checks read the journal, so a reduction shown to the
+  caller is enforced on its next reporting task.
+- **Wind down, don't revoke.** Revocation means no access at all, receipts and
+  statuses included. To end a relationship while the buyer finishes
+  reconciling, set `account.authorization = wind_down_grant(account.authorization)`
+  (from `adcp.server`). It lists only `REPORTING_WIND_DOWN_TASKS`
+  (`get_reporting_status`, `sync_reporting_receipts`, `sync_reporting_status`)
+  and keeps `authorized_at`, so coverage continues.
 - **Principals.** Reporting APIs name a principal with
   `PrincipalRef(tenant_id, principal_id)`; `grants_task` and
   `authorizes_delivery` take it. One service serves one tenant.
