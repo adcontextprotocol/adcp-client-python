@@ -25,6 +25,7 @@ from typing import Any
 
 import pytest
 
+from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.subscriptions import (
     CoverageInputError,
     SubscriptionAuthorization,
@@ -80,7 +81,8 @@ def pinned_tzdata():
 
 
 def at(value: str | None) -> datetime | None:
-    return None if value is None else datetime.fromisoformat(value.replace("Z", "+00:00"))
+    # The vectors carry 1-6 fractional digits, which Python 3.10's ISO parser refuses.
+    return None if value is None else aware_timestamp(value)
 
 
 def windows(

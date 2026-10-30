@@ -222,7 +222,11 @@ def _instant(value: Any) -> datetime | None:
         return None
     if isinstance(value, datetime):
         return utc_instant(value)
-    return utc_instant(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+    from adcp.reporting._timestamp import aware_timestamp
+
+    # Wire instants may carry 1-6 fractional digits, which Python 3.10's ISO
+    # parser refuses.
+    return aware_timestamp(str(value))
 
 
 # -- principal identity --------------------------------------------------------
