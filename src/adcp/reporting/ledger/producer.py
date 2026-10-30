@@ -594,6 +594,10 @@ class ReportingProducer:
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
+        if configuration.owed_set:
+            # A subscription's owed set is written by its planner, never filled
+            # from a period grid.
+            return []
         progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
         after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
@@ -712,6 +716,9 @@ class ReportingProducer:
     ) -> None:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
+        if configuration.owed_set:
+            await self._acquire_owed_set(configuration, turn, now=now)
+            return
         if isinstance(self._store, ReportingProducerProgress):
             await self._acquire_progress(self._store, configuration, turn, now=now)
             return
@@ -751,6 +758,50 @@ class ReportingProducer:
                     obligation.reporting_obligation_id,
                     error.code,
                 )
+                turn.slices_failed.append(obligation.reporting_obligation_id)
+                self._note_escalation(obligation, turn, now=now)
+
+    async def _acquire_owed_set(
+        self, configuration: ReportingConfiguration, turn: WorkerTurn, *, now: datetime
+    ) -> None:
+        """Acquire a subscription's frozen obligations that have elapsed.
+
+        The owed set is exactly the stored obligations; there is no grid to
+        walk. Satisfied obligations are left alone by ``acquire_obligation``,
+        and those with an official revision are skipped before dispatch.
+        """
+        from adcp.reporting.ledger.store import ReportingSubscriptionLedger
+
+        if not isinstance(self._store, ReportingSubscriptionLedger):
+            raise LedgerConflictError(
+                "UNSUPPORTED_STORE", "this store cannot hold reporting-subscription owed sets"
+            )
+        worked = 0
+        for obligation in await self._store.list_generation_obligations(
+            configuration.generation_key
+        ):
+            if worked >= self._max_periods_per_turn or _utc(obligation.period.end) > _utc(now):
+                break
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if any(item.finality == "official" for item in revisions):
+                continue
+            if not await self._automatic_read_ready(configuration, obligation, now=now):
+                continue
+            worked += 1
+            try:
+                policy = self._settling_policy(configuration, obligation)
+                if policy is None:
+                    await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                else:
+                    await self._acquire_with_settling_policy(
+                        configuration, obligation, policy=policy, turn=turn, now=now
+                    )
+            except (ReportingCurrencyError, LedgerConflictError) as error:
+                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                    raise
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
 

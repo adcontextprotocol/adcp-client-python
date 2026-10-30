@@ -162,9 +162,11 @@ async def test_concurrent_bootstrap_creates_the_owned_key(autocommit: bool) -> N
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         await asyncio.gather(*(PgReportingLedgerStore(pool=pool).create_schema() for _ in range(8)))
         primary = await _primary_key(pool)
-        assert (
-            primary[3]
-            == "PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)"
+        # AdCP 3.3: one generation per resolved offering of a subscription
+        # version; account generations hold offering_id ''.
+        assert primary[3] == (
+            "PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version,"
+            " offering_id)"
         )
         await PgReportingLedgerStore(pool=pool).create_schema()
         assert await _primary_key(pool) == primary

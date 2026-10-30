@@ -75,6 +75,7 @@ _T = TypeVar("_T")
 _MAX_STATE_WRITE_ATTEMPTS = 8
 
 if TYPE_CHECKING:
+    from adcp.reporting.subscriptions.ledger import FrozenOwedSet
     from adcp.server.principal import (
         DeliveryConfigIdsHook,
         PrincipalIdentity,
@@ -84,6 +85,10 @@ if TYPE_CHECKING:
 
 
 # -- host facts ----------------------------------------------------------------
+
+
+#: The task whose grant carries subscription coverage.
+REPORTING_STATUS_TASK = "get_reporting_status"
 
 
 @dataclass(frozen=True)
@@ -101,9 +106,19 @@ class AuthorizedAccount:
     timezone: str
     authorized_at: datetime
     operator: str | None = None
+    #: The grant's ``authorization.allowed_tasks``; ``None`` when the host does
+    #: not scope tasks. Access means access: coverage continues only while the
+    #: grant lists ``get_reporting_status``, and every reporting task is checked
+    #: against the grant. A seller that wants a buyer to finish reconciliation
+    #: keeps a reduced grant (for example ``get_reporting_status``,
+    #: ``sync_reporting_receipts`` and ``sync_reporting_status``) rather than
+    #: revoking; after revocation the account is unknown to every task.
+    allowed_tasks: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
         require_zone(self.timezone, field="AuthorizedAccount.timezone")
+        if self.allowed_tasks is not None:
+            object.__setattr__(self, "allowed_tasks", frozenset(self.allowed_tasks))
         object.__setattr__(
             self, "authorized_at", utc_instant(self.authorized_at, field="authorized_at")
         )
@@ -181,6 +196,11 @@ class _Account:
     operator: str | None
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
+    #: The current grant's ``allowed_tasks``; ``None`` when the host does not scope tasks.
+    allowed_tasks: frozenset[str] | None = None
+
+    def grants_task(self, task: str) -> bool:
+        return self.authorized and (self.allowed_tasks is None or task in self.allowed_tasks)
 
     def set_timezone(self, timezone: str | None, at: datetime) -> None:
         """Record a zone; a change away from an unknown zone is not a cutover."""
@@ -400,6 +420,13 @@ def encode_principal_state(
             account_id: {
                 "timezone": account.timezone,
                 "operator": account.operator,
+                # Present only when the host scopes tasks, so documents written
+                # before allowed_tasks existed stay byte-identical.
+                **(
+                    {"allowed_tasks": sorted(account.allowed_tasks)}
+                    if account.allowed_tasks is not None
+                    else {}
+                ),
                 "grants": [
                     {
                         "authorized_at": iso_z(grant.authorized_at),
@@ -452,6 +479,9 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
         principal.accounts[account_id] = _Account(
             timezone=raw["timezone"],
             operator=raw["operator"],
+            allowed_tasks=(
+                frozenset(raw["allowed_tasks"]) if raw.get("allowed_tasks") is not None else None
+            ),
             grants=[
                 SubscriptionAuthorization(
                     _required_instant(grant["authorized_at"]), _instant(grant["unauthorized_at"])
@@ -569,6 +599,15 @@ class ReportingSubscriptionEngine:
     @property
     def support(self) -> ReportingSubscriptionSupport:
         return self._support
+
+    @property
+    def offerings(self) -> tuple[SubscriptionOffering, ...]:
+        """The offerings subscriptions resolve against, with their dimension mappings."""
+        return self._offerings
+
+    @property
+    def status_retention_days(self) -> int:
+        return self._retention_days
 
     def principal_options(
         self, *, delivery_config_ids: DeliveryConfigIdsHook | None = None
@@ -713,7 +752,13 @@ class ReportingSubscriptionEngine:
         ``reporting_subscription_changed``.
         """
         instant = self._now(now)
-        listed = {item.account_id: item for item in await self._list_accounts(identity)}
+        # A grant that no longer lists get_reporting_status ends coverage, as a
+        # revocation does: access means access.
+        listed = {
+            item.account_id: item
+            for item in await self._list_accounts(identity)
+            if item.allowed_tasks is None or REPORTING_STATUS_TASK in item.allowed_tasks
+        }
 
         def change(principal: _PrincipalState) -> None:
             for account_id, item in listed.items():
@@ -736,9 +781,12 @@ class ReportingSubscriptionEngine:
                     self._apply_grant(account, authorized=True, at=granted)
                 account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
+                account.allowed_tasks = item.allowed_tasks
             for account_id, account in principal.accounts.items():
                 if account_id not in listed and account.authorized:
                     self._apply_grant(account, authorized=False, at=instant)
+                if account_id not in listed:
+                    account.allowed_tasks = None
 
         await self._mutate(identity.subject, change, now=instant)
         await self._evaluate(identity, instant)
@@ -1200,12 +1248,49 @@ class ReportingSubscriptionEngine:
             cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
             if cutovers:
                 payload["timezone_cutovers"] = cutovers
+            if not _active(state):
+                # A deactivated subscription is listed only while it still has
+                # retained obligations for the account, and reads inactive.
+                if not self._retains_obligations(
+                    principal, state, account_id, account, buys, destinations, instant
+                ):
+                    continue
+                payload["status"] = "inactive"
+                payload["deactivated_at"] = state["deactivated_at"]
             result.append(
                 ReportingSubscriptionCoverage.model_validate(
-                    project_subscription_coverage(payload, adcp_version)
+                    project_subscription_coverage(payload, adcp_version, account_status=status)
                 )
             )
         return result
+
+    def _retains_obligations(
+        self,
+        principal: _PrincipalState,
+        state: Mapping[str, Any],
+        account_id: str,
+        account: _Account,
+        buys: Sequence[SubscriptionBuy],
+        destinations: Mapping[str, Any],
+        now: datetime,
+    ) -> bool:
+        """Whether some owed period of the account is still within status retention."""
+        try:
+            periods = self._owed(principal, state, account_id, account, buys, destinations, now)
+        except Exception as error:  # noqa: BLE001 - an unevaluable account keeps its entry
+            # Fail open: keep the entry rather than drop a subscription the
+            # buyer may still be owed, and say so.
+            logger.warning(
+                "reporting subscription %s retention could not be evaluated for an account: %s",
+                state.get("subscription_id"),
+                type(error).__name__,
+            )
+            return True
+        horizon = now - self._retention
+        return any(
+            utc_instant(datetime.fromisoformat(item.period_end.replace("Z", "+00:00"))) >= horizon
+            for item in periods
+        )
 
     def _gaps(
         self,
@@ -1370,6 +1455,70 @@ class ReportingSubscriptionEngine:
             account_operator=account.operator,
             timezone_changes=list(account.timezone_changes),
         )
+
+    async def frozen_owed_sets(
+        self,
+        identity: PrincipalIdentity,
+        *,
+        account_id: str | None = None,
+        now: datetime | None = None,
+    ) -> list[FrozenOwedSet]:
+        """Every (account, subscription) owed set frozen through ``now``, for the ledger.
+
+        Only periods that have ended are returned: a period's buys are frozen
+        at its end, and ledger obligations are immutable. A subscription that
+        cannot be computed for an account is skipped and recorded in
+        :attr:`evaluation_errors`; the others are returned.
+        """
+        from adcp.reporting.subscriptions.ledger import FrozenOwedSet
+
+        instant = self._now(now)
+        states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
+        destinations = await self._destinations(identity)
+        principal = await self._read(identity.subject)
+        accounts = {
+            key: value
+            for key, value in principal.accounts.items()
+            if account_id is None or key == account_id
+        }
+        buys = {key: await self._host.account_buys(identity, key) for key in accounts}
+        result: list[FrozenOwedSet] = []
+        for state in states:
+            subscription_id = str(state["subscription_id"])
+            versions = {
+                version: configuration
+                for (sub_id, version), configuration in principal.versions.items()
+                if sub_id == subscription_id
+            }
+            for key, account in sorted(accounts.items()):
+                try:
+                    periods = self._owed(
+                        principal, state, key, account, buys[key], destinations, instant
+                    )
+                except Exception as error:  # noqa: BLE001 - isolate one owed set
+                    self._errors[(identity.subject, subscription_id)] = error
+                    continue
+                if periods:
+                    result.append(
+                        FrozenOwedSet(
+                            principal_id=identity.subject,
+                            account_id=key,
+                            subscription_id=subscription_id,
+                            through=instant,
+                            periods=tuple(periods),
+                            versions=versions,
+                        )
+                    )
+        return result
+
+    async def grants_task(self, identity: PrincipalIdentity, account_id: str, task: str) -> bool:
+        """Whether the principal's current grant on the account allows ``task``.
+
+        From the engine's last reconcile of the host's grants. There is no
+        window after a loss of authority: a revoked account allows nothing.
+        """
+        account = (await self._read(identity.subject)).accounts.get(account_id)
+        return account is not None and account.grants_task(task)
 
     async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
         """Active ``consumer_receipt`` subscriptions covering the account.

@@ -108,8 +108,14 @@ BEGIN
         CHECK ((receipt_status IS NOT NULL) = (receipt_chain_key IS NOT NULL)),
         CHECK ((record_kind = 'materialization_attempt') = (attempt_number IS NOT NULL)),
         CHECK (payload->>'kind' = record_kind),
-        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
-            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id, delivery_config_version),
+        -- Account-level generations only, until managed delivery serves
+        -- reporting subscriptions (see reporting_ledger_account_generations.sql).
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
+            CONSTRAINT reporting_reconciliation_records_account_generation CHECK (offering_id = ''),
+        CONSTRAINT reporting_reconciliation_records_generation_fkey
+            FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
+            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
+                                                delivery_config_version, offering_id),
         FOREIGN KEY (account_id, reporting_obligation_id)
             REFERENCES reporting_obligations(account_id, reporting_obligation_id),
         FOREIGN KEY (account_id, reporting_revision_id)
@@ -511,7 +517,8 @@ BEGIN
             'native_version_ref', 'object_ref', 'object_refs', 'observed_adjustment_sha256',
             'observed_at', 'observed_canonical_content_digest', 'observed_control_totals',
             'observed_manifest_sha256', 'observed_native_version_ref', 'observed_row_count',
-            'physical_checksums', 'reader_compatibility', 'received_at', 'reconciliation_mode',
+            'offering_id', 'physical_checksums', 'reader_compatibility', 'received_at',
+            'reconciliation_mode',
             'rejection_codes', 'reporting_adjustment_id', 'reporting_materialization_id',
             'reporting_obligation_id', 'reporting_receipt_id', 'reporting_revision_id', 'resource',
             'resource_ref', 'resource_retained_until', 'resource_retention_days', 'row_count',

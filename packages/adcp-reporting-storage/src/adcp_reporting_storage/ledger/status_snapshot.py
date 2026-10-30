@@ -71,6 +71,16 @@ async def read_snapshot_on(
             )
         ).fetchall()
         raw[key] = [row[0] for row in rows]
+    # A reporting subscription's owed-set horizons (AdCP 3.3). The key is
+    # present only when some exist, so earlier snapshots decode unchanged.
+    owed = await (
+        await connection.execute(
+            "SELECT to_jsonb(p) FROM adcp_reporting_owed_set_progress p WHERE account_id = %s",
+            (account_id,),
+        )
+    ).fetchall()
+    if owed:
+        raw["owed_sets"] = [row[0] for row in owed]
     return snapshot_from_storage(raw)
 
 
