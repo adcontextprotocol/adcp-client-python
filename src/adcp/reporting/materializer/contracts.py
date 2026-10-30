@@ -314,6 +314,16 @@ class ReportingPreparedRevision(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
 
+    @property
+    def delivery_path(self) -> str | None:
+        """The binding's ``path_template`` expanded for this obligation, or ``None``.
+
+        A writer places a reporting subscription's objects under it, between
+        its collision-free attempt prefix and the object name, so each account
+        and period of one subscription lands at the path the buyer asked for.
+        """
+        return self.binding.delivery_path(self.obligation.period.start)
+
 
 @dataclass(frozen=True, slots=True)
 class ReportingDestinationPage(_ClosedValue):
