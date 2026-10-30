@@ -575,6 +575,22 @@ class _Owed:
     media_buy_ids: set[str] = field(default_factory=set)
 
 
+def authorization_chain_start(
+    authorizations: Sequence[SubscriptionAuthorization], *, status_retention_days: int
+) -> datetime | None:
+    """The ``authorization.authorized_at`` a seller serves for a grant history.
+
+    The start of the current authority chain: a re-grant before
+    ``unauthorized_at + status_retention_days`` continues the chain, so the
+    value never moves on such a re-grant; a later re-grant starts a new chain.
+    ``None`` while the caller holds no grant. The same rule coverage applies.
+    """
+    if not authorizations or authorizations[-1].unauthorized_at is not None:
+        return None
+    chains = _chains(authorizations, timedelta(days=status_retention_days))
+    return chains[-1].start
+
+
 def _chains(
     authorizations: Sequence[SubscriptionAuthorization], retention: timedelta | None
 ) -> list[_Chain]:
@@ -1037,6 +1053,7 @@ __all__ = [
     "SubscriptionBuyPackage",
     "SubscriptionException",
     "SubscriptionVersionWindow",
+    "authorization_chain_start",
     "expected_subscription_periods",
     "subscription_covers_account",
     "subscription_exceptions",

@@ -162,7 +162,8 @@ async def test_a_conflicting_write_is_reloaded_and_reapplied() -> None:
     stored = await store.load(IDENTITY.subject)
     assert stored is not None and stored.revision == 1
     assert stored.document["accounts"]["acct-1"]["grants"] == [
-        {"authorized_at": "2026-10-01T00:00:00Z", "unauthorized_at": None}
+        # A pushed grant records its source; listed grants omit it.
+        {"authorized_at": "2026-10-01T00:00:00Z", "unauthorized_at": None, "source": "pushed"}
     ]
 
 

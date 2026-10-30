@@ -37,7 +37,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar
@@ -52,6 +52,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionBuy,
     SubscriptionException,
     SubscriptionVersionWindow,
+    authorization_chain_start,
     expected_subscription_periods,
     subscription_covers_account,
     subscription_version_windows,
@@ -224,6 +225,11 @@ class _Account:
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
     #: The current grant's ``allowed_tasks``; ``None`` when the host does not scope tasks.
     allowed_tasks: frozenset[str] | None = None
+    #: How each entry of ``grants`` was learned: ``listed`` (the host's
+    #: account listing, at reconcile or on a served ``list_accounts``/
+    #: ``sync_accounts``), ``pushed`` (``grants.changed``) or
+    #: ``request_account``. Aligned with ``grants``.
+    sources: list[str] = field(default_factory=list)
 
     def grants_task(self, task: str) -> bool:
         return self.authorized and (self.allowed_tasks is None or task in self.allowed_tasks)
@@ -476,8 +482,11 @@ def encode_principal_state(
                     {
                         "authorized_at": iso_z(grant.authorized_at),
                         "unauthorized_at": _iso(grant.unauthorized_at),
+                        # Absent for listed grants, so earlier documents stay
+                        # byte-identical.
+                        **({"source": source} if source != "listed" else {}),
                     }
-                    for grant in account.grants
+                    for grant, source in zip(account.grants, _grant_sources(account), strict=True)
                 ],
                 "timezone_changes": [
                     {
@@ -551,6 +560,7 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
                 )
                 for grant in raw["grants"]
             ],
+            sources=[str(grant.get("source", "listed")) for grant in raw["grants"]],
             timezone_changes=[
                 AccountTimezoneChange(
                     _required_instant(change["changed_at"]),
@@ -602,6 +612,16 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
     for sid, item in (document.get("replacements") or {}).items():
         principal.replacements[sid] = (int(item["version"]), bool(item["replace_account_configs"]))
     return principal
+
+
+def _grant_sources(account: _Account) -> list[str]:
+    sources = list(account.sources[: len(account.grants)])
+    return sources + ["listed"] * (len(account.grants) - len(sources))
+
+
+def _covers(allowed_tasks: frozenset[str] | None) -> bool:
+    """Coverage follows the grant: absent task scoping, or ``get_reporting_status`` listed."""
+    return allowed_tasks is None or REPORTING_STATUS_TASK in allowed_tasks
 
 
 def _dump(value: Any) -> dict[str, Any]:
@@ -659,6 +679,7 @@ class ReportingSubscriptionEngine:
         self._store = store or InMemoryReportingSubscriptionStore()
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._errors: dict[tuple[str, str], Exception] = {}
+        self._regressions = 0
         if end_account_configs is not None and not callable(
             getattr(host, "account_delivery_configs", None)
         ):
@@ -676,6 +697,11 @@ class ReportingSubscriptionEngine:
         failure stays here until a later reconcile succeeds for it.
         """
         return dict(self._errors)
+
+    @property
+    def authorized_at_regressions(self) -> int:
+        """Host ``authorized_at`` values rejected for moving behind the journal (this process)."""
+        return self._regressions
 
     @property
     def support(self) -> ReportingSubscriptionSupport:
@@ -744,6 +770,67 @@ class ReportingSubscriptionEngine:
             state.binding = document
 
         await self._mutate(principal.subject, change)
+
+    async def authorized_at(self, principal: PrincipalLike, account_id: str) -> datetime | None:
+        """The ``authorization.authorized_at`` to serve: the current chain's start.
+
+        From the grant journal, the same history coverage reads, so the value a
+        buyer reads on ``list_accounts`` is the value the engine used. ``None``
+        while the principal holds no grant on the account.
+        """
+        account = (await self._read(principal.subject)).accounts.get(account_id)
+        return None if account is None else self._chain_start(account)
+
+    async def observe_grant(
+        self,
+        principal: PrincipalLike,
+        account_id: str,
+        *,
+        allowed_tasks: Collection[str] | None,
+        authorized_at: datetime | None = None,
+        timezone: str | None = None,
+        operator: str | None = None,
+        at: datetime | None = None,
+    ) -> datetime | None:
+        """Record a grant the host served on the request path; return ``authorized_at``.
+
+        For an account a served ``list_accounts`` or ``sync_accounts`` shows
+        with its authorization: the journal records a new grant, a re-grant or
+        a reduction below ``get_reporting_status`` (a loss), adopts the host's
+        ``authorized_at`` on first observation, and rejects one that moves
+        backwards. Absence from a response never revokes: responses are paged
+        and filtered. Returns the chain start to serve, or ``None``.
+        """
+        instant = self._now(at)
+        tasks = None if allowed_tasks is None else frozenset(str(item) for item in allowed_tasks)
+        covered = _covers(tasks)
+        reported = None if authorized_at is None else utc_instant(authorized_at)
+        if timezone is not None:
+            require_zone(timezone, field="timezone")
+
+        def change(state: _PrincipalState) -> datetime | None:
+            account = state.accounts.get(account_id)
+            if account is None:
+                if not covered:
+                    return None
+                account = state.accounts[account_id] = _Account(
+                    timezone=timezone, operator=operator
+                )
+            self._observe(account, covered=covered, reported=reported, at=instant, source="listed")
+            account.allowed_tasks = tasks if covered else None
+            account.set_timezone(timezone, instant)
+            if operator is not None:
+                account.operator = operator
+            return self._chain_start(account)
+
+        return await self._mutate(principal.subject, change, now=instant)
+
+    async def refresh(self, principal: PrincipalLike, *, now: datetime | None = None) -> None:
+        """Re-evaluate exceptions from the journal without listing the host's accounts.
+
+        For pushed grant changes: a listing that lags the push must not undo it.
+        """
+        await self._evaluate(principal, self._now(now))
 
     async def account_ids(self, principal: PrincipalLike) -> frozenset[str]:
         """Every account the engine holds state for under the principal."""
@@ -855,33 +942,99 @@ class ReportingSubscriptionEngine:
         at: datetime,
         timezone: str | None = None,
         operator: str | None = None,
+        allowed_tasks: Collection[str] | None = None,
+        source: str = "pushed",
     ) -> None:
-        """Record a grant or a loss of authority at ``at``."""
+        """Record a grant, a change to it, or a loss of authority at ``at``.
+
+        ``allowed_tasks`` is the grant's task list (``None`` restricts no
+        task). A grant that does not list ``get_reporting_status`` reads as a
+        loss of authority at ``at``, exactly like a revocation; a wind-down
+        grant that lists it keeps coverage. A re-grant inside
+        ``status_retention_days`` continues the chain, so the projected
+        ``authorized_at`` does not move.
+        """
         instant = utc_instant(at, field="at")
         if timezone is not None:
             require_zone(timezone, field="timezone")
+        tasks = None if allowed_tasks is None else frozenset(str(item) for item in allowed_tasks)
+        covered = authorized and _covers(tasks)
 
         def change(principal: _PrincipalState) -> None:
             account = principal.accounts.get(account_id)
             if account is None:
-                if not authorized:
+                if not covered:
                     return
                 account = principal.accounts[account_id] = _Account(
                     timezone=timezone, operator=operator
                 )
-            self._apply_grant(account, authorized=authorized, at=instant)
+            self._observe(account, covered=covered, reported=None, at=instant, source=source)
+            account.allowed_tasks = tasks if covered else None
             account.set_timezone(timezone, instant)
             if operator is not None:
                 account.operator = operator
 
         await self._mutate(identity.subject, change, now=instant)
 
+    def _observe(
+        self,
+        account: _Account,
+        *,
+        covered: bool,
+        reported: datetime | None,
+        at: datetime,
+        source: str,
+    ) -> bool:
+        """Apply one observation of a grant to the journal; ``True`` if it regressed.
+
+        A first grant adopts the host's ``authorized_at`` (never later than
+        the observation). A re-grant is dated by a reported value later than
+        the loss, else by the observation. While the grant holds, a reported
+        value earlier than the journal's chain start is a regression: it is
+        rejected, logged and counted, never adopted.
+        """
+        if not covered:
+            if account.authorized:
+                self._apply_grant(account, authorized=False, at=at)
+            return False
+        if not account.authorized:
+            lost = account.grants[-1].unauthorized_at if account.grants else None
+            # adcp#8585: authorized_at is the chain start. A later one is a new
+            # grant dated then; an unchanged one is a re-grant within
+            # retention, which the wire does not date, so it is stamped when
+            # observed.
+            if reported is not None and (lost is None or reported > lost):
+                granted = min(reported, at)
+            else:
+                granted = at
+            self._apply_grant(account, authorized=True, at=granted, source=source)
+            return False
+        start = self._chain_start(account)
+        if reported is not None and start is not None and reported < start:
+            self._regressions += 1
+            logger.warning(
+                "authorized_at_regressed: the host reported authorized_at %s, before the "
+                "chain start %s the grant journal holds; the journal keeps its value",
+                iso_z(reported),
+                iso_z(start),
+                extra={"event": "reporting.subscription.authorized_at_regressed"},
+            )
+            return True
+        return False
+
+    def _chain_start(self, account: _Account) -> datetime | None:
+        return authorization_chain_start(account.grants, status_retention_days=self._retention_days)
+
     @staticmethod
-    def _apply_grant(account: _Account, *, authorized: bool, at: datetime) -> None:
+    def _apply_grant(
+        account: _Account, *, authorized: bool, at: datetime, source: str = "listed"
+    ) -> None:
         if authorized and not account.authorized:
             if account.grants and account.grants[-1].unauthorized_at is not None:
                 at = max(at, account.grants[-1].unauthorized_at)
+            account.sources = _grant_sources(account)
             account.grants.append(SubscriptionAuthorization(at))
+            account.sources.append(source)
         elif not authorized and account.authorized:
             last = account.grants[-1]
             account.grants[-1] = SubscriptionAuthorization(
@@ -916,7 +1069,7 @@ class ReportingSubscriptionEngine:
         listed = {
             item.account_id: item
             for item in await self._list_accounts(identity)
-            if item.allowed_tasks is None or REPORTING_STATUS_TASK in item.allowed_tasks
+            if _covers(item.allowed_tasks)
         }
 
         def change(principal: _PrincipalState) -> None:
@@ -926,18 +1079,13 @@ class ReportingSubscriptionEngine:
                     account = principal.accounts[account_id] = _Account(
                         timezone=item.timezone, operator=item.operator
                     )
-                if not account.authorized:
-                    lost = account.grants[-1].unauthorized_at if account.grants else None
-                    reported = item.authorized_at
-                    # adcp#8585: authorized_at is the chain start. A later one
-                    # is a new chain starting then; an unchanged one is a
-                    # re-grant within retention, which the wire does not
-                    # date, so it is stamped when this reconcile observes it.
-                    if lost is None or reported > lost:
-                        granted = min(reported, instant)
-                    else:
-                        granted = instant
-                    self._apply_grant(account, authorized=True, at=granted)
+                self._observe(
+                    account,
+                    covered=True,
+                    reported=item.authorized_at,
+                    at=instant,
+                    source="listed",
+                )
                 account.set_timezone(item.timezone, instant)
                 account.operator = item.operator
                 account.allowed_tasks = item.allowed_tasks
@@ -1745,8 +1893,11 @@ class ReportingSubscriptionEngine:
     async def grants_task(self, identity: PrincipalLike, account_id: str, task: str) -> bool:
         """Whether the principal's current grant on the account allows ``task``.
 
-        From the engine's last reconcile of the host's grants. There is no
-        window after a loss of authority: a revoked account allows nothing.
+        From the grant journal: the last reconcile of the host's grants, kept
+        current by request-path observations (a served ``list_accounts`` or
+        ``sync_accounts``) and pushed changes (``authorization_changed``).
+        There is no window after a loss of authority: a revoked account allows
+        nothing.
         """
         account = (await self._read(identity.subject)).accounts.get(account_id)
         return account is not None and account.grants_task(task)

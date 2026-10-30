@@ -160,6 +160,7 @@ from adcp.server.principal import (
     principal_record_to_document,
 )
 from adcp.server.proposal import ProposalBuilder, ProposalNotSupported
+from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 from adcp.server.responses import (
     activate_signal_response,
     build_creative_response,
@@ -254,6 +255,8 @@ __all__ = [
     "PrincipalChangeEmitter",
     "PrincipalIdentity",
     "PrincipalRef",
+    "REPORTING_WIND_DOWN_TASKS",
+    "wind_down_grant",
     "PrincipalRecord",
     "PrincipalRecordStore",
     "PrincipalService",
