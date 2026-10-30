@@ -75,6 +75,7 @@ _T = TypeVar("_T")
 _MAX_STATE_WRITE_ATTEMPTS = 8
 
 if TYPE_CHECKING:
+    from adcp.reporting.subscriptions.ledger import FrozenOwedSet
     from adcp.server.principal import (
         DeliveryConfigIdsHook,
         PrincipalIdentity,
@@ -569,6 +570,15 @@ class ReportingSubscriptionEngine:
     @property
     def support(self) -> ReportingSubscriptionSupport:
         return self._support
+
+    @property
+    def offerings(self) -> tuple[SubscriptionOffering, ...]:
+        """The offerings subscriptions resolve against, with their dimension mappings."""
+        return self._offerings
+
+    @property
+    def status_retention_days(self) -> int:
+        return self._retention_days
 
     def principal_options(
         self, *, delivery_config_ids: DeliveryConfigIdsHook | None = None
@@ -1370,6 +1380,61 @@ class ReportingSubscriptionEngine:
             account_operator=account.operator,
             timezone_changes=list(account.timezone_changes),
         )
+
+    async def frozen_owed_sets(
+        self,
+        identity: PrincipalIdentity,
+        *,
+        account_id: str | None = None,
+        now: datetime | None = None,
+    ) -> list[FrozenOwedSet]:
+        """Every (account, subscription) owed set frozen through ``now``, for the ledger.
+
+        Only periods that have ended are returned: a period's buys are frozen
+        at its end, and ledger obligations are immutable. A subscription that
+        cannot be computed for an account is skipped and recorded in
+        :attr:`evaluation_errors`; the others are returned.
+        """
+        from adcp.reporting.subscriptions.ledger import FrozenOwedSet
+
+        instant = self._now(now)
+        states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
+        destinations = await self._destinations(identity)
+        principal = await self._read(identity.subject)
+        accounts = {
+            key: value
+            for key, value in principal.accounts.items()
+            if account_id is None or key == account_id
+        }
+        buys = {key: await self._host.account_buys(identity, key) for key in accounts}
+        result: list[FrozenOwedSet] = []
+        for state in states:
+            subscription_id = str(state["subscription_id"])
+            versions = {
+                version: configuration
+                for (sub_id, version), configuration in principal.versions.items()
+                if sub_id == subscription_id
+            }
+            for key, account in sorted(accounts.items()):
+                try:
+                    periods = self._owed(
+                        principal, state, key, account, buys[key], destinations, instant
+                    )
+                except Exception as error:  # noqa: BLE001 - isolate one owed set
+                    self._errors[(identity.subject, subscription_id)] = error
+                    continue
+                if periods:
+                    result.append(
+                        FrozenOwedSet(
+                            principal_id=identity.subject,
+                            account_id=key,
+                            subscription_id=subscription_id,
+                            through=instant,
+                            periods=tuple(periods),
+                            versions=versions,
+                        )
+                    )
+        return result
 
     async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
         """Active ``consumer_receipt`` subscriptions covering the account.
