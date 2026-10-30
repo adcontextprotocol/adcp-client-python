@@ -302,3 +302,17 @@ async def test_refresh_rereads_pending_accounts_beside_open_requests() -> None:
     assert [type(item).__name__ for item in moved] == ["AccountReady"]
     assert moved[0].account_id == "seller-handle"
     assert requests.adapter.list_accounts.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_refresh_ignores_unknown_action_fields_and_an_absent_action() -> None:
+    client = _requests_client(_record("in_review"))
+    await client.accounts.ensure(KEY)  # stored with the seller-review default
+    client.adapter.list_accounts.return_value = _listing(_record("in_review"))
+    assert await client.accounts.refresh() == []
+    client2 = _requests_client(_record("in_review", pending_action=SIGN_UP))
+    await client2.accounts.ensure(KEY)
+    client2.adapter.list_accounts.return_value = _listing(
+        _record("in_review", pending_action={**SIGN_UP, "x_vendor_hint": "ignored"})
+    )
+    assert await client2.accounts.refresh() == []

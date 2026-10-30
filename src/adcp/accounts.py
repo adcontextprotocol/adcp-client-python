@@ -636,9 +636,14 @@ class AccountRegistry:
             if current is None:
                 continue
             ref = _key_payload(key)
-            if str(current["state"]) == record.request_state and (
-                current.get("pending_action") or None
-            ) == (record.pending_action or None):
+            # Compare the normalized action, as stored: unknown wire fields
+            # and an absent action must not read as a change on every poll.
+            action = (
+                PendingAction.from_wire(current.get("pending_action") or _SELLER_REVIEW).to_wire()
+                if str(current["state"]) == "in_review"
+                else None
+            )
+            if str(current["state"]) == record.request_state and action == record.pending_action:
                 continue
             moved.append(await self._record_request(ref, current))
         for key, record in pending_accounts.items():
