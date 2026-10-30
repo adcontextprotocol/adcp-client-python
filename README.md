@@ -28,6 +28,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
   - [Simple vs. Standard API](#simple-vs-standard-api)
   - [Available Test Helpers](#available-test-helpers)
 - [Quick Start: Distributed Operations](#quick-start-distributed-operations)
+- [Reporting subscriptions (AdCP 3.3, experimental)](#reporting-subscriptions-adcp-33-experimental)
 - [AdCP version support](#adcp-version-support)
 - [Documentation](#documentation)
 - [Features](#features)
@@ -342,6 +343,37 @@ async with ADCPMultiAgentClient(
 # Connections automatically cleaned up here
 ```
 
+## Reporting subscriptions (AdCP 3.3, experimental)
+
+A buyer registers reporting once on its principal, and the subscription follows its grants across every account. **Sellers** add one block to the Reliable Reporting service they already run:
+
+```python
+from adcp.reporting import ReliableReportingService, SubscriptionOptions
+from adcp.storage.postgres import postgres_storage
+
+reporting = ReliableReportingService(
+    storage=postgres_storage(dsn=os.environ["DATABASE_URL"]),  # memory_storage() in development
+    account_context=resolve_account_context,
+    subscriptions=SubscriptionOptions(max_accounts=500),
+)
+reporting.sources.register("gam", gam_source, capability_offerings=[daily_offering])
+platform = reporting.install(MySeller())  # serves get_principal/sync_principal, reconciles on writes
+```
+
+**Buyers** use patch-shaped writes that never deactivate by omission:
+
+```python
+await client.reporting.subscribe(analytics_daily, register_destination=archive)
+await client.reporting.unsubscribe("pacing-hourly")
+outcome = await client.accounts.ensure(key, billing="operator")  # AccountReady | AccountPending | ...
+```
+
+- **Storage.** One object; process-local storage is refused in production. Apply schema changes with `python -m adcp migrate`.
+- **Grants.** The SDK is the only source of `authorized_at`. End a relationship with `wind_down_grant()` instead of revoking.
+- **Coming in later betas:** buyer `reconcile`, `explain` and events, the test kit, and explain traces.
+
+Guides: [seller](docs/reporting-subscriptions-seller.md) · [buyer](docs/reporting-subscriptions-buyer.md) · [coverage](docs/reporting-subscriptions-coverage.md) · [accounts](docs/accounts-ensure-and-change.md) · [migrating from account-level configs](docs/reporting-subscriptions-migration.md) · [testing](docs/reporting-subscriptions-testing.md) · [errors](docs/reporting-subscriptions-errors.md)
+
 ## AdCP version support
 
 SDK 8 is built against **AdCP 3.2.1**, the AdCP 3.2 general-availability
@@ -385,6 +417,7 @@ the SDK's supported versions in the error details.
 - **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks and webhook delivery
 - **[Validation contract](docs/validation-contract.md)** - Canonical wire validation versus structural Pydantic models
 - **[Account lifecycle](docs/account-lifecycle.md)** - Provisioning registry, account policy, seller resolution, and shared public feed overlays
+- **[Serving reporting subscriptions](docs/reporting-subscriptions-seller.md)** and **[subscribing to reports](docs/reporting-subscriptions-buyer.md)** - AdCP 3.3 principal-level reporting subscriptions (experimental)
 - **[Reporting source adapters](docs/reporting-source-adapters.md)** - Per-metric availability evidence, coverage, and control totals for inline delivery fetches
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
