@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     import httpx
     from mcp import ClientSession
 
+    from adcp.reporting.subscriptions.facade import ReportingClient
+
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._response_limit import (
     DEFAULT_MAX_RESPONSE_BYTES,
@@ -962,6 +964,7 @@ class ADCPClient:
         self._raise_account_errors_explicit = raise_account_errors is not None
         self.raise_account_errors = raise_account_errors is True
         self.accounts = AccountRegistry(self, account_storage)
+        self._reporting: Any | None = None
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
         self.allow_unauthenticated_webhooks = allow_unauthenticated_webhooks
@@ -1321,6 +1324,18 @@ class ADCPClient:
         canonical/legacy creative behavior.
         """
         return self._server_version
+
+    @property
+    def reporting(self) -> ReportingClient:
+        """Patch-shaped reporting-subscription writes: ``subscribe``, ``unsubscribe``, ...
+
+        See :class:`adcp.reporting.subscriptions.facade.ReportingClient`.
+        """
+        if self._reporting is None:
+            from adcp.reporting.subscriptions.facade import ReportingClient
+
+            self._reporting = ReportingClient(self)
+        return cast("ReportingClient", self._reporting)
 
     @property
     def context_id(self) -> str | None:
@@ -4434,9 +4449,37 @@ class ADCPClient:
         self,
         request: SyncPrincipalRequest,
         *,
+        allow_deactivation: bool = False,
+        allow_revocation: bool = False,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncPrincipalResponse]:
-        """Declaratively replace selected authenticated-principal configuration."""
+        """Declaratively replace selected authenticated-principal configuration.
+
+        Each section is complete desired state: a subscription missing from
+        ``reporting_subscriptions`` is deactivated, and a destination missing
+        from ``reporting_destinations`` is revoked for every account. To add
+        or change one subscription, use ``client.reporting.subscribe()``.
+
+        A write carrying either section first reads the principal and is
+        refused before dispatch (``ReportingSubscriptionError``, code
+        ``SUBSCRIPTION_WOULD_DEACTIVATE`` or ``DESTINATION_WOULD_REVOKE``) if it
+        would deactivate an active subscription or revoke a destination by
+        omission. Pass ``allow_deactivation=True`` / ``allow_revocation=True``
+        to proceed. Sending ``active: false`` is always allowed.
+        """
+        from adcp.reporting.subscriptions.facade import guard_sync_principal
+
+        await guard_sync_principal(
+            self,
+            request,
+            allow_deactivation=allow_deactivation,
+            allow_revocation=allow_revocation,
+        )
+        return await self._sync_principal_unguarded(request)
+
+    async def _sync_principal_unguarded(
+        self, request: SyncPrincipalRequest
+    ) -> TaskResult[SyncPrincipalResponse]:
         return cast(
             TaskResult[SyncPrincipalResponse],
             await self._execute_typed_task("sync_principal", request, SyncPrincipalResponse),
