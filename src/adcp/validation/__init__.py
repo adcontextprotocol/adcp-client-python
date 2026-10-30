@@ -55,6 +55,7 @@ from adcp.validation.schema_loader import (
     list_validator_keys,
 )
 from adcp.validation.schema_validator import (
+    RequestValidationError,
     SchemaValidationError,
     ValidationIssue,
     ValidationOutcome,
@@ -74,6 +75,7 @@ __all__ = [
     # Schema core
     "Direction",
     "ResponseVariant",
+    "RequestValidationError",
     "SchemaValidationError",
     "ValidationIssue",
     "ValidationOutcome",

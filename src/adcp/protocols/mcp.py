@@ -934,8 +934,7 @@ class MCPAdapter(ProtocolAdapter):
             and ("cancel scope" in exc_str or "async context" in exc_str)
         ) or (
             # HTTP errors during cleanup (if httpx is available)
-            HTTPX_AVAILABLE
-            and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
+            HTTPX_AVAILABLE and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
         )
 
         if is_known_cleanup_error:
@@ -1231,6 +1230,7 @@ class MCPAdapter(ProtocolAdapter):
                     error=str(exc),
                     success=False,
                     idempotency_key=idempotency_key,
+                    dispatched=False,
                 )
 
             # Streamable HTTP sends from a long-lived writer task whose

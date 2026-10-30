@@ -476,6 +476,7 @@ class A2AAdapter(ProtocolAdapter):
                 error=str(exc),
                 success=False,
                 idempotency_key=idempotency_key,
+                dispatched=False,
             )
 
         if tool_name != "get_adcp_capabilities" and self.signing_capability_check:

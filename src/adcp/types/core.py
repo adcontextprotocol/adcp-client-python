@@ -265,6 +265,11 @@ class TaskResult(BaseModel, Generic[T]):
     # Agents that emit side effects on success (notifications, memory writes,
     # downstream tool calls) must check this flag and suppress duplicates.
     replayed: bool = False
+    # False when the SDK refused the task locally and no bytes of its request
+    # left the process (request schema validation, version and feature gates):
+    # the failure says nothing about the agent's health. None otherwise. See
+    # ``adcp.exceptions.is_pre_dispatch_error``.
+    dispatched: Literal[False] | None = None
 
 
 class ActivityType(str, Enum):

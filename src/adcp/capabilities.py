@@ -304,6 +304,7 @@ class FeatureResolver:
             declared_features=declared,
             agent_id=agent_id,
             agent_uri=agent_uri,
+            dispatched=False,  # a check against capabilities already held
         )
 
     def get_declared_features(self) -> list[str]:
@@ -377,7 +378,7 @@ def validate_capabilities(
         for method_name in handler_methods:
             if not hasattr(handler, method_name):
                 warnings.append(
-                    f"Feature '{feature}' is declared but handler has no " f"'{method_name}' method"
+                    f"Feature '{feature}' is declared but handler has no '{method_name}' method"
                 )
                 continue
 
