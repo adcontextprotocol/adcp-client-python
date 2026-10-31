@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.3...v10.0.0-beta.4) (2026-10-31)
+
+
+### Bug Fixes
+
+* **codegen:** generate the composed envelope layout of adcp[#8547](https://github.com/adcontextprotocol/adcp-client-python/issues/8547) ([#1741](https://github.com/adcontextprotocol/adcp-client-python/issues/1741)) ([9a3bc5f](https://github.com/adcontextprotocol/adcp-client-python/commit/9a3bc5fe4382c71d0952f153de943a3c14c55644))
+
 ## [10.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.2...v10.0.0-beta.3) (2026-10-30)
 
 
