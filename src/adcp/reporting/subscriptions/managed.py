@@ -623,11 +623,13 @@ class ManagedSubscriptions:
             if offering.get("method") is not None and "account_id" not in (keys or ()):
                 # adcp#8619: consolidated destinations validate and never
                 # collide only when every delivered row carries its account.
-                raise ReliableReportingConfigurationError(
-                    f"offering {offering_id!r} is delivered to destinations, so its row "
-                    "schema must declare account_id as a required string and list it in "
-                    "reporting_profile.primary_keys.",
-                    config_field="capability_offerings",
+                # Warned, not refused, while existing row contracts migrate.
+                logger.warning(
+                    "offering %s is delivered to destinations but its reporting_profile."
+                    "primary_keys omit account_id; AdCP 3.3.0-beta.3 requires its row schema "
+                    "to declare account_id as a required string and list it in primary_keys",
+                    offering_id,
+                    extra={"event": "reporting.subscription.offering_primary_keys"},
                 )
             try:
                 mapped.append(SubscriptionOffering.from_offering(offering))

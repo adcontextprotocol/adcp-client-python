@@ -247,21 +247,33 @@ def test_a_billing_cutover_stub_is_owed_written_and_served() -> None:
 # -- seller refusals -------------------------------------------------------------
 
 
-def test_a_destination_offering_must_key_rows_by_account_id() -> None:
-    from adcp.reporting import ReliableReportingConfigurationError
+def test_a_destination_offering_without_account_id_keys_is_warned(caplog) -> None:
+    """adcp#8619: a managed-delivery offering's rows are keyed by account_id.
+
+    Warned at configuration rather than refused while existing row contracts
+    migrate; the warning names the offering.
+    """
+    import logging
 
     delivered = {
         **_offering("off-files", "utc"),
         "method": {"pattern": "file_transfer", "transport": "s3"},
         "reporting_profile": {"id": "delivery", "primary_keys": ["package_id"]},
     }
-    with pytest.raises(ReliableReportingConfigurationError, match="primary_keys"):
-        ManagedSubscriptions._offerings([delivered], {})
-    keyed = {**delivered, "reporting_profile": {"id": "delivery", "primary_keys": ["account_id"]}}
-    (offering,) = ManagedSubscriptions._offerings([keyed], {})
+    with caplog.at_level(logging.WARNING, logger="adcp.reporting.subscriptions.managed"):
+        (offering,) = ManagedSubscriptions._offerings([delivered], {})
     assert offering.method_pattern == "file_transfer"
+    assert any(
+        getattr(record, "event", None) == "reporting.subscription.offering_primary_keys"
+        and "off-files" in record.getMessage()
+        for record in caplog.records
+    )
+    caplog.clear()
+    keyed = {**delivered, "reporting_profile": {"id": "delivery", "primary_keys": ["account_id"]}}
+    with caplog.at_level(logging.WARNING, logger="adcp.reporting.subscriptions.managed"):
+        ManagedSubscriptions._offerings([keyed], {})
     # An API-delivered offering is not a managed-delivery offering.
-    (api,) = ManagedSubscriptions._offerings(
+    ManagedSubscriptions._offerings(
         [{**_offering("off-api", "utc"), "reporting_profile": {"id": "delivery"}}], {}
     )
-    assert api.method_pattern is None
+    assert not caplog.records
