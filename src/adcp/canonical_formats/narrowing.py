@@ -39,7 +39,7 @@ the seller can reconcile.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypeGuard
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import Error, Format
@@ -148,6 +148,7 @@ _ENUM_SUBSET_FIELDS: tuple[str, ...] = (
     "allowed_card_media_asset_types",
     "vast_versions",
     "daast_versions",
+    "pixel_ratios",
 )
 _EXACT_FIELDS: tuple[str, ...] = (
     "aspect_ratio",
@@ -155,6 +156,15 @@ _EXACT_FIELDS: tuple[str, ...] = (
     "ssl_required",
     "vast_version",  # singular form on video_vast.json
     "daast_version",  # singular form on audio_daast.json
+    "width",
+    "height",
+    "duration_ms_exact",
+)
+_NUMERIC_EXACT_FIELDS = {"width", "height", "duration_ms_exact"}
+_RANGE_FIELDS = (
+    ("width", None, "width"),
+    ("height", None, "height"),
+    ("duration_ms", "duration_ms_range", "duration_ms_exact"),
 )
 
 # Per-element cap when echoing seller-controlled allowed-set / declared-
@@ -212,6 +222,35 @@ def _is_subset(v2: Any, v1: Any) -> bool:
         return all(any(item == allowed for allowed in v1) for item in v2)
 
 
+def _numeric_pair(value: Any) -> TypeGuard[list[Any] | tuple[Any, Any]]:
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and all(bound is None or _is_numeric(bound) for bound in value)
+        and any(_is_numeric(bound) for bound in value)
+    )
+
+
+def _interval(
+    source: dict[str, Any], base: str, range_field: str | None, exact_field: str
+) -> tuple[Any, Any, bool, bool]:
+    # Exact duration wins over the range per video_hosted.json. A null range
+    # endpoint is explicitly unbounded; a missing bound inherits from v1.
+    exact = source.get(exact_field)
+    if _is_numeric(exact):
+        return exact, exact, True, True
+    value = source.get(range_field) if range_field is not None else source.get(base)
+    if _numeric_pair(value):
+        return value[0], value[1], True, True
+    minimum, maximum = source.get(f"min_{base}"), source.get(f"max_{base}")
+    return (
+        minimum if _is_numeric(minimum) else None,
+        maximum if _is_numeric(maximum) else None,
+        _is_numeric(minimum),
+        _is_numeric(maximum),
+    )
+
+
 def _echo_set(value: Any) -> list[Any]:
     """Cap a list/set value to ``_ECHO_SET_CAP`` items before echoing into details.
 
@@ -253,6 +292,8 @@ def check_narrows(
         v2_value = v2.get(field_name)
         if v2_value is None:
             v2_value = v2.get(field_name.removeprefix("max_"))
+        if v2_value is None and field_name == "max_duration_ms":
+            v2_value = v2.get("duration_ms_exact")
         if v2_value is None:
             continue
         # The value-being-capped form: v2 ``width`` against v1 ``max_width``
@@ -269,6 +310,8 @@ def check_narrows(
         v2_value = v2.get(field_name)
         if v2_value is None:
             v2_value = v2.get(field_name.removeprefix("min_"))
+        if v2_value is None and field_name == "min_duration_ms":
+            v2_value = v2.get("duration_ms_exact")
         if v2_value is None:
             continue
         if _is_numeric(v2_value) and v2_value < v1_min:
@@ -296,10 +339,41 @@ def check_narrows(
         v2_value = v2.get(field_name)
         if v1_value is None or v2_value is None:
             continue
+        if field_name in _NUMERIC_EXACT_FIELDS and not (
+            _is_numeric(v1_value) and _is_numeric(v2_value)
+        ):
+            continue
         if v1_value != v2_value:
             divergences.append(
                 Divergence(field=field_name, kind="not_equal", cap=v1_value, value=v2_value)
             )
+
+    for base, range_field, exact_field in _RANGE_FIELDS:
+        v1_lower, v1_upper, _, _ = _interval(v1, base, range_field, exact_field)
+        v2_lower, v2_upper, has_lower, has_upper = _interval(v2, base, range_field, exact_field)
+        if _is_numeric(v2.get(exact_field)):
+            lower_field = upper_field = exact_field
+        elif range_field is not None and _numeric_pair(v2.get(range_field)):
+            lower_field = upper_field = range_field
+        else:
+            lower_field, upper_field = f"min_{base}", f"max_{base}"
+        related_fields = {base, range_field, exact_field, f"min_{base}", f"max_{base}"}
+
+        def add_interval_divergence(field: str, kind: DivergenceKind, cap: Any, value: Any) -> None:
+            # Keep existing scalar/named-cap diagnostics without duplicates.
+            if not any(
+                d.field in related_fields
+                and (
+                    d.kind == "not_equal" or (d.kind == kind and d.cap == cap and d.value == value)
+                )
+                for d in divergences
+            ):
+                divergences.append(Divergence(field=field, kind=kind, cap=cap, value=value))
+
+        if v1_lower is not None and has_lower and (v2_lower is None or v2_lower < v1_lower):
+            add_interval_divergence(lower_field, "below_min", v1_lower, v2_lower)
+        if v1_upper is not None and has_upper and (v2_upper is None or v2_upper > v1_upper):
+            add_interval_divergence(upper_field, "exceeds_max", v1_upper, v2_upper)
 
     return divergences
 
