@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.4...v10.0.0-beta.5) (2026-10-31)
+
+
+### Bug Fixes
+
+* **compat:** decide the compact response status from the served release's schema ([#1761](https://github.com/adcontextprotocol/adcp-client-python/issues/1761)) ([ed357a7](https://github.com/adcontextprotocol/adcp-client-python/commit/ed357a7852a3a7a24ce310e1776b19a3bb60eb63))
+
 ## [10.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.3...v10.0.0-beta.4) (2026-10-31)
 
 
