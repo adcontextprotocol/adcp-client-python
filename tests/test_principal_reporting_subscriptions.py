@@ -212,8 +212,20 @@ async def test_new_version_records_prior_versions() -> None:
 async def test_reused_version_with_new_semantics_is_rejected() -> None:
     principals, _clock = service()
     await sync(principals, {"reporting_subscriptions": [subscription()]})
-    changed = subscription(exclude_account_ids=["acct-9"])
+    changed = subscription(
+        selector={
+            "feed_purpose": "analytics",
+            "period_duration": "P1D",
+            "required_finality": "official",
+            "dimensions": ["package", "creative"],
+        }
+    )
     assert error_code(await sync(principals, {"reporting_subscriptions": [changed]})) == (
+        "INVALID_REQUEST"
+    )
+    # Changing the scope kind still needs a new version.
+    narrowed = subscription(scope={"account_ids": ["acct-9"]})
+    assert error_code(await sync(principals, {"reporting_subscriptions": [narrowed]})) == (
         "INVALID_REQUEST"
     )
     older = subscription(subscription_version=1)
@@ -221,6 +233,88 @@ async def test_reused_version_with_new_semantics_is_rejected() -> None:
     assert error_code(await sync(principals, {"reporting_subscriptions": [older]})) == (
         "INVALID_REQUEST"
     )
+
+
+@pytest.mark.asyncio
+async def test_membership_edits_apply_in_place() -> None:
+    # adcp#8619: adding or removing account_ids and changing exclude_account_ids
+    # keep subscription_version and accepted_at.
+    principals, clock = service()
+    named = subscription(scope={"account_ids": ["acct-1"]})
+    await sync(principals, {"reporting_subscriptions": [named]})
+    clock.advance(hours=5)
+    widened = subscription(scope={"account_ids": ["acct-1", "acct-2"]})
+    state = states(await sync(principals, {"reporting_subscriptions": [widened]}))[
+        "analytics-daily"
+    ]
+    assert state["subscription_version"] == 1
+    assert state["accepted_at"] == "2026-10-01T12:00:00Z"
+    assert state["configuration"]["scope"]["account_ids"] == ["acct-1", "acct-2"]
+    assert "prior_versions" not in state
+    excluded = subscription("all", exclude_account_ids=["acct-9"])
+    await sync(principals, {"reporting_subscriptions": [widened, excluded]})
+    clock.advance(hours=1)
+    reincluded = subscription("all")
+    state = states(await sync(principals, {"reporting_subscriptions": [widened, reincluded]}))[
+        "all"
+    ]
+    assert state["subscription_version"] == 1
+    assert "exclude_account_ids" not in state["configuration"]
+
+
+@pytest.mark.asyncio
+async def test_destination_overrides_name_existing_destinations() -> None:
+    principals, _clock = service()
+    routed = subscription(
+        destination={"destination_id": "archive", "path_template": "a/{account_id}"},
+        destination_overrides=[
+            {
+                "account_ids": ["acct-1"],
+                "destination_id": "warehouse",
+                "path_template": "w/{period_start}",
+            }
+        ],
+    )
+    applied = await sync(
+        principals,
+        {"reporting_destinations": [DESTINATION, WAREHOUSE], "reporting_subscriptions": [routed]},
+    )
+    assert applied.result.kind == "applied", applied
+    missing = await sync(
+        principals,
+        {"reporting_destinations": [DESTINATION], "reporting_subscriptions": [routed]},
+    )
+    assert error_code(missing) == "INVALID_REQUEST"
+    shared = subscription(
+        destination={"destination_id": "archive", "path_template": "a/{account_id}"},
+        destination_overrides=[
+            {"operator_domains": ["agency.example"], "destination_id": "warehouse"}
+        ],
+    )
+    unkeyed = await sync(
+        principals,
+        {"reporting_destinations": [DESTINATION, WAREHOUSE], "reporting_subscriptions": [shared]},
+    )
+    # An operator override can route many accounts: it needs {account_id}.
+    assert error_code(unkeyed) == "INVALID_REQUEST"
+    both = subscription(
+        destination={"destination_id": "archive", "path_template": "a/{account_id}"},
+        destination_overrides=[
+            {
+                "account_ids": ["acct-1"],
+                "operator_domains": ["agency.example"],
+                "destination_id": "warehouse",
+                "path_template": "w/{account_id}",
+            }
+        ],
+    )
+    refused = await sync(
+        principals,
+        {"reporting_destinations": [DESTINATION, WAREHOUSE], "reporting_subscriptions": [both]},
+    )
+    # Exactly one of account_ids or operator_domains (the generated model
+    # does not enforce the schema's anyOf/not).
+    assert error_code(refused) == "INVALID_REQUEST"
 
 
 @pytest.mark.asyncio
@@ -437,11 +531,39 @@ async def test_set_level_rules() -> None:
         principals, {"reporting_subscriptions": [subscription(), subscription()]}
     )
     assert error_code(duplicate) == "INVALID_REQUEST"
+    # adcp#8619: pacing and analytics allow several subscriptions per account
+    # and purpose (an hourly and a daily feed, or two breakdowns).
     two_all = await sync(
         principals,
-        {"reporting_subscriptions": [subscription("a"), subscription("b")]},
+        {"reporting_subscriptions": [subscription("hourly"), subscription("daily")]},
     )
-    assert error_code(two_all) == "INVALID_REQUEST"
+    assert two_all.result.kind == "applied"
+
+    def billing(subscription_id: str, **overrides) -> dict:
+        return subscription(
+            subscription_id,
+            selector={
+                "feed_purpose": "billing",
+                "period_duration": "P1D",
+                "required_finality": "official",
+                "dimensions": ["package"],
+            },
+            reconciliation_mode="consumer_receipt",
+            destination={
+                "destination_id": "archive",
+                "path_template": f"{subscription_id}/{{account_id}}",
+            },
+            **overrides,
+        )
+
+    two_billing = await sync(
+        principals,
+        {
+            "reporting_destinations": [DESTINATION],
+            "reporting_subscriptions": [billing("a"), billing("b")],
+        },
+    )
+    assert error_code(two_billing) == "INVALID_REQUEST"
     disjoint_operators = await sync(
         principals,
         {
@@ -455,10 +577,11 @@ async def test_set_level_rules() -> None:
     shared_accounts = await sync(
         principals,
         {
+            "reporting_destinations": [DESTINATION],
             "reporting_subscriptions": [
-                subscription("a", scope={"account_ids": ["x", "y"]}),
-                subscription("b", scope={"account_ids": ["y"]}),
-            ]
+                billing("a", scope={"account_ids": ["x", "y"]}),
+                billing("b", scope={"account_ids": ["y"]}),
+            ],
         },
     )
     assert error_code(shared_accounts) == "INVALID_REQUEST"

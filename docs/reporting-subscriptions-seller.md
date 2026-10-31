@@ -31,6 +31,16 @@ The SDK reads these surfaces under each principal's identity. A principal sees e
 
 A decisioning `Account` carries `timezone=` and `operator=`. An account without a timezone is refused rather than read as UTC.
 
+## AdCP 3.3.0-beta.3 rules the engine applies
+
+- **Admission under `max_accounts`.** Candidates are ordered by `authorization.authorized_at`, then `account_id` in byte order, and an admitted account keeps its slot. A waiting candidate carries a `capacity` exception.
+- **Several feeds per purpose.** A caller may hold several pacing or analytics subscriptions for one account. Where two resolve the same offering for a package, the lowest `subscription_id` owes it and the other records an `overridden` exception naming the `package_ids`. Billing stays one per account at a scope level.
+- **Membership in place.** Membership edits (`account_ids`, `exclude_account_ids`) keep the version. A removed account stays listed, `excluded`, with an `excluded_by_buyer` entry from the cutover. An added account gets a closed entry covering the time before it joined.
+- **`destination_overrides`.** An account named by an override, by `account_ids` or `operator_domains`, resolves against the override's destination method. Its owed sets carry the override as the version's `destination`, so `bind_managed_generation` binds and checks the override's `path_template`.
+- **Bounded readback.** `prior_versions` lists the 16 newest inline, and the account lists 1,000, each with a total count. `get_principal` `reporting_subscription_page` pages the rest from the engine's state.
+- **Partial grants.** A grant that keeps the account covered refuses a task it does not list with `SCOPE_INSUFFICIENT`.
+- **Billing stubs and `regranted_at`.** A billing cutover owes a stub obligation (`stub: true`), and `list_accounts` serves `authorization.regranted_at`.
+
 ## What the SDK derives
 
 - **The principal runtime.** `install()` serves `get_principal` and `sync_principal` and advertises the principal section. The service's `PrincipalService` is `reporting.principals`.

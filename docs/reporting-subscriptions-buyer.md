@@ -21,7 +21,7 @@ result = await client.reporting.subscribe(
 result.action, result.subscription_version
 ```
 
-- **Versioning.** The version is bumped only when the selector, scope, destination, `reconciliation_mode`, `exclude_account_ids` or `operator_domains` change.
+- **Versioning.** The version is bumped only when the selector, the scope kind, the destination or its `destination_overrides`, `reconciliation_mode` or `operator_domains` change. Adding or removing `account_ids`, and changing `exclude_account_ids`, apply in place (3.3.0-beta.3): the seller records each edit per account as an `excluded_by_buyer` interval, so periods that started before a removal stay owed and an added account is owed only from when it joined.
 - **Pre-dispatch checks.** These fail with `dispatched=False`:
   - the scope must be explicit;
   - the destination must exist;

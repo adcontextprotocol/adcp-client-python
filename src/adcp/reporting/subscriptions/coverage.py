@@ -385,13 +385,30 @@ class SubscriptionException:
     #: An entry for one offering's boundaries (``excluded[]`` or ``gaps[]``
     #: ``offering_id``); ``None`` is every offering.
     offering_id: str | None = None
+    #: A package-level entry (``package_ids``, with ``media_buy_id``): it removes
+    #: those packages from the buy's coverage while open, never periods. An
+    #: ``overridden`` entry names the packages a lower ``subscription_id`` owes.
+    package_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "from_", utc_instant(self.from_, field="from"))
         if self.until is not None:
             object.__setattr__(self, "until", utc_instant(self.until, field="until"))
+        object.__setattr__(self, "package_ids", tuple(self.package_ids))
+
+    def removes_package(self, at: datetime, media_buy_id: str, package_id: str) -> bool:
+        """Whether this package-level entry takes the package out of coverage at ``at``."""
+        return (
+            bool(self.package_ids)
+            and package_id in self.package_ids
+            and (self.media_buy_id is None or self.media_buy_id == media_buy_id)
+            and self.from_ <= at
+            and (self.until is None or at < self.until)
+        )
 
     def removes(self, start: datetime, media_buy_id: str, offering_id: str | None = None) -> bool:
+        if self.package_ids:
+            return False  # removes packages from coverage, not periods
         if self.media_buy_id is not None and self.media_buy_id != media_buy_id:
             return False
         if self.offering_id is not None and offering_id is not None:
@@ -405,8 +422,10 @@ def subscription_exceptions(
 ) -> tuple[SubscriptionException, ...]:
     """Normalize ``subscription_coverage`` ``excluded[]`` and ``gaps[]`` entries.
 
-    An ``offering_unsupported`` entry naming ``package_ids`` removes those
-    packages from the buy's coverage, not periods, so it is dropped here.
+    An entry naming ``package_ids`` (``offering_unsupported``, or
+    ``overridden`` by a lower ``subscription_id`` resolving the same offering,
+    adcp#8619) removes those packages from the buy's coverage while it is
+    open, not periods.
     """
     result: list[SubscriptionException] = []
     for entry in excluded:
@@ -415,8 +434,6 @@ def subscription_exceptions(
             continue
         if hasattr(entry, "model_dump"):
             entry = entry.model_dump(mode="json", exclude_none=True, by_alias=True)
-        if _value(entry, "package_ids"):
-            continue
         reason = _text(_value(entry, "reason"))
         if reason not in _REASONS:
             raise CoverageInputError(
@@ -434,6 +451,7 @@ def subscription_exceptions(
                 # "all" across offerings with different boundaries) removes
                 # only that offering's periods.
                 offering_id=None if offering_id is None else _text(offering_id),
+                package_ids=tuple(_text(item) for item in _value(entry, "package_ids") or ()),
             )
         )
     for gap in gaps:
@@ -588,25 +606,34 @@ def subscription_version_windows(
 
 
 def subscription_covers_account(
-    configuration: Any, *, account_id: str, account_operator: str | None = None
+    configuration: Any,
+    *,
+    account_id: str,
+    account_operator: str | None = None,
+    membership_intervals: bool = False,
 ) -> bool:
     """Whether a subscription version's scope selects the account.
 
     ``exclude_account_ids`` and ``operator_domains`` narrow the scope; the
     seller also reports an excluded account as ``excluded_by_buyer``. With
     ``operator_domains``, an account whose operator is unknown is not selected.
+
+    ``membership_intervals``: the account's ``excluded_by_buyer`` entries
+    record its membership edits (adcp#8619), which apply in place within a
+    version, so ``account_ids`` and ``exclude_account_ids`` do not decide it;
+    the entries remove the periods outside its membership.
     """
     if hasattr(configuration, "model_dump"):
         configuration = configuration.model_dump(mode="json", exclude_none=True)
     scope = _value(configuration, "scope") or {}
     account_ids = _value(scope, "account_ids")
     if account_ids is not None:
-        if account_id not in {_text(item) for item in account_ids}:
+        if not membership_intervals and account_id not in {_text(item) for item in account_ids}:
             return False
     elif _value(scope, "all_authorized_accounts") is not True:
         return False
     excluded = _value(configuration, "exclude_account_ids") or ()
-    if account_id in {_text(item) for item in excluded}:
+    if not membership_intervals and account_id in {_text(item) for item in excluded}:
         return False
     domains = _value(configuration, "operator_domains")
     if domains:
@@ -961,7 +988,10 @@ def owed_subscription_periods(
             )
         require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
     changes.sort(key=lambda item: item.changed_at)
-    removals = subscription_exceptions(excluded, gap_entries)
+    every_removal = subscription_exceptions(excluded, gap_entries)
+    removals = tuple(item for item in every_removal if not item.package_ids)
+    package_removals = tuple(item for item in every_removal if item.package_ids)
+    membership_intervals = any(item.reason == "excluded_by_buyer" for item in every_removal)
     ids = [item.offering_id for item in offerings]
     if len(set(ids)) != len(ids):
         raise CoverageInputError("invalid_input", "offering_id values must be unique")
@@ -984,6 +1014,10 @@ def owed_subscription_periods(
         if item.withdrawn_at is not None:
             points.add(item.withdrawn_at)
     points.update(change.changed_at for change in changes)
+    for removal in package_removals:
+        points.add(removal.from_)
+        if removal.until is not None:
+            points.add(removal.until)
     ordered = sorted(points)
     selectors = {
         window.subscription_version: SubscriptionSelector.from_subscription(window.configuration)
@@ -991,7 +1025,10 @@ def owed_subscription_periods(
     }
     in_scope = {
         window.subscription_version: subscription_covers_account(
-            window.configuration, account_id=account_id, account_operator=account_operator
+            window.configuration,
+            account_id=account_id,
+            account_operator=account_operator,
+            membership_intervals=membership_intervals,
         )
         for window in windows
     }
@@ -1011,6 +1048,9 @@ def owed_subscription_periods(
             destinations,
             account_timezone,
             changes,
+            account_id=account_id,
+            account_operator=account_operator,
+            package_removals=package_removals,
         )
         flights_start = buy._earliest_start()
         latest_stop = buy._latest_stop()
@@ -1132,6 +1172,10 @@ def _regimes(
     destinations: Mapping[str, Any] | None,
     account_timezone: str | None,
     changes: Sequence[AccountTimezoneChange],
+    *,
+    account_id: str = "",
+    account_operator: str | None = None,
+    package_removals: Sequence[SubscriptionException] = (),
 ) -> list[_Regime | None]:
     """Maximal stretches with one active, in-scope version and one resolution."""
     regimes: list[_Regime | None] = []
@@ -1143,22 +1187,30 @@ def _regimes(
                 regimes.append(None)
             continue
         selector = selectors[window.subscription_version]
-        destination = window.destination
-        if destination is None and selector.destination_id is not None:
-            if destinations is None or selector.destination_id not in destinations:
+        # adcp#8619: an account routed by destination_overrides resolves
+        # against its own destination's method.
+        destination_id = selector.destination_for(account_id, account_operator)
+        destination = window.destination if destination_id == selector.destination_id else None
+        if destination is None and destination_id is not None:
+            if destinations is None or destination_id not in destinations:
                 raise CoverageInputError(
                     "missing_destination_method",
                     f"version {window.subscription_version} names destination "
-                    f"{selector.destination_id!r}; pass its pattern and transport",
+                    f"{destination_id!r}; pass its pattern and transport",
                 )
-            destination = destinations[selector.destination_id]
+            destination = destinations[destination_id]
         # adcp#8619: each package resolves when its (buy, version) pair first
         # does and keeps that result; a buy owes the union of its packages'.
         first_resolved = window.accepted_at
         if buy.confirmed_at is not None:
             first_resolved = max(first_resolved, buy.confirmed_at)
         found: dict[str, SubscriptionOffering] = {}
-        for _package_id, offering_ids in buy.product_offering_ids():
+        for package_id, offering_ids in buy.product_offering_ids():
+            if any(
+                item.removes_package(start, buy.media_buy_id, package_id)
+                for item in package_removals
+            ):
+                continue
             for item in resolve_reporting_subscription_package(
                 selector,
                 offerings,

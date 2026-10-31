@@ -24,12 +24,25 @@ computes owed periods with the same
 :func:`~adcp.reporting.subscriptions.owed_subscription_periods` a buyer
 runs, so both sides agree period by period.
 
-``max_accounts`` order
-    Among accounts eligible to be served (in scope, authorized, not excluded
-    or overridden), accounts already served keep their slots; the remaining
-    slots go to the others in ``account_id`` byte order. Accounts beyond the
-    limit get a ``capacity`` exception. A newly granted account never
-    displaces one being served. This matches the TypeScript SDK.
+``max_accounts`` order (adcp#8619)
+    Candidates are the accounts the scope selects that the caller is
+    authorized for, whether or not they have covered buys; one with another
+    open account-level exception still holds its place. Accounts already
+    admitted keep their slots; the remaining slots go to the others ordered
+    by ``authorization.authorized_at``, then ``account_id`` in byte order, the
+    same key for every subscription of a principal. Accounts beyond the limit
+    get a ``capacity`` exception. A newly granted account never displaces one
+    being served.
+
+Other 3.3.0-beta.3 rules (adcp#8619)
+    Several pacing or analytics subscriptions may apply to one account and
+    purpose: where two resolve the same offering for a package, the lowest
+    ``subscription_id`` owes it and each other records a package-level
+    ``overridden`` exception. Membership edits (``account_ids``,
+    ``exclude_account_ids``) apply in place as ``excluded_by_buyer``
+    intervals. ``destination_overrides`` route an account to another
+    destination. The readback lists 16 prior versions and 1000 accounts
+    inline, with totals, and pages the rest through ``get_principal``.
 """
 
 from __future__ import annotations
@@ -57,6 +70,9 @@ from adcp.reporting.subscriptions.coverage import (
     owed_subscription_periods,
     subscription_covers_account,
     subscription_version_windows,
+)
+from adcp.reporting.subscriptions.registry import (
+    reporting_subscription_destination_for_account,
 )
 from adcp.reporting.subscriptions.resolution import (
     SubscriptionDestination,
@@ -324,6 +340,12 @@ class _PrincipalState:
     #: subscription_id -> (version, replace_account_configs) last applied, so
     #: ``replace_account_configs`` runs once per version or on a change to true.
     replacements: dict[str, tuple[int, bool]] = field(default_factory=dict)
+    #: subscription_id -> every prior version seen, newest first; the readback
+    #: lists only the 16 newest inline (adcp#8619).
+    prior_versions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    #: subscription_id -> the full accounts_with_exceptions and
+    #: accounts_unauthorized lists last evaluated; the readback caps them at 1000.
+    readback: dict[str, dict[str, list[dict[str, Any]]]] = field(default_factory=dict)
 
 
 #: Version of the persisted engine-state document; bump on a breaking change.
@@ -607,6 +629,25 @@ def encode_principal_state(
             if principal.replacements
             else {}
         ),
+        **(
+            {
+                "prior_versions": {
+                    sid: _json_value(items)
+                    for sid, items in sorted(principal.prior_versions.items())
+                }
+            }
+            if principal.prior_versions
+            else {}
+        ),
+        **(
+            {
+                "readback": {
+                    sid: _json_value(lists) for sid, lists in sorted(principal.readback.items())
+                }
+            }
+            if principal.readback
+            else {}
+        ),
     }
 
 
@@ -682,6 +723,12 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
     principal.reconciled_at = _instant(document.get("reconciled_at"))
     for sid, item in (document.get("replacements") or {}).items():
         principal.replacements[sid] = (int(item["version"]), bool(item["replace_account_configs"]))
+    for sid, items in (document.get("prior_versions") or {}).items():
+        principal.prior_versions[sid] = [dict(item) for item in items]
+    for sid, lists in (document.get("readback") or {}).items():
+        principal.readback[sid] = {
+            name: [dict(item) for item in value] for name, value in lists.items()
+        }
     return principal
 
 
@@ -798,6 +845,28 @@ class ReportingSubscriptionEngine:
             record_versions=self.record_versions,
             clock=self._clock,
             replace_account_configs=self._end_account_configs is not None,
+            subscription_list=self.subscription_list,
+        )
+
+    async def subscription_list(
+        self, identity: PrincipalLike, subscription_id: str, list_name: str
+    ) -> list[dict[str, Any]] | None:
+        """The full readback list behind ``reporting_subscription_page`` (adcp#8619).
+
+        ``prior_versions`` newest first, the account lists in ``account_id``
+        byte order. ``None`` when the engine holds nothing for it, so the
+        inline list is paged instead.
+        """
+        principal = await self._read(identity.subject)
+        if list_name == "prior_versions":
+            known = principal.prior_versions.get(subscription_id)
+            return None if known is None else [dict(item) for item in known]
+        lists = principal.readback.get(subscription_id)
+        if lists is None or list_name not in lists:
+            return None
+        return sorted(
+            (dict(item) for item in lists[list_name]),
+            key=lambda item: str(item.get("account_id")).encode("utf-8"),
         )
 
     @property
@@ -1061,6 +1130,18 @@ class ReportingSubscriptionEngine:
                 key = (str(payload["subscription_id"]), int(payload["subscription_version"]))
                 configuration = dict(payload["configuration"])
                 principal.versions.setdefault(key, configuration)
+                inline = payload.get("prior_versions") or ()
+                if inline:
+                    # Every version passes through the inline list, newest
+                    # first, so the full history accumulates here.
+                    known = principal.prior_versions.setdefault(key[0], [])
+                    seen = {int(item["subscription_version"]) for item in known}
+                    known.extend(
+                        _json_value(item)
+                        for item in inline
+                        if int(item["subscription_version"]) not in seen
+                    )
+                    known.sort(key=lambda item: -int(item["subscription_version"]))
                 destination = configuration.get("destination")
                 if destination is not None and key not in principal.destinations:
                     target = destinations.get(destination["destination_id"])
@@ -1437,6 +1518,14 @@ class ReportingSubscriptionEngine:
         now: datetime,
     ) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
         subscription_id = str(state["subscription_id"])
+        accepted = principal.versions.get(
+            (subscription_id, int(state["subscription_version"])), state["configuration"]
+        )
+        history = {
+            account_id: entries
+            for (sub_id, account_id), entries in principal.exclusions.items()
+            if sub_id == subscription_id
+        }
         desired = self._desired_exclusions(
             state,
             states,
@@ -1446,17 +1535,36 @@ class ReportingSubscriptionEngine:
             destinations,
             now,
             served=principal.served.setdefault(subscription_id, set()),
+            accepted=accepted,
+            history=history,
         )
         covered = principal.covered.setdefault(subscription_id, set())
         for account_id, wanted in desired.items():
+            routed = _routed(state["configuration"], account_id, accounts[account_id], destinations)
+            if _joined_in_place(state["configuration"], accepted, account_id, history):
+                # adcp#8619: an added account with no entry is not owed the
+                # periods before it joined.
+                principal.exclusions.setdefault((subscription_id, account_id), []).append(
+                    _Exclusion(
+                        "excluded_by_buyer",
+                        self._cutover(
+                            state,
+                            accounts[account_id],
+                            buys.get(account_id, ()),
+                            routed,
+                            _instant_of(state["accepted_at"]),
+                        ),
+                        self._cutover(
+                            state, accounts[account_id], buys.get(account_id, ()), routed, now
+                        ),
+                    )
+                )
             # Covered: served, with no account-level exception.
             if not any(item.media_buy_id is None for item in wanted):
                 covered.add(account_id)
                 # Surface an account the schedules cannot be derived for (no
                 # timezone yet) now, rather than at the first owed_periods.
-                self._schedules(
-                    state, accounts[account_id], buys.get(account_id, ()), destinations, now
-                )
+                self._schedules(state, accounts[account_id], buys.get(account_id, ()), routed, now)
             self._sync_exclusions(
                 principal,
                 subscription_id,
@@ -1465,7 +1573,7 @@ class ReportingSubscriptionEngine:
                 state,
                 accounts,
                 buys.get(account_id, ()),
-                destinations,
+                routed,
                 now,
             )
         # Exceptions close only when their cause ends. While the caller has
@@ -1482,11 +1590,18 @@ class ReportingSubscriptionEngine:
                     entry.until = self._cutover(
                         state, account, buys.get(account_id, ()), destinations, now
                     )
-        return (
-            subscription_id,
-            self._accounts_with_exceptions(principal, subscription_id, now),
-            self._accounts_unauthorized(principal, state, accounts, buys, destinations, now),
+        with_exceptions = self._accounts_with_exceptions(principal, subscription_id, now)
+        unauthorized = self._accounts_unauthorized(
+            principal, state, accounts, buys, destinations, now
         )
+        principal.readback[subscription_id] = {
+            "accounts_with_exceptions": [_json_value(item) for item in with_exceptions],
+            "accounts_unauthorized": [
+                {key: _json_value(value) for key, value in item.items() if key != "_ended"}
+                for item in unauthorized
+            ],
+        }
+        return (subscription_id, with_exceptions, unauthorized)
 
     async def _destinations(self, identity: PrincipalLike) -> dict[str, Any]:
         return {
@@ -1505,11 +1620,15 @@ class ReportingSubscriptionEngine:
         now: datetime,
         *,
         served: set[str],
+        accepted: Mapping[str, Any] | None = None,
+        history: Mapping[str, Sequence[_Exclusion]] | None = None,
     ) -> dict[str, list[_Exclusion]]:
         """Per account the scope includes: the exclusions that should be open now.
 
         ``served`` holds the accounts with a ``max_accounts`` slot and is
-        updated in place.
+        updated in place. ``accepted`` is the version's configuration as
+        accepted and ``history`` the subscription's exception entries per
+        account, from which membership edits are read (adcp#8619).
         """
         result: dict[str, list[_Exclusion]] = {}
         if not _active(state):
@@ -1518,7 +1637,10 @@ class ReportingSubscriptionEngine:
         scope = configuration["scope"]
         feed_purpose = configuration["selector"]["feed_purpose"]
         excluded_ids = set(configuration.get("exclude_account_ids") or ())
-        eligible: list[tuple[int, bytes, str]] = []
+        accepted = configuration if accepted is None else accepted
+        history = history or {}
+        eligible: list[tuple[int, datetime, bytes, str]] = []
+        overridden: dict[str, _Exclusion] = {}
         for account_id, account in accounts.items():
             if not account.authorized:
                 continue
@@ -1527,6 +1649,10 @@ class ReportingSubscriptionEngine:
                     result[account_id] = [_Exclusion("excluded_by_buyer", now)]
                 continue
             if not _scope_selects(configuration, account_id, account):
+                if _left_in_place(configuration, accepted, account_id, account, history):
+                    # adcp#8619: a removed account opens an excluded_by_buyer
+                    # entry at the cutover; earlier periods stay owed.
+                    result[account_id] = [_Exclusion("excluded_by_buyer", now)]
                 continue
             overriding = _override(
                 configuration,
@@ -1539,34 +1665,151 @@ class ReportingSubscriptionEngine:
             )
             if overriding is not None:
                 kind, identifier, effective_at = overriding
-                result[account_id] = [
-                    _Exclusion(
-                        "overridden",
-                        now,
-                        overridden_by=(kind, identifier),
-                        effective_at=effective_at,
-                    )
-                ]
-                continue
-            result[account_id] = []
+                overridden[account_id] = _Exclusion(
+                    "overridden",
+                    now,
+                    overridden_by=(kind, identifier),
+                    effective_at=effective_at,
+                )
+            # adcp#8619 admission: candidates hold their place whatever their
+            # other account-level exceptions, ordered by authorized_at, then
+            # account_id in byte order; an admitted account keeps its slot.
+            start = self._chain_start(account) or now
             eligible.append(
-                (0 if account_id in served else 1, account_id.encode("utf-8"), account_id)
+                (0 if account_id in served else 1, start, account_id.encode("utf-8"), account_id)
             )
         limit = self._support.max_accounts
-        ranked = [account_id for _held, _key, account_id in sorted(eligible)]
+        ranked = [item[-1] for item in sorted(eligible)]
         kept = ranked if limit is None else ranked[:limit]
         served.clear()
         served.update(kept)
-        for account_id in ranked[len(kept) :]:
-            result[account_id] = [_Exclusion("capacity", now)]
+        admitted = set(kept)
+        for account_id in ranked:
+            entries: list[_Exclusion] = []
+            if account_id in overridden:
+                entries.append(overridden[account_id])
+            if account_id not in admitted:
+                entries.append(_Exclusion("capacity", now))
+            result[account_id] = entries
         for account_id, entries in result.items():
             if entries:
                 continue
             account = accounts[account_id]
+            routed = _routed(configuration, account_id, account, destinations)
+            entries.extend(self._unsupported(state, account, buys.get(account_id, ()), routed, now))
             entries.extend(
-                self._unsupported(state, account, buys.get(account_id, ()), destinations, now)
+                self._package_overrides(
+                    state,
+                    states,
+                    account_id,
+                    account,
+                    buys.get(account_id, ()),
+                    destinations,
+                    configs.get(account_id, ()),
+                    now,
+                )
             )
         return result
+
+    def _package_overrides(
+        self,
+        state: Mapping[str, Any],
+        states: Sequence[Mapping[str, Any]],
+        account_id: str,
+        account: _Account,
+        buys: Sequence[SubscriptionBuy],
+        destinations: Mapping[str, Any],
+        configs: Sequence[AccountDeliveryConfig],
+        now: datetime,
+    ) -> list[_Exclusion]:
+        """Packages a lower ``subscription_id`` of the same purpose owes (adcp#8619).
+
+        Pacing and analytics allow several subscriptions per account and
+        purpose. Where two resolve the same offering for the same package, the
+        lowest ``subscription_id`` in byte order owes it, and each other
+        records an ``overridden`` exception for that buy naming the packages.
+        """
+        configuration = state["configuration"]
+        feed_purpose = configuration["selector"]["feed_purpose"]
+        if feed_purpose == "billing":
+            return []
+        own_id = str(state["subscription_id"]).encode("utf-8")
+        level = "account_ids" if "account_ids" in configuration["scope"] else "all"
+        rivals = []
+        for other in states:
+            other_config = other["configuration"]
+            other_id = str(other["subscription_id"])
+            if (
+                other_id.encode("utf-8") >= own_id
+                or not _active(other)
+                or other_config["selector"]["feed_purpose"] != feed_purpose
+                or ("account_ids" if "account_ids" in other_config["scope"] else "all") != level
+                or not _scope_selects(other_config, account_id, account)
+                or _override(
+                    other_config,
+                    other_config["scope"],
+                    feed_purpose,
+                    account_id,
+                    account,
+                    states,
+                    configs,
+                )
+                is not None
+            ):
+                continue
+            rivals.append((other_id, other_config))
+        if not rivals:
+            return []
+        rivals.sort(key=lambda item: item[0].encode("utf-8"))
+        own_selector = SubscriptionSelector.from_subscription(configuration)
+        own_destination = _destination_for(
+            own_selector, _routed(configuration, account_id, account, destinations)
+        )
+        entries: list[_Exclusion] = []
+        for buy in sorted(buys, key=lambda item: item.media_buy_id.encode("utf-8")):
+            if buy.confirmed_at is None:
+                continue
+            owed_by: dict[str, list[str]] = {}
+            for package_id, offering_ids in buy.product_offering_ids():
+                if not package_id:
+                    continue  # an exception names packages; a packageless buy has none
+                mine = set(
+                    resolve_subscription_offerings(
+                        own_selector,
+                        self._offerings,
+                        product_offering_ids=offering_ids,
+                        destination=own_destination,
+                        at=now,
+                    ).offering_ids
+                )
+                if not mine:
+                    continue
+                for other_id, other_config in rivals:
+                    other_selector = SubscriptionSelector.from_subscription(other_config)
+                    theirs = resolve_subscription_offerings(
+                        other_selector,
+                        self._offerings,
+                        product_offering_ids=offering_ids,
+                        destination=_destination_for(
+                            other_selector,
+                            _routed(other_config, account_id, account, destinations),
+                        ),
+                        at=now,
+                    ).offering_ids
+                    if mine & set(theirs):
+                        owed_by.setdefault(other_id, []).append(package_id)
+                        break
+            for other_id, package_ids in sorted(owed_by.items()):
+                entries.append(
+                    _Exclusion(
+                        "overridden",
+                        now,
+                        media_buy_id=buy.media_buy_id,
+                        package_ids=tuple(sorted(package_ids)),
+                        overridden_by=("subscription_id", other_id),
+                    )
+                )
+        return entries
 
     def _unsupported(
         self,
@@ -1782,9 +2025,12 @@ class ReportingSubscriptionEngine:
         result = []
         for state in states:
             configuration = state["configuration"]
-            if not _scope_includes(configuration, account_id, account):
-                continue
             entries = principal.exclusions.get((str(state["subscription_id"]), account_id), [])
+            # adcp#8619: a removed account stays listed, excluded, while its
+            # open excluded_by_buyer entry is retained.
+            removed = any(e.reason == "excluded_by_buyer" and e.until is None for e in entries)
+            if not removed and not _scope_includes(configuration, account_id, account):
+                continue
             account_level = [e for e in entries if e.until is None and e.media_buy_id is None]
             status = "active"
             if any(e.reason == "action_required" for e in account_level):
@@ -1978,9 +2224,10 @@ class ReportingSubscriptionEngine:
             if sub_id == subscription_id
         }
         exclusions = [
-            SubscriptionException(e.reason, e.from_, e.until, e.media_buy_id)
+            SubscriptionException(
+                e.reason, e.from_, e.until, e.media_buy_id, package_ids=e.package_ids
+            )
             for e in principal.exclusions.get((subscription_id, account_id), [])
-            if not e.package_ids
         ]
         # The seller never guesses a prior version's configuration, and each
         # version resolves against the destination it named when accepted.
@@ -2061,7 +2308,10 @@ class ReportingSubscriptionEngine:
                             subscription_id=subscription_id,
                             through=instant,
                             periods=tuple(periods),
-                            versions=versions,
+                            versions={
+                                version: _routed_version(configuration, key, account)
+                                for version, configuration in versions.items()
+                            },
                         )
                     )
         return result
@@ -2170,6 +2420,86 @@ def _scope_selects(configuration: Mapping[str, Any], account_id: str, account: _
         )
     except ValueError:
         return False  # operator_domains with an account the host gave no operator
+
+
+def _routed(
+    configuration: Mapping[str, Any],
+    account_id: str,
+    account: _Account,
+    destinations: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """``destinations`` with the subscription's destination routed for one account.
+
+    ``destination_overrides`` (adcp#8619) send an account's data to another
+    destination; mapping it under the subscription's ``destination_id`` lets
+    every per-account resolution read it unchanged.
+    """
+    destination = configuration.get("destination") or {}
+    default = destination.get("destination_id")
+    target = SubscriptionSelector.from_subscription(configuration).destination_for(
+        account_id, account.operator
+    )
+    if default is None or target is None or target == default or target not in destinations:
+        return destinations
+    return {**destinations, default: destinations[target]}
+
+
+def _routed_version(
+    configuration: Mapping[str, Any], account_id: str, account: _Account
+) -> Mapping[str, Any]:
+    """A version's configuration with ``destination`` as routed for one account.
+
+    The managed binding then resolves and checks the override's
+    ``destination_id`` and ``path_template`` (adcp#8619).
+    """
+    if not configuration.get("destination_overrides"):
+        return configuration
+    routed = reporting_subscription_destination_for_account(
+        configuration, account_id=account_id, operator=account.operator
+    )
+    if routed is None or routed == configuration.get("destination"):
+        return configuration
+    return {**configuration, "destination": routed}
+
+
+def _member_ids(configuration: Mapping[str, Any]) -> set[str] | None:
+    account_ids = (configuration.get("scope") or {}).get("account_ids")
+    return None if account_ids is None else set(account_ids)
+
+
+def _left_in_place(
+    configuration: Mapping[str, Any],
+    accepted: Mapping[str, Any],
+    account_id: str,
+    account: _Account,
+    history: Mapping[str, Sequence[_Exclusion]],
+) -> bool:
+    """Whether an ``account_ids`` edit removed the account within this version."""
+    members = _member_ids(configuration)
+    if members is None or account_id in members or not _operator_selected(configuration, account):
+        return False
+    was_member = account_id in (_member_ids(accepted) or set())
+    edited = any(item.reason == "excluded_by_buyer" for item in history.get(account_id, ()))
+    return was_member or edited
+
+
+def _joined_in_place(
+    configuration: Mapping[str, Any],
+    accepted: Mapping[str, Any],
+    account_id: str,
+    history: Mapping[str, Sequence[_Exclusion]],
+) -> bool:
+    """Whether an ``account_ids`` edit added the account within this version, unrecorded."""
+    members = _member_ids(configuration)
+    if members is None or account_id not in members:
+        return False
+    return account_id not in (_member_ids(accepted) or set()) and not history.get(account_id)
+
+
+def _instant_of(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return utc_instant(value)
+    return utc_instant(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
 
 
 def _scope_includes(configuration: Mapping[str, Any], account_id: str, account: _Account) -> bool:

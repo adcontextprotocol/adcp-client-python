@@ -286,9 +286,11 @@ class ReportingClient:
         """Create or update one subscription, keeping every other entry unchanged.
 
         ``subscription_version`` is optional: the SDK keeps it when only
-        ``active`` or ``replace_account_configs`` change, and bumps it when
-        the selector, scope, destination, ``reconciliation_mode``,
-        ``exclude_account_ids`` or ``operator_domains`` change. A supplied
+        ``active``, ``replace_account_configs`` or the membership
+        (``scope.account_ids``, ``exclude_account_ids``) change, which apply
+        in place (adcp#8619), and bumps it when the selector, the scope kind,
+        the destination or its overrides, ``reconciliation_mode`` or
+        ``operator_domains`` change. A supplied
         version must be greater than the current one when the content
         changed. ``register_destination`` upserts a destination in the same
         atomic write.

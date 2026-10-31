@@ -80,6 +80,10 @@ def _wire_instant(value: Any, name: str) -> datetime | None:
         ) from error
 
 
+def _optional_set(values: Any) -> frozenset[str] | None:
+    return None if values is None else frozenset(_text(item) for item in values)
+
+
 def _byte_key(offering_id: str) -> bytes:
     return offering_id.encode("utf-8")
 
@@ -371,6 +375,24 @@ class SubscriptionSelector:
     alignment: str | None = None
     period_timezone: str | None = None
     destination_id: str | None = None
+    #: ``destination_overrides[]`` (adcp#8619): ``(account_ids, operator_domains,
+    #: destination_id)`` routes, in order.
+    destination_overrides: tuple[tuple[frozenset[str] | None, frozenset[str] | None, str], ...] = ()
+
+    def destination_for(self, account_id: str, operator: str | None = None) -> str | None:
+        """The ``destination_id`` an account's data goes to (adcp#8619).
+
+        The ``account_ids`` override naming the account, else the
+        ``operator_domains`` override naming its operator, else ``destination``.
+        """
+        for account_ids, _domains, destination_id in self.destination_overrides:
+            if account_ids is not None and account_id in account_ids:
+                return destination_id
+        if operator is not None:
+            for _ids, domains, destination_id in self.destination_overrides:
+                if domains is not None and operator in domains:
+                    return destination_id
+        return self.destination_id
 
     @classmethod
     def from_subscription(cls, subscription: Any) -> SubscriptionSelector:
@@ -408,6 +430,14 @@ class SubscriptionSelector:
             period_timezone=None if period_timezone is None else _text(period_timezone),
             destination_id=(
                 None if destination is None else _text(_value(destination, "destination_id"))
+            ),
+            destination_overrides=tuple(
+                (
+                    _optional_set(_value(item, "account_ids")),
+                    _optional_set(_value(item, "operator_domains")),
+                    _text(_value(item, "destination_id")),
+                )
+                for item in _value(subscription, "destination_overrides") or ()
             ),
         )
 

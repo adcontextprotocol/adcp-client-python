@@ -225,12 +225,23 @@ def _request_outcome(
     request_id = str(wire["request_id"])
     if state == "resolved":
         account = wire.get("account") if isinstance(wire.get("account"), Mapping) else None
+        resolution = wire.get("resolution")
+        effective_at = wire.get("effective_at")
         return AccountReady(
             account_id=str(wire["account_id"]),
             status=str((account or {}).get("status") or "active"),
             via="request_account",
             request_id=request_id,
             account=account,
+            # adcp#8620: money terms ride on the resolved account; an updated
+            # money change says when it takes effect.
+            resolution=None
+            if resolution is None
+            else str(getattr(resolution, "value", resolution)),
+            effective_at=None if effective_at is None else str(effective_at),
+            not_carried_over=tuple(
+                str(getattr(item, "value", item)) for item in wire.get("not_carried_over") or ()
+            ),
         )
     if state == "in_review":
         return AccountPending(
