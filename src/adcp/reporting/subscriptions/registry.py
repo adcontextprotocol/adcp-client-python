@@ -196,6 +196,13 @@ def _validate_one(
             f"{where}: consumer_receipt requires a destination"
         )
     for override_index, override in enumerate(configuration.get("destination_overrides") or ()):
+        # The schema's anyOf/not: exactly one of account_ids and operator_domains,
+        # which the generated model does not enforce.
+        if ("account_ids" in override) == ("operator_domains" in override):
+            raise ReportingSubscriptionValidationError(
+                f"{where}.destination_overrides[{override_index}] must name exactly one of "
+                "account_ids or operator_domains"
+            )
         _validate_destination(
             override,
             f"{where}.destination_overrides[{override_index}]",
@@ -211,6 +218,38 @@ def _validate_one(
     _validate_destination(destination, f"{where}.destination", configuration, destinations)
 
 
+def reporting_subscription_destination_for_account(
+    subscription: Mapping[str, Any] | Any, *, account_id: str, operator: str | None = None
+) -> dict[str, Any] | None:
+    """The destination one account's data goes to under a subscription (adcp#8619).
+
+    The ``account_ids`` override naming the account, else the
+    ``operator_domains`` override naming its operator, else ``destination``.
+    An override without its own ``path_template`` keeps the subscription's.
+    ``None`` when the subscription names no destination. The TypeScript SDK's
+    ``reportingSubscriptionDestinationForAccount``.
+    """
+    configuration = _dump(subscription)
+    destination = configuration.get("destination")
+    if destination is None:
+        return None
+    overrides = configuration.get("destination_overrides") or ()
+    chosen = next(
+        (item for item in overrides if account_id in (item.get("account_ids") or ())), None
+    )
+    if chosen is None and operator is not None:
+        chosen = next(
+            (item for item in overrides if operator in (item.get("operator_domains") or ())), None
+        )
+    if chosen is None:
+        return dict(destination)
+    template = chosen.get("path_template", destination.get("path_template"))
+    routed: dict[str, Any] = {"destination_id": chosen["destination_id"]}
+    if template is not None:
+        routed["path_template"] = template
+    return routed
+
+
 def _validate_destination(
     destination: Mapping[str, Any],
     where: str,
@@ -224,6 +263,11 @@ def _validate_destination(
             "reporting_destinations after this request"
         )
     template = destination.get("path_template")
+    if template is None and any(
+        destination is item for item in configuration.get("destination_overrides") or ()
+    ):
+        # An override without its own path_template keeps the subscription's.
+        template = (configuration.get("destination") or {}).get("path_template")
     if template is not None:
         unknown = {name for name in _PLACEHOLDER.findall(template)} - _ALLOWED_PLACEHOLDERS
         if unknown:
@@ -568,6 +612,7 @@ def refresh_destination_states(
 
 
 __all__ = [
+    "reporting_subscription_destination_for_account",
     "ReportingSubscriptionValidationError",
     "apply_reporting_subscriptions",
     "refresh_destination_states",

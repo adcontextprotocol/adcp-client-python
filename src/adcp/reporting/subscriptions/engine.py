@@ -71,6 +71,9 @@ from adcp.reporting.subscriptions.coverage import (
     subscription_covers_account,
     subscription_version_windows,
 )
+from adcp.reporting.subscriptions.registry import (
+    reporting_subscription_destination_for_account,
+)
 from adcp.reporting.subscriptions.resolution import (
     SubscriptionDestination,
     SubscriptionOffering,
@@ -2449,25 +2452,14 @@ def _routed_version(
     The managed binding then resolves and checks the override's
     ``destination_id`` and ``path_template`` (adcp#8619).
     """
-    for override in configuration.get("destination_overrides") or ():
-        account_ids = override.get("account_ids")
-        if account_ids is not None and account_id in account_ids:
-            break
-    else:
-        override = next(
-            (
-                item
-                for item in configuration.get("destination_overrides") or ()
-                if item.get("operator_domains") and account.operator in item["operator_domains"]
-            ),
-            None,
-        )
-    if override is None:
+    if not configuration.get("destination_overrides"):
         return configuration
-    destination = {"destination_id": override["destination_id"]}
-    if override.get("path_template") is not None:
-        destination["path_template"] = override["path_template"]
-    return {**configuration, "destination": destination}
+    routed = reporting_subscription_destination_for_account(
+        configuration, account_id=account_id, operator=account.operator
+    )
+    if routed is None or routed == configuration.get("destination"):
+        return configuration
+    return {**configuration, "destination": routed}
 
 
 def _member_ids(configuration: Mapping[str, Any]) -> set[str] | None:

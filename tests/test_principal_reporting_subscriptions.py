@@ -297,6 +297,24 @@ async def test_destination_overrides_name_existing_destinations() -> None:
     )
     # An operator override can route many accounts: it needs {account_id}.
     assert error_code(unkeyed) == "INVALID_REQUEST"
+    both = subscription(
+        destination={"destination_id": "archive", "path_template": "a/{account_id}"},
+        destination_overrides=[
+            {
+                "account_ids": ["acct-1"],
+                "operator_domains": ["agency.example"],
+                "destination_id": "warehouse",
+                "path_template": "w/{account_id}",
+            }
+        ],
+    )
+    refused = await sync(
+        principals,
+        {"reporting_destinations": [DESTINATION, WAREHOUSE], "reporting_subscriptions": [both]},
+    )
+    # Exactly one of account_ids or operator_domains (the generated model
+    # does not enforce the schema's anyOf/not).
+    assert error_code(refused) == "INVALID_REQUEST"
 
 
 @pytest.mark.asyncio

@@ -283,3 +283,30 @@ async def test_paging_an_unknown_subscription_is_invalid() -> None:
     response = await _page(world, "missing", "prior_versions")
     assert response["result"]["kind"] == "failed"
     assert response["result"]["errors"][0]["code"] == "INVALID_REQUEST"
+
+
+def test_the_destination_for_an_account_follows_the_override_order() -> None:
+    from adcp.reporting.subscriptions import reporting_subscription_destination_for_account
+
+    configuration = subscription(
+        destination={"destination_id": "lake", "path_template": "l/{account_id}"},
+        destination_overrides=[
+            {"operator_domains": ["agency.example"], "destination_id": "warehouse"},
+            {"account_ids": ["acct-1"], "destination_id": "vault", "path_template": "v/x"},
+        ],
+    )
+
+    def route(account_id: str, operator: str | None = None):
+        return reporting_subscription_destination_for_account(
+            configuration, account_id=account_id, operator=operator
+        )
+
+    # account_ids wins over operator_domains, whatever the order listed.
+    assert route("acct-1", "agency.example") == {"destination_id": "vault", "path_template": "v/x"}
+    # An override without a path_template keeps the subscription's.
+    assert route("acct-2", "agency.example") == {
+        "destination_id": "warehouse",
+        "path_template": "l/{account_id}",
+    }
+    assert route("acct-2") == {"destination_id": "lake", "path_template": "l/{account_id}"}
+    assert reporting_subscription_destination_for_account(subscription(), account_id="a") is None
