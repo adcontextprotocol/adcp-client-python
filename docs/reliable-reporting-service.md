@@ -496,7 +496,10 @@ change replaces it with this rule.
 
 - the service refuses `production` options;
 - subscriptions that resolve a managed or receipt-reconciled offering;
-- PostgreSQL ledger storage of owed sets.
+- status notifications for subscription generations: a PostgreSQL store with
+  them enabled refuses an owed set. `PgReportingLedgerStore` otherwise holds
+  owed sets, after the generation-key widening described in
+  [ledger migrations](reporting-ledger-migration.md).
 
 Keep the engine's `status_retention_days` equal to the service's.
 

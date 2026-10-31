@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from adcp.reporting._timestamp import aware_timestamp
-from adcp.reporting.ledger.models import ConsumerStatusRecord
+from adcp.reporting.ledger.models import ConsumerStatusRecord, ReportingConfigurationGenerationKey
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.status_projection import (
     ReportingStatusSnapshot,
@@ -174,6 +174,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
     """Decode the exact SQL boundary input through the ledger's existing mappers."""
     from adcp.reporting.ledger._record_rows import (
         _ADJUSTMENT_COLUMNS,
+        _CONFIGURATION_COLUMNS,
         _ISSUE_COLUMNS,
         _OBLIGATION_COLUMNS,
         _REVISION_COLUMNS,
@@ -222,12 +223,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
 
     configurations = decode(
         "configurations",
-        (
-            "delivery_config_id, delivery_config_version, account_id, report_definition_id,"
-            " reporting_profile, feed_purpose, required_finality, account_timezone, schedule,"
-            " media_buy_ids, activated_at, deactivated_at, automated_recovery_seconds,"
-            " status_retention_days, definition, authoritative_party, consumer_id, quarantined"
-        ),
+        _CONFIGURATION_COLUMNS,
         _configuration_from_row,
     )
     statuses = decode("statuses", _STATUS_COLUMNS_BARE, _status_from_row)
@@ -271,5 +267,18 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
         changes=tuple(
             (row["seq"], row["record_kind"], row["record_id"], row["consumer_id"])
             for row in raw.get("changes", [])
+        ),
+        owed_through=tuple(
+            (
+                ReportingConfigurationGenerationKey(
+                    row["account_id"],
+                    row["consumer_id"],
+                    row["delivery_config_id"],
+                    int(row["delivery_config_version"]),
+                    row["offering_id"],
+                ),
+                aware_timestamp(row["owed_through"]),
+            )
+            for row in raw.get("owed_sets", [])
         ),
     )

@@ -73,7 +73,7 @@ _SOURCE_CONFIGURATION = (
     " USING(account_id,consumer_id,delivery_config_id,delivery_config_version)"
     " JOIN reporting_production_accounts a ON a.account_id=g.account_id"
     " WHERE c.account_id=%s AND c.consumer_id=%s AND c.delivery_config_id=%s"
-    " AND c.delivery_config_version=%s AND g.producer_key=ANY(%s)"
+    " AND c.delivery_config_version=%s AND c.offering_id='' AND g.producer_key=ANY(%s)"
 )
 
 _OWNED = (
@@ -481,7 +481,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                     " ON (p.account_id,p.consumer_id,p.delivery_config_id,p.delivery_c"
                     "onfig_version)="
                     " (g.account_id,g.consumer_id,g.delivery_config_id,g.delivery_config_version)"
-                    " WHERE g.producer_key=ANY(%s)"
+                    " WHERE g.producer_key=ANY(%s) AND c.offering_id=''"
                     " AND NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lease"
                     "_expires_at<=%s)"
                     + continuation
