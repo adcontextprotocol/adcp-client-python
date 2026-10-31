@@ -29,7 +29,7 @@ from adcp.server.mcp_tools import create_tool_caller
 from adcp.types.core import AgentConfig, Protocol
 from adcp.validation import ValidationHookConfig, validate_request, validate_response
 
-SOURCE = "3.3-beta.1"
+SOURCE = "3.3-beta.2"
 _CASES = {
     case["id"]: case
     for case in json.loads(
@@ -311,8 +311,8 @@ def test_a_price_breakdown_with_an_operator_fee_is_omitted_whole() -> None:
 
 def test_new_error_codes_pass_through_the_open_vocabulary() -> None:
     # 3.2 error.code is an open string: receivers decode unknown codes by
-    # ``recovery``. Mapping pin drift to a 3.2 code belongs to definition pins.
-    response = _payload("create_media_buy.reference_definition_changed")
+    # ``recovery``.
+    response = _payload("create_media_buy.rights_channel_violation")
     result = _down("create_media_buy", response)
     assert result.payload["errors"] == response["errors"]
     assert result.losses == ()

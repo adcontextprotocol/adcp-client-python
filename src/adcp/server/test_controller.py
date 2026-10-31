@@ -115,12 +115,10 @@ SCENARIOS = [
     "force_session_status",
     "simulate_delivery",
     "simulate_budget_spend",
-    # AdCP 3.3.0-beta.0 scenarios: provisional buys, later proposals, holds,
-    # and definition-pin drift.
+    # AdCP 3.3 scenarios: provisional buys, later proposals and holds.
     "force_media_buy_confirmation",
     "simulate_later_proposal",
     "force_hold_unavailable",
-    "definition_pin_probe",
     # seed_* scenarios pre-populate storyboard fixtures (AdCP 3.0.1)
     "seed_product",
     "seed_pricing_option",
@@ -557,25 +555,6 @@ class TestControllerStore:
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Make a proposal's hold unavailable, so the next hold request is refused (AdCP 3.3)."""
-        raise NotImplementedError
-
-    async def definition_pin_probe(
-        self,
-        operation: str,
-        product_id: str | None = None,
-        proposal_id: str | None = None,
-        ref_kind: str | None = None,
-        mutation: str | None = None,
-        *,
-        context: ToolContext | None = None,
-    ) -> dict[str, Any]:
-        """Prepare definition-pin state, or mutate a pinned definition (AdCP 3.3).
-
-        ``prepare`` seeds ``product_id`` with pinnable definitions.
-        ``mutate_definition`` changes the definition behind the first pin of
-        ``ref_kind`` in ``proposal_id``: a ``material`` mutation changes the
-        pinned projection (its ``content_digest`` moves); ``cosmetic`` does not.
-        """
         raise NotImplementedError
 
     async def simulate_budget_spend(
@@ -1432,32 +1411,6 @@ async def _handle_test_controller(
             _require_scenario_params(scenario_params, "account_id", "opportunity_id")
         elif scenario == "force_hold_unavailable":
             _require_scenario_params(scenario_params, "proposal_id")
-        elif scenario == "definition_pin_probe":
-            _require_scenario_params(scenario_params, "operation")
-            operation = scenario_params["operation"]
-            if operation == "prepare":
-                _require_scenario_params(scenario_params, "product_id")
-                forbidden = {"proposal_id", "ref_kind", "mutation"} & set(scenario_params)
-                if forbidden:
-                    return _controller_error(
-                        "INVALID_PARAMS",
-                        f"{sorted(forbidden)[0]} is not allowed for the prepare operation",
-                    )
-            elif operation == "mutate_definition":
-                _require_scenario_params(scenario_params, "proposal_id", "ref_kind", "mutation")
-                if "product_id" in scenario_params:
-                    return _controller_error(
-                        "INVALID_PARAMS",
-                        "product_id is not allowed for the mutate_definition operation",
-                    )
-                if scenario_params["mutation"] not in {"material", "cosmetic"}:
-                    return _controller_error(
-                        "INVALID_PARAMS", "mutation must be 'material' or 'cosmetic'"
-                    )
-            else:
-                return _controller_error(
-                    "INVALID_PARAMS", "Unsupported definition_pin_probe operation"
-                )
         elif scenario == "simulate_budget_spend":
             _require_scenario_params(scenario_params, "spend_percentage")
         elif scenario == "seed_account":

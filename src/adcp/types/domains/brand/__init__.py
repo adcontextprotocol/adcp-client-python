@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -59,8 +59,7 @@ from adcp.types.domains.brand.get_rights_response import (
 )
 from adcp.types.domains.brand.revocation_notification import RevocationNotification
 from adcp.types.domains.brand.rights_pricing_option import RightsPricingOption
-from adcp.types.domains.brand.rights_scope import Exclusivity, RightsScope
-from adcp.types.domains.brand.rights_terms import RightsTerms
+from adcp.types.domains.brand.rights_terms import Exclusivity, RightsTerms
 from adcp.types.domains.brand.search_brands_request import SearchBrandsRequest
 from adcp.types.domains.brand.search_brands_response import (
     Background,
@@ -171,7 +170,6 @@ __all__ = [
     "RevocationNotification",
     "Right",
     "RightsPricingOption",
-    "RightsScope",
     "RightsTerms",
     "SearchBrandResult",
     "SearchBrandsRequest",
