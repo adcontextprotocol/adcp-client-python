@@ -17,7 +17,7 @@ A nested name that two error-details schemas both define carries the
 defining file in its name (``ScopeFromRateLimited``) instead of a bare one.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:27 UTC
+Generation date: 2026-10-30 14:25:41 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -60,7 +60,6 @@ from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
 from adcp.types.domains.enums.billing_party import BillingParty
 from adcp.types.domains.enums.catalog_type import CatalogType
 from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
-from adcp.types.domains.enums.definition_pin_ref_kind import DefinitionPinReferenceKind
 from adcp.types.domains.enums.event_type import EventType
 from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
 from adcp.types.domains.enums.macro_mapping_status import MacroMappingStatus
@@ -126,9 +125,6 @@ from adcp.types.domains.error_details.price_adjustments_mismatch import (
 from adcp.types.domains.error_details.rate_limited import (
     RateLimitedDetails,
     Scope as ScopeFromRateLimited,
-)
-from adcp.types.domains.error_details.reference_definition_changed import (
-    ReferenceDefinitionChangedDetails,
 )
 from adcp.types.domains.error_details.requote_required import (
     EnvelopeField,
@@ -214,7 +210,6 @@ __all__ = [
     "CreativeRepresentationUnresolvedDetails",
     "CreativeReviewSla",
     "CreativeRevisionContentMismatchDetails",
-    "DefinitionPinReferenceKind",
     "DocumentRole",
     "DownstreamConnectionRequirement",
     "EnvelopeField",
@@ -257,7 +252,6 @@ __all__ = [
     "ReasonFromAgentPermissionDenied",
     "ReasonFromExecutionRequirementUnmet",
     "Recovery",
-    "ReferenceDefinitionChangedDetails",
     "Rejection",
     "RepresentationRejection",
     "RequoteRequiredDetails",
