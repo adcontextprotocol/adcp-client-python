@@ -316,7 +316,7 @@ def _is_adcp_32_or_newer(version: str | None) -> bool:
     """Whether a response is served at release 3.2 or later (3.3 included).
 
     An unnegotiated response is the SDK's own release, which is 3.2 or later.
-    Bundle precision (``3.3.0-beta.1``) and wire precision (``3.3-beta.1``)
+    Bundle precision (``3.3.0-beta.2``) and wire precision (``3.3-beta.2``)
     compare the same; a prerelease counts as its line.
     """
     if version is None:

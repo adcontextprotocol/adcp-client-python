@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -61,9 +61,6 @@ from adcp.types.domains.error_details.price_adjustments_mismatch import (
     PriceAdjustmentsMismatchDetails,
 )
 from adcp.types.domains.error_details.rate_limited import RateLimitedDetails
-from adcp.types.domains.error_details.reference_definition_changed import (
-    ReferenceDefinitionChangedDetails,
-)
 from adcp.types.domains.error_details.requote_required import (
     EnvelopeField,
     EnvelopeField1,
@@ -138,7 +135,6 @@ __all__ = [
     "PriceAdjustmentsMismatchDetails",
     "RateLimitedDetails",
     "Recovery",
-    "ReferenceDefinitionChangedDetails",
     "Rejection",
     "RequoteRequiredDetails",
     "StaleResponseDetails",
