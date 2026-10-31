@@ -220,3 +220,52 @@ async def test_a_quiet_pass_logs_nothing_and_still_records_its_counters(
         "protected": 0,
         "held": 0,
     }
+
+
+async def test_failing_owed_sets_raise_a_closed_signal_and_never_stop_the_turn(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A subscription whose owed set fails every turn is visible to operators."""
+
+    class OwedSets:
+        async def production_owed_sets(self, producer_keys: Any) -> tuple[str, ...]:
+            return ("owed-ok", "owed-secret-account", "owed-ok-2")
+
+    class Producer:
+        def __init__(self) -> None:
+            self.ran: list[str] = []
+
+        async def run_configuration(self, configuration: str) -> None:
+            self.ran.append(configuration)
+            if "secret" in configuration:
+                raise RuntimeError("acct-secret token=SECRET")
+
+    worker = service(OwedSets())
+    worker._producer_keys = lambda: ("producer",)  # type: ignore[method-assign]
+    producer = Producer()
+    with caplog.at_level(logging.WARNING, logger="adcp.reporting.production"):
+        await worker._run_owed_sets(producer)  # type: ignore[arg-type]
+    # The others still ran; only integer counters are recorded.
+    assert producer.ran == ["owed-ok", "owed-secret-account", "owed-ok-2"]
+    (record,) = [
+        r
+        for r in caplog.records
+        if getattr(r, "code", "") == "REPORTING_PRODUCTION_OWED_SET_FAILED"
+    ]
+    assert (record.failed, record.total) == (1, 3)
+    assert "secret" not in record.getMessage().lower() and record.exc_info is None
+    caplog.clear()
+    healthy = service(OwedSets())
+    healthy._producer_keys = lambda: ("producer",)  # type: ignore[method-assign]
+
+    class Healthy(Producer):
+        async def run_configuration(self, configuration: str) -> None:
+            self.ran.append(configuration)
+
+    with caplog.at_level(logging.WARNING, logger="adcp.reporting.production"):
+        await healthy._run_owed_sets(Healthy())  # type: ignore[arg-type]
+    assert not [
+        r
+        for r in caplog.records
+        if getattr(r, "code", "") == "REPORTING_PRODUCTION_OWED_SET_FAILED"
+    ]

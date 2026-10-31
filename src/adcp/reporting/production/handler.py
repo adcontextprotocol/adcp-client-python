@@ -212,13 +212,33 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             names.add("sync_reporting_status")
         return names | set(self._application_tools & _APPLICATION_TASKS)
 
+    async def _subscription_grant(
+        self, task: str, request: dict[str, Any], context: ToolContext | None
+    ) -> ReportingDeliveryPrincipal | None:
+        """Check a reporting subscription's grant for ``task``; ``None`` when not served."""
+        hooks = getattr(self.production, "subscription_hooks", None)
+        if hooks is None or not isinstance(request.get("account"), dict):
+            return None
+        try:
+            caller = await self._authorize(request, context)
+            await hooks.require(caller, request, context, task)
+        except (ReportingReceiptError, LedgerConflictError) as error:
+            raise _task_error(task, error.code, str(error)) from None
+        return caller
+
     @_admitted
     async def get_reporting_status(
         self,
         params: GetReportingStatusRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -> dict[str, Any] | NotImplementedResponse:
-        return await super().get_reporting_status(params, context)
+        request = _request(params)
+        caller = await self._subscription_grant("get_reporting_status", request, context)
+        response = await super().get_reporting_status(params, context)
+        hooks = getattr(self.production, "subscription_hooks", None)
+        if caller is None or hooks is None or not isinstance(response, dict):
+            return response
+        return cast(dict[str, Any], await hooks.coverage(response, caller, request, context))
 
     @_admitted
     async def sync_reporting_receipts(
@@ -230,6 +250,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             raise _task_error(
                 "sync_reporting_receipts", "NOT_SUPPORTED", "receipt task is unavailable"
             )
+        await self._subscription_grant("sync_reporting_receipts", _request(params), context)
         return await super().sync_reporting_receipts(params, context)
 
     async def _authorize(
@@ -336,6 +357,9 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         try:
             request = _request(params)
             caller = await self._authorize(request, context)
+            hooks = getattr(self.production, "subscription_hooks", None)
+            if hooks is not None:
+                await hooks.require(caller, request, context, "sync_reporting_status")
             result = await ConsumerStatusIngest(self.production.store, enabled=True).handle(
                 request,
                 account_id=caller.account_id,
@@ -371,6 +395,9 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             if validator is None or next(validator.iter_errors(request), None) is not None:
                 raise LedgerConflictError("INVALID_REQUEST", "exact revision request is invalid")
             caller = await self._authorize(request, context)
+            hooks = getattr(self.production, "subscription_hooks", None)
+            if hooks is not None:
+                await hooks.require(caller, request, context, "get_media_buy_delivery")
             revision_id = request["reporting_revision_id"]
             status_request = {
                 "account": request["account"],

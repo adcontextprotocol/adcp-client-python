@@ -41,9 +41,13 @@ from typing import TYPE_CHECKING, Any
 
 from adcp._version import is_adcp_version_at_least, resolve_adcp_version_alias
 from adcp.reporting._errors import ReliableReportingConfigurationError
-from adcp.reporting.ledger.models import ReportingDefinitionBinding
+from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDefinitionBinding
 
 if TYPE_CHECKING:
+    from adcp.reporting.ledger.delivery_models import (
+        ReportingDeliveryPrincipal,
+        ReportingDestinationBinding,
+    )
     from adcp.reporting.subscriptions.engine import ReportingSubscriptionEngine
     from adcp.server.principal import PrincipalIdentity
 
@@ -72,6 +76,16 @@ class SubscriptionPlanningFailure:
 
 
 PlanningErrorHandler = Callable[[SubscriptionPlanningFailure], "Awaitable[None] | None"]
+#: Binds a reporting subscription's generation to its managed destination
+#: (production): called with the generation and its version's configuration,
+#: before the generation's first obligation is written. It resolves the
+#: version's ``destination.destination_id`` to the owner's current destination
+#: generation, authorizes it for the account and returns the binding, with the
+#: version's ``path_template``. A failure writes nothing; the next turn retries.
+ManagedGenerationBinder = Callable[
+    [ReportingConfiguration, Mapping[str, Any]],
+    "Awaitable[ReportingDestinationBinding] | ReportingDestinationBinding",
+]
 
 
 @dataclass(frozen=True)
@@ -93,6 +107,7 @@ class ReportingSubscriptionServiceOptions:
     resolve_principal: PrincipalResolver
     planning_error_handler: PlanningErrorHandler | None = None
     definitions: Mapping[str, ReportingDefinitionBinding] | None = None
+    bind_managed_generation: ManagedGenerationBinder | None = None
 
     def __post_init__(self) -> None:
         for name in ("list_principals", "resolve_principal"):
@@ -275,10 +290,68 @@ async def with_subscription_coverage(
     }
 
 
+class ProductionSubscriptionHooks:
+    """Per-task grant checks and coverage for the mounted production handler."""
+
+    def __init__(self, options: ReportingSubscriptionServiceOptions, store: Any) -> None:
+        self._options, self._store = options, store
+
+    async def require(
+        self, caller: ReportingDeliveryPrincipal, request: Any, context: Any, task: str
+    ) -> None:
+        await require_subscription_grant(
+            self._options,
+            self._store,
+            request=request,
+            context=context,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+            task=task,
+        )
+
+    async def coverage(
+        self,
+        response: dict[str, Any],
+        caller: ReportingDeliveryPrincipal,
+        request: Any,
+        context: Any,
+    ) -> dict[str, Any]:
+        return await with_subscription_coverage(
+            response,
+            self._options,
+            request=request,
+            context=context,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+        )
+
+
+def check_managed_binding(
+    binding: Any, configuration: ReportingConfiguration, version: Mapping[str, Any]
+) -> None:
+    """The binding a host returns must be this generation's, with the version's path."""
+    from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
+
+    destination = version.get("destination") or {}
+    if (
+        type(binding) is not ReportingDestinationBinding
+        or binding.generation_key != configuration.generation_key
+        or binding.consumer_id != configuration.consumer_id
+        or binding.feed_purpose != configuration.feed_purpose
+        or binding.path_template != destination.get("path_template")
+    ):
+        raise ReliableReportingConfigurationError(
+            "bind_managed_generation must return this generation's binding with the "
+            "version's destination path_template"
+        )
+
+
 __all__ = [
     "PlanningErrorHandler",
     "PrincipalLister",
     "PrincipalResolver",
+    "ManagedGenerationBinder",
+    "ProductionSubscriptionHooks",
     "ReportingSubscriptionServiceOptions",
     "SubscriptionPlanningFailure",
     "serves_subscriptions",
