@@ -123,6 +123,10 @@ class AuthorizedAccount:
     #: ``sync_reporting_receipts`` and ``sync_reporting_status``) rather than
     #: revoking; after revocation the account is unknown to every task.
     allowed_tasks: frozenset[str] | None = None
+    #: ``authorization.regranted_at`` (adcp#8618): the latest re-grant within
+    #: the current chain, when the host knows it. It dates a re-grant the
+    #: journal observes; ``authorized_at`` keeps the chain start.
+    regranted_at: datetime | None = None
 
     def __post_init__(self) -> None:
         require_zone(self.timezone, field="AuthorizedAccount.timezone")
@@ -203,6 +207,8 @@ class GrantObservation:
     authorized_at: datetime | None = None
     timezone: str | None = None
     operator: str | None = None
+    #: The served ``authorization.regranted_at`` (adcp#8618), when shown.
+    regranted_at: datetime | None = None
 
 
 class AccountConfigsEnder(Protocol):
@@ -910,14 +916,15 @@ class ReportingSubscriptionEngine:
             if item.timezone is not None:
                 require_zone(item.timezone, field="timezone")
             reported = None if item.authorized_at is None else utc_instant(item.authorized_at)
-            prepared.append((item, tasks, _covers(tasks), reported))
+            regranted = None if item.regranted_at is None else utc_instant(item.regranted_at)
+            prepared.append((item, tasks, _covers(tasks), reported, regranted))
 
         regressions: list[tuple[str, datetime]] = []
 
         def change(state: _PrincipalState) -> dict[str, datetime | None]:
             regressions.clear()  # the change may rerun on a write conflict
             served: dict[str, datetime | None] = {}
-            for item, tasks, covered, reported in prepared:
+            for item, tasks, covered, reported, regranted in prepared:
                 account = state.accounts.get(item.account_id)
                 if account is None:
                     if not covered:
@@ -926,7 +933,12 @@ class ReportingSubscriptionEngine:
                     account = _Account(timezone=item.timezone, operator=item.operator)
                     state.accounts[item.account_id] = account
                 if self._observe(
-                    account, covered=covered, reported=reported, at=instant, source="listed"
+                    account,
+                    covered=covered,
+                    reported=reported,
+                    at=instant,
+                    source="listed",
+                    regranted=regranted,
                 ):
                     assert reported is not None
                     regressions.append((item.account_id, reported))
@@ -1108,6 +1120,7 @@ class ReportingSubscriptionEngine:
         reported: datetime | None,
         at: datetime,
         source: str,
+        regranted: datetime | None = None,
     ) -> bool:
         """Apply one observation of a grant to the journal; ``True`` if it regressed.
 
@@ -1124,10 +1137,15 @@ class ReportingSubscriptionEngine:
         if not account.authorized:
             lost = account.grants[-1].unauthorized_at if account.grants else None
             # adcp#8585: authorized_at is the chain start. A later one is a new
-            # grant dated then; an unchanged one is a re-grant within
-            # retention, which the wire does not date, so it is stamped when
+            # grant dated then. An unchanged one is a re-grant within retention:
+            # the host's regranted_at (adcp#8618) dates it when it falls between
+            # the loss and this observation; otherwise it is stamped when
             # observed.
-            if reported is not None and (lost is None or reported > lost):
+            if regranted is not None:
+                regranted = utc_instant(regranted, field="regranted_at")
+            if regranted is not None and lost is not None and lost < regranted <= at:
+                granted = regranted
+            elif reported is not None and (lost is None or reported > lost):
                 granted = min(reported, at)
             else:
                 granted = at
@@ -1246,6 +1264,7 @@ class ReportingSubscriptionEngine:
                     reported=item.authorized_at,
                     at=instant,
                     source="listed",
+                    regranted=item.regranted_at,
                 ):
                     regressions.append((account_id, item.authorized_at))
                 account.set_timezone(item.timezone, instant)

@@ -255,6 +255,34 @@ async def require_subscription_grant(
         )
 
 
+def assert_reporting_task_granted(account: Any, task: str) -> None:
+    """Refuse ``task`` on a resolved account whose grant leaves it out (adcp#8619).
+
+    Coverage depends only on ``get_reporting_status``, so a grant without
+    ``sync_reporting_receipts`` or ``sync_reporting_status`` keeps the account
+    covered, and the seller refuses the missing task for that account with
+    ``SCOPE_INSUFFICIENT``, not as an unknown identifier. ``account`` is the
+    resolved account (model or mapping) with its ``authorization``; an absent
+    authorization, or one whose ``allowed_tasks`` restricts nothing, passes.
+    The TypeScript SDK's ``assertReportingTaskGrantedV1``.
+    """
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    if hasattr(account, "model_dump"):
+        account = account.model_dump(mode="json", exclude_none=True)
+    authorization: Any = account.get("authorization") if isinstance(account, Mapping) else None
+    if authorization is not None and hasattr(authorization, "model_dump"):
+        authorization = authorization.model_dump(mode="json", exclude_none=True)
+    allowed = authorization.get("allowed_tasks") if isinstance(authorization, Mapping) else None
+    if allowed is None or task in {str(getattr(item, "value", item)) for item in allowed}:
+        return
+    account_id = account.get("account_id") if isinstance(account, Mapping) else None
+    raise LedgerConflictError(
+        "SCOPE_INSUFFICIENT",
+        f"the caller's grant on account {account_id!r} does not include {task}",
+    )
+
+
 async def with_subscription_coverage(
     response: dict[str, Any],
     options: ReportingSubscriptionServiceOptions,
@@ -355,5 +383,6 @@ __all__ = [
     "ReportingSubscriptionServiceOptions",
     "SubscriptionOptions",
     "SubscriptionPlanningFailure",
+    "assert_reporting_task_granted",
     "serves_subscriptions",
 ]

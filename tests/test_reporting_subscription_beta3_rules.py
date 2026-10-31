@@ -277,3 +277,45 @@ def test_a_destination_offering_without_account_id_keys_is_warned(caplog) -> Non
         [{**_offering("off-api", "utc"), "reporting_profile": {"id": "delivery"}}], {}
     )
     assert not caplog.records
+
+
+def test_assert_reporting_task_granted_refuses_an_unlisted_task() -> None:
+    from adcp.reporting.advanced import assert_reporting_task_granted
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    partial = {
+        "account_id": "acct-1",
+        "authorization": {"allowed_tasks": ["get_reporting_status"]},
+    }
+    with pytest.raises(LedgerConflictError) as refused:
+        assert_reporting_task_granted(partial, "sync_reporting_receipts")
+    assert refused.value.code == "SCOPE_INSUFFICIENT"
+    assert_reporting_task_granted(partial, "get_reporting_status")
+    assert_reporting_task_granted({"account_id": "acct-1"}, "sync_reporting_status")
+    assert_reporting_task_granted(
+        {"account_id": "acct-1", "authorization": {"read_only": False}}, "sync_reporting_status"
+    )
+
+
+def test_a_package_keeps_its_resolution_until_the_offering_is_withdrawn() -> None:
+    from adcp.reporting.advanced import resolve_reporting_subscription_package
+
+    first = SubscriptionOffering.from_offering(
+        {**_offering("off-a", "utc"), "withdrawn_at": "2026-11-05T00:00:00Z"}
+    )
+    later = SubscriptionOffering.from_offering(
+        {**_offering("off-b", "utc"), "available_from": "2026-11-03T00:00:00Z"}
+    )
+    selector = _billing(1, "utc")
+    common = dict(
+        offerings=[first, later],
+        product_offering_ids=("off-a", "off-b"),
+        resolves_at=at("2026-11-01T00:00:00Z"),
+    )
+    pick = lambda when: [  # noqa: E731
+        item.offering_id
+        for item in resolve_reporting_subscription_package(selector, at=at(when), **common)
+    ]
+    # off-b appearing never re-resolves the package; off-a's withdrawal does.
+    assert pick("2026-11-04T00:00:00Z") == ["off-a"]
+    assert pick("2026-11-06T00:00:00Z") == ["off-b"]

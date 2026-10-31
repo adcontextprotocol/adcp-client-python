@@ -23,6 +23,7 @@ from adcp.reporting.service_subscriptions import (
     ProductionSubscriptionHooks,
     ReportingSubscriptionServiceOptions,
     SubscriptionPlanningFailure,
+    assert_reporting_task_granted,
 )
 from adcp.reporting.subscriptions._clock import COVERAGE_INPUT_DETAILS, CoverageInputError
 from adcp.reporting.subscriptions.capabilities import (
@@ -91,10 +92,12 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionOffering,
     SubscriptionResolution,
     SubscriptionSelector,
+    resolve_reporting_subscription_package,
     resolve_subscription_offerings,
 )
 
 __all__ = [
+    "assert_reporting_task_granted",
     # Engine
     "ENGINE_ERROR_CODES",
     "AccountConfigsEnder",
@@ -144,6 +147,7 @@ __all__ = [
     "SubscriptionOffering",
     "SubscriptionResolution",
     "SubscriptionSelector",
+    "resolve_reporting_subscription_package",
     "resolve_subscription_offerings",
     # Capability builder
     "ReportingSubscriptionSupport",

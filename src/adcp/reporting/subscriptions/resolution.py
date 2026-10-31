@@ -510,6 +510,51 @@ def resolve_subscription_offerings(
     )
 
 
+def resolve_reporting_subscription_package(
+    subscription: Any,
+    offerings: Sequence[SubscriptionOffering],
+    *,
+    product_offering_ids: Iterable[str],
+    resolves_at: datetime,
+    at: datetime,
+    destination: Any | None = None,
+) -> tuple[SubscriptionOffering, ...]:
+    """Sticky per-package resolution (adcp#8619), shared by buyer and seller.
+
+    The offerings one package resolves to at ``at``. The package resolves once,
+    at ``resolves_at`` (the later of the version's ``accepted_at`` and the
+    buy's ``confirmed_at``), among the offerings available then, and keeps that
+    resolution until a resolved offering is withdrawn: an offering added later
+    never re-resolves it. At a withdrawal the package re-resolves among the
+    offerings then available, which is a cutover. The TypeScript SDK's
+    ``resolveReportingSubscriptionPackageV1``.
+    """
+    selector = (
+        subscription
+        if isinstance(subscription, SubscriptionSelector)
+        else SubscriptionSelector.from_subscription(subscription)
+    )
+    listed = tuple(product_offering_ids)
+    resolved_at = utc_instant(resolves_at, field="resolves_at")
+    instant = utc_instant(at, field="at")
+    while True:
+        chosen = resolve_subscription_offerings(
+            selector,
+            offerings,
+            product_offering_ids=listed,
+            destination=destination,
+            at=resolved_at,
+        ).offerings
+        withdrawals = [
+            item.withdrawn_at
+            for item in chosen
+            if item.withdrawn_at is not None and resolved_at < item.withdrawn_at <= instant
+        ]
+        if not withdrawals:
+            return chosen
+        resolved_at = min(withdrawals)
+
+
 __all__ = [
     "STANDARD_REPORTING_DIMENSIONS",
     "UTC_ZONE_NAMES",
@@ -518,5 +563,6 @@ __all__ = [
     "SubscriptionOffering",
     "SubscriptionResolution",
     "SubscriptionSelector",
+    "resolve_reporting_subscription_package",
     "resolve_subscription_offerings",
 ]

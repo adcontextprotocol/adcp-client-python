@@ -20,6 +20,7 @@ import pytest
 
 from adcp.exceptions import ADCPTaskError
 from adcp.reporting import PrincipalRef
+from adcp.reporting.advanced import GrantObservation
 from adcp.reporting.subscriptions import (
     AuthorizedAccount,
     ReportingSubscriptionEngine,
@@ -151,13 +152,14 @@ async def test_grant_transitions_through_the_engine(case: dict[str, Any]) -> Non
         if tasks == "revoked":
             host.accounts.pop("account-a", None)
         else:
+            # The wire keeps authorized_at at the chain start and dates a
+            # re-grant inside it with regranted_at (adcp#8618).
             host.accounts["account-a"] = AuthorizedAccount(
                 "account-a",
                 timezone="UTC",
-                authorized_at=at(step.get("granted_at", "2026-08-01T00:00:00Z"))
-                if "granted_at" in step
-                else authorized_at,
+                authorized_at=authorized_at,
                 allowed_tasks=None if tasks is None else frozenset(tasks),
+                regranted_at=at(step["regranted_at"]) if "regranted_at" in step else None,
             )
         await engine.reconcile(IDENTITY, now=at(step["at"]))
     expected = case["expected"]
@@ -355,3 +357,29 @@ async def test_an_authorization_without_allowed_tasks_is_observed_as_a_full_gran
     listed = await world.platform.list_accounts({}, _ctx())
     assert listed["accounts"][0]["authorization"]["authorized_at"] == "2026-10-01T00:00:00Z"
     assert world.service._managed.engine.authorized_at_regressions == 1
+
+
+@pytest.mark.asyncio
+async def test_the_hosts_regranted_at_dates_a_regrant_inside_the_chain() -> None:
+    # adcp#8618: the host keeps authorized_at at the chain start and reports the
+    # re-grant as regranted_at; the journal dates the re-grant from it, not from
+    # when it happened to observe it.
+    engine, host, _principals = await _engine()
+    start = at("2026-08-01T00:00:00Z")
+    host.accounts["account-a"] = AuthorizedAccount("account-a", timezone="UTC", authorized_at=start)
+    await engine.reconcile(IDENTITY, now=at("2026-09-01T00:00:00Z"))
+    host.accounts.pop("account-a")
+    await engine.reconcile(IDENTITY, now=at("2026-09-02T00:00:00Z"))
+    host.accounts["account-a"] = AuthorizedAccount(
+        "account-a", timezone="UTC", authorized_at=start, regranted_at=at("2026-09-03T06:00:00Z")
+    )
+    await engine.reconcile(IDENTITY, now=at("2026-09-04T00:00:00Z"))
+    regrants: dict = {}
+    served = await engine.observe_grants(
+        IDENTITY,
+        [GrantObservation("account-a", None, start)],
+        at=at("2026-09-04T00:00:00Z"),
+        regrants=regrants,
+    )
+    assert served["account-a"] == start
+    assert regrants["account-a"] == at("2026-09-03T06:00:00Z")

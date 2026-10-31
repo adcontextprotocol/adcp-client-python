@@ -81,7 +81,7 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionSelector,
     _text,
     _value,
-    resolve_subscription_offerings,
+    resolve_reporting_subscription_package,
 )
 
 #: Exclusion reasons that remove periods. ``package_ids`` entries never do.
@@ -1159,8 +1159,13 @@ def _regimes(
             first_resolved = max(first_resolved, buy.confirmed_at)
         found: dict[str, SubscriptionOffering] = {}
         for _package_id, offering_ids in buy.product_offering_ids():
-            for item in _sticky_resolution(
-                selector, offerings, offering_ids, destination, first_resolved, start
+            for item in resolve_reporting_subscription_package(
+                selector,
+                offerings,
+                product_offering_ids=offering_ids,
+                destination=destination,
+                resolves_at=first_resolved,
+                at=start,
             ):
                 found[item.offering_id] = item
         resolved = tuple(
@@ -1204,40 +1209,6 @@ def _regimes(
             regime.cutover = predecessor is not None and bool(predecessor.resolved)
         regimes.append(regime)
     return regimes
-
-
-def _sticky_resolution(
-    selector: SubscriptionSelector,
-    offerings: Sequence[SubscriptionOffering],
-    offering_ids: Sequence[str],
-    destination: Any,
-    first_resolved: datetime,
-    at: datetime,
-) -> tuple[SubscriptionOffering, ...]:
-    """The offerings one package resolves to at ``at`` (adcp#8619).
-
-    The package resolves once, at ``first_resolved``, among the offerings
-    available then; an offering added later never re-resolves it. Withdrawal of
-    a resolved offering is the one change: the package re-resolves among the
-    offerings available at ``withdrawn_at``.
-    """
-    resolved_at = first_resolved
-    while True:
-        chosen = resolve_subscription_offerings(
-            selector,
-            offerings,
-            product_offering_ids=offering_ids,
-            destination=destination,
-            at=resolved_at,
-        ).offerings
-        withdrawals = [
-            item.withdrawn_at
-            for item in chosen
-            if item.withdrawn_at is not None and resolved_at < item.withdrawn_at <= at
-        ]
-        if not withdrawals:
-            return chosen
-        resolved_at = min(withdrawals)
 
 
 def _regime_before_deactivation(

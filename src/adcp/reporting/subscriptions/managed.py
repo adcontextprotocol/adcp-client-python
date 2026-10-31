@@ -934,10 +934,12 @@ class ManagedSubscriptions:
             authorization = account.get("authorization")
             tasks = None
             authorized_at = now
+            regranted_at = None
             if isinstance(authorization, Mapping):
                 if authorization.get("allowed_tasks") is not None:
                     tasks = frozenset(str(item) for item in authorization["allowed_tasks"])
                 authorized_at = _instant(authorization.get("authorized_at")) or now
+                regranted_at = _instant(authorization.get("regranted_at"))
             accounts.append(
                 AuthorizedAccount(
                     account_id=str(account_id),
@@ -945,6 +947,7 @@ class ManagedSubscriptions:
                     authorized_at=authorized_at,
                     operator=account.get("operator"),
                     allowed_tasks=tasks,
+                    regranted_at=regranted_at,
                 )
             )
         pagination = response.get("pagination") or {}
@@ -1065,6 +1068,7 @@ class ManagedSubscriptions:
                         _instant(authorization.get("authorized_at")),
                         raw.get("timezone") or None,
                         raw.get("operator"),
+                        _instant(authorization.get("regranted_at")),
                     )
                 )
         regrants: dict[str, datetime | None] = {}
