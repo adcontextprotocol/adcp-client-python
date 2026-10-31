@@ -27,7 +27,7 @@ class Disclosure(AdcpVersionEnvelope):
     text: Annotated[str | None, NoExplicitNull] = None
 
 
-class AcquireRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class AcquireRightsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['acquired'] = 'acquired'
@@ -43,7 +43,7 @@ class AcquireRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class AcquireRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class AcquireRightsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['pending_approval'] = 'pending_approval'
@@ -54,7 +54,7 @@ class AcquireRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class AcquireRightsResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class AcquireRightsResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['rejected'] = 'rejected'
@@ -65,7 +65,7 @@ class AcquireRightsResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class AcquireRightsResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class AcquireRightsResponse4(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

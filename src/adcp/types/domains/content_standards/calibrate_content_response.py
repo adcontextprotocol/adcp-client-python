@@ -29,7 +29,7 @@ class Feature(AdcpVersionEnvelope):
     confidence: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
 
 
-class CalibrateContentResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class CalibrateContentResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     verdict: binary_verdict_1.BinaryVerdict
     confidence: Annotated[Annotated[float, Field(ge=0, le=1)] | None, NoExplicitNull] = None
@@ -39,7 +39,7 @@ class CalibrateContentResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvel
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class CalibrateContentResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class CalibrateContentResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

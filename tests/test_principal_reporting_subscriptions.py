@@ -16,7 +16,7 @@ from adcp.server import (
 )
 
 IDENTITY = PrincipalIdentity("https://buyer.example/agent", "buyer_agent")
-BETA_2 = SimpleNamespace(resolved_adcp_version="3.3-beta.2")
+BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.3")
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 DESTINATION = {
     "pattern": "file_transfer",
@@ -190,6 +190,7 @@ async def test_new_version_records_prior_versions() -> None:
             "subscription_version": 1,
             "accepted_at": "2026-10-01T12:00:00Z",
             "superseded_at": "2026-10-03T12:00:00Z",
+            "configuration": subscription(),
         }
     ]
     clock.advance(days=1)
@@ -250,7 +251,7 @@ async def test_readback_lists_inactive_intervals() -> None:
     await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
     clock.advance(hours=24)
     reactivated = await sync(
-        principals, {"reporting_subscriptions": [subscription()]}, context=BETA_2
+        principals, {"reporting_subscriptions": [subscription()]}, context=BETA_3
     )
     state = states(reactivated)["analytics-daily"]
     assert state["state"] == "active" and "deactivated_at" not in state
@@ -258,18 +259,16 @@ async def test_readback_lists_inactive_intervals() -> None:
         {"deactivated_at": "2026-10-01T17:00:00Z", "reactivated_at": "2026-10-02T17:00:00Z"}
     ]
     clock.advance(hours=1)
-    omitted = await sync(principals, {"reporting_subscriptions": []}, context=BETA_2)
+    omitted = await sync(principals, {"reporting_subscriptions": []}, context=BETA_3)
     state = states(omitted)["analytics-daily"]
     assert state["inactive_intervals"][-1] == {"deactivated_at": "2026-10-02T18:00:00Z"}
     assert state["deactivated_at"] == "2026-10-02T18:00:00Z"
-    current = await principals.get_principal(IDENTITY, context=BETA_2)
+    current = await principals.get_principal(IDENTITY, context=BETA_3)
     read = current.result.configuration.reporting_subscriptions[0]
     assert len(read.inactive_intervals) == 2
-    # A caller served 3.3.0-beta.1 (or with no known release) never sees the
-    # field, so the response validates against the pinned schema.
-    for context in (None, SimpleNamespace(resolved_adcp_version="3.3-beta.1")):
-        older = await principals.get_principal(IDENTITY, context=context)
-        assert older.result.configuration.reporting_subscriptions[0].inactive_intervals is None
+    # The field is generated from the pinned schema: no caller has it projected away.
+    unversioned = await principals.get_principal(IDENTITY)
+    assert len(unversioned.result.configuration.reporting_subscriptions[0].inactive_intervals) == 2
 
 
 @pytest.mark.asyncio
@@ -671,12 +670,12 @@ async def test_inactive_intervals_are_never_dropped() -> None:
     clock.advance(hours=1)
     response = await sync(principals, {"reporting_subscriptions": [subscription(active=False)]})
     assert error_code(response) == "INVALID_REQUEST"
-    current = await principals.get_principal(IDENTITY, context=BETA_2)
+    current = await principals.get_principal(IDENTITY, context=BETA_3)
     assert len(current.result.configuration.reporting_subscriptions[0].inactive_intervals) == 64
 
 
 @pytest.mark.asyncio
-async def test_prior_versions_carry_their_configuration_for_beta_2() -> None:
+async def test_prior_versions_carry_their_configuration() -> None:
     principals, clock = service()
     await sync(principals, {"reporting_subscriptions": [subscription()]})
     clock.advance(days=1)
@@ -688,14 +687,12 @@ async def test_prior_versions_carry_their_configuration_for_beta_2() -> None:
             ]
         },
     )
-    served = await principals.get_principal(IDENTITY, context=BETA_2)
+    served = await principals.get_principal(IDENTITY, context=BETA_3)
     (prior,) = served.result.configuration.reporting_subscriptions[0].prior_versions
     assert prior.configuration.subscription_version == 1
-    older = await principals.get_principal(IDENTITY)
-    assert (
-        older.result.configuration.reporting_subscriptions[0].prior_versions[0].configuration
-        is None
-    )
+    unversioned = await principals.get_principal(IDENTITY)
+    (prior,) = unversioned.result.configuration.reporting_subscriptions[0].prior_versions
+    assert prior.configuration.subscription_version == 1
 
 
 @pytest.mark.asyncio

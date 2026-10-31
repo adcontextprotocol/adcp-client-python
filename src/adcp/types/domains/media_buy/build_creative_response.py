@@ -135,7 +135,7 @@ class Estimate(AdcpVersionEnvelope):
     per_leaf: Annotated[list[PerLeaf] | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifest: creative_manifest_1.CreativeManifest
     build_variant_id: Annotated[str | None, NoExplicitNull] = None
@@ -153,14 +153,14 @@ class BuildCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifests: Annotated[list[creative_manifest_1.CreativeManifest], Field(min_length=1)]
     sandbox: Annotated[bool | None, NoExplicitNull] = None
@@ -176,7 +176,7 @@ class BuildCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse4(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creatives: Annotated[list[Creative], Field(min_length=1)]
     items_total: Annotated[Annotated[int, Field(ge=0)] | None, NoExplicitNull] = None
@@ -195,7 +195,7 @@ class BuildCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse5(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse5(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     mode: Literal['estimate'] = 'estimate'
     estimate: Estimate
@@ -204,11 +204,10 @@ class BuildCreativeResponse5(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class BuildCreativeResponse6(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class BuildCreativeResponse6(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    task_id: Annotated[str, StringConstraints(min_length=1)]
     errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None

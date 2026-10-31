@@ -11,7 +11,6 @@ from typing import Annotated, Any, TypeAlias
 from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field
 
-from ..core.version_envelope import AdcpVersionEnvelope
 from . import rights_terms as rights_terms_1
 from ..core import context as context_1
 from ..core import error as error_1
@@ -20,7 +19,7 @@ from ..core import generation_credential as generation_credential_1
 from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class UpdateRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateRightsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     terms: rights_terms_1.RightsTerms
@@ -34,7 +33,7 @@ class UpdateRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope)
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class UpdateRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateRightsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

@@ -1044,6 +1044,28 @@ class TestHandleTestController:
                 None,
                 {"operation": "advance_time", "target_health": "delayed"},
             ),
+            (
+                "reporting_subscription_probe",
+                {
+                    "operation": "reduce_grant",
+                    "account_id": "acct-1",
+                    "allowed_tasks": ["get_reporting_status", "sync_reporting_receipts"],
+                },
+                None,
+                {"operation": "reduce_grant", "account_id": "acct-1"},
+            ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "set_account_timezone", "account_id": "acct-1", "timezone": "UTC"},
+                None,
+                {"timezone": "UTC"},
+            ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "advance_time", "target_time": "2026-11-01T00:00:00Z"},
+                None,
+                {"target_time": "2026-11-01T00:00:00Z"},
+            ),
         ],
     )
     @pytest.mark.asyncio
@@ -1134,6 +1156,18 @@ class TestHandleTestController:
                 "reporting_core_lifecycle_probe",
                 {"operation": "prepare", "target_health": "delayed"},
             ),
+            ("reporting_subscription_probe", {"operation": "revoke_grant"}),
+            ("reporting_subscription_probe", {"operation": "reduce_grant", "account_id": "a"}),
+            (
+                "reporting_subscription_probe",
+                {"operation": "regrant", "account_id": "a", "allowed_tasks": ["x"]},
+            ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "revoke_grant", "account_id": "a", "timezone": "UTC"},
+            ),
+            ("reporting_subscription_probe", {"operation": "advance_time"}),
+            ("reporting_subscription_probe", {"operation": "publish_adjustment"}),
         ],
     )
     @pytest.mark.asyncio

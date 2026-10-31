@@ -315,25 +315,23 @@ def _capabilities() -> dict[str, Any]:
 async def test_capabilities_follow_the_served_release() -> None:
     seller = _Seller()
     await seller.service.configure(_configuration())
-    beta_1 = seller.service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.1")
-    block = beta_1["media_buy"]["reporting_delivery"]
+    beta_3 = seller.service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.3")
+    block = beta_3["media_buy"]["reporting_delivery"]
     assert block["configuration_tasks"] == ["sync_principal", "sync_accounts"]
     assert block["configuration_task"] == "sync_accounts"
     assert block["subscriptions"] == {"supported": True, "dimensions": ["package"]}
-    # adcp#8585 offering fields reach only 3.3.0-beta.2 callers.
-    assert "standard_dimensions" not in block["offerings"][0]
-    assert "media_buy.reporting_subscriptions" in beta_1["experimental_features"]
-    assert "reporting_subscriptions" in beta_1["adcp"]["principal"]["supported_sections"]
-    beta_2 = seller.service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.2")
-    assert beta_2["media_buy"]["reporting_delivery"]["offerings"][0]["standard_dimensions"] == [
-        "package"
-    ]
-    # A 3.2 caller sees the pre-3.3 block.
-    older = seller.service.inject_capabilities(_capabilities(), adcp_version="3.2")
-    assert "configuration_tasks" not in older["media_buy"]["reporting_delivery"]
-    assert "subscriptions" not in older["media_buy"]["reporting_delivery"]
-    assert "media_buy.reporting_subscriptions" not in older["experimental_features"]
-    assert older["adcp"]["principal"]["supported_sections"] == ["destinations"]
+    assert block["offerings"][0]["standard_dimensions"] == ["package"]
+    assert "media_buy.reporting_subscriptions" in beta_3["experimental_features"]
+    assert "reporting_subscriptions" in beta_3["adcp"]["principal"]["supported_sections"]
+    # A caller served before 3.3.0-beta.3 (a superseded beta, or 3.2) sees the
+    # block without the subscription surface.
+    for version in ("3.3-beta.2", "3.2"):
+        older = seller.service.inject_capabilities(_capabilities(), adcp_version=version)
+        assert "configuration_tasks" not in older["media_buy"]["reporting_delivery"]
+        assert "subscriptions" not in older["media_buy"]["reporting_delivery"]
+        assert "standard_dimensions" not in older["media_buy"]["reporting_delivery"]["offerings"][0]
+        assert "media_buy.reporting_subscriptions" not in older["experimental_features"]
+        assert older["adcp"]["principal"]["supported_sections"] == ["destinations"]
 
 
 @pytest.mark.asyncio
@@ -344,7 +342,7 @@ async def test_coverage_is_served_from_3_3_only() -> None:
     )
     await seller.service.run_worker(now=NOW)
     served = await seller.status(
-        AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.3-beta.1")
+        AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.3-beta.3")
     )
     assert served["subscription_coverage"][0]["status"] == "active"
     older = await seller.status(AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.2"))
@@ -405,7 +403,7 @@ async def test_without_the_option_nothing_changes() -> None:
     await service.configure(_configuration())
     turn = await service.run_worker(now=NOW)
     assert turn.subscription_obligations_written == 0 and turn.subscription_errors == {}
-    capabilities = service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.2")
+    capabilities = service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.3")
     block = capabilities["media_buy"]["reporting_delivery"]
     assert "configuration_tasks" not in block and "subscriptions" not in block
     assert "standard_dimensions" not in block["offerings"][0]

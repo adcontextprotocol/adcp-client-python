@@ -72,7 +72,7 @@ class Preview3(AdcpVersionEnvelope):
     renders: Annotated[list[preview_render_1.PreviewRender], Field(min_length=1)]
 
 
-class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
@@ -83,7 +83,7 @@ class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['batch'] = 'batch'
     results: Annotated[list[Result], Field(min_length=1)]
@@ -91,7 +91,7 @@ class PreviewCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['variant'] = 'variant'
     variant_id: str
@@ -103,12 +103,11 @@ class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse4(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    response_type: Literal['submitted'] = 'submitted'
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    task_id: Annotated[str, StringConstraints(min_length=1)]
+    response_type: Literal['submitted'] = 'submitted'
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 

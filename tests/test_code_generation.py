@@ -2222,11 +2222,13 @@ def _write_response_arm_fixture(
     *,
     root_all_of: list[dict],
     arms: list[dict],
+    extra_schemas: dict[str, dict] | None = None,
 ):
     """Drive the response-arm emitter over a synthetic account response schema.
 
-    Only ``account/sync-accounts-response.json`` is materialized, so every other
-    entry in ``response_specs`` is skipped for missing schema/target.
+    Only ``account/sync-accounts-response.json`` is materialized (plus any
+    ``extra_schemas`` it composes), so every other entry in ``response_specs``
+    is skipped for missing schema/target.
     """
     import json
 
@@ -2257,6 +2259,10 @@ def _write_response_arm_fixture(
             }
         )
     )
+
+    for relative, extra in (extra_schemas or {}).items():
+        (schema_dir / relative).parent.mkdir(parents=True, exist_ok=True)
+        (schema_dir / relative).write_text(json.dumps(extra))
 
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
     monkeypatch.setattr(post_generate_fixes, "SCHEMA_DIR", schema_dir)
@@ -2332,6 +2338,70 @@ def test_root_all_of_protocol_envelope_reaches_every_one_of_arm(
     assert "from ..core.protocol_envelope import ProtocolEnvelope" in source
     for class_name in ("SyncAccountsResponse1", "SyncAccountsResponse2"):
         assert _arm_bases(source, class_name) == ["AdcpVersionEnvelope", "ProtocolEnvelope"]
+
+
+@pytest.mark.parametrize(
+    "task_submitted_ref",
+    [
+        "../core/task-submitted.json",
+        "https://adcontextprotocol.org/schemas/3.3.0-beta.3/core/task-submitted.json",
+    ],
+    ids=["relative", "canonical-url"],
+)
+def test_a_submitted_arm_composing_task_submitted_keeps_status_and_task_id(
+    tmp_path, monkeypatch, task_submitted_ref
+):
+    """From adcp#8547 a submitted branch composes ``core/task-submitted.json``.
+
+    ``status`` and ``task_id`` are no longer local properties of the branch.
+    The emitter folds the composed schema in, so the arm still pins ``status``
+    to ``submitted`` and requires ``task_id`` (3.3.0-beta.3 dropped both).
+    """
+    source = _write_response_arm_fixture(
+        tmp_path,
+        monkeypatch,
+        root_all_of=[{"$ref": "../core/protocol-envelope.json"}],
+        arms=[
+            _SUCCESS_ARM,
+            {
+                "type": "object",
+                "allOf": [{"$ref": task_submitted_ref}],
+                "properties": {"expected_confirmation_at": {"type": "string"}},
+            },
+        ],
+        extra_schemas={
+            "core/task-submitted.json": {
+                "type": "object",
+                "properties": {
+                    "status": {"const": "submitted"},
+                    "task_id": {"$ref": "task-id.json"},
+                },
+                "required": ["status", "task_id"],
+            },
+            "core/task-id.json": {"type": "string", "minLength": 1},
+        },
+    )
+
+    import ast
+
+    arm = next(
+        item
+        for item in ast.parse(source).body
+        if isinstance(item, ast.ClassDef) and item.name == "SyncAccountsResponse2"
+    )
+    fields = {
+        statement.target.id: statement
+        for statement in arm.body
+        if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name)
+    }
+    assert list(fields)[:2] == ["status", "task_id"]
+    assert "TaskStatus.submitted" in ast.unparse(fields["status"].annotation)
+    # core/task-id.json is a scalar alias: the field is the string itself.
+    assert ast.unparse(fields["task_id"].annotation) == (
+        "Annotated[str, StringConstraints(min_length=1)]"
+    )
+    assert fields["task_id"].value is None  # required: no default
+    assert "expected_confirmation_at" in fields
 
 
 def test_nested_root_all_of_protocol_envelope_is_detected(tmp_path, monkeypatch):

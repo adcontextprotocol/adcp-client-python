@@ -48,7 +48,7 @@ class EventSource(AdcpVersionEnvelope):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class SyncEventSourcesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncEventSourcesResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     event_sources: list[EventSource]
     sandbox: Annotated[bool | None, NoExplicitNull] = None
@@ -56,7 +56,7 @@ class SyncEventSourcesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvel
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class SyncEventSourcesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncEventSourcesResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

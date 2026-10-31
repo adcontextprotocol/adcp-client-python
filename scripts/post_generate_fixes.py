@@ -339,6 +339,40 @@ def _resolve_schema_ref(schema_rel: Path, ref: str) -> Path:
     return (SCHEMA_DIR / schema_rel.parent / file_ref).resolve().relative_to(SCHEMA_DIR.resolve())
 
 
+#: Scalar schemas referenced as the scalar itself (``SCALAR_ALIAS_SCHEMAS`` in
+#: scripts/generate_types.py).
+_SCALAR_ALIAS_SCHEMAS = frozenset({"core/task-id.json", "core/task-message.json"})
+
+#: Task-state schemas a response branch composes through ``allOf`` (adcp#8547).
+_TASK_STATE_SCHEMAS = frozenset(
+    {"core/task-submitted.json", "core/task-working.json", "core/task-input-required.json"}
+)
+
+
+def _rebase_relative_refs(node: Any, schema_rel: Path) -> Any:
+    """Copy ``node`` with each relative file ``$ref`` rewritten root-relative.
+
+    A property taken from a composed schema keeps resolving to the same file
+    when it is emitted from the composing schema's directory.
+    """
+    if isinstance(node, list):
+        return [_rebase_relative_refs(item, schema_rel) for item in node]
+    if not isinstance(node, dict):
+        return node
+    copied = {key: _rebase_relative_refs(value, schema_rel) for key, value in node.items()}
+    ref = copied.get("$ref")
+    if (
+        isinstance(ref, str)
+        and not ref.startswith(("#", "/"))
+        and "://" not in ref
+        and ref.split("#", 1)[0]
+    ):
+        file_part, sep, fragment = ref.partition("#")
+        target = _resolve_schema_ref(schema_rel, file_part)
+        copied["$ref"] = f"/schemas/{target.as_posix()}" + (sep + fragment if sep else "")
+    return copied
+
+
 def _sync_protocol_envelope_import(source: str) -> str:
     """Keep the ProtocolEnvelope import aligned with restored response arms."""
     uses_protocol_envelope = "ProtocolEnvelope" in source.replace(_PROTOCOL_ENVELOPE_IMPORT, "")
@@ -5839,6 +5873,9 @@ def restore_response_variant_aliases() -> None:
                 self.local_ref_types[ref] = typ
                 return typ
             ref_rel = _resolve_schema_ref(self.schema_rel, ref)
+            if ref_rel.as_posix() in _SCALAR_ALIAS_SCHEMAS:
+                # As scripts/generate_types.py SCALAR_ALIAS_SCHEMAS: the scalar itself.
+                return self.string_type(_load_schema(ref_rel))
             parts = list(ref_rel.parts)
             module_stem = ref_rel.stem.replace("-", "_")
             class_name = _generated_class_name(ref_rel)
@@ -6077,9 +6114,35 @@ def restore_response_variant_aliases() -> None:
                     return True
             return False
 
+        def composed_arm(self, arm: dict[str, Any]) -> tuple[dict[str, Any], set[str]]:
+            """The arm's properties and required set, with the task state it composes.
+
+            From adcp#8547 a submitted, working or input-required branch composes
+            ``core/task-submitted.json`` (or ``task-working`` /
+            ``task-input-required``) through its own ``allOf``, so ``status``
+            and ``task_id`` are no longer local properties of the branch. They
+            are folded in here, ahead of the branch's own properties, which
+            win. The protocol envelope stays a base class.
+            """
+            props: dict[str, Any] = {}
+            required: set[str] = set()
+            for part in arm.get("allOf") or ():
+                ref = part.get("$ref") if isinstance(part, dict) else None
+                if not isinstance(ref, str) or ref.startswith("#"):
+                    continue
+                ref_rel = _resolve_schema_ref(self.schema_rel, ref)
+                if ref_rel.as_posix() not in _TASK_STATE_SCHEMAS:
+                    continue
+                composed = _load_schema(ref_rel)
+                for name, prop_schema in (composed.get("properties") or {}).items():
+                    props[name] = _rebase_relative_refs(prop_schema, ref_rel)
+                required.update(composed.get("required") or ())
+            props.update(arm.get("properties") or {})
+            required.update(arm.get("required") or ())
+            return props, required
+
         def emit_response_class(self, class_name: str, arm: dict[str, Any]) -> str:
-            props = arm.get("properties") or {}
-            required = set(arm.get("required") or [])
+            props, required = self.composed_arm(arm)
             is_submitted = (
                 props.get("status", {}).get("const") == "submitted" and "task_id" in props
             )

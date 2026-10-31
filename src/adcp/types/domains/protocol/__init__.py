@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -81,6 +81,7 @@ from adcp.types.domains.protocol.get_adcp_capabilities_response import (
     Language,
     LaterProposals,
     LifecycleTool,
+    LiveUpdates,
     Localization,
     MajorVersion,
     MatchingLatencyHours,
@@ -190,7 +191,13 @@ from adcp.types.domains.protocol.get_task_status_response import (
     HistoryItem,
     Progress,
 )
-from adcp.types.domains.protocol.list_tasks_request import Field1, Filters, ListTasksRequest, Sort
+from adcp.types.domains.protocol.list_tasks_request import (
+    Field1,
+    Filters,
+    ListTasksRequest,
+    Sort,
+    TaskId,
+)
 from adcp.types.domains.protocol.list_tasks_response import (
     Direction,
     Domain,
@@ -296,6 +303,7 @@ __all__ = [
     "LifecycleTool",
     "ListTasksRequest",
     "ListTasksResponse",
+    "LiveUpdates",
     "Localization",
     "MajorVersion",
     "MatchingLatencyHours",
@@ -386,6 +394,7 @@ __all__ = [
     "SyncPrincipalResponse",
     "Targeting",
     "Task",
+    "TaskId",
     "Tasks",
     "Tasks1",
     "Tasks2",

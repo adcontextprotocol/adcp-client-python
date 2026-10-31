@@ -16,6 +16,7 @@ from ..core import account as account_1
 from ..core import context as context_1
 from ..core import creative_localization_readback as creative_localization_readback_1
 from ..core import creative_revision_id as creative_revision_id_1
+from ..core import creative_staged_update as creative_staged_update_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import macro_resolution_result as macro_resolution_result_1
@@ -33,6 +34,7 @@ class Creative(AdcpVersionEnvelope):
     account: Annotated[account_1.Account | None, NoExplicitNull] = None
     action: creative_action_1.CreativeAction
     status: Annotated[creative_status_1.CreativeStatus | None, NoExplicitNull] = None
+    staged_update: Annotated[creative_staged_update_1.CreativeStagedUpdate | None, NoExplicitNull] = None
     platform_id: Annotated[str | None, NoExplicitNull] = None
     localization: Annotated[creative_localization_readback_1.CreativeLocalizationReadback | None, NoExplicitNull] = None
     changes: Annotated[list[str] | None, NoExplicitNull] = None
@@ -53,7 +55,7 @@ class Merge(AdcpVersionEnvelope):
     approval_status: creative_approval_status_1.CreativeApprovalStatus
 
 
-class SyncCreativesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncCreativesResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     dry_run: Annotated[bool | None, NoExplicitNull] = None
     creatives: list[Creative]
@@ -63,18 +65,17 @@ class SyncCreativesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class SyncCreativesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncCreativesResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class SyncCreativesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncCreativesResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    task_id: Annotated[str, StringConstraints(min_length=1)]
     errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None

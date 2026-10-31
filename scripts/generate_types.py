@@ -208,6 +208,45 @@ def open_vocabulary_refs(obj, current_schema_rel_path: Path):
     return obj
 
 
+#: Scalar schemas whose references are generated as the scalar itself.
+#:
+#: adcp#8547 (3.3.0-beta.3) gave ``task_id`` and the task-level ``message``
+#: one definition each, ``core/task-id.json`` (a non-empty string) and
+#: ``core/task-message.json`` (at most 2,000 characters), and every
+#: declaration now refers to them. Generated faithfully, about forty fields
+#: that were ``str`` become ``TaskId`` / ``TaskMessage`` scalar classes, so
+#: every caller that builds a request or response from a ``str`` must wrap it
+#: to satisfy a type checker. Each reference is generated as the string with
+#: the same constraints instead, so the wire contract and the ``str`` typing
+#: both hold. The classes are still generated from the files.
+SCALAR_ALIAS_SCHEMAS = frozenset({Path("core/task-id.json"), Path("core/task-message.json")})
+
+#: Validation keywords carried from a scalar alias onto each reference to it.
+SCALAR_ALIAS_KEYWORDS = ("type", "minLength", "maxLength", "pattern", "format")
+
+
+def inline_scalar_alias_refs(obj, current_schema_rel_path: Path):
+    """Replace each ``$ref`` to a :data:`SCALAR_ALIAS_SCHEMAS` schema with its scalar."""
+    if isinstance(obj, dict):
+        ref = obj.get("$ref")
+        if isinstance(ref, str):
+            file_part, separator, _fragment = ref.partition("#")
+            normalized = _normalize_schema_ref_target(file_part, current_schema_rel_path)
+            if normalized is not None and not separator and normalized[1] in SCALAR_ALIAS_SCHEMAS:
+                target = json.loads((SCHEMAS_DIR / normalized[1]).read_text())
+                kept = {key: value for key, value in obj.items() if key in _OPENED_REF_KEPT_KEYS}
+                obj.clear()
+                obj.update({key: target[key] for key in SCALAR_ALIAS_KEYWORDS if key in target})
+                obj.update(kept)
+                return obj
+        for value in obj.values():
+            inline_scalar_alias_refs(value, current_schema_rel_path)
+    elif isinstance(obj, list):
+        for item in obj:
+            inline_scalar_alias_refs(item, current_schema_rel_path)
+    return obj
+
+
 def _underscored_schema_path(path: Path) -> Path:
     return Path(*(part.replace("-", "_") for part in path.parts))
 
@@ -924,6 +963,68 @@ def pin_conflicting_allof_properties(
 _ALLOF_PROPERTIES_PINNED = 0
 _ALLOF_PRE_MERGED = 0
 
+_PROTOCOL_ENVELOPE_SCHEMA = Path("core/protocol-envelope.json")
+
+
+def _rebase_property_refs(node: Any, owner: Path, current_schema_rel_path: Path) -> Any:
+    """Copy *node*, rewriting each file-relative ``$ref`` from *owner* to the caller."""
+    if isinstance(node, list):
+        return [_rebase_property_refs(item, owner, current_schema_rel_path) for item in node]
+    if not isinstance(node, dict):
+        return node
+    copied = {
+        key: _rebase_property_refs(value, owner, current_schema_rel_path)
+        for key, value in node.items()
+    }
+    ref = copied.get("$ref")
+    if isinstance(ref, str) and not ref.startswith(("#", "/")) and "://" not in ref:
+        file_part, separator, fragment = ref.partition("#")
+        if file_part:
+            target = posixpath.normpath(posixpath.join(owner.parent.as_posix(), file_part))
+            rebased = posixpath.relpath(target, current_schema_rel_path.parent.as_posix())
+            copied["$ref"] = rebased + (separator + fragment if separator else "")
+    return copied
+
+
+def declare_required_envelope_properties(schema: dict, current_schema_rel_path: Path) -> dict:
+    """Declare a protocol-envelope field the composing root requires but no longer restates.
+
+    adcp#8547 removed the local copies of envelope fields, so the envelope's
+    declarations govern. ``protocol/get-task-status-response.json`` still
+    lists ``task_id`` and ``status`` in its root ``required``, and only
+    ``core/protocol-envelope.json`` declares them now. datamodel-code-generator
+    renders a required name it finds no declaration for as ``Any``, which
+    overrides the envelope's typed field on the subclass. In the temp tree
+    only, copy the envelope's declaration onto the root, so the field keeps the
+    envelope's type and stays required.
+    """
+    if not isinstance(schema, dict):
+        return schema
+    required = schema.get("required")
+    arms = schema.get("allOf")
+    if not isinstance(required, list) or not isinstance(arms, list):
+        return schema
+    properties = schema.get("properties")
+    declared = set(properties) if isinstance(properties, dict) else set()
+    missing = [name for name in required if name not in declared]
+    if not missing:
+        return schema
+    for arm in arms:
+        if not (isinstance(arm, dict) and isinstance(arm.get("$ref"), str)):
+            continue
+        if arm["$ref"].startswith("#"):
+            continue
+        target, envelope = _resolve_allof_arm(arm, current_schema_rel_path, schema)
+        if target != _PROTOCOL_ENVELOPE_SCHEMA or not isinstance(envelope, dict):
+            continue
+        envelope_properties = envelope.get("properties") or {}
+        for name in missing:
+            if name in envelope_properties:
+                schema.setdefault("properties", {})[name] = _rebase_property_refs(
+                    envelope_properties[name], target, current_schema_rel_path
+                )
+    return schema
+
 
 def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> dict:
     """Keep inlined core schemas from rebasing sibling refs.
@@ -1462,11 +1563,13 @@ def flatten_schemas(temp_dir: Path):
         schema = inline_structural_pointer_refs(schema, rel_path)
         schema = collapse_nullable_unions(schema)
         schema = normalize_version_envelope_composition(schema, rel_path)
+        schema = declare_required_envelope_properties(schema, rel_path)
         schema = pin_conflicting_allof_properties(schema, rel_path)
         # Before the rewrite, while refs are still in the spellings
         # ``_normalize_schema_ref_target`` resolves. See OPEN_VOCABULARY_SCHEMAS
         # for why one enum is deliberately not reproduced.
         schema = open_vocabulary_refs(schema, rel_path)
+        schema = inline_scalar_alias_refs(schema, rel_path)
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
         schema = stabilize_nested_discriminators(schema, rel_path)

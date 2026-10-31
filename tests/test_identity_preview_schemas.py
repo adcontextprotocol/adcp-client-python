@@ -101,7 +101,7 @@ def service(calls: list[str]) -> PrincipalService:
     return PrincipalService(InMemoryPrincipalRecordStore(), relationship_resolver=relationship)
 
 
-@pytest.mark.parametrize("version", ["3.3", "3.3-beta.2", "3.3.1", "3.4", "4.0"])
+@pytest.mark.parametrize("version", ["3.3", "3.3-beta.3", "3.3.1", "3.4", "4.0"])
 async def test_relationship_present_when_served_at_3_3_or_later(version):
     calls: list[str] = []
     response = await service(calls).get_principal(

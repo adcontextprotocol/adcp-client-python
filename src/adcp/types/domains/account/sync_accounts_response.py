@@ -81,7 +81,7 @@ class Account(AdcpVersionEnvelope):
     authorization: Annotated[account_authorization_1.AccountAuthorization | None, NoExplicitNull] = None
 
 
-class SyncAccountsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncAccountsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     dry_run: Annotated[bool | None, NoExplicitNull] = None
     accounts: list[Account]
@@ -89,7 +89,7 @@ class SyncAccountsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope)
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class SyncAccountsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncAccountsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

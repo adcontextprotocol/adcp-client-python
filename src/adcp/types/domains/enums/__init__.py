@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -77,6 +77,7 @@ from adcp.types.domains.enums.content_rating_system import ContentRatingSystem
 from adcp.types.domains.enums.creative_action import CreativeAction
 from adcp.types.domains.enums.creative_agent_capability import CreativeAgentCapability
 from adcp.types.domains.enums.creative_approval_status import CreativeApprovalStatus
+from adcp.types.domains.enums.creative_change_kind import CreativeChangeKind
 from adcp.types.domains.enums.creative_event_reason_code import CreativeEventReasonCode
 from adcp.types.domains.enums.creative_identifier_type import CreativeIdentifierType
 from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
@@ -145,6 +146,7 @@ from adcp.types.domains.enums.landing_page_requirement import LandingPageRequire
 from adcp.types.domains.enums.later_proposal_reason import LaterProposalReason
 from adcp.types.domains.enums.legacy_postal_system import CountryFusedPostalCodeSystem
 from adcp.types.domains.enums.lift_dimension import LiftDimension
+from adcp.types.domains.enums.live_update_serving_mode import LiveUpdateServingMode
 from adcp.types.domains.enums.logo_slot import LogoSlot
 from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
 from adcp.types.domains.enums.macro_mapping_status import MacroMappingStatus
@@ -324,6 +326,7 @@ __all__ = [
     "CreativeActivationMethod",
     "CreativeAgentCapability",
     "CreativeApprovalStatus",
+    "CreativeChangeKind",
     "CreativeEventReasonCode",
     "CreativeIdentifierType",
     "CreativeMergeRejectionReason",
@@ -391,6 +394,7 @@ __all__ = [
     "LandingPageRequirement",
     "LaterProposalReason",
     "LiftDimension",
+    "LiveUpdateServingMode",
     "LogoSlot",
     "MacroDialectFamily",
     "MacroMappingStatus",

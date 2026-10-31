@@ -110,11 +110,8 @@ from adcp.reporting.subscriptions.vocabulary import (
     COVERAGE_VOCABULARY_VERSION,
 )
 from adcp.reporting.subscriptions.wire import (
-    project_offering,
-    project_reporting_delivery,
-    project_subscription_coverage,
-    project_subscription_state,
-    serves_settled_subscription_fields,
+    SUBSCRIPTIONS_MIN_ADCP_VERSION,
+    serves_subscriptions,
 )
 from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 
@@ -189,11 +186,8 @@ __all__ = [
     "subscription_exceptions",
     "subscription_version_windows",
     "with_subscription_dimensions",
-    "project_offering",
-    "project_reporting_delivery",
-    "project_subscription_coverage",
-    "project_subscription_state",
-    "serves_settled_subscription_fields",
+    "SUBSCRIPTIONS_MIN_ADCP_VERSION",
+    "serves_subscriptions",
 ]
 
 

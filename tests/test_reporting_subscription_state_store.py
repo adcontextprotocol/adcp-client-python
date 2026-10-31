@@ -84,9 +84,7 @@ async def _observed(world: World, engine: ReportingSubscriptionEngine) -> dict:
     coverage = {
         account_id: [
             item.model_dump(mode="json")
-            for item in await engine.subscription_coverage(
-                IDENTITY, account_id, adcp_version="3.3-beta.2"
-            )
+            for item in await engine.subscription_coverage(IDENTITY, account_id)
         ]
         for account_id in ("acct-1", "acct-2")
     }
