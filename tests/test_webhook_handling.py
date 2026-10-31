@@ -1413,6 +1413,7 @@ class TestWebhookPayloadBuilderPydanticModel:
             result=model,
         )
         assert to_wire_dict(payload)["result"] == {
+            "status": "completed",
             "media_buy_id": "mb_1",
             "buyer_ref": "ref_1",
             "packages": [],
@@ -1796,3 +1797,34 @@ class TestHMACTestVectors:
             raw_body=raw_body,
         )
         assert result is False, f"Verifier accepted rejection vector {vector['description']!r}"
+
+
+def test_a_terminal_result_carries_the_task_status() -> None:
+    """AdCP 3.3.0-beta.3 (adcp#8547): every task response carries its status.
+
+    A result without one takes the webhook's status; a model's defaulted
+    envelope status never contradicts the webhook (a failed task's result is
+    not ``completed``); an explicit status is kept.
+    """
+    from adcp.types import CreateMediaBuyErrorResponse
+    from adcp.webhooks import create_mcp_webhook_payload
+
+    common = dict(
+        task_id="task_1",
+        task_type="create_media_buy",
+        idempotency_key="whk_01HZX9Q7Y3M8N2P4R6T8V0W2Y4",
+        operation_id="op_1",
+    )
+    failed = create_mcp_webhook_payload(
+        status="failed",
+        result=CreateMediaBuyErrorResponse(errors=[{"code": "INVALID_REQUEST", "message": "x"}]),
+        **common,
+    )
+    assert failed.result["status"] == "failed"
+    working = create_mcp_webhook_payload(status="working", result={"percentage": 10}, **common)
+    assert working.result == {"status": "working", "percentage": 10}
+    kept = create_mcp_webhook_payload(
+        status="completed", result={"status": "completed", "media_buy_id": "mb_1"}, **common
+    )
+    assert kept.result == {"status": "completed", "media_buy_id": "mb_1"}
+

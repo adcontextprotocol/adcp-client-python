@@ -65,6 +65,9 @@ from adcp.types.canonical_creative import GetProductsRequest as _PublicGetProduc
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.canonical_creative import UpdateMediaBuyRequest as _PublicUpdateMediaBuyRequest
+from adcp.types.domains.bundled.protocol import (
+    get_adcp_capabilities_response as _bundled_capabilities,
+)
 from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery as BundledAcceptancePolicyDiscovery,
 )
@@ -80,6 +83,9 @@ from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
 from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
+from adcp.types.domains.core import reporting_delivery_capabilities as _reporting_capabilities
+from adcp.types.domains.core import reporting_delivery_offering as _reporting_offering
+from adcp.types.domains.core import reporting_subscription as _reporting_subscription
 from adcp.types.domains.core.canonical_product import PublisherDomain
 from adcp.types.domains.core.creative_manifest import CreativeManifest
 from adcp.types.domains.core.creative_variant import CreativeVariant
@@ -98,6 +104,7 @@ from adcp.types.domains.creative.get_creative_delivery_response import (
     GetCreativeDeliveryResponse,
 )
 from adcp.types.domains.creative.preview_creative_response import PreviewCreativeResponse3
+from adcp.types.domains.enums import reporting_dimension as _reporting_dimension
 from adcp.types.domains.media_buy.accept_proposal_request import (
     AcceptProposalRequest as _GeneratedAcceptProposalRequest,
 )
@@ -280,6 +287,8 @@ def _patch_equivalent_model_field(
 ) -> None:
     """Replace a bundled clone only after verifying the generated field shape."""
     field = model.model_fields.get(field_name)
+    if field is not None and field.annotation == canonical_annotation:
+        return  # already patched by an earlier, failed import of this module
     if field is None or not _annotation_contains(field.annotation, bundled_model):
         actual = None if field is None else field.annotation
         raise RuntimeError(
@@ -362,8 +371,20 @@ def _targeting_overlay_schema(
     )
 
 
+#: Class attribute marking a model whose ``targeting_overlay`` is already bridged.
+_TARGETING_OVERLAY_PATCHED = "__adcp_targeting_overlay_patched__"
+
+
 def _patch_targeting_overlay(model: type[BaseModel]) -> None:
-    """Bridge beta.14 objects only while the generated mutation shape is unchanged."""
+    """Bridge beta.14 objects only while the generated mutation shape is unchanged.
+
+    Idempotent per class. ``adcp.types.__getattr__`` reports an exception raised
+    while this module imports as a missing attribute, and the next access
+    imports the module again over models the first attempt already patched.
+    Re-patching must not replace that first error with a misleading one.
+    """
+    if model.__dict__.get(_TARGETING_OVERLAY_PATCHED):
+        return
     field = model.model_fields.get("targeting_overlay")
     if field is None or field.annotation != TargetingOverlayInput | None:
         actual = None if field is None else field.annotation
@@ -394,6 +415,7 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
             ),
         ],
     )
+    setattr(model, _TARGETING_OVERLAY_PATCHED, True)
     defer_model_rebuild(model)
 
 
@@ -431,6 +453,44 @@ def _patch_package_forecast_targeting() -> None:
             defer_model_rebuild(model)
     defer_model_rebuild(request_module.GetProductsRequest)
     defer_model_rebuild(_PublicGetProductsRequest)
+
+
+#: One value of the extensible ``enums/reporting-dimension.json`` vocabulary.
+#: The schema marks it ``x-extensible``: receivers MUST accept unknown values,
+#: and a selector naming a value no offering maps matches nothing. The
+#: generator closes it into an enum, so the fields that carry it are reopened
+#: to the vocabulary's ``x-pattern``.
+ReportingDimensionToken = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+
+
+def _open_reporting_dimensions() -> None:
+    """Accept unknown ``reporting-dimension`` values wherever the vocabulary appears."""
+    for model, field_name, closed in (
+        (
+            _reporting_subscription.Selector,
+            "dimensions",
+            _reporting_dimension,
+        ),
+        (
+            _reporting_offering.ReportingDeliveryOffering,
+            "standard_dimensions",
+            _reporting_dimension,
+        ),
+        (
+            _reporting_capabilities.Subscriptions,
+            "dimensions",
+            _reporting_dimension,
+        ),
+        (_bundled_capabilities.Offering, "standard_dimensions", _bundled_capabilities),
+        (_bundled_capabilities.Subscriptions, "dimensions", _bundled_capabilities),
+    ):
+        _patch_equivalent_model_field(
+            model,
+            field_name,
+            closed.ReportingDimension,
+            list[ReportingDimensionToken] | None,
+        )
+        defer_model_rebuild(model)
 
 
 def _apply_forward_compat() -> None:
@@ -540,10 +600,7 @@ def _apply_forward_compat() -> None:
     )
     defer_model_rebuild(BundledCapabilitiesPortfolio)
 
-    # Reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585).
-    from adcp.types._reporting_subscription_preview import apply_reporting_subscription_preview
-
-    apply_reporting_subscription_preview()
+    _open_reporting_dimensions()
 
 
 _apply_forward_compat()

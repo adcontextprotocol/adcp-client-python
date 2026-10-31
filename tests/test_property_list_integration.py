@@ -21,6 +21,26 @@ from adcp.types import ListProductsRequest, ListProductsResponse
 from adcp.validation import validate_response
 
 
+def _valid_as_served_to_3_2_1(wire: dict) -> bool:
+    """The handler's response validates as served to a 3.2.1 caller.
+
+    From AdCP 3.3.0-beta.3 the response composes the protocol envelope
+    (adcp#8547), so a model carries ``status`` (the server framework stamps it
+    on a dict); the 3.3 -> 3.2 conversion drops it for the closed 3.2.1 root.
+    """
+    from adcp._version import resolve_adcp_version
+    from adcp.compat.versions import convert_payload
+
+    served = convert_payload(
+        "list_products",
+        wire,
+        direction="sync",
+        source_version=resolve_adcp_version(None),
+        target_version="3.2",
+    ).payload
+    return validate_response("list_products", served, version="3.2.1").valid
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model_response", [False, True])
 async def test_list_products_dispatch_filters_compact_criteria(model_response):
@@ -86,7 +106,7 @@ async def test_list_products_dispatch_filters_compact_criteria(model_response):
     assert [item["product_id"] for item in wire["products"]] == ["allowed"]
     assert wire["ext"]["property_list_applied"] is True
     assert "property_list_applied" not in wire
-    assert validate_response("list_products", wire, version="3.2.1").valid
+    assert _valid_as_served_to_3_2_1(wire)
     assert len(body["products"]) == 2
 
 
@@ -181,7 +201,7 @@ async def test_projected_list_products_requests_inventory_before_filtering(
     assert not {"publisher_properties", "overlay_support"} & wire["products"][0].keys()
     assert wire["next_cursor"] == "next"
     assert wire["ext"]["property_list_applied"] is True
-    assert validate_response("list_products", wire, version="3.2.1").valid
+    assert _valid_as_served_to_3_2_1(wire)
     original = platform_responses[0]
     original = (
         original

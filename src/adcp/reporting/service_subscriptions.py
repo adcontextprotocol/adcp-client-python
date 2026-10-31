@@ -45,10 +45,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from adcp._principal_ref import PrincipalRef
-from adcp._version import is_adcp_version_at_least, resolve_adcp_version_alias
 from adcp.reporting._errors import ReliableReportingConfigurationError
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDefinitionBinding
 from adcp.reporting.subscriptions.managed import SubscriptionOptions
+from adcp.reporting.subscriptions.wire import serves_subscriptions
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.delivery_models import (
@@ -68,8 +68,6 @@ PrincipalResolver = Callable[
     [Any, Any],
     "PrincipalIdentity | PrincipalRef | Awaitable[PrincipalIdentity | PrincipalRef]",
 ]
-
-_FIRST_RELEASE = "3.3.0-beta.1"
 
 
 @dataclass(frozen=True)
@@ -134,20 +132,6 @@ async def _resolve(value: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
 
 
-def serves_subscriptions(adcp_version: str | None) -> bool:
-    """Whether a response served at ``adcp_version`` may carry subscription fields.
-
-    An absent version is the SDK's pinned default (3.3.0-beta.1); an
-    unparseable one is treated as older.
-    """
-    if adcp_version is None:
-        return True
-    try:
-        return is_adcp_version_at_least(resolve_adcp_version_alias(adcp_version), _FIRST_RELEASE)
-    except ValueError:
-        return False
-
-
 async def plan_subscription_cycle(
     options: ReportingSubscriptionServiceOptions,
     planner: Any,
@@ -199,7 +183,6 @@ def subscription_capability_block(
         subscription_capabilities,
         with_subscription_dimensions,
     )
-    from adcp.reporting.subscriptions.wire import project_reporting_delivery
 
     payload = dict(block)
     if not payload or not serves_subscriptions(adcp_version):
@@ -209,8 +192,7 @@ def subscription_capability_block(
         with_subscription_dimensions(item, mappings[str(item["offering_id"])])
         for item in payload.get("offerings") or ()
     ]
-    payload = subscription_capabilities(payload, options.engine.support)
-    return project_reporting_delivery(payload, adcp_version)
+    return subscription_capabilities(payload, options.engine.support)
 
 
 def advertise_subscriptions(
@@ -287,9 +269,7 @@ async def with_subscription_coverage(
         raise ReliableReportingConfigurationError(
             "resolve_principal and the caller resolver disagree on the requesting principal"
         )
-    coverage = await options.engine.subscription_coverage(
-        principal, account_id, adcp_version=adcp_version
-    )
+    coverage = await options.engine.subscription_coverage(principal, account_id)
     if not coverage:
         return response
     return {

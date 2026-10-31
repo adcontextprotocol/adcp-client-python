@@ -1205,7 +1205,15 @@ if not TYPE_CHECKING:
         if name not in _RESOLVABLE:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-        value = getattr(importlib.import_module("adcp.types._eager"), name)
+        try:
+            eager = importlib.import_module("adcp.types._eager")
+        except AttributeError as exc:
+            # An AttributeError escaping __getattr__ reads as "no such name", so
+            # hasattr()/getattr(default) probes would swallow a broken import and
+            # the next access would import the patch modules again over models
+            # already patched. Surface the first failure instead.
+            raise ImportError(f"adcp.types failed to import: {exc}") from exc
+        value = getattr(eager, name)
         globals()[name] = value  # cache: __getattr__ fires once per name
         return value
 

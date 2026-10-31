@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -252,6 +252,7 @@ from adcp.types.domains.media_buy.get_media_buys_response import (
     Cancellation,
     Cancellation1,
     CreativeApproval,
+    FlightHistoryItem,
     GetMediaBuysResponse,
     HistoryItem,
     Indicator,
@@ -739,6 +740,7 @@ __all__ = [
     "FilterDiagnostics",
     "Filters",
     "Flight",
+    "FlightHistoryItem",
     "Format",
     "FormatId",
     "GenresExcludeItem",

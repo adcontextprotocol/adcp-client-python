@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -64,7 +64,11 @@ from adcp.types.domains.core.account_ref import (
     AccountReference2,
 )
 from adcp.types.domains.core.account_request_changed_webhook import AccountRequestChangedWebhook
-from adcp.types.domains.core.account_request_record import AccountRequest, Requested
+from adcp.types.domains.core.account_request_record import (
+    AccountRequest,
+    NotCarriedOverEnum,
+    Requested,
+)
 from adcp.types.domains.core.account_status_changed_webhook import AccountStatusChangedWebhook
 from adcp.types.domains.core.account_timezone_capability import (
     AccountSelection,
@@ -606,6 +610,7 @@ from adcp.types.domains.core.creative_representation import CreativeRepresentati
 from adcp.types.domains.core.creative_representation_set import CreativeRepresentationSet
 from adcp.types.domains.core.creative_review_sla import CreativeReviewSla
 from adcp.types.domains.core.creative_revision_id import CreativeRevisionId
+from adcp.types.domains.core.creative_staged_update import CreativeStagedUpdate
 from adcp.types.domains.core.creative_variable import CreativeVariable, VariableType
 from adcp.types.domains.core.creative_variant import Artifact, CreativeVariant, GenerationContext
 from adcp.types.domains.core.daast_tracker_constraints import (
@@ -937,6 +942,7 @@ from adcp.types.domains.core.job_item import EmploymentType, ExperienceLevel, Jo
 from adcp.types.domains.core.keyword_delivery_metrics import KeywordDeliveryMetrics
 from adcp.types.domains.core.later_proposals_state import LaterProposalsState
 from adcp.types.domains.core.limited_series import LimitedSeries
+from adcp.types.domains.core.live_update_policy import InPlaceItem, LiveUpdatePolicy, OnRejection
 from adcp.types.domains.core.locale_tag import LanguageTag
 from adcp.types.domains.core.localized_creative_asset import (
     LocalizedCreativeAsset,
@@ -976,7 +982,7 @@ from adcp.types.domains.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.domains.core.measurement_readiness import MeasurementReadiness
 from adcp.types.domains.core.measurement_terms import MeasurementTerms
 from adcp.types.domains.core.measurement_window import MeasurementWindow
-from adcp.types.domains.core.media_buy import MediaBuy
+from adcp.types.domains.core.media_buy import FlightHistoryItem, MediaBuy
 from adcp.types.domains.core.media_buy_available_action import MediaBuyAvailableAction
 from adcp.types.domains.core.media_buy_available_action_id import MediaBuyAvailableActionId
 from adcp.types.domains.core.media_buy_change_term_id import MediaBuyChangeTermId
@@ -1523,7 +1529,9 @@ from adcp.types.domains.core.reporting_status_issue import (
 )
 from adcp.types.domains.core.reporting_subscription import (
     AccountId,
+    AccountId7,
     Alignment,
+    DestinationOverride,
     ExcludeAccountId,
     FeedPurpose,
     Match,
@@ -1539,11 +1547,12 @@ from adcp.types.domains.core.reporting_subscription_coverage import (
     TimezoneCutover,
 )
 from adcp.types.domains.core.reporting_subscription_state import (
-    AccountsUnauthorizedItem,
-    AccountsWithException,
+    DestinationOverrideRef,
     InactiveInterval,
-    PriorVersion,
+    ReportingSubscriptionAccountExceptions,
+    ReportingSubscriptionPriorVersion,
     ReportingSubscriptionState,
+    ReportingSubscriptionUnauthorizedAccount,
     State,
     WithheldReportingObligationId,
 )
@@ -1741,6 +1750,10 @@ from adcp.types.domains.core.targeting_unknown_age_eligibility_constraint import
 from adcp.types.domains.core.targeting_verified_age_basis_constraint import (
     TargetingVerifiedAgeBasisConstraint,
 )
+from adcp.types.domains.core.task_input_required import TaskInputRequired
+from adcp.types.domains.core.task_message import TaskMessage
+from adcp.types.domains.core.task_submitted import TaskSubmitted
+from adcp.types.domains.core.task_working import TaskWorking
 from adcp.types.domains.core.tasks_get_request import TasksGetRequest
 from adcp.types.domains.core.tasks_get_response import (
     Details,
@@ -1914,6 +1927,7 @@ __all__ = [
     "AccountChange",
     "AccountChangeRecordedWebhook",
     "AccountId",
+    "AccountId7",
     "AccountIdentityChange",
     "AccountIdentityChange1",
     "AccountIdentityChange2",
@@ -1931,8 +1945,6 @@ __all__ = [
     "AccountTimezoneCapability",
     "AccountWithAuthorization",
     "AccountingPeriod",
-    "AccountsUnauthorizedItem",
-    "AccountsWithException",
     "Action3",
     "Action4",
     "ActivationKey",
@@ -2319,6 +2331,7 @@ __all__ = [
     "CreativeReviewSla",
     "CreativeRevisionId",
     "CreativeSlot",
+    "CreativeStagedUpdate",
     "CreativeVariable",
     "CreativeVariant",
     "CredentialOrigin",
@@ -2387,6 +2400,8 @@ __all__ = [
     "Destination2",
     "DestinationItem",
     "DestinationMode",
+    "DestinationOverride",
+    "DestinationOverrideRef",
     "DestinationRef",
     "DestinationType",
     "Detail",
@@ -2462,6 +2477,7 @@ __all__ = [
     "FinalityPolicies1",
     "FinalityPolicies2",
     "Fit",
+    "FlightHistoryItem",
     "FlightItem",
     "ForecastPoint",
     "ForecastPointDimensions",
@@ -2542,6 +2558,7 @@ __all__ = [
     "Immutability",
     "Impact",
     "Impairment",
+    "InPlaceItem",
     "InactiveInterval",
     "Indicator",
     "IndicatorBearingResourceState",
@@ -2625,6 +2642,7 @@ __all__ = [
     "Limitation",
     "LimitedSeries",
     "ListingType",
+    "LiveUpdatePolicy",
     "LocalizedCreativeAsset",
     "LocalizedCreativeAsset1",
     "LocalizedCreativeAsset10",
@@ -2735,6 +2753,7 @@ __all__ = [
     "NegativeKeyword",
     "NonblockingImpact",
     "NonblockingImpacts",
+    "NotCarriedOverEnum",
     "NotificationConfig",
     "NotificationType",
     "ObservedThrough",
@@ -2742,6 +2761,7 @@ __all__ = [
     "Offering",
     "OfferingAssetConstraint",
     "OfferingAssetGroup",
+    "OnRejection",
     "OohMetrics",
     "Operation",
     "OperationsContact",
@@ -2937,7 +2957,6 @@ __all__ = [
     "PrincipalState",
     "PrintMetrics",
     "PriorDestinationRef",
-    "PriorVersion",
     "ProducerIdentity",
     "Product",
     "ProductAllocation",
@@ -3141,9 +3160,12 @@ __all__ = [
     "ReportingStatusIssue",
     "ReportingStatusSeverity",
     "ReportingSubscription",
+    "ReportingSubscriptionAccountExceptions",
     "ReportingSubscriptionCoverage",
     "ReportingSubscriptionExclusionReason",
+    "ReportingSubscriptionPriorVersion",
     "ReportingSubscriptionState",
+    "ReportingSubscriptionUnauthorizedAccount",
     "ReportingVerification",
     "ReportingVerificationProfile",
     "ReportingVerificationProfileSet",
@@ -3329,6 +3351,10 @@ __all__ = [
     "TargetingOverlaySupport",
     "TargetingUnknownAgeEligibilityConstraint",
     "TargetingVerifiedAgeBasisConstraint",
+    "TaskInputRequired",
+    "TaskMessage",
+    "TaskSubmitted",
+    "TaskWorking",
     "TasksGetRequest",
     "TasksGetResponse",
     "TasksListRequest",

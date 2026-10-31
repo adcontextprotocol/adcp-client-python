@@ -11,7 +11,6 @@ from typing import Annotated, Literal, TypeAlias
 from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict, StringConstraints
 
-from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
@@ -19,11 +18,11 @@ from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import task_status as task_status_1
 
 
-class GetCreativeFeaturesResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetCreativeFeaturesResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
 
 
-class GetCreativeFeaturesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetCreativeFeaturesResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     evaluation_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
     errors: list[error_1.Error]
@@ -31,12 +30,11 @@ class GetCreativeFeaturesResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEn
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetCreativeFeaturesResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetCreativeFeaturesResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: Annotated[str, StringConstraints(min_length=1)]
     evaluation_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 

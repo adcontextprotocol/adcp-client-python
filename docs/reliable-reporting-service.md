@@ -558,7 +558,9 @@ What the service does with it:
   `subscriptions` block, `standard_dimensions` on every offering, the feature
   id and the principal section, at the release each caller is served.
   - Callers served below 3.3 see the pre-3.3 block.
-  - The adcp#8585 offering fields reach only 3.3.0-beta.2 callers.
+  - Callers served a superseded 3.3 beta see the pre-3.3 block too: the
+    subscription surface is served from 3.3.0-beta.3 on
+    (`adcp.reporting.subscriptions.serves_subscriptions`).
   - Advertise `adcp.principal` yourself. The service refuses to advertise
     subscriptions without it.
 - **Status.** `get_reporting_status` summary and periods views gain
@@ -587,8 +589,8 @@ grant's `authorization.allowed_tasks`.
   `get_reporting_status`, `sync_reporting_receipts` and `sync_reporting_status`)
   rather than revoking.
 
-The beta.2 spec text still describes a post-revocation window; the beta.3
-change replaces it with this rule.
+AdCP 3.3.0-beta.3 states this rule (adcontextprotocol/adcp#8607); beta.2 still
+described a post-revocation window.
 
 **Managed delivery (production).** With `production=` options, subscriptions
 are delivered through managed delivery, following adcontextprotocol/adcp-client#3523.

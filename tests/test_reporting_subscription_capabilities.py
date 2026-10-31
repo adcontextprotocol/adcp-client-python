@@ -1,6 +1,6 @@
 """Capability fields for AdCP 3.3 reporting subscriptions.
 
-Each projected block is validated against the pinned 3.3.0-beta.1
+Each projected block is validated against the pinned 3.3.0-beta.3
 ``core/reporting-delivery-capabilities.json``, whose ``allOf`` couples
 ``configuration_task``, ``configuration_tasks`` and ``subscriptions``.
 """
@@ -21,7 +21,7 @@ from adcp.reporting.subscriptions import (
 )
 from adcp.validation import schema_loader
 
-VERSION = "3.3.0-beta.1"
+VERSION = "3.3.0-beta.3"
 
 BASE = {
     "supported": True,
@@ -60,19 +60,7 @@ BASE = {
 }
 
 
-PREVIEW_OFFERING_FIELDS = ("standard_dimensions", "unmapped_dimensions")
-
-
 def _errors(block: dict) -> list[str]:
-    # TODO(3.3.0-beta.2): validate the adcp#8585 offering fields against the
-    # bundle once it carries them; beta.1 closes the offering object.
-    block = {
-        **block,
-        "offerings": [
-            {k: v for k, v in item.items() if k not in PREVIEW_OFFERING_FIELDS}
-            for item in block["offerings"]
-        ],
-    }
     validator = schema_loader.get_named_validator(
         "core/reporting-delivery-capabilities.json", version=VERSION
     )

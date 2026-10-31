@@ -401,10 +401,10 @@ def subscription_version_windows(
 
     Each prior version's configuration comes from ``version_configurations``
     when given, else from the readback's ``prior_versions[].configuration``
-    (adcp#8588). A seller on 3.3.0-beta.1 does not send it; then the current
-    configuration is assumed, unless ``require_prior_configurations`` makes
-    the gap an error. A version accepted while the subscription was already
-    inactive has an empty window.
+    (adcp#8588). When a readback omits it, the current configuration is
+    assumed, unless ``require_prior_configurations`` makes the gap an error.
+    A version accepted while the subscription was already inactive has an
+    empty window.
     """
     if hasattr(subscription, "model_dump"):
         subscription = subscription.model_dump(mode="json", exclude_none=True)

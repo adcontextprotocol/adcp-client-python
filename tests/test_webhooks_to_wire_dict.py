@@ -86,7 +86,7 @@ def test_mcp_payload_dumps_to_snake_case_wire_keys() -> None:
     assert wire["task_id"] == "task_123"
     assert wire["task_type"] == "create_media_buy"
     assert wire["status"] == "completed"
-    assert wire["result"] == {"media_buy_id": "mb_1"}
+    assert wire["result"] == {"status": "completed", "media_buy_id": "mb_1"}
     assert wire["idempotency_key"] == "whk_01HW9D2T3VXQ5M7K9N1P3R5S7U"
     assert wire["notification_id"] == "task_123.terminal"
 

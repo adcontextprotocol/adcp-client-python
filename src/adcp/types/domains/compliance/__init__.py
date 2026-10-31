@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -20,6 +20,7 @@ from adcp.types.domains.compliance.comply_test_controller_request import (
     Account,
     Action,
     AdvanceTo,
+    AllowedTask,
     Arm,
     ComplyTestControllerRequest,
     InstallmentDeliveryItem,
@@ -67,6 +68,7 @@ __all__ = [
     "Account",
     "Action",
     "AdvanceTo",
+    "AllowedTask",
     "Arm",
     "AttestationMode",
     "ComplianceTaskCompletionData",

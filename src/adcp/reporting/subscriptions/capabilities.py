@@ -98,8 +98,8 @@ def with_subscription_dimensions(offering: Mapping[str, Any] | Any, mapping: Any
     ``media_buy.reporting_subscriptions`` MUST publish ``standard_dimensions``
     on every offering (adcp#8585); ``unmapped_dimensions`` appears only when
     any exist. Values are sorted so the declaration is stable. Serve the block
-    through :func:`~adcp.reporting.subscriptions.wire.project_reporting_delivery`
-    so callers pinned below 3.3.0-beta.2 do not receive these fields.
+    only to callers :func:`~adcp.reporting.subscriptions.serves_subscriptions`
+    admits.
     """
     payload: dict[str, Any] = (
         dict(offering)

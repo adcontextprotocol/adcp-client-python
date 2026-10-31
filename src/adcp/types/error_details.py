@@ -17,7 +17,7 @@ A nested name that two error-details schemas both define carries the
 defining file in its name (``ScopeFromRateLimited``) instead of a bare one.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:41 UTC
+Generation date: 2026-10-31 11:06:16 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -59,6 +59,7 @@ from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedR
 from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
 from adcp.types.domains.enums.billing_party import BillingParty
 from adcp.types.domains.enums.catalog_type import CatalogType
+from adcp.types.domains.enums.creative_change_kind import CreativeChangeKind
 from adcp.types.domains.enums.creative_merge_rejection_reason import CreativeMergeRejectionReason
 from adcp.types.domains.enums.event_type import EventType
 from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
@@ -96,6 +97,10 @@ from adcp.types.domains.error_details.billing_not_supported import (
 )
 from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
 from adcp.types.domains.error_details.conflict import ConflictDetails
+from adcp.types.domains.error_details.creative_live_update_unsupported import (
+    CreativeLiveUpdateUnsupportedDetails,
+    LivePackageId,
+)
 from adcp.types.domains.error_details.creative_merge_rejected import (
     CreativeMergeRejectedDetails,
     Rejection,
@@ -204,6 +209,8 @@ __all__ = [
     "ConflictDetails",
     "Connection",
     "ConnectionType",
+    "CreativeChangeKind",
+    "CreativeLiveUpdateUnsupportedDetails",
     "CreativeMergeRejectedDetails",
     "CreativeMergeRejectionReason",
     "CreativeRejectedDetails",
@@ -226,6 +233,7 @@ __all__ = [
     "GovernanceAgentNotAcceptedDetails1",
     "GovernanceAgentNotAcceptedDetails2",
     "Kind",
+    "LivePackageId",
     "MacroDialectFamily",
     "MacroEncoding",
     "MacroMappingStatus",

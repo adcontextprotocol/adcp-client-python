@@ -47,6 +47,9 @@ _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 _ALLOWED_PLACEHOLDERS = frozenset({"account_id", "subscription_id", "offering_id", "period_start"})
 #: Fields that may change without a new ``subscription_version``.
 _IN_PLACE_FIELDS = frozenset({"active", "replace_account_configs", "subscription_version"})
+#: Inline readback caps (adcp#8619); each list carries its total count.
+PRIOR_VERSIONS_INLINE = 16
+ACCOUNTS_INLINE = 1000
 
 
 class ReportingSubscriptionValidationError(ValueError):
@@ -363,9 +366,12 @@ def _next_state(
             payload["accepted_at"] = old["accepted_at"]
             if old.get("prior_versions"):
                 payload["prior_versions"] = old["prior_versions"]
+                payload["prior_versions_count"] = old.get(
+                    "prior_versions_count", len(old["prior_versions"])
+                )
         else:
             payload["accepted_at"] = stamp
-            payload["prior_versions"] = [
+            prior = [
                 {
                     "subscription_version": old_version,
                     "accepted_at": old["accepted_at"],
@@ -375,9 +381,15 @@ def _next_state(
                 },
                 *(old.get("prior_versions") or ()),
             ]
+            # adcp#8619: the 16 newest inline, with the total; the rest are
+            # paged through get_principal reporting_subscription_page.
+            total = int(old.get("prior_versions_count") or len(old.get("prior_versions") or ())) + 1
+            payload["prior_versions"] = prior[:PRIOR_VERSIONS_INLINE]
+            payload["prior_versions_count"] = max(total, len(prior))
         for carried in ("accounts_with_exceptions", "accounts_unauthorized"):
             if old.get(carried):
                 payload[carried] = old[carried]
+                payload[f"{carried}_count"] = old.get(f"{carried}_count", len(old[carried]))
     # inactive_intervals (adcp#8585) let a buyer recompute a reactivation in
     # place, which the readback otherwise loses with deactivated_at.
     intervals = [dict(item) for item in (old or {}).get("inactive_intervals") or ()]

@@ -128,7 +128,7 @@ def _line(version: str) -> tuple[int, int] | None:
 def _wire_for_line(major: int, minor: int) -> str:
     """The release-precision value this SDK serves for a minor line.
 
-    A line whose packaged spec is a prerelease (``3.3-beta.2`` on the 3.3
+    A line whose packaged spec is a prerelease (``3.3-beta.3`` on the 3.3
     line) is spoken, converted and validated as that exact prerelease: its
     schemas are the only 3.3 contract this wheel ships. Every other line is
     its stable release.
@@ -160,7 +160,7 @@ def is_convertible_version(version: str) -> bool:
     """Whether minor-release translation applies to ``version``.
 
     Stable releases of the SDK's major convert, as does the exact prerelease
-    the SDK serves for a line (``3.3-beta.2`` while the pin is that beta).
+    the SDK serves for a line (``3.3-beta.3`` while the pin is that beta).
     Any other prerelease keeps its own schema contract and gates: the
     translators must not guess prerelease semantics.
     """
@@ -1158,7 +1158,7 @@ def _convert_payload(
                     elif result.get("status") == "completed":
                         result.pop("status")
                         losses.append(ConversionLoss("/status", source, target))
-            elif step > 0 and uses_task_status_envelope(tool):
+            elif step > 0 and uses_task_status_envelope(tool, target):
                 result.setdefault("status", "completed")
             if step > 0 and tool in {"get_products", "get_signals"}:
                 # Old responses have no cache declaration. An account-scoped
@@ -1247,10 +1247,12 @@ def _require_target_valid(
     """
     from adcp.validation._response_envelope import uses_task_status_envelope
 
-    if direction != "request" and uses_task_status_envelope(tool):
+    if direction != "request":
         # Match the SDK validators, which default the status envelope.
-        payload = {"status": "completed", **payload}
-        result = {"status": "completed", **result}
+        if uses_task_status_envelope(tool, source_version):
+            payload = {"status": "completed", **payload}
+        if uses_task_status_envelope(tool, target_version):
+            result = {"status": "completed", **result}
     target_schema = _schema(tool, direction, target_version)
     refusal = _refusal(target_schema, target_schema, result, shape=False)
     if refusal is None:

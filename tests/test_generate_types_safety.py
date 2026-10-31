@@ -341,3 +341,105 @@ def test_envelope_composition_generates_from_every_depth_with_inheritance(
     enrichment = importlib.import_module(f"{package.name}.core.enrichment").Enrichment
     assert not issubclass(flat, (listing, enrichment)), flat.__mro__
     assert {"name", "score"} <= set(flat.model_fields)
+
+
+@pytest.mark.parametrize(
+    "envelope_ref, task_id_ref, expected_task_id_ref",
+    [
+        ("../core/protocol-envelope.json", "task-id.json", "../core/task-id.json"),
+        (
+            "https://adcontextprotocol.org/schemas/3.3.0-beta.3/core/protocol-envelope.json",
+            "https://adcontextprotocol.org/schemas/3.3.0-beta.3/core/task-id.json",
+            "https://adcontextprotocol.org/schemas/3.3.0-beta.3/core/task-id.json",
+        ),
+    ],
+    ids=["relative", "canonical-url"],
+)
+def test_a_required_envelope_field_the_root_no_longer_restates_is_declared(
+    tmp_path, monkeypatch, envelope_ref, task_id_ref, expected_task_id_ref
+):
+    """``get-task-status-response.json`` requires ``task_id`` and ``status`` (adcp#8547).
+
+    Only the protocol envelope declares them; without a local declaration the
+    generator renders both as ``Any`` and overrides the envelope's types.
+    """
+    import json
+
+    cache = tmp_path / "schemas"
+    (cache / "core").mkdir(parents=True)
+    (cache / "core" / "protocol-envelope.json").write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "properties": {
+                    "status": {"$ref": "../enums/task-status.json"},
+                    "task_id": {"$ref": task_id_ref},
+                    "message": {"type": "string"},
+                },
+                "required": ["status"],
+            }
+        )
+    )
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", cache)
+    schema = {
+        "type": "object",
+        "allOf": [{"$ref": envelope_ref}],
+        "properties": {"task_type": {"type": "string"}},
+        "required": ["task_id", "task_type", "status"],
+    }
+    declared = generate_types.declare_required_envelope_properties(
+        schema, Path("protocol/get-task-status-response.json")
+    )
+    assert declared["properties"]["task_id"] == {"$ref": expected_task_id_ref}
+    assert declared["properties"]["status"] == {"$ref": "../enums/task-status.json"}
+    assert "message" not in declared["properties"]  # not required by the root
+    # A schema that requires only what it declares is left alone.
+    untouched = {"allOf": [{"$ref": envelope_ref}], "properties": {"a": {}}, "required": ["a"]}
+    assert generate_types.declare_required_envelope_properties(
+        untouched, Path("protocol/x.json")
+    ) == {"allOf": [{"$ref": envelope_ref}], "properties": {"a": {}}, "required": ["a"]}
+
+
+def test_task_id_and_message_references_generate_as_constrained_strings(tmp_path, monkeypatch):
+    """adcp#8547 put ``task_id`` and ``message`` behind one ``$ref`` each.
+
+    Each reference is generated as the scalar with its constraints, so callers
+    keep passing ``str`` (no ``TaskId(...)`` wrapping) and the wire bound holds.
+    """
+    import json
+
+    cache = tmp_path / "schemas"
+    (cache / "core").mkdir(parents=True)
+    (cache / "core" / "task-id.json").write_text(
+        json.dumps({"title": "Task ID", "type": "string", "minLength": 1})
+    )
+    (cache / "core" / "task-message.json").write_text(
+        json.dumps({"title": "Task Message", "type": "string", "maxLength": 2000})
+    )
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", cache)
+    schema = {
+        "properties": {
+            "task_id": {
+                "$ref": "https://adcontextprotocol.org/schemas/3.3.0-beta.3/core/task-id.json",
+                "description": "The task.",
+            },
+            "message": {"$ref": "../core/task-message.json"},
+            "nested": {"$ref": "../core/task-id.json#/definitions/x"},
+        }
+    }
+    inlined = generate_types.inline_scalar_alias_refs(schema, Path("protocol/x.json"))
+    assert inlined["properties"]["task_id"] == {
+        "type": "string",
+        "minLength": 1,
+        "description": "The task.",
+    }
+    assert inlined["properties"]["message"] == {"type": "string", "maxLength": 2000}
+    # A fragment names a node inside the schema, not the scalar: left alone.
+    assert inlined["properties"]["nested"] == {"$ref": "../core/task-id.json#/definitions/x"}
+    # A node narrowing the alias through a one-arm allOf keeps both bounds; the
+    # generator's allOf merge would drop the alias's minLength.
+    narrowed = generate_types.inline_scalar_alias_refs(
+        {"allOf": [{"$ref": "../core/task-id.json"}], "maxLength": 128, "description": "d"},
+        Path("compliance/comply-test-controller-request.json"),
+    )
+    assert narrowed == {"maxLength": 128, "description": "d", "type": "string", "minLength": 1}

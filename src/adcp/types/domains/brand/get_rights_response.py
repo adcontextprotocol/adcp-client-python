@@ -59,7 +59,7 @@ class Excluded(AdcpVersionEnvelope):
     suggestions: Annotated[list[str] | None, NoExplicitNull] = None
 
 
-class GetRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetRightsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights: list[Right]
     excluded: Annotated[list[Excluded] | None, NoExplicitNull] = None
@@ -67,7 +67,7 @@ class GetRightsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetRightsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetRightsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

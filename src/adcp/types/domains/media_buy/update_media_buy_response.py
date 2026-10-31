@@ -13,7 +13,6 @@ from typing import Annotated, Any, Literal, TypeAlias
 from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints, model_validator
 
-from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import business_entity as business_entity_1
 from ..core import context as context_1
 from ..core import error as error_1
@@ -30,7 +29,7 @@ from ..enums import task_status as task_status_1
 from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
 
-class UpdateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateMediaBuyResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal['completed'] = 'completed'
     media_buy_id: str
@@ -78,18 +77,17 @@ class UpdateMediaBuyResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelop
         return data
 
 
-class UpdateMediaBuyResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateMediaBuyResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class UpdateMediaBuyResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateMediaBuyResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    task_id: Annotated[str, StringConstraints(min_length=1)]
     errors: Annotated[list[error_1.Error] | None, NoExplicitNull] = None
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None

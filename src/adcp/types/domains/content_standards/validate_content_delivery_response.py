@@ -43,7 +43,7 @@ class Result(AdcpVersionEnvelope):
     features: Annotated[list[Feature] | None, NoExplicitNull] = None
 
 
-class ValidateContentDeliveryResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class ValidateContentDeliveryResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     summary: Summary
     results: list[Result]
@@ -51,7 +51,7 @@ class ValidateContentDeliveryResponse1(AdcpResponse, AdcpVersionEnvelope, Protoc
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class ValidateContentDeliveryResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class ValidateContentDeliveryResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

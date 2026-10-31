@@ -2,100 +2,310 @@
 
 ## Files added
 
-- `core/proposal_offered_webhook.py` — OfferReason, ProposalOfferedWebhook
-- `core/vendor_metric_provenance.py` — VendorMetricProvenance
-- `enums/collection_mechanism.py` — CollectionMechanism
-- `enums/offer_reason.py` — OfferReason
-- `enums/proposal_initiator.py` — ProposalInitiator
-
-## Files removed
-
-- `brand/rights_scope.py` — Country, Exclusivity, RightsScope
-- `core/definition_pin.py` — DefinitionPin1, DefinitionPin2, DefinitionPin3, DefinitionPin4, RefKind, Reference, Reference1, Reference2, Reference3
-- `core/installment_change_set.py` — Action, InstallmentChangeSet, InstallmentChangeSetItem
-- `enums/definition_pin_ref_kind.py` — DefinitionPinReferenceKind
-- `error_details/reference_definition_changed.py` — ReferenceDefinitionChangedDetails
+- `core/creative_staged_update.py` — CreativeStagedUpdate, Status
+- `core/live_update_policy.py` — InPlaceItem, LiveUpdatePolicy, OnRejection
+- `core/task_id.py` — TaskId
+- `core/task_input_required.py` — TaskInputRequired
+- `core/task_message.py` — TaskMessage
+- `core/task_submitted.py` — TaskSubmitted
+- `core/task_working.py` — TaskWorking
+- `creative/creative_staged_update_changed_webhook.py` — CreativeStagedUpdateChangedWebhook, Initiator, Outcome
+- `enums/creative_change_kind.py` — CreativeChangeKind
+- `enums/live_update_serving_mode.py` — LiveUpdateServingMode
+- `error_details/creative_live_update_unsupported.py` — CreativeLiveUpdateUnsupportedDetails, LivePackageId
 
 ## Field changes
 
-- `a2ui/si_catalog.py`
-  - **classes added**: Action25
-  - **classes removed**: Action27
-- `account/request_account_request.py`
-  - `RequestAccountRequest`: `+allow_separate_account`
-- `brand/rights_terms.py`
-  - **classes added**: Country, Exclusivity
-  - `RightsTerms`: `+end_date`, `+exclusivity`, `+start_date`, `+uses`
-- `brand_discovery.py`
-  - `RightUse`: `-content_reuse`, `-paid_amplification`
+- `account/list_account_changes_response.py`
+  - **classes added**: Status54
+  - **classes removed**: Status20
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: ReportingDimension, UnmappedDimension
-  - **classes removed**: Dimension
-  - `AvailableUs`: `-content_reuse`, `-paid_amplification`
-  - `Offering`: `+standard_dimensions`, `+unmapped_dimensions`
-  - `SupportedDimension`: `-installment_changes`
+  - **classes added**: Change, InPlaceItem, LiveUpdates, OnRejection, Serving
+  - `Creative`: `+live_updates`
+  - `Offering`: `+available_from`, `+withdrawn_at`
+- `collection/create_collection_list_response.py`
+  - `CreateCollectionListResponse`: `-replayed`
+- `collection/delete_collection_list_response.py`
+  - `DeleteCollectionListResponse`: `-replayed`
+- `collection/update_collection_list_response.py`
+  - `UpdateCollectionListResponse`: `-replayed`
 - `compliance/comply_test_controller_request.py`
-  - **classes removed**: Mutation
-  - `Operation`: `-mutate_definition`
-  - `Params`: `-mutation`, `-ref_kind`
-- `core/canonical_proposal.py`
-  - **classes removed**: ProposalInitiator
-- `core/delivery_metrics.py`
-  - `DeliveryMetrics`: `+vendor_metric_provenance`
-- `core/measurement_terms.py`
-  - `BillingMeasurement`: `+counting_mechanisms`
+  - **classes added**: AllowedTask
+  - `Operation`: `+reduce_grant`, `+regrant`, `+revoke_grant`, `+set_account_timezone`
+  - `Params`: `+allowed_tasks`, `+timezone`
+- `compliance/comply_test_controller_response.py`
+  - `ComplyTestControllerResponse2`: `-message`
+  - `ComplyTestControllerResponse3`: `-message`
+  - `ComplyTestControllerResponse4`: `-message`
+  - `ComplyTestControllerResponse5`: `-message`
+- `core/account_authorization.py`
+  - `AccountAuthorization`: `+regranted_at`
+- `core/account_request_record.py`
+  - **classes added**: NotCarriedOverEnum
+  - `AccountRequest`: `+effective_at`, `+not_carried_over`
+- `core/async_response_refs/creative/get_creative_features_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetCreativeFeaturesSubmitted`: `-message`
+- `core/async_response_refs/creative/sync_creatives_async_response_input_required.py`
+  - **classes added**: Status
+  - `SyncCreativesInputRequired`: `+status`
+- `core/async_response_refs/creative/sync_creatives_async_response_submitted.py`
+  - **classes added**: Status
+  - `SyncCreativesSubmitted`: `-message`
+- `core/async_response_refs/creative/sync_creatives_async_response_working.py`
+  - **classes added**: Status
+  - `SyncCreativesWorking`: `+status`
+- `core/async_response_refs/media_buy/build_creative_async_response_input_required.py`
+  - **classes added**: Status
+  - `BuildCreativeInputRequired`: `+status`
+- `core/async_response_refs/media_buy/build_creative_async_response_submitted.py`
+  - **classes added**: Status
+  - `BuildCreativeSubmitted`: `-message`
+- `core/async_response_refs/media_buy/build_creative_async_response_working.py`
+  - **classes added**: Status
+  - `BuildCreativeWorking`: `+status`
+- `core/async_response_refs/media_buy/create_media_buy_async_response_input_required.py`
+  - **classes added**: Status
+  - `CreateMediaBuyInputRequired`: `+status`
+- `core/async_response_refs/media_buy/create_media_buy_async_response_submitted.py`
+  - **classes added**: Status
+  - `CreateMediaBuySubmitted`: `-message`
+- `core/async_response_refs/media_buy/create_media_buy_async_response_working.py`
+  - **classes added**: Status
+  - `CreateMediaBuyWorking`: `+status`
+- `core/async_response_refs/media_buy/get_products_async_response_input_required.py`
+  - **classes added**: Status
+  - `GetProductsInputRequired`: `+status`
+- `core/async_response_refs/media_buy/get_products_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetProductsSubmitted`: `-message`
+- `core/async_response_refs/media_buy/get_products_async_response_working.py`
+  - **classes added**: Status
+  - `GetProductsWorking`: `+status`
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_input_required.py`
+  - **classes added**: Status
+  - `SyncCatalogsInputRequired`: `+status`
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_submitted.py`
+  - **classes added**: Status
+  - `SyncCatalogsSubmitted`: `-message`
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_working.py`
+  - **classes added**: Status
+  - `SyncCatalogsWorking`: `+status`
+- `core/async_response_refs/media_buy/update_media_buy_async_response_input_required.py`
+  - **classes added**: Status
+  - `UpdateMediaBuyInputRequired`: `+status`
+- `core/async_response_refs/media_buy/update_media_buy_async_response_submitted.py`
+  - **classes added**: Status
+  - `UpdateMediaBuySubmitted`: `-message`
+- `core/async_response_refs/media_buy/update_media_buy_async_response_working.py`
+  - **classes added**: Status
+  - `UpdateMediaBuyWorking`: `+status`
+- `core/async_response_refs/signals/get_signals_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetSignalsSubmitted`: `-message`
+- `core/async_response_refs/signals/get_signals_async_response_working.py`
+  - **classes added**: Status
+  - `GetSignalsWorking`: `+status`
+- `core/compact_task_input_required.py`
+  - **classes added**: Status
+  - `CompactTaskInputRequired`: `+status` `-message`
+- `core/compact_task_submitted.py`
+  - **classes added**: Status
+  - `CompactTaskSubmitted`: `-message`
+- `core/compact_task_working.py`
+  - **classes added**: Status
+  - `CompactTaskWorking`: `+status`
+- `core/media_buy.py`
+  - **classes added**: FlightHistoryItem
+  - `MediaBuy`: `+cancellation_effective_at`, `+flight_history`
 - `core/notification_config.py`
-  - `EventType`: `+proposal_offered`
+  - `EventType`: `+creative_staged_update_changed`
+- `core/reporting_consumer_status.py`
+  - `ReportingConsumerStatus`: `+offering_id`
 - `core/reporting_delivery_offering.py`
-  - **classes added**: UnmappedDimension
-  - `ReportingDeliveryOffering`: `+standard_dimensions`, `+unmapped_dimensions`
+  - `ReportingDeliveryOffering`: `+available_from`, `+withdrawn_at`
+- `core/reporting_obligation.py`
+  - `ReportingObligation`: `+stub`
+- `core/reporting_subscription.py`
+  - **classes added**: AccountId7, DestinationOverride
+  - `ReportingSubscription`: `+destination_overrides`
 - `core/reporting_subscription_coverage.py`
-  - `ExcludedItem`: `+offering_id`
-  - `Gap`: `+offering_id`
-  - `TimezoneCutover`: `+offering_id`, `+previous_timezone`
+  - `ReportingSubscriptionCoverage`: `+deactivated_at`
+  - `Status`: `+inactive`
 - `core/reporting_subscription_state.py`
-  - **classes added**: InactiveInterval
-  - `PriorVersion`: `+configuration`
-  - `ReportingSubscriptionState`: `+inactive_intervals`
+  - **classes added**: DestinationOverrideRef, ReportingSubscriptionAccountExceptions, ReportingSubscriptionPriorVersion, ReportingSubscriptionUnauthorizedAccount
+  - **classes removed**: AccountsUnauthorizedItem, AccountsWithException, PriorVersion
+  - `ReportingSubscriptionState`: `+accounts_unauthorized_count`, `+accounts_with_exceptions_count`, `+destination_override_refs`, `+prior_versions_count`
+- `core/tasks_list_request.py`
+  - **classes added**: TaskId
+- `creative/get_creative_features_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetCreativeFeaturesSubmitted`: `-message`
+- `creative/get_creative_features_response.py`
+  - `GetCreativeFeaturesResponse3`: `-message`
+- `creative/list_creatives_request.py`
+  - `Field1`: `+staged_update`
+- `creative/list_creatives_response.py`
+  - `Creative`: `+staged_update`
+- `creative/preview_creative_response.py`
+  - `PreviewCreativeResponse4`: `-message`
+- `creative/sync_creatives_async_response_input_required.py`
+  - **classes added**: Status
+  - `SyncCreativesInputRequired`: `+status`
+- `creative/sync_creatives_async_response_submitted.py`
+  - **classes added**: Status
+  - `SyncCreativesSubmitted`: `-message`
+- `creative/sync_creatives_async_response_working.py`
+  - **classes added**: Status
+  - `SyncCreativesWorking`: `+status`
+- `creative/sync_creatives_response.py`
+  - `Creative`: `+staged_update`
+  - `SyncCreativesResponse3`: `-message`
 - `enums/error_code.py`
-  - `ErrorCode`: `+ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT` `-REFERENCE_DEFINITION_CHANGED`
+  - `ErrorCode`: `+CREATIVE_LIVE_UPDATE_UNSUPPORTED`
 - `enums/notification_type.py`
-  - `NotificationType`: `+proposal_offered`
-- `enums/proposal_refinement_reason.py`
-  - `ProposalRefinementReason`: `-definition_changed`
-- `enums/right_use.py`
-  - `RightUse`: `-content_reuse`, `-paid_amplification`
-- `media_buy/commercial_terms.py`
-  - `CommercialTerms`: `-definition_pins`
+  - `NotificationType`: `+creative_staged_update_changed`
+- `governance/check_governance_response.py`
+  - `CheckGovernanceResponse`: `-governance_context`
+- `governance/report_plan_adjustment_response.py`
+  - `ReportPlanAdjustmentResponse`: `-replayed`
+- `governance/report_plan_outcome_response.py`
+  - `ReportPlanOutcomeResponse`: `-replayed`
+- `governance/sync_plans_response.py`
+  - **classes added**: Status97
+  - **classes removed**: Status52
+  - `SyncPlansResponse`: `-replayed`
+- `media_buy/accept_proposal_response.py`
+  - **classes added**: Status
+  - `AcceptProposalResponse1`: `-replayed`
+  - `AcceptProposalResponse2`: `-replayed`
+  - `AcceptProposalResponse3`: `-message`, `-replayed`
+- `media_buy/build_creative_async_response_input_required.py`
+  - **classes added**: Status
+  - `BuildCreativeInputRequired`: `+status`
+- `media_buy/build_creative_async_response_submitted.py`
+  - **classes added**: Status
+  - `BuildCreativeSubmitted`: `-message`
+- `media_buy/build_creative_async_response_working.py`
+  - **classes added**: Status
+  - `BuildCreativeWorking`: `+status`
+- `media_buy/build_creative_response.py`
+  - `BuildCreativeResponse6`: `-message`
+- `media_buy/buy_products_response.py`
+  - **classes added**: Status
+  - `BuyProductsResponse1`: `-replayed`
+  - `BuyProductsResponse2`: `-replayed`
+  - `BuyProductsResponse3`: `-message`, `-replayed`
+- `media_buy/control_media_buy_response.py`
+  - **classes added**: Status
+  - `ControlMediaBuyResponse1`: `-replayed`
+  - `ControlMediaBuyResponse2`: `-replayed`
+  - `ControlMediaBuyResponse3`: `-message`, `-replayed`
+- `media_buy/create_media_buy_async_response_input_required.py`
+  - **classes added**: Status
+  - `CreateMediaBuyInputRequired`: `+status`
+- `media_buy/create_media_buy_async_response_submitted.py`
+  - **classes added**: Status
+  - `CreateMediaBuySubmitted`: `-message`
+- `media_buy/create_media_buy_async_response_working.py`
+  - **classes added**: Status
+  - `CreateMediaBuyWorking`: `+status`
+- `media_buy/create_media_buy_response.py`
+  - `CreateMediaBuyResponse3`: `-message`
+- `media_buy/decline_proposals_response.py`
+  - `DeclineProposalsResponse1`: `-message`, `-replayed`, `-task_id`
+  - `DeclineProposalsResponse2`: `-message`, `-replayed`, `-status`, `-task_id`
+- `media_buy/get_media_buy_issue_response.py`
+  - `GetMediaBuyIssueResponse1`: `-replayed`
+  - `GetMediaBuyIssueResponse2`: `-replayed`
+- `media_buy/get_media_buys_response.py`
+  - **classes added**: FlightHistoryItem
+  - `MediaBuy`: `+cancellation_effective_at`, `+flight_history`
+  - `Package`: `+reporting_delivery_offering_ids`
+- `media_buy/get_products_async_response_input_required.py`
+  - **classes added**: Status
+  - `GetProductsInputRequired`: `+status`
+- `media_buy/get_products_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetProductsSubmitted`: `-message`
+- `media_buy/get_products_async_response_working.py`
+  - **classes added**: Status
+  - `GetProductsWorking`: `+status`
+- `media_buy/get_reporting_status_response.py`
+  - `DeliveryConfigGeneration`: `+offering_id`
+- `media_buy/list_collections_response.py`
+  - `ListCollectionsResponse1`: `-replayed`
+  - `ListCollectionsResponse2`: `-replayed`
+- `media_buy/list_products_response.py`
+  - `ListProductsResponse1`: `-adcp_version`, `-replayed`
+  - `ListProductsResponse2`: `-adcp_version`, `-replayed`
 - `media_buy/list_proposals_response.py`
-  - `Proposal`: `+offer_reason`
-- `media_buy/product_purchase.py`
-  - `ProductPurchase`: `-installments`, `-rights`
-- `media_buy/product_refinement.py`
-  - **classes added**: Action12
-  - **classes removed**: Action13
-- `media_buy/proposal_refinement.py`
-  - **classes removed**: ProposalRefinement11
-  - `ProposalRefinement10`: `-installment_changes`
-  - `ProposalRefinement2`: `-installment_changes`
-  - `ProposalRefinement3`: `-installment_changes`
-  - `ProposalRefinement4`: `-installment_changes`
-  - `ProposalRefinement5`: `-installment_changes`
-  - `ProposalRefinement6`: `-installment_changes`
-  - `ProposalRefinement7`: `-installment_changes`
-  - `ProposalRefinement8`: `-installment_changes`
-  - `ProposalRefinement9`: `-installment_changes`
+  - `ListProposalsResponse`: `-replayed`
+- `media_buy/media_buy_commitment_response.py`
+  - **classes added**: Status
+  - `MediaBuyCommitmentResponse1`: `-replayed`
+  - `MediaBuyCommitmentResponse2`: `-replayed`
+  - `MediaBuyCommitmentResponse3`: `-message`, `-replayed`
 - `media_buy/refine_proposals_response.py`
-  - **classes removed**: DriftedPin, ProposalInitiator
-  - `Results10`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results11`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results12`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results15`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results16`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results17`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results9`: `-drifted_pins`, `-unsatisfied_installment_changes`
+  - **classes removed**: Status
+  - `RefineProposalsResponse1`: `-adcp_version`, `-message`, `-replayed`, `-task_id`
+  - `RefineProposalsResponse2`: `-adcp_version`, `-message`, `-replayed`, `-status`, `-task_id`
+- `media_buy/report_media_buy_issue_response.py`
+  - `ReportMediaBuyIssueResponse1`: `-replayed`
+  - `ReportMediaBuyIssueResponse2`: `-replayed`
+- `media_buy/request_proposals_response.py`
+  - **classes removed**: Status
+  - `RequestProposalsResponse1`: `-adcp_version`, `-message`, `-replayed`, `-task_id`
+  - `RequestProposalsResponse2`: `-adcp_version`, `-message`, `-replayed`, `-task_id`
+  - `RequestProposalsResponse3`: `-adcp_version`, `-message`, `-replayed`, `-task_id`
+  - `RequestProposalsResponse4`: `-adcp_version`, `-message`, `-replayed`, `-status`, `-task_id`
+- `media_buy/sync_audiences_response.py`
+  - `SyncAudiencesResponse3`: `-message`
+- `media_buy/sync_catalogs_async_response_input_required.py`
+  - **classes added**: Status
+  - `SyncCatalogsInputRequired`: `+status`
+- `media_buy/sync_catalogs_async_response_submitted.py`
+  - **classes added**: Status
+  - `SyncCatalogsSubmitted`: `-message`
+- `media_buy/sync_catalogs_async_response_working.py`
+  - **classes added**: Status
+  - `SyncCatalogsWorking`: `+status`
+- `media_buy/sync_catalogs_response.py`
+  - `SyncCatalogsResponse3`: `-message`
+- `media_buy/update_media_buy_async_response_input_required.py`
+  - **classes added**: Status
+  - `UpdateMediaBuyInputRequired`: `+status`
+- `media_buy/update_media_buy_async_response_submitted.py`
+  - **classes added**: Status
+  - `UpdateMediaBuySubmitted`: `-message`
+- `media_buy/update_media_buy_async_response_working.py`
+  - **classes added**: Status
+  - `UpdateMediaBuyWorking`: `+status`
+- `media_buy/update_media_buy_response.py`
+  - `UpdateMediaBuyResponse3`: `-message`
+- `property/create_property_list_response.py`
+  - `CreatePropertyListResponse`: `-replayed`
+- `property/delete_property_list_response.py`
+  - `DeletePropertyListResponse`: `-replayed`
+- `property/update_property_list_response.py`
+  - `UpdatePropertyListResponse`: `-replayed`
 - `protocol/get_adcp_capabilities_response.py`
-  - `SupportedDimension`: `-installment_changes`
-- `protocol/sync_principal_response.py`
-  - **classes added**: Action35
-  - **classes removed**: Action37
+  - **classes added**: LiveUpdates
+  - `Creative`: `+live_updates`
+- `protocol/get_principal_request.py`
+  - **classes added**: List, ReportingSubscriptionPage
+  - `GetPrincipalRequest`: `+reporting_subscription_page`
+- `protocol/get_principal_response.py`
+  - **classes added**: List, ReportingSubscriptionPage
+  - `Result2`: `+reporting_subscription_page`
+- `protocol/list_tasks_request.py`
+  - **classes added**: TaskId
+- `signals/get_signals_async_response_submitted.py`
+  - **classes added**: Status
+  - `GetSignalsSubmitted`: `-message`
+- `signals/get_signals_async_response_working.py`
+  - **classes added**: Status
+  - `GetSignalsWorking`: `+status`
+- `sponsored_intelligence/si_sponsored_context_receipt.py`
+  - **classes added**: Status77
+  - **classes removed**: Status47

@@ -32,8 +32,8 @@ from adcp.types import GetReportingStatusResponse
 from adcp.types.core import TaskResult, TaskStatus
 
 IDENTITY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
-#: The in-process client is served 3.3.0-beta.2, which carries the adcp#8585 fields.
-BETA_2 = SimpleNamespace(resolved_adcp_version="3.3-beta.2")
+#: The in-process client is served 3.3.0-beta.3, the pinned release.
+BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.3")
 NY = "America/New_York"
 
 
@@ -108,24 +108,22 @@ class Seller:
 
 
 class Client:
-    """What an ADCPClient returns, backed by the in-process seller (served 3.3.0-beta.2)."""
+    """What an ADCPClient returns, backed by the in-process seller (served 3.3.0-beta.3)."""
 
     def __init__(self, seller: Seller) -> None:
         self.seller = seller
 
     async def sync_principal(self, request):
-        data = await self.seller.principals.sync_principal(IDENTITY, request, context=BETA_2)
+        data = await self.seller.principals.sync_principal(IDENTITY, request, context=BETA_3)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 
     async def get_principal(self, request):
-        data = await self.seller.principals.get_principal(IDENTITY, request, context=BETA_2)
+        data = await self.seller.principals.get_principal(IDENTITY, request, context=BETA_3)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 
     async def get_reporting_status(self, request):
         account_id = request.account.account_id
-        coverage = await self.seller.engine.subscription_coverage(
-            IDENTITY, account_id, adcp_version="3.3-beta.2"
-        )
+        coverage = await self.seller.engine.subscription_coverage(IDENTITY, account_id)
         data = GetReportingStatusResponse.model_construct(subscription_coverage=coverage or None)
         return TaskResult(status=TaskStatus.COMPLETED, data=data, success=True)
 

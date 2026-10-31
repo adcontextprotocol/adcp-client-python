@@ -462,3 +462,52 @@ def test_optional_forecast_bridge_refreshes_cached_refinement_parents(monkeypatc
         assert result.refine[0].package.targeting_overlay is overlay
         raw = request.model_validate({"refine": [{"package": {"targeting_overlay": {}}}]})
         assert type(raw.refine[0].package.targeting_overlay) is GeneratedInput
+
+
+def _fresh_interpreter(code: str) -> str:
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip()
+
+
+def test_forward_compat_patches_survive_a_second_pass() -> None:
+    """A second pass over already-patched models is a no-op, not a RuntimeError.
+
+    ``adcp.types`` imports ``_forward_compat`` again when a first import failed
+    partway (the 3.3.0-beta.3 "Generate Python SDK" failure): the second pass
+    must not replace the first error with "lost its annotation".
+    """
+    out = _fresh_interpreter(
+        "from adcp.types import _forward_compat as fc\n"
+        "from adcp.types.domains.media_buy.package_request import PackageRequest\n"
+        "before = PackageRequest.model_fields['targeting_overlay'].annotation\n"
+        "fc._apply_forward_compat()\n"
+        "assert PackageRequest.model_fields['targeting_overlay'].annotation is before\n"
+        "print(type(PackageRequest.model_validate({'product_id': 'p', 'budget': 1,"
+        " 'pricing_option_id': 'o', 'targeting_overlay': {}}).targeting_overlay).__name__)\n"
+    )
+    assert out == "TargetingOverlayInput"
+
+
+def test_a_failed_eager_import_surfaces_instead_of_reading_as_a_missing_name() -> None:
+    """An AttributeError inside the eager import must not turn into ``hasattr() is False``."""
+    out = _fresh_interpreter(
+        "import importlib\n"
+        "real = importlib.import_module\n"
+        "def broken(name, package=None):\n"
+        "    if name == 'adcp.types._eager':\n"
+        "        raise AttributeError('generated module lost PriorVersion')\n"
+        "    return real(name, package)\n"
+        "importlib.import_module = broken\n"
+        "import adcp.types\n"
+        "try:\n"
+        "    hasattr(adcp.types, 'PackageRequest')\n"
+        "except ImportError as error:\n"
+        "    print(type(error.__cause__).__name__, error.__cause__)\n"
+    )
+    assert out == "AttributeError generated module lost PriorVersion"

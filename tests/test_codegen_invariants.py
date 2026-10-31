@@ -107,15 +107,23 @@ def test_postal_overlay_support_preserves_only_explicit_legacy_flags(field: str,
 def test_responses_only_emit_replayed_when_supplied(
     response_type: Any, payload: dict[str, Any]
 ) -> None:
+    """The protocol envelope's ``replayed`` governs (adcp#8547, 3.3.0-beta.3).
+
+    An absent ``replayed`` means ``false`` and is never emitted; a response may
+    carry ``replayed: false`` explicitly. Beta.2's local copies pinned it to
+    ``true``; beta.3 removed them.
+    """
     adapter = TypeAdapter(response_type)
     model = adapter.validate_python(payload)
-    assert model.replayed is None
+    assert model.replayed is False
     assert "replayed" not in model.model_dump(mode="json", exclude_none=True)
 
     replayed = adapter.validate_python({**payload, "replayed": True})
     assert replayed.model_dump(mode="json", exclude_none=True)["replayed"] is True
+    fresh = adapter.validate_python({**payload, "replayed": False})
+    assert fresh.model_dump(mode="json", exclude_none=True)["replayed"] is False
     with pytest.raises(ValidationError):
-        adapter.validate_python({**payload, "replayed": False})
+        adapter.validate_python({**payload, "replayed": "yes"})
 
 
 @pytest.mark.parametrize(

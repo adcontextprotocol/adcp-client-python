@@ -11,14 +11,13 @@ from typing import Annotated, Literal, TypeAlias
 from adcp.types.base import NoExplicitNull, WireDatetime
 from pydantic import ConfigDict, Field, StringConstraints
 
-from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class ProvidePerformanceFeedbackResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class ProvidePerformanceFeedbackResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     success: Literal[True]
     feedback_id: Annotated[Annotated[str, StringConstraints(min_length=1)] | None, NoExplicitNull] = None
@@ -31,7 +30,7 @@ class ProvidePerformanceFeedbackResponse1(AdcpResponse, AdcpVersionEnvelope, Pro
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class ProvidePerformanceFeedbackResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class ProvidePerformanceFeedbackResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

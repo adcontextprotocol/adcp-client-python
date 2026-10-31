@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 11:56:25 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -35,6 +35,10 @@ from adcp.types.domains.error_details.billing_not_permitted_for_agent import (
 from adcp.types.domains.error_details.billing_not_supported import BillingNotSupportedDetails
 from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
 from adcp.types.domains.error_details.conflict import ConflictDetails
+from adcp.types.domains.error_details.creative_live_update_unsupported import (
+    CreativeLiveUpdateUnsupportedDetails,
+    LivePackageId,
+)
 from adcp.types.domains.error_details.creative_merge_rejected import (
     CreativeMergeRejectedDetails,
     Rejection,
@@ -113,6 +117,7 @@ __all__ = [
     "BudgetTooLowDetails",
     "Codes",
     "ConflictDetails",
+    "CreativeLiveUpdateUnsupportedDetails",
     "CreativeMergeRejectedDetails",
     "CreativeRejectedDetails",
     "CreativeRepresentationUnresolvedDetails",
@@ -127,6 +132,7 @@ __all__ = [
     "GovernanceAgentNotAcceptedDetails",
     "GovernanceAgentNotAcceptedDetails1",
     "GovernanceAgentNotAcceptedDetails2",
+    "LivePackageId",
     "MacroResolutionFailedDetails",
     "MismatchReason",
     "Origin",

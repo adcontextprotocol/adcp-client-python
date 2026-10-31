@@ -155,15 +155,15 @@ def _normalize_response_envelope(
 
     if method_name == "list_products":
         # The compact list response is a synchronous listed/unchanged union.
-        # Unlike the general task envelope, neither arm permits ``status``.
-        # A products-bearing response is unambiguously the listed arm, so keep
+        # Through AdCP 3.2 neither arm permits ``status``; from 3.3.0-beta.3 the
+        # response composes the protocol envelope, which requires it. A
+        # products-bearing response is unambiguously the listed arm, so keep
         # accepting the ergonomic handler shape that predates the explicit
         # outcome discriminator.
         if "outcome" not in result and "products" in result:
             result["outcome"] = "listed"
-        return
     if (
-        uses_task_status_envelope(method_name)
+        uses_task_status_envelope(method_name, adcp_version)
         and "status" not in result
         and "task_id" not in result
     ):
