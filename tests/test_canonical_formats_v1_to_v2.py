@@ -18,6 +18,7 @@ from adcp.canonical_formats import (
 )
 from adcp.canonical_formats.advisory import SDK_ID
 from adcp.types import CanonicalFormatKind
+from adcp.types.legacy import LegacyFormat
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "canonical"
 
@@ -243,6 +244,64 @@ def test_retina_rendition_set_registry_mapping_preserves_slot_contract(
 # ---------------------------------------------------------------------------
 # Step 3 — registry structural match (no explicit canonical)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("asset_type", "version_key", "version", "expected_kind"),
+    [
+        ("vast", "vast_version", "4.2", CanonicalFormatKind.video_vast),
+        ("vast", "vast_version", "3.0", CanonicalFormatKind.video_vast),
+        ("vast", "vast_version", "2.0", CanonicalFormatKind.video_vast),
+        ("daast", "daast_version", "1.0", CanonicalFormatKind.audio_daast),
+        ("daast", "daast_versions", ["1.0", "1.1"], CanonicalFormatKind.audio_daast),
+    ],
+)
+def test_typed_versioned_format_matches_dict_projection(
+    asset_type: str,
+    version_key: str,
+    version: str | list[str],
+    expected_kind: CanonicalFormatKind,
+) -> None:
+    raw = {
+        "format_id": {"agent_url": "https://creative.example", "id": "acme_preroll"},
+        "name": "Acme preroll",
+        "assets": [
+            {
+                "item_type": "individual",
+                "asset_id": "media",
+                "asset_type": asset_type,
+                "required": True,
+                "requirements": {version_key: version},
+            }
+        ],
+    }
+    typed = LegacyFormat.model_validate(raw)
+    from_dict = project_v1_format_to_declaration(raw)
+    from_model = project_v1_format_to_declaration(typed)
+    assert from_dict.declaration is not None
+    assert from_dict.declaration.format_kind == expected_kind
+    assert from_model == from_dict
+
+
+@pytest.mark.parametrize("asset_type", ["vast", "daast"])
+def test_typed_versionless_format_still_fails_closed(asset_type: str) -> None:
+    raw = {
+        "format_id": {"agent_url": "https://creative.example", "id": "acme_preroll"},
+        "name": "Acme preroll",
+        "assets": [
+            {
+                "item_type": "individual",
+                "asset_id": "media",
+                "asset_type": asset_type,
+                "required": True,
+                "requirements": {},
+            }
+        ],
+    }
+    from_dict = project_v1_format_to_declaration(raw)
+    from_model = project_v1_format_to_declaration(LegacyFormat.model_validate(raw))
+    assert from_dict.declaration is None
+    assert from_model == from_dict
 
 
 def test_structural_match_emits_ambiguous_advisory() -> None:
