@@ -750,6 +750,181 @@ def normalize_version_envelope_composition(schema: dict, schema_rel_path: Path) 
 _VERSION_ENVELOPE_NORMALIZED = 0
 
 
+def _resolve_allof_arm(
+    arm: dict, current_schema_rel_path: Path, document: dict
+) -> tuple[Path, Any]:
+    """The schema an ``allOf`` ``$ref`` arm names, and the file its refs are relative to."""
+    ref = arm["$ref"]
+    file_part, _separator, fragment = ref.partition("#")
+    target, owner = current_schema_rel_path, document
+    if file_part:
+        normalized = _normalize_schema_ref_target(file_part, current_schema_rel_path)
+        if normalized is None or not (SCHEMAS_DIR / normalized[1]).is_file():
+            raise ValueError(
+                f"{current_schema_rel_path.as_posix()}: cannot resolve allOf arm {ref!r} "
+                "to decide whether the generator would merge its arms"
+            )
+        target = normalized[1]
+        owner = json.loads((SCHEMAS_DIR / target).read_text())
+    return target, _resolve_json_pointer(owner, fragment, ref) if fragment else owner
+
+
+def _deep_merge_like_codegen(left: Any, right: Any) -> Any:
+    """datamodel-code-generator's ``_deep_merge``: nested dicts merge, lists concatenate."""
+    if not (isinstance(left, dict) and isinstance(right, dict)):
+        return copy.deepcopy(right)
+    merged = dict(left)
+    for key, value in right.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = _deep_merge_like_codegen(merged[key], value)
+        elif key in merged and isinstance(merged[key], list) and isinstance(value, list):
+            merged[key] = merged[key] + copy.deepcopy(value)
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
+def _conflicting_properties(arms: list[tuple[Path, Any]]) -> list[str]:
+    """Properties the *arms* declare differently: the generator's merge condition."""
+    signatures: dict[str, set[str]] = {}
+    for _target, arm in arms:
+        properties = arm.get("properties") if isinstance(arm, dict) else None
+        for name, definition in (properties or {}).items():
+            signatures.setdefault(name, set()).add(json.dumps(definition, sort_keys=True))
+    return [name for name, seen in signatures.items() if len(seen) > 1]
+
+
+def _ref_composes(schema: Any) -> bool:
+    """True when *schema* composes other schemas through its own root ``allOf``."""
+    arms = schema.get("allOf") if isinstance(schema, dict) else None
+    return isinstance(arms, list) and any(
+        isinstance(arm, dict) and isinstance(arm.get("$ref"), str) for arm in arms
+    )
+
+
+def _merge_allof_like_codegen(node: dict, arms: list[tuple[Path, Any]]) -> None:
+    """Merge *arms* into *node* as datamodel-code-generator's ``_merge_all_of_object`` does."""
+    merged = {key: value for key, value in node.items() if key != "allOf"}
+    for target, arm in arms:
+        merged = _deep_merge_like_codegen(
+            merged, _rebase_refs_to_schema_root(copy.deepcopy(arm), target)
+        )
+    if isinstance(merged.get("required"), list):
+        merged["required"] = list(dict.fromkeys(merged["required"]))
+    merged.pop("allOf", None)
+    node.clear()
+    node.update(merged)
+
+
+def _pin_conflicting_properties(node: dict, arms: list[tuple[Path, Any]]) -> int:
+    """Declare on *node* each property its *arms* declare differently. Returns the count."""
+    conflicting = _conflicting_properties(arms)
+    if not conflicting:
+        return 0
+    properties = node.setdefault("properties", {})
+    required = list(node.get("required") or [])
+    for name in conflicting:
+        definition = copy.deepcopy(properties.get(name, {}))
+        for target, arm in arms:
+            arm_definition = (arm.get("properties") or {}).get(name)
+            if arm_definition is None:
+                continue
+            rebased = _rebase_refs_to_schema_root(copy.deepcopy(arm_definition), target)
+            definition = _deep_merge_like_codegen(definition, rebased)
+            if name in (arm.get("required") or []) and name not in required:
+                required.append(name)
+        properties[name] = definition
+    if required:
+        node["required"] = required
+    return len(conflicting)
+
+
+def pin_conflicting_allof_properties(
+    obj,
+    current_schema_rel_path: Path,
+    document: dict | None = None,
+    inherited: tuple[tuple[Path, Any, bool], ...] = (),
+):
+    """Keep an ``allOf`` whose arms disagree on a property rendered as inheritance.
+
+    datamodel-code-generator renders an ``allOf`` of ``$ref`` arms as base
+    classes, unless two arms declare the same property differently. Then, by
+    default, it merges every arm into one flat class: the composed schemas are
+    no longer bases, and whatever an arm composes through its own root
+    ``allOf`` is dropped. A ``oneOf``/``anyOf`` branch with its own ``allOf``
+    is built with its parent's ``allOf`` arms too, so the disagreement can be
+    between a parent arm and a branch arm.
+
+    From adcp#8547 every submitted, working and input-required body or branch
+    composes ``core/task-submitted.json`` (or ``task-working`` /
+    ``task-input-required``) beside ``core/protocol-envelope.json``, and the
+    task schema's ``status`` const narrows the envelope's ``status``. Merged,
+    those classes stopped being ``ProtocolEnvelope`` or ``TaskSubmitted``
+    subclasses and lost ``adcp_version`` and ``adcp_major_version``, which
+    the envelope composes from ``core/version-envelope.json``.
+
+    The generator runs with ``--allof-class-hierarchy always``, so it keeps
+    the bases. Python would then take each disagreeing field from the first
+    base, the envelope, and lose the narrowing. So in the temp tree only, when
+    an arm composes schemas of its own (the case the merge loses data), this
+    pass declares each disagreeing property on the composing schema itself,
+    as the generator's merge would have built it, and requires it if any arm
+    does. The child class overrides the field with exactly the type the merged
+    class had.
+
+    Any other disagreeing ``allOf`` is merged here the way the generator's
+    own merge does it, so those classes keep their flat shape. At 3.3.0-beta.2
+    that is the one ``allOf`` in ``signals/get-signals-response.json`` and
+    nothing is pinned, so the generated tree is byte-identical.
+    """
+    global _ALLOF_PROPERTIES_PINNED, _ALLOF_PRE_MERGED
+    if document is None:
+        document = obj
+    if isinstance(obj, dict):
+        arms = obj.get("allOf")
+        merged = list(inherited)
+        if isinstance(arms, list):
+            for arm in arms:
+                if not isinstance(arm, dict):
+                    continue
+                if isinstance(arm.get("$ref"), str):
+                    target, schema = _resolve_allof_arm(arm, current_schema_rel_path, document)
+                    merged.append((target, schema, True))
+                else:
+                    merged.append((current_schema_rel_path, arm, False))
+            arm_schemas = [(target, schema) for target, schema, _ in merged]
+            if sum(1 for *_, is_ref in merged if is_ref) >= 2 and _conflicting_properties(
+                arm_schemas
+            ):
+                if any(is_ref and _ref_composes(schema) for _target, schema, is_ref in merged):
+                    _ALLOF_PROPERTIES_PINNED += _pin_conflicting_properties(obj, arm_schemas)
+                elif inherited:
+                    raise ValueError(
+                        f"{current_schema_rel_path.as_posix()}: a oneOf/anyOf branch whose "
+                        "allOf arms disagree with its parent's; decide how to render it"
+                    )
+                else:
+                    _merge_allof_like_codegen(obj, arm_schemas)
+                    _ALLOF_PRE_MERGED += 1
+                    merged = []
+        for key, value in list(obj.items()):
+            if key in ("oneOf", "anyOf") and isinstance(value, list):
+                for branch in value:
+                    pin_conflicting_allof_properties(
+                        branch, current_schema_rel_path, document, tuple(merged)
+                    )
+            else:
+                pin_conflicting_allof_properties(value, current_schema_rel_path, document)
+    elif isinstance(obj, list):
+        for item in obj:
+            pin_conflicting_allof_properties(item, current_schema_rel_path, document)
+    return obj
+
+
+_ALLOF_PROPERTIES_PINNED = 0
+_ALLOF_PRE_MERGED = 0
+
+
 def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> dict:
     """Keep inlined core schemas from rebasing sibling refs.
 
@@ -762,26 +937,31 @@ def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> 
     ``core/signal-listing.json`` and ``core/signal-definition-enrichment``.
 
     The published schemas stay untouched. In the temp tree only, rewrite
-    the affected core-local sibling refs through ``../core/``. That keeps
-    direct core generation equivalent and remains correct for the
-    same-depth protocol directories that inline these helpers.
+    every relative file ref in a ``core/*.json`` schema to its absolute
+    temp-tree path, the way ``rewrite_refs`` already pins macro schemas. A
+    relative spelling is right for one caller depth only: the ``../core/``
+    prefix this pass used to write resolves for the one-level protocol
+    directories but not for the three-level
+    ``core/async_response_refs/<domain>/`` bodies. From adcp#8547 those
+    bodies compose ``core/protocol-envelope.json`` and
+    ``core/task-submitted.json`` through ``allOf``, and the envelope's
+    ``context.json`` and ``../enums/task-status.json`` refs then resolved
+    under ``core/async_response_refs/`` and failed generation. An absolute
+    path names the same file from every caller, so the generated output for
+    callers that already resolved is unchanged.
     """
-    if current_schema_rel_path.parent == Path("core"):
-        stable_prefix = "../core/"
-    else:
-        stable_prefix = None
-    if stable_prefix is None:
+    if current_schema_rel_path.parent != Path("core"):
         return schema
+    stable_prefix = (TEMP_DIR / "core").as_posix() + "/"
 
     def visit(value):
         if isinstance(value, dict):
             ref = value.get("$ref")
             if isinstance(ref, str) and not ref.startswith(("#", "/")) and "://" not in ref:
                 file_part, sep, fragment = ref.partition("#")
-                if file_part.endswith(".json") and "/" not in file_part:
-                    value["$ref"] = stable_prefix + file_part + (sep + fragment if sep else "")
-                elif file_part.startswith(("assets/", "requirements/", "async_response_refs/")):
-                    value["$ref"] = "../core/" + file_part + (sep + fragment if sep else "")
+                if file_part.endswith(".json"):
+                    target = posixpath.normpath(stable_prefix + file_part)
+                    value["$ref"] = target + (sep + fragment if sep else "")
             for child in value.values():
                 visit(child)
         elif isinstance(value, list):
@@ -1203,6 +1383,7 @@ def flatten_schemas(temp_dir: Path):
         schema = inline_structural_pointer_refs(schema, rel_path)
         schema = collapse_nullable_unions(schema)
         schema = normalize_version_envelope_composition(schema, rel_path)
+        schema = pin_conflicting_allof_properties(schema, rel_path)
         # Before the rewrite, while refs are still in the spellings
         # ``_normalize_schema_ref_target`` resolves. See OPEN_VOCABULARY_SCHEMAS
         # for why one enum is deliberately not reproduced.
@@ -1231,7 +1412,9 @@ def flatten_schemas(temp_dir: Path):
         )
     print(
         f"\n  Prepared {count} schema files "
-        f"({_VERSION_ENVELOPE_NORMALIZED} version-envelope compositions)\n"
+        f"({_VERSION_ENVELOPE_NORMALIZED} version-envelope compositions, "
+        f"{_ALLOF_PROPERTIES_PINNED} disagreeing allOf properties pinned, "
+        f"{_ALLOF_PRE_MERGED} disagreeing allOf merged)\n"
     )
     return temp_dir
 
@@ -1342,6 +1525,10 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--field-extra-keys",
         NO_EXPLICIT_NULL_KEY,
         "--allow-remote-refs",
+        # Render every allOf of $refs as bases, even when arms disagree on a
+        # property; see ``pin_conflicting_allof_properties``.
+        "--allof-class-hierarchy",
+        "always",
     ]
 
     with tempfile.TemporaryDirectory(prefix="adcp-codegen-refs-") as mirror:
