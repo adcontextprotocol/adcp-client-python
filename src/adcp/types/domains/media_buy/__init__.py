@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -390,7 +390,7 @@ from adcp.types.domains.media_buy.product_fields import ProductResponseField, Pr
 from adcp.types.domains.media_buy.product_purchase import ProductPurchase
 from adcp.types.domains.media_buy.product_purchase_input import ProductPurchaseInput
 from adcp.types.domains.media_buy.product_refinement import (
-    Action13,
+    Action12,
     ProductRefinementRequests,
     ProductRefinementRequests1,
     ProductRefinementRequests2,
@@ -411,13 +411,11 @@ from adcp.types.domains.media_buy.proposal_refinement import (
     Constraints6,
     Constraints7,
     Constraints8,
-    Constraints9,
     Cpm,
     Flight,
     Impressions,
     ProposalRefinement,
     ProposalRefinement10,
-    ProposalRefinement11,
     ProposalRefinement2,
     ProposalRefinement3,
     ProposalRefinement4,
@@ -449,14 +447,12 @@ from adcp.types.domains.media_buy.refine_proposals_request import (
     Refinements,
 )
 from adcp.types.domains.media_buy.refine_proposals_response import (
-    DriftedPin,
     Hold,
     Proposal3,
     Proposal4,
     Proposal5,
     Proposal6,
     Proposal7,
-    ProposalInitiator,
     ProposalKind,
     RefineProposalsResponse,
     RefineProposalsResponse1,
@@ -624,7 +620,7 @@ __all__ = [
     "AcceptancePolicyRule",
     "AcceptedLoss",
     "Action10",
-    "Action13",
+    "Action12",
     "AdvertiserJurisdiction",
     "AffectedPackageId",
     "AggregatedTotals",
@@ -693,7 +689,6 @@ __all__ = [
     "Constraints6",
     "Constraints7",
     "Constraints8",
-    "Constraints9",
     "ControlMediaBuyInputRequired",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
@@ -733,7 +728,6 @@ __all__ = [
     "DeviceType",
     "Dimension",
     "Disposition",
-    "DriftedPin",
     "Estimate",
     "Eval",
     "ExcludedBy",
@@ -866,11 +860,9 @@ __all__ = [
     "ProposalBudgetConstraint",
     "ProposalDecline",
     "ProposalId",
-    "ProposalInitiator",
     "ProposalKind",
     "ProposalRefinement",
     "ProposalRefinement10",
-    "ProposalRefinement11",
     "ProposalRefinement2",
     "ProposalRefinement3",
     "ProposalRefinement4",

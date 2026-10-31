@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -26,7 +26,7 @@ from adcp.types.domains.a2ui.bound_value import (
 )
 from adcp.types.domains.a2ui.component import A2UiComponent
 from adcp.types.domains.a2ui.si_catalog import (
-    Action27,
+    Action25,
     Align,
     AppHandoff,
     Apps,
@@ -63,7 +63,7 @@ __all__ = [
     "A2UiComponent",
     "A2UiSurface",
     "A2UiUserAction",
-    "Action27",
+    "Action25",
     "Align",
     "AppHandoff",
     "Apps",

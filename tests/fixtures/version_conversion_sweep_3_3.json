@@ -1,5 +1,5 @@
 {
-  "description": "Valid AdCP 3.3-beta.1 payloads converted down by tests/test_version_conversion_sweep.py, in addition to every bundled 3.3 schema example. Each exercises a 3.3 -> 3.2 semantic downgrade rule (issue 1667); tests/test_version_downgrade_3_3.py asserts the exact payloads and losses.",
+  "description": "Valid AdCP 3.3-beta.2 payloads converted down by tests/test_version_conversion_sweep.py, in addition to every bundled 3.3 schema example. Each exercises a 3.3 -> 3.2 semantic downgrade rule (issue 1667); tests/test_version_downgrade_3_3.py asserts the exact payloads and losses.",
   "cases": [
     {
       "id": "issue1667.get_media_buy_delivery.spot_lifecycle_and_unmeasured_rows",
@@ -61,7 +61,7 @@
         "status": "completed",
         "adcp": {
           "major_versions": [3],
-          "supported_versions": ["3.0", "3.1", "3.2", "3.3-beta.1"],
+          "supported_versions": ["3.0", "3.1", "3.2", "3.3-beta.2"],
           "idempotency": {"supported": false}
         },
         "supported_protocols": ["media_buy"],
@@ -261,15 +261,15 @@
       }
     },
     {
-      "id": "issue1667.create_media_buy.reference_definition_changed",
+      "id": "issue1667.create_media_buy.rights_channel_violation",
       "tool": "create_media_buy",
       "direction": "sync",
       "payload": {
         "status": "completed",
         "errors": [
           {
-            "code": "REFERENCE_DEFINITION_CHANGED",
-            "message": "A pinned definition changed since the proposal was issued.",
+            "code": "RIGHTS_CHANNEL_VIOLATION",
+            "message": "The package targets a channel the rights grant excludes.",
             "recovery": "correctable"
           }
         ]
