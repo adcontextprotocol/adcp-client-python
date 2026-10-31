@@ -54,6 +54,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionBuyPackage,
     SubscriptionException,
     SubscriptionVersionWindow,
+    authorization_chain_start,
     expected_subscription_periods,
     subscription_covers_account,
     subscription_exceptions,
@@ -113,8 +114,12 @@ from adcp.reporting.subscriptions.wire import (
     project_subscription_state,
     serves_settled_subscription_fields,
 )
+from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 
 __all__ = [
+    "REPORTING_WIND_DOWN_TASKS",
+    "authorization_chain_start",
+    "wind_down_grant",
     "COVERAGE_REASON_CODES",
     "COVERAGE_RULE_ORDER",
     "COVERAGE_VOCABULARY_VERSION",

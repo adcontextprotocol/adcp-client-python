@@ -778,6 +778,20 @@ class ReliableReportingService:
         managed = self._require_managed()
         await managed.touch(account_id=account_id, context=context)
 
+    @property
+    def grants(self) -> Any:
+        """Push grant changes into the grant journal (``await reporting.grants.changed(...)``).
+
+        See :class:`~adcp.reporting.subscriptions.managed.SubscriptionGrants`.
+        """
+        return self._require_managed().grants
+
+    async def _project_accounts(self, response: Any, context: Any | None) -> Any:
+        """Serve the grant journal's ``authorized_at`` on an account response."""
+        if self._managed is None:
+            return response
+        return await self._managed.project_accounts(response, context)
+
     def _require_managed(self) -> ManagedSubscriptions:
         if self._managed is None:
             raise ReliableReportingConfigurationError(
@@ -1986,7 +2000,12 @@ class ReliableReportingService:
 
             async def write(instance: Any, params: Any, context: Any | None = None) -> Any:
                 result = await _resolve(method(instance, params, context))
-                await service._subscription_write(_written_account(params, context), context)
+                if name in {"sync_accounts", "list_accounts"}:
+                    result = await service._project_accounts(result, context)
+                if name != "list_accounts":
+                    await service._subscription_write(
+                        _written_account(params, context), context
+                    )
                 return result
 
             write.__name__ = name
@@ -1997,7 +2016,7 @@ class ReliableReportingService:
             "get_principal": get_principal,
             "sync_principal": sync_principal,
         }
-        for name in ("sync_accounts", "create_media_buy", "update_media_buy"):
+        for name in ("list_accounts", "sync_accounts", "create_media_buy", "update_media_buy"):
             wrapped = triggered(name)
             if wrapped is not None:
                 methods[name] = wrapped
