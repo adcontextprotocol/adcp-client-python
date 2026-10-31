@@ -67,6 +67,10 @@ def _serves_relationship(context: ToolContext | None) -> bool:
     return (int(major), int(minor)) >= _RELATIONSHIP_MIN_RELEASE
 
 
+#: Inline cap of a readback account list (adcp#8619).
+_ACCOUNTS_INLINE = 1000
+
+
 # AgentReportingDestination is a union, so validation goes through an adapter.
 
 
@@ -1056,9 +1060,17 @@ class PrincipalService:
                 if value is None:
                     continue
                 if value:
-                    payload[name] = [dict(item) for item in value]
+                    # adcp#8619: at most 1000 inline, in account_id byte order,
+                    # with the total; the rest page through get_principal.
+                    ordered = sorted(
+                        (dict(item) for item in value),
+                        key=lambda item: str(item.get("account_id")).encode("utf-8"),
+                    )
+                    payload[name] = ordered[:_ACCOUNTS_INLINE]
+                    payload[f"{name}_count"] = len(ordered)
                 else:
                     payload.pop(name, None)
+                    payload.pop(f"{name}_count", None)
             updated = ReportingSubscriptionState.model_validate(payload)
             if _json(updated) == _json(states[index]):
                 return False

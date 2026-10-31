@@ -197,6 +197,15 @@ async def test_new_version_records_prior_versions() -> None:
     v3 = subscription(subscription_version=3)
     state = states(await sync(principals, {"reporting_subscriptions": [v3]}))["analytics-daily"]
     assert [item["subscription_version"] for item in state["prior_versions"]] == [2, 1]
+    # adcp#8619: a listed prior_versions carries its total, which the 3.3.0-beta.3
+    # state schema requires whenever the list is present.
+    assert state["prior_versions_count"] == 2
+    from adcp.validation import schema_loader
+
+    validator = schema_loader.get_named_validator(
+        "core/reporting-subscription-state.json", version="3.3.0-beta.3"
+    )
+    assert [error.message for error in validator.iter_errors(state)] == []
 
 
 @pytest.mark.asyncio
