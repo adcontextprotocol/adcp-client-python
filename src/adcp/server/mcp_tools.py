@@ -162,13 +162,16 @@ def _normalize_response_envelope(
         # outcome discriminator.
         if "outcome" not in result and "products" in result:
             result["outcome"] = "listed"
-    if (
-        uses_task_status_envelope(method_name, adcp_version)
-        and "status" not in result
-        and "task_id" not in result
-    ):
+    status_envelope = uses_task_status_envelope(method_name, adcp_version)
+    if status_envelope and "status" not in result and "task_id" not in result:
         if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
             result["status"] = "completed"
+    elif not status_envelope and result.get("status") == "completed":
+        # The typed response models default ``status`` to ``completed`` (3.3
+        # requires it). The served release has none for this tool, so the
+        # model's default must not reach a closed 3.2.x root. Only the implied
+        # synchronous value goes; a submitted arm keeps its status.
+        del result["status"]
     if (
         method_name in {"get_products", "get_signals"}
         and "cache_scope" not in result
