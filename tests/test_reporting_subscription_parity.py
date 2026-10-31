@@ -6,7 +6,7 @@ repository at :data:`SPEC_COMMIT` (adcp#8616), pinned below by SHA-256. Each
 case gives the buyer-side input and either the exact owed rows, derived from
 the spec text its ``spec_refs`` cite and reproduced by an independent
 reference model, or the input error. Both SDKs must produce identical periods,
-so this test maps each input onto :func:`expected_subscription_periods` and
+so this test maps each input onto :func:`owed_subscription_periods` and
 compares instants row by row.
 
 The rows are derived with IANA tzdata 2026f. The test pins zoneinfo to the
@@ -35,7 +35,7 @@ from adcp.reporting.subscriptions import (
     SubscriptionDestination,
     SubscriptionOffering,
     SubscriptionVersionWindow,
-    expected_subscription_periods,
+    owed_subscription_periods,
 )
 
 SPEC = Path(__file__).parent / "fixtures" / "reporting_subscriptions" / "spec"
@@ -179,7 +179,7 @@ def buys(input_: dict[str, Any]) -> list[SubscriptionBuy]:
 
 def periods(input_: dict[str, Any]):
     account = input_["account"]
-    return expected_subscription_periods(
+    return owed_subscription_periods(
         subscription=windows(input_["versions"], input_.get("inactive_intervals", [])),
         account_id=account["account_id"],
         buys=buys(input_),

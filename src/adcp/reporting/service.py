@@ -912,9 +912,9 @@ class ReliableReportingService:
                     offering_id: item.verification_key.definition
                     for offering_id, item in offerings.items()
                 },
-                currency=lambda configuration: self._production_offering(
-                    configuration
-                ).producer._offerings.currency,
+                currency=lambda configuration: (
+                    self._production_offering(configuration).producer._offerings.currency
+                ),
                 automated_recovery_window=support.automated_recovery_window,
                 status_retention_days=support.status_retention_days,
                 install=self._install_production_generation,
@@ -2056,9 +2056,7 @@ class ReliableReportingService:
                 if name in {"sync_accounts", "list_accounts"}:
                     result = await service._project_accounts(result, context)
                 if name != "list_accounts":
-                    await service._subscription_write(
-                        _written_account(params, context), context
-                    )
+                    await service._subscription_write(_written_account(params, context), context)
                 return result
 
             write.__name__ = name

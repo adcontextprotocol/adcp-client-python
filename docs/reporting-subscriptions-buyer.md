@@ -49,7 +49,7 @@ An `all_authorized_accounts` subscription follows every grant, including account
 
 ## Reconcile
 
-`client.reporting.reconcile()` and `explain()` arrive in a later beta. Until then, `expected_subscription_periods(...)` and `ReportingSubscriptionTracker` compute owed periods from your own records (see [Coverage, explained](reporting-subscriptions-coverage.md#the-owed-rules)).
+`client.reporting.reconcile()` and `explain()` arrive in a later beta. Until then, `owed_subscription_periods(...)` and `ReportingSubscriptionTracker` compute owed periods from your own records (see [Coverage, explained](reporting-subscriptions-coverage.md#the-owed-rules)).
 
 ## Events
 

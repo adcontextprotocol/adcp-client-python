@@ -3,7 +3,7 @@
 Every expected period below is written out by hand from the rule in
 ``core/reporting-subscription.json`` (coverage, cutover) and
 ``core/reporting-subscription-coverage.json``. The seller runtime owes exactly
-what :func:`expected_subscription_periods` returns, so these tables are the
+what :func:`owed_subscription_periods` returns, so these tables are the
 billing contract: change one only with a spec citation.
 
 Unless a test says otherwise the account is in ``America/New_York`` in
@@ -22,7 +22,7 @@ from adcp.reporting import ExpectedReportingPeriod
 from adcp.reporting.subscriptions import (
     AccountTimezoneChange,
     CoverageInputError,
-    ExpectedSubscriptionPeriod,
+    OwedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
     SubscriptionBuyFlight,
@@ -31,7 +31,7 @@ from adcp.reporting.subscriptions import (
     SubscriptionException,
     SubscriptionOffering,
     SubscriptionVersionWindow,
-    expected_subscription_periods,
+    owed_subscription_periods,
     resolve_subscription_offerings,
     subscription_exceptions,
     subscription_version_windows,
@@ -194,13 +194,13 @@ def starts(**kwargs) -> list[str]:
     return [item.period_start for item in run(**kwargs)]
 
 
-def run(**kwargs) -> list[ExpectedSubscriptionPeriod]:
+def run(**kwargs) -> list[OwedSubscriptionPeriod]:
     kwargs.setdefault("subscription", state("2026-10-01T00:00:00Z"))
     kwargs.setdefault("account_id", "acct-1")
     kwargs.setdefault("offerings", [DAILY, HOURLY_UTC])
     kwargs.setdefault("account_timezone", NY)
     kwargs.setdefault("now", at("2026-12-31T00:00:00Z"))
-    return expected_subscription_periods(**kwargs)
+    return owed_subscription_periods(**kwargs)
 
 
 def days(first: str, count: int) -> list[str]:
@@ -1785,3 +1785,24 @@ class TestCoverageBudget:
     def test_a_budget_must_be_positive(self, name: str) -> None:
         with pytest.raises(CoverageInputError, match=name):
             run(buys=[buy()], **{name: 0})
+
+
+def test_the_expected_names_are_deprecated_aliases() -> None:
+    from adcp.reporting.subscriptions import (
+        ExpectedSubscriptionPeriod,
+        OwedSubscriptionPeriod,
+        expected_subscription_periods,
+    )
+
+    assert ExpectedSubscriptionPeriod is OwedSubscriptionPeriod
+    kwargs = {
+        "subscription": state("2026-10-01T00:00:00Z"),
+        "account_id": "acct-1",
+        "buys": [buy(end_time="2026-10-04T04:00:00Z")],
+        "offerings": [DAILY, HOURLY_UTC],
+        "account_timezone": NY,
+        "now": at("2026-12-31T00:00:00Z"),
+    }
+    with pytest.warns(DeprecationWarning, match="owed_subscription_periods"):
+        legacy = expected_subscription_periods(**kwargs)
+    assert legacy == owed_subscription_periods(**kwargs)

@@ -226,9 +226,10 @@ class ReportingNotificationWorker:
             return False
         observation = _HttpObservation()
         if self.delivery_window is not None:
-            observation.retry_deadline, observation.retry_window_expired = (
-                await self.delivery_window.inspect(lease, now=self._clock())
-            )
+            (
+                observation.retry_deadline,
+                observation.retry_window_expired,
+            ) = await self.delivery_window.inspect(lease, now=self._clock())
         try:
             opened = self.cipher.open(lease.delivery)
         except (ReportingNotificationError, ValueError, TypeError):

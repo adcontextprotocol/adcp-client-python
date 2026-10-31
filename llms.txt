@@ -86,7 +86,7 @@ docs/reporting-subscriptions-buyer.md.
 - DON'T pick `subscription_version` yourself: `subscribe` chooses it.
 - DO send an explicit scope: `{"all_authorized_accounts": True}` or `{"account_ids": [...]}`.
 - DON'T compute reporting periods with local time; use
-  `expected_subscription_periods` (and, later, `client.reporting.reconcile`).
+  `owed_subscription_periods` (and, later, `client.reporting.reconcile`).
 - DO switch on `next_step(outcome)` for accounts. DON'T fetch
   `pending_action.url`: show it to a person.
 - Sellers: DON'T call `engine.reconcile` from request handlers; the service
