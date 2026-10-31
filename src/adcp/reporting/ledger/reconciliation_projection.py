@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -42,6 +42,7 @@ from adcp.reporting.ledger.models import (
     ReportingIssue,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    ledger_asdict,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.revision_selection import select_reporting_revision
@@ -103,7 +104,7 @@ def project_reconciliation(
             [
                 a.reporting_adjustment_id,
                 hashlib.sha256(
-                    json.dumps(asdict(a), default=iso, sort_keys=True).encode()
+                    json.dumps(ledger_asdict(a), default=iso, sort_keys=True).encode()
                 ).hexdigest(),
             ]
             for a in owned_adjustments

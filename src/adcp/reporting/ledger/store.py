@@ -408,6 +408,7 @@ class ReportingLedgerStore(Protocol):
         delivery_config_version: int,
         period_start: datetime,
         period_end: datetime,
+        offering_id: str | None = None,
     ) -> ReportingObligationRecord | None: ...
 
     # -- revisions -------------------------------------------------------
@@ -773,6 +774,29 @@ def check_issue_state_transition(current: str, requested: str) -> None:
         )
 
 
+@runtime_checkable
+class ReportingSubscriptionLedger(Protocol):
+    """Optional store capability for reporting-subscription owed sets.
+
+    A subscription generation holds a sparse owed set: exactly the obligations
+    the subscription engine froze, never a period grid. The planner and the
+    producer use these operations; a store without them cannot hold
+    subscription obligations and is refused rather than half-supported.
+    """
+
+    async def list_generation_obligations(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> tuple[ReportingObligationRecord, ...]: ...
+
+    async def record_owed_set_progress(
+        self, generation_key: ReportingConfigurationGenerationKey, through: datetime
+    ) -> datetime: ...
+
+    async def owed_set_through(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> datetime | None: ...
+
+
 class InMemoryReportingLedgerStore:
     """Process-local reference store. Correct, ordered, and not durable.
 
@@ -810,6 +834,9 @@ class InMemoryReportingLedgerStore:
         # letting it win every turn.
         self._lease_turns: dict[ReportingConfigurationGenerationKey, int] = {}
         self._lease_turn = 0
+        # Reporting-subscription owed sets: the horizon each generation's
+        # obligations are frozen through.
+        self._owed_through: dict[ReportingConfigurationGenerationKey, datetime] = {}
         # Live occurrence per (account, issue_key), plus the retired generation
         # high-water mark so a recurrence never reuses an id.
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
@@ -1092,6 +1119,7 @@ class InMemoryReportingLedgerStore:
         delivery_config_version: int,
         period_start: datetime,
         period_end: datetime,
+        offering_id: str | None = None,
     ) -> ReportingObligationRecord | None:
         key = (
             ReportingConfigurationGenerationKey(
@@ -1099,6 +1127,7 @@ class InMemoryReportingLedgerStore:
                 consumer_id=consumer_id,
                 delivery_config_id=delivery_config_id,
                 delivery_config_version=delivery_config_version,
+                offering_id=offering_id,
             ),
             _utc(period_start).isoformat(),
             _utc(period_end).isoformat(),
@@ -1109,6 +1138,39 @@ class InMemoryReportingLedgerStore:
             if found
             else None
         )
+
+    # -- reporting-subscription owed sets ---------------------------------
+
+    async def list_generation_obligations(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> tuple[ReportingObligationRecord, ...]:
+        """Every obligation of one generation, oldest period first."""
+        found = [
+            self._obligations[identifier]
+            for (key, _start, _end), identifier in self._obligation_by_period.items()
+            if key == generation_key
+        ]
+        return tuple(sorted(found, key=lambda item: _utc(item.period.start)))
+
+    async def record_owed_set_progress(
+        self, generation_key: ReportingConfigurationGenerationKey, through: datetime
+    ) -> datetime:
+        """Advance the horizon an owed set is frozen through; it never regresses."""
+        async with self._mutation():
+            configuration = self._configurations.get(generation_key)
+            if configuration is None or not configuration.owed_set:
+                raise LedgerConflictError(
+                    "UNKNOWN_CONFIGURATION_GENERATION", "owed-set generation is unavailable"
+                )
+            current = self._owed_through.get(generation_key)
+            value = _utc(through) if current is None else max(current, _utc(through))
+            self._owed_through[generation_key] = value
+            return value
+
+    async def owed_set_through(
+        self, generation_key: ReportingConfigurationGenerationKey
+    ) -> datetime | None:
+        return self._owed_through.get(generation_key)
 
     # -- revisions -------------------------------------------------------
 
@@ -1624,10 +1686,16 @@ class InMemoryReportingLedgerStore:
             from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
             from adcp.reporting.materializer.capture import private_snapshot
 
-            return private_snapshot(
+            snapshot = private_snapshot(
                 settle_memory_snapshot(self, caller.account_id),
                 ReportingDeliveryPrincipal(caller.account_id, caller.consumer_id),
             )
+            owed = tuple(
+                (item.generation_key, self._owed_through[item.generation_key])
+                for item in snapshot.configurations
+                if item.owed_set and item.generation_key in self._owed_through
+            )
+            return replace(snapshot, owed_through=owed) if owed else snapshot
 
     def _current_status_leaf(self, chain_key: tuple[Any, ...]) -> ConsumerStatusRecord | None:
         for item in self._statuses.values():
@@ -1999,7 +2067,8 @@ class InMemoryReportingLedgerStore:
     # -- leasing ---------------------------------------------------------
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
-        return not configuration.quarantined
+        # An owed set is never grid-filled; its owner runs it explicitly.
+        return not configuration.quarantined and not configuration.owed_set
 
     async def lease_period_close(
         self, *, worker_id: str, now: datetime, lease_seconds: float
@@ -2126,6 +2195,11 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
         "authoritative_party": configuration.authoritative_party,
         "media_buy_ids": sorted(configuration.media_buy_ids),
         "definition": configuration.definition.to_storage() if configuration.definition else None,
+        **(
+            {"subscription": configuration.subscription.to_storage()}
+            if configuration.subscription is not None
+            else {}
+        ),
         "schedule": {
             "period_duration": schedule.period_duration,
             "delivery_sla": schedule.delivery_sla,

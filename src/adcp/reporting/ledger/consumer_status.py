@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
@@ -201,7 +201,7 @@ class ConsumerStatusIngest:
                 if replay is not None:
                     results.append({"result": "unchanged", "consumer_status": _to_wire(replay)})
                     continue
-                await self._validate_against_configuration(record)
+                record = await self._validate_against_configuration(record)
                 from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
 
                 atomic = isinstance(self.store, ReportingStatusParticipant)
@@ -223,6 +223,55 @@ class ConsumerStatusIngest:
                 }
             )
         return {"status": "completed", "results": results}
+
+    async def _find_period_obligation(
+        self, record: ConsumerStatusRecord
+    ) -> ReportingObligationRecord | None:
+        """The obligation a statement names by generation and period.
+
+        A reporting subscription keeps one generation per resolved offering,
+        so the same (id, version, period) can name several. Only the caller's
+        own owed-set generations are searched, and the report definition must
+        match too.
+        """
+        found = await self.store.find_obligation(
+            account_id=record.account_id,
+            consumer_id=record.consumer_id,
+            delivery_config_id=record.delivery_config_id,
+            delivery_config_version=record.delivery_config_version,
+            period_start=record.period_start,
+            period_end=record.period_end,
+        )
+        if found is not None:
+            return found
+        from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+
+        configurations = await self.store.list_configurations(
+            caller=ReportingDeliveryPrincipal(record.account_id, record.consumer_id),
+            delivery_config_ids=[record.delivery_config_id],
+        )
+        for configuration in sorted(
+            (
+                item
+                for item in configurations
+                if item.owed_set
+                and item.delivery_config_version == record.delivery_config_version
+                and item.report_definition_id == record.report_definition_id
+            ),
+            key=lambda item: (item.subscription.offering_id if item.subscription else ""),
+        ):
+            candidate = await self.store.find_obligation(
+                account_id=record.account_id,
+                consumer_id=record.consumer_id,
+                delivery_config_id=record.delivery_config_id,
+                delivery_config_version=record.delivery_config_version,
+                period_start=record.period_start,
+                period_end=record.period_end,
+                offering_id=configuration.generation_key.offering_id,
+            )
+            if candidate is not None:
+                return candidate
+        return None
 
     async def _open_issue_on_first_observation(self, stored: ConsumerStatusRecord) -> None:
         """Start the escalation clock when the statement arrives, not when polled.
@@ -247,14 +296,7 @@ class ConsumerStatusIngest:
                 reporting_obligation_id=stored.reporting_obligation_id,
             )
         if obligation is None:
-            obligation = await self.store.find_obligation(
-                account_id=stored.account_id,
-                consumer_id=stored.consumer_id,
-                delivery_config_id=stored.delivery_config_id,
-                delivery_config_version=stored.delivery_config_version,
-                period_start=stored.period_start,
-                period_end=stored.period_end,
-            )
+            obligation = await self._find_period_obligation(stored)
         revisions = (
             await self.store.list_revisions(
                 account_id=stored.account_id,
@@ -305,7 +347,9 @@ class ConsumerStatusIngest:
             observed_at=stored.recorded_at,
         )
 
-    async def _validate_against_configuration(self, record: ConsumerStatusRecord) -> None:
+    async def _validate_against_configuration(
+        self, record: ConsumerStatusRecord
+    ) -> ConsumerStatusRecord:
         """Resolve every identifier the statement names, within caller + account.
 
         Deliberately does *not* require an obligation to exist *when none is
@@ -330,6 +374,29 @@ class ConsumerStatusIngest:
             (item for item in configurations if item.generation_key == record.generation_key),
             None,
         )
+        if generation is None and any(item.owed_set for item in configurations):
+            # A reporting subscription's generations differ by offering. A
+            # statement names a period of the caller's own owed set, never a
+            # bare grid slot: the owed obligation decides the generation.
+            owed = await self._find_period_obligation(record)
+            generation = next(
+                (
+                    item
+                    for item in configurations
+                    if owed is not None and item.generation_key == owed.generation_key
+                ),
+                None,
+            )
+            if generation is None and any(
+                _same_generation(item.generation_key, record.generation_key)
+                for item in configurations
+            ):
+                raise LedgerConflictError(
+                    "INVALID_STATUS_PERIOD",
+                    "the statement names no period of this subscription's owed set",
+                )
+            if generation is not None:
+                record = replace(record, offering_id=generation.generation_key.offering_id)
         if generation is None:
             raise LedgerConflictError(
                 "UNKNOWN_CONFIGURATION_GENERATION",
@@ -350,6 +417,7 @@ class ConsumerStatusIngest:
             )
         await self._resolve_named_records(record)
         validate_consumer_status_timing(record, generation, as_of=self._now())
+        return record
 
     async def _resolve_named_records(self, record: ConsumerStatusRecord) -> None:
         """Resolve the optional obligation and revision ids the caller supplied.
@@ -371,7 +439,7 @@ class ConsumerStatusIngest:
                     "resolve for this caller and account",
                 )
             if (
-                obligation.generation_key != record.generation_key
+                not _same_generation(obligation.generation_key, record.generation_key)
                 or obligation.report_definition_id != record.report_definition_id
                 or _utc(obligation.period.start) != _utc(record.period_start)
                 or _utc(obligation.period.end) != _utc(record.period_end)
@@ -387,14 +455,7 @@ class ConsumerStatusIngest:
                 )
 
         if obligation is None:
-            obligation = await self.store.find_obligation(
-                account_id=record.account_id,
-                consumer_id=record.consumer_id,
-                delivery_config_id=record.delivery_config_id,
-                delivery_config_version=record.delivery_config_version,
-                period_start=record.period_start,
-                period_end=record.period_end,
-            )
+            obligation = await self._find_period_obligation(record)
         required = None
         if obligation is not None:
             revisions = await self.store.list_revisions(
@@ -490,6 +551,25 @@ class ConsumerStatusIngest:
         )
 
 
+def _same_generation(
+    key: ReportingConfigurationGenerationKey, record_key: ReportingConfigurationGenerationKey
+) -> bool:
+    """Same generation, where a statement's key carries no offering.
+
+    The wire identifies a generation by (account, caller, delivery_config_id,
+    delivery_config_version). A reporting subscription's generations also
+    differ by offering, which a statement resolves through its obligation.
+    """
+    if record_key.offering_id is not None:
+        return key == record_key
+    return (
+        key.account_id == record_key.account_id
+        and key.consumer_id == record_key.consumer_id
+        and key.delivery_config_id == record_key.delivery_config_id
+        and key.delivery_config_version == record_key.delivery_config_version
+    )
+
+
 def validate_consumer_status_timing(
     record: ConsumerStatusRecord, generation: ReportingConfiguration, *, as_of: datetime
 ) -> None:
@@ -513,6 +593,10 @@ def validate_consumer_status_timing(
         raise LedgerConflictError(
             "INVALID_STATUS_TIME", "status observation is outside its valid time range"
         )
+    if generation.owed_set:
+        # An owed set has no grid: the statement was matched to an existing
+        # owed obligation's exact period, which carries its own calendar.
+        return
     zone_name = generation.schedule.timezone_name(generation.account_timezone)
     if record.period_source_timezone != zone_name:
         raise LedgerConflictError(
