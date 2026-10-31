@@ -285,7 +285,8 @@ async def test_stored_registration_correlates_delivery_and_retry(tmp_path: Path)
     wire = _validate_wire_delivery_webhook(received[0])
     assert wire["operation_id"] == "op_reporting_001"
     assert wire["token"] == "buyer-reporting-echo-token"
-    assert wire["result"] == _DELIVERY_REPORT
+    # AdCP 3.3.0-beta.3: the result carries its task status.
+    assert wire["result"] == {"status": "completed", **_DELIVERY_REPORT}
     assert wire["idempotency_key"] != wire["operation_id"]
     # Point-in-time delivery events carry no notification_id.
     assert "notification_id" not in wire

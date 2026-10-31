@@ -269,9 +269,17 @@ def create_mcp_webhook_payload(
     # dict so the union picks by shape, matching the dict path.
     result_value: PydanticBaseModel | dict[str, Any] | None
     if isinstance(result, PydanticBaseModel):
+        explicit_status = "status" in result.model_fields_set
         result_value = result.model_dump(mode="json")
+        if not explicit_status and "status" in result_value:
+            # A defaulted envelope status says "completed" whatever happened.
+            result_value["status"] = status_value
     else:
         result_value = result
+    if isinstance(result_value, dict) and "status" not in result_value:
+        # AdCP 3.3.0-beta.3 (adcp#8547): every task response and async status
+        # payload carries its task status, so the result says it too.
+        result_value = {"status": status_value, **result_value}
 
     payload = McpWebhookPayload.model_validate(
         {
