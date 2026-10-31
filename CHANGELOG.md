@@ -192,6 +192,20 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.1...v9.4.0) (2026-10-31)
+
+
+### Features
+
+* **adagents:** attribute and verify publisher property claims ([#1719](https://github.com/adcontextprotocol/adcp-client-python/issues/1719)) ([0c0ef92](https://github.com/adcontextprotocol/adcp-client-python/commit/0c0ef92515ec5dfe9d1f045b976194d3d245d4e5))
+* **server:** seller helper for wholesale feed versions ([#1718](https://github.com/adcontextprotocol/adcp-client-python/issues/1718)) ([7088ebf](https://github.com/adcontextprotocol/adcp-client-python/commit/7088ebf909852134521ba0ed4796b6f2896a4ad7)), closes [#1676](https://github.com/adcontextprotocol/adcp-client-python/issues/1676)
+* **signing:** accept any well-formed adcp_use purpose in keygen ([#1710](https://github.com/adcontextprotocol/adcp-client-python/issues/1710)) ([787cfb2](https://github.com/adcontextprotocol/adcp-client-python/commit/787cfb215cf9207bfef8c28cc34ff0b737cea39b))
+
+
+### Bug Fixes
+
+* **types:** defer the import-time model rebuilds that cost adcp.client 560 MiB RSS ([#1704](https://github.com/adcontextprotocol/adcp-client-python/issues/1704)) ([aac52ca](https://github.com/adcontextprotocol/adcp-client-python/commit/aac52cac66ecae2d1c2c4e11be23294335a3edd8)), closes [#1694](https://github.com/adcontextprotocol/adcp-client-python/issues/1694)
+
 ## [9.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.0...v9.3.1) (2026-10-29)
 
 
