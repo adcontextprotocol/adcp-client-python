@@ -177,7 +177,8 @@ async def test_send_cycle_delivers_each_task_status(
     assert body["task_type"] == "create_media_buy"
     assert body["operation_id"] == "op_1"
     assert body["token"] == "buyer-token-0123456789"
-    assert body["result"] == {"media_buy_id": "mb_1"}
+    # AdCP 3.3.0-beta.3: the result carries its task status (adcp#8547).
+    assert body["result"] == {"status": status.value, "media_buy_id": "mb_1"}
     assert await stack.rows("SELECT id FROM {qt}") == []
     assert await stack.rows("SELECT outcome, attempt_number FROM {lt}") == [("success", 1)]
 
