@@ -30,11 +30,10 @@
 - `collection/update_collection_list_response.py`
   - `UpdateCollectionListResponse`: `-replayed`
 - `compliance/comply_test_controller_request.py`
-  - **classes added**: AllowedTask, TaskId
+  - **classes added**: AllowedTask
   - `Operation`: `+reduce_grant`, `+regrant`, `+revoke_grant`, `+set_account_timezone`
   - `Params`: `+allowed_tasks`, `+timezone`
 - `compliance/comply_test_controller_response.py`
-  - **classes added**: TaskId
   - `ComplyTestControllerResponse2`: `-message`
   - `ComplyTestControllerResponse3`: `-message`
   - `ComplyTestControllerResponse4`: `-message`

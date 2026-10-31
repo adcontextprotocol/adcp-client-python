@@ -215,6 +215,7 @@
     }
   },
   "governance/check-governance-response.json": {
+    "status": "completed",
     "check_id": "chk_1",
     "verdict": "approved",
     "explanation": "ok",

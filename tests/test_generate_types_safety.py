@@ -436,3 +436,10 @@ def test_task_id_and_message_references_generate_as_constrained_strings(tmp_path
     assert inlined["properties"]["message"] == {"type": "string", "maxLength": 2000}
     # A fragment names a node inside the schema, not the scalar: left alone.
     assert inlined["properties"]["nested"] == {"$ref": "../core/task-id.json#/definitions/x"}
+    # A node narrowing the alias through a one-arm allOf keeps both bounds; the
+    # generator's allOf merge would drop the alias's minLength.
+    narrowed = generate_types.inline_scalar_alias_refs(
+        {"allOf": [{"$ref": "../core/task-id.json"}], "maxLength": 128, "description": "d"},
+        Path("compliance/comply-test-controller-request.json"),
+    )
+    assert narrowed == {"maxLength": 128, "description": "d", "type": "string", "minLength": 1}

@@ -225,9 +225,32 @@ SCALAR_ALIAS_SCHEMAS = frozenset({Path("core/task-id.json"), Path("core/task-mes
 SCALAR_ALIAS_KEYWORDS = ("type", "minLength", "maxLength", "pattern", "format")
 
 
+def _scalar_alias_target(ref: Any, current_schema_rel_path: Path) -> dict | None:
+    if not isinstance(ref, str):
+        return None
+    file_part, separator, _fragment = ref.partition("#")
+    normalized = _normalize_schema_ref_target(file_part, current_schema_rel_path)
+    if normalized is None or separator or normalized[1] not in SCALAR_ALIAS_SCHEMAS:
+        return None
+    return json.loads((SCHEMAS_DIR / normalized[1]).read_text())
+
+
 def inline_scalar_alias_refs(obj, current_schema_rel_path: Path):
-    """Replace each ``$ref`` to a :data:`SCALAR_ALIAS_SCHEMAS` schema with its scalar."""
+    """Replace each ``$ref`` to a :data:`SCALAR_ALIAS_SCHEMAS` schema with its scalar.
+
+    A node that composes the alias as its only ``allOf`` arm and narrows it
+    (the controller's ``task_id`` adds ``maxLength: 128``) takes the alias's
+    keywords directly; the generator's ``allOf`` merge would drop them.
+    """
     if isinstance(obj, dict):
+        arms = obj.get("allOf")
+        if isinstance(arms, list) and len(arms) == 1 and isinstance(arms[0], dict):
+            target = _scalar_alias_target(arms[0].get("$ref"), current_schema_rel_path)
+            if target is not None and set(arms[0]) == {"$ref"}:
+                del obj["allOf"]
+                for key in SCALAR_ALIAS_KEYWORDS:
+                    if key in target and key not in obj:
+                        obj[key] = target[key]
         ref = obj.get("$ref")
         if isinstance(ref, str):
             file_part, separator, _fragment = ref.partition("#")
