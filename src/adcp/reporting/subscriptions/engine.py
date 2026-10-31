@@ -1248,12 +1248,49 @@ class ReportingSubscriptionEngine:
             cutovers = self._timezone_cutovers(state, account, buys, destinations, instant)
             if cutovers:
                 payload["timezone_cutovers"] = cutovers
+            if not _active(state):
+                # A deactivated subscription is listed only while it still has
+                # retained obligations for the account, and reads inactive.
+                if not self._retains_obligations(
+                    principal, state, account_id, account, buys, destinations, instant
+                ):
+                    continue
+                payload["status"] = "inactive"
+                payload["deactivated_at"] = state["deactivated_at"]
             result.append(
                 ReportingSubscriptionCoverage.model_validate(
-                    project_subscription_coverage(payload, adcp_version)
+                    project_subscription_coverage(payload, adcp_version, account_status=status)
                 )
             )
         return result
+
+    def _retains_obligations(
+        self,
+        principal: _PrincipalState,
+        state: Mapping[str, Any],
+        account_id: str,
+        account: _Account,
+        buys: Sequence[SubscriptionBuy],
+        destinations: Mapping[str, Any],
+        now: datetime,
+    ) -> bool:
+        """Whether some owed period of the account is still within status retention."""
+        try:
+            periods = self._owed(principal, state, account_id, account, buys, destinations, now)
+        except Exception as error:  # noqa: BLE001 - an unevaluable account keeps its entry
+            # Fail open: keep the entry rather than drop a subscription the
+            # buyer may still be owed, and say so.
+            logger.warning(
+                "reporting subscription %s retention could not be evaluated for an account: %s",
+                state.get("subscription_id"),
+                type(error).__name__,
+            )
+            return True
+        horizon = now - self._retention
+        return any(
+            utc_instant(datetime.fromisoformat(item.period_end.replace("Z", "+00:00"))) >= horizon
+            for item in periods
+        )
 
     def _gaps(
         self,
