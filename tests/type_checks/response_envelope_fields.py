@@ -32,6 +32,7 @@ from adcp.types import (
     UpdateMediaBuyResponse3,
 )
 from adcp.types.domains.core.pagination_response import PaginationResponse
+from adcp.types.domains.core.task_id import TaskId
 from adcp.types.domains.creative.list_creatives_response import QuerySummary
 
 
@@ -87,7 +88,7 @@ products = GetProductsResponse()
 assert_type(products.status, GeneratedTaskStatus)
 
 # Async task-envelope arm — pinned to the submitted member.
-submitted = UpdateMediaBuyResponse3(task_id="task_1")
+submitted = UpdateMediaBuyResponse3(task_id=TaskId("task_1"))
 assert_type(submitted.status, Literal[GeneratedTaskStatus.submitted])
 
 
@@ -120,6 +121,6 @@ buys = GetMediaBuysResponse(media_buys=[])
 assert_type(buys.status, GeneratedTaskStatus)
 assert buys.status == "completed"
 
-accepted = UpdateMediaBuyResponse3(task_id="task_2")
+accepted = UpdateMediaBuyResponse3(task_id=TaskId("task_2"))
 assert_type(accepted.status, Literal[GeneratedTaskStatus.submitted])
 assert accepted.status == "submitted"

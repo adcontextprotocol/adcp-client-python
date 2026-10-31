@@ -1,101 +1,20 @@
 # Generated-types delta
 
-## Files added
-
-- `core/proposal_offered_webhook.py` — OfferReason, ProposalOfferedWebhook
-- `core/vendor_metric_provenance.py` — VendorMetricProvenance
-- `enums/collection_mechanism.py` — CollectionMechanism
-- `enums/offer_reason.py` — OfferReason
-- `enums/proposal_initiator.py` — ProposalInitiator
-
-## Files removed
-
-- `brand/rights_scope.py` — Country, Exclusivity, RightsScope
-- `core/definition_pin.py` — DefinitionPin1, DefinitionPin2, DefinitionPin3, DefinitionPin4, RefKind, Reference, Reference1, Reference2, Reference3
-- `core/installment_change_set.py` — Action, InstallmentChangeSet, InstallmentChangeSetItem
-- `enums/definition_pin_ref_kind.py` — DefinitionPinReferenceKind
-- `error_details/reference_definition_changed.py` — ReferenceDefinitionChangedDetails
-
 ## Field changes
 
-- `a2ui/si_catalog.py`
-  - **classes added**: Action25
-  - **classes removed**: Action27
-- `account/request_account_request.py`
-  - `RequestAccountRequest`: `+allow_separate_account`
-- `brand/rights_terms.py`
-  - **classes added**: Country, Exclusivity
-  - `RightsTerms`: `+end_date`, `+exclusivity`, `+start_date`, `+uses`
-- `brand_discovery.py`
-  - `RightUse`: `-content_reuse`, `-paid_amplification`
-- `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: ReportingDimension, UnmappedDimension
-  - **classes removed**: Dimension
-  - `AvailableUs`: `-content_reuse`, `-paid_amplification`
-  - `Offering`: `+standard_dimensions`, `+unmapped_dimensions`
-  - `SupportedDimension`: `-installment_changes`
-- `compliance/comply_test_controller_request.py`
-  - **classes removed**: Mutation
-  - `Operation`: `-mutate_definition`
-  - `Params`: `-mutation`, `-ref_kind`
-- `core/canonical_proposal.py`
-  - **classes removed**: ProposalInitiator
-- `core/delivery_metrics.py`
-  - `DeliveryMetrics`: `+vendor_metric_provenance`
-- `core/measurement_terms.py`
-  - `BillingMeasurement`: `+counting_mechanisms`
-- `core/notification_config.py`
-  - `EventType`: `+proposal_offered`
-- `core/reporting_delivery_offering.py`
-  - **classes added**: UnmappedDimension
-  - `ReportingDeliveryOffering`: `+standard_dimensions`, `+unmapped_dimensions`
-- `core/reporting_subscription_coverage.py`
-  - `ExcludedItem`: `+offering_id`
-  - `Gap`: `+offering_id`
-  - `TimezoneCutover`: `+offering_id`, `+previous_timezone`
-- `core/reporting_subscription_state.py`
-  - **classes added**: InactiveInterval
-  - `PriorVersion`: `+configuration`
-  - `ReportingSubscriptionState`: `+inactive_intervals`
-- `enums/error_code.py`
-  - `ErrorCode`: `+ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT` `-REFERENCE_DEFINITION_CHANGED`
-- `enums/notification_type.py`
-  - `NotificationType`: `+proposal_offered`
-- `enums/proposal_refinement_reason.py`
-  - `ProposalRefinementReason`: `-definition_changed`
-- `enums/right_use.py`
-  - `RightUse`: `-content_reuse`, `-paid_amplification`
-- `media_buy/commercial_terms.py`
-  - `CommercialTerms`: `-definition_pins`
-- `media_buy/list_proposals_response.py`
-  - `Proposal`: `+offer_reason`
-- `media_buy/product_purchase.py`
-  - `ProductPurchase`: `-installments`, `-rights`
-- `media_buy/product_refinement.py`
-  - **classes added**: Action12
-  - **classes removed**: Action13
-- `media_buy/proposal_refinement.py`
-  - **classes removed**: ProposalRefinement11
-  - `ProposalRefinement10`: `-installment_changes`
-  - `ProposalRefinement2`: `-installment_changes`
-  - `ProposalRefinement3`: `-installment_changes`
-  - `ProposalRefinement4`: `-installment_changes`
-  - `ProposalRefinement5`: `-installment_changes`
-  - `ProposalRefinement6`: `-installment_changes`
-  - `ProposalRefinement7`: `-installment_changes`
-  - `ProposalRefinement8`: `-installment_changes`
-  - `ProposalRefinement9`: `-installment_changes`
-- `media_buy/refine_proposals_response.py`
-  - **classes removed**: DriftedPin, ProposalInitiator
-  - `Results10`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results11`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results12`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results15`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results16`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results17`: `-drifted_pins`, `-unsatisfied_installment_changes`
-  - `Results9`: `-drifted_pins`, `-unsatisfied_installment_changes`
-- `protocol/get_adcp_capabilities_response.py`
-  - `SupportedDimension`: `-installment_changes`
-- `protocol/sync_principal_response.py`
-  - **classes added**: Action35
-  - **classes removed**: Action37
+- `creative/get_creative_features_response.py`
+  - `GetCreativeFeaturesResponse3`: `+status`, `+task_id`
+- `creative/preview_creative_response.py`
+  - `PreviewCreativeResponse4`: `+status`, `+task_id`
+- `creative/sync_creatives_response.py`
+  - `SyncCreativesResponse3`: `+status`, `+task_id`
+- `media_buy/build_creative_response.py`
+  - `BuildCreativeResponse6`: `+status`, `+task_id`
+- `media_buy/create_media_buy_response.py`
+  - `CreateMediaBuyResponse3`: `+status`, `+task_id`
+- `media_buy/sync_audiences_response.py`
+  - `SyncAudiencesResponse3`: `+status`, `+task_id`
+- `media_buy/sync_catalogs_response.py`
+  - `SyncCatalogsResponse3`: `+status`, `+task_id`
+- `media_buy/update_media_buy_response.py`
+  - `UpdateMediaBuyResponse3`: `+status`, `+task_id`

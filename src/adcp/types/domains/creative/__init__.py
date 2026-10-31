@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-26 23:56:31 UTC
+Generation date: 2026-10-31 19:38:05 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -28,6 +28,10 @@ from adcp.types.domains.creative.creative_assignment_changed_webhook import (
 )
 from adcp.types.domains.creative.creative_feature_result import CreativeFeatureResult
 from adcp.types.domains.creative.creative_purged_webhook import CreativePurgedWebhook, PurgeKind
+from adcp.types.domains.creative.creative_staged_update_changed_webhook import (
+    CreativeStagedUpdateChangedWebhook,
+    Outcome,
+)
 from adcp.types.domains.creative.creative_status_changed_webhook import (
     CreativeStatusChangedWebhook,
     From,
@@ -180,6 +184,7 @@ __all__ = [
     "CreativeAuditObservation",
     "CreativeFeatureResult",
     "CreativePurgedWebhook",
+    "CreativeStagedUpdateChangedWebhook",
     "CreativeStatusChangedWebhook",
     "Creatives",
     "Creatives1",
@@ -212,6 +217,7 @@ __all__ = [
     "ListTransformersResponseCreativeAgent",
     "LocalizationUnavailable",
     "Merge",
+    "Outcome",
     "OutputCapabilityId",
     "Pagination",
     "PlacementId",

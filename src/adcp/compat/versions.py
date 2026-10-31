@@ -128,7 +128,7 @@ def _line(version: str) -> tuple[int, int] | None:
 def _wire_for_line(major: int, minor: int) -> str:
     """The release-precision value this SDK serves for a minor line.
 
-    A line whose packaged spec is a prerelease (``3.3-beta.2`` on the 3.3
+    A line whose packaged spec is a prerelease (``3.3-beta.3`` on the 3.3
     line) is spoken, converted and validated as that exact prerelease: its
     schemas are the only 3.3 contract this wheel ships. Every other line is
     its stable release.
@@ -160,7 +160,7 @@ def is_convertible_version(version: str) -> bool:
     """Whether minor-release translation applies to ``version``.
 
     Stable releases of the SDK's major convert, as does the exact prerelease
-    the SDK serves for a line (``3.3-beta.2`` while the pin is that beta).
+    the SDK serves for a line (``3.3-beta.3`` while the pin is that beta).
     Any other prerelease keeps its own schema contract and gates: the
     translators must not guess prerelease semantics.
     """
@@ -273,9 +273,7 @@ def _score(schema: dict[str, Any], value: Any, root: dict[str, Any]) -> int:
                     else (
                         "string"
                         if isinstance(value, str)
-                        else "number"
-                        if isinstance(value, (int, float))
-                        else "object"
+                        else "number" if isinstance(value, (int, float)) else "object"
                     )
                 )
             )
@@ -1095,6 +1093,42 @@ def log_conversion_summary(
     )
 
 
+def _convert_compact_status(
+    tool: str,
+    result: dict[str, Any],
+    source: str,
+    target: str,
+    step: int,
+    losses: list[ConversionLoss],
+) -> None:
+    """Move the task ``status`` of a compact response across the 3.2 / 3.3 line.
+
+    ``list_products`` and a synchronous ``decline_proposals`` have no ``status``
+    under 3.2.x (the closed roots predate the protocol envelope) and require it
+    under 3.3, which composes the envelope. Which side has it is read from each
+    release's own schema (:func:`uses_task_status_envelope`), so only these
+    tools move and a 3.2.x release that composes the envelope needs no change.
+    Going up supplies the completed status a synchronous result implies; going
+    down drops it, as a loss, rather than send a value the 3.2 root refuses. A
+    ``submitted`` response keeps its status, which the older contract permits.
+    """
+    from adcp.validation._response_envelope import (
+        _NATIVE_COMPACT_ENVELOPE_TOOLS,
+        uses_task_status_envelope,
+    )
+
+    if tool not in _NATIVE_COMPACT_ENVELOPE_TOOLS:
+        return
+    has_status = uses_task_status_envelope(tool, source)
+    wants_status = uses_task_status_envelope(tool, target)
+    if step > 0 and wants_status and not has_status:
+        if "status" not in result and "task_id" not in result:
+            result["status"] = "completed"
+    elif step < 0 and has_status and not wants_status and result.get("status") == "completed":
+        del result["status"]
+        losses.append(ConversionLoss("/status", source, target))
+
+
 def _convert_payload(
     tool: str,
     payload: dict[str, Any],
@@ -1158,7 +1192,7 @@ def _convert_payload(
                     elif result.get("status") == "completed":
                         result.pop("status")
                         losses.append(ConversionLoss("/status", source, target))
-            elif step > 0 and uses_task_status_envelope(tool):
+            elif step > 0 and uses_task_status_envelope(tool, target):
                 result.setdefault("status", "completed")
             if step > 0 and tool in {"get_products", "get_signals"}:
                 # Old responses have no cache declaration. An account-scoped
@@ -1167,6 +1201,8 @@ def _convert_payload(
                     "account" if request is None or request.get("account") is not None else "public"
                 )
                 result.setdefault("cache_scope", scope)
+        if direction != "request":
+            _convert_compact_status(tool, result, source, target, step, losses)
         if step > 0 and _carries_interim_ext(result):
             _hoist_interim_ext(result, target_schema, target_schema)
         if step < 0:
@@ -1247,10 +1283,13 @@ def _require_target_valid(
     """
     from adcp.validation._response_envelope import uses_task_status_envelope
 
-    if direction != "request" and uses_task_status_envelope(tool):
-        # Match the SDK validators, which default the status envelope.
-        payload = {"status": "completed", **payload}
-        result = {"status": "completed", **result}
+    if direction != "request":
+        # Match the SDK validators, which default the status envelope for the
+        # release each side is validated against.
+        if uses_task_status_envelope(tool, source_version):
+            payload = {"status": "completed", **payload}
+        if uses_task_status_envelope(tool, target_version):
+            result = {"status": "completed", **result}
     target_schema = _schema(tool, direction, target_version)
     refusal = _refusal(target_schema, target_schema, result, shape=False)
     if refusal is None:

@@ -316,6 +316,7 @@ from adcp.types.domains.content_standards.validate_content_delivery_response imp
     ValidateContentDeliveryResponse,
 )
 from adcp.types.domains.core.async_response_data import AdcpAsyncResponseData
+from adcp.types.domains.core.task_id import TaskId
 from adcp.types.domains.creative.get_creative_features_request import (
     GetCreativeFeaturesRequest,
 )
@@ -731,7 +732,7 @@ def _resolve_server_version(pin: str | None) -> str | None:
     normalized = resolve_bundle_key(pin)
     if normalized not in LEGACY_ADAPTER_VERSIONS:
         # A 3.x pin is a wire value: release precision, so a prerelease pin
-        # (3.3.0-beta.2) negotiates and is echoed as 3.3-beta.2, never as its
+        # (3.3.0-beta.3) negotiates and is echoed as 3.3-beta.3, never as its
         # bundle key.
         normalized = normalize_to_release_precision(pin)
     if normalized in LEGACY_ADAPTER_VERSIONS:
@@ -1129,7 +1130,7 @@ class ADCPClient:
         if not is_convertible_version(str(declared_peer)):
             # Historical prerelease pins keep their exact contract and gates;
             # minor-release translators must not guess prerelease semantics.
-            # The SDK's own served prerelease (3.3-beta.2) negotiates like its line.
+            # The SDK's own served prerelease (3.3-beta.3) negotiates like its line.
             return ConversionResult(self.adapter._enrich_outgoing_params(params))
         if self._server_version is not None:
             target = negotiate_version([self._server_version], maximum=maximum)
@@ -2763,7 +2764,7 @@ class ADCPClient:
         deadline = time.monotonic() + timeout
         while True:
             polled = await self.get_task_status(
-                GetTaskStatusRequest(task_id=task_id, include_result=True)
+                GetTaskStatusRequest(task_id=TaskId(task_id), include_result=True)
             )
             status_data = polled.data
             status = getattr(status_data, "status", None)

@@ -6077,10 +6077,34 @@ def restore_response_variant_aliases() -> None:
                     return True
             return False
 
+        def composes_task_submitted(self, arm: dict[str, Any]) -> bool:
+            """Return whether an arm composes ``core/task-submitted.json`` through ``allOf``.
+
+            From adcp#8547 a submitted arm no longer restates ``status`` and
+            ``task_id``; it names the one definition. The ``status`` const and
+            the required ``task_id`` are those of the composed schema, so
+            reading only the arm's own ``properties`` finds neither.
+            """
+            parts = arm.get("allOf")
+            if not isinstance(parts, list):
+                return False
+            for part in parts:
+                ref = part.get("$ref") if isinstance(part, dict) else None
+                if not isinstance(ref, str):
+                    continue
+                try:
+                    ref_rel = _resolve_schema_ref(self.schema_rel, ref)
+                except ValueError:
+                    continue
+                if ref_rel.as_posix() == "core/task-submitted.json":
+                    return True
+            return False
+
         def emit_response_class(self, class_name: str, arm: dict[str, Any]) -> str:
             props = arm.get("properties") or {}
             required = set(arm.get("required") or [])
-            is_submitted = (
+            composes_task_submitted = self.composes_task_submitted(arm)
+            is_submitted = composes_task_submitted or (
                 props.get("status", {}).get("const") == "submitted" and "task_id" in props
             )
             # A root-level ``allOf`` applies to the whole document, so every
@@ -6091,6 +6115,11 @@ def restore_response_variant_aliases() -> None:
             bases = response_envelope_bases(protocol=inherits_protocol_envelope)
             if inherits_protocol_envelope:
                 self.needs_protocol_envelope = True
+            if composes_task_submitted:
+                # The generator renders the same composition as a second base,
+                # ``class X(ProtocolEnvelope, TaskSubmitted)``.
+                self.add_import("from ..core.task_submitted import TaskSubmitted")
+                bases = f"{bases}, TaskSubmitted"
             # Submitted arms once paired ``validate_default=True`` with
             # ``use_enum_values`` so the ``status`` default came out as its
             # value; the enum is a ``StrEnum`` now and the default is already
@@ -6112,8 +6141,23 @@ def restore_response_variant_aliases() -> None:
                 # unknown extra into ``extra='forbid'`` subclasses.
                 self.typing_imports.add("Literal")
                 lines.append("    status: Literal['completed'] = 'completed'")
+            if composes_task_submitted:
+                # Python takes a field from the first base that declares it, the
+                # envelope's open ``status`` and optional ``task_id``. Declare the
+                # composed schema's narrowing on the arm, as the generator does
+                # when it pins a property its allOf arms disagree on.
+                alias = self.import_alias("from ..enums import task_status as {alias}", "task_status")
+                task_id_alias = self.import_alias("from ..core import task_id as {alias}", "task_id")
+                self.typing_imports.add("Literal")
+                lines.append(
+                    f"    status: Literal[{alias}.TaskStatus.submitted] = "
+                    f"{alias}.TaskStatus.submitted"
+                )
+                lines.append(f"    task_id: {task_id_alias}.TaskId")
             for prop_name, prop_schema in props.items():
                 if is_submitted and prop_name == "status":
+                    if composes_task_submitted:
+                        continue
                     alias = self.import_alias(
                         "from ..enums import task_status as {alias}", "task_status"
                     )

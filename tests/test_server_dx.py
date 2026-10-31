@@ -1044,6 +1044,38 @@ class TestHandleTestController:
                 None,
                 {"operation": "advance_time", "target_health": "delayed"},
             ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "revoke_grant", "account_id": "acct-1"},
+                None,
+                {"operation": "revoke_grant", "account_id": "acct-1"},
+            ),
+            (
+                "reporting_subscription_probe",
+                {
+                    "operation": "reduce_grant",
+                    "account_id": "acct-1",
+                    "allowed_tasks": ["get_reporting_status"],
+                },
+                None,
+                {"allowed_tasks": ["get_reporting_status"]},
+            ),
+            (
+                "reporting_subscription_probe",
+                {
+                    "operation": "set_account_timezone",
+                    "account_id": "acct-1",
+                    "timezone": "America/New_York",
+                },
+                None,
+                {"timezone": "America/New_York"},
+            ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "advance_time", "target_time": "2026-11-01T00:00:00Z"},
+                None,
+                {"target_time": "2026-11-01T00:00:00Z"},
+            ),
         ],
     )
     @pytest.mark.asyncio
@@ -1130,6 +1162,22 @@ class TestHandleTestController:
                 {"operation": "expire_proposal", "product_id": "product-1"},
             ),
             ("reporting_core_lifecycle_probe", {"operation": "advance_time"}),
+            ("reporting_subscription_probe", {"operation": "revoke_grant"}),
+            ("reporting_subscription_probe", {"operation": "reduce_grant", "account_id": "a"}),
+            (
+                "reporting_subscription_probe",
+                {
+                    "operation": "regrant",
+                    "account_id": "a",
+                    "allowed_tasks": ["get_reporting_status"],
+                },
+            ),
+            (
+                "reporting_subscription_probe",
+                {"operation": "regrant", "account_id": "a", "timezone": "UTC"},
+            ),
+            ("reporting_subscription_probe", {"operation": "advance_time"}),
+            ("reporting_subscription_probe", {"operation": "freeze_time"}),
             (
                 "reporting_core_lifecycle_probe",
                 {"operation": "prepare", "target_health": "delayed"},

@@ -666,7 +666,7 @@ def test_resolved_condition_allows_seller_managed_standard_async_action() -> Non
         ),
         (
             # The 3.2 beta.9 floor does not apply to 3.3 prereleases.
-            "3.3.0-beta.2",
+            "3.3.0-beta.3",
             {
                 "action": "increase_budget",
                 "mode": "seller_managed",

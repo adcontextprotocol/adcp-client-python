@@ -9,7 +9,7 @@ from adcp.types.base import AdcpResponse
 from typing import Annotated, Literal, TypeAlias
 
 from adcp.types.base import NoExplicitNull, WireAnyUrl, WireDatetime
-from pydantic import ConfigDict, Field, StringConstraints
+from pydantic import ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import preview_render as preview_render_1
@@ -17,7 +17,9 @@ from ..core import context as context_1
 from ..core import creative_manifest as creative_manifest_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core import task_id as task_id_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..core.task_submitted import TaskSubmitted
 from ..enums import creative_quality as creative_quality_1
 from ..enums import task_status as task_status_1
 
@@ -72,7 +74,7 @@ class Preview3(AdcpVersionEnvelope):
     renders: Annotated[list[preview_render_1.PreviewRender], Field(min_length=1)]
 
 
-class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
@@ -83,7 +85,7 @@ class PreviewCreativeResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['batch'] = 'batch'
     results: Annotated[list[Result], Field(min_length=1)]
@@ -91,7 +93,7 @@ class PreviewCreativeResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse3(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['variant'] = 'variant'
     variant_id: str
@@ -103,12 +105,11 @@ class PreviewCreativeResponse3(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelo
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class PreviewCreativeResponse4(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class PreviewCreativeResponse4(AdcpResponse, ProtocolEnvelope, TaskSubmitted):
     model_config = ConfigDict(extra='allow')
-    response_type: Literal['submitted'] = 'submitted'
     status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    message: Annotated[Annotated[str, StringConstraints(max_length=2000)] | None, NoExplicitNull] = None
+    task_id: task_id_1.TaskId
+    response_type: Literal['submitted'] = 'submitted'
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 

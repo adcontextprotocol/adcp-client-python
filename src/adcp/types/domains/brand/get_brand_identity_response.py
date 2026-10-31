@@ -119,7 +119,7 @@ class Collection(AdcpVersionEnvelope):
     seller_agent_url: Annotated[WireAnyUrl | None, NoExplicitNull] = None
 
 
-class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetBrandIdentityResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     brand_id: str
     house: House
@@ -142,7 +142,7 @@ class GetBrandIdentityResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvel
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetBrandIdentityResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetBrandIdentityResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

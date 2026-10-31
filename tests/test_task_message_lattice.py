@@ -40,55 +40,15 @@ from scripts.task_message_lattice import task_message_roots
 # like every sibling task does (one ``allOf`` line).
 _REQUEST_VERSION_RESIDUE = frozenset({"creative/validate-input-request.json"})
 
-# The five compact media-buy responses compose ``media-buy/media-buy-commitment-response``
-# instead, which is itself envelope-free. The two proposals responses declare the version
-# via pointer refs, and the normalization in ``generate_types`` deliberately REFUSES them:
-# their submitted arm is a bare ``$ref`` to ``core/compact-task-submitted.json``, so moving
-# the stubs into a root ``allOf`` would delete the field from that arm rather than relocate
-# it (see ``_has_bare_ref_root_arm``). Normalizing them would not have changed this residue
-# anyway -- the submitted arm gains no ancestry either way, so the all-arms answer is 71/82
-# (3.3 adds the two open-opportunity responses to the residue, and 3.3.0-beta.1 the two
-# media-buy issue responses, which declare no envelope at all).
-# with or without. Upstream: adcp#7892 plus the commitment / compact-task-submitted
-# components, which is upstream ask four.
-_RESPONSE_VERSION_RESIDUE = frozenset(
-    {
-        "media-buy/accept-proposal-response.json",
-        "media-buy/buy-products-response.json",
-        "media-buy/control-media-buy-response.json",
-        "media-buy/decline-proposals-response.json",
-        "media-buy/get-media-buy-issue-response.json",
-        "media-buy/list-collections-response.json",
-        "media-buy/list-products-response.json",
-        "media-buy/list-proposals-response.json",
-        "media-buy/refine-proposals-response.json",
-        "media-buy/report-media-buy-issue-response.json",
-        "media-buy/request-proposals-response.json",
-    }
-)
-
-# These fourteen declare NO protocol-envelope fields of their own, against the envelope's own
-# "The ``status`` field is REQUIRED on every task response envelope". There is nothing
-# equivalent to lift, so unlike the version envelope this one cannot be normalized by
-# equivalence: composing it would change what validates. Upstream's to fix.
-_RESPONSE_PROTOCOL_RESIDUE = frozenset(
-    {
-        "governance/check-governance-response.json",
-        "governance/report-plan-adjustment-response.json",
-        "governance/report-plan-outcome-response.json",
-        "media-buy/accept-proposal-response.json",
-        "media-buy/buy-products-response.json",
-        "media-buy/control-media-buy-response.json",
-        "media-buy/decline-proposals-response.json",
-        "media-buy/get-media-buy-issue-response.json",
-        "media-buy/list-collections-response.json",
-        "media-buy/list-products-response.json",
-        "media-buy/list-proposals-response.json",
-        "media-buy/refine-proposals-response.json",
-        "media-buy/report-media-buy-issue-response.json",
-        "media-buy/request-proposals-response.json",
-    }
-)
+# Every task response composes ``core/protocol-envelope.json`` through its root ``allOf``
+# (adcp#8547, first published in 3.3.0-beta.3), and the envelope composes
+# ``core/version-envelope.json``. Through 3.3.0-beta.2 eleven responses composed neither
+# (the compact media-buy responses, the two proposals responses and the issue and collection
+# responses) and three governance responses declared no protocol-envelope field, so these
+# pins held a residue the generator could not lift. There is none left; the tests below fail
+# if a response stops composing the envelope.
+_RESPONSE_VERSION_RESIDUE: frozenset[str] = frozenset()
+_RESPONSE_PROTOCOL_RESIDUE: frozenset[str] = frozenset()
 
 #: (task, kind, schema path, the root classes the message validates into)
 _TaskMessage = tuple[str, str, str, tuple[type[BaseModel], ...]]

@@ -46,7 +46,7 @@ class CollectionInfo(AdcpVersionEnvelope):
     effective_rate: Annotated[float | None, NoExplicitNull] = None
 
 
-class GetMediaBuyArtifactsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetMediaBuyArtifactsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     media_buy_id: str
     artifacts: list[Artifact]
@@ -56,7 +56,7 @@ class GetMediaBuyArtifactsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolE
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetMediaBuyArtifactsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetMediaBuyArtifactsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

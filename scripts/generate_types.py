@@ -750,6 +750,68 @@ def normalize_version_envelope_composition(schema: dict, schema_rel_path: Path) 
 _VERSION_ENVELOPE_NORMALIZED = 0
 
 
+#: Keywords that tighten a scalar. Beside a lone ``allOf`` ``$ref`` they would be dropped:
+#: the generator builds the referenced class and ignores the sibling constraint.
+_SCALAR_SIBLING_KEYWORDS = frozenset(
+    {
+        "minLength",
+        "maxLength",
+        "pattern",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+    }
+)
+_NOT_A_PLAIN_SCALAR = frozenset({"properties", "items", "oneOf", "anyOf", "allOf", "$ref", "enum"})
+
+
+def merge_constrained_scalar_refs(obj, current_schema_rel_path: Path):
+    """Merge a scalar's own bound into the schema its lone ``allOf`` ``$ref`` names.
+
+    adcp#8547 gives ``task_id`` one definition, ``core/task-id.json``. The compliance
+    controller keeps a tighter bound of its own beside it
+    (``{"allOf": [{"$ref": ".../task-id.json"}], "maxLength": 128}``). The generator
+    renders the referenced class and drops that sibling ``maxLength``, so the model
+    would accept ids the schema refuses. The merged scalar carries both bounds, as the
+    property's type did before the definition was shared. Only a plain scalar schema is
+    merged, by whole-file reference; structural pointers are handled by
+    :func:`inline_structural_pointer_refs`.
+    """
+    if isinstance(obj, dict):
+        arms = obj.get("allOf")
+        if (
+            isinstance(arms, list)
+            and len(arms) == 1
+            and isinstance(arms[0], dict)
+            and set(arms[0]) == {"$ref"}
+            and isinstance(arms[0]["$ref"], str)
+            and "#" not in arms[0]["$ref"]
+            and set(obj) & _SCALAR_SIBLING_KEYWORDS
+        ):
+            _target, referenced = _resolve_allof_arm(arms[0], current_schema_rel_path, obj)
+            if (
+                isinstance(referenced, dict)
+                and referenced.get("type") in {"string", "integer", "number"}
+                and not set(referenced) & _NOT_A_PLAIN_SCALAR
+            ):
+                merged = {
+                    key: copy.deepcopy(value)
+                    for key, value in referenced.items()
+                    if key not in {"$schema", "$id", "title"}
+                }
+                merged.update({key: value for key, value in obj.items() if key != "allOf"})
+                obj.clear()
+                obj.update(merged)
+        for value in list(obj.values()):
+            merge_constrained_scalar_refs(value, current_schema_rel_path)
+    elif isinstance(obj, list):
+        for item in obj:
+            merge_constrained_scalar_refs(item, current_schema_rel_path)
+    return obj
+
+
 def _resolve_allof_arm(
     arm: dict, current_schema_rel_path: Path, document: dict
 ) -> tuple[Path, Any]:
@@ -1461,6 +1523,7 @@ def flatten_schemas(temp_dir: Path):
         schema = normalize_enum_descriptions(schema)
         schema = inline_structural_pointer_refs(schema, rel_path)
         schema = collapse_nullable_unions(schema)
+        schema = merge_constrained_scalar_refs(schema, rel_path)
         schema = normalize_version_envelope_composition(schema, rel_path)
         schema = pin_conflicting_allof_properties(schema, rel_path)
         # Before the rewrite, while refs are still in the spellings

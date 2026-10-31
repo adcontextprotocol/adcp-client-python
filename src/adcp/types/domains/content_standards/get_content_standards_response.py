@@ -11,20 +11,19 @@ from typing import Annotated, TypeAlias
 from adcp.types.base import NoExplicitNull
 from pydantic import ConfigDict
 
-from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class GetContentStandardsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetContentStandardsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetContentStandardsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetContentStandardsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

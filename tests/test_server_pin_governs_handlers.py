@@ -31,7 +31,7 @@ PACKAGED = resolve_adcp_version(None)
 STRICT = ValidationHookConfig(requests="strict", responses="strict")
 BUYERS = ["3.2", "3.1", PACKAGED]
 
-# ``include_collections`` exists only from 3.3; a 3.3-beta.2 buyer sending it
+# ``include_collections`` exists only from 3.3; a 3.3-beta.3 buyer sending it
 # proves the request is converted *down* to a 3.2 application.
 NEWEST_ONLY_REQUEST_FIELD = "include_collections"
 

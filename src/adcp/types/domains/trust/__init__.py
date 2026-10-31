@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-30 14:25:27 UTC
+Generation date: 2026-10-31 19:38:05 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -42,7 +42,7 @@ from adcp.types.domains.trust.v1.trust import (
     Role,
     Role11,
     Scope,
-    Scope23,
+    Scope24,
     TrustJson,
     TrustJson1,
     TrustJson2,
@@ -76,7 +76,7 @@ __all__ = [
     "Role",
     "Role11",
     "Scope",
-    "Scope23",
+    "Scope24",
     "TrustJson",
     "TrustJson1",
     "TrustJson2",

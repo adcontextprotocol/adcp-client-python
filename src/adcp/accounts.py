@@ -378,7 +378,7 @@ class AccountRegistry:
                     {"accounts": [key]},
                     direction="request",
                     # The outgoing request was reduced from the SDK's own
-                    # release (3.3-beta.2), not from 3.2.
+                    # release (3.3-beta.3), not from 3.2.
                     source_version=resolve_adcp_version(None),
                     target_version=observed_version,
                     # Recomputes the key the outgoing request already reduced;

@@ -204,7 +204,7 @@ def _write_schema_tree(root: Path, schemas: dict[str, dict]) -> None:
 
 def _envelope_composition_tree() -> dict[str, dict]:
     """The adcp#8547 response layout, reduced to the shapes codegen has to handle."""
-    url = "https://adcontextprotocol.org/schemas/3.3.0-beta.2/"
+    url = "https://adcontextprotocol.org/schemas/3.3.0-beta.3/"
     envelope = {"$ref": f"{url}core/protocol-envelope.json"}
     submitted = {"$ref": f"{url}core/task-submitted.json"}
     return {
@@ -341,3 +341,54 @@ def test_envelope_composition_generates_from_every_depth_with_inheritance(
     enrichment = importlib.import_module(f"{package.name}.core.enrichment").Enrichment
     assert not issubclass(flat, (listing, enrichment)), flat.__mro__
     assert {"name", "score"} <= set(flat.model_fields)
+
+
+def test_scalar_bound_beside_a_shared_definition_survives_generation(tmp_path: Path) -> None:
+    """A property that tightens a shared scalar keeps its own bound.
+
+    ``core/task-id.json`` is the one definition of ``task_id``; the compliance controller
+    adds ``maxLength: 128`` beside the reference. The generator drops a sibling constraint
+    of a lone ``allOf`` reference, so the merge happens before it runs.
+    """
+    original = generate_types.SCHEMAS_DIR
+    url = "https://adcontextprotocol.org/schemas/3.3.0-beta.3/"
+    try:
+        generate_types.SCHEMAS_DIR = tmp_path
+        _write_schema_tree(
+            tmp_path,
+            {
+                "core/task-id.json": {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "title": "Task ID",
+                    "type": "string",
+                    "minLength": 1,
+                },
+                "core/closed.json": {"type": "string", "enum": ["a"]},
+            },
+        )
+        bounded = {
+            "properties": {
+                "task_id": {
+                    "description": "controller handle",
+                    "allOf": [{"$ref": f"{url}core/task-id.json"}],
+                    "maxLength": 128,
+                },
+                # No sibling bound: left as the reference.
+                "plain": {"allOf": [{"$ref": f"{url}core/task-id.json"}]},
+                # Not a plain scalar: left as the reference.
+                "closed": {"allOf": [{"$ref": f"{url}core/closed.json"}], "maxLength": 1},
+            }
+        }
+        merged = generate_types.merge_constrained_scalar_refs(
+            bounded, Path("compliance/controller.json")
+        )
+    finally:
+        generate_types.SCHEMAS_DIR = original
+
+    task_id = merged["properties"]["task_id"]
+    assert task_id["type"] == "string"
+    assert (task_id["minLength"], task_id["maxLength"]) == (1, 128)
+    assert task_id["description"] == "controller handle"
+    assert "allOf" not in task_id and "title" not in task_id and "$schema" not in task_id
+    assert "allOf" in merged["properties"]["plain"]
+    assert "allOf" in merged["properties"]["closed"]

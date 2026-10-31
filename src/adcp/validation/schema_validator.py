@@ -449,20 +449,24 @@ def _select_response_variant(payload: Any) -> ResponseVariant:
     return "sync"
 
 
-def _normalize_response_for_validation(tool_name: str, payload: Any) -> Any:
+def _normalize_response_for_validation(
+    tool_name: str, payload: Any, version: str | None = None
+) -> Any:
     """Apply SDK compatibility defaults before strict beta 3 validation.
 
-    Most beta 3 responses require the protocol ``status`` envelope. Compact
-    ``list_products`` and synchronous ``decline_proposals`` retain their native
-    envelopes instead. ``cache_scope`` is deliberately not inferred here:
-    response-only validation lacks the request account context needed to
-    distinguish public wholesale feeds from account overlays.
+    Most responses require the protocol ``status`` envelope. Compact
+    ``list_products`` and synchronous ``decline_proposals`` keep their native
+    shape only under a release whose schema does not compose the envelope
+    (3.2.x); 3.3 composes it and requires ``status``. ``cache_scope`` is
+    deliberately not inferred here: response-only validation lacks the request
+    account context needed to distinguish public wholesale feeds from account
+    overlays.
     """
     if not isinstance(payload, dict):
         return payload
 
     normalized = dict(payload)
-    if uses_task_status_envelope(tool_name):
+    if uses_task_status_envelope(tool_name, version):
         normalized.setdefault("status", "completed")
     return normalized
 
@@ -478,7 +482,7 @@ def validate_response(
     ``version`` semantics match :func:`validate_request` — defaults to the
     SDK pin; pass a wire version to validate against a legacy schema.
     """
-    payload = _normalize_response_for_validation(tool_name, _as_wire_payload(payload))
+    payload = _normalize_response_for_validation(tool_name, _as_wire_payload(payload), version)
     variant: ResponseVariant = _select_response_variant(payload)
     validator = get_validator(tool_name, variant, version=version)
     used_variant: Direction = variant

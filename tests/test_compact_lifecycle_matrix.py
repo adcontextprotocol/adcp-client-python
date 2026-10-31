@@ -358,7 +358,7 @@ def test_compact_response_enrichment_matches_pinned_schema(
     task_name: str,
     response: dict[str, Any],
 ) -> None:
-    uses_status = uses_task_status_envelope(task_name)
+    uses_status = uses_task_status_envelope(task_name, "3.2")
     with_completed_status = {**response, "status": "completed"}
 
     assert (

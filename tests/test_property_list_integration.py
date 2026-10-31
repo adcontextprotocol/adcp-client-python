@@ -17,6 +17,7 @@ from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.types import AdcpError
 from adcp.property_lists import MCPPropertyListFetcher, check_property_list_reference
 from adcp.server import GovernanceHandler, ToolContext, create_mcp_server
+from adcp.server.mcp_tools import _normalize_response_envelope
 from adcp.types import ListProductsRequest, ListProductsResponse
 from adcp.validation import validate_response
 
@@ -86,7 +87,11 @@ async def test_list_products_dispatch_filters_compact_criteria(model_response):
     assert [item["product_id"] for item in wire["products"]] == ["allowed"]
     assert wire["ext"]["property_list_applied"] is True
     assert "property_list_applied" not in wire
-    assert validate_response("list_products", wire, version="3.2.1").valid
+    # A typed response carries the 3.3 ``status`` default; serving a 3.2.1 buyer
+    # leaves it off the wire, as the dispatcher does.
+    served = dict(wire)
+    _normalize_response_envelope("list_products", served, {}, adcp_version="3.2.1")
+    assert validate_response("list_products", served, version="3.2.1").valid
     assert len(body["products"]) == 2
 
 
@@ -181,7 +186,11 @@ async def test_projected_list_products_requests_inventory_before_filtering(
     assert not {"publisher_properties", "overlay_support"} & wire["products"][0].keys()
     assert wire["next_cursor"] == "next"
     assert wire["ext"]["property_list_applied"] is True
-    assert validate_response("list_products", wire, version="3.2.1").valid
+    # A typed response carries the 3.3 ``status`` default; serving a 3.2.1 buyer
+    # leaves it off the wire, as the dispatcher does.
+    served = dict(wire)
+    _normalize_response_envelope("list_products", served, {}, adcp_version="3.2.1")
+    assert validate_response("list_products", served, version="3.2.1").valid
     original = platform_responses[0]
     original = (
         original

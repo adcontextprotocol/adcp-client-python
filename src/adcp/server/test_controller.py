@@ -136,6 +136,8 @@ SCENARIOS = [
     "compact_product_lifecycle_probe",
     "compact_direct_buy_lifecycle_probe",
     "reporting_core_lifecycle_probe",
+    # AdCP 3.3.0-beta.3: experimental media_buy.reporting_subscriptions.
+    "reporting_subscription_probe",
 ]
 
 _MAX_TASK_ID = 128
@@ -766,6 +768,25 @@ class TestControllerStore:
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Prepare or advance deterministic Core reporting lifecycle state."""
+        raise NotImplementedError
+
+    async def reporting_subscription_probe(
+        self,
+        operation: str,
+        account_id: str | None = None,
+        allowed_tasks: list[str] | None = None,
+        timezone: str | None = None,
+        target_time: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Change the caller's own sandbox grant or account, or advance the virtual clock.
+
+        ``revoke_grant``, ``regrant``, ``reduce_grant`` (with ``allowed_tasks``) and
+        ``set_account_timezone`` (with ``timezone``) name an ``account_id``;
+        ``advance_time`` takes ``target_time`` and moves the one virtual clock the
+        sandbox's reporting-subscription logic reads.
+        """
         raise NotImplementedError
 
 
@@ -1498,6 +1519,38 @@ async def _handle_test_controller(
                     "INVALID_PARAMS",
                     "target_health is only allowed for advance_time",
                 )
+        elif scenario == "reporting_subscription_probe":
+            _require_scenario_params(scenario_params, "operation")
+            operation = scenario_params["operation"]
+            if operation not in {
+                "revoke_grant",
+                "regrant",
+                "reduce_grant",
+                "set_account_timezone",
+                "advance_time",
+            }:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "Unsupported reporting_subscription_probe operation",
+                )
+            if operation != "advance_time":
+                _require_scenario_params(scenario_params, "account_id")
+            if operation == "reduce_grant":
+                _require_scenario_params(scenario_params, "allowed_tasks")
+            elif "allowed_tasks" in scenario_params:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "allowed_tasks is only allowed for reduce_grant",
+                )
+            if operation == "set_account_timezone":
+                _require_scenario_params(scenario_params, "timezone")
+            elif "timezone" in scenario_params:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "timezone is only allowed for set_account_timezone",
+                )
+            if operation == "advance_time":
+                _require_scenario_params(scenario_params, "target_time")
         elif scenario not in {
             "seed_product",
             "seed_pricing_option",

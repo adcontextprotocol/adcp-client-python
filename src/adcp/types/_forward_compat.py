@@ -540,7 +540,7 @@ def _apply_forward_compat() -> None:
     )
     defer_model_rebuild(BundledCapabilitiesPortfolio)
 
-    # Reporting-subscription fields settled after 3.3.0-beta.1 (adcp#8585).
+    # The extensible reporting-dimension vocabulary (the generator closes it).
     from adcp.types._reporting_subscription_preview import apply_reporting_subscription_preview
 
     apply_reporting_subscription_preview()

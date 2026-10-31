@@ -15,7 +15,6 @@ from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
-from ..core.version_envelope import AdcpVersionEnvelope
 from . import verification_status
 
 
@@ -152,7 +151,7 @@ class VerifyBrandClaimsSignedResponse(AdCPBaseModel):
     ]
 
 
-class VerifyBrandClaimsResponseBulk(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class VerifyBrandClaimsResponseBulk(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -173,7 +172,7 @@ class VerifyBrandClaimsResponseBulk(AdcpResponse, AdcpVersionEnvelope, ProtocolE
     ext: ext_1.ExtensionObject | None = None
 
 
-class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+class VerifyBrandClaimsErrorResponse(ProtocolEnvelope):
     model_config = ConfigDict(
         extra='allow',
     )

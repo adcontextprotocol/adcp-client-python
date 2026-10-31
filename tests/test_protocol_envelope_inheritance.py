@@ -310,3 +310,55 @@ def test_canonical_response_status_is_the_generated_one() -> None:
         # The other half of the old stub contract: ``status`` is defaulted, so a
         # plain construction never has to supply it.
         assert not model.model_fields["status"].is_required(), name
+
+
+def _submitted_arm_names() -> list[str]:
+    """Response modules whose submitted arm composes ``core/task-submitted.json``."""
+    names: list[str] = []
+    for path in sorted(_schema_dir().glob("*/*-response.json")):
+        schema = json.loads(path.read_text())
+        for arm in schema.get("oneOf") or schema.get("anyOf") or []:
+            composed = [
+                part.get("$ref", "")
+                for part in arm.get("allOf", [])
+                if isinstance(part, dict)
+            ]
+            if any(ref.endswith("/core/task-submitted.json") for ref in composed):
+                names.append(f"{path.parent.name.replace('-', '_')}.{path.stem.replace('-', '_')}")
+    return names
+
+
+def test_submitted_arms_composing_task_submitted_keep_its_contract() -> None:
+    """adcp#8547 moved ``status: submitted`` and the required ``task_id`` into ``core/task-submitted``.
+
+    A response module re-rendered from the schema's own properties finds neither on an arm
+    that only composes it, so the arm lost the const and the required id. Every such arm
+    must still derive from ``TaskSubmitted``, pin ``submitted`` and require ``task_id``.
+    """
+    import importlib
+
+    from adcp.types.domains.core.task_submitted import TaskSubmitted
+
+    arms = _submitted_arm_names()
+    assert len(arms) >= 8, arms
+    for dotted in arms:
+        domain, module_name = dotted.split(".")
+        module = importlib.import_module(f"adcp.types.domains.{domain}.{module_name}")
+        submitted = [
+            obj
+            for obj in vars(module).values()
+            if isinstance(obj, type)
+            and issubclass(obj, BaseModel)
+            and issubclass(obj, TaskSubmitted)
+            and obj is not TaskSubmitted
+            and obj.__module__ == module.__name__
+        ]
+        assert submitted, f"{dotted}: no generated submitted arm derives from TaskSubmitted"
+        for arm in submitted:
+            assert issubclass(arm, ProtocolEnvelope), arm
+            assert arm.model_fields["task_id"].is_required(), arm
+            assert arm.model_fields["status"].default == TaskStatus.submitted, arm
+            with pytest.raises(ValueError):
+                arm.model_validate({"status": "completed", "task_id": "t1"})
+            with pytest.raises(ValueError):
+                arm.model_validate({"status": "submitted"})

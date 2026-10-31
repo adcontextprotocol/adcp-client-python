@@ -109,13 +109,18 @@ def test_responses_only_emit_replayed_when_supplied(
 ) -> None:
     adapter = TypeAdapter(response_type)
     model = adapter.validate_python(payload)
-    assert model.replayed is None
+    # Since 3.3.0-beta.3 the protocol envelope owns ``replayed``: absent means
+    # ``false``, and a response may carry ``replayed: false``. An unset value
+    # still never reaches the wire.
+    assert model.replayed is False
     assert "replayed" not in model.model_dump(mode="json", exclude_none=True)
 
     replayed = adapter.validate_python({**payload, "replayed": True})
     assert replayed.model_dump(mode="json", exclude_none=True)["replayed"] is True
+    explicit = adapter.validate_python({**payload, "replayed": False})
+    assert explicit.model_dump(mode="json", exclude_none=True)["replayed"] is False
     with pytest.raises(ValidationError):
-        adapter.validate_python({**payload, "replayed": False})
+        adapter.validate_python({**payload, "replayed": "false"})
 
 
 @pytest.mark.parametrize(

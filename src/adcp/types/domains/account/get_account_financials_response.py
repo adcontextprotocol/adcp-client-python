@@ -63,7 +63,7 @@ class Invoice(AdcpVersionEnvelope):
     lines: Annotated[list[invoice_line_1.InvoiceLine] | None, NoExplicitNull] = None
 
 
-class GetAccountFinancialsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetAccountFinancialsResponse1(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     account: account_ref_1.AccountReference
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]
@@ -79,7 +79,7 @@ class GetAccountFinancialsResponse1(AdcpResponse, AdcpVersionEnvelope, ProtocolE
     ext: Annotated[ext_1.ExtensionObject | None, NoExplicitNull] = None
 
 
-class GetAccountFinancialsResponse2(AdcpResponse, AdcpVersionEnvelope, ProtocolEnvelope):
+class GetAccountFinancialsResponse2(AdcpResponse, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: Annotated[context_1.ContextObject | None, NoExplicitNull] = None

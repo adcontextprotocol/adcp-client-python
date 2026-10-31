@@ -153,22 +153,26 @@ def _normalize_response_envelope(
     if is_sync_media_buy_success:
         _normalize_sync_media_buy_response(result, adcp_version=adcp_version)
 
-    if method_name == "list_products":
-        # The compact list response is a synchronous listed/unchanged union.
-        # Unlike the general task envelope, neither arm permits ``status``.
-        # A products-bearing response is unambiguously the listed arm, so keep
+    # Whether the served release's response schema composes the protocol
+    # envelope decides if ``status`` belongs on the response. 3.3 requires it on
+    # every task response; the closed 3.2.x compact ``list_products`` forbids it
+    # and ``decline_proposals`` permits it only on a submitted arm.
+    status_envelope = uses_task_status_envelope(method_name, adcp_version)
+    if method_name == "list_products" and "outcome" not in result and "products" in result:
+        # The compact list response is a synchronous listed/unchanged union. A
+        # products-bearing response is unambiguously the listed arm, so keep
         # accepting the ergonomic handler shape that predates the explicit
         # outcome discriminator.
-        if "outcome" not in result and "products" in result:
-            result["outcome"] = "listed"
-        return
-    if (
-        uses_task_status_envelope(method_name)
-        and "status" not in result
-        and "task_id" not in result
-    ):
+        result["outcome"] = "listed"
+    if status_envelope and "status" not in result and "task_id" not in result:
         if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
             result["status"] = "completed"
+    elif not status_envelope and result.get("status") == "completed":
+        # The typed response models default ``status`` to ``completed`` (3.3
+        # requires it). The served release has none for this tool, so the
+        # model's default must not reach a closed 3.2.x root. Only the implied
+        # synchronous value goes; a submitted arm keeps its status.
+        del result["status"]
     if (
         method_name in {"get_products", "get_signals"}
         and "cache_scope" not in result
