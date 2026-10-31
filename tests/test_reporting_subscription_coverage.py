@@ -21,6 +21,7 @@ import pytest
 from adcp.reporting import ExpectedReportingPeriod
 from adcp.reporting.subscriptions import (
     AccountTimezoneChange,
+    CoverageInputError,
     ExpectedSubscriptionPeriod,
     SubscriptionAuthorization,
     SubscriptionBuy,
@@ -1751,3 +1752,36 @@ def test_a_bare_3_3_version_cannot_be_served_while_beta_1_is_pinned() -> None:
     with pytest.raises(ConfigurationError):
         resolve_adcp_version("3.3")
     assert "3.3" not in get_supported_adcp_versions()
+
+
+# -- the budget ----------------------------------------------------------------
+
+
+class TestCoverageBudget:
+    """Coverage fails closed rather than return a partial set (COVERAGE_BUDGET_EXCEEDED)."""
+
+    def test_more_owed_periods_than_max_periods_raise(self) -> None:
+        buys = [buy(f"mb-{index}", end_time="2026-10-04T04:00:00Z") for index in range(2)]
+        assert len(run(buys=buys, max_periods=6)) == 3  # 3 periods x 2 buys = 6 pairs
+        with pytest.raises(CoverageInputError) as exceeded:
+            run(buys=buys, max_periods=5)
+        error = exceeded.value
+        assert (error.code, error.detail, error.recovery) == (
+            "COVERAGE_BUDGET_EXCEEDED",
+            "max_periods",
+            "correctable",
+        )
+        assert error.dispatched is None and "max_periods (5)" in str(error)
+
+    def test_more_boundaries_than_max_iterations_raise(self) -> None:
+        with pytest.raises(CoverageInputError) as exceeded:
+            run(buys=[buy(end_time="2026-10-04T04:00:00Z")], max_iterations=2)
+        assert (exceeded.value.code, exceeded.value.detail) == (
+            "COVERAGE_BUDGET_EXCEEDED",
+            "max_iterations",
+        )
+
+    @pytest.mark.parametrize("name", ["max_periods", "max_iterations"])
+    def test_a_budget_must_be_positive(self, name: str) -> None:
+        with pytest.raises(CoverageInputError, match=name):
+            run(buys=[buy()], **{name: 0})

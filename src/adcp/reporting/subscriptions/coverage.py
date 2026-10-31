@@ -93,6 +93,12 @@ def _require_instant(value: Any, *, field: str) -> datetime:
 # -- plain-data inputs ------------------------------------------------------
 
 
+#: Owed (buy, period) pairs one coverage call may return before failing closed.
+DEFAULT_MAX_PERIODS = 100_000
+#: Period boundaries one coverage call may examine before failing closed.
+DEFAULT_MAX_ITERATIONS = 2_000_000
+
+
 @dataclass(frozen=True)
 class SubscriptionBuyFlight:
     """A flight a buy had before a later change superseded it at ``superseded_at``.
@@ -724,8 +730,16 @@ def expected_subscription_periods(
     version_configurations: Mapping[int, Any] | None = None,
     timezone_changes: Sequence[AccountTimezoneChange] = (),
     include_unresolved: bool = False,
+    max_periods: int = DEFAULT_MAX_PERIODS,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS,
 ) -> list[ExpectedSubscriptionPeriod]:
     """Every period one subscription owes one account, from plain data.
+
+    Fails closed rather than return a partial set: more than ``max_periods``
+    owed (buy, period) pairs, or more than ``max_iterations`` boundaries
+    examined, raises :class:`CoverageInputError` with code
+    ``COVERAGE_BUDGET_EXCEEDED`` (the TypeScript SDK's ``max_periods`` and
+    ``max_iterations``, with the same defaults).
 
     :param subscription: the ``get_principal`` readback
         (``core/reporting-subscription-state.json``) as a model or mapping, or
@@ -756,6 +770,10 @@ def expected_subscription_periods(
         ``changed_at`` (``timezone_cutovers[].effective_at``).
     """
     now = utc_instant(now, field="now")
+    for name, budget in (("max_periods", max_periods), ("max_iterations", max_iterations)):
+        if type(budget) is not int or budget < 1:
+            raise CoverageInputError("invalid_input", f"{name} must be a positive integer")
+    iterations = pairs = 0
     windows = _windows(subscription, version_configurations)
     if not windows:
         return []
@@ -861,6 +879,14 @@ def expected_subscription_periods(
                 if lower >= upper:
                     continue
                 for start, end in calendar.periods(starts_from=lower, starts_before=upper):
+                    iterations += 1
+                    if iterations > max_iterations:
+                        raise CoverageInputError.budget_exceeded(
+                            "max_iterations",
+                            f"Coverage would examine more than max_iterations ({max_iterations}) "
+                            f"period boundaries for subscription {subscription_id!r} on account "
+                            f"{account_id!r}. Narrow the input or raise max_iterations.",
+                        )
                     if not include_unresolved and end > now:
                         break
                     flight_start, flight_stop = buy.flight_at(end)
@@ -892,7 +918,16 @@ def expected_subscription_periods(
                             expected_at,
                             withheld,
                         )
-                    entry.media_buy_ids.add(buy.media_buy_id)
+                    if buy.media_buy_id not in entry.media_buy_ids:
+                        entry.media_buy_ids.add(buy.media_buy_id)
+                        pairs += 1
+                        if pairs > max_periods:
+                            raise CoverageInputError.budget_exceeded(
+                                "max_periods",
+                                f"Subscription {subscription_id!r} owes account {account_id!r} "
+                                f"more than max_periods ({max_periods}) periods. Narrow the "
+                                "input or raise max_periods.",
+                            )
 
     periods = [
         ExpectedSubscriptionPeriod(
@@ -1046,6 +1081,8 @@ def _subscription_id(subscription: Any, windows: Sequence[SubscriptionVersionWin
 
 __all__ = [
     "AccountTimezoneChange",
+    "DEFAULT_MAX_ITERATIONS",
+    "DEFAULT_MAX_PERIODS",
     "ExpectedSubscriptionPeriod",
     "SubscriptionAuthorization",
     "SubscriptionBuy",
