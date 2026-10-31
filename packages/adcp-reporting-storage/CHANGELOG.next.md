@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.0...adcp-reporting-storage-v0.2.0-beta.1) (2026-10-31)
+
+
+### Features
+
+* **reporting-storage:** add PostgreSQL stores for reporting subscriptions ([#1724](https://github.com/adcontextprotocol/adcp-client-python/issues/1724)) ([46a1e01](https://github.com/adcontextprotocol/adcp-client-python/commit/46a1e01a65e01d547a22a05a3858709c3309a011)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+
 ## [0.2.0-beta.0](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.4...adcp-reporting-storage-v0.2.0-beta.0) (2026-10-27)
 
 
