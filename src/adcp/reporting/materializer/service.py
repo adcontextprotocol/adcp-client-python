@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from adcp._principal_ref import PrincipalRef
 from adcp.reporting.materializer._errors import materializer_errors
 from adcp.reporting.materializer.contracts import (
     ReportingDestinationWriter,
@@ -66,9 +67,9 @@ class _LeaseHeartbeat:
                 return
 
 
-#: (owning principal subject, account_id) -> whether its current grant still
-#: carries the subscription; for example ReportingSubscriptionEngine.authorizes_delivery.
-SubscriptionDeliveryAuthority = Callable[[str, str], Awaitable[bool]]
+#: (owning principal, account_id) -> whether its current grant still carries the
+#: subscription; for example ReportingSubscriptionEngine.authorizes_delivery.
+SubscriptionDeliveryAuthority = Callable[[PrincipalRef, str], Awaitable[bool]]
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,7 @@ class ReportingMaterializerService:
         # destination call: a hung hook becomes DEADLINE_EXCEEDED under the
         # same identity (held), never a lease renewed forever.
         allowed = await context.run(
-            lambda: authorize(key.consumer_id, key.account_id), effect=effect
+            lambda: authorize(PrincipalRef(None, key.consumer_id), key.account_id), effect=effect
         )
         if allowed is not True:
             raise ReportingWriterError(

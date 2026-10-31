@@ -80,6 +80,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_reporting_status",
         "sync_reporting_status",
         "sync_reporting_receipts",
+        # Managed reporting subscriptions (advertised only when the service serves them)
+        "get_principal",
+        "sync_principal",
         # AdCP 3.2 compact lifecycle (advertised subset is capability-filtered)
         "list_products",
         "request_proposals",

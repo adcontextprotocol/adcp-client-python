@@ -59,21 +59,49 @@ _REPORTING_TRANSIENT = frozenset(
 )
 
 
+#: Seller configuration codes from the spec's ``error-codes.json`` (adcp#8616).
+#: Each is correctable by the seller, and its message names the key or command.
+SELLER_CONFIGURATION_CODES = frozenset(
+    {
+        "REPORTING_STORAGE_NOT_DURABLE",
+        "REPORTING_SCHEMA_BEHIND",
+        "SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
+        "SUBSCRIPTION_ROSTER_UNAVAILABLE",
+    }
+)
+
+
 class ReliableReportingConfigurationError(ValueError):
     """A composition failure, missing caller, or invalid buyer configuration.
 
     Composition failures default to terminal INTERNAL_ERROR. Only explicit
     request-time failures may ask the buyer to correct authentication/input.
+
+    ``code`` is set for the seller configuration codes of the cross-SDK
+    vocabulary (``REPORTING_STORAGE_NOT_DURABLE``, ``REPORTING_SCHEMA_BEHIND``,
+    ``SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS``,
+    ``SUBSCRIPTION_ROSTER_UNAVAILABLE``); those carry ``recovery="correctable"``
+    and a message whose last sentence is the fix. ``dispatched`` is always
+    ``None``: a configuration check sends nothing.
     """
+
+    dispatched = None
 
     def __init__(
         self,
         message: str,
         *,
         kind: Literal["misconfiguration", "auth_required", "invalid_request"] = "misconfiguration",
+        code: str | None = None,
     ) -> None:
         super().__init__(message)
+        if code is not None and code not in SELLER_CONFIGURATION_CODES:
+            raise ValueError(f"unknown seller configuration code {code!r}")
         self.kind = kind
+        self.code = code
+        self.recovery: Literal["correctable", "terminal"] | None = (
+            "correctable" if code is not None else None
+        )
 
 
 def reporting_error(code: str, message: str) -> Error:

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from adcp._principal_ref import PrincipalRef
 from adcp.reporting._reconcile import (
     ConsumerLoopView,
     ConsumerStatusCheckpoint,
@@ -117,6 +118,12 @@ if TYPE_CHECKING:
     from adcp.reporting.service_production import (
         ReportingServiceOffering as ReportingServiceOffering,
     )
+    from adcp.reporting.service_subscriptions import (
+        ReportingSubscriptionServiceOptions as ReportingSubscriptionServiceOptions,
+    )
+    from adcp.reporting.service_subscriptions import (
+        SubscriptionOptions as SubscriptionOptions,
+    )
     from adcp.reporting.testing import (
         DeterministicReportingClock as DeterministicReportingClock,
     )
@@ -182,6 +189,11 @@ _LAZY_EXPORTS = {
     "ReportingAdapter": ("service", "ReportingAdapter"),
     "ReportingProductionOptions": ("service_production", "ReportingProductionOptions"),
     "ReportingServiceOffering": ("service_production", "ReportingServiceOffering"),
+    "ReportingSubscriptionServiceOptions": (
+        "service_subscriptions",
+        "ReportingSubscriptionServiceOptions",
+    ),
+    "SubscriptionOptions": ("service_subscriptions", "SubscriptionOptions"),
     "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
     "FaultInjectingReportingSealStore": ("testing", "FaultInjectingReportingSealStore"),
     "FaultInjectingReportingStagingStore": ("testing", "FaultInjectingReportingStagingStore"),
@@ -237,6 +249,9 @@ __all__ = [
     "ReportingAdapter",
     "ReportingProductionOptions",
     "ReportingServiceOffering",
+    "PrincipalRef",
+    "ReportingSubscriptionServiceOptions",
+    "SubscriptionOptions",
     "DeterministicReportingClock",
     "FaultInjectingReportingSealStore",
     "FaultInjectingReportingStagingStore",

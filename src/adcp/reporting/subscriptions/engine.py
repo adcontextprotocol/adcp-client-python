@@ -42,6 +42,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
+from adcp._principal_ref import PrincipalRef
 from adcp.reporting.subscriptions._clock import PeriodCalendar, iso_z, require_zone, utc_instant
 from adcp.reporting.subscriptions.capabilities import ReportingSubscriptionSupport
 from adcp.reporting.subscriptions.coverage import (
@@ -82,6 +83,10 @@ if TYPE_CHECKING:
         PrincipalService,
         ReportingSubscriptionOptions,
     )
+
+    #: Either spelling of a principal: reporting APIs take :class:`PrincipalRef`;
+    #: a :class:`~adcp.server.PrincipalIdentity` is still accepted.
+    PrincipalLike = PrincipalRef | PrincipalIdentity
 
 
 # -- host facts ----------------------------------------------------------------
@@ -150,11 +155,11 @@ class ReportingSubscriptionHost(Protocol):
     """Facts only the seller's host knows. The SDK never infers them."""
 
     async def list_authorized_accounts(
-        self, principal: PrincipalIdentity, *, cursor: str | None
+        self, principal: PrincipalLike, *, cursor: str | None
     ) -> AuthorizedAccountPage: ...
 
     async def account_buys(
-        self, principal: PrincipalIdentity, account_id: str
+        self, principal: PrincipalLike, account_id: str
     ) -> Sequence[SubscriptionBuy]: ...
 
 
@@ -169,7 +174,7 @@ class ReportingSubscriptionDeliveryHost(Protocol):
 
     async def is_period_delivered(
         self,
-        principal: PrincipalIdentity,
+        principal: PrincipalLike,
         account_id: str,
         period: ExpectedSubscriptionPeriod,
         *,
@@ -181,8 +186,29 @@ class ReportingSubscriptionPrecedenceHost(Protocol):
     """Optional: the caller's own account-level configurations, for precedence."""
 
     async def account_delivery_configs(
-        self, principal: PrincipalIdentity, account_id: str
+        self, principal: PrincipalLike, account_id: str
     ) -> Sequence[AccountDeliveryConfig]: ...
+
+
+class AccountConfigsEnder(Protocol):
+    """Ends the caller's own account-level configurations for ``replace_account_configs``.
+
+    Called with the principal, the account, the ``delivery_config_id`` values
+    the host's ``account_delivery_configs`` lists for the subscription's
+    ``feed_purpose``, and the instant the subscription takes over. The host
+    deactivates exactly those configurations, never another principal's, and
+    never advances the account's ``revision``. It must be idempotent: a failed
+    reconcile retries it.
+    """
+
+    async def __call__(
+        self,
+        principal: PrincipalLike,
+        account_id: str,
+        delivery_config_ids: tuple[str, ...],
+        *,
+        at: datetime,
+    ) -> None: ...
 
 
 # -- engine state --------------------------------------------------------------
@@ -262,6 +288,16 @@ class _PrincipalState:
     #: (subscription_id, account_id, unauthorized_at) -> withheld count from the
     #: host's delivery facts; delivery by a past instant never changes
     withheld: dict[tuple[str, str, datetime], int] = field(default_factory=dict)
+    #: The principal's last authenticated binding (tenant, kind and a
+    #: token-free auth snapshot), so the managed path can read the host's
+    #: accounts and buys under the principal's identity outside a request.
+    binding: dict[str, Any] | None = None
+    #: When the principal was last reconciled; the worker's boundary sweep
+    #: reconciles it again once a period boundary passes after this.
+    reconciled_at: datetime | None = None
+    #: subscription_id -> (version, replace_account_configs) last applied, so
+    #: ``replace_account_configs`` runs once per version or on a change to true.
+    replacements: dict[str, tuple[int, bool]] = field(default_factory=dict)
 
 
 #: Version of the persisted engine-state document; bump on a breaking change.
@@ -307,6 +343,10 @@ class ReportingSubscriptionStateStore(Protocol):
         """
         ...
 
+    # Optional: ``async def list_principals(self) -> Sequence[str]`` returns
+    # every subject with stored state. The managed path needs it to find the
+    # principals each worker turn plans; both SDK stores implement it.
+
 
 class InMemoryReportingSubscriptionStore:
     """Process-local :class:`ReportingSubscriptionStateStore` for tests and single workers.
@@ -340,6 +380,11 @@ class InMemoryReportingSubscriptionStore:
                 _copy(document), 1 if expected_revision is None else expected_revision + 1
             )
             return True
+
+    async def list_principals(self) -> list[str]:
+        """Every subject with stored state, in subject order."""
+        async with self._lock:
+            return sorted(self._documents)
 
 
 class ReportingSubscriptionStateConflictError(RuntimeError):
@@ -466,6 +511,24 @@ def encode_principal_state(
             }
             for (sid, account_id, lost), count in sorted(principal.withheld.items())
         ],
+        # Present only once set, so documents written before these existed
+        # stay byte-identical.
+        **({"binding": _json_value(principal.binding)} if principal.binding is not None else {}),
+        **(
+            {"reconciled_at": iso_z(principal.reconciled_at)}
+            if principal.reconciled_at is not None
+            else {}
+        ),
+        **(
+            {
+                "replacements": {
+                    sid: {"version": version, "replace_account_configs": flag}
+                    for sid, (version, flag) in sorted(principal.replacements.items())
+                }
+            }
+            if principal.replacements
+            else {}
+        ),
     }
 
 
@@ -533,6 +596,11 @@ def decode_principal_state(document: Mapping[str, Any]) -> _PrincipalState:
                 _required_instant(item["unauthorized_at"]),
             )
         ] = int(item["count"])
+    if document.get("binding") is not None:
+        principal.binding = dict(document["binding"])
+    principal.reconciled_at = _instant(document.get("reconciled_at"))
+    for sid, item in (document.get("replacements") or {}).items():
+        principal.replacements[sid] = (int(item["version"]), bool(item["replace_account_configs"]))
     return principal
 
 
@@ -561,7 +629,12 @@ class ReportingSubscriptionEngine:
         status_retention_days: int = 400,
         store: ReportingSubscriptionStateStore | None = None,
         clock: Callable[[], datetime] | None = None,
+        end_account_configs: AccountConfigsEnder | None = None,
     ) -> None:
+        """``end_account_configs`` enables ``replace_account_configs``: without it
+        the principal runtime refuses the flag with ``UNSUPPORTED_FEATURE``. With
+        it, the engine applies the flag once per ``subscription_version``, or when
+        it changes to true, through the host's ``account_delivery_configs``."""
         ids = [item.offering_id for item in offerings]
         if len(set(ids)) != len(ids):
             raise ValueError("offering_id values must be unique")
@@ -586,6 +659,14 @@ class ReportingSubscriptionEngine:
         self._store = store or InMemoryReportingSubscriptionStore()
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._errors: dict[tuple[str, str], Exception] = {}
+        if end_account_configs is not None and not callable(
+            getattr(host, "account_delivery_configs", None)
+        ):
+            raise ValueError(
+                "end_account_configs needs the host's account_delivery_configs, which names "
+                "the configurations replace_account_configs ends"
+            )
+        self._end_account_configs = end_account_configs
 
     @property
     def evaluation_errors(self) -> Mapping[tuple[str, str], Exception]:
@@ -619,7 +700,85 @@ class ReportingSubscriptionEngine:
             delivery_config_ids=delivery_config_ids,
             record_versions=self.record_versions,
             clock=self._clock,
+            replace_account_configs=self._end_account_configs is not None,
         )
+
+    @property
+    def store(self) -> ReportingSubscriptionStateStore:
+        """The engine-state store every worker shares."""
+        return self._store
+
+    async def list_principals(self) -> list[PrincipalRef]:
+        """Every principal the store holds engine state for, in subject order.
+
+        Requires a store that implements ``list_principals()`` (both SDK stores
+        do); each principal's tenant comes from its recorded binding.
+        """
+        lister = getattr(self._store, "list_principals", None)
+        if not callable(lister):
+            raise TypeError(
+                "the reporting-subscription state store does not implement list_principals(); "
+                "supply list_principals to the service instead"
+            )
+        result: list[PrincipalRef] = []
+        for subject in sorted(await lister()):
+            binding = (await self._read(subject)).binding or {}
+            result.append(PrincipalRef(binding.get("tenant_id"), subject))
+        return result
+
+    async def record_binding(self, principal: PrincipalLike, binding: Mapping[str, Any]) -> None:
+        """Remember the principal's last authenticated binding (no credentials).
+
+        The managed path reads the host's accounts and buys under it outside a
+        request. ``binding`` is plain JSON; a principal recorded under another
+        tenant is refused, because one engine serves one tenant.
+        """
+        document = _json_value(dict(binding))
+        tenant = document.get("tenant_id")
+
+        def change(state: _PrincipalState) -> None:
+            if state.binding is not None and state.binding.get("tenant_id") != tenant:
+                raise ValueError(
+                    f"principal {principal.subject!r} is recorded under another tenant"
+                )
+            state.binding = document
+
+        await self._mutate(principal.subject, change)
+
+    async def account_ids(self, principal: PrincipalLike) -> frozenset[str]:
+        """Every account the engine holds state for under the principal."""
+        return frozenset((await self._read(principal.subject)).accounts)
+
+    async def binding(self, principal: PrincipalLike) -> Mapping[str, Any] | None:
+        """The binding :meth:`record_binding` last stored, if any."""
+        return (await self._read(principal.subject)).binding
+
+    async def boundary_due(self, principal: PrincipalLike, *, now: datetime | None = None) -> bool:
+        """Whether a period boundary passed since the principal was last reconciled.
+
+        True for a principal never reconciled. Checks every offering's calendar
+        in every zone the principal's accounts use, so a period is frozen at
+        the first reconcile after it ends.
+        """
+        instant = self._now(now)
+        state = await self._read(principal.subject)
+        last = state.reconciled_at
+        if last is None:
+            return True
+        if instant <= last:
+            return False
+        zones = {account.timezone for account in state.accounts.values()} or {None}
+        for offering in self._offerings:
+            for zone in zones:
+                if offering.alignment == "account_timezone" and zone is None:
+                    continue
+                try:
+                    calendar = offering.calendar(zone)
+                except Exception:  # noqa: BLE001 - an unusable zone is reported by reconcile
+                    return True
+                if calendar.floor(instant) > last:
+                    return True
+        return False
 
     def _now(self, now: datetime | None) -> datetime:
         return utc_instant(now if now is not None else self._clock(), field="now")
@@ -662,7 +821,7 @@ class ReportingSubscriptionEngine:
     # -- recording -------------------------------------------------------------
 
     async def record_versions(
-        self, identity: PrincipalIdentity, states: Sequence[ReportingSubscriptionState]
+        self, identity: PrincipalLike, states: Sequence[ReportingSubscriptionState]
     ) -> None:
         """Keep every version's configuration; the readback keeps only the current one.
 
@@ -689,7 +848,7 @@ class ReportingSubscriptionEngine:
 
     async def authorization_changed(
         self,
-        identity: PrincipalIdentity,
+        identity: PrincipalLike,
         account_id: str,
         *,
         authorized: bool,
@@ -729,7 +888,7 @@ class ReportingSubscriptionEngine:
                 last.authorized_at, max(at, last.authorized_at + timedelta(microseconds=1))
             )
 
-    async def _list_accounts(self, identity: PrincipalIdentity) -> list[AuthorizedAccount]:
+    async def _list_accounts(self, identity: PrincipalLike) -> list[AuthorizedAccount]:
         accounts: list[AuthorizedAccount] = []
         cursor: str | None = None
         while True:
@@ -741,7 +900,7 @@ class ReportingSubscriptionEngine:
 
     # -- reconcile -------------------------------------------------------------
 
-    async def reconcile(self, identity: PrincipalIdentity, *, now: datetime | None = None) -> None:
+    async def reconcile(self, identity: PrincipalLike, *, now: datetime | None = None) -> None:
         """Diff the host's authorized accounts, then re-evaluate every exception.
 
         Call it on a schedule and whenever the host knows something changed
@@ -787,11 +946,83 @@ class ReportingSubscriptionEngine:
                     self._apply_grant(account, authorized=False, at=instant)
                 if account_id not in listed:
                     account.allowed_tasks = None
+            principal.reconciled_at = max(instant, principal.reconciled_at or instant)
 
         await self._mutate(identity.subject, change, now=instant)
+        await self._apply_replacements(identity, instant)
         await self._evaluate(identity, instant)
 
-    async def _evaluate(self, identity: PrincipalIdentity, now: datetime) -> None:
+    async def _apply_replacements(self, identity: PrincipalLike, now: datetime) -> None:
+        """Apply ``replace_account_configs`` once per version, or on a change to true.
+
+        Ends the caller's own account-level configurations with the
+        subscription's ``feed_purpose`` on every authorized account the scope
+        includes where the selector resolves an offering. Marks are recorded
+        only after the host ends them, so a failure is retried by the next
+        reconcile.
+        """
+        states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
+        principal = await self._read(identity.subject)
+        marks: dict[str, tuple[int, bool]] = {}
+        pending: list[Mapping[str, Any]] = []
+        for state in states:
+            subscription_id = str(state["subscription_id"])
+            version = int(state["subscription_version"])
+            flag = _active(state) and state["configuration"].get("replace_account_configs") is True
+            if principal.replacements.get(subscription_id) == (version, flag):
+                continue
+            marks[subscription_id] = (version, flag)
+            if flag:
+                pending.append(state)
+        if not marks:
+            return
+        if pending:
+            ender = self._end_account_configs
+            if ender is None:
+                # Accepted only when the host can apply it; the principal
+                # runtime refuses the flag otherwise.
+                raise ValueError("replace_account_configs needs end_account_configs")
+            listing = getattr(self._host, "account_delivery_configs")
+            destinations = await self._destinations(identity)
+            for replacing in pending:
+                configuration = replacing["configuration"]
+                feed_purpose = configuration["selector"]["feed_purpose"]
+                selector = SubscriptionSelector.from_subscription(configuration)
+                destination = _destination_for(selector, destinations)
+                for account_id, account in sorted(principal.accounts.items()):
+                    if not account.authorized or not _scope_selects(
+                        configuration, account_id, account
+                    ):
+                        continue
+                    buys = await self._host.account_buys(identity, account_id)
+                    product_ids = _buy_offering_ids(buys) or [
+                        item.offering_id for item in self._offerings
+                    ]
+                    resolution = resolve_subscription_offerings(
+                        selector,
+                        self._offerings,
+                        product_offering_ids=product_ids,
+                        destination=destination,
+                        at=now,
+                    )
+                    if not resolution.offerings:
+                        continue
+                    ids = tuple(
+                        sorted(
+                            config.delivery_config_id
+                            for config in await listing(identity, account_id)
+                            if config.feed_purpose == feed_purpose
+                        )
+                    )
+                    if ids:
+                        await ender(identity, account_id, ids, at=now)
+
+        def record(state: _PrincipalState) -> None:
+            state.replacements.update(marks)
+
+        await self._mutate(identity.subject, record)
+
+    async def _evaluate(self, identity: PrincipalLike, now: datetime) -> None:
         states = [_dump(item) for item in await self._principals.reporting_subscriptions(identity)]
         destinations = await self._destinations(identity)
         precedence = getattr(self._host, "account_delivery_configs", None)
@@ -927,7 +1158,7 @@ class ReportingSubscriptionEngine:
             self._accounts_unauthorized(principal, state, accounts, buys, destinations, now),
         )
 
-    async def _destinations(self, identity: PrincipalIdentity) -> dict[str, Any]:
+    async def _destinations(self, identity: PrincipalLike) -> dict[str, Any]:
         return {
             item.destination_id: item.configuration
             for item in await self._principals.reporting_destinations(identity)
@@ -1197,7 +1428,7 @@ class ReportingSubscriptionEngine:
 
     async def subscription_coverage(
         self,
-        identity: PrincipalIdentity,
+        identity: PrincipalLike,
         account_id: str,
         *,
         now: datetime | None = None,
@@ -1375,7 +1606,7 @@ class ReportingSubscriptionEngine:
 
     async def owed_periods(
         self,
-        identity: PrincipalIdentity,
+        identity: PrincipalLike,
         subscription_id: str,
         account_id: str,
         *,
@@ -1458,7 +1689,7 @@ class ReportingSubscriptionEngine:
 
     async def frozen_owed_sets(
         self,
-        identity: PrincipalIdentity,
+        identity: PrincipalLike,
         *,
         account_id: str | None = None,
         now: datetime | None = None,
@@ -1511,7 +1742,7 @@ class ReportingSubscriptionEngine:
                     )
         return result
 
-    async def grants_task(self, identity: PrincipalIdentity, account_id: str, task: str) -> bool:
+    async def grants_task(self, identity: PrincipalLike, account_id: str, task: str) -> bool:
         """Whether the principal's current grant on the account allows ``task``.
 
         From the engine's last reconcile of the host's grants. There is no
@@ -1520,17 +1751,17 @@ class ReportingSubscriptionEngine:
         account = (await self._read(identity.subject)).accounts.get(account_id)
         return account is not None and account.grants_task(task)
 
-    async def authorizes_delivery(self, subject: str, account_id: str) -> bool:
+    async def authorizes_delivery(self, principal: PrincipalLike, account_id: str) -> bool:
         """Whether a principal's current grant still carries its subscriptions on the account.
 
         For managed delivery's per-attempt authority check
         (``ReportingMaterializerService.authorize_subscription_delivery``): the
         grant must list ``get_reporting_status``, as coverage requires.
         """
-        account = (await self._read(subject)).accounts.get(account_id)
+        account = (await self._read(principal.subject)).accounts.get(account_id)
         return account is not None and account.grants_task(REPORTING_STATUS_TASK)
 
-    async def receipt_roster(self, identity: PrincipalIdentity, account_id: str) -> list[str]:
+    async def receipt_roster(self, identity: PrincipalLike, account_id: str) -> list[str]:
         """Active ``consumer_receipt`` subscriptions covering the account.
 
         A consumer owes receipts for an account while one of its active
