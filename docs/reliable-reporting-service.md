@@ -470,6 +470,28 @@ What the service does with it:
   periods. The caller resolver must therefore yield the principal's `subject`;
   the service checks `resolve_principal` against it.
 
+**Grants: access means access.** `AuthorizedAccount.allowed_tasks` carries the
+grant's `authorization.allowed_tasks`.
+
+- Coverage continues only while the grant lists `get_reporting_status`; a grant
+  reduced below that ends coverage exactly like a revocation.
+- For a caller holding subscription generations on the account, the service
+  checks each reporting task against the current grant:
+  - `get_reporting_status`;
+  - `get_media_buy_delivery` exact reads;
+  - `sync_reporting_status`;
+  - `sync_reporting_receipts`.
+
+  A task the grant does not list fails with `ACCOUNT_NOT_FOUND`.
+- There is no window after a loss of authority: a revoked account is unknown to
+  every task, receipts and statuses included.
+- To let a buyer finish reconciliation, keep a reduced grant (for example
+  `get_reporting_status`, `sync_reporting_receipts` and `sync_reporting_status`)
+  rather than revoking.
+
+The beta.2 spec text still describes a post-revocation window; the beta.3
+change replaces it with this rule.
+
 **Limits.** These are not served yet:
 
 - the service refuses `production` options;

@@ -1231,8 +1231,26 @@ class ReliableReportingService:
             return _wire(await self._production.handler.get_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
 
+    async def _require_grant(
+        self, request: Any, context: Any | None, caller: ReportingStatusCaller, task: str
+    ) -> None:
+        if self._subscriptions is None:
+            return
+        from adcp.reporting.service_subscriptions import require_subscription_grant
+
+        await require_subscription_grant(
+            self._subscriptions,
+            self.store,
+            request=request,
+            context=context,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+            task=task,
+        )
+
     async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "get_reporting_status")
         response = await ReportingStatusHandler(
             self.store,
             consumer_status_enabled=self._consumer_status_enabled,
@@ -1262,6 +1280,7 @@ class ReliableReportingService:
         if not self._consumer_status_enabled:
             raise ReliableReportingConfigurationError("consumer status ingest is disabled")
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "sync_reporting_status")
         return await ConsumerStatusIngest(self.store, enabled=True, clock=self._clock).handle(
             _wire(request),
             account_id=caller.account_id,
@@ -1279,6 +1298,7 @@ class ReliableReportingService:
         if self._receipt_handler is None:
             raise ReliableReportingConfigurationError("reporting receipt handling is disabled")
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "sync_reporting_receipts")
         return await self._receipt_handler.handle(
             _wire(request), account_id=caller.account_id, consumer_id=caller.consumer_id
         )
@@ -1298,6 +1318,7 @@ class ReliableReportingService:
                 "MISSING_REVISION_ID", "an exact revision read requires reporting_revision_id"
             )
         caller = await self.caller_for(request, context)
+        await self._require_grant(request, context, caller, "get_media_buy_delivery")
         cursor = (payload.get("pagination") or {}).get("cursor")
         limit = int((payload.get("pagination") or {}).get("limit") or 500)
         if limit < 1 or limit > 1000:

@@ -201,6 +201,43 @@ def advertise_subscriptions(
     return advertise_reporting_subscriptions(response, options.engine.support)
 
 
+async def require_subscription_grant(
+    options: ReportingSubscriptionServiceOptions,
+    store: Any,
+    *,
+    request: Any,
+    context: Any,
+    account_id: str,
+    consumer_id: str,
+    task: str,
+) -> None:
+    """Refuse ``task`` unless the principal's current grant allows it.
+
+    Applies to a caller holding subscription generations on the account. Access
+    means access: there is no window after a loss of authority, so a revoked
+    account is unknown to every task, receipts and statuses included. A seller
+    that wants a buyer to finish reconciliation keeps a reduced grant listing
+    the reconciliation tasks instead of revoking.
+    """
+    from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    configurations = await store.list_configurations(
+        caller=ReportingDeliveryPrincipal(account_id, consumer_id)
+    )
+    if not any(item.owed_set for item in configurations):
+        return
+    principal = await _resolve(options.resolve_principal(request, context))
+    if getattr(principal, "subject", None) != consumer_id:
+        raise ReliableReportingConfigurationError(
+            "resolve_principal and the caller resolver disagree on the requesting principal"
+        )
+    if not await options.engine.grants_task(principal, account_id, task):
+        raise LedgerConflictError(
+            "ACCOUNT_NOT_FOUND", "the account is not available to this caller"
+        )
+
+
 async def with_subscription_coverage(
     response: dict[str, Any],
     options: ReportingSubscriptionServiceOptions,
