@@ -8,11 +8,95 @@ not-equal.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from adcp.canonical_formats import check_narrows, narrowing_advisory
 from adcp.canonical_formats.advisory import SDK_ID
 from adcp.types import CanonicalFormatKind, Format
+
+# Unmodified protocol v3.2.7 static/test-vectors/v1-canonical-mapping.json.
+_NARROWING_VECTORS = json.loads(
+    (Path(__file__).parent / "fixtures/canonical-narrowing-vectors-3.2.7.json").read_text()
+)["narrowing_vectors"]
+
+
+@pytest.mark.parametrize("vector", _NARROWING_VECTORS, ids=lambda vector: vector["id"])
+def test_published_narrowing_vector(vector: dict) -> None:
+    requirements = {}
+    for field, constraint in vector["v1_baseline"].items():
+        if constraint["kind"] == "exact":
+            requirements[field] = constraint["value"]
+        elif constraint["kind"] == "set":
+            requirements[field] = constraint["values"]
+        elif field.endswith("_range"):
+            requirements[field] = [constraint["min"], constraint["max"]]
+        else:
+            requirements[f"min_{field}"] = constraint["min"]
+            requirements[f"max_{field}"] = constraint["max"]
+    divergences = check_narrows(vector["v2_params"], requirements)
+    assert (not divergences) is vector["expected"]["narrows"]
+    if divergences:
+        fields = {d.field.removeprefix("min_").removeprefix("max_") for d in divergences}
+        assert vector["expected"]["conflict"] in fields
+
+
+@pytest.mark.parametrize(
+    ("params", "requirements", "kind"),
+    [
+        (
+            {"duration_ms_range": [5000, 120000]},
+            {"min_duration_ms": 3000, "max_duration_ms": 90000},
+            "exceeds_max",
+        ),
+        ({"duration_ms_range": [1000, 30000]}, {"duration_ms_range": [3000, 90000]}, "below_min"),
+        ({"duration_ms_exact": 120000}, {"duration_ms_range": [3000, 90000]}, "exceeds_max"),
+        (
+            {"duration_ms_exact": 120000},
+            {"min_duration_ms": 3000, "max_duration_ms": 90000},
+            "exceeds_max",
+        ),
+        ({"min_width": 200, "max_width": 400}, {"width": 300}, "exceeds_max"),
+        ({"min_width": 200, "max_width": 400}, {"width": 300}, "below_min"),
+        ({"height": 240}, {"height": 250}, "not_equal"),
+        (
+            {"duration_ms_range": [None, 120000]},
+            {"duration_ms_range": [3000, 90000]},
+            "exceeds_max",
+        ),
+        ({"duration_ms_range": [None, 30000]}, {"duration_ms_range": [3000, 90000]}, "below_min"),
+        ({"duration_ms_range": [5000, None]}, {"duration_ms_range": [3000, 90000]}, "exceeds_max"),
+        (
+            {"duration_ms_exact": 120000, "duration_ms_range": [5000, 60000]},
+            {"duration_ms_range": [3000, 90000]},
+            "exceeds_max",
+        ),
+    ],
+)
+def test_range_and_exact_constraint_conflicts(params: dict, requirements: dict, kind: str) -> None:
+    assert any(d.kind == kind for d in check_narrows(params, requirements))
+
+
+@pytest.mark.parametrize(
+    ("params", "requirements"),
+    [
+        ({"duration_ms_range": [3000, 90000]}, {"min_duration_ms": 3000, "max_duration_ms": 90000}),
+        ({"duration_ms_exact": 5000}, {"duration_ms_range": [3000, 90000]}),
+        ({"width": 300}, {"width": 300}),
+        ({"min_width": 300, "max_width": 300}, {"width": 300}),
+        ({"duration_ms_range": [None, 30000]}, {"duration_ms_range": [None, 90000]}),
+        ({"duration_ms_range": [5000, None]}, {"duration_ms_range": [3000, None]}),
+        (
+            {"duration_ms_exact": 5000, "duration_ms_range": [1000, 120000]},
+            {"duration_ms_range": [3000, 90000]},
+        ),
+    ],
+)
+def test_equal_or_contained_constraints_narrow(params: dict, requirements: dict) -> None:
+    assert check_narrows(params, requirements) == []
+
 
 # ---------------------------------------------------------------------------
 # check_narrows — no divergence cases

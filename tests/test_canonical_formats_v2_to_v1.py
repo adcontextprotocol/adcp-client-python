@@ -8,6 +8,8 @@ up here with a clear pointer to the spec rule it violated.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from adcp.canonical_formats import (
@@ -32,6 +34,65 @@ def _format_schema() -> dict[str, str]:
         "uri": "https://example.com/custom-format.json",
         "digest": f"sha256:{'0' * 64}",
     }
+
+
+def test_seller_refs_check_each_exact_reference_with_operator_lookup() -> None:
+    refs = [
+        _ref("acme_banner"),
+        FormatId(agent_url="https://other-creative.example", id="acme_banner"),
+    ]
+    declaration = Format(
+        format_kind=CanonicalFormatKind.image, params={"width": 320}, v1_format_ref=refs
+    )
+    looked_up = []
+
+    def lookup(ref: FormatId) -> dict:
+        looked_up.append(ref)
+        return {"width": 300 if ref.agent_url == refs[0].agent_url else 320}
+
+    result = project_declaration_to_v1(declaration, v1_requirements_lookup=lookup)
+    assert looked_up == refs
+    assert (
+        result.format_ids == refs
+    ), "advisory emission does not discard seller-authored references"
+    assert len(result.advisories) == 1
+    assert result.advisories[0].code == "FORMAT_DECLARATION_DIVERGENT"
+    assert result.advisories[0].field == "format_options[].v1_format_ref[0]"
+
+
+def test_product_projection_threads_lookup_and_advisory_location() -> None:
+    declaration = Format(
+        format_kind=CanonicalFormatKind.image, params={"width": 320}, v1_format_ref=[_ref()]
+    )
+    product = SimpleNamespace(product_id="acme_display", format_options=[declaration])
+    result = project_product_to_v1(
+        product, product_index=2, v1_requirements_lookup=lambda ref: {"width": 300}
+    )
+    assert len(result.advisories) == 1
+    assert result.advisories[0].field == "products[2].format_options[0].v1_format_ref[0]"
+    assert result.advisories[0].details["product_id"] == "acme_display"
+
+
+def test_missing_requirements_preserve_unchecked_reference_behavior() -> None:
+    declaration = Format(
+        format_kind=CanonicalFormatKind.image, params={"width": 320}, v1_format_ref=[_ref()]
+    )
+    assert project_declaration_to_v1(declaration).advisories == []
+    result = project_declaration_to_v1(declaration, v1_requirements_lookup=lambda ref: None)
+    assert result.format_ids == list(declaration.legacy_format_refs)
+    assert result.advisories == []
+
+
+def test_requirement_lookup_failure_is_not_silenced() -> None:
+    declaration = Format(
+        format_kind=CanonicalFormatKind.image, params={"width": 320}, v1_format_ref=[_ref()]
+    )
+
+    def unavailable(ref: FormatId) -> dict:
+        raise ValueError("catalog snapshot unavailable")
+
+    with pytest.raises(ValueError, match="catalog snapshot unavailable"):
+        project_declaration_to_v1(declaration, v1_requirements_lookup=unavailable)
 
 
 # ---------------------------------------------------------------------------
