@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from adcp.exceptions import ADCPError, RecoveryLiteral, _normalize_recovery
@@ -95,6 +95,7 @@ class ReportingSubscriptionError(ADCPError):
         *,
         code: str | None = None,
         recovery: RecoveryLiteral | None = None,
+        dispatched: Literal[False] | None = None,
         would_deactivate: Sequence[str] = (),
         readback: ReportingSubscriptionReadback | None = None,
     ) -> None:
@@ -107,6 +108,8 @@ class ReportingSubscriptionError(ADCPError):
                 self.dispatched = False
         else:
             self.recovery = recovery or _code_recovery(code)
+        if dispatched is False:
+            self.dispatched = False
         self.would_deactivate = tuple(would_deactivate)
         self.readback = readback
 
