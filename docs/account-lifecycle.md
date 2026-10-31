@@ -33,7 +33,14 @@ Start with the seller's capabilities and discover public inventory before
 choosing billing and payment terms:
 
 ```python
-from adcp import ADCPClient
+from adcp import (
+    AccountAmbiguous,
+    AccountPending,
+    AccountReady,
+    AccountRejected,
+    ADCPClient,
+    format_pending_action,
+)
 from adcp.types import GetProductsRequest
 
 client = ADCPClient(agent_config, account_policy="auto", raise_account_errors=True)
@@ -50,10 +57,18 @@ key = {
 public = await client.get_products(GetProductsRequest(buying_mode="wholesale", account=key))
 
 # Provision only when you have selected the commercial terms.
-account = await client.accounts.ensure(
+outcome = await client.accounts.ensure(
     key, billing="agent", payment_terms="net_30", billing_entity=billing_entity,
 )
-print(account.status, account.account_id)
+match outcome:
+    case AccountReady(account_id=account_id, status=status):
+        print(status, account_id)
+    case AccountPending(action=action):
+        print(format_pending_action(action))  # show a person; never fetch action.url
+    case AccountAmbiguous(candidates=candidates):
+        outcome = await outcome.choose(candidates[0]["account_id"])
+    case AccountRejected(errors=errors):
+        print(errors)
 
 # The provisioned natural key is retained on subsequent requests.
 priced = await client.get_products(
@@ -61,9 +76,40 @@ priced = await client.get_products(
 )
 ```
 
-`ensure` calls `sync_accounts` once for each complete key at each seller and
-returns an `AccountRecord`. Successful pending-approval or payment-required
-accounts are provisioned; they still need buyer action before committing spend.
+`ensure` returns an `AccountOutcome` (AdCP 3.3, a breaking change from the
+`AccountRecord` it returned before), one of:
+
+- `AccountReady(account_id, status, via, ...)`: the account exists. Its status may
+  still need buyer action before spend (`payment_required`, for example).
+- `AccountPending(action, via, request_id, ...)`: waiting on the seller or a
+  buyer-side human. `action` is a `PendingAction(waiting_on, kind, message, url,
+  expires_at)`. `url` is for a person to open; it is not a bearer link and an
+  agent must never fetch it. Render it with `format_pending_action(action)`,
+  which treats `message` as untrusted text.
+- `AccountAmbiguous(candidates, request_id)`: several of your existing accounts
+  match; `await outcome.choose(account_id)` settles it.
+- `AccountRejected(errors, via, request_id)`: the seller declined, or a buyer
+  action expired.
+
+Pending, ambiguous and rejected are values, not errors; only a failure to
+process the call raises `AccountRequestError`. Agents should switch on
+`next_step(outcome)` (`none`, `wait_for_seller`, `send_human_to_url`,
+`pick_candidate` or `contact_seller`), not on `action.kind`, which is extensible.
+
+`ensure` routes by capability. When the seller advertises `account.requests`, it
+calls `request_account`. Otherwise it calls `sync_accounts` once for each
+complete key at each seller, which needs `billing=`; a `pending_approval` row
+with `setup` is `AccountPending`. Either way `ensure` is idempotent: a repeat
+call returns the account, or the open request's current state read back through
+`list_accounts`, and never opens a duplicate. `currency=` and `timezone=` join
+the key when it does not carry them.
+
+`await client.accounts.refresh()` re-reads open requests and pending accounts
+(call it from a cron job or an `account_request.changed` webhook) and returns
+the outcomes whose state moved; `await client.accounts.pending()` lists what is
+still waiting without a network call. Both find records across restarts when
+the storage implements `items(seller)` (`ListableAccountStorage`), as
+`InMemoryAccountStorage` does.
 Only active and payment-required accounts can browse account-priced products;
 other statuses use public discovery in `auto` mode when allowed, or raise in
 `strict` mode.
