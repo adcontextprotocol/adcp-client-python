@@ -1044,7 +1044,18 @@ class PrincipalService:
         clock = self._subscriptions.clock if self._subscriptions else None
         return clock() if clock else datetime.now(timezone.utc)
 
-    async def update_subscription_status(
+    async def update_subscription_status(self, *args: Any, **kwargs: Any) -> bool:
+        """Deprecated: renamed :meth:`record_subscription_readback`; kept for one beta."""
+        import warnings
+
+        warnings.warn(
+            "update_subscription_status is renamed record_subscription_readback",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return await self.record_subscription_readback(*args, **kwargs)
+
+    async def record_subscription_readback(
         self,
         identity: PrincipalIdentity | PrincipalRef,
         subscription_id: str,
@@ -1053,7 +1064,10 @@ class PrincipalService:
         accounts_unauthorized: Sequence[Mapping[str, Any]] | None = None,
         changed_at: datetime | None = None,
     ) -> bool:
-        """Record seller-derived subscription status without version churn.
+        """Record a subscription's seller-derived readback lists without version churn.
+
+        Writes ``accounts_with_exceptions[]`` and ``accounts_unauthorized[]``
+        (the TypeScript SDK's ``recordSubscriptionReadback``).
 
         Like destination proof transitions, this does not advance the
         caller-owned ``configuration_version``. A change emits

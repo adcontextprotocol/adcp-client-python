@@ -802,7 +802,6 @@
       "ReportingServiceOffering": "adcp.reporting.service_production",
       "ReportingServiceResource": "adcp.reporting.service_lifecycle",
       "ReportingStatusClient": "adcp.reporting._reconcile",
-      "ReportingSubscriptionServiceOptions": "adcp.reporting.service_subscriptions",
       "ReportingTestBarrier": "adcp.reporting._testing_failures",
       "ReportingTier": "adcp.reporting._reconcile",
       "ScriptedReportingAdapter": "adcp.reporting.testing",

@@ -81,8 +81,9 @@ class ReliableReportingConfigurationError(ValueError):
     vocabulary (``REPORTING_STORAGE_NOT_DURABLE``, ``REPORTING_SCHEMA_BEHIND``,
     ``SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS``,
     ``SUBSCRIPTION_ROSTER_UNAVAILABLE``); those carry ``recovery="correctable"``
-    and a message whose last sentence is the fix. ``dispatched`` is always
-    ``None``: a configuration check sends nothing.
+    and a message whose last sentence is the fix; ``config_field`` names the
+    configuration key to change. ``dispatched`` is always ``None``: a
+    configuration check sends nothing.
     """
 
     dispatched = None
@@ -93,12 +94,15 @@ class ReliableReportingConfigurationError(ValueError):
         *,
         kind: Literal["misconfiguration", "auth_required", "invalid_request"] = "misconfiguration",
         code: str | None = None,
+        config_field: str | None = None,
     ) -> None:
         super().__init__(message)
         if code is not None and code not in SELLER_CONFIGURATION_CODES:
             raise ValueError(f"unknown seller configuration code {code!r}")
         self.kind = kind
         self.code = code
+        #: The configuration key to change (the TypeScript SDK's ``configField``).
+        self.config_field = config_field
         self.recovery: Literal["correctable", "terminal"] | None = (
             "correctable" if code is not None else None
         )
