@@ -61,8 +61,9 @@ participant. It checks types under `mypy --strict`.
 ## Registration, authorization and activity
 
 Account notification configs register `event_types: ["reporting.status_changed"]`.
-A reporting-only `NotificationConfig` omits the generated
-`product_payload_view=legacy` default. Global agent configs require explicit
+A `NotificationConfig` never emits an unset `product_payload_view`: from AdCP
+3.3.0-beta.2 the schema states the default in prose (absent means `legacy`),
+and a reporting-only config must not carry the field. Global agent configs require explicit
 `all_authorized_accounts:true`; the trusted registry adapter expands only
 authorized accounts into normalized `ReportingNotificationSubscription` rows.
 Both expansion and every HTTP attempt re-resolve current authorization, endpoint
