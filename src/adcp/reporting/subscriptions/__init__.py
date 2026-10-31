@@ -24,6 +24,7 @@ its principal through ``sync_principal`` instead of once per account through
 
 from __future__ import annotations
 
+from adcp.reporting.subscriptions._clock import COVERAGE_INPUT_DETAILS, CoverageInputError
 from adcp.reporting.subscriptions.capabilities import (
     REPORTING_SUBSCRIPTIONS_FEATURE,
     REPORTING_SUBSCRIPTIONS_SECTION,
@@ -73,17 +74,17 @@ from adcp.reporting.subscriptions.engine import (
     decode_principal_state,
     encode_principal_state,
 )
-from adcp.reporting.subscriptions.ledger import (
-    FrozenOwedSet,
-    SubscriptionObligationPlanner,
-    SubscriptionPlanResult,
-    subscription_obligation_id,
-)
 from adcp.reporting.subscriptions.facade import (
     PreviewResult,
     ReportingClient,
     SubscribeResult,
     guard_sync_principal,
+)
+from adcp.reporting.subscriptions.ledger import (
+    FrozenOwedSet,
+    SubscriptionObligationPlanner,
+    SubscriptionPlanResult,
+    subscription_obligation_id,
 )
 from adcp.reporting.subscriptions.registry import (
     ReportingSubscriptionValidationError,
@@ -100,6 +101,11 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionSelector,
     resolve_subscription_offerings,
 )
+from adcp.reporting.subscriptions.vocabulary import (
+    COVERAGE_REASON_CODES,
+    COVERAGE_RULE_ORDER,
+    COVERAGE_VOCABULARY_VERSION,
+)
 from adcp.reporting.subscriptions.wire import (
     project_offering,
     project_reporting_delivery,
@@ -109,6 +115,11 @@ from adcp.reporting.subscriptions.wire import (
 )
 
 __all__ = [
+    "COVERAGE_REASON_CODES",
+    "COVERAGE_RULE_ORDER",
+    "COVERAGE_VOCABULARY_VERSION",
+    "COVERAGE_INPUT_DETAILS",
+    "CoverageInputError",
     "PreviewResult",
     "ReportingClient",
     "SubscribeResult",
