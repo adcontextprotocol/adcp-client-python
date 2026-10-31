@@ -20,6 +20,7 @@ from adcp.reporting.ledger import (
     ReportingConfiguration,
     ReportingStatusCaller,
 )
+from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service import (
     ReliableReportingConfigurationError,
     ReliableReportingService,
@@ -412,3 +413,44 @@ async def test_without_the_option_nothing_changes() -> None:
     assert "media_buy.reporting_subscriptions" not in capabilities["experimental_features"]
     status = await service.get_reporting_status({"view": "summary"})
     assert "subscription_coverage" not in status
+
+
+@pytest.mark.asyncio
+async def test_subscription_rows_carry_account_id_and_account_rows_are_unchanged() -> None:
+    from adcp.reporting.ledger.producer import subscription_rows
+
+    seller = _Seller(principals=(AGENCY,))
+    await seller.subscribe(
+        AGENCY, [_buy("media-buy-a1", "2026-11-01T02:00:00Z", "2026-11-01T03:00:00Z")]
+    )
+    await seller.service.configure(_configuration())
+    turn = await seller.service.run_worker(now=NOW)
+    seller.caller = AGENCY
+    for key, worker_turn in turn.configurations.items():
+        for revision_id in worker_turn.revisions_committed:
+            if key.offering_id is None:
+                continue
+            content = await seller.service.get_revision_content(
+                {"reporting_revision_id": revision_id, "pagination": {"limit": 100}}
+            )
+            assert {row["account_id"] for row in content["reporting_rows"]} == {ACCOUNT}
+    account_rows = await seller.service.store.read_revision_rows(
+        account_id=ACCOUNT,
+        reporting_revision_id=next(
+            revision_id
+            for key, worker_turn in turn.configurations.items()
+            if key.offering_id is None
+            for revision_id in worker_turn.revisions_committed
+        ),
+        cursor=None,
+        limit=100,
+    )
+    assert all("account_id" not in row for row in account_rows.rows)
+
+    class _Owed:
+        offering_id = "pkg"
+        account_id = ACCOUNT
+
+    with pytest.raises(LedgerConflictError) as refused:
+        subscription_rows(_Owed(), [{"account_id": "another-account"}])  # type: ignore[arg-type]
+    assert refused.value.code == "ROW_ACCOUNT_MISMATCH"

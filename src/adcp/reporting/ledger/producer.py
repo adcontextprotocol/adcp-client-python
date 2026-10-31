@@ -206,6 +206,35 @@ def revision_content_sha256(
     ).hexdigest()
 
 
+def subscription_rows(
+    obligation: ReportingObligationRecord, rows: Sequence[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Every row of a reporting-subscription revision carries its ``account_id``.
+
+    AdCP 3.3: "Every delivered row carries account_id", so a principal reading
+    one subscription's feed across accounts can attribute each row. The
+    producer stamps it before the revision is bound, so the Core revision
+    digest (``revision_content_sha256``) and, for managed delivery, the
+    canonical content digest both cover it. A row that already names an
+    account must name this one. The report definition's row schema must admit
+    an ``account_id`` string; otherwise managed publication fails closed with
+    ``SOURCE_INVALID``. Account-level obligations are returned unchanged, so
+    their rows and digests are byte-for-byte what they were.
+    """
+    if obligation.offering_id is None:
+        return list(rows)
+    stamped = []
+    for row in rows:
+        named = row.get("account_id", obligation.account_id)
+        if named != obligation.account_id:
+            raise LedgerConflictError(
+                "ROW_ACCOUNT_MISMATCH",
+                "a reporting-subscription row names another account",
+            )
+        stamped.append({**row, "account_id": obligation.account_id})
+    return stamped
+
+
 RevisionBindingAlgorithm = Literal["rfc8785_jcs_v1", "legacy_py_core_pairs_v0"]
 
 
@@ -1795,6 +1824,7 @@ class ReportingProducer:
         Replaying a publication retains its original creation time and parent.
         """
         obligation = await self._stored_obligation(obligation)
+        rows = subscription_rows(obligation, rows)
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:

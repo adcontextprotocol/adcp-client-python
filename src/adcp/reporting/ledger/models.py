@@ -349,7 +349,12 @@ def _ledger_dict(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         and dict(pairs)["offering_id"] is None
     ):
         return {name: value for name, value in pairs if name != "offering_id"}
-    return dict(pairs)
+    value = dict(pairs)
+    if value.get("kind") == "destination_binding" and value.get("path_template", "") is None:
+        # A subscription binding's path_template; account bindings never set
+        # it, so their fingerprints and stored payloads are unchanged.
+        del value["path_template"]
+    return value
 
 
 def ledger_asdict(value: Any) -> dict[str, Any]:
