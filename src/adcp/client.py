@@ -1082,6 +1082,9 @@ class ADCPClient:
         try:
             return await self._convert_outgoing_request(tool, params)
         except ADCPFeatureUnsupportedError as exc:
+            # Version negotiation and request conversion run before any of
+            # the task's request is sent.
+            exc.dispatched = False
             message = str(exc)
             details: dict[str, Any] = {"wire_response_received": False}
             for name in ("pointer", "source_version", "target_version", "reason"):
@@ -1093,6 +1096,7 @@ class ADCPClient:
                 error=message,
                 adcp_error={"code": "UNSUPPORTED_FEATURE", "message": message, "details": details},
                 idempotency_key=params.get("idempotency_key"),
+                dispatched=False,
                 metadata={
                     CONVERSION_METADATA_KEY: {
                         "wire_version": details.get("target_version"),

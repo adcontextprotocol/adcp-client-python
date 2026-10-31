@@ -19,11 +19,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from itertools import islice
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from adcp._version import ADCP_MAJOR_VERSION, normalize_to_release_precision
+from adcp.exceptions import ADCPError, RecoveryLiteral
 from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.validation.oneof_hints import compute_oneof_hint
 from adcp.validation.schema_loader import Direction, ResponseVariant, get_validator
@@ -124,12 +125,39 @@ class SchemaValidationError(Exception):
             first = issues[0] if issues else None
             if first is not None:
                 message = (
-                    f"{tool} {side} failed schema validation at "
-                    f"{first.pointer}: {first.message}"
+                    f"{tool} {side} failed schema validation at {first.pointer}: {first.message}"
                 )
             else:
                 message = f"{tool} {side} failed schema validation"
         super().__init__(message)
+
+
+class RequestValidationError(SchemaValidationError, ADCPError):
+    """The client refused a request against the request schema before sending it.
+
+    ``dispatched`` is always ``False``: no bytes of the task's request left
+    this process (see :func:`adcp.exceptions.is_pre_dispatch_error`). Carries
+    the task name and the invalid field paths as JSON Pointers (``/`` for the
+    root), never the submitted values. The message is the validator's
+    existing text, so callers that match on it keep working.
+
+    It is a :class:`SchemaValidationError`, so existing ``except`` clauses
+    still match, and an :class:`~adcp.exceptions.ADCPError` with ``recovery``
+    ``"correctable"``. ``code`` is ``VALIDATION_ERROR``, or
+    ``VERSION_UNSUPPORTED`` when no schema exists for the requested version.
+    """
+
+    dispatched: Literal[False] | None = False
+    recovery: RecoveryLiteral | None = "correctable"
+
+    def __init__(self, tool: str, issues: list[ValidationIssue]) -> None:
+        super().__init__(tool, "request", issues)
+        #: The task whose request was refused, e.g. ``sync_creatives``.
+        self.task = tool
+        #: JSON Pointers to the invalid fields, without their values, deduplicated.
+        self.fields: tuple[str, ...] = tuple(dict.fromkeys(i.pointer or "/" for i in issues))
+        #: The first invalid field.
+        self.field = self.fields[0] if self.fields else "/"
 
 
 _OK_SKIPPED = ValidationOutcome(valid=True, issues=[], variant="skipped")

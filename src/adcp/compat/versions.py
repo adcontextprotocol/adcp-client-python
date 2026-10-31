@@ -189,7 +189,9 @@ def negotiate_version(supported: list[str], *, maximum: str) -> str:
         and is_adcp_version_at_least(maximum, _release(version))
     ]
     if not common:
-        raise ADCPFeatureUnsupportedError(["No common AdCP version with this seller"])
+        raise ADCPFeatureUnsupportedError(
+            ["No common AdCP version with this seller"], dispatched=False
+        )
     selected = common[0]
     for candidate in common[1:]:
         candidate_release, selected_release = _release(candidate), _release(selected)
@@ -271,7 +273,9 @@ def _score(schema: dict[str, Any], value: Any, root: dict[str, Any]) -> int:
                     else (
                         "string"
                         if isinstance(value, str)
-                        else "number" if isinstance(value, (int, float)) else "object"
+                        else "number"
+                        if isinstance(value, (int, float))
+                        else "object"
                     )
                 )
             )
