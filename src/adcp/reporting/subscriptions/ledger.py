@@ -38,6 +38,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import validate_currency
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.models import (
+    STUB_PERIOD_KEY_SUFFIX,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDefinitionBinding,
@@ -319,6 +320,7 @@ class SubscriptionObligationPlanner:
                 period=ReportingPeriodBoundary(
                     period_key=(
                         f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}_{offering.period_duration}"
+                        + (STUB_PERIOD_KEY_SUFFIX if period.stub else "")
                     ),
                     start=start,
                     end=end,

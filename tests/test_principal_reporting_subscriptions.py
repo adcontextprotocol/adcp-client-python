@@ -362,6 +362,26 @@ INVALID = {
         },
         destination={"destination_id": "archive", "path_template": "b/{account_id}"},
     ),
+    "billing without dimensions": subscription(
+        selector={
+            "feed_purpose": "billing",
+            "period_duration": "P1D",
+            "required_finality": "official",
+        },
+        reconciliation_mode="consumer_receipt",
+        destination={"destination_id": "archive", "path_template": "b/{account_id}"},
+    ),
+    "billing under finest": subscription(
+        selector={
+            "feed_purpose": "billing",
+            "period_duration": "P1D",
+            "required_finality": "official",
+            "dimensions": ["package"],
+            "match": "finest",
+        },
+        reconciliation_mode="consumer_receipt",
+        destination={"destination_id": "archive", "path_template": "b/{account_id}"},
+    ),
     "receipts without destination": subscription(reconciliation_mode="consumer_receipt"),
     "missing destination": subscription(
         destination={"destination_id": "nowhere", "path_template": "x/{account_id}"}

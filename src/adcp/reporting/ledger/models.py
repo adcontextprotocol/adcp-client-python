@@ -484,6 +484,11 @@ class ReportingConfiguration:
         )
 
 
+#: ``period_key`` suffix of a billing cutover stub obligation (adcp#8617). The
+#: flag rides on the persisted key, so every store keeps it without a column.
+STUB_PERIOD_KEY_SUFFIX = "_stub"
+
+
 @dataclass(frozen=True)
 class ReportingObligationRecord:
     """What *should* exist for one configuration generation and period.
@@ -528,6 +533,15 @@ class ReportingObligationRecord:
             delivery_config_version=self.delivery_config_version,
             offering_id=self.offering_id,
         )
+
+    @property
+    def stub(self) -> bool:
+        """A billing cutover stub: ``[E, first incoming boundary)``, off the schedule's grid.
+
+        ``core/reporting-obligation.json`` ``stub`` (adcp#8617). It is
+        otherwise an ordinary obligation.
+        """
+        return self.period.period_key.endswith(STUB_PERIOD_KEY_SUFFIX)
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)

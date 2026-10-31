@@ -25,6 +25,12 @@ years, months, days, hours, minutes, then seconds.
   yields no boundary and a repeated one yields one boundary per offset, so a
   23-hour DST day has 23 hourly periods and a 25-hour day 25. Local durations
   cannot mix date and time components.
+* Day start (3.3.0-beta.3, adcp#8622): each local date's first instant is
+  always a boundary of a local schedule, local midnight or the first instant
+  after a DST gap at midnight (Havana, Santiago, Cairo). Days therefore nest
+  in every sub-daily schedule and ``PT24H`` equals ``P1D``.
+* ``billing_cycle`` needs a date component: a sub-daily duration would restart
+  at each local midnight and ignore its anchor, so it is refused.
 
 The ledger's ``ReportingScheduleSpec`` treats every component as civil time and
 defaults an anchorless civil schedule to the UTC epoch in local time; this
@@ -254,10 +260,15 @@ class PeriodCalendar:
         return self.local and bool(exact) and not (years or months or days)
 
     def _day_boundaries(self, day: date) -> list[datetime]:
-        """Every boundary on one local date: wall-clock multiples after local midnight."""
+        """Every boundary on one local date: its day start, then wall-clock multiples
+        of the duration after local midnight.
+
+        The day start is local midnight, or the first instant after a DST gap
+        at midnight, so a nonexistent midnight still starts the day.
+        """
         step = self._parts[3]
-        found: set[datetime] = set()
         midnight = datetime.combine(day, time())
+        found: set[datetime] = {_resolve(midnight, self._zone)}
         for index in range(86400 // step):
             wall = midnight + timedelta(seconds=index * step)
             for fold in (0, 1):

@@ -191,6 +191,30 @@ def test_the_chain_start_holds_inside_retention_and_restarts_after_it() -> None:
     assert authorization_chain_start([], status_retention_days=30) is None
 
 
+def test_regranted_at_is_the_latest_regrant_within_the_current_chain() -> None:
+    from adcp.reporting.subscriptions import authorization_regranted_at
+
+    day = timedelta(days=1)
+    start = at("2026-08-01T00:00:00Z")
+    once = [SubscriptionAuthorization(start)]
+    assert authorization_regranted_at(once, status_retention_days=30) is None
+    chain = [
+        SubscriptionAuthorization(start, start + day),
+        SubscriptionAuthorization(start + 2 * day, start + 3 * day),
+        SubscriptionAuthorization(start + 4 * day),
+    ]
+    assert authorization_regranted_at(chain, status_retention_days=30) == start + 4 * day
+    # A re-grant after retention starts a new chain, which has no re-grant yet.
+    fresh = [
+        SubscriptionAuthorization(start, start + day),
+        SubscriptionAuthorization(start + 60 * day),
+    ]
+    assert authorization_regranted_at(fresh, status_retention_days=30) is None
+    # No grant held: nothing to serve.
+    lost = [SubscriptionAuthorization(start, start + day)]
+    assert authorization_regranted_at(lost, status_retention_days=30) is None
+
+
 # -- the managed path ----------------------------------------------------------
 
 
@@ -232,7 +256,10 @@ async def test_a_regrant_inside_retention_keeps_authorized_at() -> None:
     )
     world.clock.set(START + timedelta(days=3))
     listed = await world.platform.list_accounts({}, _ctx())
-    assert listed["accounts"][0]["authorization"]["authorized_at"] == "2026-10-01T00:00:00Z"
+    authorization = listed["accounts"][0]["authorization"]
+    assert authorization["authorized_at"] == "2026-10-01T00:00:00Z"
+    # adcp#8618: the latest re-grant within the chain is on the wire too.
+    assert authorization["regranted_at"] == "2026-11-04T00:00:00Z"
 
 
 @pytest.mark.asyncio

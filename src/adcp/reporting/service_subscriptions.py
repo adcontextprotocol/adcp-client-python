@@ -223,9 +223,12 @@ async def require_subscription_grant(
 
     Applies to a caller holding subscription generations on the account. Access
     means access: there is no window after a loss of authority, so a revoked
-    account is unknown to every task, receipts and statuses included. A seller
-    that wants a buyer to finish reconciliation keeps a reduced grant listing
-    the reconciliation tasks instead of revoking.
+    account is unknown to every task (``ACCOUNT_NOT_FOUND``), receipts and
+    statuses included. A seller that wants a buyer to finish reconciliation
+    keeps a reduced grant listing the reconciliation tasks instead of
+    revoking. A partial grant that keeps the account covered refuses a task it
+    does not list with ``SCOPE_INSUFFICIENT``, not as an unknown identifier
+    (adcp#8619).
     """
     from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
     from adcp.reporting.ledger.store import LedgerConflictError
@@ -241,6 +244,12 @@ async def require_subscription_grant(
             "resolve_principal and the caller resolver disagree on the requesting principal"
         )
     if not await options.engine.grants_task(principal, account_id, task):
+        holds_grant = getattr(options.engine, "holds_grant", None)
+        if holds_grant is not None and await holds_grant(principal, account_id):
+            raise LedgerConflictError(
+                "SCOPE_INSUFFICIENT",
+                f"this caller's grant on the account does not list {task}",
+            )
         raise LedgerConflictError(
             "ACCOUNT_NOT_FOUND", "the account is not available to this caller"
         )

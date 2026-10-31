@@ -803,9 +803,10 @@ class TestResolutionInCoverage:
             ("2026-10-02T04:00:00Z", "off-b-package"),
         ]
 
-    def test_a_new_finer_offering_takes_over_from_the_next_boundary(self) -> None:
-        # Under finest, a finer offering published at 2026-10-03T12:00Z is a
-        # resolution change: the old offering keeps the Oct 3 day.
+    def test_a_newly_available_finer_offering_never_re_resolves(self) -> None:
+        # adcp#8619: resolution is sticky per (buy, version). A finer offering
+        # published at 2026-10-03T12:00Z never takes over from the offering the
+        # package resolved to at confirmation.
         finer = offering(
             "off-a-pkg-creative",
             dimensions=("package", "creative"),
@@ -826,8 +827,8 @@ class TestResolutionInCoverage:
             ("2026-10-01T04:00:00Z", "off-b-package"),
             ("2026-10-02T04:00:00Z", "off-b-package"),
             ("2026-10-03T04:00:00Z", "off-b-package"),
-            ("2026-10-04T04:00:00Z", "off-a-pkg-creative"),
-            ("2026-10-05T04:00:00Z", "off-a-pkg-creative"),
+            ("2026-10-04T04:00:00Z", "off-b-package"),
+            ("2026-10-05T04:00:00Z", "off-b-package"),
         ]
 
     def test_withdrawn_offering_with_no_successor_stops_after_started_periods(self) -> None:

@@ -66,6 +66,20 @@ def _text(value: Any) -> str:
     return str(inner)
 
 
+def _wire_instant(value: Any, name: str) -> datetime | None:
+    """An RFC 3339 wire instant (1-6 fractional digits) as an aware datetime."""
+    if value is None or isinstance(value, datetime):
+        return value
+    from adcp.reporting._timestamp import aware_timestamp
+
+    try:
+        return aware_timestamp(str(value))
+    except ValueError as error:
+        raise CoverageInputError(
+            "invalid_instant", f"{name} {value!r} is not an instant"
+        ) from error
+
+
 def _byte_key(offering_id: str) -> bytes:
     return offering_id.encode("utf-8")
 
@@ -119,7 +133,15 @@ class SubscriptionOffering:
         # mid-evaluation: a delivery_sla with years or months, or an invalid
         # duration.
         parse_delivery_sla(self.delivery_sla)
-        parse_period_duration(self.period_duration)
+        years, months, days, _exact = parse_period_duration(self.period_duration)
+        if self.alignment == "billing_cycle" and not (years or months or days):
+            # period_generation (adcp#8622): a sub-daily billing_cycle restarts
+            # at each local midnight and would ignore its anchor.
+            raise CoverageInputError(
+                "invalid_period_duration",
+                f"offering {self.offering_id!r}: billing_cycle alignment needs a "
+                f"period_duration with a date component, not {self.period_duration!r}",
+            )
         object.__setattr__(self, "supported_finality", frozenset(self.supported_finality))
         object.__setattr__(self, "dimensions", frozenset(self.dimensions))
         object.__setattr__(self, "unmapped_dimensions", frozenset(self.unmapped_dimensions))
@@ -162,6 +184,8 @@ class SubscriptionOffering:
         mapping explicitly. ``period_timezone`` supplies the account-resolved zone of an
         ``account_resolved`` ``source_timezone`` offering; a fixed zone on the
         offering wins when both are present and they must agree.
+        ``available_from`` and ``withdrawn_at`` come from the offering as
+        published (adcp#8618) unless given.
         """
         if hasattr(offering, "model_dump"):
             offering = offering.model_dump(mode="json", exclude_none=True)
@@ -208,8 +232,16 @@ class SubscriptionOffering:
             period_timezone_policy=schedule.get("period_timezone_policy"),
             method_pattern=method.get("pattern"),
             method_transport=method.get("transport"),
-            available_from=available_from,
-            withdrawn_at=withdrawn_at,
+            available_from=(
+                available_from
+                if available_from is not None
+                else _wire_instant(offering.get("available_from"), "available_from")
+            ),
+            withdrawn_at=(
+                withdrawn_at
+                if withdrawn_at is not None
+                else _wire_instant(offering.get("withdrawn_at"), "withdrawn_at")
+            ),
         )
 
     def available_at(self, instant: datetime) -> bool:

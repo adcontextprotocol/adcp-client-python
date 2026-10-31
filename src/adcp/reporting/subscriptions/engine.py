@@ -53,6 +53,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionException,
     SubscriptionVersionWindow,
     authorization_chain_start,
+    authorization_regranted_at,
     owed_subscription_periods,
     subscription_covers_account,
     subscription_version_windows,
@@ -889,11 +890,14 @@ class ReportingSubscriptionEngine:
         observations: Sequence[GrantObservation],
         *,
         at: datetime | None = None,
+        regrants: dict[str, datetime | None] | None = None,
     ) -> dict[str, datetime | None]:
         """:meth:`observe_grant` for a whole response page, in one state write.
 
         Returns ``account_id`` -> the chain start to serve (``None`` without a
-        grant). One load and at most one compare-and-swap per call.
+        grant). One load and at most one compare-and-swap per call. Pass
+        ``regrants`` to receive each account's ``authorization.regranted_at``
+        (adcp#8618) from the same write.
         """
         instant = self._now(at)
         prepared = []
@@ -931,12 +935,18 @@ class ReportingSubscriptionEngine:
                 if item.operator is not None:
                     account.operator = item.operator
                 served[item.account_id] = self._chain_start(account)
+                latest[item.account_id] = authorization_regranted_at(
+                    account.grants, status_retention_days=self._retention_days
+                )
             return served
 
+        latest: dict[str, datetime | None] = {}
         if not prepared:
             return {}
         served = await self._mutate(principal.subject, change, now=instant)
         self._report_regressions(regressions)
+        if regrants is not None:
+            regrants.update(latest)
         return served
 
     async def refresh(self, principal: PrincipalLike, *, now: datetime | None = None) -> None:
@@ -2048,6 +2058,16 @@ class ReportingSubscriptionEngine:
         """
         account = (await self._read(identity.subject)).accounts.get(account_id)
         return account is not None and account.grants_task(task)
+
+    async def holds_grant(self, identity: PrincipalLike, account_id: str) -> bool:
+        """Whether the principal holds a covering grant on the account, whatever its tasks.
+
+        A grant that lists ``get_reporting_status`` keeps the account covered;
+        a task it does not list is refused with ``SCOPE_INSUFFICIENT``
+        (adcp#8619), while an account without such a grant is unknown.
+        """
+        account = (await self._read(identity.subject)).accounts.get(account_id)
+        return account is not None and account.authorized
 
     async def authorizes_delivery(self, principal: PrincipalLike, account_id: str) -> bool:
         """Whether a principal's current grant still carries its subscriptions on the account.

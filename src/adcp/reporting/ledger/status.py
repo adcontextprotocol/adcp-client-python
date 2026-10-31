@@ -850,6 +850,9 @@ def _obligation_to_wire(
         # 3.3 reporting-obligation.json: the subscription's resolved offering,
         # authoritative for the obligation's timing.
         payload["offering_id"] = obligation.offering_id
+    if obligation.stub:
+        # adcp#8617: a billing cutover stub, present and true only on one.
+        payload["stub"] = True
     if statuses:
         current = next((item for item in statuses if not item.superseded), None)
         payload["consumer_status_count"] = len(statuses)

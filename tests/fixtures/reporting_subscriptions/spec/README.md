@@ -84,8 +84,9 @@ checks that evaluation against zic(8) output for the same release.
 For each case:
 
 1. Build your SDK's coverage input from `input`. `case.schema.json` says where
-   each field comes from on the wire. Fields listed in `non_wire_inputs` are
-   ones a buyer must retain itself.
+   each field comes from on the wire. Every field is on the wire, including
+   offering availability (`available_from`, `withdrawn_at`) and a buy's
+   `flight_history`, so a buyer needs no state of its own.
 2. When the case has `expected_error`, assert your SDK raises that `code`
    with that `detail`.
 3. Otherwise compare your rows with `expected`, and your grouped obligations
@@ -96,10 +97,10 @@ For each case:
 
 | Group | What the cases check |
 |---|---|
-| Start bound and flights | The later of `accepted_at` and `authorized_at`, the confirmation period owed in full, the stop-time period owed in full, cancellation, completion, empty flights, late confirmation, and flight values as of each period end (extension and reinstatement never add an elapsed period). |
-| Cutovers | New versions on aligned and misaligned schedules, a version change on a boundary, two cutovers inside one period, deactivation, reactivation, and resolution changes. Compound changes at one instant: a version change with a timezone change, a reactivation, a deactivation, or a revocation. |
+| Start bound and flights | The later of `accepted_at` and `authorized_at`, the confirmation period owed in full, the stop-time period owed in full, cancellation (including delivery through a notice period to `cancellation_effective_at`), completion, empty flights, late confirmation, and flight values as of each period end (extension and reinstatement never add an elapsed period). |
+| Cutovers | New versions on aligned and misaligned schedules, a billing cutover that owes a stub period, a version change on a boundary, two cutovers inside one period, deactivation, reactivation (including after a schedule change made while inactive), and resolution changes. Compound changes at one instant: a version change with a timezone change, a reactivation, a deactivation, or a revocation. |
 | Authority | Revocation, re-grant with and without `backfill_on_regrant`, expired `accounts_unauthorized` entries, a re-grant exactly at the retention limit, and chains of three and four grants. |
 | Exceptions | `excluded[]` and `gaps[]` remove periods by start, offering-scoped entries (including `max_accounts` capacity on offerings with different boundaries), `package_ids` entries, precedence. |
 | Selection | `exact`, `finest`, and `all`, byte-order ties, unmapped and unknown dimensions, finality, purpose, duration, destination, product eligibility, per-product resolution, and `period_timezone` matching. |
-| Period generation | DST gaps and folds at midnight (America/Santiago, America/Havana, Africa/Cairo), Australia/Lord_Howe's 30-minute DST, sub-daily local periods in Asia/Singapore and Asia/Kathmandu, a skipped civil date (Pacific/Apia), PT24H against P1D, utc sub-daily periods counted from 1970, month-end clamps from 31st and February 29 anchors, P3M, weeks (P7D, starting Thursday from the 1970 origin), and years. |
+| Period generation | DST gaps and folds at midnight (America/Santiago, America/Havana, Africa/Cairo), day starts that nest PT24H and PT2H in a day whose midnight does not exist, Australia/Lord_Howe's 30-minute DST, sub-daily local periods in Asia/Singapore and Asia/Kathmandu, a skipped civil date (Pacific/Apia), PT24H against P1D, utc sub-daily periods counted from 1970, month-end clamps from 31st and February 29 anchors, P3M, weeks (P7D, starting Thursday from the 1970 origin), and years. |
 | Input errors | Numeric offsets, missing zones, a missing `previous_timezone`, missing `standard_dimensions`, a missing retention window, P1W (the duration pattern has no W), and invalid local durations. |
