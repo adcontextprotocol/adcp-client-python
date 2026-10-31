@@ -34,14 +34,14 @@ import asyncio
 import inspect
 import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from adcp._principal_ref import PrincipalRef
 from adcp.reporting._errors import ReliableReportingConfigurationError
 from adcp.reporting.subscriptions._clock import utc_instant
-from adcp.reporting.subscriptions.coverage import SubscriptionBuy, SubscriptionBuyPackage
+from adcp.reporting.subscriptions.coverage import SubscriptionBuy
 from adcp.reporting.subscriptions.engine import (
     AccountConfigsEnder,
     AccountDeliveryConfig,
@@ -618,6 +618,19 @@ class ManagedSubscriptions:
                     code="SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
                     config_field="capability_offerings",
                 )
+            profile = offering.get("reporting_profile")
+            keys = profile.get("primary_keys") if isinstance(profile, Mapping) else None
+            if offering.get("method") is not None and "account_id" not in (keys or ()):
+                # adcp#8619: consolidated destinations validate and never
+                # collide only when every delivered row carries its account.
+                # Warned, not refused, while existing row contracts migrate.
+                logger.warning(
+                    "offering %s is delivered to destinations but its reporting_profile."
+                    "primary_keys omit account_id; AdCP 3.3.0-beta.3 requires its row schema "
+                    "to declare account_id as a required string and list it in primary_keys",
+                    offering_id,
+                    extra={"event": "reporting.subscription.offering_primary_keys"},
+                )
             try:
                 mapped.append(SubscriptionOffering.from_offering(offering))
             except (CoverageInputError, KeyError, ValueError) as error:
@@ -921,10 +934,12 @@ class ManagedSubscriptions:
             authorization = account.get("authorization")
             tasks = None
             authorized_at = now
+            regranted_at = None
             if isinstance(authorization, Mapping):
                 if authorization.get("allowed_tasks") is not None:
                     tasks = frozenset(str(item) for item in authorization["allowed_tasks"])
                 authorized_at = _instant(authorization.get("authorized_at")) or now
+                regranted_at = _instant(authorization.get("regranted_at"))
             accounts.append(
                 AuthorizedAccount(
                     account_id=str(account_id),
@@ -932,6 +947,7 @@ class ManagedSubscriptions:
                     authorized_at=authorized_at,
                     operator=account.get("operator"),
                     allowed_tasks=tasks,
+                    regranted_at=regranted_at,
                 )
             )
         pagination = response.get("pagination") or {}
@@ -966,36 +982,38 @@ class ManagedSubscriptions:
         raise RuntimeError(f"get_media_buys for account {account_id!r} did not finish paging")
 
     def _buy(self, raw: Mapping[str, Any]) -> SubscriptionBuy | None:
-        start, end = _instant(raw.get("start_time")), _instant(raw.get("end_time"))
-        if start is None or end is None:
+        """One ``get_media_buys`` buy as coverage reads it (adcp#8617, #8618).
+
+        The flight, ``cancellation_effective_at`` and ``flight_history`` come
+        from the wire. Each package's offering set is ``buy_offerings`` when
+        given, else the package's ``reporting_delivery_offering_ids`` (fixed at
+        confirmation), else every registered offering.
+        """
+        if raw.get("start_time") is None or raw.get("end_time") is None:
             return None  # not yet flighted: nothing can be owed for it
-        cancellation = raw.get("cancellation") or {}
+        every = tuple(item.offering_id for item in self.engine.offerings)
+        media_buy = dict(raw)
         offerings = self.options.buy_offerings
         if offerings is not None:
-            by_package = {str(key): tuple(value) for key, value in offerings(raw).items()}
+            media_buy["packages"] = [
+                {"package_id": str(key), "reporting_delivery_offering_ids": list(value)}
+                for key, value in sorted(offerings(raw).items())
+            ]
         else:
-            every = tuple(item.offering_id for item in self.engine.offerings)
-            by_package = {
-                str(package["package_id"]): every
+            media_buy["packages"] = [
+                {
+                    **package,
+                    "reporting_delivery_offering_ids": list(
+                        package.get("reporting_delivery_offering_ids") or every
+                    ),
+                }
                 for package in raw.get("packages") or ()
                 if package.get("package_id")
-            }
-        packages = tuple(
-            SubscriptionBuyPackage(package_id, ids)
-            for package_id, ids in sorted(by_package.items())
-        )
-        return SubscriptionBuy(
-            media_buy_id=str(raw["media_buy_id"]),
-            confirmed_at=_instant(raw.get("confirmed_at")),
-            start_time=start,
-            end_time=end,
-            canceled_at=_instant(cancellation.get("canceled_at")),
-            completed_at=_instant(raw.get("completed_at")),
-            packages=packages,
-            reporting_delivery_offering_ids=(
-                () if packages else tuple(item.offering_id for item in self.engine.offerings)
-            ),
-        )
+            ]
+        buy = SubscriptionBuy.from_media_buy(media_buy)
+        if not buy.packages:
+            buy = replace(buy, reporting_delivery_offering_ids=every)
+        return buy
 
     # -- authorized_at projection ----------------------------------------------
 
@@ -1050,17 +1068,27 @@ class ManagedSubscriptions:
                         _instant(authorization.get("authorized_at")),
                         raw.get("timezone") or None,
                         raw.get("operator"),
+                        _instant(authorization.get("regranted_at")),
                     )
                 )
-        served = await self.engine.observe_grants(principal, observations)
+        regrants: dict[str, datetime | None] = {}
+        served = await self.engine.observe_grants(principal, observations, regrants=regrants)
         projected: list[Any] = []
         for raw in page:
-            start = served.get(str(raw.get("account_id"))) if isinstance(raw, Mapping) else None
+            account_id = str(raw.get("account_id")) if isinstance(raw, Mapping) else ""
+            start = served.get(account_id)
             if start is None:
                 projected.append(raw)
                 continue
             authorization = dict(raw["authorization"])
             authorization["authorized_at"] = iso_z(start)
+            regranted = regrants.get(account_id)
+            if regranted is not None:
+                # adcp#8618: the latest re-grant within the chain, so a buyer
+                # computes withheld deadlines and gap ends from the wire.
+                authorization["regranted_at"] = iso_z(regranted)
+            else:
+                authorization.pop("regranted_at", None)
             projected.append({**raw, "authorization": authorization})
         return projected
 

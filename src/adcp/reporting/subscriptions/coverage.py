@@ -14,8 +14,10 @@ periods of the offering's published schedule that
    and end after the buy's ``confirmed_at`` (adcp#8593: the confirmation
    period is owed in full); and
 2. overlap the buy's flight from ``start_time`` to its stop time, the earliest
-   of ``end_time``, ``canceled_at`` and ``completed_at``, with the flight taken
-   as of the period's ``scope_resolved_at`` (its end).
+   of ``end_time``, the cancellation's delivery stop (``cancellation_effective_at``,
+   or ``cancellation.canceled_at`` when it is absent) and ``completed_at``, with
+   the flight taken as of the period's ``scope_resolved_at`` (its end) from the
+   buy's ``flight_history``.
 
 Periods are never clipped: the period containing the stop time is owed in
 full. Every change that hands periods from an outgoing schedule to an incoming
@@ -23,6 +25,9 @@ one at an instant T is a cutover: the outgoing schedule owes its periods that
 start before T in full, E is the end of the last of them, and the incoming
 schedule owes its periods that start at or after E. Version changes,
 deactivation, resolution changes and account-timezone changes all use it.
+When the incoming offering is a billing feed and E is not one of its
+boundaries, the stretch from E to its first boundary is owed as one stub
+period (``stub``), so no billable time goes unreported (adcp#8617).
 
 Exceptions only remove periods: each ``excluded[]`` entry and each ``gaps[]``
 entry removes the periods whose start falls in ``[from, until)``. Lost
@@ -42,10 +47,22 @@ Rules settled by adcp#8585 (identical in the TypeScript SDK)
     authority chain; a later one starts a new chain. Reactivation is a fresh
     start (``inactive_intervals``), and ``gaps[]`` and ``timezone_cutovers[]``
     entries with an ``offering_id`` apply to that offering only.
+
+Rules settled for 3.3.0-beta.3 (adcp#8617, #8618, #8619, #8622)
+    Resolution is per package and sticky: a package resolves when its (buy,
+    version) pair first does, at the later of the version's ``accepted_at``
+    and the buy's ``confirmed_at``, among the offerings available then, and
+    keeps that result until a resolved offering is withdrawn, when it
+    re-resolves among the offerings available at ``withdrawn_at``. A newly
+    available offering never re-resolves it. Reactivation resumes at the first
+    boundary at or after the later of the reactivation instant and the end of
+    the last period owed before the deactivation, so a change made while
+    inactive never owes a period twice.
 """
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
@@ -64,7 +81,7 @@ from adcp.reporting.subscriptions.resolution import (
     SubscriptionSelector,
     _text,
     _value,
-    resolve_subscription_offerings,
+    resolve_reporting_subscription_package,
 )
 
 #: Exclusion reasons that remove periods. ``package_ids`` entries never do.
@@ -77,7 +94,16 @@ def _instant(value: Any, *, field: str) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, str):
-        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        from adcp.reporting._timestamp import aware_timestamp
+
+        # Wire instants carry 1-6 fractional digits, which Python 3.10's ISO
+        # parser refuses.
+        try:
+            value = aware_timestamp(value)
+        except ValueError as error:
+            raise CoverageInputError(
+                "invalid_instant", f"{field} {value!r} is not an RFC 3339 instant"
+            ) from error
     if not isinstance(value, datetime):
         raise TypeError(f"{field} must be a datetime or an RFC 3339 string")
     return utc_instant(value, field=field)
@@ -105,7 +131,8 @@ class SubscriptionBuyFlight:
 
     Periods whose ``scope_resolved_at`` (end) is before ``superseded_at`` were
     resolved under this flight, so an extension or reinstatement never makes
-    an elapsed period owed after the fact.
+    an elapsed period owed after the fact. Build it from a ``get_media_buys``
+    ``flight_history[]`` entry with :meth:`from_flight_history`.
     """
 
     superseded_at: datetime
@@ -123,6 +150,25 @@ class SubscriptionBuyFlight:
     @property
     def stop_time(self) -> datetime:
         return _stop(self.end_time, self.canceled_at, self.completed_at)
+
+    @classmethod
+    def from_flight_history(cls, entry: Any) -> SubscriptionBuyFlight:
+        """One ``core/media-buy.json`` ``flight_history[]`` entry (adcp#8618).
+
+        The entry records a retroactive flight edit at ``recorded_at`` with the
+        ``start_time`` and ``stop_time`` in force before it.
+        """
+        if hasattr(entry, "model_dump"):
+            entry = entry.model_dump(mode="json", exclude_none=True)
+        return cls(
+            superseded_at=_require_instant(
+                _value(entry, "recorded_at"), field="flight_history.recorded_at"
+            ),
+            start_time=_require_instant(
+                _value(entry, "start_time"), field="flight_history.start_time"
+            ),
+            end_time=_require_instant(_value(entry, "stop_time"), field="flight_history.stop_time"),
+        )
 
 
 def _stop(
@@ -151,9 +197,14 @@ class SubscriptionBuy:
     """One media buy the caller can see through ``get_media_buys``, as plain data.
 
     The top-level flight is the buy's current one. ``superseded_flights``
-    records earlier flights and when a change replaced each. Without
-    ``packages``, ``reporting_delivery_offering_ids`` is the buy's products'
-    offering ids, resolved as one product.
+    records earlier flights and when a change replaced each (the buy's
+    ``flight_history``). ``cancellation_effective_at`` is when delivery stops
+    under a cancellation (adcp#8617); when present it, not ``canceled_at``,
+    is the cancellation's term in the stop time. Each package carries the
+    offering set fixed at confirmation (``packages[].reporting_delivery_offering_ids``,
+    adcp#8618). Without ``packages``, ``reporting_delivery_offering_ids`` is the
+    buy's products' offering ids, resolved as one product. Build it from a
+    ``get_media_buys`` media buy with :meth:`from_media_buy`.
     """
 
     media_buy_id: str
@@ -165,11 +216,19 @@ class SubscriptionBuy:
     packages: tuple[SubscriptionBuyPackage, ...] = ()
     reporting_delivery_offering_ids: tuple[str, ...] = ()
     superseded_flights: tuple[SubscriptionBuyFlight, ...] = ()
+    cancellation_effective_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.media_buy_id:
             raise CoverageInputError("invalid_input", "media_buy_id is required")
-        for name in ("confirmed_at", "start_time", "end_time", "canceled_at", "completed_at"):
+        for name in (
+            "confirmed_at",
+            "start_time",
+            "end_time",
+            "canceled_at",
+            "completed_at",
+            "cancellation_effective_at",
+        ):
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, utc_instant(value, field=name))
@@ -182,7 +241,59 @@ class SubscriptionBuy:
 
     @property
     def stop_time(self) -> datetime:
-        return _stop(self.end_time, self.canceled_at, self.completed_at)
+        delivery_stop = (
+            self.cancellation_effective_at
+            if self.cancellation_effective_at is not None
+            else self.canceled_at
+        )
+        return _stop(self.end_time, delivery_stop, self.completed_at)
+
+    @classmethod
+    def from_media_buy(
+        cls,
+        media_buy: Any,
+        *,
+        package_offering_ids: Mapping[str, Sequence[str]] | None = None,
+    ) -> SubscriptionBuy:
+        """Project a ``get_media_buys`` media buy (model or wire mapping).
+
+        Reads ``confirmed_at``, the flight, ``cancellation.canceled_at``,
+        ``cancellation_effective_at``, ``completed_at``, ``flight_history[]``
+        and each package's ``reporting_delivery_offering_ids``.
+        ``package_offering_ids`` supplies a package's offering set when the
+        seller's response does not carry it.
+        """
+        if hasattr(media_buy, "model_dump"):
+            media_buy = media_buy.model_dump(mode="json", exclude_none=True)
+        if not isinstance(media_buy, Mapping):
+            raise TypeError("media_buy must be a MediaBuy or a mapping")
+        overrides = {str(key): tuple(value) for key, value in (package_offering_ids or {}).items()}
+        packages = []
+        for package in _value(media_buy, "packages") or ():
+            package_id = _text(_value(package, "package_id", ""))
+            offering_ids = _value(package, "reporting_delivery_offering_ids")
+            if offering_ids is None:
+                offering_ids = overrides.get(package_id, ())
+            packages.append(
+                SubscriptionBuyPackage(package_id, tuple(_text(item) for item in offering_ids))
+            )
+        cancellation = _value(media_buy, "cancellation") or {}
+        return cls(
+            media_buy_id=_text(_value(media_buy, "media_buy_id", "")),
+            confirmed_at=_instant(_value(media_buy, "confirmed_at"), field="confirmed_at"),
+            start_time=_require_instant(_value(media_buy, "start_time"), field="start_time"),
+            end_time=_require_instant(_value(media_buy, "end_time"), field="end_time"),
+            canceled_at=_instant(_value(cancellation, "canceled_at"), field="canceled_at"),
+            cancellation_effective_at=_instant(
+                _value(media_buy, "cancellation_effective_at"), field="cancellation_effective_at"
+            ),
+            completed_at=_instant(_value(media_buy, "completed_at"), field="completed_at"),
+            packages=tuple(packages),
+            superseded_flights=tuple(
+                SubscriptionBuyFlight.from_flight_history(entry)
+                for entry in _value(media_buy, "flight_history") or ()
+            ),
+        )
 
     def flight_at(self, resolved_at: datetime) -> tuple[datetime, datetime]:
         """``(start_time, stop_time)`` as of a period's ``scope_resolved_at``.
@@ -521,14 +632,20 @@ class OwedSubscriptionPeriod(ExpectedReportingPeriod):
 
     ``withheld`` marks a period owed before a loss of authority that is not
     due while authority is absent; its ``expected_at`` is ``None``. After a
-    re-grant it is due at the re-grant time plus the offering's
-    ``delivery_sla``, never earlier than its original ``expected_at``.
+    re-grant it is due at the re-grant time (``authorization.regranted_at``)
+    plus the offering's ``delivery_sla``, never earlier than its original
+    ``expected_at``.
+
+    ``stub`` marks a billing cutover stub (``core/reporting-obligation.json``
+    ``stub``, adcp#8617): the stretch from a cutover's E to the incoming billing
+    schedule's first boundary, owed as one period.
     """
 
     account_id: str
     subscription_id: str
     offering_id: str
     withheld: bool = False
+    stub: bool = False
 
 
 # -- the rule ----------------------------------------------------------------
@@ -554,6 +671,9 @@ class _Regime:
     #: the regime start). Carried so a later cutover inside the same outgoing
     #: period never owes a period twice.
     handoffs: dict[str, datetime] = field(default_factory=dict)
+    #: Whether this regime took over from one that resolved offerings: a
+    #: cutover, after which a billing offering owes a stub (adcp#8617).
+    cutover: bool = False
 
 
 @dataclass
@@ -578,6 +698,7 @@ class _Owed:
     end: datetime
     expected_at: datetime | None
     withheld: bool
+    stub: bool = False
     media_buy_ids: set[str] = field(default_factory=set)
 
 
@@ -595,6 +716,23 @@ def authorization_chain_start(
         return None
     chains = _chains(authorizations, timedelta(days=status_retention_days))
     return chains[-1].start
+
+
+def authorization_regranted_at(
+    authorizations: Sequence[SubscriptionAuthorization], *, status_retention_days: int
+) -> datetime | None:
+    """The ``authorization.regranted_at`` a seller serves for a grant history (adcp#8618).
+
+    The latest re-grant within the current authority chain: withheld periods
+    are due at it plus ``delivery_sla``, and an unbackfilled gap ends at the
+    first boundary at or after it. ``None`` while the caller holds no grant or
+    the chain was never interrupted.
+    """
+    if not authorizations or authorizations[-1].unauthorized_at is not None:
+        return None
+    chains = _chains(authorizations, timedelta(days=status_retention_days))
+    regrants = [regranted for _lost, regranted in chains[-1].interruptions if regranted]
+    return max(regrants) if regrants else None
 
 
 def _chains(
@@ -630,18 +768,25 @@ def _chains(
     return chains
 
 
-def _authorized(
-    chains: Sequence[_Chain], calendar: PeriodCalendar, start: datetime, backfill: bool
-) -> bool:
+def _authorized(chains: Sequence[_Chain], start: datetime, end: datetime, backfill: bool) -> bool:
+    """Whether the period ``[start, end)`` falls under the caller's authority.
+
+    It starts at or after a chain's start (the first boundary at or after
+    ``authorized_at``), ends by the chain's end (nothing is owed for periods
+    ending after ``unauthorized_at``), and, without backfill, does not overlap
+    an interruption: the periods that end after ``unauthorized_at`` and start
+    before the re-grant are a gap. Stated on the period, not on a calendar, so
+    a billing stub is judged like any other period.
+    """
     if not chains:
         return True  # authorized_at is not advertised and authority never lapsed
     for chain in chains:
-        if start < calendar.ceil(chain.start):
+        if start < chain.start:
             continue
-        if chain.end is not None and start >= calendar.floor(chain.end):
+        if chain.end is not None and end > chain.end:
             continue
         if not backfill and any(
-            calendar.floor(lost) <= start < calendar.ceil(regranted)
+            end > lost and start < regranted
             for lost, regranted in chain.interruptions
             if regranted is not None
         ):
@@ -657,18 +802,23 @@ def _expected_at(
     end: datetime,
     backfill: bool,
 ) -> tuple[datetime | None, bool]:
-    """When a period is due, and whether it is withheld for lost authority."""
+    """When a period is due, and whether it is withheld for lost authority.
+
+    A period owed before a loss and not yet due is due at the re-grant
+    (``authorization.regranted_at``) plus ``delivery_sla``; so is a period
+    backfilled across the interruption.
+    """
     sla = calendar.delivery_sla
     expected: datetime = end + sla
     for chain in chains:
         for lost, regranted in chain.interruptions:
             if regranted is None:
                 continue  # an undated re-grant: the original deadline stands
-            pending = end <= calendar.floor(lost) and expected > lost
-            backfilled = backfill and calendar.floor(lost) <= start < calendar.ceil(regranted)
+            pending = end <= lost and expected > lost
+            backfilled = backfill and end > lost and start < regranted
             if pending or backfilled:
                 expected = max(expected, regranted + sla)
-        if chain.end is not None and end <= calendar.floor(chain.end) and expected > chain.end:
+        if chain.end is not None and end <= chain.end and expected > chain.end:
             return None, True
     return expected, False
 
@@ -850,6 +1000,7 @@ def owed_subscription_periods(
     for buy in buys:
         if buy.confirmed_at is None:
             continue
+        confirmed_at = buy.confirmed_at
         regimes = _regimes(
             buy,
             ordered,
@@ -876,9 +1027,16 @@ def owed_subscription_periods(
                 upper = latest_stop if regime.until is None else min(regime.until, latest_stop)
                 if not include_unresolved:
                     upper = min(upper, now)
-                if lower >= upper:
+                candidates: Iterable[tuple[datetime, datetime, bool]] = (
+                    (start, end, False)
+                    for start, end in calendar.periods(starts_from=lower, starts_before=upper)
+                )
+                stub = _billing_stub(regime, resolved, handoff)
+                if stub is not None:
+                    candidates = itertools.chain((stub,), candidates)
+                elif lower >= upper:
                     continue
-                for start, end in calendar.periods(starts_from=lower, starts_before=upper):
+                for start, end, is_stub in candidates:
                     iterations += 1
                     if iterations > max_iterations:
                         raise CoverageInputError.budget_exceeded(
@@ -889,6 +1047,10 @@ def owed_subscription_periods(
                         )
                     if not include_unresolved and end > now:
                         break
+                    if is_stub and (
+                        end <= confirmed_at or (regime.until is not None and start >= regime.until)
+                    ):
+                        continue  # the stub's own side and confirmation checks
                     flight_start, flight_stop = buy.flight_at(end)
                     # An empty flight (stopped at or before it started)
                     # overlaps no period.
@@ -896,7 +1058,7 @@ def owed_subscription_periods(
                         start < flight_stop and end > flight_start
                     ):
                         continue
-                    if not _authorized(chains, calendar, start, backfill_on_regrant):
+                    if not _authorized(chains, start, end, backfill_on_regrant):
                         continue
                     if any(
                         item.removes(start, buy.media_buy_id, resolved.offering.offering_id)
@@ -917,6 +1079,7 @@ def owed_subscription_periods(
                             end,
                             expected_at,
                             withheld,
+                            is_stub,
                         )
                     if buy.media_buy_id not in entry.media_buy_ids:
                         entry.media_buy_ids.add(buy.media_buy_id)
@@ -945,6 +1108,7 @@ def owed_subscription_periods(
             subscription_id=subscription_id,
             offering_id=item.offering.offering_id,
             withheld=item.withheld,
+            stub=item.stub,
         )
         for item in owed.values()
     ]
@@ -988,16 +1152,21 @@ def _regimes(
                     f"{selector.destination_id!r}; pass its pattern and transport",
                 )
             destination = destinations[selector.destination_id]
+        # adcp#8619: each package resolves when its (buy, version) pair first
+        # does and keeps that result; a buy owes the union of its packages'.
+        first_resolved = window.accepted_at
+        if buy.confirmed_at is not None:
+            first_resolved = max(first_resolved, buy.confirmed_at)
         found: dict[str, SubscriptionOffering] = {}
         for _package_id, offering_ids in buy.product_offering_ids():
-            resolution = resolve_subscription_offerings(
+            for item in resolve_reporting_subscription_package(
                 selector,
                 offerings,
                 product_offering_ids=offering_ids,
                 destination=destination,
+                resolves_at=first_resolved,
                 at=start,
-            )
-            for item in resolution.offerings:
+            ):
                 found[item.offering_id] = item
         resolved = tuple(
             _Resolved(
@@ -1019,11 +1188,59 @@ def _regimes(
             continue
         regime = _Regime(start, until, window.subscription_version, resolved)
         predecessor = regimes[-1] if regimes else None
-        regime.handoffs = {
-            item.offering.offering_id: _cutover_end(start, predecessor, item) for item in resolved
-        }
+        before_deactivation = (
+            _regime_before_deactivation(regimes, window, start) if predecessor is None else None
+        )
+        if before_deactivation is not None:
+            deactivated_at, last = before_deactivation
+            # Reactivation (adcp#8622): resume at the first boundary at or after
+            # the later of the reactivation instant and the end of the last
+            # period owed before the deactivation, computed like a cutover's E
+            # at the deactivation, so nothing is owed twice.
+            regime.handoffs = {
+                item.offering.offering_id: max(start, _cutover_end(deactivated_at, last, item))
+                for item in resolved
+            }
+        else:
+            regime.handoffs = {
+                item.offering.offering_id: _cutover_end(start, predecessor, item)
+                for item in resolved
+            }
+            regime.cutover = predecessor is not None and bool(predecessor.resolved)
         regimes.append(regime)
     return regimes
+
+
+def _regime_before_deactivation(
+    regimes: Sequence[_Regime | None], window: SubscriptionVersionWindow, start: datetime
+) -> tuple[datetime, _Regime] | None:
+    """For a reactivation at ``start``: the deactivation instant and the regime in force
+    just before it, when that regime resolved offerings."""
+    deactivated_at = next(
+        (begin for begin, until in window.inactive_intervals if until == start), None
+    )
+    if deactivated_at is None:
+        return None
+    last = next((item for item in reversed(regimes) if item is not None), None)
+    if last is None or not last.resolved or last.until != deactivated_at:
+        return None
+    return deactivated_at, last
+
+
+def _billing_stub(
+    regime: _Regime, resolved: _Resolved, handoff: datetime
+) -> tuple[datetime, datetime, bool] | None:
+    """The stub ``[E, first incoming boundary)`` a cutover owes a billing feed (adcp#8617).
+
+    Pacing and analytics feeds leave that stretch unowed; it is empty when E
+    is already an incoming boundary.
+    """
+    if not regime.cutover or resolved.offering.feed_purpose != "billing":
+        return None
+    first = resolved.calendar.ceil(handoff)
+    if first <= handoff:
+        return None
+    return handoff, first, True
 
 
 def _first_owed_start(
@@ -1111,6 +1328,7 @@ __all__ = [
     "SubscriptionException",
     "SubscriptionVersionWindow",
     "authorization_chain_start",
+    "authorization_regranted_at",
     "expected_subscription_periods",
     "owed_subscription_periods",
     "subscription_covers_account",

@@ -93,10 +93,29 @@ async def test_a_reduced_reconciliation_grant_keeps_reconciliation_working() -> 
     assert receipts.calls == [{"account_id": ACCOUNT, "consumer_id": AGENCY.subject}]
     ingested = await seller.service.sync_reporting_status(_status())
     assert ingested["results"][0]["result"] in {"recorded", "unchanged"}, ingested
-    # The grant does not list get_media_buy_delivery, so exact reads are refused.
+    # The grant does not list get_media_buy_delivery, so exact reads are
+    # refused. The account stays covered, so the refusal is SCOPE_INSUFFICIENT,
+    # not an unknown identifier (adcp#8619).
     with pytest.raises(LedgerConflictError) as refused:
         await seller.service.get_revision_content({"reporting_revision_id": "rpr_any"})
-    assert refused.value.code == "ACCOUNT_NOT_FOUND"
+    assert refused.value.code == "SCOPE_INSUFFICIENT"
+
+
+@pytest.mark.asyncio
+async def test_a_partial_grant_refuses_the_missing_task_with_scope_insufficient() -> None:
+    # adcp#8619: a grant without sync_reporting_receipts keeps the account
+    # covered; the seller refuses receipts for that account as out of scope.
+    seller, receipts = await _subscribed(frozenset({"get_reporting_status"}))
+    view = await seller.status(AGENCY, "summary")
+    assert view["subscription_coverage"][0]["status"] == "active"
+    for call in (
+        lambda: seller.service.sync_reporting_receipts({"receipts": []}),
+        lambda: seller.service.sync_reporting_status(_status()),
+    ):
+        with pytest.raises(LedgerConflictError) as refused:
+            await call()
+        assert refused.value.code == "SCOPE_INSUFFICIENT"
+    assert receipts.calls == []
 
 
 @pytest.mark.asyncio

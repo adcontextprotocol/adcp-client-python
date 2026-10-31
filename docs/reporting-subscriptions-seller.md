@@ -24,9 +24,9 @@ The SDK reads these surfaces under each principal's identity. A principal sees e
 | Input | Read from | Must be present | Override |
 |---|---|---|---|
 | Authorized accounts | `list_accounts` (a decisioning platform's `accounts.list`) | `account_id`, `timezone` (IANA), `operator`, `authorization.allowed_tasks` | `SubscriptionOptions.accounts` |
-| Visible buys | `get_media_buys` | `confirmed_at`, `start_time`, `end_time`, `cancellation.canceled_at`, `completed_at`, `packages[].package_id` | `SubscriptionOptions.buys` |
-| Package offerings | every registered offering | | `SubscriptionOptions.buy_offerings` |
-| Offerings | `capability_offerings` on each registered source | `standard_dimensions` on every offering | none |
+| Visible buys | `get_media_buys` | `confirmed_at`, `start_time`, `end_time`, `cancellation.canceled_at`, `cancellation_effective_at`, `completed_at`, `flight_history`, `packages[].package_id` | `SubscriptionOptions.buys` |
+| Package offerings | `packages[].reporting_delivery_offering_ids` (fixed at confirmation), else every registered offering | | `SubscriptionOptions.buy_offerings` |
+| Offerings | `capability_offerings` on each registered source | `standard_dimensions` on every offering; `available_from` / `withdrawn_at` when they apply; `account_id` in `reporting_profile.primary_keys` on every offering delivered to destinations (`method`), required by 3.3.0-beta.3 and logged as `reporting.subscription.offering_primary_keys` when missing | none |
 | Report content | `account_context`, called with `configuration.subscription` set | | `SubscriptionOptions.configure` |
 
 A decisioning `Account` carries `timezone=` and `operator=`. An account without a timezone is refused rather than read as UTC.

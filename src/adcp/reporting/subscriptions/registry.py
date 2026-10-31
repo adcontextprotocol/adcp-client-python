@@ -11,8 +11,9 @@ fails. It enforces what the generated model cannot express (the schema's
   ``account_ids``; ``exclude_account_ids`` only with all-accounts scope;
 * ``period_timezone`` only when ``account_ids`` names exactly one account, and
   it must be a recognized IANA zone;
-* billing requires ``official`` finality and ``consumer_receipt``, and
-  ``consumer_receipt`` requires a destination;
+* billing requires ``official`` finality, ``consumer_receipt`` and
+  ``match: exact`` with ``dimensions`` (adcp#8619), and ``consumer_receipt``
+  requires a destination;
 * ``destination_id`` names a destination that exists after the same request
   applies; ``path_template`` uses only the four placeholders, contains
   ``{account_id}`` when the scope can cover several accounts or another
@@ -159,6 +160,14 @@ def _validate_one(
     ):
         raise ReportingSubscriptionValidationError(
             f"{where}: billing subscriptions require official finality and consumer_receipt"
+        )
+    if selector["feed_purpose"] == "billing" and (
+        not selector.get("dimensions") or selector.get("match", "exact") != "exact"
+    ):
+        # adcp#8619: a billing feed's breakdown never depends on which
+        # offerings happen to exist.
+        raise ReportingSubscriptionValidationError(
+            f"{where}: billing subscriptions require match exact with dimensions"
         )
     destination = configuration.get("destination")
     if mode == "consumer_receipt" and destination is None:

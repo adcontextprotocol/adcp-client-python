@@ -2,7 +2,8 @@
 
 ``tests/fixtures/reporting_subscriptions/spec/`` vendors
 ``static/compliance/source/test-vectors/reporting-subscriptions/`` from the spec
-repository at :data:`SPEC_COMMIT` (adcp#8616), pinned below by SHA-256. Each
+repository at :data:`SPEC_COMMIT` (the signed 3.3.0-beta.3 source commit, with
+adcp#8617, #8618, #8619 and #8622), pinned below by SHA-256. Each
 case gives the buyer-side input and either the exact owed rows, derived from
 the spec text its ``spec_refs`` cite and reproduced by an independent
 reference model, or the input error. Both SDKs must produce identical periods,
@@ -30,8 +31,6 @@ from adcp.reporting.subscriptions import (
     CoverageInputError,
     SubscriptionAuthorization,
     SubscriptionBuy,
-    SubscriptionBuyFlight,
-    SubscriptionBuyPackage,
     SubscriptionDestination,
     SubscriptionOffering,
     SubscriptionVersionWindow,
@@ -39,11 +38,12 @@ from adcp.reporting.subscriptions import (
 )
 
 SPEC = Path(__file__).parent / "fixtures" / "reporting_subscriptions" / "spec"
-#: adcontextprotocol/adcp commit the vendored files come from (adcp#8616).
-SPEC_COMMIT = "023bbd26e7c230dcc74bea4087336ea6bc8d0f6a"
+#: adcontextprotocol/adcp commit the vendored files come from: the source commit
+#: of the signed 3.3.0-beta.3 bundle (schemas/releases/3.3.0-beta.3.json).
+SPEC_COMMIT = "d5f8de383df13525e11721ee3d493ee76352210f"
 PINNED = {
-    "vectors.json": "b392df771fc2bf635c5c441ff2dd5107e1cda13ab483fe902a6a56661f5e7904",
-    "case.schema.json": "0550b51097ea2c9a6bbd8721de5b5855acfcbd097dff31edeb0df2f397f7dc42",
+    "vectors.json": "56cc381bc336b31cb0abc589d73d0f1a8ecd52f5c42532fc47fb9112c3b594a4",
+    "case.schema.json": "17448cb98b1c8ce671b0c5f354492e4965f833320c78f4ee6722b184ab344c60",
     "error-codes.json": "4e8e5142ada936fc8923735155d786a0801258922fb85b492785730479713481",
     "reason-codes.json": "2574b2a32fb8260fc7f9a7d9cd1eac1b588aa22c54a350e54964a893b80e77c4",
 }
@@ -138,42 +138,25 @@ def offerings(input_: dict[str, Any]) -> list[SubscriptionOffering]:
             SubscriptionOffering.from_offering(
                 wire,
                 period_timezone=resolved,
-                available_from=at(wire.get("available_from")),
-                withdrawn_at=at(wire.get("withdrawn_at")),
             )
         )
     return result
 
 
 def buys(input_: dict[str, Any]) -> list[SubscriptionBuy]:
+    """Each buy as ``get_media_buys`` returns it (every input field is on the wire)."""
     result = []
     for buy in input_["buys"]:
-        result.append(
-            SubscriptionBuy(
-                media_buy_id=buy["media_buy_id"],
-                confirmed_at=at(buy.get("confirmed_at")),
-                start_time=at(buy["start_time"]),
-                end_time=at(buy["end_time"]),
-                canceled_at=at(buy.get("canceled_at")),
-                completed_at=at(buy.get("completed_at")),
-                packages=tuple(
-                    SubscriptionBuyPackage(
-                        item["package_id"], tuple(item["reporting_delivery_offering_ids"])
-                    )
-                    for item in buy["packages"]
-                ),
-                superseded_flights=tuple(
-                    SubscriptionBuyFlight(
-                        superseded_at=at(flight["replaced_at"]),
-                        start_time=at(flight["start_time"]),
-                        end_time=at(flight["end_time"]),
-                        canceled_at=at(flight.get("canceled_at")),
-                        completed_at=at(flight.get("completed_at")),
-                    )
-                    for flight in buy.get("prior_flights", ())
-                ),
-            )
-        )
+        media_buy = {
+            key: value
+            for key, value in buy.items()
+            if key not in {"canceled_at", "cancellation_effective_at"}
+        }
+        if "canceled_at" in buy:
+            media_buy["cancellation"] = {"canceled_at": buy["canceled_at"]}
+        if "cancellation_effective_at" in buy:
+            media_buy["cancellation_effective_at"] = buy["cancellation_effective_at"]
+        result.append(SubscriptionBuy.from_media_buy(media_buy))
     return result
 
 
@@ -206,6 +189,7 @@ def rows(owed) -> list[tuple]:
             p.offering_id.encode(),
             media_buy_id.encode(),
             at(p.period_end),
+            p.stub,
         )
         for p in owed
         for media_buy_id in p.media_buy_ids
@@ -234,6 +218,7 @@ def test_spec_vectors(case: dict[str, Any]) -> None:
             row["offering_id"].encode(),
             row["media_buy_id"].encode(),
             at(row["period_end"]),
+            row.get("stub", False),
         )
         for row in case["expected"]
     ]
@@ -246,6 +231,7 @@ def test_spec_vectors(case: dict[str, Any]) -> None:
                 p.offering_id,
                 at(p.period_start),
                 at(p.period_end),
+                p.stub,
                 list(p.media_buy_ids),
             )
             for p in owed
@@ -256,31 +242,75 @@ def test_spec_vectors(case: dict[str, Any]) -> None:
                 item["offering_id"],
                 at(item["period_start"]),
                 at(item["period_end"]),
+                item.get("stub", False),
                 item["media_buy_ids"],
             )
             for item in case["expected_obligations"]
         ], case.get("rule")
 
 
-def test_every_vector_subscription_is_schema_valid() -> None:
-    """Each vector's subscriptions validate against core/reporting-subscription.json."""
+def _wire_errors(validator, value) -> list[str]:
+    # The dimension vocabulary is x-extensible: receivers MUST accept values
+    # the enum does not list.
+    return [
+        error.message
+        for error in validator.iter_errors(value)
+        if not (
+            error.validator == "enum"
+            and any("dimensions" in str(part) for part in error.absolute_path)
+        )
+    ]
+
+
+def test_every_vector_wire_object_is_schema_valid() -> None:
+    """Each input's wire objects validate against the 3.3.0-beta.3 schemas.
+
+    Subscriptions against ``core/reporting-subscription.json``, offerings
+    (with ``available_from`` / ``withdrawn_at``) against
+    ``core/reporting-delivery-offering.json``, and each buy's
+    ``flight_history`` against ``core/media-buy.json`` (adcp#8618): every
+    input a buyer needs is on the wire.
+    """
     from adcp.validation import schema_loader
 
-    validator = schema_loader.get_named_validator(
-        "core/reporting-subscription.json", version="3.3.0-beta.1"
+    version = "3.3.0-beta.3"
+    subscription = schema_loader.get_named_validator(
+        "core/reporting-subscription.json", version=version
     )
+    offering = schema_loader.get_named_validator(
+        "core/reporting-delivery-offering.json", version=version
+    )
+    flight_history = schema_loader.get_named_validator(
+        "core/media-buy.json", version=version
+    ).evolve(schema={"$ref": "#/properties/flight_history"})
     for case in CASES:
+        input_ = case["input"]
+        errors = [
+            *(
+                (f"versions[{index}]", _wire_errors(subscription, item["configuration"]))
+                for index, item in enumerate(input_["versions"])
+            ),
+            *(
+                (f"offerings[{index}]", _wire_errors(offering, item))
+                for index, item in enumerate(input_["offerings"])
+            ),
+            *(
+                (
+                    f"buys[{index}].flight_history",
+                    _wire_errors(flight_history, item["flight_history"]),
+                )
+                for index, item in enumerate(input_["buys"])
+                if "flight_history" in item
+            ),
+        ]
+        failures = [(where, found) for where, found in errors if found]
         if case.get("expected_error", {}).get("wire_valid") is False:
-            continue  # the input deliberately fails AdCP schema validation (P1W)
-        for version in case["input"]["versions"]:
-            errors = [
-                error.message
-                for error in validator.iter_errors(version["configuration"])
-                # The dimension vocabulary is x-extensible: receivers MUST
-                # accept values the beta.1 enum does not list.
-                if not (error.validator == "enum" and "dimensions" in list(error.absolute_path))
-            ]
-            assert errors == [], (case["name"], version["subscription_version"], errors)
+            assert failures, (
+                case["id"],
+                "expected_error.wire_valid is false but every object validates",
+            )
+            continue
+        assert failures == [], (case["id"], failures)
 
 
 def test_error_codes_match_the_frozen_spec_vocabulary() -> None:

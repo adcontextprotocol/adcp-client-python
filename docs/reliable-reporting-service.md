@@ -582,7 +582,9 @@ grant's `authorization.allowed_tasks`.
   - `sync_reporting_status`;
   - `sync_reporting_receipts`.
 
-  A task the grant does not list fails with `ACCOUNT_NOT_FOUND`.
+  A task the grant does not list fails with `SCOPE_INSUFFICIENT` while the
+  grant keeps the account covered (adcp#8619), and with `ACCOUNT_NOT_FOUND`
+  once no covering grant is held.
 - There is no window after a loss of authority: a revoked account is unknown to
   every task, receipts and statuses included.
 - To let a buyer finish reconciliation, keep a reduced grant (for example
