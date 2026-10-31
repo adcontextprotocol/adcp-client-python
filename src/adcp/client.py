@@ -4453,8 +4453,10 @@ class ADCPClient:
         allow_revocation: bool = False,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncPrincipalResponse]:
-        """Declaratively replace selected authenticated-principal configuration.
+        """Replaces each submitted section. To add a reporting subscription, use
+        ``client.reporting.subscribe``.
 
+        Declaratively replaces selected authenticated-principal configuration.
         Each section is complete desired state: a subscription missing from
         ``reporting_subscriptions`` is deactivated, and a destination missing
         from ``reporting_destinations`` is revoked for every account. To add

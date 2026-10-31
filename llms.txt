@@ -72,6 +72,26 @@ surface cannot bind. NEVER import `adcp.types._generated`, and never pin a
 numbered class name (`Assets162`) — those renumber on every schema regen.
 `import adcp` is lightweight; the pydantic type graph builds on first type use.
 
+## Reporting subscriptions (AdCP 3.3, experimental)
+Buyer calls: `client.reporting.subscribe(sub, register_destination=...)`,
+`client.reporting.unsubscribe(id)`, `client.reporting.list_subscriptions()`,
+`client.reporting.preview(sub)`, `client.accounts.ensure(key, ...)` (returns
+`AccountReady | AccountPending | AccountAmbiguous | AccountRejected`).
+Seller block: `ReliableReportingService(storage=..., subscriptions=SubscriptionOptions(...))`
+then `reporting.install(platform)`. Guides: docs/reporting-subscriptions-seller.md,
+docs/reporting-subscriptions-buyer.md.
+
+- DO add or change one subscription with `client.reporting.subscribe`. DON'T send
+  raw `sync_principal` with one subscription: each section replaces the whole set.
+- DON'T pick `subscription_version` yourself: `subscribe` chooses it.
+- DO send an explicit scope: `{"all_authorized_accounts": True}` or `{"account_ids": [...]}`.
+- DON'T compute reporting periods with local time; use
+  `expected_subscription_periods` (and, later, `client.reporting.reconcile`).
+- DO switch on `next_step(outcome)` for accounts. DON'T fetch
+  `pending_action.url`: show it to a person.
+- Sellers: DON'T call `engine.reconcile` from request handlers; the service
+  schedules it. DO end relationships with `wind_down_grant()`, not revocation.
+
 ## Validation
 ```bash
 pytest tests/ -v          # Tests
