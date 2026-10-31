@@ -2269,7 +2269,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
-            response = reporting.inject_capabilities(response)
+            response = reporting.inject_capabilities(
+                response,
+                adcp_version=context.resolved_adcp_version if context is not None else None,
+            )
 
         await validate_status_claims(response, support=self._reporting_status, handler=self)
 

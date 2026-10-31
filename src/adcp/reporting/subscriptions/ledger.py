@@ -29,7 +29,7 @@ Each generation holds an owed set, never a period grid:
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -51,7 +51,12 @@ from adcp.reporting.subscriptions._clock import parse_delivery_sla, utc_instant
 from adcp.reporting.subscriptions.coverage import ExpectedSubscriptionPeriod
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering, _text, _value
 
-CurrencyResolver = Callable[[str], str]
+#: The frozen reporting currency of one generation, as its account context gives it.
+CurrencyResolver = Callable[[ReportingConfiguration], str]
+#: Installs one generation through the host's trusted path (for example
+#: ``ReliableReportingService``, which resolves and validates the account
+#: context and persists the generation). Defaults to ``put_configuration``.
+GenerationInstaller = Callable[[ReportingConfiguration], Awaitable[None]]
 
 
 @dataclass(frozen=True)
@@ -144,9 +149,11 @@ def subscription_schedule(offering: SubscriptionOffering, zone: str) -> Reportin
 class SubscriptionObligationPlanner:
     """Install owed-set generations and write their frozen obligations.
 
-    ``currency`` gives each account's frozen reporting currency (a code or a
-    resolver). ``definitions`` binds offerings to their content-addressed
-    report definitions; a seller advertising ``reporting.core`` supplies them.
+    ``currency`` gives each generation's frozen reporting currency (a code,
+    or a resolver called after the generation is installed). ``definitions``
+    binds offerings to their content-addressed report definitions; a seller
+    advertising ``reporting.core`` supplies them. ``install`` replaces the
+    plain ``put_configuration`` with the host's trusted installation path.
     """
 
     def __init__(
@@ -158,6 +165,7 @@ class SubscriptionObligationPlanner:
         definitions: Mapping[str, ReportingDefinitionBinding] | None = None,
         automated_recovery_window: timedelta = timedelta(hours=6),
         status_retention_days: int = 400,
+        install: GenerationInstaller | None = None,
     ) -> None:
         if not isinstance(store, ReportingSubscriptionLedger):
             raise TypeError(
@@ -171,9 +179,10 @@ class SubscriptionObligationPlanner:
         self._definitions = dict(definitions or {})
         self._window = automated_recovery_window
         self._retention_days = status_retention_days
+        self._install = install or store.put_configuration
 
-    def _currency_for(self, account_id: str) -> str:
-        value = self._currency if isinstance(self._currency, str) else self._currency(account_id)
+    def _currency_for(self, configuration: ReportingConfiguration) -> str:
+        value = self._currency if isinstance(self._currency, str) else self._currency(configuration)
         return validate_currency(value)
 
     def _configuration(
@@ -212,14 +221,22 @@ class SubscriptionObligationPlanner:
             ),
         )
 
-    async def plan(self, owed: FrozenOwedSet) -> SubscriptionPlanResult:
+    async def plan(
+        self, owed: FrozenOwedSet, *, through: datetime | None = None
+    ) -> SubscriptionPlanResult:
         """Install generations, write new obligations, then advance completeness.
+
+        ``through`` caps the engine's horizon (a service passes its cycle
+        clock), so nothing past it is written or claimed complete.
 
         Idempotent: a repeated cycle writes nothing new. A generation whose
         content would change (an offering edited under the same id) raises the
         store's immutability conflict instead of silently diverging.
         """
-        through = utc_instant(owed.through, field="through")
+        horizon = utc_instant(owed.through, field="through")
+        if through is not None:
+            horizon = min(horizon, utc_instant(through, field="through"))
+        through = horizon
         installed: dict[ReportingConfigurationGenerationKey, ReportingConfiguration] = {}
         written: list[str] = []
         for period in owed.periods:
@@ -234,7 +251,7 @@ class SubscriptionObligationPlanner:
             )
             key = configuration.generation_key
             if key not in installed:
-                await self._store.put_configuration(configuration)
+                await self._install(configuration)
                 installed[key] = configuration
             existing = await self._store.find_obligation(
                 account_id=owed.account_id,
@@ -280,7 +297,7 @@ class SubscriptionObligationPlanner:
                 automated_recovery_deadline_at=expected_at + self._window,
                 schedule=configuration.schedule,
                 definition=configuration.definition,
-                currency=self._currency_for(owed.account_id),
+                currency=self._currency_for(configuration),
                 offering_id=offering.offering_id,
             )
             stored = await self._store.commit_obligation(obligation)
@@ -304,6 +321,7 @@ class SubscriptionObligationPlanner:
 __all__ = [
     "CurrencyResolver",
     "FrozenOwedSet",
+    "GenerationInstaller",
     "SubscriptionObligationPlanner",
     "SubscriptionPlanResult",
     "subscription_obligation_id",

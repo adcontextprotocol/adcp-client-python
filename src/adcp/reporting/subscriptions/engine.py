@@ -571,6 +571,15 @@ class ReportingSubscriptionEngine:
     def support(self) -> ReportingSubscriptionSupport:
         return self._support
 
+    @property
+    def offerings(self) -> tuple[SubscriptionOffering, ...]:
+        """The offerings subscriptions resolve against, with their dimension mappings."""
+        return self._offerings
+
+    @property
+    def status_retention_days(self) -> int:
+        return self._retention_days
+
     def principal_options(
         self, *, delivery_config_ids: DeliveryConfigIdsHook | None = None
     ) -> ReportingSubscriptionOptions:
