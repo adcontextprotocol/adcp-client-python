@@ -1,5 +1,65 @@
 # Changelog
 
+## [10.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.3...v10.0.0-beta.4) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.2. get_supported_adcp_versions is 3.0, 3.1, 3.2, 3.3-beta.3 and 3.2-rc.7; an adcp_version pin of 3.3-beta.2 or 3.3.0-beta.2 raises ConfigurationError, and a peer that advertises only 3.3-beta.2 for the 3.3 line negotiates down to 3.2. Re-pin to 3.3-beta.3 or omit the pin. adcp.reporting.subscriptions drops project_offering, project_reporting_delivery, project_subscription_state, project_subscription_coverage and serves_settled_subscription_fields, and ReportingSubscriptionEngine.subscription_coverage no longer takes adcp_version. The generated PriorVersion, AccountsWithException and AccountsUnauthorizedItem are now ReportingSubscriptionPriorVersion, ReportingSubscriptionAccountExceptions and ReportingSubscriptionUnauthorizedAccount.
+* **accounts:** AccountRegistry.ensure returns an AccountOutcome instead of an AccountRecord, billing= is optional and required only on the sync_accounts path, and a failed or rejected row is returned as AccountRejected instead of raised. AccountReady keeps account_id and status.
+
+### Features
+
+* **accounts:** ensure returns an AccountOutcome and routes to request_account ([406a58d](https://github.com/adcontextprotocol/adcp-client-python/commit/406a58dc062c996f370680192a086c6cb0588e61)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **client:** mark local refusals as undispatched and classify every error's recovery ([63d6ad0](https://github.com/adcontextprotocol/adcp-client-python/commit/63d6ad0722ca58282176651541964a6366161867))
+* **protocol:** adopt the signed AdCP 3.3.0-beta.3 bundle ([cd92060](https://github.com/adcontextprotocol/adcp-client-python/commit/cd920600706d3dec6d66e37db9ca68afc8820d94))
+* **reporting-storage:** deliver reporting subscriptions through the PostgreSQL production store ([333772f](https://github.com/adcontextprotocol/adcp-client-python/commit/333772fafca5fc14b6ee6be4d7937757ff3550d3))
+* **reporting-storage:** one storage decision with versioned migrations ([c0753d6](https://github.com/adcontextprotocol/adcp-client-python/commit/c0753d6ef5a5794905892668b6b9745fc9f24dd2))
+* **reporting-storage:** one storage decision with versioned migrations ([99fe10b](https://github.com/adcontextprotocol/adcp-client-python/commit/99fe10b2c4e7e434040ac53b1fc7fcf3fd8ce780)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** add the buyer write facade and guard raw sync_principal ([a161a2d](https://github.com/adcontextprotocol/adcp-client-python/commit/a161a2d0ade374eccdc66e92079423fef0030199))
+* **reporting:** apply the AdCP 3.3.0-beta.3 seller rules for subscriptions ([fc81bd2](https://github.com/adcontextprotocol/adcp-client-python/commit/fc81bd28a98a0bc7f76ee49c65c9a8bb29bdaa72))
+* **reporting:** apply the AdCP 3.3.0-beta.3 seller rules for subscriptions ([650d155](https://github.com/adcontextprotocol/adcp-client-python/commit/650d15584d8987e3441dd36eadfc843104f8d3f4))
+* **reporting:** check reporting tasks against the current subscription grant ([d34633c](https://github.com/adcontextprotocol/adcp-client-python/commit/d34633c7945bd8119cf501238aa9f7ac0ce1d9f3))
+* **reporting:** conform subscription coverage to the AdCP 3.3.0-beta.3 rules ([aefb17c](https://github.com/adcontextprotocol/adcp-client-python/commit/aefb17ca36d540904501835dafd3075e1b3b0084))
+* **reporting:** conform subscription coverage to the AdCP 3.3.0-beta.3 rules ([97f555a](https://github.com/adcontextprotocol/adcp-client-python/commit/97f555ac2ff556f5e943e9c285062cd00bbb1544))
+* **reporting:** deliver reporting subscriptions through production managed delivery ([6015c72](https://github.com/adcontextprotocol/adcp-client-python/commit/6015c72582809c589b3134e98fb0ac5e72ed4c7b))
+* **reporting:** fail closed on a coverage period budget ([330ba77](https://github.com/adcontextprotocol/adcp-client-python/commit/330ba77f261b66ed3478c84ba9af249ebee9c5e2))
+* **reporting:** fail closed on a coverage period budget ([b502e8e](https://github.com/adcontextprotocol/adcp-client-python/commit/b502e8e51a4325dd0cc78b1e451ebdca1069065b)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** hold reporting-subscription owed sets in the PostgreSQL ledger ([4808ee5](https://github.com/adcontextprotocol/adcp-client-python/commit/4808ee59f62d41c4988fefd792262838671a32dc))
+* **reporting:** hold reporting-subscription owed sets in the reporting ledger ([e71bd79](https://github.com/adcontextprotocol/adcp-client-python/commit/e71bd79e31c8b5801057b7e3e9fdbf36dc3f67df))
+* **reporting:** make the grant journal the one source of authorized_at ([7851c0d](https://github.com/adcontextprotocol/adcp-client-python/commit/7851c0d448f5080e7cc74ff3bcb692afb5b70cb2))
+* **reporting:** make the grant journal the one source of authorized_at ([05ee4d4](https://github.com/adcontextprotocol/adcp-client-python/commit/05ee4d4bab97092284989d79d4fdefa2eaa49ab9)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** mirror the TypeScript SDK's advanced path, engine errors and readback name ([1b8f704](https://github.com/adcontextprotocol/adcp-client-python/commit/1b8f7040b8127584288b940e89d2b62a52f4f763))
+* **reporting:** mirror the TypeScript SDK's advanced path, engine errors and readback name ([f5c119d](https://github.com/adcontextprotocol/adcp-client-python/commit/f5c119da9e67ecf85fe071bdef43e26cd4b63742)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** mirror the TypeScript SDK's beta.3 names and the wire regranted_at ([5925a3a](https://github.com/adcontextprotocol/adcp-client-python/commit/5925a3a6027182ce6d342fef8b1a422ebc7678f0))
+* **reporting:** read deactivated subscriptions as inactive in coverage ([e840da8](https://github.com/adcontextprotocol/adcp-client-python/commit/e840da86b66f7db94b9afa9e6f5ef398f734cc47))
+* **reporting:** route destinations per account as the TypeScript SDK does ([1a34cfa](https://github.com/adcontextprotocol/adcp-client-python/commit/1a34cfa20bdd6983ee3a4b6a6a517ad69f0c5e37))
+* **reporting:** serve reporting subscriptions from one SubscriptionOptions block ([3288d05](https://github.com/adcontextprotocol/adcp-client-python/commit/3288d05d4abc9da30941f8110bcd2402c62a5e60))
+* **reporting:** serve reporting subscriptions from ReliableReportingService ([f2559ca](https://github.com/adcontextprotocol/adcp-client-python/commit/f2559cadb50f1bb9a0617e051750315925d084b8))
+* **reporting:** subscription rows carry account_id and delivery re-checks authority ([e5d1c9a](https://github.com/adcontextprotocol/adcp-client-python/commit/e5d1c9a6974078f8f31921dc7afe4cac4e61372f))
+* **reporting:** use owed and list_subscription_principals, as the TypeScript SDK does ([0a4e101](https://github.com/adcontextprotocol/adcp-client-python/commit/0a4e10125c4e1bb09878bbc2dda9dbf9987d0a72))
+* **reporting:** use owed and list_subscription_principals, as the TypeScript SDK does ([268789b](https://github.com/adcontextprotocol/adcp-client-python/commit/268789ba5d7e0ed73d6fd46286f929fbbdb5c692)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+
+
+### Bug Fixes
+
+* **accounts:** compare normalized pending actions in refresh ([7873bac](https://github.com/adcontextprotocol/adcp-client-python/commit/7873bac850877243ebe0aea6153c93c15394d4a2)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **accounts:** read requests back by request_ids and dedupe across instances ([e779518](https://github.com/adcontextprotocol/adcp-client-python/commit/e779518ae362657b125eb60a8ec70a5fc1976411)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **canonical-formats:** forward projection and narrowing repairs to next ([#1759](https://github.com/adcontextprotocol/adcp-client-python/issues/1759)) ([d005f95](https://github.com/adcontextprotocol/adcp-client-python/commit/d005f959d7b08a5b2320717ba45b50e20e7caf7d))
+* **codegen:** generate the composed envelope layout of adcp[#8547](https://github.com/adcontextprotocol/adcp-client-python/issues/8547) ([#1741](https://github.com/adcontextprotocol/adcp-client-python/issues/1741)) ([9a3bc5f](https://github.com/adcontextprotocol/adcp-client-python/commit/9a3bc5fe4382c71d0952f153de943a3c14c55644))
+* **codegen:** keep the controller task_id bounds and the governance corpus valid ([3b01fab](https://github.com/adcontextprotocol/adcp-client-python/commit/3b01fab83d1bffc5e7c1b3bbfd961fdc74244773))
+* **decisioning:** type the managed principal task parameters ([7fc664a](https://github.com/adcontextprotocol/adcp-client-python/commit/7fc664af01fbca75995c087397b1230aa64b9e4d)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **protocol:** serve the composed envelope on compact responses at 3.3.0-beta.3 ([a81b6e4](https://github.com/adcontextprotocol/adcp-client-python/commit/a81b6e42b4a1370894ca9e62459785453e569df2))
+* **reporting-storage:** keep adcp free of imports of the storage distribution ([7dc6905](https://github.com/adcontextprotocol/adcp-client-python/commit/7dc6905e75b8d9c4cc346207dc16faaa43dcb115)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** count a rejected authorized_at once and refuse buys of the wrong shape ([258b435](https://github.com/adcontextprotocol/adcp-client-python/commit/258b435fa74274ce17c3e09966b3ae42e53736f2)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** observe a served account page in one journal write ([5e23835](https://github.com/adcontextprotocol/adcp-client-python/commit/5e23835c3b29465f4faee65b97cf3c1d7304549d)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** observe a served authorization that lists no tasks ([14be044](https://github.com/adcontextprotocol/adcp-client-python/commit/14be0440fbc849e42268310657febe65ee9429f2)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** parse wire instants with 1-6 fractional digits on Python 3.10 ([8495b17](https://github.com/adcontextprotocol/adcp-client-python/commit/8495b1788803e990764942ee5d0ff7ece4d0d508)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** run write triggers off the request path and bound platform reads ([a4c9b6b](https://github.com/adcontextprotocol/adcp-client-python/commit/a4c9b6bad811405eb9f4e2e7f017303dcd6d781e)), closes [#1695](https://github.com/adcontextprotocol/adcp-client-python/issues/1695)
+* **reporting:** serve readback counts the 3.3.0-beta.3 state schema requires ([79e8960](https://github.com/adcontextprotocol/adcp-client-python/commit/79e89606873329977ba16c7df591bd94f7d2e7d7))
+* **reporting:** warn on a managed offering whose rows omit account_id ([26f818a](https://github.com/adcontextprotocol/adcp-client-python/commit/26f818a402f717cb3e6d830f1c8d50168b5f6b33))
+* **webhooks:** carry the task status on webhook results at 3.3.0-beta.3 ([2a965b6](https://github.com/adcontextprotocol/adcp-client-python/commit/2a965b6fcb0b0f97619853f3e45f8b0d9603193e))
+
 ## [10.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.2...v10.0.0-beta.3) (2026-10-30)
 
 
