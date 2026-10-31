@@ -90,6 +90,17 @@ class AccountReady:
 
     ``status`` is the account's status, which may still need buyer action
     before spend (``payment_required``, for example).
+
+    On the ``request_account`` path (AdCP 3.3.0-beta.3, adcp#8620):
+
+    * ``resolution`` is ``matched``, ``created`` or ``updated``. A matched or
+      created account carries its own money terms (:attr:`billing`,
+      :attr:`billing_entity`, :attr:`payment_terms`), which can differ from
+      the terms requested: read them before spending.
+    * ``effective_at`` is when changed money terms take effect on an updated
+      account; delivery before it is invoiced under the previous terms.
+    * ``not_carried_over`` names the account-level configurations a separate
+      new account (a change resolved as ``created``) does not have.
     """
 
     account_id: str | None
@@ -98,6 +109,24 @@ class AccountReady:
     request_id: str | None = None
     account: Mapping[str, Any] | None = None
     kind: Literal["ready"] = "ready"
+    resolution: str | None = None
+    effective_at: str | None = None
+    not_carried_over: tuple[str, ...] = ()
+
+    @property
+    def billing(self) -> Any:
+        """The account's ``billing`` (who is invoiced), as the seller resolved it."""
+        return None if self.account is None else self.account.get("billing")
+
+    @property
+    def billing_entity(self) -> Any:
+        """The account's ``billing_entity``, without write-only fields."""
+        return None if self.account is None else self.account.get("billing_entity")
+
+    @property
+    def payment_terms(self) -> Any:
+        """The account's ``payment_terms``, as the seller resolved them."""
+        return None if self.account is None else self.account.get("payment_terms")
 
 
 @dataclass(frozen=True)

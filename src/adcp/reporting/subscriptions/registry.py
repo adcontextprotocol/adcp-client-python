@@ -21,12 +21,17 @@ fails. It enforces what the generated model cannot express (the schema's
   ``file_transfer``), and shared templates differ;
 * ``subscription_id`` values are unique and never equal a ``delivery_config_id``
   the caller uses through ``sync_accounts``;
-* two active subscriptions at the same scope level may not both apply to one
-  account and ``feed_purpose``.
+* two active billing subscriptions at the same scope level may not both apply
+  to one account; pacing and analytics allow several (adcp#8619);
+* every ``destination_overrides[].destination_id`` names a destination that
+  exists after the same request applies, and overrides follow the
+  ``path_template`` rules of the destinations they route to.
 
 Versioning: a ``subscription_version`` is immutable. Resending it with
-different semantic content is rejected; ``active`` and
-``replace_account_configs`` change in place. A higher version records its own
+different semantic content is rejected; ``active``,
+``replace_account_configs`` and the membership (``scope.account_ids`` and
+``exclude_account_ids``, adcp#8619) change in place. The engine records each
+membership edit per account as ``excluded_by_buyer`` intervals. A higher version records its own
 ``accepted_at`` and moves the old one to ``prior_versions`` with
 ``superseded_at``. Omitting a subscription, or ``active: false``, deactivates
 it at ``deactivated_at``; it stays readable as ``inactive``.
@@ -79,11 +84,27 @@ def _semantic(configuration: Mapping[str, Any]) -> dict[str, Any]:
     payload = {key: value for key, value in configuration.items() if key not in _IN_PLACE_FIELDS}
     scope = dict(payload.get("scope") or {})
     if "account_ids" in scope:
-        scope["account_ids"] = sorted(scope["account_ids"])
+        # adcp#8619: membership edits apply in place; only the scope kind counts.
+        scope["account_ids"] = []
     payload["scope"] = scope
-    for name in ("exclude_account_ids", "operator_domains"):
-        if name in payload:
-            payload[name] = sorted(payload[name])
+    payload.pop("exclude_account_ids", None)
+    if "operator_domains" in payload:
+        payload["operator_domains"] = sorted(payload["operator_domains"])
+    if "destination_overrides" in payload:
+        payload["destination_overrides"] = sorted(
+            (
+                {
+                    **item,
+                    **{
+                        name: sorted(item[name])
+                        for name in ("account_ids", "operator_domains")
+                        if name in item
+                    },
+                }
+                for item in payload["destination_overrides"]
+            ),
+            key=lambda item: (item["destination_id"], str(item)),
+        )
     selector = dict(payload.get("selector") or {})
     if "dimensions" in selector:
         selector["dimensions"] = sorted(selector["dimensions"])
@@ -174,12 +195,32 @@ def _validate_one(
         raise ReportingSubscriptionValidationError(
             f"{where}: consumer_receipt requires a destination"
         )
+    for override_index, override in enumerate(configuration.get("destination_overrides") or ()):
+        _validate_destination(
+            override,
+            f"{where}.destination_overrides[{override_index}]",
+            configuration,
+            destinations,
+        )
     if destination is None:
+        if configuration.get("destination_overrides"):
+            raise ReportingSubscriptionValidationError(
+                f"{where}.destination_overrides needs a destination for the other accounts"
+            )
         return
+    _validate_destination(destination, f"{where}.destination", configuration, destinations)
+
+
+def _validate_destination(
+    destination: Mapping[str, Any],
+    where: str,
+    configuration: Mapping[str, Any],
+    destinations: Mapping[str, Mapping[str, Any]],
+) -> None:
     target = destinations.get(destination["destination_id"])
     if target is None:
         raise ReportingSubscriptionValidationError(
-            f"{where}.destination.destination_id {destination['destination_id']!r} is not in "
+            f"{where}.destination_id {destination['destination_id']!r} is not in "
             "reporting_destinations after this request"
         )
     template = destination.get("path_template")
@@ -187,36 +228,47 @@ def _validate_one(
         unknown = {name for name in _PLACEHOLDER.findall(template)} - _ALLOWED_PLACEHOLDERS
         if unknown:
             raise ReportingSubscriptionValidationError(
-                f"{where}.destination.path_template uses unknown placeholders {sorted(unknown)}"
+                f"{where}.path_template uses unknown placeholders {sorted(unknown)}"
             )
         if "{" in _PLACEHOLDER.sub("", template) or "}" in _PLACEHOLDER.sub("", template):
             raise ReportingSubscriptionValidationError(
-                f"{where}.destination.path_template has braces outside a placeholder"
+                f"{where}.path_template has braces outside a placeholder"
             )
-    if _multi_account(configuration):
+    overrides = configuration.get("destination_overrides") or ()
+    if any(destination is item for item in overrides):
+        # An override routes only the accounts it names.
+        routes_many = len(destination.get("account_ids") or ()) > 1 or bool(
+            destination.get("operator_domains")
+        )
+    else:
+        routes_many = _multi_account(configuration)
+    if routes_many:
         pattern = (target.get("configuration") or target).get("pattern")
         if template is None and pattern == "file_transfer":
             raise ReportingSubscriptionValidationError(
-                f"{where}.destination.path_template is required for a multi-account "
-                "file_transfer subscription"
+                f"{where}.path_template is required for a multi-account file_transfer subscription"
             )
         if template is not None and "{account_id}" not in template:
             raise ReportingSubscriptionValidationError(
-                f"{where}.destination.path_template must contain {{account_id}} when the "
+                f"{where}.path_template must contain {{account_id}} when the "
                 "scope can cover more than one account"
             )
 
 
 def _validate_set(active: Sequence[dict[str, Any]], destinations: Mapping[str, Any]) -> None:
-    by_destination: dict[str, list[dict[str, Any]]] = {}
+    by_destination: dict[str, list[Mapping[str, Any]]] = {}
     for configuration in active:
-        destination = configuration.get("destination")
-        if destination is not None:
-            by_destination.setdefault(destination["destination_id"], []).append(configuration)
+        routes = [
+            configuration.get("destination"),
+            *(configuration.get("destination_overrides") or ()),
+        ]
+        for route in routes:
+            if route is not None:
+                by_destination.setdefault(route["destination_id"], []).append(route)
     for destination_id, sharing in by_destination.items():
         if len(sharing) < 2:
             continue
-        templates = [(item.get("destination") or {}).get("path_template") for item in sharing]
+        templates = [item.get("path_template") for item in sharing]
         if any(template is None or "{account_id}" not in template for template in templates):
             raise ReportingSubscriptionValidationError(
                 f"active subscriptions sharing destination {destination_id!r} must each have a "
@@ -229,13 +281,17 @@ def _validate_set(active: Sequence[dict[str, Any]], destinations: Mapping[str, A
             )
     for first_index, first in enumerate(active):
         for second in active[first_index + 1 :]:
-            if first["selector"]["feed_purpose"] != second["selector"]["feed_purpose"]:
+            # adcp#8619: pacing and analytics allow several subscriptions per
+            # account and purpose; billing stays one per account per level.
+            if first["selector"]["feed_purpose"] != "billing":
+                continue
+            if second["selector"]["feed_purpose"] != "billing":
                 continue
             if _same_level_overlap(first, second):
                 raise ReportingSubscriptionValidationError(
-                    f"active subscriptions {first['subscription_id']!r} and "
-                    f"{second['subscription_id']!r} would both apply to one account and "
-                    "feed_purpose at the same scope level"
+                    f"active billing subscriptions {first['subscription_id']!r} and "
+                    f"{second['subscription_id']!r} would both apply to one account at the "
+                    "same scope level"
                 )
 
 

@@ -109,6 +109,11 @@ NotificationProofHook = Callable[
     [PrincipalIdentity, AgentNotificationConfig], Awaitable[AgentNotificationConfigState]
 ]
 DeliveryConfigIdsHook = Callable[[PrincipalIdentity], Awaitable[Collection[str]]]
+#: The full ``accounts_with_exceptions``, ``accounts_unauthorized`` or
+#: ``prior_versions`` list of one subscription, for ``reporting_subscription_page``.
+SubscriptionListHook = Callable[
+    [PrincipalIdentity, str, str], Awaitable["Sequence[Mapping[str, Any]] | None"]
+]
 SubscriptionVersionsHook = Callable[
     [PrincipalIdentity, Sequence[ReportingSubscriptionState]], Awaitable[None]
 ]
@@ -134,6 +139,9 @@ class ReportingSubscriptionOptions:
     #: (an engine built with ``end_account_configs``) sets this; otherwise the
     #: flag is refused with ``UNSUPPORTED_FEATURE``.
     replace_account_configs: bool = False
+    #: The full list behind an inline readback list (adcp#8619); without it,
+    #: ``reporting_subscription_page`` pages the inline list.
+    subscription_list: SubscriptionListHook | None = None
 
 
 @dataclass
@@ -572,7 +580,92 @@ class PrincipalService:
                     "context": request.context,
                 }
             )
-        return self._current_response(record, context=request.context)
+        response = self._current_response(record, context=request.context)
+        page = getattr(request, "reporting_subscription_page", None)
+        if page is None:
+            return response
+        return await self._subscription_page(identity, record, response, page, request.context)
+
+    async def _subscription_page(
+        self,
+        identity: PrincipalIdentity,
+        record: PrincipalRecord,
+        response: GetPrincipalResponse,
+        page: Any,
+        context: object | None,
+    ) -> GetPrincipalResponse:
+        """One page of a subscription's readback list (adcp#8619)."""
+        request = page.model_dump(mode="json", exclude_none=True)
+        subscription_id = request["subscription_id"]
+        list_name = request["list"]
+        assert record.configuration is not None
+        state = next(
+            (
+                item
+                for item in record.configuration.reporting_subscriptions or ()
+                if item.subscription_id == subscription_id
+            ),
+            None,
+        )
+        if state is None:
+            return GetPrincipalResponse.model_validate(
+                {
+                    "status": "failed",
+                    "result": {
+                        "kind": "failed",
+                        "errors": [
+                            {
+                                "code": "INVALID_REQUEST",
+                                "message": f"unknown reporting subscription {subscription_id!r}",
+                                "field": "reporting_subscription_page.subscription_id",
+                            }
+                        ],
+                    },
+                    "context": context,
+                }
+            )
+        hook = self._subscriptions.subscription_list if self._subscriptions else None
+        items = None if hook is None else await hook(identity, subscription_id, list_name)
+        if items is None:
+            dumped = state.model_dump(mode="json", exclude_none=True)
+            items = dumped.get(list_name) or []
+        pagination = request.get("pagination") or {}
+        limit = int(pagination.get("max_results") or 50)
+        cursor = pagination.get("cursor")
+        try:
+            offset = int(cursor) if cursor else 0
+        except ValueError:
+            offset = -1
+        if offset < 0 or offset > len(items):
+            return GetPrincipalResponse.model_validate(
+                {
+                    "status": "failed",
+                    "result": {
+                        "kind": "failed",
+                        "errors": [
+                            {
+                                "code": "INVALID_REQUEST",
+                                "message": "reporting_subscription_page.pagination.cursor is "
+                                "not a cursor this seller issued",
+                                "field": "reporting_subscription_page.pagination.cursor",
+                            }
+                        ],
+                    },
+                    "context": context,
+                }
+            )
+        following = offset + limit
+        page_payload: dict[str, Any] = {
+            "subscription_id": subscription_id,
+            "list": list_name,
+            list_name: [dict(item) for item in items[offset:following]],
+            "pagination": {"has_more": following < len(items), "total_count": len(items)},
+        }
+        if following < len(items):
+            page_payload["pagination"]["cursor"] = str(following)
+        envelope = response.model_dump(mode="json", exclude_none=True)
+        envelope["reporting_subscription_page"] = page_payload
+        return GetPrincipalResponse.model_validate(envelope)
 
     async def sync_principal(
         self,

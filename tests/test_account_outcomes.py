@@ -94,6 +94,63 @@ async def test_requests_route_to_request_account_and_resolve_ready() -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_matched_account_carries_its_own_money_terms() -> None:
+    # adcp#8620: a matched or created account carries the account's money
+    # terms, which can differ from the terms requested.
+    client = _requests_client(
+        _record(
+            "resolved",
+            account_id="acc-1",
+            resolution="matched",
+            account={
+                "account_id": "acc-1",
+                "name": "Acme",
+                "status": "active",
+                "billing": "agent",
+                "payment_terms": "net_45",
+            },
+        )
+    )
+    outcome = await client.accounts.ensure(KEY, billing="operator")
+    assert isinstance(outcome, AccountReady)
+    assert outcome.resolution == "matched"
+    assert (outcome.billing, outcome.payment_terms) == ("agent", "net_45")
+    assert outcome.billing_entity is None
+    assert outcome.effective_at is None and outcome.not_carried_over == ()
+
+
+def test_an_updated_money_change_says_when_it_takes_effect() -> None:
+    from adcp.accounts import _request_outcome
+
+    async def choose(request_id: str, account_id: str):  # pragma: no cover - unused
+        raise AssertionError
+
+    updated = _request_outcome(
+        _record(
+            "resolved",
+            account_id="acc-1",
+            resolution="updated",
+            effective_at="2026-12-01T00:00:00Z",
+            account={"account_id": "acc-1", "name": "Acme", "status": "active"},
+        ),
+        choose=choose,
+    )
+    assert isinstance(updated, AccountReady)
+    assert (updated.resolution, updated.effective_at) == ("updated", "2026-12-01T00:00:00Z")
+    separate = _request_outcome(
+        _record(
+            "resolved",
+            account_id="acc-2",
+            resolution="created",
+            not_carried_over=["notification_configs", "reporting_delivery_configs"],
+            account={"account_id": "acc-2", "name": "Acme EU", "status": "active"},
+        ),
+        choose=choose,
+    )
+    assert separate.not_carried_over == ("notification_configs", "reporting_delivery_configs")
+
+
+@pytest.mark.asyncio
 async def test_pending_is_a_value_and_a_repeat_ensure_never_opens_a_duplicate() -> None:
     client = _requests_client(_record("in_review", pending_action=SIGN_UP))
     outcome = await client.accounts.ensure(KEY)
