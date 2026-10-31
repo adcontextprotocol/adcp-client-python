@@ -683,6 +683,17 @@ def resolve_agent_config(agent_identifier: str) -> dict[str, Any]:
 
 def main() -> None:
     """Main CLI entry point - compatible with JavaScript version."""
+    if len(sys.argv) > 1 and sys.argv[1] == "migrate":
+        # Seller tooling: apply the reporting storage migrations, a command the
+        # adcp-reporting-storage distribution registers.
+        from adcp.storage import _plugin
+
+        try:
+            migrate_main = _plugin("adcp.commands", "migrate")
+        except ImportError as error:
+            print(error, file=sys.stderr)
+            sys.exit(2)
+        sys.exit(migrate_main(sys.argv[2:]))
     parser = argparse.ArgumentParser(
         description="AdCP Client - Interact with AdCP agents",
         usage="adcp [options] <agent> [tool] [payload]",

@@ -482,10 +482,15 @@ class ManagedSubscriptions:
         clock: Callable[[], datetime],
         status_retention_days: int,
         report: Callable[[SubscriptionPlanningFailure], Awaitable[None]],
+        principal_store: PrincipalRecordStore | None = None,
+        state_store: ReportingSubscriptionStateStore | None = None,
     ) -> None:
         if not isinstance(options, SubscriptionOptions):
             raise TypeError("subscriptions must be SubscriptionOptions")
         self.options = options
+        #: The service's storage supplies these when the options do not.
+        self._principal_store = options.principal_store or principal_store
+        self._state_store = options.state_store or state_store
         self._clock = clock
         self._retention_days = status_retention_days
         self._report = report
@@ -554,7 +559,7 @@ class ManagedSubscriptions:
             raise ReliableReportingConfigurationError(str(error)) from None
         if self._principals is None:
             self._principals = PrincipalService(
-                options.principal_store,
+                self._principal_store,
                 emit_change=options.emit_change,
                 accepted_experimental_features=("protocol.principal",),
             )
@@ -565,7 +570,7 @@ class ManagedSubscriptions:
                 offerings=mapped,
                 support=support,
                 status_retention_days=self._retention_days,
-                store=options.state_store,
+                store=self._state_store,
                 clock=self._clock,
                 end_account_configs=options.end_account_configs,
             )

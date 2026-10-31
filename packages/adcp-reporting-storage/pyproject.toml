@@ -63,6 +63,13 @@ azure = [
     "azure-storage-blob>=12.20",
 ]
 
+# adcp discovers these without importing this distribution by name.
+[project.entry-points."adcp.storage"]
+postgres = "adcp_reporting_storage.storage:postgres_storage"
+
+[project.entry-points."adcp.commands"]
+migrate = "adcp_reporting_storage.migrations.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/adcontextprotocol/adcp-client-python"
 Documentation = "https://github.com/adcontextprotocol/adcp-client-python/blob/main/packages/adcp-reporting-storage/README.md"
@@ -85,6 +92,7 @@ adcp_reporting_storage = [
     "production/*.json",
     "production/*.sql",
     "subscriptions/*.sql",
+    "migrations/*.sql",
 ]
 
 # Inside this repository the dependency is the checkout, not PyPI. uv ignores

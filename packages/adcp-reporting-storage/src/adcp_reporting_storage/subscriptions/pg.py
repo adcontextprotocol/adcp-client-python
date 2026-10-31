@@ -24,6 +24,11 @@ version snapshots survive restarts and agree across workers::
             principals=principals, host=..., offerings=..., store=state
         )
 
+With the reporting service, prefer ``adcp.storage.postgres.postgres_storage``,
+which builds both stores (and the ledger) over one pool and checks the schema
+version that ``python -m adcp migrate`` applies; ``create_schema`` remains for
+hand-wired compositions.
+
 Each store keeps one JSONB document per subject and replaces it with a
 single conditional statement on its revision, so the compare-and-swap is
 atomic across every worker sharing the database. The pool is borrowed: the
@@ -70,6 +75,9 @@ def _document(value: Any) -> dict[str, Any]:
 
 
 class _PgDocumentStore:
+    #: Rows survive restarts and are shared by every worker using the database.
+    is_durable = True
+
     def __init__(self, *, pool: AsyncConnectionPool) -> None:
         self._pool = pool
 
@@ -81,6 +89,14 @@ class _PgDocumentStore:
 
 class PgReportingSubscriptionStateStore(_PgDocumentStore):
     """Engine state for reporting subscriptions, one CAS document per principal."""
+
+    async def list_principals(self) -> list[str]:
+        """Every subject with stored state, in subject order (the managed path's roster)."""
+        async with self._pool.connection() as connection:
+            cursor = await connection.execute(
+                "SELECT subject FROM adcp_reporting_subscription_state ORDER BY subject"
+            )
+            return [str(row[0]) for row in await cursor.fetchall()]
 
     async def load(self, subject: str) -> StoredReportingSubscriptionState | None:
         try:

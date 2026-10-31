@@ -1,0 +1,9 @@
+-- adcp-migration: 0003 reporting_ledger_extensions
+-- Obligation currency, reconciliation, the notification outbox, webhook
+-- activity, provisional observations and caller ownership. Online-safe.
+-- include: ledger/reporting_ledger_obligation_currency.sql
+-- include: ledger/reporting_ledger_reconciliation.sql
+-- include: ledger/reporting_notification_outbox.sql
+-- include: ledger/reporting_webhook_activity.sql
+-- include: ledger/reporting_provisional_observations.sql
+-- include: ledger/reporting_caller_ownership.sql

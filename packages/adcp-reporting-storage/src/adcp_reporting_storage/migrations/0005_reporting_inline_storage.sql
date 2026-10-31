@@ -1,0 +1,4 @@
+-- adcp-migration: 0005 reporting_inline_storage
+-- Staged source objects and seals for adapters registered on the service.
+-- Online-safe: the migration is additive.
+-- include: ledger/reporting_inline_storage.sql
