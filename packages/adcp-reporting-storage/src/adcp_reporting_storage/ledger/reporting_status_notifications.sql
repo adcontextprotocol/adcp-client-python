@@ -34,8 +34,9 @@ BEGIN
         lease_expires_at TIMESTAMPTZ,
         PRIMARY KEY (account_id, consumer_namespace, delivery_config_id, version,
                      scope_kind, obligation_namespace),
-        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-            CONSTRAINT reporting_status_scope_checkpoints_account_generation CHECK (offering_id = ''),
+        -- '' for an account-level generation; a reporting subscription's
+        -- generation names its resolved offering (managed delivery).
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         CONSTRAINT reporting_status_scope_checkpoints_generation_fkey
             FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version, offering_id)
             REFERENCES reporting_configurations
@@ -51,6 +52,13 @@ BEGIN
         CHECK (coalesce(scope->>'reporting_obligation_id', '') = obligation_namespace),
         CHECK (snapshot->>'health' IN ('waiting','healthy','delayed','action_required','complete'))
     );
+    -- A schema created by an earlier release refused subscription generations here.
+    IF EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'reporting_status_scope_checkpoints'::regclass
+          AND conname = 'reporting_status_scope_checkpoints_account_generation') THEN
+        ALTER TABLE reporting_status_scope_checkpoints
+            DROP CONSTRAINT IF EXISTS reporting_status_scope_checkpoints_account_generation;
+    END IF;
     CREATE INDEX IF NOT EXISTS reporting_status_scope_due
         ON reporting_status_scope_checkpoints (account_id, next_due_at)
         WHERE next_due_at IS NOT NULL;

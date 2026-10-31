@@ -293,11 +293,18 @@ class PgStatusNotificationStore:
         # typed scopes have exactly the same row-lock/notification boundary.
         for scope in projection_scopes(snapshot):
             await connection.execute(
-                f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, scope, fingerprint,"  # nosec B608
-                " snapshot, source_sequence, baseline, publishable, selector_writer_floor)"
-                ' VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,\'{"health":"waiting"}\',0,FALSE,FALSE,2)'
+                f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, offering_id, scope,"  # nosec B608
+                " fingerprint, snapshot, source_sequence, baseline, publishable,"
+                " selector_writer_floor) VALUES (%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,"
+                ' \'{"health":"waiting"}\',0,FALSE,FALSE,2)'
                 f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
-                (*scope.checkpoint_key, json.dumps(ledger_asdict(scope)), "0" * 64),
+                (
+                    *scope.checkpoint_key,
+                    # The scope's generation: '' for an account-level one.
+                    (scope.generation_key.offering_id if scope.generation_key else None) or "",
+                    json.dumps(ledger_asdict(scope)),
+                    "0" * 64,
+                ),
             )
         await (
             await connection.execute(

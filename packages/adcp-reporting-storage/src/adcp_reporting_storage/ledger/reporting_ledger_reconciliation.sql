@@ -108,10 +108,9 @@ BEGIN
         CHECK ((receipt_status IS NOT NULL) = (receipt_chain_key IS NOT NULL)),
         CHECK ((record_kind = 'materialization_attempt') = (attempt_number IS NOT NULL)),
         CHECK (payload->>'kind' = record_kind),
-        -- Account-level generations only, until managed delivery serves
-        -- reporting subscriptions (see reporting_ledger_account_generations.sql).
-        offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-            CONSTRAINT reporting_reconciliation_records_account_generation CHECK (offering_id = ''),
+        -- '' for an account-level generation; a reporting subscription's
+        -- generation names its resolved offering (managed delivery).
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         CONSTRAINT reporting_reconciliation_records_generation_fkey
             FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
             REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
@@ -132,6 +131,14 @@ BEGIN
     CREATE UNIQUE INDEX IF NOT EXISTS reporting_receipt_one_successor
         ON reporting_reconciliation_records(account_id, consumer_id, supersedes_receipt_id)
         WHERE supersedes_receipt_id IS NOT NULL;
+    -- A schema created by an earlier release refused subscription generations
+    -- here; managed delivery now records them under their offering.
+    IF EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'reporting_reconciliation_records'::regclass
+          AND conname = 'reporting_reconciliation_records_account_generation') THEN
+        ALTER TABLE reporting_reconciliation_records
+            DROP CONSTRAINT IF EXISTS reporting_reconciliation_records_account_generation;
+    END IF;
 
     CREATE TABLE IF NOT EXISTS reporting_receipt_heads (
         account_id TEXT COLLATE "C" NOT NULL,
@@ -432,8 +439,10 @@ BEGIN
             RETURN;
         END IF;
         SELECT b.payload INTO binding FROM reporting_reconciliation_records b
-        WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
-            = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+        WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version,
+               b.offering_id)
+            = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+               r.offering_id)
           AND b.record_kind = 'destination_binding';
         SELECT d.payload INTO delivery FROM reporting_reconciliation_records d
         WHERE (d.account_id, d.consumer_id, d.delivery_config_id, d.delivery_config_version,
@@ -527,12 +536,17 @@ BEGIN
             'verification_path', 'verification_profile', 'verified_at', 'verified_format'])) THEN
             RAISE EXCEPTION 'reporting payload is not closed retained evidence' USING ERRCODE = '23514';
         END IF;
+        -- An account-level generation key omits offering_id (ledger_asdict).
         generation := jsonb_build_object('account_id', r.account_id, 'consumer_id', r.consumer_id,
             'delivery_config_id', r.delivery_config_id,
-            'delivery_config_version', r.delivery_config_version);
+            'delivery_config_version', r.delivery_config_version)
+            || CASE WHEN r.offering_id = '' THEN '{}'::jsonb
+                    ELSE jsonb_build_object('offering_id', r.offering_id) END;
         IF NOT EXISTS (SELECT 1 FROM reporting_configurations c
-            WHERE (c.account_id, c.consumer_id, c.delivery_config_id, c.delivery_config_version)
-                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version))
+            WHERE (c.account_id, c.consumer_id, c.delivery_config_id, c.delivery_config_version,
+                   c.offering_id)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+                   r.offering_id))
            OR (r.reporting_obligation_id IS NOT NULL AND NOT EXISTS (
                SELECT 1 FROM reporting_obligations o
                WHERE (o.account_id, o.consumer_id, o.delivery_config_id, o.delivery_config_version, o.reporting_obligation_id)
@@ -552,7 +566,9 @@ BEGIN
             WHEN 'destination_binding' THEN reporting_identity_sha256(
                 '{"account_id":' || to_json(r.account_id)::text || ',"consumer_id":' || to_json(r.consumer_id)::text || ',"delivery_config_id":' ||
                 to_json(r.delivery_config_id)::text || ',"delivery_config_version":' ||
-                r.delivery_config_version::text || '}')
+                r.delivery_config_version::text ||
+                CASE WHEN r.offering_id = '' THEN ''
+                     ELSE ',"offering_id":' || to_json(r.offering_id)::text END || '}')
             WHEN 'obligation_delivery' THEN r.reporting_obligation_id
             WHEN 'materialization_check' THEN r.payload->>'check_id'
             WHEN 'revision_receipt' THEN r.payload->>'reporting_receipt_id'
@@ -594,8 +610,10 @@ BEGIN
                 'consumer_id', r.consumer_id, 'reporting_obligation_id', r.reporting_obligation_id)
            OR NOT EXISTS (
                 SELECT 1 FROM reporting_reconciliation_records b
-                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
-                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version,
+                       b.offering_id)
+                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+                       r.offering_id)
                   AND b.record_kind = 'destination_binding') THEN
             RAISE EXCEPTION 'reporting frozen binding is unavailable' USING ERRCODE = '23514';
         END IF;
@@ -622,8 +640,10 @@ BEGIN
         END IF;
         IF r.record_kind = 'materialization' AND r.payload->>'status' IN ('available', 'delivered') THEN
             IF EXISTS (SELECT 1 FROM reporting_reconciliation_records b
-                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
-                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version,
+                       b.offering_id)
+                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+                       r.offering_id)
                   AND b.record_kind = 'destination_binding'
                   AND (r.payload->>'status' IS DISTINCT FROM b.payload->>'success_status'
                     OR r.payload#>>'{verification,verification_profile}' IS DISTINCT FROM b.payload->>'verification_profile')) THEN
@@ -740,7 +760,8 @@ BEGIN
             proposed := proposed - mutable;
             SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
                 WHERE r.account_id=OLD.account_id AND r.consumer_id=OLD.consumer_id AND r.delivery_config_id = OLD.delivery_config_id
-                    AND r.delivery_config_version = OLD.delivery_config_version) INTO referenced;
+                    AND r.delivery_config_version = OLD.delivery_config_version
+                    AND r.offering_id = OLD.offering_id) INTO referenced;
         ELSIF TG_TABLE_NAME = 'reporting_obligations' THEN
             SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
                 WHERE r.account_id = OLD.account_id AND r.reporting_obligation_id = OLD.reporting_obligation_id) INTO referenced;

@@ -91,13 +91,13 @@ BEGIN
     ALTER TABLE reporting_consumer_statuses
         ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '';
 
-    -- These tables serve account-level generations only; a subscription
-    -- generation is refused by their CHECK until each feature serves it.
+    -- Managed delivery records subscription generations under their offering
+    -- (reconciliation records, materializer discovery and status checkpoints).
+    -- Production generations serve account-level generations only; a
+    -- subscription generation is refused by their CHECK.
     IF to_regclass('reporting_reconciliation_records') IS NOT NULL THEN
         ALTER TABLE reporting_reconciliation_records
-            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-                CONSTRAINT reporting_reconciliation_records_account_generation
-                CHECK (offering_id = ''),
+            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_reconciliation_records_generation_fkey
                 FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version,
                              offering_id)
@@ -106,9 +106,7 @@ BEGIN
     END IF;
     IF to_regclass('reporting_materializer_discovery') IS NOT NULL THEN
         ALTER TABLE reporting_materializer_discovery
-            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-                CONSTRAINT reporting_materializer_discovery_account_generation
-                CHECK (offering_id = ''),
+            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_materializer_discovery_generation_fkey
                 FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version,
                              offering_id)
@@ -117,9 +115,7 @@ BEGIN
     END IF;
     IF to_regclass('reporting_status_scope_checkpoints') IS NOT NULL THEN
         ALTER TABLE reporting_status_scope_checkpoints
-            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
-                CONSTRAINT reporting_status_scope_checkpoints_account_generation
-                CHECK (offering_id = ''),
+            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_status_scope_checkpoints_generation_fkey
                 FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version,
                              offering_id)

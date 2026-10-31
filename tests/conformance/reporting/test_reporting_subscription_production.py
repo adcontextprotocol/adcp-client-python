@@ -1,10 +1,11 @@
-"""Reporting subscriptions delivered through production managed delivery (memory store).
+"""Reporting subscriptions delivered through production managed delivery.
 
 Mirrors adcontextprotocol/adcp-client#3523: the service binds each managed
 subscription generation to its destination before its first obligation, freezes
 each obligation's constituents from the host's authorized pool, produces and
 materializes owed obligations, stamps ``account_id`` on rows, and holds a
-delivery when the owner's authority is lost.
+delivery when the owner's authority is lost. Each test runs against the memory
+store and, with ``ADCP_PG_TEST_URL``, the PostgreSQL production store.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime, timedelta
 from importlib.resources import files
@@ -25,6 +26,7 @@ from adcp.decisioning.capabilities import Account as AccountCapabilities
 from adcp.reporting.ledger import (
     LedgerConflictError,
     ProducerOfferings,
+    ReportingConfigurationGenerationKey,
     ReportingDestinationBinding,
     ReportingStatusCaller,
     ReportingStatusHandler,
@@ -56,10 +58,12 @@ from adcp.server.serve import create_mcp_server
 from adcp.types import ReportingDeliveryOffering
 from tests.test_reporting_subscription_engine import Clock, Host
 
-from ._generation_support import END, START
+from ._generation_support import END, START, isolated_reporting_pool
 from ._materializer_support import reference_rows
 from ._production_support import Source, SQLiteDestination
 from .test_reliable_reporting_production_admission import Application
+
+pytestmark = pytest.mark.parametrize("backend", ["memory", "postgres"])
 
 ACCOUNT = "acct-subscriptions"
 AGENCY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
@@ -130,9 +134,34 @@ class _App(Application):
         return capabilities_response(["media_buy"], sandbox=True, idempotency={"supported": False})
 
 
+async def _store(stack: AsyncExitStack, backend: str, *, notifications: bool) -> Any:
+    if backend == "memory":
+        return None
+    from adcp_reporting_storage.production.pg import PgReportingProductionStore
+
+    pool = await stack.enter_async_context(isolated_reporting_pool(autocommit=True))
+    store = PgReportingProductionStore(pool=pool, notifications=notifications)
+    await store.create_schema()
+    return store
+
+
 @asynccontextmanager
-async def _seller(tmp_path, *, pool_buys: tuple[str, ...] = ("mb-1",)):
-    clock = DeterministicReportingClock(END)
+async def _seller(
+    tmp_path,
+    backend: str,
+    *,
+    pool_buys: tuple[str, ...] = ("mb-1",),
+    notifications: bool = False,
+):
+    async with AsyncExitStack() as stack:
+        clock = DeterministicReportingClock(END)
+        store = await _store(stack, backend, notifications=notifications)
+        async with _composed(tmp_path, clock, store, pool_buys, notifications) as h:
+            yield h
+
+
+@asynccontextmanager
+async def _composed(tmp_path, clock, store, pool_buys, notifications):
     verifier = _subscription_verifier()
     key = verifier.key
     writer = SQLiteDestination(tmp_path / "destination.sqlite", key)
@@ -273,22 +302,34 @@ async def _seller(tmp_path, *, pool_buys: tuple[str, ...] = ("mb-1",)):
             AccountCapabilities(supported_billing=["operator"], require_operator_auth=True),
         ),
         authorize,
+        notifications=notifications,
         poll_seconds=60,
         read_jitter_window=timedelta(0),
     )
     failures: list[Any] = []
     h.failures = failures
-    h.service = ReliableReportingService.memory(
-        account_context=context,
-        clock=clock,
-        production=options,
-        reporting_subscriptions=ReportingSubscriptionServiceOptions(
-            engine=engine,
-            list_principals=lambda: [AGENCY],
-            resolve_principal=lambda _request, _context: AGENCY,
-            bind_managed_generation=bind,
-            planning_error_handler=failures.append,
-        ),
+    subscriptions = ReportingSubscriptionServiceOptions(
+        engine=engine,
+        list_principals=lambda: [AGENCY],
+        resolve_principal=lambda _request, _context: AGENCY,
+        bind_managed_generation=bind,
+        planning_error_handler=failures.append,
+    )
+    h.service = (
+        ReliableReportingService.memory(
+            account_context=context,
+            clock=clock,
+            production=options,
+            reporting_subscriptions=subscriptions,
+        )
+        if store is None
+        else ReliableReportingService(
+            store=store,
+            account_context=context,
+            clock=clock,
+            production=options,
+            reporting_subscriptions=subscriptions,
+        )
     )
     h.service.sources.register(
         "adapter",
@@ -299,6 +340,7 @@ async def _seller(tmp_path, *, pool_buys: tuple[str, ...] = ("mb-1",)):
     h.mount = create_mcp_server(handler)  # production requires a mounted handler
     h.production = h.service._production
     h.store = h.service.store
+    h.pool = getattr(store, "_pool", None)
     try:
         yield h
     finally:
@@ -351,13 +393,29 @@ def _buy(media_buy_id: str) -> SubscriptionBuy:
     )
 
 
+async def _advance(h, delta: timedelta) -> None:
+    """Advance the service clock; PostgreSQL schedules held work on its own clock."""
+    h.clock.advance(delta)
+    if h.pool is not None:
+        async with h.pool.connection() as connection:
+            await connection.execute(
+                "UPDATE reporting_production_work SET due_at=due_at-%s WHERE state='pending'",
+                (delta,),
+            )
+            await connection.execute(
+                "UPDATE reporting_materializer_accounts SET due_at=due_at-%s"
+                " WHERE due_at IS NOT NULL",
+                (delta,),
+            )
+
+
 def _delivered(h) -> list[dict[str, Any]]:
     with sqlite3.connect(h.writer.path) as c:
         return [json.loads(row[0]) for row in c.execute("SELECT content FROM artifacts")]
 
 
-async def test_owed_obligations_are_bound_produced_and_delivered(tmp_path) -> None:
-    async with _seller(tmp_path) as h:
+async def test_owed_obligations_are_bound_produced_and_delivered(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend) as h:
         await _subscribe(h, [_buy("mb-1")])
         await h.service.start()  # one full turn: plan, produce, materialize once
         assert h.failures == []
@@ -408,8 +466,8 @@ async def test_owed_obligations_are_bound_produced_and_delivered(tmp_path) -> No
         assert len(h.bound) == 1
 
 
-async def test_a_buy_outside_the_authorized_pool_writes_nothing(tmp_path) -> None:
-    async with _seller(tmp_path, pool_buys=("mb-other",)) as h:
+async def test_a_buy_outside_the_authorized_pool_writes_nothing(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend, pool_buys=("mb-other",)) as h:
         await _subscribe(h, [_buy("mb-1")])
         await h.service.start()
         assert [failure.subscription_id for failure in h.failures] == ["analytics-hourly"]
@@ -417,8 +475,8 @@ async def test_a_buy_outside_the_authorized_pool_writes_nothing(tmp_path) -> Non
         assert await h.store.list_generation_obligations(key) == ()
 
 
-async def test_a_lost_grant_holds_delivery(tmp_path) -> None:
-    async with _seller(tmp_path) as h:
+async def test_a_lost_grant_holds_delivery(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend) as h:
         await _subscribe(h, [_buy("mb-1")])
         await h.service.start()  # the first turn delivers one of the two obligations
         assert len(_delivered(h)) == 1
@@ -440,6 +498,51 @@ async def test_a_lost_grant_holds_delivery(tmp_path) -> None:
             ACCOUNT, timezone="UTC", authorized_at=at("2026-08-01T00:00:00Z")
         )
         await h.engine.reconcile(AGENCY)
-        h.clock.advance(timedelta(minutes=2))
+        await _advance(h, timedelta(minutes=2))
         assert (await h.production.materializer.run_once()).state == "verified"
         assert len(_delivered(h)) == 2
+
+
+async def test_owed_obligations_are_delivered_with_status_notifications(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend, notifications=True) as h:
+        await _subscribe(h, [_buy("mb-1")])
+        await h.service.start()
+        assert h.failures == []
+        while (await h.production.materializer.run_once()).state == "verified":
+            pass
+        assert len(_delivered(h)) == 2
+        payload = await ReportingStatusHandler(h.store).handle(
+            {"view": "periods"}, caller=ReportingStatusCaller(ACCOUNT, AGENCY.subject)
+        )
+        assert {p["offering_id"] for p in payload["periods"]} == {OFFERING_ID}
+        if h.pool is not None:
+            # Status checkpoints record the subscription generation's offering.
+            async with h.pool.connection() as connection:
+                offerings = await (
+                    await connection.execute(
+                        "SELECT DISTINCT offering_id FROM reporting_status_scope_checkpoints"
+                    )
+                ).fetchall()
+            assert offerings == [(OFFERING_ID,)]
+
+
+async def test_a_second_offering_of_one_version_is_refused(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend) as h:
+        await _subscribe(h, [_buy("mb-1")])
+        # Another offering of the same subscription version is already enrolled.
+        other = (ACCOUNT, AGENCY.subject, "analytics-hourly", 1, "other-offering")
+        if h.pool is None:
+            h.store._production_owed_sets.add(ReportingConfigurationGenerationKey(*other))
+        else:
+            async with h.pool.connection() as connection:
+                await connection.execute(
+                    "INSERT INTO adcp_reporting_production_owed_sets VALUES"
+                    " (%s,%s,%s,%s,%s,%s,'{}'::jsonb)",
+                    (*other, "0" * 64),
+                )
+        await h.service.start()
+        # Status checkpoints hold one configuration scope per subscription version.
+        assert [failure.subscription_id for failure in h.failures] == ["analytics-hourly"]
+        assert h.failures[0].error.code == "reporting_production_offering_conflict"
+        (key,) = h.bound
+        assert await h.store.list_generation_obligations(key) == ()

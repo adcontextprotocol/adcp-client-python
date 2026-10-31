@@ -929,11 +929,19 @@ class PgReportingLedgerStore:
 
     # -- configurations ---------------------------------------------------
 
+    def _status_covers_owed_sets(self) -> bool:
+        """Whether status notifications may cover reporting-subscription generations.
+
+        A status checkpoint records its generation's offering but is keyed per
+        (account, consumer, delivery_config_id, version): two offerings of one
+        subscription version would share a configuration checkpoint. Only a
+        store that admits at most one offering per version may serve them.
+        """
+        return not self._notifications_enabled
+
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
-        if configuration.owed_set and self._notifications_enabled:
-            # Status checkpoints are keyed per account-level generation; they
-            # do not yet hold one per resolved offering.
+        if configuration.owed_set and not self._status_covers_owed_sets():
             raise LedgerConflictError(
                 "UNSUPPORTED_FEATURE",
                 "status notifications do not yet cover reporting-subscription generations",

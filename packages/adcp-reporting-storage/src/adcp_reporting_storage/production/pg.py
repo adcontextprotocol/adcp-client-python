@@ -12,8 +12,10 @@ from datetime import datetime, timedelta
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
+from pydantic import TypeAdapter
+
 from adcp.reporting.ledger._delivery_state import decode_record
-from adcp.reporting.ledger._record_rows import _configuration_from_row
+from adcp.reporting.ledger._record_rows import _CONFIGURATION_COLUMNS, _configuration_from_row
 from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
     ReportingDeliveryScope,
@@ -21,6 +23,7 @@ from adcp.reporting.ledger.delivery_models import (
 )
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
+    ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingObligationRecord,
 )
@@ -86,6 +89,36 @@ _OWNED = (
 )
 
 _ProducerSample = tuple[int, datetime | None, str, str, str, int]
+
+#: A reporting subscription's admitted owed set of an activated account, with
+#: its current generation. Every selected column is a fixed SDK identifier.
+_OWED_SET_CONFIGURATION = (
+    "SELECT s.producer_key, "  # nosec B608
+    + _CONFIGURATION_COLUMNS
+    + " FROM adcp_reporting_production_owed_sets s JOIN reporting_configurations c"
+    " USING(account_id,consumer_id,delivery_config_id,delivery_config_version,offering_id)"
+    " WHERE EXISTS(SELECT 1 FROM reporting_production_accounts a"
+    " WHERE a.account_id=s.account_id)"
+)
+_OWED_SET_KEY = (
+    " account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+    " AND delivery_config_version=%s AND offering_id=%s"
+)
+_CONSTITUENTS: TypeAdapter[list[ReportingConstituent]] = TypeAdapter(list[ReportingConstituent])
+
+
+def _owed_identity(key: ReportingConfigurationGenerationKey) -> tuple[str, str, str, int, str]:
+    return (
+        key.account_id,
+        key.consumer_id,
+        key.delivery_config_id,
+        key.delivery_config_version,
+        key.offering_id or "",
+    )
+
+
+def _constituents_document(constituents: Sequence[ReportingConstituent]) -> str:
+    return json.dumps([item.model_dump(mode="json") for item in constituents])
 
 
 class _ProductionConnection:
@@ -429,6 +462,180 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         if original is None or original[0] != document:
             raise ReportingNotificationError("reporting_production_destination_conflict")
 
+    # -- reporting-subscription owed sets (managed delivery) -------------------
+
+    def _status_covers_owed_sets(self) -> bool:
+        # Admission enrolls at most one offering per subscription version.
+        return True
+
+    async def admit_subscription_generation(
+        self,
+        configuration: ReportingConfiguration,
+        binding: ReportingDestinationBinding,
+        *,
+        offering_id: str,
+    ) -> None:
+        """Install a reporting subscription's generation with its managed binding.
+
+        An owed set has no generation-wide source denominator: each obligation
+        freezes its own constituents (``commit_subscription_obligation``).
+        Idempotent; a changed generation or binding is a conflict.
+        """
+        offering = self._owner()._subscription_offering(
+            configuration, binding, offering_id=offering_id
+        )
+        async with self._connection() as connection, connection.transaction():
+            await self._lock_account(connection, configuration.account_id)
+            token = _ADMISSION_CONNECTION.set((id(self), asyncio.current_task(), connection))
+            try:
+                await self.put_configuration(configuration)
+                await self.put_destination_binding(binding)
+                await self._enroll_owed_set_on(
+                    connection, configuration, offering._producer_key, binding
+                )
+            finally:
+                _ADMISSION_CONNECTION.reset(token)
+
+    async def _enroll_owed_set_on(
+        self,
+        connection: Any,
+        configuration: ReportingConfiguration,
+        producer_key: str,
+        destination: ReportingDestinationBinding,
+    ) -> None:
+        owner = self._owner()
+        offering = owner._subscription_offering(configuration, destination)
+        document = owner._destination_binding(destination, offering).wire()
+        identity = _owed_identity(configuration.generation_key)
+        other = await (
+            await connection.execute(
+                "SELECT 1 FROM adcp_reporting_production_owed_sets WHERE account_id=%s"
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                " AND offering_id<>%s LIMIT 1",
+                identity,
+            )
+        ).fetchone()
+        if other is not None:
+            # Status checkpoints hold one configuration scope per version.
+            raise ReportingNotificationError("reporting_production_offering_conflict")
+        await connection.execute(
+            "INSERT INTO adcp_reporting_production_owed_sets"
+            " (account_id,consumer_id,delivery_config_id,delivery_config_version,offering_id,"
+            " producer_key,method) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING",
+            (*identity, producer_key, json.dumps(document)),
+        )
+        row = await (
+            await connection.execute(
+                "SELECT producer_key,method FROM adcp_reporting_production_owed_sets WHERE"
+                + _OWED_SET_KEY,
+                identity,
+            )
+        ).fetchone()
+        if row is None or row[0] != producer_key:
+            raise ReportingNotificationError("reporting_production_source_conflict")
+        if row[1] != document:
+            raise ReportingNotificationError("reporting_production_destination_conflict")
+
+    async def subscription_generation_admitted(self, configuration: ReportingConfiguration) -> bool:
+        """Whether this exact generation is already admitted (it is bound once)."""
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT " + _CONFIGURATION_COLUMNS + " FROM adcp_reporting_production_owed_sets"
+                    " JOIN reporting_configurations"
+                    " USING(account_id,consumer_id,delivery_config_id,delivery_config_version,"
+                    "offering_id) WHERE" + _OWED_SET_KEY,
+                    _owed_identity(configuration.generation_key),
+                )
+            ).fetchone()
+        return row is not None and _configuration_from_row(row) == configuration
+
+    async def _check_owed_set_on(
+        self, connection: Any, configuration: ReportingConfiguration
+    ) -> None:
+        """An admitted, current owed set of an activated account and a ready producer.
+
+        Planning commits outside a producer turn: any ready offering's producer
+        qualifies; dispatch re-checks the host's pool within its own turn.
+        """
+        owner = self._owner()
+        ready = {o._producer_key for o in owner.offerings if owner._offering_ready(o)}
+        row = await (
+            await connection.execute(
+                _OWED_SET_CONFIGURATION + " AND" + _OWED_SET_KEY,
+                _owed_identity(configuration.generation_key),
+            )
+        ).fetchone()
+        if (
+            not configuration.owed_set
+            or row is None
+            or row[0] not in ready
+            or _configuration_from_row(row[1:]) != configuration
+        ):
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer generation is unavailable")
+
+    async def commit_subscription_obligation(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        constituents: tuple[ReportingConstituent, ...],
+    ) -> ReportingObligationRecord:
+        """Commit an owed obligation with the constituents it freezes, atomically."""
+        if obligation.generation_key != configuration.generation_key or not constituents:
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "owed obligation is unbound")
+        async with self._connection() as connection, connection.transaction():
+            await self._lock_account(connection, configuration.account_id)
+            await self._check_owed_set_on(connection, configuration)
+            token = _ADMISSION_CONNECTION.set((id(self), asyncio.current_task(), connection))
+            try:
+                stored = await self.commit_obligation(obligation)
+            finally:
+                _ADMISSION_CONNECTION.reset(token)
+            await connection.execute(
+                "INSERT INTO adcp_reporting_production_owed_constituents"
+                " (account_id,reporting_obligation_id,constituents) VALUES(%s,%s,%s::jsonb)"
+                " ON CONFLICT DO NOTHING",
+                (
+                    stored.account_id,
+                    stored.reporting_obligation_id,
+                    _constituents_document(constituents),
+                ),
+            )
+            if await self._owed_constituents_on(connection, stored) != constituents:
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "owed obligation constituents are immutable"
+                )
+            return stored
+
+    async def _owed_constituents_on(
+        self, connection: Any, obligation: ReportingObligationRecord
+    ) -> tuple[ReportingConstituent, ...] | None:
+        row = await (
+            await connection.execute(
+                "SELECT constituents FROM adcp_reporting_production_owed_constituents"
+                " WHERE account_id=%s AND reporting_obligation_id=%s",
+                (obligation.account_id, obligation.reporting_obligation_id),
+            )
+        ).fetchone()
+        return None if row is None else tuple(_CONSTITUENTS.validate_python(row[0]))
+
+    async def production_owed_sets(
+        self, producer_keys: Sequence[str]
+    ) -> tuple[ReportingConfiguration, ...]:
+        """Admitted owed-set generations of these producers, in key order."""
+        if not producer_keys:
+            return ()
+        async with self._connection() as connection:
+            rows = await (
+                await connection.execute(
+                    _OWED_SET_CONFIGURATION + " AND s.producer_key=ANY(%s) AND NOT c.quarantined"
+                    " ORDER BY account_id,consumer_id,delivery_config_id,delivery_config_version,"
+                    "offering_id",
+                    (list(producer_keys),),
+                )
+            ).fetchall()
+        return tuple(_configuration_from_row(row[1:]) for row in rows)
+
     async def lease_period_close(
         self, *, worker_id: str, now: datetime, lease_seconds: float
     ) -> LeasedConfiguration | None:
@@ -659,6 +866,21 @@ class PgReportingProductionStore(PgReportingProjectionStore):
     async def producer_constituents(
         self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
     ) -> tuple[ReportingConstituent, ...]:
+        if configuration.owed_set:
+            # Each owed obligation froze its own constituents at planning.
+            async with self._connection() as connection, connection.transaction():
+                await self._lock_account(connection, configuration.account_id)
+                await self._check_owed_set_on(connection, configuration)
+                frozen = (
+                    await self._owed_constituents_on(connection, obligation)
+                    if obligation.generation_key == configuration.generation_key
+                    else None
+                )
+                if frozen is None:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "owed obligation constituents are unavailable"
+                    )
+                return frozen
         async with self._source_connection(configuration) as (connection, identity):
             if obligation.generation_key != configuration.generation_key or set(
                 obligation.media_buy_ids
@@ -868,6 +1090,16 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 if binding.generation_key not in configurations:
                     continue
                 configuration = configurations[binding.generation_key]
+                if configuration.owed_set:
+                    try:
+                        offering = owner._subscription_offering(configuration, binding)
+                    # Unsupported or unavailable bindings remain unadmitted.
+                    except Exception:  # nosec B112
+                        continue
+                    await self._enroll_owed_set_on(
+                        connection, configuration, offering._producer_key, binding
+                    )
+                    continue
                 try:
                     offering = owner._configuration_offering(configuration, binding)
                 # Unsupported or unavailable bindings remain unadmitted.
@@ -880,7 +1112,37 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         self, connection: Any, scope: ReportingDeliveryScope
     ) -> MaterializerContext:
         context = await super()._materializer_context_on(connection, scope)
-        if isinstance(connection, _ProductionConnection):
+        if isinstance(connection, _ProductionConnection) and scope.generation_key.offering_id:
+            # A reporting subscription's owed set: no generation-wide source binding.
+            row = await (
+                await connection.execute(
+                    "SELECT a.policy,s.producer_key,NULL::jsonb,s.method"
+                    " FROM reporting_production_accounts a"
+                    " LEFT JOIN adcp_reporting_production_owed_sets s"
+                    " ON s.account_id=a.account_id AND s.consumer_id=%s AND s.delivery_config_id=%s"
+                    " AND s.delivery_config_version=%s AND s.offering_id=%s"
+                    " WHERE a.account_id=%s",
+                    (
+                        scope.consumer_id,
+                        scope.generation_key.delivery_config_id,
+                        scope.generation_key.delivery_config_version,
+                        scope.generation_key.offering_id,
+                        scope.principal.account_id,
+                    ),
+                )
+            ).fetchone()
+            if row is None:
+                raise ReportingNotificationError("reporting_production_activation_required")
+            owner = self._owner()
+            owner._check_context(
+                context,
+                key_for(context.binding, context.obligation, owner.keys),
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+            )
+        elif isinstance(connection, _ProductionConnection):
             owner = self._owner()
             row = await (
                 await connection.execute(

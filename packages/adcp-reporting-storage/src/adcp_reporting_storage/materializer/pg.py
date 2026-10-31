@@ -105,6 +105,14 @@ def _scope_args(scope: ReportingDeliveryScope) -> tuple[str | int, ...]:
     )
 
 
+#: Appended to a selected candidate or work row: its obligation's offering,
+#: '' for an account-level generation. Obligation ids are unique per account.
+_WITH_OFFERING = (
+    " || jsonb_build_object('offering_id',(SELECT o.offering_id FROM reporting_obligations o"
+    " WHERE o.account_id={0}.account_id AND o.reporting_obligation_id={0}.reporting_obligation_id))"
+)
+
+
 def _scope(row: dict[str, Any]) -> ReportingDeliveryScope:
     return ReportingDeliveryScope(
         ReportingConfigurationGenerationKey(
@@ -112,6 +120,7 @@ def _scope(row: dict[str, Any]) -> ReportingDeliveryScope:
             row["consumer_id"],
             row["delivery_config_id"],
             row["delivery_config_version"],
+            row.get("offering_id") or None,
         ),
         row["consumer_id"],
         row["reporting_obligation_id"],
@@ -255,22 +264,23 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         row = await (
             await connection.execute(
                 "SELECT consumer_id, delivery_config_id, delivery_config_version,"
-                " after_obligation_id"
+                " after_obligation_id, offering_id"
                 " FROM reporting_materializer_discovery WHERE account_id=%s AND NOT complete"
-                " ORDER BY consumer_id, delivery_config_id, delivery_config_version"
+                " ORDER BY consumer_id, delivery_config_id, delivery_config_version, offering_id"
                 " LIMIT 1 FOR UPDATE",
                 (account_id,),
             )
         ).fetchone()
         if row is None:
             return False
-        consumer, config, version, after = row
+        consumer, config, version, after, offering = row
         obligations = await (
             await connection.execute(
                 "SELECT reporting_obligation_id FROM reporting_obligations WHERE account_id=%s"
                 " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                " AND offering_id=%s"
                 " AND reporting_obligation_id>%s ORDER BY reporting_obligation_id LIMIT 32",
-                (account_id, consumer, config, version, after),
+                (account_id, consumer, config, version, offering, after),
             )
         ).fetchall()
         for (obligation_id,) in obligations:
@@ -286,7 +296,7 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         await connection.execute(
             "UPDATE reporting_materializer_discovery SET after_obligation_id=%s,complete=%s"
             " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
-            " AND delivery_config_version=%s",
+            " AND delivery_config_version=%s AND offering_id=%s",
             (
                 obligations[-1][0] if obligations else after,
                 len(obligations) < 32,
@@ -294,6 +304,7 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
                 consumer,
                 config,
                 version,
+                offering,
             ),
         )
         return True
@@ -391,7 +402,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         now = await _now(connection)
         pending = await (
             await connection.execute(
-                "SELECT to_jsonb(w) FROM reporting_materializer_work w WHERE account_id=%s"
+                "SELECT to_jsonb(w)"
+                + _WITH_OFFERING.format("w")
+                + " FROM reporting_materializer_work w WHERE account_id=%s"
                 " AND state='pending' AND due_at<=%s"
                 " AND (lease_until IS NULL OR lease_until<=%s)"
                 " ORDER BY due_at,reporting_materialization_id LIMIT 1 FOR UPDATE",
@@ -403,7 +416,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         discovered = await self._discover_on(connection, account_id)
         row = await (
             await connection.execute(
-                "SELECT to_jsonb(c) FROM reporting_materializer_candidates c WHERE account_id=%s"
+                "SELECT to_jsonb(c)"
+                + _WITH_OFFERING.format("c")
+                + " FROM reporting_materializer_candidates c WHERE account_id=%s"
                 " AND due_at<=%s AND NOT EXISTS ("
                 " SELECT 1 FROM reporting_materializer_work w WHERE w.account_id=c.account_id"
                 " AND w.consumer_id=c.consumer_id AND w.delivery_config_id=c.delivery_config_id"
@@ -494,7 +509,8 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         ).fetchone()
         assert inserted is not None
         await self._park_on(connection, scope, "ready")
-        return await self._lease_on(connection, inserted[0], keys, lease_seconds)
+        work = {**inserted[0], "offering_id": scope.generation_key.offering_id or ""}
+        return await self._lease_on(connection, work, keys, lease_seconds)
 
     async def _lease_on(
         self,
@@ -584,7 +600,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
     ) -> dict[str, Any] | None:
         row = await (
             await connection.execute(
-                "SELECT to_jsonb(w) FROM reporting_materializer_work w WHERE account_id=%s"
+                "SELECT to_jsonb(w)"
+                + _WITH_OFFERING.format("w")
+                + " FROM reporting_materializer_work w WHERE account_id=%s"
                 " AND consumer_id=%s AND reporting_materialization_id=%s AND state='pending'"
                 " AND lease_token=%s::uuid AND lease_until>clock_timestamp() FOR UPDATE",
                 (
