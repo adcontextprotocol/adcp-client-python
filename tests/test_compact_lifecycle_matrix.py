@@ -358,7 +358,7 @@ def test_compact_response_enrichment_matches_pinned_schema(
     task_name: str,
     response: dict[str, Any],
 ) -> None:
-    uses_status = uses_task_status_envelope(task_name)
+    uses_status = uses_task_status_envelope(task_name, "3.2")
     with_completed_status = {**response, "status": "completed"}
 
     assert (
@@ -370,9 +370,17 @@ def test_compact_response_enrichment_matches_pinned_schema(
         is uses_status
     )
 
-    _normalize_response_envelope(task_name, response, {}, adcp_version="3.2")
+    served = dict(response)
+    _normalize_response_envelope(task_name, served, {}, adcp_version="3.2")
 
-    assert (response.get("status") == "completed") is uses_status
+    assert (served.get("status") == "completed") is uses_status
+
+    # From 3.3.0-beta.3 every task response composes the protocol envelope
+    # (adcp#8547), so the compact exception ends and status is required.
+    assert uses_task_status_envelope(task_name, "3.3-beta.3")
+    current = dict(response)
+    _normalize_response_envelope(task_name, current, {}, adcp_version="3.3-beta.3")
+    assert current.get("status") == "completed"
     assert validate_response(task_name, response, version="3.2").valid
 
 

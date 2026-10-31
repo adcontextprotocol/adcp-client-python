@@ -321,9 +321,12 @@ class TestGovernanceHandler:
                 return SyncPlansResponse(plans=[])
 
             async def handle_check_governance(self, request, context=None):
+                # AdCP 3.3.0-beta.3: the response composes the protocol
+                # envelope, so ``status`` is the task status and the
+                # governance decision is ``verdict``.
                 return CheckGovernanceResponse(
                     check_id="chk_123",
-                    status="approved",
+                    verdict="approved",
                     plan_id="plan_123",
                     explanation="Approved",
                 )
@@ -331,7 +334,7 @@ class TestGovernanceHandler:
             async def handle_report_plan_outcome(self, request, context=None):
                 return ReportPlanOutcomeResponse(
                     outcome_id="out_123",
-                    status="accepted",
+                    outcome_state="accepted",
                 )
 
             async def handle_get_plan_audit_logs(self, request, context=None):

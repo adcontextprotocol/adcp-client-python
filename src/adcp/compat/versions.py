@@ -1158,7 +1158,7 @@ def _convert_payload(
                     elif result.get("status") == "completed":
                         result.pop("status")
                         losses.append(ConversionLoss("/status", source, target))
-            elif step > 0 and uses_task_status_envelope(tool):
+            elif step > 0 and uses_task_status_envelope(tool, target):
                 result.setdefault("status", "completed")
             if step > 0 and tool in {"get_products", "get_signals"}:
                 # Old responses have no cache declaration. An account-scoped
@@ -1247,10 +1247,12 @@ def _require_target_valid(
     """
     from adcp.validation._response_envelope import uses_task_status_envelope
 
-    if direction != "request" and uses_task_status_envelope(tool):
+    if direction != "request":
         # Match the SDK validators, which default the status envelope.
-        payload = {"status": "completed", **payload}
-        result = {"status": "completed", **result}
+        if uses_task_status_envelope(tool, source_version):
+            payload = {"status": "completed", **payload}
+        if uses_task_status_envelope(tool, target_version):
+            result = {"status": "completed", **result}
     target_schema = _schema(tool, direction, target_version)
     refusal = _refusal(target_schema, target_schema, result, shape=False)
     if refusal is None:

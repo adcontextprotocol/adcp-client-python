@@ -178,6 +178,8 @@ def test_canonical_enum_is_loaded() -> None:
     assert "CREATIVE_MISSING_CLICK_URL" in CANONICAL_CODES
     assert "CREATIVE_VALIDATION_FAILED_GENERIC" in CANONICAL_CODES
     assert "COMMITTED_RESOURCE_PURGED" in CANONICAL_CODES
+    # AdCP 3.3.0-beta.3: live creative updates.
+    assert "CREATIVE_LIVE_UPDATE_UNSUPPORTED" in CANONICAL_CODES
     # Spot-check a non-spec code that historically got misnamed and is
     # still not in the canonical enum:
     assert "INVALID_BILLING_MODEL" not in CANONICAL_CODES
@@ -186,7 +188,7 @@ def test_canonical_enum_is_loaded() -> None:
     # If this assertion fails, the bundled error-code.json was resynced;
     # update both the count AND audit allowlist entries that may now be
     # in the canonical enum.
-    assert len(CANONICAL_CODES) == 123, f"Expected 123 spec error codes, got {len(CANONICAL_CODES)}"
+    assert len(CANONICAL_CODES) == 124, f"Expected 124 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:
