@@ -3,7 +3,7 @@
 The section is complete desired state, like the principal's other sections.
 :func:`apply_reporting_subscriptions` turns the caller's desired list and the
 previously stored states into the new ``core/reporting-subscription-state.json``
-states, or raises :class:`ReportingSubscriptionError` so the whole request
+states, or raises :class:`ReportingSubscriptionValidationError` so the whole request
 fails. It enforces what the generated model cannot express (the schema's
 ``allOf`` conditionals and ``x-adcp-validation`` rules):
 
@@ -49,7 +49,7 @@ _ALLOWED_PLACEHOLDERS = frozenset({"account_id", "subscription_id", "offering_id
 _IN_PLACE_FIELDS = frozenset({"active", "replace_account_configs", "subscription_version"})
 
 
-class ReportingSubscriptionError(ValueError):
+class ReportingSubscriptionValidationError(ValueError):
     """The section is invalid; the whole ``sync_principal`` request fails."""
 
     def __init__(self, message: str, *, code: str = "INVALID_REQUEST") -> None:
@@ -111,7 +111,7 @@ def _validate_one(
     where = f"reporting_subscriptions[{index}]"
     subscription_id = configuration["subscription_id"]
     if subscription_id in delivery_config_ids:
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}.subscription_id equals a delivery_config_id this caller uses; "
             "subscription_id and delivery_config_id share one namespace"
         )
@@ -119,19 +119,21 @@ def _validate_one(
     has_all = "all_authorized_accounts" in scope
     has_ids = "account_ids" in scope
     if has_all == has_ids:
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}.scope must be exactly one of all_authorized_accounts or account_ids"
         )
     if has_all and scope["all_authorized_accounts"] is not True:
-        raise ReportingSubscriptionError(f"{where}.scope.all_authorized_accounts must be true")
+        raise ReportingSubscriptionValidationError(
+            f"{where}.scope.all_authorized_accounts must be true"
+        )
     if configuration.get("exclude_account_ids") and not has_all:
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}.exclude_account_ids is valid only with all_authorized_accounts scope"
         )
     if configuration.get("replace_account_configs") is True:
         # Not applied yet: accepting it would leave the caller's account-level
         # configurations in force while it believes they were cut over.
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}.replace_account_configs is not supported by this seller",
             code="UNSUPPORTED_FEATURE",
         )
@@ -139,28 +141,30 @@ def _validate_one(
     period_timezone = selector.get("period_timezone")
     if period_timezone is not None:
         if not has_ids or len(scope["account_ids"]) != 1:
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"{where}.selector.period_timezone requires account_ids naming exactly one account"
             )
         try:
             require_zone(period_timezone, field="period_timezone")
         except ValueError as error:
-            raise ReportingSubscriptionError(f"{where}.selector.{error}") from None
+            raise ReportingSubscriptionValidationError(f"{where}.selector.{error}") from None
     mode = configuration["reconciliation_mode"]
     if selector["feed_purpose"] == "billing" and (
         selector["required_finality"] != "official" or mode != "consumer_receipt"
     ):
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}: billing subscriptions require official finality and consumer_receipt"
         )
     destination = configuration.get("destination")
     if mode == "consumer_receipt" and destination is None:
-        raise ReportingSubscriptionError(f"{where}: consumer_receipt requires a destination")
+        raise ReportingSubscriptionValidationError(
+            f"{where}: consumer_receipt requires a destination"
+        )
     if destination is None:
         return
     target = destinations.get(destination["destination_id"])
     if target is None:
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"{where}.destination.destination_id {destination['destination_id']!r} is not in "
             "reporting_destinations after this request"
         )
@@ -168,22 +172,22 @@ def _validate_one(
     if template is not None:
         unknown = {name for name in _PLACEHOLDER.findall(template)} - _ALLOWED_PLACEHOLDERS
         if unknown:
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"{where}.destination.path_template uses unknown placeholders {sorted(unknown)}"
             )
         if "{" in _PLACEHOLDER.sub("", template) or "}" in _PLACEHOLDER.sub("", template):
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"{where}.destination.path_template has braces outside a placeholder"
             )
     if _multi_account(configuration):
         pattern = (target.get("configuration") or target).get("pattern")
         if template is None and pattern == "file_transfer":
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"{where}.destination.path_template is required for a multi-account "
                 "file_transfer subscription"
             )
         if template is not None and "{account_id}" not in template:
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"{where}.destination.path_template must contain {{account_id}} when the "
                 "scope can cover more than one account"
             )
@@ -200,12 +204,12 @@ def _validate_set(active: Sequence[dict[str, Any]], destinations: Mapping[str, A
             continue
         templates = [(item.get("destination") or {}).get("path_template") for item in sharing]
         if any(template is None or "{account_id}" not in template for template in templates):
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"active subscriptions sharing destination {destination_id!r} must each have a "
                 "path_template containing {account_id}"
             )
         if len(set(templates)) != len(templates):
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"active subscriptions sharing destination {destination_id!r} must use "
                 "different path_template values"
             )
@@ -214,7 +218,7 @@ def _validate_set(active: Sequence[dict[str, Any]], destinations: Mapping[str, A
             if first["selector"]["feed_purpose"] != second["selector"]["feed_purpose"]:
                 continue
             if _same_level_overlap(first, second):
-                raise ReportingSubscriptionError(
+                raise ReportingSubscriptionValidationError(
                     f"active subscriptions {first['subscription_id']!r} and "
                     f"{second['subscription_id']!r} would both apply to one account and "
                     "feed_purpose at the same scope level"
@@ -268,7 +272,7 @@ def apply_reporting_subscriptions(
     for index, configuration in enumerate(configurations):
         subscription_id = configuration["subscription_id"]
         if subscription_id in seen:
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"reporting_subscriptions[{index}].subscription_id duplicates an earlier entry"
             )
         seen.add(subscription_id)
@@ -314,7 +318,7 @@ _MAX_INACTIVE_INTERVALS = 64
 def _intervals(intervals: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Every interval, or an error: dropping one would make its periods owed again."""
     if len(intervals) > _MAX_INACTIVE_INTERVALS:
-        raise ReportingSubscriptionError(
+        raise ReportingSubscriptionValidationError(
             f"the subscription has reached {_MAX_INACTIVE_INTERVALS} inactive intervals, the "
             "readback's limit; register a new subscription_id instead of deactivating again"
         )
@@ -340,13 +344,13 @@ def _next_state(
     else:
         old_version = int(old["subscription_version"])
         if version < old_version:
-            raise ReportingSubscriptionError(
+            raise ReportingSubscriptionValidationError(
                 f"subscription {configuration['subscription_id']!r} version {version} is older "
                 f"than the accepted version {old_version}"
             )
         if version == old_version:
             if _semantic(configuration) != _semantic(old["configuration"]):
-                raise ReportingSubscriptionError(
+                raise ReportingSubscriptionValidationError(
                     f"subscription {configuration['subscription_id']!r} reuses version "
                     f"{version} with different semantic content; increment subscription_version"
                 )
@@ -481,7 +485,7 @@ def refresh_destination_states(
 
 
 __all__ = [
-    "ReportingSubscriptionError",
+    "ReportingSubscriptionValidationError",
     "apply_reporting_subscriptions",
     "refresh_destination_states",
     "render_path_template",
