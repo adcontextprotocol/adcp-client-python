@@ -275,6 +275,9 @@ class _LoaderState:
         #: ``MAJOR.MINOR`` while its documents reference the exact release,
         #: for example ``/schemas/3.2.1/`` inside the ``3.2`` cache.
         self.path_versions: tuple[str, ...] = (bundle_key,)
+        #: ``tool_name`` -> whether that release's sync response schema composes
+        #: ``core/protocol-envelope.json``. Answered from the schema document.
+        self.composes_envelope: dict[str, bool] = {}
 
 
 def _bundle_path_versions(root: _SchemaRoot, bundle_key: str) -> tuple[str, ...]:
@@ -1010,6 +1013,58 @@ def get_schema(
     return deepcopy(
         _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key)
     )
+
+
+def _is_protocol_envelope_arm(arm: Any) -> bool:
+    """Whether a root ``allOf`` arm is ``core/protocol-envelope.json``.
+
+    Bundled schemas arrive with the reference already inlined, so the arm is
+    recognised by what the envelope contributes: a required ``status``. An
+    unresolved reference to the envelope document counts too.
+    """
+    if not isinstance(arm, dict):
+        return False
+    ref = arm.get("$ref")
+    if isinstance(ref, str):
+        return urldefrag(ref)[0].endswith("/core/protocol-envelope.json")
+    required = arm.get("required")
+    properties = arm.get("properties")
+    return (
+        isinstance(required, list)
+        and "status" in required
+        and isinstance(properties, dict)
+        and "status" in properties
+    )
+
+
+def response_composes_protocol_envelope(
+    tool_name: str,
+    *,
+    version: str | None = None,
+) -> bool | None:
+    """Whether the release's own response schema for ``tool_name`` composes the envelope.
+
+    The envelope (``core/protocol-envelope.json``) requires ``status``. A release
+    schema that lists it in the root ``allOf`` therefore requires ``status`` on a
+    response; one that does not either forbids it (a closed 3.2.x
+    ``list_products`` root) or does not define it for the success arm. The
+    release's schema is the authority, not its version string, so a maintenance
+    release that composes the envelope changes the answer with no code change.
+    Returns ``None`` when no schema for the tool ships for ``version``.
+    """
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    cached = state.composes_envelope.get(tool_name)
+    if cached is not None:
+        return cached
+    schema = get_schema(tool_name, "sync", version=version)
+    if schema is None:
+        return None
+    arms = schema.get("allOf")
+    composed = isinstance(arms, list) and any(_is_protocol_envelope_arm(arm) for arm in arms)
+    state.composes_envelope[tool_name] = composed
+    return composed
 
 
 def get_named_schema_document(
