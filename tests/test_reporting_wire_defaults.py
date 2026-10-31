@@ -55,7 +55,10 @@ def test_nested_notification_defaults_follow_event_and_field_provenance(product_
     model = Envelope.model_validate({"config": supplied})
     before = set(model.config.model_fields_set)
     for wire in (model.model_dump(mode="json"), json.loads(model.model_dump_json())):
-        assert ("product_payload_view" in wire["config"]) is (product_event or explicit)
+        # AdCP 3.3.0-beta.2 states the default in prose (absent means legacy):
+        # an unset view stays absent, on product subscriptions too, never null.
+        assert ("product_payload_view" in wire["config"]) is explicit
+        assert wire["config"].get("product_payload_view", "legacy") == "legacy"
     assert model.config.model_fields_set == before
 
 

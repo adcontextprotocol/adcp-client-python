@@ -10,7 +10,7 @@ A type this domain declares in more than one schema is not here: import
 Nothing here is renamed.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-29 01:57:19 UTC
+Generation date: 2026-10-30 14:25:27 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -526,12 +526,7 @@ from adcp.types.domains.core.canonical_projection_ref import (
 from adcp.types.domains.core.canonical_projection_slot_override import (
     CanonicalProjectionSlotOverride,
 )
-from adcp.types.domains.core.canonical_proposal import (
-    CanonicalProposal,
-    Hold,
-    ProposalInitiator,
-    ProposalKind,
-)
+from adcp.types.domains.core.canonical_proposal import CanonicalProposal, Hold, ProposalKind
 from adcp.types.domains.core.canonical_reporting_capabilities import CanonicalReportingCapabilities
 from adcp.types.domains.core.canonical_reporting_commitment import (
     CanonicalReportingCommitment,
@@ -631,17 +626,6 @@ from adcp.types.domains.core.date_range import DateRange
 from adcp.types.domains.core.datetime_range import DatetimeRange
 from adcp.types.domains.core.daypart_target import DaypartTarget
 from adcp.types.domains.core.deadline_policy import DeadlinePolicy, MaterialStage
-from adcp.types.domains.core.definition_pin import (
-    DefinitionPin,
-    DefinitionPin1,
-    DefinitionPin2,
-    DefinitionPin3,
-    DefinitionPin4,
-    RefKind,
-    Reference1,
-    Reference2,
-    Reference3,
-)
 from adcp.types.domains.core.delivery_breakdown_controls import DeliveryBreakdownControls
 from adcp.types.domains.core.delivery_forecast import DeliveryForecast
 from adcp.types.domains.core.delivery_metric_aggregate import (
@@ -930,10 +914,6 @@ from adcp.types.domains.core.indicators_changed_webhook import (
 from adcp.types.domains.core.industry_identifier import IndustryIdentifier
 from adcp.types.domains.core.insertion_order import InsertionOrder, PaymentTerms, Terms, TotalBudget
 from adcp.types.domains.core.installment import Installment
-from adcp.types.domains.core.installment_change_set import (
-    InstallmentChangeSet,
-    InstallmentChangeSetItem,
-)
 from adcp.types.domains.core.installment_deadlines import InstallmentDeadlines
 from adcp.types.domains.core.installment_delivery_metrics import InstallmentDeliveryMetrics
 from adcp.types.domains.core.installment_property_delivery_metrics import (
@@ -1335,6 +1315,7 @@ from adcp.types.domains.core.property_ref import PropertyReference
 from adcp.types.domains.core.property_tag import PropertyTag
 from adcp.types.domains.core.proposal import Proposal
 from adcp.types.domains.core.proposal_created_webhook import ProposalCreatedWebhook
+from adcp.types.domains.core.proposal_offered_webhook import OfferReason, ProposalOfferedWebhook
 from adcp.types.domains.core.protocol_envelope import ProtocolEnvelope
 from adcp.types.domains.core.provenance import VerifyAgent10
 from adcp.types.domains.core.publisher_property_selector import (
@@ -1474,6 +1455,7 @@ from adcp.types.domains.core.reporting_delivery_offering import (
     ReportingDeliveryPattern,
     ReportingFeedPurpose,
     ReportingProfile,
+    UnmappedDimension,
 )
 from adcp.types.domains.core.reporting_delivery_offering_id import ReportingDeliveryOfferingId
 from adcp.types.domains.core.reporting_delivery_ready_webhook import (
@@ -1559,6 +1541,7 @@ from adcp.types.domains.core.reporting_subscription_coverage import (
 from adcp.types.domains.core.reporting_subscription_state import (
     AccountsUnauthorizedItem,
     AccountsWithException,
+    InactiveInterval,
     PriorVersion,
     ReportingSubscriptionState,
     State,
@@ -1641,6 +1624,7 @@ from adcp.types.domains.core.response_payload_jws_envelope import (
 from adcp.types.domains.core.rights_attestation_evaluation import (
     Issuer5,
     Issuer6,
+    Reference,
     RightsAttestationEvaluation,
     Subject10,
     Subject19,
@@ -1844,6 +1828,7 @@ from adcp.types.domains.core.vendor_metric_optimization import VendorMetricOptim
 from adcp.types.domains.core.vendor_metric_optimization_supported_metric import (
     VendorMetricOptimizationSupportedMetric,
 )
+from adcp.types.domains.core.vendor_metric_provenance import VendorMetricProvenance
 from adcp.types.domains.core.vendor_metric_value import VendorMetricValue
 from adcp.types.domains.core.vendor_pricing_option import (
     AppliesToOutputCapabilityId,
@@ -2369,11 +2354,6 @@ __all__ = [
     "DeclineProposalsInputRequired",
     "DeclineProposalsSubmitted",
     "DeclineProposalsWorking",
-    "DefinitionPin",
-    "DefinitionPin1",
-    "DefinitionPin2",
-    "DefinitionPin3",
-    "DefinitionPin4",
     "DegreeType",
     "DelegationType",
     "Delivery",
@@ -2562,6 +2542,7 @@ __all__ = [
     "Immutability",
     "Impact",
     "Impairment",
+    "InactiveInterval",
     "Indicator",
     "IndicatorBearingResourceState",
     "IndicatorScope",
@@ -2605,8 +2586,6 @@ __all__ = [
     "InputFormat9",
     "InsertionOrder",
     "Installment",
-    "InstallmentChangeSet",
-    "InstallmentChangeSetItem",
     "InstallmentDeadlines",
     "InstallmentDeliveryMetrics",
     "InstallmentPropertyDeliveryMetrics",
@@ -2759,6 +2738,7 @@ __all__ = [
     "NotificationConfig",
     "NotificationType",
     "ObservedThrough",
+    "OfferReason",
     "Offering",
     "OfferingAssetConstraint",
     "OfferingAssetGroup",
@@ -3014,8 +2994,8 @@ __all__ = [
     "PropertyType",
     "Proposal",
     "ProposalCreatedWebhook",
-    "ProposalInitiator",
     "ProposalKind",
+    "ProposalOfferedWebhook",
     "Protocol",
     "ProtocolEnvelope",
     "ProtocolResponse",
@@ -3062,10 +3042,7 @@ __all__ = [
     "ReconciliationStatus",
     "Recovery",
     "Rectangle",
-    "RefKind",
-    "Reference1",
-    "Reference2",
-    "Reference3",
+    "Reference",
     "ReferenceAuthorization1",
     "ReferenceRenderer",
     "RefineProposalsInputRequired",
@@ -3383,6 +3360,7 @@ __all__ = [
     "UnknownGroupAsset",
     "UnknownHandling",
     "UnknownReason",
+    "UnmappedDimension",
     "UpdateFrequency",
     "UpdateMediaBuyInputRequired",
     "UpdateMediaBuySubmitted",
@@ -3414,6 +3392,7 @@ __all__ = [
     "VendorMetricId",
     "VendorMetricOptimization",
     "VendorMetricOptimizationSupportedMetric",
+    "VendorMetricProvenance",
     "VendorMetricValue",
     "VendorPricing",
     "VendorPricing1",

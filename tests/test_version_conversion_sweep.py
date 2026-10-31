@@ -1,7 +1,7 @@
 """Every valid newer payload converts down to a valid older payload, or fails structurally.
 
 Each source release is swept to every older release this SDK converts to:
-3.2 to 3.1 and 3.0, and 3.3-beta.1 to 3.2, 3.1 and 3.0. Sources: each bundled
+3.2 to 3.1 and 3.0, and 3.3-beta.2 to 3.2, 3.1 and 3.0. Sources: each bundled
 schema example of the source release, its ESA audience-evidence product and
 capabilities vectors, the canonical-valid validation parity cases, and the
 release's fixture file (``tests/fixtures/version_conversion_sweep*.json``).
@@ -28,13 +28,13 @@ from adcp.validation.schema_loader import get_portable_schema, list_validator_ke
 
 FIXTURES = Path(__file__).parent / "fixtures"
 #: Source release -> the older releases it is converted to.
-TARGETS = {"3.2": ("3.1", "3.0"), "3.3-beta.1": ("3.2", "3.1", "3.0")}
+TARGETS = {"3.2": ("3.1", "3.0"), "3.3-beta.2": ("3.2", "3.1", "3.0")}
 #: Source release -> its fixture files and compliance bundle (test vectors).
 FIXTURE_FILES = {
     "3.2": ("version_conversion_sweep.json",),
-    "3.3-beta.1": ("version_conversion_sweep_3_3.json", "version_conversion_sweep.json"),
+    "3.3-beta.2": ("version_conversion_sweep_3_3.json", "version_conversion_sweep.json"),
 }
-COMPLIANCE = {"3.2": "3.2.4", "3.3-beta.1": "3.3.0-beta.1"}
+COMPLIANCE = {"3.2": "3.2.4", "3.3-beta.2": "3.3.0-beta.2"}
 
 #: (case id, target) -> pointer of the intentional structured error, per source.
 EXPECTED_STRUCTURED_ERRORS: dict[str, dict[tuple[str, str], str]] = {
@@ -70,7 +70,7 @@ EXPECTED_STRUCTURED_ERRORS: dict[str, dict[tuple[str, str], str]] = {
             "3.0",
         ): "/accounts/0/notification_configs/0/event_types",
     },
-    "3.3-beta.1": {
+    "3.3-beta.2": {
         # Test-controller scenarios added after 3.0 have no 3.0 spelling.
         ("comply_test_controller::request::example-7", "3.0"): "/scenario",
         ("comply_test_controller::request::example-11", "3.0"): "/scenario",
