@@ -36,10 +36,12 @@ will consume it in a follow-up PR.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
+from adcp.canonical_formats.narrowing import narrowing_advisory
 from adcp.types import (
     CanonicalFormatKind,
     Error,
@@ -126,6 +128,7 @@ def project_declaration_to_v1(
     *,
     field_path: str = "format_options[]",
     product_id: str | None = None,
+    v1_requirements_lookup: Callable[[FormatId], dict[str, Any] | None] | None = None,
 ) -> V2ToV1Projection:
     """Project a single declaration to v1, emitting advisories per the
     resolution order documented at module level.
@@ -138,6 +141,13 @@ def project_declaration_to_v1(
             callers wrapping a ``Product`` should pass the indexed form.
         product_id: Optional product identifier — surfaced in advisory
             ``details.product_id`` for buyer-side correlation.
+        v1_requirements_lookup: Optional synchronous lookup of the exact full
+            format reference in an operator-provisioned catalog snapshot.
+            Returned requirements are checked for narrowing; missing entries
+            (``None``) and an omitted lookup leave references unchecked, as
+            before. The SDK does not fetch a catalog or certify the lookup's
+            contents. Lookup exceptions propagate rather than hiding a failed
+            check. References are preserved even when an advisory is emitted.
 
     Returns:
         :class:`V2ToV1Projection` with the projected refs and any
@@ -155,6 +165,21 @@ def project_declaration_to_v1(
     # Step 2: seller-asserted v1 link — emit refs, check multi-size fan-out.
     if refs:
         advisories: list[Error] = []
+        if v1_requirements_lookup is not None:
+            for index, ref in enumerate(refs):
+                requirements = v1_requirements_lookup(ref)
+                if requirements is None:
+                    continue
+                advisory = narrowing_advisory(
+                    declaration,
+                    v1_requirements=requirements,
+                    v1_format_id=ref.id,
+                    field_path=f"{field_path}.v1_format_ref[{index}]",
+                )
+                if advisory is not None:
+                    if product_id is not None and advisory.details is not None:
+                        advisory.details["product_id"] = _echo_identifier(product_id)
+                    advisories.append(advisory)
         sizes_n = _params_sizes_count(declaration)
         if sizes_n > len(refs):
             details: dict[str, Any] = {
@@ -220,6 +245,7 @@ def project_product_to_v1(
     product: Any,
     *,
     product_index: int | None = None,
+    v1_requirements_lookup: Callable[[FormatId], dict[str, Any] | None] | None = None,
 ) -> V2ToV1Projection:
     """Project every ``format_options[]`` entry on a ``Product`` to v1.
 
@@ -237,6 +263,9 @@ def project_product_to_v1(
             enclosing ``Products[]`` array. When provided, advisories
             carry the indexed field path (``products[N].format_options[K]``)
             so multi-product responses don't collapse to ambiguous pointers.
+        v1_requirements_lookup: Optional provisioned lookup forwarded to every
+            declaration. An omitted lookup or a missing catalog entry leaves
+            its references unchecked; see :func:`project_declaration_to_v1`.
 
     Returns:
         :class:`V2ToV1Projection` with the union of per-declaration results.
@@ -255,6 +284,7 @@ def project_product_to_v1(
             decl,
             field_path=prefix,
             product_id=product_id,
+            v1_requirements_lookup=v1_requirements_lookup,
         )
         out.format_ids.extend(result.format_ids)
         out.advisories.extend(result.advisories)
