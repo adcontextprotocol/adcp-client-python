@@ -1281,7 +1281,7 @@ async def test_viewability_under_two_standards_has_no_flat_total() -> None:
 
 
 @pytest.mark.parametrize(
-    ("version", "expect_rows"), [("3.3-beta.1", True), ("3.2", False), (None, True)]
+    ("version", "expect_rows"), [("3.3-beta.2", True), ("3.2", False), (None, True)]
 )
 def test_impressionless_rows_are_served_only_from_33(version, expect_rows) -> None:
     from types import SimpleNamespace
@@ -1384,7 +1384,7 @@ async def test_injected_breakdowns_follow_the_33_property_storyboards(
         },
     )
     validator = get_named_validator(
-        "media-buy/get-media-buy-delivery-response.json", version="3.3.0-beta.1"
+        "media-buy/get-media-buy-delivery-response.json", version="3.3.0-beta.2"
     )
     top = await _seller().get_media_buy_delivery(
         {

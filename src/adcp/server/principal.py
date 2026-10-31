@@ -469,7 +469,7 @@ class PrincipalService:
         emit_change: PrincipalChangeEmitter | None = None,
         # Minor versions (the schema pattern is ``^\d+\.\d+$``) whose async
         # payload shapes this seller emits. The SDK serves the 3.3 line by
-        # default (3.3-beta.1 declares as "3.3"); a seller pinned to 3.2
+        # default (3.3-beta.2 declares as "3.3"); a seller pinned to 3.2
         # passes ``("3.2",)``.
         accepted_async_adcp_versions: tuple[str, ...] = ("3.2", "3.3"),
         accepted_webhook_signing_algorithms: tuple[str, ...] = (),

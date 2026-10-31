@@ -12,7 +12,7 @@ releases ([#1525](https://github.com/adcontextprotocol/adcp-client-python/issues
 | --- | --- | --- |
 | `main` | Work against the latest ratified AdCP version (3.2.x today) | The current major (9.x), through release-please |
 | `release/N.x` (`release/8.x`, `release/7.x`) | Fixes for an older major | Patch releases of that major, from the branch's own release workflow |
-| `next` | SDK 10 on AdCP 3.3 (the 3.3.0-beta.1 bundle, agent identity, Web Bot Auth) | Pre-releases only (`10.0.0-beta.N`), from its own release-please configuration |
+| `next` | SDK 10 on AdCP 3.3 (the 3.3.0-beta.2 bundle, agent identity, Web Bot Auth) | Pre-releases only (`10.0.0-beta.N`), from its own release-please configuration |
 
 Open a PR against the branch that carries the spec it implements. Code written
 to an unratified spec (an open adcontextprotocol/adcp PR or a draft) targets
