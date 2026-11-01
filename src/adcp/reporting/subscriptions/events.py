@@ -597,6 +597,16 @@ def _merge_partial(
                 values.setdefault(key, value)
         merged[section] = values
     if everything:
+        # A run that could not read the principal or the roster keeps the
+        # previous subscriptions and losses, so nothing reads as changed.
+        merged["subscriptions"] = {
+            **dict(previous.get("subscriptions") or {}),
+            **dict(current.get("subscriptions") or {}),
+        }
+        merged["unauthorized"] = {
+            **dict(previous.get("unauthorized") or {}),
+            **dict(current.get("unauthorized") or {}),
+        }
         merged["covered"] = sorted(
             set(current.get("covered") or ()) | set(previous.get("covered") or ())
         )

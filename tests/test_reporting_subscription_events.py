@@ -135,3 +135,23 @@ async def test_the_events_loop_acks_each_batch_and_wakes_on_the_doorbell() -> No
     # The loop acknowledged what it delivered: only clock-driven period events remain.
     remaining = await reporting.poll()
     assert "subscription.state_changed" not in _types(remaining)
+
+
+async def test_a_failed_read_never_fabricates_events() -> None:
+    world = _World()
+    await world.subscribe()
+    client = InProcessBuyer(world.platform, _ctx)
+    reporting = ReportingClient(client)
+    world.clock.set(START + timedelta(minutes=30))
+    await world.service.run_worker()
+    account = world.seller.accounts.pop(ACCOUNT)
+    await world.service.touch(account_id=ACCOUNT)
+    await world.service.drain_subscription_triggers()
+    await (await reporting.poll(now=world.clock())).ack()
+    for task in ("get_principal", "list_accounts"):
+        client.fail.add(task)
+        batch = await reporting.poll(now=world.clock())
+        assert batch.events == [], (task, [e.type for e in batch.events])
+        await batch.ack()
+        client.fail.discard(task)
+    world.seller.accounts[ACCOUNT] = account
