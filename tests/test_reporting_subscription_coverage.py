@@ -1499,8 +1499,21 @@ def test_wire_offering_without_standard_dimensions_is_refused() -> None:
         "supported_finality": ["official"],
         "reconciliation_mode": "delivery_only",
     }
+    from adcp.reporting.subscriptions import resolve_subscription_offerings
+
+    # error-codes.json refuses only a candidate offering without it (adcp#8679).
+    legacy = SubscriptionOffering.from_offering(wire)
+    assert not legacy.dimensions_published
+    selector = {
+        "selector": {
+            "feed_purpose": "analytics",
+            "period_duration": "P1D",
+            "required_finality": "official",
+        },
+        "reconciliation_mode": "delivery_only",
+    }
     with pytest.raises(ValueError, match="standard_dimensions"):
-        SubscriptionOffering.from_offering(wire)
+        resolve_subscription_offerings(selector, [legacy], product_offering_ids=["legacy"])
     assert SubscriptionOffering.from_offering(wire, dimensions=()).dimensions == frozenset()
 
 
