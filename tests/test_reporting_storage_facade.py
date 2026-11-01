@@ -160,3 +160,59 @@ def test_postgres_storage_resolves_through_the_entry_point() -> None:
     from adcp.storage import _plugin
 
     assert _plugin("adcp.storage", "postgres") is direct
+
+
+# -- the storage contract shared with adcp-reporting-storage (#1763) ---------
+
+
+def test_storage_declares_the_contract_adcp_reads_with() -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    import adcp_reporting_storage
+    from adcp_reporting_storage.contract import STORAGE_CONTRACT, adcp_storage_contract
+
+    assert adcp_reporting_storage.STORAGE_CONTRACT == STORAGE_CONTRACT == 2
+    assert adcp_storage_contract() == STORAGE_CONTRACT
+    adcp_reporting_storage.require_adcp_contract()  # the workspace pair agrees
+
+
+def test_storage_classifies_an_adcp_without_a_declared_contract_by_its_columns(
+    monkeypatch,
+) -> None:
+    """adcp 10.0.0b4/b5 declare nothing; their column lists name the contract."""
+    pytest.importorskip("adcp_reporting_storage")
+    import sys
+
+    from adcp_reporting_storage.contract import adcp_storage_contract
+
+    from adcp.reporting.ledger import _record_rows
+
+    monkeypatch.setitem(sys.modules, "adcp.reporting.ledger.storage_contract", None)
+    assert adcp_storage_contract() == 2
+    monkeypatch.setattr(
+        _record_rows,
+        "_OBLIGATION_COLUMNS",
+        _record_rows._OBLIGATION_COLUMNS.replace(", offering_id", ""),
+    )
+    assert adcp_storage_contract() == 1  # 9.x and 10.0.0b0-b3
+
+
+def test_a_postgres_store_refuses_an_adcp_of_another_contract(monkeypatch) -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    pytest.importorskip("psycopg_pool")
+    from adcp_reporting_storage import contract
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+
+    from adcp.reporting import ReliableReportingConfigurationError
+
+    assert PgReportingLedgerStore.storage_contract == contract.STORAGE_CONTRACT
+    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 1)
+    with pytest.raises(ReliableReportingConfigurationError) as refused:
+        PgReportingLedgerStore(pool=object())
+    error = refused.value
+    assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
+    assert error.config_field == "adcp-reporting-storage"
+    assert "storage contract 1" in str(error) and "implements contract 2" in str(error)
+    assert "Install adcp 10.0.0b4 or later" in str(error)
+    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 3)
+    with pytest.raises(ReliableReportingConfigurationError, match="newer than"):
+        PgReportingLedgerStore(pool=object())

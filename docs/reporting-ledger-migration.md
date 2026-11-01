@@ -257,3 +257,35 @@ history, not to authorize an unfrozen new publication. High-level users of
 `ProducerOfferings(currency=...)` keep their fixed-currency convenience; new
 obligations freeze that value. See [multi-account currency resolution and
 monetary validation](reporting-currency.md) for the resolver and type examples.
+
+## Upgrading a ledger created by adcp-reporting-storage 0.1.0b4 or 0.2.0b0 (#1763)
+
+adcp 10.0.0b4 widened the configuration generation key with `offering_id`
+(AdCP 3.3 reporting subscriptions) and reads it from `reporting_configurations`,
+`reporting_obligations` and `reporting_consumer_statuses`. The storage releases
+before 0.2.0b1 do not create the column, so that pair fails every reporting
+turn with `column "offering_id" does not exist`. From 0.2.0b1 the pair is
+refused at startup instead (storage contract 1 versus 2; see
+`packages/adcp-reporting-storage/README.md`), and both schema entry points
+upgrade an existing ledger in place:
+
+- `PgReportingLedgerStore.create_schema()`, which `ReliableReportingService`
+  runs at startup when built with `store=`;
+- `python -m adcp migrate`, which `postgres_storage(...)` requires to have run.
+
+The upgrade (migration `0002`) adds `offering_id TEXT NOT NULL DEFAULT ''` to
+the widened tables, so every existing account-level generation, obligation and
+status keeps its identity with `offering_id = ''`; rebuilds the generation
+primary key and the obligation period index with the new column; and re-points
+the managed-delivery foreign keys. No evidence row is rewritten or dropped. The
+applied versions are recorded in `adcp_schema_migrations`, re-running is a
+no-op, and concurrent boots serialize on the reporting schema advisory lock
+inside one transaction. It is a stopped-worker upgrade: stop every worker of the
+earlier release first, because their configuration writes name the
+four-column key.
+
+`tests/conformance/reporting/test_reporting_storage_published_upgrade_pg.py`
+seeds ledgers with the actual published wheel pairs (`adcp==9.3.1` with
+`adcp-reporting-storage==0.1.0b4`, `adcp==10.0.0b2` with `0.2.0b0`) and proves
+the retained evidence reads back unchanged, a restart rebinds the stored
+generations, and the upgraded catalog is identical to a fresh migration.

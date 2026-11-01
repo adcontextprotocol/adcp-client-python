@@ -53,9 +53,36 @@ client you build; the extras only pin the client libraries.
 
 This package implements the protocols of one `adcp` major and imports a few
 private helpers of `adcp.reporting` to do so (`adcp.reporting.ledger._record_rows`,
-`_delivery_state`, `status_snapshot`). Its dependency range is therefore one
-major (`adcp>=9.0.0,<10`), and a new `adcp` major means a new release here.
+`_delivery_state`, `status_snapshot`). The column lists those helpers read are
+the **storage contract**, numbered on both sides
+(`adcp_reporting_storage.STORAGE_CONTRACT`,
+`adcp.reporting.ledger.storage_contract.REPORTING_STORAGE_CONTRACT`) and bumped
+together whenever the shared layout changes. The dependency floor is the first
+`adcp` release of the contract this package implements, so an incompatible pair
+does not resolve; if one is forced, building a PostgreSQL store refuses at
+startup, naming both versions and the release to install.
+
+| adcp-reporting-storage | storage contract | adcp |
+|---|---|---|
+| 0.1.0b4 (SDK 9 line) | 1 | `>=9.0.0,<10` |
+| 0.2.0b0 | 1 | `>=9.0.0,<11` (**do not pair with 10.0.0b4+**, [#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) |
+| 0.2.0b1+ | 2 | `>=10.0.0b4,<11` |
+
 `adcp` never imports this package; a test in the main repository enforces that.
+
+### Upgrading a ledger created by 0.1.0b4 or 0.2.0b0
+
+Both `PgReportingLedgerStore.create_schema()` (what `ReliableReportingService`
+runs at startup when given `store=`) and `python -m adcp migrate` upgrade an
+existing ledger in place: `offering_id` is added to `reporting_configurations`,
+`reporting_obligations`, `reporting_consumer_statuses` and the managed-delivery
+tables, backfilled with `''` for every existing account-level generation, the
+generation keys and unique indexes are widened, and the applied schema
+versions are recorded in `adcp_schema_migrations`. No evidence row is rewritten
+or dropped. The upgrade is transactional, serialized under the reporting schema
+advisory lock, and a no-op when re-run. It is a **stopped-worker** upgrade:
+stop every reporting worker of the earlier release first (its configuration
+writes name the four-column key), run the upgrade, then start the new release.
 
 ## Versioning
 
