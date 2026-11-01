@@ -32,6 +32,7 @@ seller then reports as unknown, with its owed periods ``withheld``.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -51,7 +52,14 @@ from adcp.reporting.subscriptions.explain import (
     _Candidate,
     sort_traces,
 )
+from adcp.reporting.subscriptions.receipts import (
+    ReceiptPolicy,
+    ReceiptReport,
+    apply_receipt_policy,
+)
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering
+
+logger = logging.getLogger(__name__)
 
 PeriodStatus = Literal["delivered", "pending", "late", "missing_obligation", "withheld", "not_owed"]
 ResponsibleParty = Literal["seller", "buyer", "none"]
@@ -169,6 +177,8 @@ class ReconcileReport:
     periods: tuple[PeriodLine, ...]
     issues: tuple[ReconcileIssue, ...] = ()
     accounts: tuple[str, ...] = ()
+    #: What the receipts policy did; ``None`` with ``mode="off"``.
+    receipts: ReceiptReport | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -250,6 +260,7 @@ class BuyerReportingState:
 
     def __init__(self) -> None:
         self.accounts: dict[str, _Account] = {}
+        self.warned_receipts = False
 
     def account(self, account_id: str) -> _Account:
         record = self.accounts.get(account_id)
@@ -599,7 +610,7 @@ class _Obligation:
 
 async def _obligations(
     client: Any, account_id: str, now: datetime
-) -> tuple[dict[tuple[Any, ...], _Obligation], bool]:
+) -> tuple[dict[tuple[Any, ...], _Obligation], bool, Any]:
     """Obligations keyed by (subscription, version, offering, start, end), and walk completeness."""
     from adcp.reporting._reconcile import evaluate_reporting_ledger, load_reporting_ledger
     from adcp.types import GetReportingStatusRequest
@@ -637,7 +648,7 @@ async def _obligations(
             finality,
             bool(outcome and "MISSING_MATCHING_CONSUMER_RECEIPT" in outcome.reasons),
         )
-    return index, ledger._read_fingerprint is not None
+    return index, ledger._read_fingerprint is not None, ledger
 
 
 def _line(
@@ -751,11 +762,13 @@ async def reconcile_subscriptions(
     subscription_id: str | None = None,
     grace: timedelta = DEFAULT_GRACE,
     include_not_owed: bool = False,
+    receipts: ReceiptPolicy | None = None,
     now: datetime | None = None,
 ) -> ReconcileReport:
     """What every covered account is owed, and its status. See :meth:`ReportingClient.reconcile`."""
     report, _context = await _reconcile(
         client,
+        receipts=receipts,
         state=state,
         since=since,
         accounts=accounts,
@@ -777,11 +790,14 @@ async def _reconcile(
     grace: timedelta,
     include_not_owed: bool,
     now: datetime | None,
+    receipts: ReceiptPolicy | None = None,
 ) -> tuple[ReconcileReport, _Context]:
     instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
     if not isinstance(grace, timedelta) or grace < timedelta(0):
         raise ValueError("grace must be a non-negative timedelta")
     lower = _since(since)
+    policy = receipts
+    receipt_report = ReceiptReport()
     context = _Context(client, state or BuyerReportingState())
     records = await context.load(accounts=None if accounts == "covered" else list(accounts))
     lines: list[PeriodLine] = []
@@ -791,7 +807,14 @@ async def _reconcile(
         obligations: dict[tuple[Any, ...], _Obligation] = {}
         if readable:
             try:
-                obligations, walked = await _obligations(client, record.account_id, instant)
+                obligations, walked, ledger = await _obligations(client, record.account_id, instant)
+                if policy is not None and policy.mode == "verified" and walked:
+                    if await apply_receipt_policy(
+                        client, record.account_id, ledger, policy, receipt_report, now=instant
+                    ):
+                        obligations, walked, ledger = await _obligations(
+                            client, record.account_id, instant
+                        )
                 complete = complete and walked
             except Exception as error:  # noqa: BLE001
                 complete = False
@@ -859,6 +882,18 @@ async def _reconcile(
         counts[line.status] += 1
         if line.status != "not_owed":
             counts["owed"] += 1
+    receipt_report.owed_by_buyer = sum(
+        1 for line in lines if line.receipt and line.receipt.get("status") == "owed_by_buyer"
+    )
+    if receipt_report.owed_by_buyer and (policy is None or policy.mode == "off"):
+        if not context.state.warned_receipts:
+            context.state.warned_receipts = True
+            logger.warning(
+                "%d billing period(s) owe a consumer receipt and the receipts policy is off. "
+                "Pass receipts=ReceiptPolicy(mode='verified', commit=...) or submit them with "
+                "client.reporting.submit_receipts.",
+                receipt_report.owed_by_buyer,
+            )
     report = ReconcileReport(
         as_of=iso_z(instant),
         definitive=complete and not context.issues,
@@ -866,6 +901,7 @@ async def _reconcile(
         periods=tuple(lines),
         issues=tuple(context.issues),
         accounts=tuple(record.account_id for record in records),
+        receipts=receipt_report if policy is not None and policy.mode != "off" else None,
     )
     return report, context
 

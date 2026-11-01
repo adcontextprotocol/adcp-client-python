@@ -512,6 +512,7 @@ class ReportingEvents:
             grace=grace,
             include_not_owed=False,
             now=instant,
+            receipts=None,
         )
         current = _snapshot(report, context)
         loaded = await self.store.load(self.agent_id)
