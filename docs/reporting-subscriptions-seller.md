@@ -87,7 +87,7 @@ account.authorization = wind_down_grant(account.authorization)
 
 Pass one storage object: `memory_storage()` in development, `postgres_storage(dsn=... | pool=...)` in production. Process-local storage is refused outside development (`REPORTING_STORAGE_NOT_DURABLE`).
 
-Apply schema changes with `python -m adcp migrate [--status | --dry-run]` before starting a release. Startup refuses a schema that is behind (`REPORTING_SCHEMA_BEHIND`). `0002 reporting_subscription_generations` is a stopped-worker upgrade: stop every reporting worker first.
+Apply schema changes with `python -m adcp migrate [--status | --dry-run]` before starting a release. Startup refuses a schema that is behind (`REPORTING_SCHEMA_BEHIND`). `0002 reporting_subscription_generations` and `0006 reporting_status_checkpoint_offerings` are stopped-worker upgrades: stop every reporting worker first.
 
 ## Workers and scaling
 

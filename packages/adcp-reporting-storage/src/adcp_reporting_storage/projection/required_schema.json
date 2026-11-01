@@ -355,6 +355,10 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
+  "column:reporting_projection_notification_events.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_projection_notification_events.scope_kind": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -785,7 +789,7 @@
   },
   "constraint:reporting_projection_notification_events.reporting_projection_notifica_account_id_consumer_namespac_fkey": {
     "enabled": true,
-    "fingerprint": "ee26a73f446c794ba69fc056f5fb1b8e094b25ae48743fe5e23045749e84f1c2"
+    "fingerprint": "a88d869a73abf6c88d6af29502b32e61e5f9657a03f80959629cb89086522dad"
   },
   "constraint:reporting_projection_notification_events.reporting_projection_notifica_account_id_consumer_namespac_key1": {
     "enabled": true,
@@ -797,7 +801,7 @@
   },
   "constraint:reporting_projection_notification_events.reporting_projection_notifica_account_id_consumer_namespace_key": {
     "enabled": true,
-    "fingerprint": "a21acc6c4e405fcbf7711fe5a82c55206c994c6c969b498f9afe35af859ed206"
+    "fingerprint": "eea1d95be27f57f078192704cd006232ad6cdb37030fb397e2eccb3a3d430616"
   },
   "constraint:reporting_projection_notification_events.reporting_projection_notification_event_notification_type_check": {
     "enabled": true,
@@ -874,6 +878,10 @@
   "constraint:reporting_projection_notification_events.reporting_projection_notification_events_fingerprint_check": {
     "enabled": true,
     "fingerprint": "e6f7fe9bd1925eb05eeab481da0229b0180558dd2448eda9e51e98faf31d6497"
+  },
+  "constraint:reporting_projection_notification_events.reporting_projection_notification_events_offering": {
+    "enabled": true,
+    "fingerprint": "60b6b5efe8e40c3c2c31d72d4026fbe1aa9f26758c74614b160c1cd96f67d8e1"
   },
   "constraint:reporting_projection_notification_events.reporting_projection_notification_events_pkey": {
     "enabled": true,
@@ -1005,7 +1013,7 @@
   },
   "function:reporting_projection_event_guard()": {
     "enabled": true,
-    "fingerprint": "64f503d73db42c174921cbb9cbaf822383e39d35607c2ce0d9ff315c2c5f3074"
+    "fingerprint": "294683741aba35c138ca5bdefcb0eac25d7942529cf9b4aba2bdb74d244c4d22"
   },
   "function:reporting_projection_feed_immutable()": {
     "enabled": true,
@@ -1097,7 +1105,7 @@
   },
   "index:reporting_projection_notification_events.reporting_projection_notifica_account_id_consumer_namespace_key": {
     "enabled": true,
-    "fingerprint": "ca07092e6e38681fee63f6717cf10f1446bf3b8bc117a73cde19b5dcc987be5c"
+    "fingerprint": "eacd2bb39d94ed5ed87334e4983e1de1432bdf889dfe95b7c448be04d96a8cfb"
   },
   "index:reporting_projection_notification_events.reporting_projection_notification_events_pkey": {
     "enabled": true,

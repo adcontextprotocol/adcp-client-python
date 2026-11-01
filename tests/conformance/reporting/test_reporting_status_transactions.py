@@ -275,7 +275,8 @@ async def test_database_clock_exact_expiry_reclaims_but_never_acknowledges():
                     " fenced AS (UPDATE reporting_status_scope_checkpoints SET"
                     " lease_expires_at=moment.at FROM moment WHERE account_id=%s"
                     " AND consumer_namespace=%s AND delivery_config_id=%s AND version=%s"
-                    " AND scope_kind=%s AND obligation_namespace=%s AND lease_token=%s"
+                    " AND scope_kind=%s AND obligation_namespace=%s AND offering_id=%s"
+                    " AND lease_token=%s"
                     " RETURNING lease_expires_at) SELECT lease_expires_at FROM fenced",
                     (*lease.scope.checkpoint_key, lease.token),
                 )

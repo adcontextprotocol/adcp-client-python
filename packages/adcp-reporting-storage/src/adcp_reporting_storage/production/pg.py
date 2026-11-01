@@ -507,17 +507,6 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         offering = owner._subscription_offering(configuration, destination)
         document = owner._destination_binding(destination, offering).wire()
         identity = _owed_identity(configuration.generation_key)
-        other = await (
-            await connection.execute(
-                "SELECT 1 FROM adcp_reporting_production_owed_sets WHERE account_id=%s"
-                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
-                " AND offering_id<>%s LIMIT 1",
-                identity,
-            )
-        ).fetchone()
-        if other is not None:
-            # Status checkpoints hold one configuration scope per version.
-            raise ReportingNotificationError("reporting_production_offering_conflict")
         await connection.execute(
             "INSERT INTO adcp_reporting_production_owed_sets"
             " (account_id,consumer_id,delivery_config_id,delivery_config_version,offering_id,"
@@ -1023,6 +1012,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 "reporting_status_notifications.sql",
                 "reporting_status_selector_version.sql",
                 "reporting_projection.sql",
+                "reporting_status_checkpoint_offerings.sql",
                 "reporting_projection_notifications.sql",
                 "reporting_projection_feed.sql",
                 "reporting_production.sql",

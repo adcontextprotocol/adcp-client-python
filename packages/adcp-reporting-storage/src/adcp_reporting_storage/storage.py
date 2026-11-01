@@ -78,9 +78,13 @@ def postgres_storage(
         if pending:
             versions = ", ".join(item.version for item in pending)
             stopped = [item.version for item in pending if item.stopped_worker]
+            upgrades = (
+                "is a stopped-worker upgrade"
+                if len(stopped) == 1
+                else "are stopped-worker upgrades"
+            )
             note = (
-                f"; {', '.join(stopped)} is a stopped-worker upgrade, so stop every reporting "
-                "worker first"
+                f"; {', '.join(stopped)} {upgrades}, so stop every reporting worker first"
                 if stopped
                 else ""
             )

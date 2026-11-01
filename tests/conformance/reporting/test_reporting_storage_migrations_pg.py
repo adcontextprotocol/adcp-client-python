@@ -47,9 +47,9 @@ async def test_storage_refuses_a_schema_that_is_behind_and_starts_once_migrated(
             await storage.check_schema()
         error = refused.value
         assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
-        assert "pending: 0001, 0002, 0003, 0004, 0005" in str(error)
+        assert "pending: 0001, 0002, 0003, 0004, 0005, 0006" in str(error)
         assert "python -m adcp migrate" in str(error)
-        assert "0002 is a stopped-worker upgrade" in str(error)
+        assert "0002, 0006 are stopped-worker upgrades" in str(error)
         await migrate(pool)
         await storage.check_schema()
 
@@ -86,7 +86,7 @@ async def test_the_cli_migrates_and_reports_status(capsys) -> None:
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out
         assert "0002 reporting_subscription_generations: pending  [stopped-worker upgrade" in status
-        assert "5 pending" in status
+        assert "6 pending" in status
         assert await _run(dsn, status=False, dry_run=False) == 0
         assert "applied 0002 reporting_subscription_generations (stopped-worker upgrade)" in (
             capsys.readouterr().out

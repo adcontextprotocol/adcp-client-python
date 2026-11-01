@@ -55,12 +55,15 @@ from adcp_reporting_storage.ledger.status_snapshot import (
 )
 from adcp_reporting_storage.outbox.pg import PgReportingOutbox, database_now
 
+# ReportingStatusScope.checkpoint_key, in column order: offering_id is '' for
+# an account-level generation and names a subscription generation's offering.
 _KEY = (
-    "account_id, consumer_namespace, delivery_config_id, version, scope_kind, obligation_namespace"
+    "account_id, consumer_namespace, delivery_config_id, version, scope_kind,"
+    " obligation_namespace, offering_id"
 )
 _WHERE = (
     "account_id=%s AND consumer_namespace=%s AND delivery_config_id=%s AND version=%s"
-    " AND scope_kind=%s AND obligation_namespace=%s"
+    " AND scope_kind=%s AND obligation_namespace=%s AND offering_id=%s"
 )
 _CHECKPOINT = (
     "scope, fingerprint, generation, snapshot, next_due_at, source_sequence, baseline, publishable,"
@@ -167,11 +170,10 @@ async def _enqueue_on(connection: Any, event: ReportingDomainEvent) -> None:
         raise ReportingNotificationError("invalid_status_projection")
     key = cause.scope.checkpoint_key
     await connection.execute(
-        "INSERT INTO reporting_status_notification_events"
-        " (account_id, consumer_namespace, delivery_config_id, version, scope_kind,"
-        " obligation_namespace, notification_id, notification_type, cause_kind, cause_id,"
+        f"INSERT INTO reporting_status_notification_events ({_KEY},"  # nosec B608
+        " notification_id, notification_type, cause_kind, cause_id,"
         " cause_generation, fingerprint, fired_at, snapshot)"
-        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)",
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)",
         (
             *key,
             event.notification_id,
@@ -263,6 +265,11 @@ class PgStatusNotificationStore:
                 .joinpath("reporting_status_selector_version.sql")
                 .read_text()
             )
+            await connection.execute(
+                files("adcp_reporting_storage.ledger")
+                .joinpath("reporting_status_checkpoint_offerings.sql")
+                .read_text()
+            )
             await validate_status_schema(connection)
 
     @asynccontextmanager
@@ -293,15 +300,13 @@ class PgStatusNotificationStore:
         # typed scopes have exactly the same row-lock/notification boundary.
         for scope in projection_scopes(snapshot):
             await connection.execute(
-                f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, offering_id, scope,"  # nosec B608
+                f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, scope,"  # nosec B608
                 " fingerprint, snapshot, source_sequence, baseline, publishable,"
                 " selector_writer_floor) VALUES (%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,"
                 ' \'{"health":"waiting"}\',0,FALSE,FALSE,2)'
                 f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
                 (
                     *scope.checkpoint_key,
-                    # The scope's generation: '' for an account-level one.
-                    (scope.generation_key.offering_id if scope.generation_key else None) or "",
                     json.dumps(ledger_asdict(scope)),
                     "0" * 64,
                 ),
@@ -354,8 +359,7 @@ class PgStatusNotificationStore:
         rows = await (
             await connection.execute(
                 "SELECT scope FROM reporting_status_scope_checkpoints WHERE account_id=%s"
-                " ORDER BY account_id, consumer_namespace, delivery_config_id, version,"
-                " scope_kind, obligation_namespace",
+                f" ORDER BY {_KEY}",  # nosec B608
                 (snapshot.account_id,),
             )
         ).fetchall()
@@ -484,8 +488,7 @@ class PgStatusNotificationStore:
             await (
                 await connection.execute(
                     "SELECT 1 FROM reporting_status_scope_checkpoints WHERE account_id=%s"
-                    " ORDER BY account_id, consumer_namespace, delivery_config_id, version,"
-                    " scope_kind, obligation_namespace FOR UPDATE",
+                    f" ORDER BY {_KEY} FOR UPDATE",  # nosec B608
                     (account_id,),
                 )
             ).fetchall()

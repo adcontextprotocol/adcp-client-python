@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import weakref
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -281,13 +281,6 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         if previous != producer_key:
             raise ReportingNotificationError("reporting_production_source_conflict")
         offering = owner._subscription_offering(configuration, destination)
-        key = configuration.generation_key
-        if any(
-            other != key and replace(other, offering_id=key.offering_id) == key
-            for other in self._production_owed_sets
-        ):
-            # Status checkpoints hold one configuration scope per version.
-            raise ReportingNotificationError("reporting_production_offering_conflict")
         document = canonical_json_utf8_v1(owner._destination_binding(destination, offering).wire())
         original = self._production_destination_bindings.setdefault(
             (configuration.generation_key, destination.consumer_id), document

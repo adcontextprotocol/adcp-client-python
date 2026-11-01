@@ -86,6 +86,30 @@ refuses the upgrade with a maintenance error, rather than being dropped.
 Re-point it at the widened key, then run the upgrade. The upgrade is
 idempotent; a fresh schema is created in the widened layout directly.
 
+### Status checkpoints keyed by offering (migration `0006`)
+
+Status checkpoints, and the status events that reference them, are keyed by
+the generation's resolved offering too, so several offerings of one
+subscription version for the same account and owner each keep their own
+status: `reporting_status_scope_checkpoints` is keyed by `(account_id,
+consumer_namespace, delivery_config_id, version, scope_kind,
+obligation_namespace, offering_id)`. Account-level checkpoints keep
+`offering_id` `''`, so their keys, status `cause_id` values and projection
+history keys are unchanged.
+
+This is also a **stopped-worker upgrade**: stop every reporting worker, run
+`python -m adcp migrate` (migration `0006 reporting_status_checkpoint_offerings`)
+or the status, projection or production store's `create_schema()` once with the
+new release, then restart the workers. Under the schema lock it widens the
+checkpoint primary key; the status event tables (`reporting_status_notification_events`,
+and `reporting_projection_notification_events` where the projection is
+installed) gain `offering_id`, filled from their checkpoint, and their
+checkpoint reference and per-generation unique key include it. Constraints
+keep their names. It changes nothing on a schema without status
+notifications. A foreign key outside the SDK that references
+`reporting_status_scope_checkpoints` refuses the upgrade instead of being
+dropped.
+
 ## Historical account-generation upgrade
 
 The following notes describe the pre-ownership SDK release and are retained for

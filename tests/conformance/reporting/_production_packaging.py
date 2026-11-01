@@ -41,6 +41,7 @@ ASSETS = (
     "ledger/reporting_status_selector_version.sql",
     "outbox/required_status_selector_schema.json",
     "ledger/reporting_projection.sql",
+    "ledger/reporting_status_checkpoint_offerings.sql",
     "ledger/reporting_projection_notifications.sql",
     "ledger/reporting_projection_feed.sql",
     "projection/required_schema.json",

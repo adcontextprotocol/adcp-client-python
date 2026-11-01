@@ -413,8 +413,11 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
     never changes the schema: it refuses one that is behind with
     `REPORTING_SCHEMA_BEHIND`, naming the command and the pending versions.
   - `0002 reporting_subscription_generations` widens the generation key and
-    is a stopped-worker upgrade: stop every reporting worker before running
-    it. `--status` flags it.
+    `0006 reporting_status_checkpoint_offerings` keys status checkpoints and
+    status events by the generation's resolved offering. Both are
+    stopped-worker upgrades: stop every reporting worker before running them.
+    `--status` flags them. Stores whose schema you install with
+    `create_schema()` apply `0006`'s change there too.
 - **Principals.** Reporting APIs name a principal with
   `PrincipalRef(tenant_id, principal_id)`; `grants_task` and
   `authorizes_delivery` take it. One service serves one tenant.
@@ -632,18 +635,13 @@ Supply `bind_managed_generation(configuration, version)`.
   records, materializer discovery and status checkpoints record the
   generation's offering. Running `create_schema` with this release lifts
   those tables' account-only checks and widens the discovery key in place.
+  Status checkpoints, and their status events, are keyed by the offering, so
+  several offerings of one subscription version for the same account and
+  owner each keep their own status (migration `0006`).
 
 **Limits.** These are not served yet:
 
-- subscriptions that resolve a receipt-reconciled (`consumer_receipt`) offering;
-- more than one offering of one subscription version for the same account and
-  owner under production. Status checkpoints hold one configuration scope per
-  version, so admitting a second offering fails that subscription's planning
-  with `reporting_production_offering_conflict`;
-- status notifications for subscription generations outside production: a
-  `PgReportingLedgerStore` with them enabled refuses an owed set. It otherwise
-  holds owed sets, after the generation-key widening described in
-  [ledger migrations](reporting-ledger-migration.md).
+- subscriptions that resolve a receipt-reconciled (`consumer_receipt`) offering.
 
 Keep the engine's `status_retention_days` equal to the service's.
 
