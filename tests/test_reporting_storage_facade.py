@@ -116,12 +116,15 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     from adcp_reporting_storage.migrations import MigrationStatus, describe, migrations
 
     shipped = migrations()
-    assert [item.version for item in shipped] == ["0001", "0002", "0003", "0004", "0005"]
-    widened = shipped[1]
+    assert [item.version for item in shipped] == ["0001", "0002", "0003", "0004", "0005", "0006"]
+    widened, offerings = shipped[1], shipped[5]
     assert widened.name == "reporting_subscription_generations" and widened.stopped_worker
     assert widened.includes == ("ledger/reporting_ledger_account_generations.sql",)
-    assert "stop every reporting worker" in widened.description
-    assert not any(item.stopped_worker for item in shipped if item is not widened)
+    assert offerings.name == "reporting_status_checkpoint_offerings" and offerings.stopped_worker
+    assert offerings.includes == ("ledger/reporting_status_checkpoint_offerings.sql",)
+    for item in (widened, offerings):
+        assert "stop every reporting worker" in item.description
+    assert not any(item.stopped_worker for item in shipped if item not in (widened, offerings))
     for item in shipped:
         assert item.statements(), item.version  # every include resolves
     lines = describe([MigrationStatus(item, None) for item in shipped])

@@ -239,6 +239,10 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
+  "column:reporting_status_notification_events.offering_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
   "column:reporting_status_notification_events.scope_kind": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -561,7 +565,7 @@
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_fkey": {
     "enabled": true,
-    "fingerprint": "ee26a73f446c794ba69fc056f5fb1b8e094b25ae48743fe5e23045749e84f1c2"
+    "fingerprint": "a88d869a73abf6c88d6af29502b32e61e5f9657a03f80959629cb89086522dad"
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_key1": {
     "enabled": true,
@@ -573,7 +577,7 @@
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
     "enabled": true,
-    "fingerprint": "a21acc6c4e405fcbf7711fe5a82c55206c994c6c969b498f9afe35af859ed206"
+    "fingerprint": "eea1d95be27f57f078192704cd006232ad6cdb37030fb397e2eccb3a3d430616"
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_events_cause_generation_check": {
     "enabled": true,
@@ -646,6 +650,10 @@
   "constraint:reporting_status_notification_events.reporting_status_notification_events_notification_type_check": {
     "enabled": true,
     "fingerprint": "ee42647bcbefde76d58a6b7231c68bc1c4ef047e2523f779b4c28bcd9792eb47"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_offering": {
+    "enabled": true,
+    "fingerprint": "60b6b5efe8e40c3c2c31d72d4026fbe1aa9f26758c74614b160c1cd96f67d8e1"
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_events_pkey": {
     "enabled": true,
@@ -727,9 +735,13 @@
     "enabled": true,
     "fingerprint": "a306793f3ca65342fe7cd60e06058f661453b3d746d1da301a06e35d1e16d6e9"
   },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering": {
+    "enabled": true,
+    "fingerprint": "80f5bfd3fca25c4431864e99f221c28c0b36d6459f874da02a78da0150304072"
+  },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
     "enabled": true,
-    "fingerprint": "9248b24cf88bd9d81f5c44079431cbd72714f7922600c4dd6a99f9a7a190436b"
+    "fingerprint": "897893cf29e891fd86d26f34b5a10500e585fee2cde3b08bd066e40b73d3a7dd"
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_scope_kind_check": {
     "enabled": true,
@@ -821,7 +833,7 @@
   },
   "function:reporting_status_event_guard()": {
     "enabled": true,
-    "fingerprint": "e56d1d9017667282bc1a046656fc2833a97252af37dd2c632a8e0e686b5fb175"
+    "fingerprint": "1df8a065e5be846ea144b110ec4edad86795a585e1eaccce9d27f10be3dc7ae2"
   },
   "function:reporting_status_projection_input(owner text, at_time timestamp with time zone)": {
     "enabled": true,
@@ -829,7 +841,7 @@
   },
   "function:reporting_status_scope_guard()": {
     "enabled": true,
-    "fingerprint": "e52efa691de16f3f72df213ca103d8290807fb127ff790b15d7e68c9133757b7"
+    "fingerprint": "9291cd021f71ce6e28c720eb221e84f97c6592ef2820b109f6a69de7c2ef8d03"
   },
   "function:reporting_status_webhook_attempt_guard()": {
     "enabled": true,
@@ -885,7 +897,7 @@
   },
   "index:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
     "enabled": true,
-    "fingerprint": "1c8d9302d57b13d6ffed87ad1ed7ed3199119151ef68a5c28b6a075b01157e3a"
+    "fingerprint": "5a3f49c499abe6d9d4d161be5c8bc0b65f06b78289c3ad394fd0fb71affbe97d"
   },
   "index:reporting_status_notification_events.reporting_status_notification_events_pkey": {
     "enabled": true,
@@ -901,7 +913,7 @@
   },
   "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
     "enabled": true,
-    "fingerprint": "83b2cc13fef08e3cb5751d0182ff7b6b3b0aab04f7396a233d8a8f85cccd4a99"
+    "fingerprint": "689f13640980375b350e17731c25ed07813daef5895a59455380e4727421bbea"
   },
   "index:reporting_status_scope_checkpoints.reporting_status_scope_due": {
     "enabled": true,

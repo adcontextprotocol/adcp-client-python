@@ -24,11 +24,35 @@ Call `await client.accounts.refresh()` from a cron job or an `account_request.ch
 
 ## Separate accounts
 
-`client.accounts.change(...)` with `allow_separate_account`, and `client.accounts.use(...)`, arrive in a later beta. A seller opening a separate account never re-points the registry on its own.
+```python
+outcome = await client.accounts.change(
+    "acc_nova", {"brand": {"domain": "nova-athletics.example", "countries": ["BE", "DE", "NL"]}},
+    allow_separate_account=True)
+
+match outcome:
+    case AccountUpdated(account_id=aid, revision=rev): ...       # same account, new revision
+    case AccountSeparate(account_id=new, previous_account_id=old) as separate:
+        # Nothing moved. separate.not_carried_over and separate.subscriptions_not_covering
+        # say what the new account lacks. New buys go to it only after:
+        await client.accounts.use(separate.key, new)
+    case AccountMatched(account_id=other): ...                   # an existing account matched
+    case AccountPending(action=action): ...
+    case AccountRejected() as rejected if rejected.requires_new_account: ...
+```
+
+- **Default.** `allow_separate_account` defaults to `False`, as in the spec. A seller that would accept the change only as a separate account rejects it, and `outcome.requires_new_account` is `True` (`ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`).
+- **Pending changes.** A pending change is not kept in the registry. Keep its `request_id` and read it back with `await client.accounts.change_status(account_id, request_id)`; a new change request supersedes an open one.
+- **No silent re-point.** `change()` never re-points the registry; `use()` records the account with its own status from `list_accounts`, so the spend gate still holds a `payment_required` or pending account. After `AccountSeparate` or `AccountMatched`, the natural key keeps naming the old account until you call `client.accounts.use(key, account_id)`. Which account carries new buys stays your explicit choice.
+- **Not carried over.** `AccountSeparate.not_carried_over` lists the account-level configurations the new account lacks. `subscriptions_not_covering` lists the `account_ids`-scoped reporting subscriptions that will not see it.
+- **Next step.** `next_step(outcome)` is `none` for `AccountUpdated`, `AccountSeparate` and `AccountMatched`.
 
 ## Money changes and revision
 
-A change to `billing`, `billing_entity` or `payment_terms` needs the explicit account `revision` it was approved against. Send it with `request_account` until `change()` lands.
+A change to `billing`, `billing_entity` or `payment_terms` needs the explicit account `revision` it was approved against: `await client.accounts.change(account_id, {"payment_terms": "net_60"}, revision=3)`.
+- **Without `revision`** the call is refused before anything is sent: `AccountRequestError` with `dispatched=False` and code `ACCOUNT_REVISION_REQUIRED`. The SDK never reads the revision for you, because a human approved the change against a specific revision, and reading it would defeat the lost-update protection.
+- **`effective_at`.** `AccountUpdated.effective_at` says when the new money terms take effect. Delivery before it is invoiced under the previous terms.
+- **Other changes** (`brand` countries, `operator_unit`, `currency`, `timezone`) read the current `revision` from `list_accounts` when you omit it. On `CONFLICT` they retry once, but only when the fields being changed did not change concurrently.
+- **Sellers without `account.requests`.** `change()` is refused (`ACCOUNT_REQUESTS_UNSUPPORTED`); change accounts through `sync_accounts` instead.
 
 ## Cold start
 

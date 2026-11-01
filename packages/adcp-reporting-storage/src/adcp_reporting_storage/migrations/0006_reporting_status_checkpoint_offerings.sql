@@ -1,0 +1,15 @@
+-- adcp-migration: 0006 reporting_status_checkpoint_offerings
+-- adcp-upgrade: stopped-worker
+-- Keys status checkpoints, and the status events that reference them, by the
+-- generation's resolved offering: (account_id, consumer_namespace,
+-- delivery_config_id, version, scope_kind, obligation_namespace, offering_id).
+-- Two offerings of one subscription version, for one account and owner, keep
+-- their own checkpoints. Existing rows keep offering_id '' and their key, and
+-- the ids and digests derived from an account-level checkpoint are unchanged.
+--
+-- This is a stopped-worker upgrade: stop every reporting worker before running
+-- it. Workers of earlier releases insert checkpoints on the six-column key,
+-- which no longer exists, and swapping a primary key takes an exclusive lock
+-- on the checkpoint and status event tables. Start the new release only after
+-- it commits. It changes nothing on a schema without status notifications.
+-- include: ledger/reporting_status_checkpoint_offerings.sql

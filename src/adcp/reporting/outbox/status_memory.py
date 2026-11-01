@@ -37,7 +37,7 @@ from adcp.reporting.revision_selection import REPORTING_SELECTOR_VERSION
 @dataclass
 class _StatusMemoryState:
     accounts: dict[str, tuple[int, dict[str, Any]]] = field(default_factory=dict)
-    checkpoints: dict[tuple[str, str, str, int, str, str], StatusCheckpoint] = field(
+    checkpoints: dict[tuple[str, str, str, int, str, str, str], StatusCheckpoint] = field(
         default_factory=dict
     )
     outbox: NotificationState = field(default_factory=NotificationState)
@@ -73,6 +73,13 @@ class InMemoryStatusNotificationStore:
         if not hasattr(state, "selector_accounts"):
             state.selector_accounts = {}
         for key, checkpoint in tuple(state.checkpoints.items()):
+            # An old shared-state image keys a checkpoint by its six columns,
+            # before the resolved offering joined the key. Re-key it under the
+            # scope's own key; an account-level scope's offering is ''.
+            if key != checkpoint.scope.checkpoint_key:
+                del state.checkpoints[key]
+                key = checkpoint.scope.checkpoint_key
+                state.checkpoints[key] = checkpoint
             # An old shared-state image has no epoch fields. Decode by keyword
             # rather than letting new dataclass class defaults label it v2.
             if "selector_semantics_version" not in vars(checkpoint):

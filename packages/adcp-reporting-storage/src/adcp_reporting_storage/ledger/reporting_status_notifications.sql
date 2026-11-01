@@ -381,77 +381,9 @@ BEGIN
         RETURN NEW;
     END
     $capture$;
-    CREATE OR REPLACE FUNCTION reporting_status_scope_guard()
-    RETURNS TRIGGER LANGUAGE plpgsql AS $scope_guard$
-    DECLARE owner reporting_obligations;
-    BEGIN
-        IF TG_OP='UPDATE' AND (
-            ROW(NEW.account_id, NEW.consumer_namespace, NEW.delivery_config_id, NEW.version,
-                NEW.scope_kind, NEW.obligation_namespace) IS DISTINCT FROM
-            ROW(OLD.account_id, OLD.consumer_namespace, OLD.delivery_config_id, OLD.version,
-                OLD.scope_kind, OLD.obligation_namespace)
-            OR NEW.generation < OLD.generation OR NEW.generation > OLD.generation + 1
-            OR NEW.source_sequence < OLD.source_sequence
-            OR (OLD.initialized AND NOT NEW.initialized)
-            OR (OLD.baseline AND NOT NEW.baseline)
-            OR (OLD.initialized AND
-                ((NEW.generation <> OLD.generation) <> (NEW.fingerprint <> OLD.fingerprint)))) THEN
-            RAISE EXCEPTION 'invalid status checkpoint transition' USING ERRCODE='23514';
-        END IF;
-        IF NEW.scope_kind='obligation' THEN
-            SELECT * INTO owner FROM reporting_obligations
-                WHERE account_id=NEW.account_id AND consumer_id=NEW.consumer_namespace
-                    AND reporting_obligation_id=NEW.obligation_namespace;
-            IF NOT FOUND OR owner.delivery_config_id <> NEW.delivery_config_id
-                OR owner.delivery_config_version <> NEW.version THEN
-                RAISE EXCEPTION 'invalid status scope owner' USING ERRCODE='23514';
-            END IF;
-        END IF;
-        IF NEW.initialized AND (
-            NOT NEW.publishable OR NEW.snapshot->>'health' IS NULL
-            OR jsonb_typeof(NEW.snapshot->'issues') IS DISTINCT FROM 'array'
-            OR CASE WHEN NEW.snapshot->>'health' IN ('delayed','action_required') THEN
-                NOT EXISTS (SELECT 1 FROM jsonb_array_elements(NEW.snapshot->'issues') i
-                            WHERE i->>'severity'=NEW.snapshot->>'health')
-                ELSE jsonb_array_length(NEW.snapshot->'issues')<>0 END) THEN
-            RAISE EXCEPTION 'invalid status issue invariant' USING ERRCODE='23514';
-        END IF;
-        RETURN NEW;
-    END
-    $scope_guard$;
-    CREATE OR REPLACE FUNCTION reporting_status_event_guard()
-    RETURNS TRIGGER LANGUAGE plpgsql AS $event_guard$
-    DECLARE checkpoint reporting_status_scope_checkpoints; ids jsonb;
-    BEGIN
-        SELECT * INTO checkpoint FROM reporting_status_scope_checkpoints
-            WHERE account_id=NEW.account_id AND consumer_namespace=NEW.consumer_namespace
-            AND delivery_config_id=NEW.delivery_config_id AND version=NEW.version
-            AND scope_kind=NEW.scope_kind AND obligation_namespace=NEW.obligation_namespace;
-        IF NOT FOUND OR NOT checkpoint.initialized OR NOT checkpoint.publishable
-            OR checkpoint.generation<>NEW.cause_generation OR checkpoint.fingerprint<>NEW.fingerprint
-            OR checkpoint.snapshot->>'health' IS DISTINCT FROM NEW.snapshot #>> '{cause,health}' THEN
-            RAISE EXCEPTION 'invalid status event checkpoint' USING ERRCODE='23514';
-        END IF;
-        SELECT coalesce(jsonb_agg(issue_id ORDER BY issue_id COLLATE "C"), '[]') INTO ids
-            FROM (SELECT DISTINCT i->>'issue_id' COLLATE "C" AS issue_id
-                  FROM jsonb_array_elements(checkpoint.snapshot->'issues') i
-                  ORDER BY issue_id LIMIT 16) selected;
-        IF ids IS DISTINCT FROM NEW.snapshot #> '{cause,issue_ids}' THEN
-            RAISE EXCEPTION 'invalid status event issues' USING ERRCODE='23514';
-        END IF;
-        RETURN NEW;
-    END
-    $event_guard$;
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='reporting_status_scope_checkpoints'::regclass
-                   AND tgname='reporting_status_scope_guard' AND NOT tgisinternal) THEN
-        CREATE TRIGGER reporting_status_scope_guard BEFORE INSERT OR UPDATE
-            ON reporting_status_scope_checkpoints FOR EACH ROW EXECUTE FUNCTION reporting_status_scope_guard();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='reporting_status_notification_events'::regclass
-                   AND tgname='reporting_status_event_guard' AND NOT tgisinternal) THEN
-        CREATE TRIGGER reporting_status_event_guard BEFORE INSERT
-            ON reporting_status_notification_events FOR EACH ROW EXECUTE FUNCTION reporting_status_event_guard();
-    END IF;
+    -- reporting_status_scope_guard and reporting_status_event_guard compare the
+    -- full checkpoint key, offering included: reporting_status_checkpoint_offerings.sql
+    -- defines them and installs their triggers.
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='reporting_status_dirty'::regclass
                    AND tgname='reporting_status_boundary_mark' AND NOT tgisinternal) THEN
         CREATE TRIGGER reporting_status_boundary_mark AFTER INSERT ON reporting_status_dirty

@@ -80,6 +80,7 @@ class PgReportingProjectionStore(PgReportingFeedStore):
                 "reporting_status_notifications.sql",
                 "reporting_status_selector_version.sql",
                 "reporting_projection.sql",
+                "reporting_status_checkpoint_offerings.sql",
                 "reporting_projection_notifications.sql",
                 "reporting_projection_feed.sql",
             ):
@@ -330,7 +331,7 @@ class PgReportingStatusProjection(PgStatusNotificationStore):
                     " reporting_status_scope_checkpoints"
                     " WHERE account_id=%s ORDER BY"
                     " consumer_namespace,delivery_config_id,version,scope_kind,"
-                    " obligation_namespace FOR UPDATE",
+                    " obligation_namespace,offering_id FOR UPDATE",
                     (account_id,),
                 )
             ).fetchall()

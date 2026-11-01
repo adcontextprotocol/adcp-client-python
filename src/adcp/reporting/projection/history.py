@@ -9,7 +9,6 @@ not read, copied or modified here.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -17,7 +16,6 @@ from typing import Any, Literal
 from pydantic import TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
-from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import (
     ReportingNotificationError,
@@ -53,7 +51,7 @@ def decode_boundary(kind: HistoricalKind, value: dict[str, Any]) -> HistoricalBo
 
 
 def checkpoint_key(checkpoint: StatusCheckpoint) -> str:
-    return hashlib.sha256(canonical_json_utf8_v1(checkpoint.scope.checkpoint_key)).hexdigest()
+    return checkpoint.scope.checkpoint_digest
 
 
 def checkpoint_document(checkpoint: StatusCheckpoint) -> dict[str, Any]:
@@ -113,7 +111,7 @@ def project_boundary(
                 consumer_status_enabled=consumer_status_enabled,
             )
         )
-        key = hashlib.sha256(canonical_json_utf8_v1(scope.checkpoint_key)).hexdigest()
+        key = scope.checkpoint_digest
         checkpoint, event = advance_checkpoint(
             previous.get(key, baselines.get(key)),
             result,

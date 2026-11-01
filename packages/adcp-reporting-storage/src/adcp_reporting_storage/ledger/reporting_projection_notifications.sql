@@ -21,12 +21,18 @@ BEGIN
         admission_epoch BIGINT NOT NULL DEFAULT 2 CHECK (admission_epoch=2),
         fired_at TIMESTAMPTZ NOT NULL,
         snapshot JSONB NOT NULL,
+        -- Its checkpoint's offering: '' for an account-level generation. The
+        -- checkpoint key includes it (reporting_status_checkpoint_offerings.sql,
+        -- which runs first and upgrades a table created on the six-column key).
+        offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         PRIMARY KEY (account_id, consumer_namespace, notification_id),
         UNIQUE (account_id, consumer_namespace, delivery_config_id, version,
-                scope_kind, obligation_namespace, cause_generation),
+                scope_kind, obligation_namespace, offering_id, cause_generation),
         FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version,
-                     scope_kind, obligation_namespace)
+                     scope_kind, obligation_namespace, offering_id)
             REFERENCES reporting_status_scope_checkpoints,
+        CONSTRAINT reporting_projection_notification_events_offering CHECK
+            (coalesce(snapshot #>> '{cause,scope,generation_key,offering_id}', '') = offering_id),
         CHECK ((scope_kind = 'configuration') = (obligation_namespace = '')),
         UNIQUE (account_id, consumer_namespace, notification_type,
                 cause_kind, cause_id, cause_generation),
@@ -251,34 +257,8 @@ BEGIN
             ON reporting_projection_webhook_attempts FOR EACH ROW EXECUTE FUNCTION reporting_projection_webhook_attempt_guard();
     END IF;
 
-    CREATE OR REPLACE FUNCTION reporting_projection_event_guard()
-    RETURNS TRIGGER LANGUAGE plpgsql AS $event_guard$
-    DECLARE checkpoint reporting_status_scope_checkpoints; ids jsonb;
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM reporting_projection_accounts
-            WHERE account_id=NEW.account_id AND current_input IS NOT NULL
-            AND notifications_enabled) THEN
-            RAISE EXCEPTION 'status_projection_activation_required' USING ERRCODE='23514';
-        END IF;
-        SELECT * INTO checkpoint FROM reporting_status_scope_checkpoints
-            WHERE account_id=NEW.account_id AND consumer_namespace=NEW.consumer_namespace
-            AND delivery_config_id=NEW.delivery_config_id AND version=NEW.version
-            AND scope_kind=NEW.scope_kind AND obligation_namespace=NEW.obligation_namespace;
-        IF NOT FOUND OR NOT checkpoint.initialized OR NOT checkpoint.publishable
-            OR checkpoint.generation<>NEW.cause_generation OR checkpoint.fingerprint<>NEW.fingerprint
-            OR checkpoint.snapshot->>'health' IS DISTINCT FROM NEW.snapshot #>> '{cause,health}' THEN
-            RAISE EXCEPTION 'invalid status event checkpoint' USING ERRCODE='23514';
-        END IF;
-        SELECT coalesce(jsonb_agg(issue_id ORDER BY issue_id COLLATE "C"), '[]') INTO ids
-            FROM (SELECT DISTINCT i->>'issue_id' COLLATE "C" AS issue_id
-                  FROM jsonb_array_elements(checkpoint.snapshot->'issues') i
-                  ORDER BY issue_id LIMIT 16) selected;
-        IF ids IS DISTINCT FROM NEW.snapshot #> '{cause,issue_ids}' THEN
-            RAISE EXCEPTION 'invalid status event issues' USING ERRCODE='23514';
-        END IF;
-        RETURN NEW;
-    END
-    $event_guard$;
+    -- reporting_status_checkpoint_offerings.sql defines the guard: it compares
+    -- the full checkpoint key, offering included.
     IF NOT EXISTS (SELECT 1 FROM pg_trigger
         WHERE tgrelid='reporting_projection_notification_events'::regclass
           AND tgname='reporting_projection_event_guard') THEN

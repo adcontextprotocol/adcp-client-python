@@ -196,12 +196,7 @@ class ReportingDomainEvent(_ClosedValue):
         if isinstance(cause, AdjustmentPublished):
             return cause.reporting_adjustment_id
         if isinstance(cause, StatusChanged):
-            from adcp.reporting.canonical_json import canonical_json_utf8_v1
-
-            return (
-                "rpsc_"
-                + hashlib.sha256(canonical_json_utf8_v1(cause.scope.checkpoint_key)).hexdigest()
-            )
+            return "rpsc_" + cause.scope.checkpoint_digest
         # Structured encoding: consumers and materializations may reuse IDs.
         return json.dumps(
             [cause.consumer_id, cause.reporting_materialization_id], separators=(",", ":")
@@ -312,8 +307,14 @@ class ReportingStatusScope(_ClosedValue):
             object.__setattr__(self, "consumer_id", self.generation_key.consumer_id)
 
     @property
-    def checkpoint_key(self) -> tuple[str, str, str, int, str, str]:
-        """Six independent, non-null columns. Scope kinds never share an ID space."""
+    def checkpoint_key(self) -> tuple[str, str, str, int, str, str, str]:
+        """Seven independent, non-null columns. Scope kinds never share an ID space.
+
+        The last column is the generation's resolved offering: a reporting
+        subscription keeps one generation per resolved offering of a version,
+        so each offering has its own checkpoints. It is ``''`` for an
+        account-level generation.
+        """
         if self.generation_key is None:
             raise ReportingNotificationError("invalid_status_scope")
         return (
@@ -323,7 +324,23 @@ class ReportingStatusScope(_ClosedValue):
             self.generation_key.delivery_config_version,
             "obligation" if self.reporting_obligation_id is not None else "configuration",
             self.reporting_obligation_id or "",
+            self.generation_key.offering_id or "",
         )
+
+    @property
+    def checkpoint_digest(self) -> str:
+        """SHA-256 of the canonical checkpoint key, for persisted ids and digests.
+
+        An account-level generation (offering ``''``) digests the six columns
+        it always had, so the status ``cause_id`` values and history keys that
+        deployments already store keep their meaning. Only an offering's
+        checkpoint digests the seventh column.
+        """
+        from adcp.reporting.canonical_json import canonical_json_utf8_v1
+
+        key = self.checkpoint_key
+        identity = key if key[-1] else key[:-1]
+        return hashlib.sha256(canonical_json_utf8_v1(identity)).hexdigest()
 
     @classmethod
     def for_obligation(

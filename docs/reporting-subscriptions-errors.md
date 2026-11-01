@@ -22,6 +22,18 @@ Every SDK error carries `code` and `recovery` (`transient`, `correctable` or `te
 
 `AccountRequestError` is raised only when `client.accounts.ensure` could not be processed; it carries the wire codes. Account outcomes are values.
 
+## Accounts
+
+`client.accounts.change()` refuses locally, before anything is sent, with `AccountRequestError` (`dispatched=False`, `recovery="correctable"`):
+
+| Code | Cause | Fix |
+|---|---|---|
+| `ACCOUNT_REVISION_REQUIRED` | a change to `billing`, `billing_entity` or `payment_terms` without `revision` | pass the revision the change was approved against, read from `list_accounts` |
+| `ACCOUNT_CHANGE_INVALID` | no attribute, or one `change()` cannot change | change `brand`, `operator_unit`, `currency`, `timezone` or a money term |
+| `ACCOUNT_REQUESTS_UNSUPPORTED` | the seller does not advertise `account.requests` | change the account through `sync_accounts` |
+
+A seller rejection is a value: `AccountRejected`. Its `requires_new_account` is `True` for `ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`; resend with `allow_separate_account=True`. A `CONFLICT` on a money change is raised as `AccountRequestError`, because the human must approve the change against the new revision.
+
 ## Reconcile issues
 
 `client.reporting.reconcile()` and `poll()` never return a smaller success. When a read fails, `report.definitive` is `False` and `report.issues` carries one `ReconcileIssue(code, message, account_id, subscription_id)` per problem. The message ends with what to retry. These are values, not exceptions.

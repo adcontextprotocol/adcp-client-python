@@ -542,8 +542,8 @@ async def test_owed_obligations_are_delivered_with_status_notifications(tmp_path
             assert offerings == [(OFFERING_ID,)]
 
 
-async def test_a_second_offering_of_one_version_is_refused(tmp_path, backend) -> None:
-    async with _seller(tmp_path, backend) as h:
+async def test_a_second_offering_of_one_version_is_served(tmp_path, backend) -> None:
+    async with _seller(tmp_path, backend, notifications=True) as h:
         await _subscribe(h, [_buy("mb-1")])
         # Another offering of the same subscription version is already enrolled.
         other = (ACCOUNT, AGENCY.subject, "analytics-hourly", 1, "other-offering")
@@ -557,11 +557,12 @@ async def test_a_second_offering_of_one_version_is_refused(tmp_path, backend) ->
                     (*other, "0" * 64),
                 )
         await h.service.start()
-        # Status checkpoints hold one configuration scope per subscription version.
-        assert [failure.subscription_id for failure in h.failures] == ["analytics-hourly"]
-        assert h.failures[0].error.code == "reporting_production_offering_conflict"
+        # Each resolved offering keeps its own status checkpoints, so a second
+        # offering of one subscription version is planned beside the first.
+        assert h.failures == []
         (key,) = h.bound
-        assert await h.store.list_generation_obligations(key) == ()
+        assert key.offering_id == OFFERING_ID
+        assert await h.store.list_generation_obligations(key) != ()
 
 
 async def test_the_managed_path_serves_production_through_its_application(
