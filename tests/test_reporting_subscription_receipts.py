@@ -147,3 +147,36 @@ async def test_submit_receipts_is_the_manual_path() -> None:
 
     with pytest.raises(ReportingSubscriptionError, match="Nothing to submit"):
         await reporting.submit_receipts("account-1")
+
+
+async def test_a_rejection_is_sent_once_and_an_unverifiable_revision_is_not_receipted() -> None:
+    async def inspect(_context):
+        return _observation()
+
+    client = _Client()
+    policy = ReceiptPolicy(
+        mode="verified", commit=lambda _r: Reject(["LOAD_FAILED"]), inspect=inspect
+    )
+    first = ReceiptReport()
+    assert await apply_receipt_policy(
+        client, "account-1", await _ledger(client), policy, first, now=NOW
+    )
+    again = ReceiptReport()
+    assert not await apply_receipt_policy(
+        client, "account-1", await _ledger(client), policy, again, now=NOW
+    )
+    assert again.rejected == []
+
+    from adcp.reporting_inspection import ReportingInspectionError
+
+    async def refusing(_context):
+        raise ReportingInspectionError("MANIFEST_DIGEST_MISMATCH", "the manifest does not match")
+
+    fresh = _Client()
+    failed = ReceiptReport()
+    policy = ReceiptPolicy(mode="verified", commit=lambda _r: "defer", inspect=refusing)
+    assert not await apply_receipt_policy(
+        fresh, "account-1", await _ledger(fresh), policy, failed, now=NOW
+    )
+    assert failed.failed == [("obligation-billing", "MANIFEST_DIGEST_MISMATCH")]
+    assert fresh.recorded_receipt is None

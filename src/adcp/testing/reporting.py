@@ -717,10 +717,17 @@ class KitBuyer:
             await self._service.drain_subscription_triggers()
         if hasattr(value, "model_dump"):
             value = value.model_dump(mode="json", exclude_none=True, by_alias=True)
-        try:
+        if task == "get_media_buys":
+            # Fixture buys carry only what coverage reads; the buyer reads them
+            # as plain data, so they need not be complete wire buys.
+            try:
+                data = model.model_validate(value)
+            except ValueError:
+                data = value
+        else:
+            # Every response reconcile() and assert_agreement rely on must be
+            # valid: a malformed one fails here instead of being compared.
             data = model.model_validate(value)
-        except Exception:  # noqa: BLE001 - fixture buys are minimal
-            data = value
         return TaskResult.model_construct(status=TaskStatus.COMPLETED, data=data, success=True)
 
     async def get_principal(self, request: Any) -> Any:
