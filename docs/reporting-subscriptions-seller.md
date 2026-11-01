@@ -31,6 +31,20 @@ The SDK reads these surfaces under each principal's identity. A principal sees e
 
 A decisioning `Account` carries `timezone=` and `operator=`. An account without a timezone is refused rather than read as UTC.
 
+### Capabilities and serving
+
+The service fills in what it serves and leaves the rest to you:
+- **What the service adds.**
+  - The `media_buy.reporting_delivery` block.
+  - The `adcp.principal` block, with `optimistic_concurrency: true` and `reporting_subscriptions` in `supported_sections`.
+  - `adcp.supported_versions`, when your capabilities do not state it. Without it a buyer negotiates down from `major_versions` and never reaches 3.3.
+- **What your capabilities must carry.**
+  - `adcp.idempotency`, which says whether you honor `idempotency_key` replay. The schema requires it, and only you know it.
+  - To accept `reporting_destinations`, `adcp.principal.max_reporting_destinations`, `reporting_destination_offerings` and `suspension_interval_seconds`. Without all three, that section is not advertised.
+- **Serving over MCP.** Pass `serve(..., context_factory=auth_context_factory)` (or your own factory), so `list_accounts` and `get_media_buys` see the authenticated `caller_identity`. On the managed path, a reporting task with no resolved account reads the account the request names. The subscription grant check then refuses an account the caller holds no grant on, so no `caller_resolver` is needed for `get_reporting_status` over plain MCP.
+
+The reference seller (`python -m adcp reference-seller reporting`) is a complete example.
+
 ## AdCP 3.3.0-beta.3 rules the engine applies
 
 - **Admission under `max_accounts`.** Candidates are ordered by `authorization.authorized_at`, then `account_id` in byte order, and an admitted account keeps its slot. A waiting candidate carries a `capacity` exception.
