@@ -126,7 +126,7 @@ async def test_a_separate_account_lists_what_is_missing_and_never_repoints() -> 
             account={"account_id": "acc-2", "name": "Acme BE", "status": "active"},
         )
     )
-    await client.accounts.use(KEY, "acc-1")
+    await client.accounts.use(KEY, "acc-1", status="active")
     outcome = await client.accounts.change(
         "acc-1",
         {"brand": {"domain": "acme.example", "countries": ["BE"]}},
@@ -139,8 +139,15 @@ async def test_a_separate_account_lists_what_is_missing_and_never_repoints() -> 
     assert client.adapter.request_account.call_args.args[0]["allow_separate_account"] is True
     # Nothing moved: the key still names the old account until use().
     assert (await client.accounts.get(KEY)).account_id == "acc-1"
+    client.adapter.list_accounts = AsyncMock(
+        return_value=_completed(
+            {"accounts": [{"account_id": "acc-2", "name": "Acme BE", "status": "payment_required"}]}
+        )
+    )
     await client.accounts.use(outcome.key, outcome.account_id)
-    assert (await client.accounts.get(KEY)).account_id == "acc-2"
+    record = await client.accounts.get(KEY)
+    # The new account's own status is kept, so the spend gate still applies.
+    assert (record.account_id, record.status) == ("acc-2", "payment_required")
 
 
 async def test_matched_pending_and_rejected_outcomes() -> None:

@@ -584,26 +584,38 @@ class AccountRegistry:
             raise failure
         raise AssertionError("unreachable")  # pragma: no cover
 
-    async def use(self, key: AccountReference | Mapping[str, Any], account_id: str) -> None:
+    async def use(
+        self,
+        key: AccountReference | Mapping[str, Any],
+        account_id: str,
+        *,
+        status: str | None = None,
+    ) -> None:
         """Point a natural key at ``account_id``: new buys for ``key`` go to that account.
 
         The explicit step after :meth:`change` returned
         :class:`~adcp.account_outcomes.AccountSeparate` or
         :class:`~adcp.account_outcomes.AccountMatched`; the registry never
-        re-points on its own.
+        re-points on its own. The account's ``status`` is read from
+        ``list_accounts`` unless you pass it, so the spend gate still holds a
+        ``payment_required`` or pending account; an account the caller cannot
+        list is recorded without a status and refused for spend until it is.
         """
         ref = account_key_payload(TypeAdapter(AccountReference).validate_python(key))
         if "account_id" in ref:
             raise ValueError("use() maps a buyer-declared natural key, not an account_id")
         if not account_id:
             raise ValueError("use() needs the account_id new buys go to")
+        if status is None:
+            listed = await self._read_account(account_id)
+            status = None if listed is None else listed.get("status")
         previous = await self.get(ref)
         await self._storage.save(
             self._seller,
             account_key(ref),
             AccountRecord(
                 account_id=account_id,
-                status="active",
+                status=None if status is None else str(status),
                 wire_key=None if previous is None else previous.wire_key,
                 wire_version=None if previous is None else previous.wire_version,
             ),
