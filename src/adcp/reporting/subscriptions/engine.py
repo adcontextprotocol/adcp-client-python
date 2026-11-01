@@ -65,6 +65,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionBuy,
     SubscriptionException,
     SubscriptionVersionWindow,
+    _timezone_at,
     authorization_chain_start,
     authorization_regranted_at,
     owed_subscription_periods,
@@ -1892,7 +1893,11 @@ class ReportingSubscriptionEngine:
         destinations: Mapping[str, Any],
         now: datetime,
     ) -> list[tuple[str, PeriodCalendar]]:
-        """``(offering_id, calendar)`` for each offering the account resolves to."""
+        """``(offering_id, calendar)`` for each offering the account resolves to at ``now``.
+
+        Each calendar is in the zone in effect at ``now``, so a gap served for
+        a loss before a timezone change stays on the calendar it removed.
+        """
         if account is None:
             return []
         selector = SubscriptionSelector.from_subscription(state["configuration"])
@@ -1912,7 +1917,13 @@ class ReportingSubscriptionEngine:
             ).offerings:
                 found[item.offering_id] = item
         return [
-            (item.offering_id, item.calendar(account.timezone, selector.period_timezone))
+            (
+                item.offering_id,
+                item.calendar(
+                    _timezone_at(now, account.timezone, account.timezone_changes, item.offering_id),
+                    selector.period_timezone,
+                ),
+            )
             for item in sorted(found.values(), key=lambda value: value.offering_id.encode())
         ]
 
@@ -2112,7 +2123,10 @@ class ReportingSubscriptionEngine:
                 continue
             if expired:
                 continue  # a fresh coverage start claims no gap
-            schedules = self._schedules(state, account, buys, destinations, lost)
+            # The gap removed periods of the schedules in force at the loss:
+            # those of the version then current, in the zone then in effect,
+            # never a later version's (adcp-client-python#1770).
+            schedules = self._schedules(_state_at(state, lost), account, buys, destinations, lost)
             entries = [
                 (offering_id, calendar.floor(lost), calendar.ceil(regranted))
                 for offering_id, calendar in schedules
@@ -2481,6 +2495,21 @@ class ReportingSubscriptionEngine:
 
 
 # -- helpers -------------------------------------------------------------------
+
+
+def _state_at(state: Mapping[str, Any], instant: datetime) -> Mapping[str, Any]:
+    """``state`` with the configuration of the version in force at ``instant``."""
+    for prior in state.get("prior_versions") or ():
+        accepted = _instant(prior.get("accepted_at"))
+        superseded = _instant(prior.get("superseded_at"))
+        if (
+            prior.get("configuration") is not None
+            and accepted is not None
+            and accepted <= instant
+            and (superseded is None or instant < superseded)
+        ):
+            return {**state, "configuration": prior["configuration"]}
+    return state
 
 
 def _buy_offering_ids(buys: Sequence[SubscriptionBuy]) -> list[str]:

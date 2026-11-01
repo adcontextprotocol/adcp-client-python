@@ -289,8 +289,7 @@ def build_asgi_app(
         raise ValueError(f"Unsupported transport {transport!r}; expected 'mcp', 'a2a', or 'both'.")
     if (on_startup or on_shutdown) and transport != "both":
         raise ValueError(
-            "on_startup / on_shutdown hooks require transport='both', "
-            f"got transport={transport!r}."
+            f"on_startup / on_shutdown hooks require transport='both', got transport={transport!r}."
         )
     if transport == "a2a":
         ignored_session_settings = []
