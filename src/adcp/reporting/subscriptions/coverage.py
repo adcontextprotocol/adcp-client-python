@@ -888,72 +888,65 @@ def _windows(
     return subscription_version_windows(subscription, version_configurations=version_configurations)
 
 
-def owed_subscription_periods(
+@dataclass
+class _CoverageContext:
+    """The normalized input one coverage call evaluates: shared by the owed rule and
+    :mod:`~adcp.reporting.subscriptions.explain`, so both read the same facts."""
+
+    windows: tuple[SubscriptionVersionWindow, ...]
+    subscription_id: str
+    chains: list[_Chain]
+    changes: list[AccountTimezoneChange]
+    removals: tuple[SubscriptionException, ...]
+    package_removals: tuple[SubscriptionException, ...]
+    membership_intervals: bool
+    ordered: list[datetime]
+    selectors: dict[int, SubscriptionSelector]
+    in_scope: dict[int, bool]
+    offerings: tuple[SubscriptionOffering, ...]
+    destinations: Mapping[str, Any] | None
+    account_timezone: str | None
+    account_id: str
+    account_operator: str | None
+
+    def regimes(self, buy: SubscriptionBuy) -> list[_Regime | None]:
+        return _regimes(
+            buy,
+            self.ordered,
+            self.windows,
+            self.selectors,
+            self.in_scope,
+            self.offerings,
+            self.destinations,
+            self.account_timezone,
+            self.changes,
+            account_id=self.account_id,
+            account_operator=self.account_operator,
+            package_removals=self.package_removals,
+        )
+
+
+def _coverage_context(
     *,
     subscription: Any,
     account_id: str,
     buys: Sequence[SubscriptionBuy],
     offerings: Sequence[SubscriptionOffering],
     account_timezone: str | None,
-    now: datetime,
     authorizations: Sequence[SubscriptionAuthorization] = (),
     exceptions: Sequence[Any] = (),
     gaps: Sequence[Any] = (),
     coverage: Any | None = None,
-    backfill_on_regrant: bool = False,
     status_retention_days: int | None = None,
     destinations: Mapping[str, Any] | None = None,
     account_operator: str | None = None,
     version_configurations: Mapping[int, Any] | None = None,
     timezone_changes: Sequence[AccountTimezoneChange] = (),
-    include_unresolved: bool = False,
-    max_periods: int = DEFAULT_MAX_PERIODS,
-    max_iterations: int = DEFAULT_MAX_ITERATIONS,
-) -> list[OwedSubscriptionPeriod]:
-    """Every period one subscription owes one account, from plain data.
-
-    Fails closed rather than return a partial set: more than ``max_periods``
-    owed (buy, period) pairs, or more than ``max_iterations`` boundaries
-    examined, raises :class:`CoverageInputError` with code
-    ``COVERAGE_BUDGET_EXCEEDED`` (the TypeScript SDK's ``max_periods`` and
-    ``max_iterations``, with the same defaults).
-
-    :param subscription: the ``get_principal`` readback
-        (``core/reporting-subscription-state.json``) as a model or mapping, or
-        a sequence of :class:`SubscriptionVersionWindow`.
-    :param buys: the confirmed buys in the account the caller can see.
-        A buy without ``confirmed_at`` is not covered.
-    :param offerings: offerings with the seller's dimension mapping.
-    :param account_timezone: the account's current timezone, as
-        ``list_accounts`` shows it. Before a timezone change the zone is that
-        change's ``previous_timezone``. Required when an ``account_timezone``
-        offering resolves without a ``period_timezone`` and no change applies.
-    :param now: periods are owed once resolved, at their end; a period ending
-        after ``now`` is returned only with ``include_unresolved``.
-    :param authorizations: the account's grant history. Empty means the seller
-        does not advertise ``authorized_at`` and authority never lapsed.
-    :param exceptions: ``subscription_coverage[].excluded`` entries, or
-        :class:`SubscriptionException` values.
-    :param gaps: ``subscription_coverage[].gaps`` entries.
-    :param coverage: a whole ``subscription_coverage[]`` entry; its
-        ``excluded``, ``gaps`` and ``timezone_cutovers`` are applied too.
-    :param backfill_on_regrant: the seller's ``subscriptions.backfill_on_regrant``.
-    :param status_retention_days: the seller's status retention; required when
-        a grant was revoked and re-granted.
-    :param destinations: the caller's ``reporting_destinations`` by
-        ``destination_id``, needed when a version names a destination.
-    :param account_operator: the account's operator, for ``operator_domains``.
-    :param timezone_changes: account timezone changes, each a cutover at its
-        ``changed_at`` (``timezone_cutovers[].effective_at``).
-    """
-    now = utc_instant(now, field="now")
-    for name, budget in (("max_periods", max_periods), ("max_iterations", max_iterations)):
-        if type(budget) is not int or budget < 1:
-            raise CoverageInputError("invalid_input", f"{name} must be a positive integer")
-    iterations = pairs = 0
+) -> _CoverageContext | None:
+    """Validate and normalize a coverage input; ``None`` when there is no version."""
     windows = _windows(subscription, version_configurations)
     if not windows:
-        return []
+        return None
     subscription_id = _subscription_id(subscription, windows)
     retention = None if status_retention_days is None else timedelta(days=status_retention_days)
     chains = _chains(authorizations, retention)
@@ -1033,25 +1026,116 @@ def owed_subscription_periods(
         for window in windows
     }
 
+    return _CoverageContext(
+        windows=windows,
+        subscription_id=subscription_id,
+        chains=chains,
+        changes=changes,
+        removals=removals,
+        package_removals=package_removals,
+        membership_intervals=membership_intervals,
+        ordered=ordered,
+        selectors=selectors,
+        in_scope=in_scope,
+        offerings=tuple(offerings),
+        destinations=destinations,
+        account_timezone=account_timezone,
+        account_id=account_id,
+        account_operator=account_operator,
+    )
+
+
+def owed_subscription_periods(
+    *,
+    subscription: Any,
+    account_id: str,
+    buys: Sequence[SubscriptionBuy],
+    offerings: Sequence[SubscriptionOffering],
+    account_timezone: str | None,
+    now: datetime,
+    authorizations: Sequence[SubscriptionAuthorization] = (),
+    exceptions: Sequence[Any] = (),
+    gaps: Sequence[Any] = (),
+    coverage: Any | None = None,
+    backfill_on_regrant: bool = False,
+    status_retention_days: int | None = None,
+    destinations: Mapping[str, Any] | None = None,
+    account_operator: str | None = None,
+    version_configurations: Mapping[int, Any] | None = None,
+    timezone_changes: Sequence[AccountTimezoneChange] = (),
+    include_unresolved: bool = False,
+    max_periods: int = DEFAULT_MAX_PERIODS,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS,
+) -> list[OwedSubscriptionPeriod]:
+    """Every period one subscription owes one account, from plain data.
+
+    Fails closed rather than return a partial set: more than ``max_periods``
+    owed (buy, period) pairs, or more than ``max_iterations`` boundaries
+    examined, raises :class:`CoverageInputError` with code
+    ``COVERAGE_BUDGET_EXCEEDED`` (the TypeScript SDK's ``max_periods`` and
+    ``max_iterations``, with the same defaults).
+
+    :param subscription: the ``get_principal`` readback
+        (``core/reporting-subscription-state.json``) as a model or mapping, or
+        a sequence of :class:`SubscriptionVersionWindow`.
+    :param buys: the confirmed buys in the account the caller can see.
+        A buy without ``confirmed_at`` is not covered.
+    :param offerings: offerings with the seller's dimension mapping.
+    :param account_timezone: the account's current timezone, as
+        ``list_accounts`` shows it. Before a timezone change the zone is that
+        change's ``previous_timezone``. Required when an ``account_timezone``
+        offering resolves without a ``period_timezone`` and no change applies.
+    :param now: periods are owed once resolved, at their end; a period ending
+        after ``now`` is returned only with ``include_unresolved``.
+    :param authorizations: the account's grant history. Empty means the seller
+        does not advertise ``authorized_at`` and authority never lapsed.
+    :param exceptions: ``subscription_coverage[].excluded`` entries, or
+        :class:`SubscriptionException` values.
+    :param gaps: ``subscription_coverage[].gaps`` entries.
+    :param coverage: a whole ``subscription_coverage[]`` entry; its
+        ``excluded``, ``gaps`` and ``timezone_cutovers`` are applied too.
+    :param backfill_on_regrant: the seller's ``subscriptions.backfill_on_regrant``.
+    :param status_retention_days: the seller's status retention; required when
+        a grant was revoked and re-granted.
+    :param destinations: the caller's ``reporting_destinations`` by
+        ``destination_id``, needed when a version names a destination.
+    :param account_operator: the account's operator, for ``operator_domains``.
+    :param timezone_changes: account timezone changes, each a cutover at its
+        ``changed_at`` (``timezone_cutovers[].effective_at``).
+    """
+    now = utc_instant(now, field="now")
+    for name, budget in (("max_periods", max_periods), ("max_iterations", max_iterations)):
+        if type(budget) is not int or budget < 1:
+            raise CoverageInputError("invalid_input", f"{name} must be a positive integer")
+    iterations = pairs = 0
+    context = _coverage_context(
+        subscription=subscription,
+        account_id=account_id,
+        buys=buys,
+        offerings=offerings,
+        account_timezone=account_timezone,
+        authorizations=authorizations,
+        exceptions=exceptions,
+        gaps=gaps,
+        coverage=coverage,
+        status_retention_days=status_retention_days,
+        destinations=destinations,
+        account_operator=account_operator,
+        version_configurations=version_configurations,
+        timezone_changes=timezone_changes,
+    )
+    if context is None:
+        return []
+    subscription_id = context.subscription_id
+    chains = context.chains
+    removals = context.removals
+
     owed: dict[tuple[int, str, str, datetime], _Owed] = {}
     for buy in buys:
         if buy.confirmed_at is None:
             continue
         confirmed_at = buy.confirmed_at
-        regimes = _regimes(
-            buy,
-            ordered,
-            windows,
-            selectors,
-            in_scope,
-            offerings,
-            destinations,
-            account_timezone,
-            changes,
-            account_id=account_id,
-            account_operator=account_operator,
-            package_removals=package_removals,
-        )
+        regimes = context.regimes(buy)
         flights_start = buy._earliest_start()
         latest_stop = buy._latest_stop()
         for index, regime in enumerate(regimes):

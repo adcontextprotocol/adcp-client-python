@@ -808,6 +808,45 @@ class ReliableReportingService:
         managed = self._require_managed()
         await managed.touch(account_id=account_id, context=context)
 
+    async def explain_coverage(
+        self,
+        principal: Any,
+        account_id: str,
+        *,
+        period: Any,
+        subscription_id: str | None = None,
+        media_buy_id: str | None = None,
+        offering_id: str | None = None,
+        invisible_buys: Sequence[Any] = (),
+        now: datetime | None = None,
+    ) -> list[Any]:
+        """Why each selected period is, or is not, owed: the seller's ``CoverageTrace`` list.
+
+        ``period`` is a ``YYYY-MM-DD`` local date read in each offering's
+        zone, an instant, or ``{"start", "end"}``. Omit ``subscription_id``
+        for every subscription covering the account and ``media_buy_id`` for
+        every buy. Traces carry ``side="seller"`` and a ``seller_only`` block;
+        call ``trace.for_buyer()`` before showing one to a buyer. See
+        :func:`adcp.reporting.subscriptions.explain_subscription_coverage`.
+        """
+        if self._managed is not None:
+            self._compose_managed()
+        if self._subscriptions is None:
+            raise ReliableReportingConfigurationError(
+                "explain_coverage needs ReliableReportingService(subscriptions=...) or "
+                "reporting_subscriptions=..."
+            )
+        return await self._subscriptions.engine.explain_coverage(
+            principal,
+            account_id,
+            period=period,
+            subscription_id=subscription_id,
+            media_buy_id=media_buy_id,
+            offering_id=offering_id,
+            invisible_buys=invisible_buys,
+            now=self._clock() if now is None else now,
+        )
+
     @property
     def grants(self) -> Any:
         """Push grant changes into the grant journal (``await reporting.grants.changed(...)``).

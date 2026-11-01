@@ -20,6 +20,9 @@ its principal through ``sync_principal`` instead of once per account through
   ``principal.changed``, and compute expected periods from its own records.
 * :class:`ReportingSubscriptionEngine` -- the seller runtime: host hooks,
   lost authority, exceptions, ``subscription_coverage[]`` and owed periods.
+* :func:`explain_subscription_coverage` and :class:`CoverageTrace` -- why a
+  period is or is not owed, as one JSON document both sides build from the
+  same wire-visible facts, with the spec's reason codes.
 """
 
 from __future__ import annotations
@@ -78,6 +81,17 @@ from adcp.reporting.subscriptions.engine import (
     decode_principal_state,
     encode_principal_state,
 )
+from adcp.reporting.subscriptions.explain import (
+    EXPLAIN_TEMPLATES,
+    TRACE_VERSION,
+    CoverageReason,
+    CoverageTrace,
+    CoverageTraceDifference,
+    CoverageTraceStep,
+    coverage_reasons,
+    diff_coverage_traces,
+    explain_subscription_coverage,
+)
 from adcp.reporting.subscriptions.facade import (
     PreviewResult,
     ReportingClient,
@@ -118,6 +132,15 @@ from adcp.reporting.subscriptions.wire import (
 from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 
 __all__ = [
+    "EXPLAIN_TEMPLATES",
+    "TRACE_VERSION",
+    "CoverageReason",
+    "CoverageTrace",
+    "CoverageTraceDifference",
+    "CoverageTraceStep",
+    "coverage_reasons",
+    "diff_coverage_traces",
+    "explain_subscription_coverage",
     "REPORTING_WIND_DOWN_TASKS",
     "authorization_chain_start",
     "authorization_regranted_at",

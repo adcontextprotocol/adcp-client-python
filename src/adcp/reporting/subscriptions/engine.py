@@ -96,6 +96,7 @@ _MAX_ROSTER_PAGES = 10_000
 _MAX_STATE_WRITE_ATTEMPTS = 8
 
 if TYPE_CHECKING:
+    from adcp.reporting.subscriptions.explain import CoverageTrace
     from adcp.reporting.subscriptions.ledger import FrozenOwedSet
     from adcp.server.principal import (
         DeliveryConfigIdsHook,
@@ -2257,6 +2258,109 @@ class ReportingSubscriptionEngine:
             account_operator=account.operator,
             timezone_changes=list(account.timezone_changes),
         )
+
+    async def explain_coverage(
+        self,
+        identity: PrincipalLike,
+        account_id: str,
+        *,
+        period: Any,
+        subscription_id: str | None = None,
+        media_buy_id: str | None = None,
+        offering_id: str | None = None,
+        invisible_buys: Sequence[SubscriptionBuy] = (),
+        now: datetime | None = None,
+    ) -> list[CoverageTrace]:
+        """Why each selected period is, or is not, owed: the seller's :class:`CoverageTrace`.
+
+        The same classification as :func:`explain_subscription_coverage` over
+        the engine's records, the same ones :meth:`owed_periods` reads, so a
+        trace's verdict is exactly what the engine owes. The ``gaps[]`` the
+        engine serves enter as the buyer reads them. Every subscription
+        covering the account is explained unless ``subscription_id`` names
+        one. ``invisible_buys`` are buys in the account the caller cannot see
+        through ``get_media_buys`` (made in the seller's UI or by another
+        agent), explained as ``buy_not_visible``. ``seller_only`` carries
+        whether the caller can see the buy and, for an owed period, its
+        ``reporting_obligation_id``; strip it with
+        :meth:`CoverageTrace.for_buyer` before showing a buyer.
+        """
+        from adcp.reporting.subscriptions.explain import explain_subscription_coverage
+        from adcp.reporting.subscriptions.ledger import subscription_obligation_id
+
+        instant = self._now(now)
+        states = [
+            _dump(item)
+            for item in await self._principals.reporting_subscriptions(identity)
+            if subscription_id is None or item.subscription_id == subscription_id
+        ]
+        if subscription_id is not None and not states:
+            raise KeyError(subscription_id)
+        destinations = await self._destinations(identity)
+        buys = list(await self._account_buys(identity, account_id))
+        principal = await self._read(identity.subject)
+        account = principal.accounts.get(account_id)
+        if account is None:
+            return []
+        traces: list[CoverageTrace] = []
+        for state in states:
+            sub_id = str(state["subscription_id"])
+            versions = {
+                version: configuration
+                for (key, version), configuration in principal.versions.items()
+                if key == sub_id
+            }
+            windows = tuple(
+                replace(
+                    window,
+                    destination=principal.destinations.get((sub_id, window.subscription_version)),
+                )
+                for window in subscription_version_windows(
+                    state, version_configurations=versions, require_prior_configurations=True
+                )
+            )
+            exclusions = [
+                SubscriptionException(
+                    e.reason, e.from_, e.until, e.media_buy_id, package_ids=e.package_ids
+                )
+                for e in principal.exclusions.get((sub_id, account_id), [])
+            ]
+            for trace in explain_subscription_coverage(
+                subscription=windows,
+                account_id=account_id,
+                buys=[*buys, *invisible_buys],
+                invisible_media_buy_ids=[item.media_buy_id for item in invisible_buys],
+                offerings=self._offerings,
+                account_timezone=account.timezone,
+                now=instant,
+                period=period,
+                media_buy_id=media_buy_id,
+                offering_id=offering_id,
+                side="seller",
+                principal_id=identity.subject,
+                authorizations=list(account.grants),
+                exceptions=exclusions,
+                gaps=self._gaps(state, account, buys, destinations, instant),
+                backfill_on_regrant=self._support.backfill_on_regrant,
+                status_retention_days=self._retention_days,
+                destinations=destinations,
+                account_operator=account.operator,
+                timezone_changes=list(account.timezone_changes),
+            ):
+                only: dict[str, Any] = dict(trace.seller_only or {})
+                if trace.verdict == "owed":
+                    subject = trace.subject
+                    only["reporting_obligation_id"] = subscription_obligation_id(
+                        account_id=account_id,
+                        principal_id=identity.subject,
+                        subscription_id=sub_id,
+                        subscription_version=int(subject["subscription_version"]),
+                        offering_id=str(subject["offering_id"]),
+                        period_start=_required_instant(subject["period"]["start"]),
+                        period_end=_required_instant(subject["period"]["end"]),
+                    )
+                traces.append(replace(trace, seller_only=only))
+        return traces
 
     async def frozen_owed_sets(
         self,
