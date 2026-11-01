@@ -1385,6 +1385,11 @@ class ReliableReportingService:
     async def _initialize(self) -> None:
         self.validate()
         self._require_durable_subscriptions()
+        from adcp.reporting.ledger.storage_contract import require_storage_contract
+
+        # A storage distribution of another contract fails once here, naming
+        # the pair and the fix, never on every turn (#1763).
+        require_storage_contract(self.store)
         async with self._configuration_lock:
             if self._storage is not None and self._storage.check_schema is not None:
                 # Migrations own the schema; startup only refuses one that is behind.
