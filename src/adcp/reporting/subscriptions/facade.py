@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         ReportingEventStore,
     )
     from adcp.reporting.subscriptions.explain import CoverageTrace
+    from adcp.reporting.subscriptions.receipts import ReceiptPolicy
     from adcp.reporting.subscriptions.reconcile import ReconcileReport
 
 #: The default ``grace`` of :meth:`ReportingClient.reconcile`: one hour, never zero.
@@ -414,6 +415,7 @@ class ReportingClient:
         subscription_id: str | None = None,
         grace: timedelta = DEFAULT_GRACE,
         include_not_owed: bool = False,
+        receipts: ReceiptPolicy | None = None,
         now: datetime | None = None,
     ) -> ReconcileReport:
         """What the seller owes every covered account, and whose move each period is.
@@ -436,6 +438,10 @@ class ReportingClient:
             Defaults to one hour, never zero.
         :param include_not_owed: add a ``not_owed`` line, with its reason, for
             every other period of each buy's flight (the audit trail).
+        :param receipts: a :class:`~adcp.reporting.subscriptions.ReceiptPolicy`.
+            The default is off: nothing is receipted on read. ``mode="verified"``
+            receipts a billing revision only after the SDK verified its
+            materialization and your ``commit`` hook returned a reference.
 
         ``report.definitive`` is true only when every read completed;
         otherwise ``report.issues`` say what to retry.
@@ -450,8 +456,46 @@ class ReportingClient:
             subscription_id=subscription_id,
             grace=grace,
             include_not_owed=include_not_owed,
+            receipts=receipts,
             now=now,
         )
+
+    async def submit_receipts(
+        self,
+        account_id: str,
+        *,
+        receipts: Sequence[Any] = (),
+        adjustment_receipts: Sequence[Any] = (),
+        idempotency_key: str | None = None,
+    ) -> list[Any]:
+        """Submit receipts by hand (``sync_reporting_receipts``); returns the item results.
+
+        The manual path, for receipts and adjustment receipts your own
+        pipeline built. Raises :class:`ReportingSubscriptionError` when the
+        task fails; item-level failures are in the returned results.
+        """
+        from adcp.types import SyncReportingReceiptsRequest
+
+        if not receipts and not adjustment_receipts:
+            raise _invalid("Nothing to submit. Pass receipts or adjustment_receipts.")
+        payload: dict[str, Any] = {
+            "account": {"account_id": account_id},
+            "idempotency_key": idempotency_key or f"rrcpt-{uuid4()}",
+        }
+        if receipts:
+            payload["receipts"] = [_dump(item) for item in receipts]
+        if adjustment_receipts:
+            payload["adjustment_receipts"] = [_dump(item) for item in adjustment_receipts]
+        result = await self._client.sync_reporting_receipts(
+            SyncReportingReceiptsRequest.model_validate(payload)
+        )
+        data = getattr(result, "data", None)
+        if not getattr(result, "success", False) or data is None:
+            raise ReportingSubscriptionError(
+                f"sync_reporting_receipts failed: {getattr(result, 'error', None) or 'no response'}"
+                ". Retry with the same idempotency_key."
+            )
+        return list(getattr(data, "results", None) or [])
 
     async def explain(
         self,
