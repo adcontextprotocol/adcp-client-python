@@ -75,8 +75,14 @@ commits with no such PR. Conventional-commit scopes are free text, but
 On a merge, `release-please.yml` queues `release-publish.yml` with
 `package=adcp-reporting-storage`; the workflow builds that package's sdist and
 wheel from `packages/adcp-reporting-storage` and publishes them through the same
-`release-publish` environment approval. The storage wheel pins
-`adcp>=9.0.0bN,<10`; publish the `adcp` release it depends on first.
+`release-publish` environment approval. The storage wheel's `adcp` floor is
+the first `adcp` release of the storage contract it implements
+(`adcp_reporting_storage.contract`); publish that `adcp` release first.
+Both publishes run the companion gate (`scripts/check_companion_releases.py`):
+the wheel just built is installed beside the published companion in a private
+environment and `scripts/companion_smoke.py` must pass there, so a pair whose
+storage contracts differ, or whose ledger does not round-trip on PostgreSQL,
+never reaches PyPI (#1763).
 
 One-time setup, before the first storage release:
 
