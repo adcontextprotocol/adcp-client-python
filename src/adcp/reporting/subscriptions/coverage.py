@@ -872,6 +872,36 @@ def _timezone_at(
     return zone
 
 
+def _offering_zone(
+    item: SubscriptionOffering,
+    instant: datetime,
+    account_timezone: str | None,
+    changes: Sequence[AccountTimezoneChange],
+    period_timezone: str | None,
+) -> str | None:
+    """The account zone an offering's calendar reads at ``instant``, validated.
+
+    Only an ``account_timezone`` offering without a ``period_timezone``
+    override reads it; for any other the zone is irrelevant and never checked.
+    """
+    if item.alignment != "account_timezone" or period_timezone is not None:
+        return account_timezone
+    applicable = [change for change in changes if change.offering_id in {None, item.offering_id}]
+    for change in applicable:
+        if change.previous_timezone is None:
+            raise CoverageInputError(
+                "missing_previous_timezone",
+                "a timezone change needs previous_timezone: the account's current timezone "
+                "already shows the new zone",
+            )
+        require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
+        require_zone(change.timezone, field="timezone_cutovers.timezone")
+    zone = _timezone_at(instant, account_timezone, changes, item.offering_id)
+    if zone is not None and not applicable:
+        require_zone(zone, field="account_timezone")
+    return zone
+
+
 def _windows(
     subscription: Any, version_configurations: Mapping[int, Any] | None
 ) -> tuple[SubscriptionVersionWindow, ...]:
@@ -886,6 +916,153 @@ def _windows(
                 )
         return windows
     return subscription_version_windows(subscription, version_configurations=version_configurations)
+
+
+@dataclass
+class _CoverageContext:
+    """The normalized input one coverage call evaluates: shared by the owed rule and
+    :mod:`~adcp.reporting.subscriptions.explain`, so both read the same facts."""
+
+    windows: tuple[SubscriptionVersionWindow, ...]
+    subscription_id: str
+    chains: list[_Chain]
+    changes: list[AccountTimezoneChange]
+    removals: tuple[SubscriptionException, ...]
+    package_removals: tuple[SubscriptionException, ...]
+    membership_intervals: bool
+    ordered: list[datetime]
+    selectors: dict[int, SubscriptionSelector]
+    in_scope: dict[int, bool]
+    offerings: tuple[SubscriptionOffering, ...]
+    destinations: Mapping[str, Any] | None
+    account_timezone: str | None
+    account_id: str
+    account_operator: str | None
+
+    def regimes(self, buy: SubscriptionBuy) -> list[_Regime | None]:
+        return _regimes(
+            buy,
+            self.ordered,
+            self.windows,
+            self.selectors,
+            self.in_scope,
+            self.offerings,
+            self.destinations,
+            self.account_timezone,
+            self.changes,
+            account_id=self.account_id,
+            account_operator=self.account_operator,
+            package_removals=self.package_removals,
+        )
+
+
+def _coverage_context(
+    *,
+    subscription: Any,
+    account_id: str,
+    buys: Sequence[SubscriptionBuy],
+    offerings: Sequence[SubscriptionOffering],
+    account_timezone: str | None,
+    authorizations: Sequence[SubscriptionAuthorization] = (),
+    exceptions: Sequence[Any] = (),
+    gaps: Sequence[Any] = (),
+    coverage: Any | None = None,
+    status_retention_days: int | None = None,
+    destinations: Mapping[str, Any] | None = None,
+    account_operator: str | None = None,
+    version_configurations: Mapping[int, Any] | None = None,
+    timezone_changes: Sequence[AccountTimezoneChange] = (),
+) -> _CoverageContext | None:
+    """Validate and normalize a coverage input; ``None`` when there is no version."""
+    windows = _windows(subscription, version_configurations)
+    if not windows:
+        return None
+    subscription_id = _subscription_id(subscription, windows)
+    retention = None if status_retention_days is None else timedelta(days=status_retention_days)
+    chains = _chains(authorizations, retention)
+    excluded = list(exceptions)
+    gap_entries = list(gaps)
+    changes = list(timezone_changes)
+    if coverage is not None:
+        excluded.extend(_value(coverage, "excluded") or ())
+        gap_entries.extend(_value(coverage, "gaps") or ())
+        for entry in _value(coverage, "timezone_cutovers") or ():
+            offering_id = _value(entry, "offering_id")
+            previous = _value(entry, "previous_timezone")
+            changes.append(
+                AccountTimezoneChange(
+                    _require_instant(_value(entry, "effective_at"), field="effective_at"),
+                    _text(_value(entry, "timezone")),
+                    offering_id=None if offering_id is None else _text(offering_id),
+                    previous_timezone=None if previous is None else _text(previous),
+                )
+            )
+    # error-codes.json: a zone is refused only when a schedule reads it, so the
+    # account zone and each cutover are validated where an account_timezone
+    # calendar is built (_offering_zone), never up front.
+    changes.sort(key=lambda item: item.changed_at)
+    every_removal = subscription_exceptions(excluded, gap_entries)
+    removals = tuple(item for item in every_removal if not item.package_ids)
+    package_removals = tuple(item for item in every_removal if item.package_ids)
+    membership_intervals = any(item.reason == "excluded_by_buyer" for item in every_removal)
+    ids = [item.offering_id for item in offerings]
+    if len(set(ids)) != len(ids):
+        raise CoverageInputError("invalid_input", "offering_id values must be unique")
+    buy_ids = [item.media_buy_id for item in buys]
+    if len(set(buy_ids)) != len(buy_ids):
+        raise CoverageInputError("invalid_input", "media_buy_id values must be unique")
+
+    points: set[datetime] = set()
+    for window in windows:
+        points.add(window.accepted_at)
+        if window.ends_at is not None:
+            points.add(window.ends_at)
+        for start, until in window.inactive_intervals:
+            points.add(start)
+            if until is not None:
+                points.add(until)
+    for item in offerings:
+        if item.available_from is not None:
+            points.add(item.available_from)
+        if item.withdrawn_at is not None:
+            points.add(item.withdrawn_at)
+    points.update(change.changed_at for change in changes)
+    for removal in package_removals:
+        points.add(removal.from_)
+        if removal.until is not None:
+            points.add(removal.until)
+    ordered = sorted(points)
+    selectors = {
+        window.subscription_version: SubscriptionSelector.from_subscription(window.configuration)
+        for window in windows
+    }
+    in_scope = {
+        window.subscription_version: subscription_covers_account(
+            window.configuration,
+            account_id=account_id,
+            account_operator=account_operator,
+            membership_intervals=membership_intervals,
+        )
+        for window in windows
+    }
+
+    return _CoverageContext(
+        windows=windows,
+        subscription_id=subscription_id,
+        chains=chains,
+        changes=changes,
+        removals=removals,
+        package_removals=package_removals,
+        membership_intervals=membership_intervals,
+        ordered=ordered,
+        selectors=selectors,
+        in_scope=in_scope,
+        offerings=tuple(offerings),
+        destinations=destinations,
+        account_timezone=account_timezone,
+        account_id=account_id,
+        account_operator=account_operator,
+    )
 
 
 def owed_subscription_periods(
@@ -951,107 +1128,34 @@ def owed_subscription_periods(
         if type(budget) is not int or budget < 1:
             raise CoverageInputError("invalid_input", f"{name} must be a positive integer")
     iterations = pairs = 0
-    windows = _windows(subscription, version_configurations)
-    if not windows:
+    context = _coverage_context(
+        subscription=subscription,
+        account_id=account_id,
+        buys=buys,
+        offerings=offerings,
+        account_timezone=account_timezone,
+        authorizations=authorizations,
+        exceptions=exceptions,
+        gaps=gaps,
+        coverage=coverage,
+        status_retention_days=status_retention_days,
+        destinations=destinations,
+        account_operator=account_operator,
+        version_configurations=version_configurations,
+        timezone_changes=timezone_changes,
+    )
+    if context is None:
         return []
-    subscription_id = _subscription_id(subscription, windows)
-    retention = None if status_retention_days is None else timedelta(days=status_retention_days)
-    chains = _chains(authorizations, retention)
-    excluded = list(exceptions)
-    gap_entries = list(gaps)
-    changes = list(timezone_changes)
-    if coverage is not None:
-        excluded.extend(_value(coverage, "excluded") or ())
-        gap_entries.extend(_value(coverage, "gaps") or ())
-        for entry in _value(coverage, "timezone_cutovers") or ():
-            offering_id = _value(entry, "offering_id")
-            previous = _value(entry, "previous_timezone")
-            changes.append(
-                AccountTimezoneChange(
-                    _require_instant(_value(entry, "effective_at"), field="effective_at"),
-                    _text(_value(entry, "timezone")),
-                    offering_id=None if offering_id is None else _text(offering_id),
-                    previous_timezone=None if previous is None else _text(previous),
-                )
-            )
-    changes.sort(key=lambda item: item.changed_at)
-    if account_timezone is not None:
-        require_zone(account_timezone, field="account_timezone")
-    for change in changes:
-        require_zone(change.timezone, field="timezone_cutovers.timezone")
-    for change in changes:
-        if change.previous_timezone is None:
-            raise CoverageInputError(
-                "missing_previous_timezone",
-                "a timezone change needs previous_timezone: the account's current timezone "
-                "already shows the new zone",
-            )
-        require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
-    changes.sort(key=lambda item: item.changed_at)
-    every_removal = subscription_exceptions(excluded, gap_entries)
-    removals = tuple(item for item in every_removal if not item.package_ids)
-    package_removals = tuple(item for item in every_removal if item.package_ids)
-    membership_intervals = any(item.reason == "excluded_by_buyer" for item in every_removal)
-    ids = [item.offering_id for item in offerings]
-    if len(set(ids)) != len(ids):
-        raise CoverageInputError("invalid_input", "offering_id values must be unique")
-    buy_ids = [item.media_buy_id for item in buys]
-    if len(set(buy_ids)) != len(buy_ids):
-        raise CoverageInputError("invalid_input", "media_buy_id values must be unique")
-
-    points: set[datetime] = set()
-    for window in windows:
-        points.add(window.accepted_at)
-        if window.ends_at is not None:
-            points.add(window.ends_at)
-        for start, until in window.inactive_intervals:
-            points.add(start)
-            if until is not None:
-                points.add(until)
-    for item in offerings:
-        if item.available_from is not None:
-            points.add(item.available_from)
-        if item.withdrawn_at is not None:
-            points.add(item.withdrawn_at)
-    points.update(change.changed_at for change in changes)
-    for removal in package_removals:
-        points.add(removal.from_)
-        if removal.until is not None:
-            points.add(removal.until)
-    ordered = sorted(points)
-    selectors = {
-        window.subscription_version: SubscriptionSelector.from_subscription(window.configuration)
-        for window in windows
-    }
-    in_scope = {
-        window.subscription_version: subscription_covers_account(
-            window.configuration,
-            account_id=account_id,
-            account_operator=account_operator,
-            membership_intervals=membership_intervals,
-        )
-        for window in windows
-    }
+    subscription_id = context.subscription_id
+    chains = context.chains
+    removals = context.removals
 
     owed: dict[tuple[int, str, str, datetime], _Owed] = {}
     for buy in buys:
         if buy.confirmed_at is None:
             continue
         confirmed_at = buy.confirmed_at
-        regimes = _regimes(
-            buy,
-            ordered,
-            windows,
-            selectors,
-            in_scope,
-            offerings,
-            destinations,
-            account_timezone,
-            changes,
-            account_id=account_id,
-            account_operator=account_operator,
-            package_removals=package_removals,
-        )
+        regimes = context.regimes(buy)
         flights_start = buy._earliest_start()
         latest_stop = buy._latest_stop()
         for index, regime in enumerate(regimes):
@@ -1224,7 +1328,9 @@ def _regimes(
             _Resolved(
                 item,
                 item.calendar(
-                    _timezone_at(start, account_timezone, changes, item.offering_id),
+                    _offering_zone(
+                        item, start, account_timezone, changes, selector.period_timezone
+                    ),
                     selector.period_timezone,
                 ),
             )

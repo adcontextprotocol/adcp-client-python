@@ -99,4 +99,10 @@ Today: `planning_error_handler`, `turn.subscription_errors`, the engine's `evalu
 
 ## Troubleshooting with explain
 
-`reporting.explain_coverage(...)` and the shared `CoverageTrace` arrive in a later beta. Until then, `engine.owed_periods(principal, subscription_id, account_id)` lists the owed periods. The coverage reason codes are in [Coverage, explained](reporting-subscriptions-coverage.md#reason-codes).
+`await reporting.explain_coverage(principal, account_id, period="2026-11-03")` returns a `CoverageTrace` per period: the verdict, the reason code, a sentence, every rule with the facts it read, and the `reporting_obligation_id` of an owed period in `seller_only`. From a shell:
+
+```
+python -m adcp reporting explain --app myapp.reporting:service --principal agency-x --account acc_a --period 2026-11-03
+```
+
+Pass `invisible_buys=` with buys the caller cannot see through `get_media_buys` to explain them as `buy_not_visible`. `python -m adcp reporting diff buyer.json seller.json` compares a buyer's trace with yours. See [Coverage, explained](reporting-subscriptions-coverage.md#explaining-a-period).
