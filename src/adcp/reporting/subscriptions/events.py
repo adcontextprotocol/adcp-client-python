@@ -361,16 +361,22 @@ def derive_events(
             )
 
     old_covered = set(before.get("covered") or ())
+    # Each time an account (re)joins a subscription is a new occurrence, so a
+    # rejoin is never deduplicated against the first join.
+    generations = dict(before.get("covered_generations") or {})
     for item in current.get("covered") or ():
         if item not in old_covered:
+            generations[item] = int(generations.get(item, 0)) + 1
             subscription_id, account_id = json.loads(item)
             emit(
                 "account.covered",
                 item,
-                1,
+                generations[item],
                 None,
                 {"subscription_id": subscription_id, "account_id": account_id},
             )
+    if isinstance(current, dict):
+        current["covered_generations"] = generations
 
     old_unauthorized = before.get("unauthorized") or {}
     new_unauthorized = current.get("unauthorized") or {}
