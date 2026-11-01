@@ -12,8 +12,9 @@ checkout through both entry points and prove:
 * no retained evidence row changes beyond the added ``offering_id = ''``;
 * every record reads back and a restart rebinds the stored generations;
 * the upgraded catalog is identical to a freshly migrated one;
-* the applied schema version is recorded, re-running is a no-op, and
-  concurrent boots serialize;
+* the applied schema versions are recorded (``create_schema()`` records the
+  ledger's own ``0001``–``0003``; ``migrate`` the rest), re-running is a
+  no-op, and concurrent boots serialize;
 * ``adcp==10.0.0b4`` with *this* storage, the pair a seller upgrades to,
   upgrades a 0.2.0b0 ledger, where the published 0.2.0b0 fails.
 
@@ -246,6 +247,7 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
 ) -> None:
     """The ``store=`` startup path (``ReliableReportingService`` calls ``create_schema``)."""
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate
 
     from adcp.storage.postgres import postgres_storage
 
@@ -258,15 +260,25 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
         store = PgReportingLedgerStore(pool=pool)
         await store.create_schema()
 
-        assert await _versions(pool) == ["0001", "0002", "0003", "0004", "0005"]
+        # The ledger's own migrations are applied and recorded; the ones that
+        # only postgres_storage needs stay pending for python -m adcp migrate.
+        assert await _versions(pool) == ["0001", "0002", "0003"]
         after = await _image_here(pool)
         assert_evidence_unchanged(seeded["image"], after)
         assert await _readback_here(pool) == seeded["readback"]
-        await postgres_storage(pool=pool).check_schema()  # the migrations-managed path agrees
+        upgraded = await _catalog(pool)
 
         await store.create_schema()  # re-runnable: nothing changes
         assert await _image_here(pool) == after
-        assert await _versions(pool) == ["0001", "0002", "0003", "0004", "0005"]
+        assert await _versions(pool) == ["0001", "0002", "0003"]
+
+        applied = await migrate(pool)
+        assert [item.version for item in applied] == ["0004", "0005"]
+        await postgres_storage(pool=pool).check_schema()  # the migrations-managed path agrees
+        assert_evidence_unchanged(seeded["image"], await _image_here(pool))
+    async with isolated_reporting_pool(autocommit=True) as fresh:
+        await PgReportingLedgerStore(pool=fresh).create_schema()
+        assert upgraded == await _catalog(fresh)
 
 
 async def test_migrate_upgrades_a_published_ledger_to_the_fresh_catalog(
@@ -382,7 +394,7 @@ async def test_concurrent_boots_and_migrate_serialize_on_a_published_ledger(
             row = await (
                 await connection.execute("SELECT count(*) FROM adcp_schema_migrations")
             ).fetchone()
-        assert row[0] == 5
+        assert row[0] == 5  # each version recorded once across the four runners
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
 
 
@@ -408,4 +420,4 @@ async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one
         assert "error" not in upgraded, upgraded["error"]
         assert upgraded["readback"] == seeded["readback"]
         assert_evidence_unchanged(seeded["image"], upgraded["image"])
-        assert await _versions(pool) == ["0001", "0002", "0003", "0004", "0005"]
+        assert await _versions(pool) == ["0001", "0002", "0003"]

@@ -78,8 +78,10 @@ existing ledger in place: `offering_id` is added to `reporting_configurations`,
 `reporting_obligations`, `reporting_consumer_statuses` and the managed-delivery
 tables, backfilled with `''` for every existing account-level generation, the
 generation keys and unique indexes are widened, and the applied schema
-versions are recorded in `adcp_schema_migrations`. No evidence row is rewritten
-or dropped. The upgrade is transactional, serialized under the reporting schema
+versions are recorded in `adcp_schema_migrations` (`create_schema()` applies
+and records the ledger's own `0001`–`0003`; `python -m adcp migrate` also
+applies `0004`–`0005`, which only `postgres_storage` needs). No evidence row is
+rewritten or dropped. The upgrade is transactional, serialized under the reporting schema
 advisory lock, and a no-op when re-run. It is a **stopped-worker** upgrade:
 stop every reporting worker of the earlier release first (its configuration
 writes name the four-column key), run the upgrade, then start the new release.

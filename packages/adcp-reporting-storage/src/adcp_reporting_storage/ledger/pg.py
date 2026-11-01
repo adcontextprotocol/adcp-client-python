@@ -478,14 +478,16 @@ class PgReportingLedgerStore:
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.
 
-        Applies the versioned migrations (``adcp_reporting_storage.migrations``)
-        that are not yet recorded in ``adcp_schema_migrations``, then this
-        store's optional DDL (change feed, row storage), all in one transaction
-        under the reporting schema lock. A ledger created by adcp-reporting-storage
+        Applies the versioned migrations made of this store's DDL
+        (``adcp_reporting_storage.migrations`` ``0001``–``0003``) that are not
+        yet recorded in ``adcp_schema_migrations``, then this store's optional
+        DDL (change feed, row storage), all in one transaction under the
+        reporting schema lock. A ledger created by adcp-reporting-storage
         0.1.0b4 or 0.2.0b0 is upgraded in place: ``offering_id`` is added with
-        ``''`` for every existing account-level generation, and its schema
-        version is recorded, so ``python -m adcp migrate --status`` and
-        ``postgres_storage`` read it as current. Re-running is a no-op.
+        ``''`` for every existing account-level generation, and the applied
+        versions are recorded, so ``python -m adcp migrate --status`` reads
+        them. Re-running is a no-op. ``postgres_storage`` additionally needs
+        ``0004``/``0005``, which only ``python -m adcp migrate`` applies.
 
         The bootstrap takes a transaction-scoped schema lock before any DDL.
         Keep the migration in that transaction, including with an autocommit
@@ -684,10 +686,7 @@ class PgReportingLedgerStore:
         from adcp_reporting_storage.migrations import apply_pending
 
         await require_owned_schema_or_empty(connection)
-        # The versioned files first, recorded as applied; the idempotent DDL
-        # below then only re-verifies what they installed.
-        await apply_pending(connection)
-        for path in (
+        owned = (
             _DDL_PATH,
             _ACCOUNT_GENERATIONS_DDL_PATH,
             _CURRENCY_DDL_PATH,
@@ -696,7 +695,20 @@ class PgReportingLedgerStore:
             _ACTIVITY_DDL_PATH,
             Path(__file__).with_name("reporting_provisional_observations.sql"),
             Path(__file__).with_name("reporting_caller_ownership.sql"),
-        ):
+        )
+        # The versioned migrations made of this store's own DDL first (0001-0003),
+        # recorded as applied, so a 0.1.0b4/0.2.0b0 ledger is upgraded in place
+        # and carries its version; the idempotent files below then only
+        # re-verify what they installed. Migrations of other stores' tables
+        # (0004 subscription state, 0005 inline storage) stay pending for
+        # python -m adcp migrate: the catalog contract of this store's older
+        # binaries is exactly its own reporting_* objects.
+        package = Path(__file__).resolve().parents[1]
+        await apply_pending(
+            connection,
+            within=frozenset(path.resolve().relative_to(package).as_posix() for path in owned),
+        )
+        for path in owned:
             await connection.execute(path.read_text())
         if self._change_feed:
             await connection.execute(_CHANGES_DDL_PATH.read_text())

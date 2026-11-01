@@ -18,9 +18,11 @@ command and the pending versions.
 
 Every migration runs in its own transaction under the reporting schema lock,
 so concurrent runners serialize and a failure commits nothing.
-``PgReportingLedgerStore.create_schema()`` applies the same files, recorded the
-same way, inside its own bootstrap transaction (:func:`apply_pending`), so a
-ledger created or upgraded by either entry point carries its schema version.
+``PgReportingLedgerStore.create_schema()`` applies the migrations made of the
+DDL it owns (``0001``–``0003``), recorded the same way, inside its own
+bootstrap transaction (:func:`apply_pending`), so a ledger created or upgraded
+by either entry point carries its schema version; ``python -m adcp migrate``
+then adds what only ``postgres_storage`` needs (``0004``, ``0005``).
 """
 
 from __future__ import annotations
@@ -194,13 +196,20 @@ async def _migrate(connection: Any, *, dry_run: bool) -> list[Migration]:
     return applied
 
 
-async def apply_pending(connection: Any) -> list[Migration]:
-    """Apply every pending migration on ``connection`` inside the caller's transaction.
+async def apply_pending(
+    connection: Any, *, within: frozenset[str] | None = None
+) -> list[Migration]:
+    """Apply pending migrations on ``connection`` inside the caller's transaction.
 
     The bootstrap path of ``create_schema()``: the caller holds one transaction
     for the whole upgrade, so every migration commits with it or none does.
     Takes the reporting schema lock first, like :func:`migrate`, so a booting
     worker and ``python -m adcp migrate`` serialize instead of racing.
+
+    ``within`` bounds what the caller owns: migrations are applied in order
+    and the walk stops at the first pending one that includes a file outside
+    it (a later migration may depend on an earlier one, so none is skipped).
+    The rest stay pending for ``python -m adcp migrate``.
     """
     await connection.execute(_LOCK)
     await connection.execute(_TABLE)
@@ -209,6 +218,8 @@ async def apply_pending(connection: Any) -> list[Migration]:
     for migration in migrations():
         if migration.version in applied:
             continue
+        if within is not None and not set(migration.includes) <= within:
+            break
         if await _apply(connection, migration):
             result.append(migration)
     return result
