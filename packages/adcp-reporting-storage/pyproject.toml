@@ -33,11 +33,13 @@ dependencies = [
     # ``adcp.reporting`` helpers, so the range is one major: a new ``adcp``
     # major means a new release here.
     #
-    # On next this range also admits adcp 10 pre-releases: next releases this
-    # distribution as its SDK 10 companion (0.2.0-beta.N), and the workspace
-    # must still install while pyproject.toml carries main's version. At
-    # ratification the range narrows to ``adcp>=10.0.0,<11`` (RELEASING.md).
-    "adcp>=9.0.0,<11",
+    # The floor is the first adcp release whose storage contract this package
+    # implements (``adcp_reporting_storage.contract``): 10.0.0b4 added
+    # ``offering_id`` to the ledger column lists, which 0.2.0b0's DDL lacked, so
+    # the pair installed cleanly and failed every reporting turn (#1763). Move
+    # the floor together with STORAGE_CONTRACT. At ratification the range
+    # narrows to ``adcp>=10.0.0,<11`` (RELEASING.md).
+    "adcp>=10.0.0b4,<11",
     # RFC 8785 canonical JSON for row bodies and object keys; the same pin as adcp.
     "rfc8785>=0.1.4",
 ]

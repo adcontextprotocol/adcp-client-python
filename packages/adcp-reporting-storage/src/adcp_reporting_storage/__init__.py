@@ -35,6 +35,10 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     __version__: str
+    from adcp_reporting_storage.contract import STORAGE_CONTRACT as STORAGE_CONTRACT
+    from adcp_reporting_storage.contract import (
+        require_adcp_contract as require_adcp_contract,
+    )
     from adcp_reporting_storage.feed.pg import PgReportingFeedStore as PgReportingFeedStore
     from adcp_reporting_storage.inline_storage import (
         PgReportingSealStore as PgReportingSealStore,
@@ -214,6 +218,9 @@ if TYPE_CHECKING:
 
 #: Public name -> (module under this package, attribute). Resolved on first use.
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
+    # The storage contract shared with adcp (see ``contract``)
+    "STORAGE_CONTRACT": ("contract", "STORAGE_CONTRACT"),
+    "require_adcp_contract": ("contract", "require_adcp_contract"),
     # Stores
     "PgReportingLedgerStore": ("ledger.pg", "PgReportingLedgerStore"),
     "PgReportingReconciliationStore": ("ledger.delivery_pg", "PgReportingReconciliationStore"),
@@ -320,6 +327,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
 
 _LAZY_SUBMODULES = frozenset(
     {
+        "contract",
         "feed",
         "inline_storage",
         "ledger",

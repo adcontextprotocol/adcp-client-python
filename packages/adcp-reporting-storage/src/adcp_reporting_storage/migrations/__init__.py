@@ -18,6 +18,9 @@ command and the pending versions.
 
 Every migration runs in its own transaction under the reporting schema lock,
 so concurrent runners serialize and a failure commits nothing.
+``PgReportingLedgerStore.create_schema()`` applies the same files, recorded the
+same way, inside its own bootstrap transaction (:func:`apply_pending`), so a
+ledger created or upgraded by either entry point carries its schema version.
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ __all__ = [
     "Migration",
     "MigrationStatus",
     "applied_migrations",
+    "apply_pending",
     "migrate",
     "migration_status",
     "migrations",
@@ -179,27 +183,53 @@ async def migrate(pool: Any, *, dry_run: bool = False) -> list[Migration]:
 
 
 async def _migrate(connection: Any, *, dry_run: bool) -> list[Migration]:
-    from adcp_reporting_storage.migration import require_owned_schema_or_empty
-
     pending = await pending_migrations(connection)
     if dry_run or not pending:
         return pending
     applied: list[Migration] = []
     for migration in pending:
         async with connection.transaction():
-            await connection.execute(_LOCK)
-            await connection.execute(_TABLE)
-            if migration.version in await applied_migrations(connection):
-                continue  # another runner applied it while this one waited
-            await require_owned_schema_or_empty(connection)
-            for statement in migration.statements():
-                await connection.execute(statement)
-            await connection.execute(
-                "INSERT INTO adcp_schema_migrations (version, name) VALUES (%s, %s)",
-                (migration.version, migration.name),
-            )
-        applied.append(migration)
+            if await _apply(connection, migration):
+                applied.append(migration)
     return applied
+
+
+async def apply_pending(connection: Any) -> list[Migration]:
+    """Apply every pending migration on ``connection`` inside the caller's transaction.
+
+    The bootstrap path of ``create_schema()``: the caller holds one transaction
+    for the whole upgrade, so every migration commits with it or none does.
+    Takes the reporting schema lock first, like :func:`migrate`, so a booting
+    worker and ``python -m adcp migrate`` serialize instead of racing.
+    """
+    await connection.execute(_LOCK)
+    await connection.execute(_TABLE)
+    applied = await applied_migrations(connection)
+    result: list[Migration] = []
+    for migration in migrations():
+        if migration.version in applied:
+            continue
+        if await _apply(connection, migration):
+            result.append(migration)
+    return result
+
+
+async def _apply(connection: Any, migration: Migration) -> bool:
+    """Run one migration and record it; ``False`` when a concurrent runner already had."""
+    from adcp_reporting_storage.migration import require_owned_schema_or_empty
+
+    await connection.execute(_LOCK)
+    await connection.execute(_TABLE)
+    if migration.version in await applied_migrations(connection):
+        return False  # another runner applied it while this one waited
+    await require_owned_schema_or_empty(connection)
+    for statement in migration.statements():
+        await connection.execute(statement)
+    await connection.execute(
+        "INSERT INTO adcp_schema_migrations (version, name) VALUES (%s, %s)",
+        (migration.version, migration.name),
+    )
+    return True
 
 
 def describe(statuses: Sequence[MigrationStatus]) -> list[str]:
@@ -211,9 +241,7 @@ def describe(statuses: Sequence[MigrationStatus]) -> list[str]:
         note = (
             "  [stopped-worker upgrade: stop every reporting worker before migrating]"
             if item.stopped_worker and status.pending
-            else "  [stopped-worker upgrade]"
-            if item.stopped_worker
-            else ""
+            else "  [stopped-worker upgrade]" if item.stopped_worker else ""
         )
         lines.append(f"{item.version} {item.name}: {state}{note}")
     return lines

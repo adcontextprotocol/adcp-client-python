@@ -154,6 +154,7 @@ from adcp.reporting.ledger.store import (
     validate_managed_revision_rows,
     validate_revision_currency,
 )
+from adcp_reporting_storage.contract import STORAGE_CONTRACT, require_adcp_contract
 from adcp_reporting_storage.ledger.row_storage import (
     REPORTING_ROW_STORAGE_DDL_PATH,
     ReportingRowStorageOptionsV1,
@@ -243,6 +244,9 @@ class PgReportingLedgerStore:
     """Durable reporting ledger over a caller-supplied connection pool."""
 
     is_durable: ClassVar[bool] = True
+    #: The reporting storage contract this store's DDL implements; adcp refuses a
+    #: store whose contract differs from its own (``adcp_reporting_storage.contract``).
+    storage_contract: ClassVar[int] = STORAGE_CONTRACT
 
     def __init__(
         self,
@@ -255,6 +259,8 @@ class PgReportingLedgerStore:
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
+        # Fail at construction, naming the pair, rather than on the first read.
+        require_adcp_contract()
         self._pool = pool
         # Opt-in chunked row storage. Without it new revisions keep their rows in
         # reporting_revision_rows; reads handle both forms either way.
@@ -472,6 +478,15 @@ class PgReportingLedgerStore:
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.
 
+        Applies the versioned migrations (``adcp_reporting_storage.migrations``)
+        that are not yet recorded in ``adcp_schema_migrations``, then this
+        store's optional DDL (change feed, row storage), all in one transaction
+        under the reporting schema lock. A ledger created by adcp-reporting-storage
+        0.1.0b4 or 0.2.0b0 is upgraded in place: ``offering_id`` is added with
+        ``''`` for every existing account-level generation, and its schema
+        version is recorded, so ``python -m adcp migrate --status`` and
+        ``postgres_storage`` read it as current. Re-running is a no-op.
+
         The bootstrap takes a transaction-scoped schema lock before any DDL.
         Keep the migration in that transaction, including with an autocommit
         pool, so a second process cannot observe a partially upgraded schema.
@@ -666,8 +681,12 @@ class PgReportingLedgerStore:
 
     async def _create_schema_on(self, connection: Any) -> None:
         from adcp_reporting_storage.migration import require_owned_schema_or_empty
+        from adcp_reporting_storage.migrations import apply_pending
 
         await require_owned_schema_or_empty(connection)
+        # The versioned files first, recorded as applied; the idempotent DDL
+        # below then only re-verifies what they installed.
+        await apply_pending(connection)
         for path in (
             _DDL_PATH,
             _ACCOUNT_GENERATIONS_DDL_PATH,
