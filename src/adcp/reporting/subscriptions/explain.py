@@ -1328,12 +1328,17 @@ class CoverageExplainer:
             listed = sorted({oid for _pkg, ids in buy.product_offering_ids() for oid in ids})
             for oid in [o for o in listed if o in self.offerings]:
                 offering = self.offerings[oid]
+                # One candidate per period, as select() does, however many
+                # zones the offering's periods can take.
+                seen: set[tuple[datetime, datetime]] = set()
                 for zone in _zones(context, offering, [low, high]):
                     calendar = self._calendar(offering, zone)
                     for s, e in calendar.periods(
                         starts_from=calendar.floor(low), starts_before=high
                     ):
-                        result.append(_Candidate(buy, offering, calendar, s, e, zone))
+                        if (s, e) not in seen:
+                            seen.add((s, e))
+                            result.append(_Candidate(buy, offering, calendar, s, e, zone))
         return result
 
     def trace(self, candidate: _Candidate) -> CoverageTrace:

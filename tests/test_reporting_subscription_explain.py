@@ -491,3 +491,23 @@ def test_an_account_resolved_source_zone_stays_out_of_the_digest() -> None:
     assert _offering_facts(resolved)["period_timezone"] is None
     fixed = replace(resolved, period_timezone_policy="fixed")
     assert _offering_facts(fixed)["period_timezone"] == "America/New_York"
+
+
+def test_flight_candidates_list_each_period_once_across_zones() -> None:
+    from adcp.reporting.subscriptions import AccountTimezoneChange
+    from adcp.reporting.subscriptions.explain import CoverageExplainer
+
+    scenario = _scenario()
+    scenario["timezone_changes"] = [
+        AccountTimezoneChange(
+            datetime(2026, 11, 3, 5, tzinfo=timezone.utc),
+            "America/Chicago",
+            previous_timezone="America/New_York",
+        )
+    ]
+    explainer = CoverageExplainer(**scenario)
+    keys = [
+        (c.buy.media_buy_id, c.offering.offering_id, c.start, c.end)
+        for c in explainer.flight_candidates()
+    ]
+    assert len(keys) == len(set(keys))
