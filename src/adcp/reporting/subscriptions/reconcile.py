@@ -671,7 +671,8 @@ def _line(
         if obligation.receipt_owed:
             responsible = "buyer"
             receipt = {"status": "owed_by_buyer"}
-    elif period.withheld:
+    elif period.withheld or trace_reason == "owed:withheld":
+        # Withheld while authority is lost: never missing or late.
         status = "withheld"
     elif obligation is None:
         if now >= end + grace:
