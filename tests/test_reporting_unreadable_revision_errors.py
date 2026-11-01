@@ -1,7 +1,8 @@
 """Buyer-facing errors for exact revision reads (adcontextprotocol/adcp#8085 and #8099).
 
 An unknown, unauthorized or retired revision answers the standard, nondisclosing
-``REFERENCE_NOT_FOUND``. A retained revision whose rows are missing or fail their binding
+``REFERENCE_NOT_FOUND`` with ``field: "reporting_revision_id"`` (AdCP 3.3, the answer a
+compacted snapshot will also give). A retained revision whose rows are missing or fail their binding
 answers ``SERVICE_UNAVAILABLE``: never not-found, and never rows that fail the binding.
 """
 
@@ -32,18 +33,39 @@ async def test_unreadable_rows_are_service_unavailable_and_secret_free(code: str
     assert wire.recovery.value == "transient"
 
 
-@pytest.mark.parametrize("code", ["REVISION_NOT_FOUND", "REFERENCE_NOT_FOUND"])
-async def test_unknown_and_retired_revisions_are_the_standard_reference_error(code: str) -> None:
+@pytest.mark.parametrize(
+    "error",
+    [
+        LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account"),
+        LedgerConflictError(
+            "REFERENCE_NOT_FOUND", "no such revision", field="reporting_revision_id"
+        ),
+    ],
+)
+async def test_unknown_and_retired_revisions_are_the_standard_reference_error(
+    error: LedgerConflictError,
+) -> None:
     with pytest.raises(ADCPTaskError) as raised:
-        await installed_reporting_call(
-            "get_media_buy_delivery",
-            lambda: failing(LedgerConflictError(code, "no such revision for this account")),
-        )
-    assert raised.value.errors[0].code == "REFERENCE_NOT_FOUND"
+        await installed_reporting_call("get_media_buy_delivery", lambda: failing(error))
+    wire = raised.value.errors[0]
+    assert (wire.code, wire.field) == ("REFERENCE_NOT_FOUND", "reporting_revision_id")
 
 
 def test_the_standard_reference_error_keeps_its_normative_recovery() -> None:
-    assert reporting_error("REVISION_NOT_FOUND", "x").code == "REFERENCE_NOT_FOUND"
+    wire = reporting_error("REVISION_NOT_FOUND", "x")
+    assert (wire.code, wire.field) == ("REFERENCE_NOT_FOUND", "reporting_revision_id")
+
+
+async def test_other_unresolved_references_name_no_revision_field() -> None:
+    with pytest.raises(ADCPTaskError) as raised:
+        await installed_reporting_call(
+            "sync_reporting_status",
+            lambda: failing(LedgerConflictError("LOOKUP_UNAVAILABLE", "obl does not resolve")),
+        )
+    assert (raised.value.errors[0].code, raised.value.errors[0].field) == (
+        "REFERENCE_NOT_FOUND",
+        None,
+    )
 
 
 # -- the handler's own buyer-facing mapping -------------------------------------------------
@@ -121,7 +143,10 @@ async def test_the_handler_never_turns_a_row_store_failure_into_not_found(code: 
 
 async def test_the_handler_answers_an_absent_revision_with_the_standard_reference_error() -> None:
     error = await _call(_Store(None))
-    assert error.errors[0].code == "REFERENCE_NOT_FOUND"
+    assert (error.errors[0].code, error.errors[0].field) == (
+        "REFERENCE_NOT_FOUND",
+        "reporting_revision_id",
+    )
 
 
 async def test_the_handler_maps_unavailable_content_to_service_unavailable() -> None:

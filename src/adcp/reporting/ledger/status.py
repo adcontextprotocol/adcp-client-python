@@ -349,7 +349,9 @@ class ReportingStatusHandler:
             )
             if revision is None:
                 raise LedgerConflictError(
-                    "REFERENCE_NOT_FOUND", "no such revision is available to this caller"
+                    "REFERENCE_NOT_FOUND",
+                    "no such revision is available to this caller",
+                    field="reporting_revision_id",
                 )
             owner = next(
                 (
