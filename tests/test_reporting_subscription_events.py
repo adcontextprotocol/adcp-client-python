@@ -189,3 +189,34 @@ async def test_a_ring_during_a_cycle_is_not_swallowed() -> None:
     stop.set()
     await asyncio.wait_for(task, timeout=30)
     assert polls >= 2
+
+
+async def test_the_events_loop_survives_an_acknowledgement_conflict() -> None:
+    world = _World()
+    await world.subscribe()
+    reporting = ReportingClient(InProcessBuyer(world.platform, _ctx))
+    other = ReportingClient(InProcessBuyer(world.platform, _ctx), event_store=None)
+    source = reporting._event_source()
+    other._event_source().store = source.store  # two workers, one store
+    stop = asyncio.Event()
+    seen: list[str] = []
+    raced = False
+
+    async def consume() -> None:
+        nonlocal raced
+        async for event in reporting.events(poll_every=timedelta(hours=1), stop=stop):
+            seen.append(event.type)
+            if not raced:
+                raced = True
+                # The other worker acknowledges the same snapshot first.
+                await (await other.poll()).ack()
+
+    task = asyncio.create_task(consume())
+    for _ in range(200):
+        if raced and task.done() is False and len(seen) >= 1:
+            break
+        await asyncio.sleep(0.05)
+    await asyncio.sleep(0.5)
+    assert not task.done(), task.exception() if task.done() else None
+    stop.set()
+    await asyncio.wait_for(task, timeout=30)
