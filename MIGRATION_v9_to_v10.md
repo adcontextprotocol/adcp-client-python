@@ -41,3 +41,24 @@ the SDK-relevant inventory is [docs/adcp-3.3-sdk-inventory.md](docs/adcp-3.3-sdk
 | A received `null` is re-emitted; a Python `None` keyword argument is "not supplied" | A property whose schema admits `null` and that arrived as `null` (`model_validate`, `model_validate_json`, nested validation) stays in `model_fields_set` and is written back as `null` by `model_dump()`. Passing `None` as a keyword argument to a constructor, assigning `None` to a field, or passing `None` in `model_copy(update=...)` now leaves the field *unset*: it is omitted from the dump, and `model_dump(exclude_unset=True)` no longer lists it. A `None` inside a dict you validate is a wire `null`. Properties whose schema does not admit `null` are unchanged (`NoExplicitNull` refuses a JSON `null` and never emits one). |
 | `model_dump()` leaves an unset schema default off | A property the schema lists outside `required` with a `default` (or a `const`) is emitted only when it was set: by the document that was parsed, by a keyword argument, or by assignment. `sandbox: false`, `timezone: "inventory_local"`, `assignment_limit: 50` and the other schema defaults no longer appear on a dump unless you set them; the attribute still reads the default. Required discriminators (`asset_type`, `pricing_model`) are emitted either way. Pass `exclude_unset=False` for the SDK 9 output. Golden-file tests that compare whole dumps need regenerating. If you relied on a default reaching the peer, set it explicitly. `model_dump_as_received()` is deprecated: it returns the same document as `model_dump(mode="json")` and is removed in SDK 11. Generated root models (a union root such as `LocalizedCreativeAsset`) now subclass `AdCPRootModel` and dump with `exclude_none=True` like every other AdCP model. |
 | Unknown keys on open objects are kept and written back | `AdCPBaseModel` defaults to `extra='allow'`: a property the pinned model does not declare (a field a newer spec added, a sibling arm's property the schema admits) survives `model_validate` → `model_dump` in `model_extra`, including a `null` value. Generated classes whose schema object is closed (`additionalProperties: false`) keep `extra='forbid'`. SDK 9 dropped unknown keys (`extra='ignore'`). If your code passed stray keyword arguments and relied on them being dropped, remove them; `ADCP_STRICT_VALIDATION=1` turns the default into `forbid` so tests find them. |
+
+## Reporting storage contract (adcp-reporting-storage)
+
+adcp 10.0.0b4 widened the reporting ledger's generation key with `offering_id`
+(AdCP 3.3 reporting subscriptions). The layout `adcp` and
+`adcp-reporting-storage` share is now named by one integer on each side,
+`adcp.reporting.ledger.storage_contract.REPORTING_STORAGE_CONTRACT` and
+`adcp_reporting_storage.STORAGE_CONTRACT` (2 for SDK 10; SDK 9 and
+adcp 10.0.0b0–b3 are 1):
+
+- `adcp-reporting-storage` 0.2.0b1 requires `adcp>=10.0.0b4,<11`; the
+  0.2.0b0 / 0.1.0b4 releases do not work with 10.0.0b4 or later
+  ([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)).
+- Startup (`ReliableReportingService`, `postgres_storage`) refuses a pair whose
+  contracts differ with `REPORTING_SCHEMA_BEHIND`, naming both versions and
+  the release to install.
+- An existing SDK 9 ledger is upgraded in place by `create_schema()` or
+  `python -m adcp migrate`: `offering_id` is added with `''` for every
+  existing account-level generation, obligation and status, and the applied
+  schema versions are recorded. Stop every SDK 9 reporting worker first; see
+  [docs/reporting-ledger-migration.md](docs/reporting-ledger-migration.md).

@@ -412,6 +412,10 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
     (`--dsn` defaults to `$ADCP_DATABASE_URL`, then `$DATABASE_URL`). Startup
     never changes the schema: it refuses one that is behind with
     `REPORTING_SCHEMA_BEHIND`, naming the command and the pending versions.
+    Startup also refuses an installed `adcp-reporting-storage` whose storage
+    contract differs from this adcp's (`adcp.reporting.ledger.storage_contract`),
+    with the same code, naming both versions and the release to install, so an
+    incompatible pair fails once at startup rather than on every turn (#1763).
   - `0002 reporting_subscription_generations` widens the generation key and
     is a stopped-worker upgrade: stop every reporting worker before running
     it. `--status` flags it.
