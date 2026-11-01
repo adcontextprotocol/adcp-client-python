@@ -104,6 +104,19 @@ _ALL_BUY_STATUSES = (
 _MAX_PAGES = 10_000
 
 
+def _package_offering_ids(package: Mapping[str, Any], every: Sequence[str]) -> list[str]:
+    """A package's ``reporting_delivery_offering_ids`` snapshot (3.3.0-beta.3).
+
+    The seller fixes it when the package is confirmed and serves ``[]`` when
+    no offering applies, so an empty snapshot is honoured. Only a package
+    served without one falls back to every registered offering.
+    """
+    snapshot = package.get("reporting_delivery_offering_ids")
+    if isinstance(snapshot, (list, tuple)):
+        return [str(item) for item in snapshot]
+    return list(every)
+
+
 @dataclass(frozen=True)
 class SubscriptionOptions:
     """Serve ``media_buy.reporting_subscriptions`` from ``ReliableReportingService``.
@@ -121,8 +134,11 @@ class SubscriptionOptions:
     * ``buys(principal, account_id)``: an account's buys, instead of
       ``get_media_buys``.
     * ``buy_offerings(media_buy)``: each package's offering ids, keyed by
-      ``package_id``. Without it every package is reported by every offering
-      the service registered; supply it when products differ.
+      ``package_id``. Without it each package's own
+      ``reporting_delivery_offering_ids`` snapshot from ``get_media_buys`` is
+      used (3.3.0-beta.3, fixed at confirmation; ``[]`` means no offering), and
+      only a package without one is reported by every offering the service
+      registered.
     * ``configure(generation)``: the report content for a subscription
       generation, instead of the service's ``account_context``.
     * ``account_delivery_configs(principal, account_id)``: the caller's own
@@ -986,8 +1002,10 @@ class ManagedSubscriptions:
 
         The flight, ``cancellation_effective_at`` and ``flight_history`` come
         from the wire. Each package's offering set is ``buy_offerings`` when
-        given, else the package's ``reporting_delivery_offering_ids`` (fixed at
-        confirmation), else every registered offering.
+        given, else the package's ``reporting_delivery_offering_ids`` snapshot
+        (fixed at confirmation; an empty one means no offering reports the
+        package), else, only when the seller omits the snapshot, every
+        registered offering.
         """
         if raw.get("start_time") is None or raw.get("end_time") is None:
             return None  # not yet flighted: nothing can be owed for it
@@ -1003,9 +1021,7 @@ class ManagedSubscriptions:
             media_buy["packages"] = [
                 {
                     **package,
-                    "reporting_delivery_offering_ids": list(
-                        package.get("reporting_delivery_offering_ids") or every
-                    ),
+                    "reporting_delivery_offering_ids": _package_offering_ids(package, every),
                 }
                 for package in raw.get("packages") or ()
                 if package.get("package_id")

@@ -323,6 +323,39 @@ async def test_derived_buys_use_buy_offerings_per_package() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("snapshot", "owed"),
+    [
+        # The snapshot names the registered offering: the package is reported.
+        ([OFFERING["offering_id"]], True),
+        # 3.3.0-beta.3: [] means no offering applies, never "every offering".
+        ([], False),
+        # The snapshot fixed at confirmation names another offering.
+        (["SOME_OTHER_OFFERING"], False),
+    ],
+)
+async def test_derived_buys_read_each_package_offering_snapshot(
+    snapshot: list[str], owed: bool
+) -> None:
+    world = _World()
+    world.seller.buys[0]["packages"][0]["reporting_delivery_offering_ids"] = snapshot
+    await world.subscribe()
+    world.clock.set(START + timedelta(hours=3, minutes=30))
+    turn = await world.service.run_worker()
+    assert (turn.subscription_obligations_written > 0) is owed
+
+
+@pytest.mark.asyncio
+async def test_a_package_without_a_snapshot_falls_back_to_every_registered_offering() -> None:
+    world = _World()
+    assert "reporting_delivery_offering_ids" not in world.seller.buys[0]["packages"][0]
+    await world.subscribe()
+    world.clock.set(START + timedelta(hours=3, minutes=30))
+    turn = await world.service.run_worker()
+    assert turn.subscription_obligations_written > 0
+
+
+@pytest.mark.asyncio
 async def test_replace_account_configs_is_refused_without_a_host_that_applies_it() -> None:
     world = _World()
     response = await world.platform.sync_principal(

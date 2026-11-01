@@ -345,7 +345,7 @@ platform = reporting.install(MySeller())  # then serve the platform as usual
 | The principal runtime, `get_principal`/`sync_principal` and the principal section of capabilities | the service's own `PrincipalService` | `principals`, `principal_store` |
 | The accounts a principal may read | the platform's `list_accounts` (a decisioning platform's `accounts.list`), read under the principal's identity | `accounts(principal, *, cursor)` |
 | Each account's buys | the platform's `get_media_buys`, under the same identity | `buys(principal, account_id)` |
-| Each package's offerings | every registered offering | `buy_offerings(media_buy)` |
+| Each package's offerings | the package's `reporting_delivery_offering_ids` snapshot from `get_media_buys` (`[]` means none), else every registered offering | `buy_offerings(media_buy)` |
 | Offerings | the registered `capability_offerings`, each publishing `standard_dimensions` | none |
 | Report content per generation | `account_context` | `configure(generation)` |
 | The authenticated principal | the caller the reporting tasks resolve, with `ToolContext.tenant_id` | `resolve_principal(request, context)` |
