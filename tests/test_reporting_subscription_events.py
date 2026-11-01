@@ -220,3 +220,20 @@ async def test_the_events_loop_survives_an_acknowledgement_conflict() -> None:
     assert not task.done(), task.exception() if task.done() else None
     stop.set()
     await asyncio.wait_for(task, timeout=30)
+
+
+def test_a_rejoin_is_a_new_account_covered_event() -> None:
+    from datetime import datetime, timezone
+
+    from adcp.reporting.subscriptions.events import derive_events
+
+    now = datetime(2026, 11, 1, tzinfo=timezone.utc)
+    key = '["analytics", "acc_a"]'
+    joined = {"covered": [key]}
+    first = derive_events({}, joined, agent_id="a", observed_at=now)
+    left = {"covered": [], "covered_generations": joined["covered_generations"]}
+    assert derive_events(joined, left, agent_id="a", observed_at=now) == []
+    rejoined = {"covered": [key]}
+    again = derive_events(left, rejoined, agent_id="a", observed_at=now)
+    assert [e.type for e in first] == [e.type for e in again] == ["account.covered"]
+    assert first[0].id != again[0].id
