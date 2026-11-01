@@ -161,9 +161,7 @@ async def test_buyer_and_seller_explain_one_period_identically() -> None:
     day = await reporting.explain(account_id=ACCOUNT, period="2026-11-01", now=world.clock())
     assert [trace.reason for trace in day][:2] == ["outside_flight", "owed"]
     with pytest.raises(KeyError):
-        await reporting.explain(
-            account_id=ACCOUNT, period="2026-11-01", subscription_id="missing"
-        )
+        await reporting.explain(account_id=ACCOUNT, period="2026-11-01", subscription_id="missing")
 
 
 async def test_the_cli_reconciles_and_explains_against_an_agent(monkeypatch, capsys) -> None:
