@@ -471,3 +471,23 @@ def test_a_period_ended_before_an_open_revocation_is_owed_withheld() -> None:
     trace = explain_subscription_coverage(**scenario, period="2026-11-05")[0]
     assert (trace.verdict, trace.reason) == ("owed", "owed:withheld")
     assert "lost authority for acc_a at 2026-11-07T00:00Z" in trace.explanation
+
+
+def test_an_account_resolved_source_zone_stays_out_of_the_digest() -> None:
+    from dataclasses import replace
+
+    from adcp.reporting.subscriptions.explain import _offering_facts
+
+    base = _scenario()["offerings"][0]
+    resolved = replace(
+        base,
+        alignment="source_timezone",
+        period_timezone="America/New_York",
+        period_timezone_policy="account_resolved",
+    )
+    other = replace(resolved, period_timezone="Europe/Paris")
+    # The seller resolved the zone; a buyer may not have: the facts agree.
+    assert _offering_facts(resolved) == _offering_facts(other)
+    assert _offering_facts(resolved)["period_timezone"] is None
+    fixed = replace(resolved, period_timezone_policy="fixed")
+    assert _offering_facts(fixed)["period_timezone"] == "America/New_York"
