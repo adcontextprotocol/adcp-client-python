@@ -84,6 +84,7 @@ from adcp.reporting.subscriptions.engine import (
 from adcp.reporting.subscriptions.explain import (
     EXPLAIN_TEMPLATES,
     TRACE_VERSION,
+    CoverageExplainer,
     CoverageReason,
     CoverageTrace,
     CoverageTraceDifference,
@@ -103,6 +104,13 @@ from adcp.reporting.subscriptions.ledger import (
     SubscriptionObligationPlanner,
     SubscriptionPlanResult,
     subscription_obligation_id,
+)
+from adcp.reporting.subscriptions.reconcile import (
+    BuyerReportingState,
+    PeriodLine,
+    ReconcileIssue,
+    ReconcileReport,
+    ReconcileSummary,
 )
 from adcp.reporting.subscriptions.registry import (
     ReportingSubscriptionValidationError,
@@ -132,6 +140,12 @@ from adcp.reporting.subscriptions.wire import (
 from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 
 __all__ = [
+    "BuyerReportingState",
+    "CoverageExplainer",
+    "PeriodLine",
+    "ReconcileIssue",
+    "ReconcileReport",
+    "ReconcileSummary",
     "EXPLAIN_TEMPLATES",
     "TRACE_VERSION",
     "CoverageReason",

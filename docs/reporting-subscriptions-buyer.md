@@ -49,7 +49,47 @@ An `all_authorized_accounts` subscription follows every grant, including account
 
 ## Reconcile
 
-`client.reporting.reconcile()` and `explain()` arrive in a later beta. Until then, `owed_subscription_periods(...)` and `ReportingSubscriptionTracker` compute owed periods from your own records (see [Coverage, explained](reporting-subscriptions-coverage.md#the-owed-rules)).
+```python
+report = await client.reporting.reconcile(since="2026-11-01")
+print(report.definitive, report.summary)
+for line in report.periods:
+    if line.responsible_party == "seller":
+        print(line.account_id, line.period["start"], line.status, line.reason, line.message)
+```
+
+`reconcile()` reads everything from the wire on each run. Never compute periods yourself.
+- **Roster:** `list_accounts` ∩ your subscriptions' scopes, plus each subscription's `accounts_unauthorized[]`. There is no account list to keep.
+- **Grant history:** `authorization.authorized_at` and `regranted_at` from `list_accounts`, and `unauthorized_at` from `accounts_unauthorized[]`. You never record grants.
+- **Facts:** buys from `get_media_buys`, offerings from capabilities, and `subscription_coverage[]` and the obligations from a complete `get_reporting_status` periods walk.
+
+Each owed period that has ended becomes a `PeriodLine`, with wire-style keys and `to_dict()`:
+
+| `status` | Meaning | `responsible_party` |
+|---|---|---|
+| `delivered` | a current revision meets the selector's `required_finality` | `none`, or `buyer` when a billing receipt is owed (`receipt.status: owed_by_buyer`) |
+| `pending` | not yet due: within `grace` of the period end, or of `expected_at` | `none` |
+| `late` | an obligation exists, but its revision is more than `grace` past `expected_at` | `seller` |
+| `missing_obligation` | no obligation `grace` after the period ended | `seller` |
+| `withheld` | owed, and your authority is currently lost | `none` |
+| `not_owed` | only with `include_not_owed=True`: every other period of each buy's flight, with its reason | `none` |
+
+- `reason` is the spec reason code and `message` its sentence, the same as `explain`.
+- `grace` defaults to one hour, never zero, so a fresh period is not flagged as missing.
+- `report.definitive` is true only when the roster, every account's obligations walk and every owed set completed. Otherwise `report.issues` say what to retry; a partial roster is never used.
+- An account whose authority you lost is reported from the last facts read for it, with its unpaid periods `withheld`.
+
+From a shell: `python -m adcp reporting reconcile --agent <alias> [--since 2026-11-01] [--json]`.
+
+## Explain
+
+```python
+traces = await client.reporting.explain(account_id="acc_a", subscription_id="analytics-daily",
+                                        media_buy_id="mb_1", period="2026-11-03")
+```
+
+`explain()` returns the same `CoverageTrace` the seller's `explain_coverage` builds, with `side="buyer"`. Compare the two with `diff_coverage_traces` or `python -m adcp reporting diff buyer.json seller.json`. See [Coverage, explained](reporting-subscriptions-coverage.md#explaining-a-period). The CLI form is `python -m adcp reporting explain --agent <alias> --account <id> --period <date>`.
+
+`ReportingSubscriptionTracker` is now an internal detail of these two calls. It stays importable for code that already uses it.
 
 ## Events
 
