@@ -1112,16 +1112,35 @@ class ManagedSubscriptions:
 
     @staticmethod
     def advertise_principal(payload: dict[str, Any]) -> dict[str, Any]:
-        """Advertise the principal layer the service serves, merged with the seller's."""
+        """Advertise the principal layer the service serves, merged with the seller's.
+
+        ``reporting_subscriptions`` is always added, and ``optimistic_concurrency``
+        is ``true``: the principal runtime enforces
+        ``expected_configuration_version``. ``reporting_destinations`` is added
+        only when the seller's own block carries the facts the schema requires
+        with it (``max_reporting_destinations``,
+        ``reporting_destination_offerings`` and ``suspension_interval_seconds``),
+        so the advertisement always validates.
+        """
         adcp = dict(payload.get("adcp") or {})
         principal = dict(adcp.get("principal") or {})
         principal.setdefault("supported", True)
         principal.setdefault("sync_task", "sync_principal")
         principal.setdefault("read_task", "get_principal")
+        principal.setdefault("optimistic_concurrency", True)
         sections = [str(item) for item in principal.get("supported_sections") or ()]
-        for section in ("reporting_destinations", "reporting_subscriptions"):
-            if section not in sections:
-                sections.append(section)
+        destination_facts = (
+            "max_reporting_destinations",
+            "reporting_destination_offerings",
+            "suspension_interval_seconds",
+        )
+        if all(principal.get(name) for name in destination_facts):
+            if "reporting_destinations" not in sections:
+                sections.append("reporting_destinations")
+        elif "reporting_destinations" in sections:
+            sections.remove("reporting_destinations")
+        if "reporting_subscriptions" not in sections:
+            sections.append("reporting_subscriptions")
         principal["supported_sections"] = sections
         adcp["principal"] = principal
         payload = {**payload, "adcp": adcp}
