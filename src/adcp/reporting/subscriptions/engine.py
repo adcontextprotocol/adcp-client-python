@@ -2123,7 +2123,10 @@ class ReportingSubscriptionEngine:
                 continue
             if expired:
                 continue  # a fresh coverage start claims no gap
-            schedules = self._schedules(state, account, buys, destinations, lost)
+            # The gap removed periods of the schedules in force at the loss:
+            # those of the version then current, in the zone then in effect,
+            # never a later version's (adcp-client-python#1770).
+            schedules = self._schedules(_state_at(state, lost), account, buys, destinations, lost)
             entries = [
                 (offering_id, calendar.floor(lost), calendar.ceil(regranted))
                 for offering_id, calendar in schedules
@@ -2492,6 +2495,21 @@ class ReportingSubscriptionEngine:
 
 
 # -- helpers -------------------------------------------------------------------
+
+
+def _state_at(state: Mapping[str, Any], instant: datetime) -> Mapping[str, Any]:
+    """``state`` with the configuration of the version in force at ``instant``."""
+    for prior in state.get("prior_versions") or ():
+        accepted = _instant(prior.get("accepted_at"))
+        superseded = _instant(prior.get("superseded_at"))
+        if (
+            prior.get("configuration") is not None
+            and accepted is not None
+            and accepted <= instant
+            and (superseded is None or instant < superseded)
+        ):
+            return {**state, "configuration": prior["configuration"]}
+    return state
 
 
 def _buy_offering_ids(buys: Sequence[SubscriptionBuy]) -> list[str]:
