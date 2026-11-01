@@ -65,7 +65,7 @@ def require_adcp_contract() -> None:
     expected = adcp_storage_contract()
     if expected == STORAGE_CONTRACT:
         return
-    from adcp.reporting._errors import ReliableReportingConfigurationError
+    from adcp.reporting import ReliableReportingConfigurationError
 
     adcp_version = _installed("adcp")
     storage_version = _installed("adcp-reporting-storage")

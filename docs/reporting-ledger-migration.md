@@ -278,9 +278,11 @@ the widened tables, so every existing account-level generation, obligation and
 status keeps its identity with `offering_id = ''`; rebuilds the generation
 primary key and the obligation period index with the new column; and re-points
 the managed-delivery foreign keys. No evidence row is rewritten or dropped. The
-applied versions are recorded in `adcp_schema_migrations`, re-running is a
-no-op, and concurrent boots serialize on the reporting schema advisory lock
-inside one transaction. It is a stopped-worker upgrade: stop every worker of the
+applied versions are recorded in `adcp_schema_migrations` (`create_schema()`
+applies the ledger's own `0001`–`0003`; `python -m adcp migrate` also applies
+`0004`–`0005`, which only `postgres_storage` needs), re-running is a no-op,
+and concurrent boots serialize on the reporting schema advisory lock inside
+one transaction. It is a stopped-worker upgrade: stop every worker of the
 earlier release first, because their configuration writes name the
 four-column key.
 
