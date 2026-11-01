@@ -15,7 +15,11 @@ yet receipted:
    an ``inspect`` adapter that returns a mismatched observation gets a
    ``rejected`` receipt with the SDK's codes (``ROW_COUNT_MISMATCH`` and
    friends), and ``commit`` is not called;
-3. otherwise your ``commit(revision)`` hook runs: load the data, then return
+3. otherwise your ``commit(revision)`` hook runs. It runs **at least once**
+   per revision: when it raises (the revision is listed in ``failed`` as
+   ``COMMIT_FAILED``), or when the receipt write after it fails, the next
+   reconcile calls it again, so make it idempotent on ``revision.resource``
+   (for example, key the load on the materialization id). Load the data, then return
    :class:`CommitResult` (``accepted``, with ``consumer_commit_ref``),
    ``"defer"`` (try again next run) or :class:`Reject` (``rejected``, with
    your codes).
@@ -231,9 +235,20 @@ async def apply_receipt_policy(
             outgoing.append(receipt)
             report.rejected.append(receipt)
             continue
-        decision_value = await _resolve(
-            commit(VerifiedRevision(account_id, obligation, revision, materialization, observation))
-        )
+        try:
+            decision_value = await _resolve(
+                commit(
+                    VerifiedRevision(account_id, obligation, revision, materialization, observation)
+                )
+            )
+        except Exception as error:  # noqa: BLE001 - one commit never drops the others
+            report.failed.append((obligation.reporting_obligation_id, "COMMIT_FAILED"))
+            logger.warning(
+                "receipts: commit failed for %s (%s); it is retried on the next reconcile",
+                obligation.reporting_obligation_id,
+                type(error).__name__,
+            )
+            continue
         if isinstance(decision_value, CommitResult):
             committed = ReportingObservation(
                 row_count=observation.row_count,
