@@ -378,3 +378,44 @@ def test_seller_configuration_codes_match_the_frozen_spec_vocabulary() -> None:
         assert (error.code, error.recovery, error.dispatched) == (code, recovery, None)
     with pytest.raises(ValueError):
         ReliableReportingConfigurationError("x", code="NOT_A_CODE")
+
+
+def _baseline() -> dict[str, Any]:
+    import copy
+
+    return copy.deepcopy(next(case for case in CASES if case["id"] == "baseline")["input"])
+
+
+def _starts(input_: dict[str, Any]) -> list[str]:
+    return sorted({p.period_start for p in periods(input_)})
+
+
+BASELINE_STARTS = ["2026-11-03T00:00:00Z", "2026-11-04T00:00:00Z", "2026-11-05T00:00:00Z"]
+
+
+def test_issue_1769_an_account_zone_no_schedule_reads_is_not_validated() -> None:
+    input_ = _baseline()
+    input_["account"]["timezone"] = "+05:00"
+    assert _starts(input_) == BASELINE_STARTS
+
+
+def test_issue_1769_a_cutover_no_account_timezone_offering_reads_needs_no_previous_zone() -> None:
+    input_ = _baseline()
+    input_["coverage"] = {
+        "timezone_cutovers": [
+            {"effective_at": "2026-11-05T05:00:00Z", "timezone": "America/New_York"}
+        ]
+    }
+    assert _starts(input_) == BASELINE_STARTS
+
+
+def test_issue_1769_a_non_candidate_offering_without_standard_dimensions_is_ignored() -> None:
+    import copy
+
+    input_ = _baseline()
+    extra = copy.deepcopy(input_["offerings"][0])
+    extra.update(offering_id="off_z_pacing_hourly", feed_purpose="pacing")
+    extra["schedule"] = {**extra["schedule"], "period_duration": "PT1H"}
+    extra.pop("standard_dimensions", None)
+    input_["offerings"].append(extra)
+    assert _starts(input_) == BASELINE_STARTS
