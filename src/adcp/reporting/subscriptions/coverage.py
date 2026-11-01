@@ -872,6 +872,36 @@ def _timezone_at(
     return zone
 
 
+def _offering_zone(
+    item: SubscriptionOffering,
+    instant: datetime,
+    account_timezone: str | None,
+    changes: Sequence[AccountTimezoneChange],
+    period_timezone: str | None,
+) -> str | None:
+    """The account zone an offering's calendar reads at ``instant``, validated.
+
+    Only an ``account_timezone`` offering without a ``period_timezone``
+    override reads it; for any other the zone is irrelevant and never checked.
+    """
+    if item.alignment != "account_timezone" or period_timezone is not None:
+        return account_timezone
+    applicable = [change for change in changes if change.offering_id in {None, item.offering_id}]
+    for change in applicable:
+        if change.previous_timezone is None:
+            raise CoverageInputError(
+                "missing_previous_timezone",
+                "a timezone change needs previous_timezone: the account's current timezone "
+                "already shows the new zone",
+            )
+        require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
+        require_zone(change.timezone, field="timezone_cutovers.timezone")
+    zone = _timezone_at(instant, account_timezone, changes, item.offering_id)
+    if zone is not None and not applicable:
+        require_zone(zone, field="account_timezone")
+    return zone
+
+
 def _windows(
     subscription: Any, version_configurations: Mapping[int, Any] | None
 ) -> tuple[SubscriptionVersionWindow, ...]:
@@ -967,19 +997,9 @@ def _coverage_context(
                     previous_timezone=None if previous is None else _text(previous),
                 )
             )
-    changes.sort(key=lambda item: item.changed_at)
-    if account_timezone is not None:
-        require_zone(account_timezone, field="account_timezone")
-    for change in changes:
-        require_zone(change.timezone, field="timezone_cutovers.timezone")
-    for change in changes:
-        if change.previous_timezone is None:
-            raise CoverageInputError(
-                "missing_previous_timezone",
-                "a timezone change needs previous_timezone: the account's current timezone "
-                "already shows the new zone",
-            )
-        require_zone(change.previous_timezone, field="timezone_cutovers.previous_timezone")
+    # error-codes.json: a zone is refused only when a schedule reads it, so the
+    # account zone and each cutover are validated where an account_timezone
+    # calendar is built (_offering_zone), never up front.
     changes.sort(key=lambda item: item.changed_at)
     every_removal = subscription_exceptions(excluded, gap_entries)
     removals = tuple(item for item in every_removal if not item.package_ids)
@@ -1308,7 +1328,9 @@ def _regimes(
             _Resolved(
                 item,
                 item.calendar(
-                    _timezone_at(start, account_timezone, changes, item.offering_id),
+                    _offering_zone(
+                        item, start, account_timezone, changes, selector.period_timezone
+                    ),
                     selector.period_timezone,
                 ),
             )
