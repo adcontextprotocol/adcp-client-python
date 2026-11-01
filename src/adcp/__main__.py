@@ -694,6 +694,11 @@ def main() -> None:
             print(error, file=sys.stderr)
             sys.exit(2)
         sys.exit(migrate_main(sys.argv[2:]))
+    if len(sys.argv) > 1 and sys.argv[1] == "reference-seller":
+        # A sandbox reference seller, for storyboards and cross-SDK interop.
+        from adcp.testing.reporting import main as reference_main
+
+        sys.exit(reference_main(sys.argv[2:]))
     if len(sys.argv) > 1 and sys.argv[1] == "reporting":
         # Reporting-subscription tooling: explain coverage, compare traces.
         from adcp.reporting.cli import main as reporting_main

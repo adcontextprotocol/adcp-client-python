@@ -59,3 +59,27 @@ Python sellers run the TypeScript storyboard CLI against their URL:
 ```
 npx adcp storyboard run https://seller.example/mcp --storyboards reporting_subscriptions --auth "$TOKEN"
 ```
+
+## The reference seller
+
+`python -m adcp reference-seller reporting --port 3000` (or `python examples/reporting_subscriptions_seller.py`) serves the SDK's reference seller as a standalone sandbox MCP server:
+- MCP is at `/mcp` and A2A at `/`.
+- The bearer token names the principal, and `storyboard-buyer` is used without one.
+- Storage is process-local.
+- The virtual clock starts at `--start` (default: now) and moves only through `comply_test_controller`.
+
+Its controller serves `seed_media_buy` and the `reporting_subscription_probe` scenario:
+- `revoke_grant`;
+- `regrant`, which returns `chain`, `authorized_at` and `regranted_at`;
+- `reduce_grant`;
+- `set_account_timezone`, which returns `previous_timezone` and the cutovers;
+- `advance_time`, which processes every period boundary crossed.
+
+It passes the TypeScript `reporting_subscriptions` storyboard (15 steps, strict schema checks):
+
+```
+npx adcp storyboard run http://127.0.0.1:3000/mcp --file reporting-subscriptions.yaml \
+    --auth storyboard-buyer --allow-http --compliance-version 3.3.0-beta.3
+```
+
+The SDK's own suite runs the same storyboard in process on every change (`tests/test_reporting_reference_seller.py`). A negative control there drops `prior_versions` from the readback and fails exactly the steps that read it.

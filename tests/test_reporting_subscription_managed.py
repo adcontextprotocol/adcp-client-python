@@ -183,9 +183,9 @@ async def test_capabilities_advertise_the_principal_layer_the_service_serves() -
     capabilities = await world.platform.get_adcp_capabilities({}, _ctx())
     principal = capabilities["adcp"]["principal"]
     assert principal["sync_task"] == "sync_principal" and principal["read_task"] == "get_principal"
-    assert {"reporting_destinations", "reporting_subscriptions"} <= set(
-        principal["supported_sections"]
-    )
+    # reporting_destinations needs seller facts this fixture does not advertise.
+    assert principal["supported_sections"] == ["reporting_subscriptions"]
+    assert principal["optimistic_concurrency"] is True
     assert {"protocol.principal", "media_buy.reporting_subscriptions"} <= set(
         capabilities["experimental_features"]
     )
