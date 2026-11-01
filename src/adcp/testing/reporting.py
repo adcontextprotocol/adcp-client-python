@@ -523,9 +523,8 @@ class ReportingTestController(TestControllerStore):
         days = engine.status_retention_days
         start = authorization_chain_start(account.grants, status_retention_days=days)
         regranted = authorization_regranted_at(account.grants, status_retention_days=days)
-        chain = (
-            "continued" if regranted is not None else ("new" if len(account.grants) > 1 else "new")
-        )
+        latest = account.grants[-1].authorized_at
+        chain = "continued" if start is not None and start < latest else "new"
         result: dict[str, Any] = {"chain": chain}
         if start is not None:
             result["authorized_at"] = iso_z(start)
