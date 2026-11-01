@@ -69,7 +69,7 @@ python -m adcp reporting explain --app myapp.reporting:service \
 
 - Steps stop at the first failing rule. An owed period passes every rule; `timezone` is `not_applicable` unless the offering is `account_timezone` aligned.
 - `seller_only` holds whether the caller can see the buy and, for an owed period, its `reporting_obligation_id`. It never leaves the seller: send `trace.for_buyer()`.
-- `inputs_digest` hashes only wire-visible facts local to the period: the version in effect, the authorization as `list_accounts` and `accounts_unauthorized` show it, the zone in effect, the buy as `get_media_buys` returns it, the offering, the `excluded[]` entries covering the period start, and whether an authorization gap covers it. `now` is not part of it.
+- `inputs_digest` hashes only wire-visible facts local to the period: the version in effect, the authorization as `list_accounts` and `accounts_unauthorized` show it, the zone in effect, the buy as `get_media_buys` returns it, the offering, the `excluded[]` entries covering the period start, and whether an authorization gap covers it. `now` is not part of it, but whether the period has ended is, so two traces taken on either side of the period end never share a digest.
 
 ### Comparing a buyer trace with a seller trace
 

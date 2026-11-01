@@ -441,3 +441,18 @@ def test_the_cli_explains_from_the_seller_service(monkeypatch, capsys) -> None:
     assert main([*argv, "--account", "acc_a", "--period", "2026-11-03", "--json"]) == 0
     document = json.loads(capsys.readouterr().out)
     assert document[0]["reason"] == "before_confirmation"
+
+
+def test_traces_on_either_side_of_the_period_end_differ_in_their_inputs() -> None:
+    before = _scenario() | {"now": datetime(2026, 11, 5, 6, tzinfo=timezone.utc)}
+    after = _scenario() | {"now": datetime(2026, 11, 6, 6, tzinfo=timezone.utc)}
+    open_ = explain_subscription_coverage(**before, period="2026-11-05")[0]
+    ended = explain_subscription_coverage(**after, period="2026-11-05")[0]
+    assert (open_.reason, ended.reason) == ("period_not_ended", "owed")
+    difference = diff_coverage_traces(open_, ended)
+    assert difference is not None and not difference.same_inputs
+    # Later, with the period still ended, the digest is unchanged.
+    later = _scenario() | {"now": datetime(2026, 11, 20, tzinfo=timezone.utc)}
+    assert explain_subscription_coverage(**later, period="2026-11-05")[0].inputs_digest == (
+        ended.inputs_digest
+    )

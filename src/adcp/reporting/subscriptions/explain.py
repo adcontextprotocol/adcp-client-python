@@ -16,7 +16,8 @@ The reason codes, their verdicts and their rules are read from the spec's
 ``reason-codes.json``, packaged with the SDK for the AdCP release it serves.
 Explanations are rendered from :data:`EXPLAIN_TEMPLATES`, one sentence per
 reason, so both sides emit identical text for identical facts. ``now`` is not
-part of the digest: only ``period_not_ended`` depends on it.
+part of the digest, but whether the period has ended is, so
+``period_not_ended`` is never a same-inputs difference.
 
 ``seller_only`` facts (when the seller froze a period, whether a buy is
 visible to the caller, the obligation id) never enter the digest, and a
@@ -1023,6 +1024,7 @@ def _inputs_document(
     authorization: Mapping[str, Any],
     backfill: bool,
     status_retention_days: int | None,
+    ended: bool,
 ) -> dict[str, Any]:
     """The wire-visible facts one period's classification depends on.
 
@@ -1032,7 +1034,10 @@ def _inputs_document(
     the zone in effect, the buy as ``get_media_buys`` returns it, the
     offering, and the ``excluded[]`` entries covering the period start. An
     authorization gap enters as whether it covers the period, which the
-    seller's ``gaps[]`` and its grant journal state identically.
+    seller's ``gaps[]`` and its grant journal state identically. ``now``
+    itself is not part of it, but whether the period has ended is: two traces
+    taken on either side of the period end differ in their inputs, never only
+    in their verdict.
     """
     start, end = candidate.start, candidate.end
     window = _window_at(context.windows, start)
@@ -1094,6 +1099,7 @@ def _inputs_document(
         "authorization_gap": gap,
         "backfill_on_regrant": backfill,
         "status_retention_days": status_retention_days,
+        "period_ended": ended,
     }
 
 
@@ -1334,6 +1340,7 @@ def explain_subscription_coverage(
             authorization=authorization,
             backfill=backfill_on_regrant,
             status_retention_days=status_retention_days,
+            ended=candidate.end <= now,
         )
         only = None
         if side == "seller":
