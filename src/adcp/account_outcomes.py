@@ -25,6 +25,10 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 __all__ = [
+    "AccountChangeOutcome",
+    "AccountMatched",
+    "AccountSeparate",
+    "AccountUpdated",
     "AccountAmbiguous",
     "AccountOutcome",
     "AccountPending",
@@ -181,11 +185,84 @@ class AccountRejected:
     request_id: str | None = None
     kind: Literal["rejected"] = "rejected"
 
+    @property
+    def requires_new_account(self) -> bool:
+        """``ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT``: the seller would accept the change only
+        as a separate account; resend with ``allow_separate_account=True``."""
+        return any(
+            str(item.get("code")) == "ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT" for item in self.errors
+        )
+
 
 AccountOutcome = AccountReady | AccountPending | AccountAmbiguous | AccountRejected
 
 
-def next_step(outcome: AccountOutcome) -> NextStep:
+@dataclass(frozen=True)
+class AccountUpdated:
+    """``client.accounts.change``: the named account changed in place.
+
+    ``account_id`` is unchanged and ``revision`` is the account's new revision.
+    ``effective_at`` is when changed money terms (``billing``,
+    ``billing_entity``, ``payment_terms``) take effect: delivery before it is
+    invoiced under the previous terms (AdCP 3.3.0-beta.3).
+    """
+
+    account_id: str
+    revision: int | None = None
+    effective_at: str | None = None
+    account: Mapping[str, Any] | None = None
+    request_id: str | None = None
+    via: AccountVia = "request_account"
+    kind: Literal["updated"] = "updated"
+
+
+@dataclass(frozen=True)
+class AccountSeparate:
+    """``client.accounts.change``: the seller opened a separate account with the change.
+
+    Nothing moved: ``previous_account_id`` is unchanged, and the registry
+    still maps the natural ``key`` to it until you call
+    ``client.accounts.use(key, account_id)``. ``not_carried_over`` names the
+    account-level configurations the new account does not have, and
+    ``subscriptions_not_covering`` the ``account_ids``-scoped reporting
+    subscriptions that will not see it.
+    """
+
+    account_id: str
+    previous_account_id: str
+    key: Mapping[str, Any] | None = None
+    account: Mapping[str, Any] | None = None
+    not_carried_over: tuple[str, ...] = ()
+    subscriptions_not_covering: tuple[str, ...] = ()
+    request_id: str | None = None
+    via: AccountVia = "request_account"
+    kind: Literal["separate_account"] = "separate_account"
+
+
+@dataclass(frozen=True)
+class AccountMatched:
+    """``client.accounts.change``: the change matched another existing account.
+
+    As with :class:`AccountSeparate`, the registry is not re-pointed until
+    ``client.accounts.use(key, account_id)``. Read the matched account's money
+    terms from :attr:`account` before spending.
+    """
+
+    account_id: str
+    previous_account_id: str
+    key: Mapping[str, Any] | None = None
+    account: Mapping[str, Any] | None = None
+    request_id: str | None = None
+    via: AccountVia = "request_account"
+    kind: Literal["matched_existing"] = "matched_existing"
+
+
+AccountChangeOutcome = (
+    AccountUpdated | AccountSeparate | AccountMatched | AccountPending | AccountRejected
+)
+
+
+def next_step(outcome: AccountOutcome | AccountChangeOutcome) -> NextStep:
     """What to do next, independent of the extensible ``kind`` vocabulary.
 
     * ``none``: the account is ready.
@@ -195,7 +272,7 @@ def next_step(outcome: AccountOutcome) -> NextStep:
     * ``pick_candidate``: choose one of ``candidates``.
     * ``contact_seller``: rejected, or a buyer action without a URL.
     """
-    if isinstance(outcome, AccountReady):
+    if isinstance(outcome, (AccountReady, AccountUpdated, AccountSeparate, AccountMatched)):
         return "none"
     if isinstance(outcome, AccountAmbiguous):
         return "pick_candidate"

@@ -16,10 +16,14 @@ from typing_extensions import TypeForm
 from adcp.account_identity import account_key, account_key_payload
 from adcp.account_outcomes import (
     AccountAmbiguous,
+    AccountChangeOutcome,
+    AccountMatched,
     AccountOutcome,
     AccountPending,
     AccountReady,
     AccountRejected,
+    AccountSeparate,
+    AccountUpdated,
     AccountVia,
     PendingAction,
     _errors,
@@ -263,6 +267,37 @@ def _request_outcome(
     )
 
 
+#: Attributes ``change()`` sends; the money ones need an explicit ``revision``.
+_CHANGEABLE = frozenset(
+    {
+        "brand",
+        "operator_unit",
+        "currency",
+        "timezone",
+        "billing",
+        "billing_entity",
+        "payment_terms",
+    }
+)
+_MONEY_FIELDS = frozenset({"billing", "billing_entity", "payment_terms"})
+
+
+def _request_account_request(payload: Mapping[str, Any]) -> Any:
+    from adcp.types import RequestAccountRequest
+
+    return RequestAccountRequest.model_validate(dict(payload))
+
+
+def _change_refused(code: str, message: str, *, agent_id: str | None) -> AccountRequestError:
+    """A local refusal: nothing was sent (``dispatched=False``)."""
+    error = AccountRequestError(
+        "request_account", [{"code": code, "message": message}], agent_id=agent_id
+    )
+    error.dispatched = False
+    error.recovery = "correctable"
+    return error
+
+
 def has_natural_reference(request: Any) -> bool:
     """Return True when ``request`` carries a buyer-declared natural account key."""
     if "account" not in getattr(type(request), "model_fields", {}):
@@ -441,6 +476,235 @@ class AccountRegistry:
             status=record.status,
             via=via,
             request_id=record.request_id,
+        )
+
+    async def change(
+        self,
+        account_id: str,
+        changes: Mapping[str, Any],
+        *,
+        revision: int | None = None,
+        allow_separate_account: bool = False,
+    ) -> AccountChangeOutcome:
+        """Change an account's attributes through ``request_account``; returns an outcome.
+
+        ``changes`` holds the attributes to change: ``brand`` (to change
+        ``countries``; ``domain`` and ``brand_id`` must equal the account's),
+        ``operator_unit``, ``currency``, ``timezone``, ``billing``,
+        ``billing_entity`` and ``payment_terms``.
+
+        * **Money changes** (``billing``, ``billing_entity``,
+          ``payment_terms``) need ``revision``: the account revision the
+          change was approved against. The SDK never reads it for you, since
+          that would defeat the lost-update protection; without it the call
+          is refused before anything is sent. The result's
+          ``effective_at`` says when the new terms apply.
+        * **Other changes** read the current ``revision`` from
+          ``list_accounts`` when you omit it, and retry once on ``CONFLICT``
+          if the fields being changed did not change concurrently.
+        * ``allow_separate_account`` (default ``False``, as in the spec): may
+          the seller answer by opening a separate account? Without it, such a
+          seller rejects the change (``outcome.requires_new_account``).
+
+        Outcomes: :class:`~adcp.account_outcomes.AccountUpdated` (same
+        ``account_id``, new revision), :class:`~adcp.account_outcomes.AccountSeparate`
+        and :class:`~adcp.account_outcomes.AccountMatched` (a different
+        account; the registry is not re-pointed until :meth:`use`),
+        :class:`~adcp.account_outcomes.AccountPending` and
+        :class:`~adcp.account_outcomes.AccountRejected`.
+        """
+        payload = {
+            key: _payload(value) if hasattr(value, "model_dump") else value
+            for key, value in dict(changes).items()
+            if value is not None
+        }
+        unknown = set(payload) - _CHANGEABLE
+        if not payload or unknown:
+            raise _change_refused(
+                "ACCOUNT_CHANGE_INVALID",
+                (
+                    f"change() cannot change {sorted(unknown)}. "
+                    if unknown
+                    else "change() needs at least one attribute to change. "
+                )
+                + f"Change one of {sorted(_CHANGEABLE)}.",
+                agent_id=self._client.agent_config.id,
+            )
+        money = sorted(set(payload) & _MONEY_FIELDS)
+        if money and revision is None:
+            raise _change_refused(
+                "ACCOUNT_REVISION_REQUIRED",
+                f"Changing {', '.join(money)} needs the account revision the change was approved "
+                "against, so a concurrent change is never overwritten. Read it from list_accounts "
+                "and pass revision=.",
+                agent_id=self._client.agent_config.id,
+            )
+        caps = await self._client.fetch_capabilities()
+        if not _requests_supported(caps):
+            raise _change_refused(
+                "ACCOUNT_REQUESTS_UNSUPPORTED",
+                "This seller does not advertise account.requests, so accounts change through "
+                "sync_accounts. Use client.sync_accounts for this seller.",
+                agent_id=self._client.agent_config.id,
+            )
+        automatic = revision is None
+        before = await self._read_account(account_id) if automatic else None
+        if automatic and before is not None:
+            revision = before.get("revision")
+        for attempt in (1, 2):
+            entry: dict[str, Any] = {"account_id": account_id, **payload}
+            if revision is not None:
+                entry["revision"] = revision
+            if allow_separate_account:
+                entry["allow_separate_account"] = True
+            result = await self._client.request_account(
+                _request_account_request(
+                    {"idempotency_key": _ensure_key(self._seller, entry), **entry}
+                )
+            )
+            body = _payload(result.data)
+            request = body.get("request")
+            if result.success and not body.get("adcp_error") and isinstance(request, Mapping):
+                return await self._change_outcome(account_id, request)
+            failure = self._failure("request_account", result, body)
+            if (
+                attempt == 1
+                and automatic
+                and "CONFLICT" in failure.error_codes
+                and before is not None
+            ):
+                current = await self._read_account(account_id)
+                if current is not None and all(
+                    current.get(name) == before.get(name) for name in payload
+                ):
+                    # Only the revision moved under us: retry once on the new one.
+                    revision = current.get("revision")
+                    before = current
+                    continue
+            raise failure
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    async def use(self, key: AccountReference | Mapping[str, Any], account_id: str) -> None:
+        """Point a natural key at ``account_id``: new buys for ``key`` go to that account.
+
+        The explicit step after :meth:`change` returned
+        :class:`~adcp.account_outcomes.AccountSeparate` or
+        :class:`~adcp.account_outcomes.AccountMatched`; the registry never
+        re-points on its own.
+        """
+        ref = account_key_payload(TypeAdapter(AccountReference).validate_python(key))
+        if "account_id" in ref:
+            raise ValueError("use() maps a buyer-declared natural key, not an account_id")
+        if not account_id:
+            raise ValueError("use() needs the account_id new buys go to")
+        previous = await self.get(ref)
+        await self._storage.save(
+            self._seller,
+            account_key(ref),
+            AccountRecord(
+                account_id=account_id,
+                status="active",
+                wire_key=None if previous is None else previous.wire_key,
+                wire_version=None if previous is None else previous.wire_version,
+            ),
+        )
+        self._touched.add(account_key(ref))
+
+    async def _read_account(self, account_id: str) -> dict[str, Any] | None:
+        """The account as ``list_accounts`` shows it to the caller, or ``None``."""
+        from adcp.types import ListAccountsRequest
+
+        cursor: str | None = None
+        for _page in range(100):
+            payload: dict[str, Any] = {}
+            if cursor:
+                payload["pagination"] = {"cursor": cursor}
+            result = await self._client.list_accounts(ListAccountsRequest.model_validate(payload))
+            body = _payload(result.data)
+            if not result.success or body.get("errors"):
+                raise self._failure("list_accounts", result, body)
+            for item in body.get("accounts") or ():
+                if isinstance(item, Mapping) and item.get("account_id") == account_id:
+                    return dict(item)
+            pagination = body.get("pagination") or {}
+            cursor = pagination.get("cursor") if pagination.get("has_more") else None
+            if not cursor:
+                return None
+        return None
+
+    async def _key_for(self, account_id: str) -> dict[str, Any] | None:
+        for key, record in await self._known():
+            if record.account_id == account_id:
+                return _key_payload(key)
+        return None
+
+    async def _subscriptions_not_covering(self, previous: str, new: str) -> tuple[str, ...]:
+        """Subscriptions scoped to ``account_ids`` naming ``previous`` but not ``new``."""
+        reporting = getattr(self._client, "reporting", None)
+        if reporting is None:
+            return ()
+        try:
+            readback = await reporting.list_subscriptions()
+        except Exception:  # noqa: BLE001 - informational only
+            return ()
+        result = []
+        for state in readback.subscriptions:
+            configuration = _payload(getattr(state, "configuration", None) or {})
+            ids = (configuration.get("scope") or {}).get("account_ids")
+            if ids is not None and previous in ids and new not in ids:
+                result.append(str(state.subscription_id))
+        return tuple(sorted(result))
+
+    async def _change_outcome(self, previous: str, wire: Mapping[str, Any]) -> AccountChangeOutcome:
+        state = str(wire["state"])
+        request_id = str(wire["request_id"])
+        if state == "in_review":
+            return AccountPending(
+                action=PendingAction.from_wire(wire.get("pending_action") or _SELLER_REVIEW),
+                via="request_account",
+                request_id=request_id,
+                account_id=previous,
+            )
+        if state != "resolved":
+            return AccountRejected(
+                errors=_errors(wire.get("errors"))
+                or ({"code": "ACCOUNT_REQUEST_REJECTED", "message": "The seller declined"},),
+                via="request_account",
+                request_id=request_id,
+            )
+        account = wire.get("account") if isinstance(wire.get("account"), Mapping) else None
+        resolution = str(getattr(wire.get("resolution"), "value", wire.get("resolution")))
+        account_id = str(wire.get("account_id") or previous)
+        if resolution == "updated" or account_id == previous:
+            effective_at = wire.get("effective_at")
+            return AccountUpdated(
+                account_id=account_id,
+                revision=(account or {}).get("revision"),
+                effective_at=None if effective_at is None else str(effective_at),
+                account=account,
+                request_id=request_id,
+            )
+        key = await self._key_for(previous)
+        if resolution == "created":
+            return AccountSeparate(
+                account_id=account_id,
+                previous_account_id=previous,
+                key=key,
+                account=account,
+                not_carried_over=tuple(
+                    str(getattr(item, "value", item)) for item in wire.get("not_carried_over") or ()
+                ),
+                subscriptions_not_covering=await self._subscriptions_not_covering(
+                    previous, account_id
+                ),
+                request_id=request_id,
+            )
+        return AccountMatched(
+            account_id=account_id,
+            previous_account_id=previous,
+            key=key,
+            account=account,
+            request_id=request_id,
         )
 
     def _failure(self, operation: str, result: Any, body: Mapping[str, Any]) -> AccountRequestError:

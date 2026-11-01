@@ -117,6 +117,10 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
     ),
     "adcp.account_outcomes": (
         "AccountAmbiguous",
+        "AccountChangeOutcome",
+        "AccountMatched",
+        "AccountSeparate",
+        "AccountUpdated",
         "AccountOutcome",
         "AccountPending",
         "AccountReady",
@@ -1049,6 +1053,10 @@ __all__ = [
     "InMemoryAccountStorage",
     "ListableAccountStorage",
     "AccountAmbiguous",
+    "AccountChangeOutcome",
+    "AccountMatched",
+    "AccountSeparate",
+    "AccountUpdated",
     "AccountOutcome",
     "AccountPending",
     "AccountReady",
@@ -1843,7 +1851,11 @@ if TYPE_CHECKING:
     )
     from adcp.account_outcomes import (
         AccountAmbiguous,
+        AccountChangeOutcome,
+        AccountMatched,
         AccountOutcome,
+        AccountSeparate,
+        AccountUpdated,
         AccountPending,
         AccountReady,
         AccountRejected,
