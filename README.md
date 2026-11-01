@@ -373,7 +373,8 @@ outcome = await client.accounts.ensure(key, billing="operator")  # AccountReady 
 - **Storage.** One object; process-local storage is refused in production. Apply schema changes with `python -m adcp migrate`.
 - **Grants.** The SDK is the only source of `authorized_at`. End a relationship with `wind_down_grant()` instead of revoking.
 - **Explain.** Seller `reporting.explain_coverage(...)` and buyer `client.reporting.explain(...)` return the same `CoverageTrace`; `python -m adcp reporting diff` compares them.
-- **Coming in later betas:** buyer events and the test kit.
+- **Events.** `client.reporting.poll()` / `events()` derive events from saved state with deterministic ids; `handle_webhook()` treats a verified webhook as a doorbell.
+- **Coming in later betas:** the test kit.
 
 Guides: [seller](docs/reporting-subscriptions-seller.md) · [buyer](docs/reporting-subscriptions-buyer.md) · [coverage](docs/reporting-subscriptions-coverage.md) · [accounts](docs/accounts-ensure-and-change.md) · [migrating from account-level configs](docs/reporting-subscriptions-migration.md) · [testing](docs/reporting-subscriptions-testing.md) · [errors](docs/reporting-subscriptions-errors.md)
 

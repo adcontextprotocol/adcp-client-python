@@ -81,6 +81,14 @@ from adcp.reporting.subscriptions.engine import (
     decode_principal_state,
     encode_principal_state,
 )
+from adcp.reporting.subscriptions.events import (
+    EventBatch,
+    InMemoryReportingEventStore,
+    ReportingEvent,
+    ReportingEventConflictError,
+    ReportingEventStore,
+    VerifiedWebhook,
+)
 from adcp.reporting.subscriptions.explain import (
     EXPLAIN_TEMPLATES,
     TRACE_VERSION,
@@ -140,6 +148,12 @@ from adcp.reporting.subscriptions.wire import (
 from adcp.server.reporting_grants import REPORTING_WIND_DOWN_TASKS, wind_down_grant
 
 __all__ = [
+    "EventBatch",
+    "InMemoryReportingEventStore",
+    "ReportingEvent",
+    "ReportingEventConflictError",
+    "ReportingEventStore",
+    "VerifiedWebhook",
     "BuyerReportingState",
     "CoverageExplainer",
     "PeriodLine",

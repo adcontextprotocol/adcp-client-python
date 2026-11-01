@@ -35,6 +35,14 @@ from adcp.reporting.subscriptions.registry import _semantic
 from adcp.types import GetPrincipalRequest, SyncPrincipalRequest
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from adcp.reporting.subscriptions.events import (
+        EventBatch,
+        ReportingEvent,
+        ReportingEvents,
+        ReportingEventStore,
+    )
     from adcp.reporting.subscriptions.explain import CoverageTrace
     from adcp.reporting.subscriptions.reconcile import ReconcileReport
 
@@ -293,6 +301,7 @@ class ReportingClient:
         *,
         max_attempts: int = _DEFAULT_ATTEMPTS,
         idempotency_key: Callable[[], str] | None = None,
+        event_store: ReportingEventStore | None = None,
     ) -> None:
         if type(max_attempts) is not int or not 1 <= max_attempts <= 10:
             raise ValueError("max_attempts must be an integer in 1..10")
@@ -302,6 +311,8 @@ class ReportingClient:
         from adcp.reporting.subscriptions.reconcile import BuyerReportingState
 
         self._state = BuyerReportingState()
+        self._event_store = event_store
+        self._events: ReportingEvents | None = None
 
     # -- public API ---------------------------------------------------------------
 
@@ -498,6 +509,54 @@ class ReportingClient:
             offering_id=offering_id,
             now=now,
         )
+
+    def _event_source(self) -> ReportingEvents:
+        if self._events is None:
+            from adcp.reporting.subscriptions.events import ReportingEvents
+
+            self._events = ReportingEvents(self._client, self._state, store=self._event_store)
+        return self._events
+
+    async def poll(
+        self,
+        *,
+        grace: timedelta = DEFAULT_GRACE,
+        baseline: bool = False,
+        now: datetime | None = None,
+    ) -> EventBatch:
+        """One batch of reporting events since the last ``ack``; serverless-safe.
+
+        ``batch = await client.reporting.poll(); await handle(batch.events);
+        await batch.ack()``. Events are derived by comparing this run's
+        ``reconcile`` and coverage with the snapshot saved at the last ack, so
+        a crash before ``ack`` redelivers the same events with the same ids.
+        Pass ``event_store=`` to :class:`ReportingClient` for a durable store.
+        """
+        return await self._event_source().poll(grace=grace, baseline=baseline, now=now)
+
+    def events(
+        self,
+        *,
+        poll_every: timedelta = timedelta(minutes=5),
+        stop: Any = None,
+        grace: timedelta = DEFAULT_GRACE,
+    ) -> AsyncIterator[ReportingEvent]:
+        """``async for event in client.reporting.events(): ...``, acked per batch.
+
+        Polls every ``poll_every``, or at once when :meth:`handle_webhook`
+        rings. ``stop`` is an ``asyncio.Event`` that ends the loop.
+        """
+        return self._event_source().events(poll_every=poll_every, stop=stop, grace=grace)
+
+    async def handle_webhook(self, verified: Any) -> EventBatch | None:
+        """Treat a verified seller webhook as a doorbell.
+
+        Pass ``VerifiedWebhook.from_outcome(await receiver.receive(...))``.
+        With a running :meth:`events` loop it wakes the loop and returns
+        ``None``; otherwise it polls now and returns the batch, which the
+        caller handles and acks. The body is never trusted as event content.
+        """
+        return await self._event_source().handle_webhook(verified)
 
     # -- planning -------------------------------------------------------------------
 
