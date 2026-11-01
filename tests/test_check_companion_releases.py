@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import subprocess
+import sys
+import types
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -243,20 +245,59 @@ def test_the_companion_package_requires_a_built_distribution() -> None:
         gate.main(["--package", "adcp"])
 
 
-def test_the_smoke_script_classifies_both_sides(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Inside this workspace both sides agree; the classification is deterministic."""
+@pytest.fixture
+def smoke() -> Any:
     import importlib.util
-    import sys
 
     spec = importlib.util.spec_from_file_location("companion_smoke", gate.SMOKE)
     assert spec and spec.loader
-    smoke = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(smoke)
-    pytest.importorskip("adcp_reporting_storage")
-    assert smoke.adcp_contract() == smoke.storage_contract()
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _declaring(name: str, value: int) -> Any:
+    return types.SimpleNamespace(**{name: value})
+
+
+def test_the_smoke_script_reads_declared_contracts(
+    smoke: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "adcp.reporting.ledger.storage_contract",
+        _declaring("REPORTING_STORAGE_CONTRACT", 2),
+    )
+    monkeypatch.setitem(
+        sys.modules, "adcp_reporting_storage.contract", _declaring("STORAGE_CONTRACT", 2)
+    )
+    assert smoke.adcp_contract() == smoke.storage_contract() == 2
     smoke.check_contract()
+    monkeypatch.setitem(
+        sys.modules, "adcp_reporting_storage.contract", _declaring("STORAGE_CONTRACT", 3)
+    )
+    with pytest.raises(SystemExit, match="contract 2 but the storage implements contract 3"):
+        smoke.check_contract()
+
+
+def test_the_smoke_script_classifies_releases_without_a_declaration(
+    smoke: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """adcp 10.0.0b4/b5 by their column lists; storage 0.1.0b4/0.2.0b0 as contract 1."""
+    from adcp.reporting.ledger import _record_rows
+
+    monkeypatch.setitem(sys.modules, "adcp.reporting.ledger.storage_contract", None)
     monkeypatch.setitem(sys.modules, "adcp_reporting_storage.contract", None)
-    assert smoke.storage_contract() == 1  # 0.1.0b4 and 0.2.0b0 predate the declaration
-    if smoke.adcp_contract() != 1:
-        with pytest.raises(SystemExit, match="storage contract"):
-            smoke.check_contract()
+    assert smoke.storage_contract() == 1
+    assert smoke.adcp_contract() == 2  # this checkout's columns carry offering_id
+    with pytest.raises(
+        SystemExit, match="storage contract 2 but the storage implements contract 1"
+    ):
+        smoke.check_contract()  # the #1763 pair
+    monkeypatch.setattr(
+        _record_rows,
+        "_OBLIGATION_COLUMNS",
+        _record_rows._OBLIGATION_COLUMNS.replace(", offering_id", ""),
+    )
+    assert smoke.adcp_contract() == 1  # 9.x and 10.0.0b0-b3
+    smoke.check_contract()
