@@ -272,6 +272,68 @@ async def test_a_readback_mismatch_is_terminal() -> None:
     assert mismatch.value.recovery == "terminal" and mismatch.value.readback is not None
 
 
+class Sorting(Client):
+    """A conformant seller that returns every set-valued array in sorted order."""
+
+    async def sync_principal(self, request):
+        result = await super().sync_principal(request)
+        for state in result.data.result.configuration.reporting_subscriptions:
+            configuration = state.configuration
+            dumped = configuration.model_dump(mode="json", exclude_none=True)
+            for name in ("exclude_account_ids", "operator_domains"):
+                if name in dumped:
+                    dumped[name] = sorted(dumped[name])
+            if "account_ids" in dumped.get("scope", {}):
+                dumped["scope"]["account_ids"] = sorted(dumped["scope"]["account_ids"])
+            if "dimensions" in dumped.get("selector", {}):
+                dumped["selector"]["dimensions"] = sorted(dumped["selector"]["dimensions"])
+            state.configuration = type(configuration).model_validate(dumped)
+        return result
+
+
+async def test_the_readback_compares_set_valued_arrays_without_order() -> None:
+    reporting = ReportingClient(Sorting(Seller()))
+    selector = {**SUBSCRIPTION["selector"], "dimensions": ["package", "creative"]}
+    result = await reporting.subscribe(
+        _subscription(
+            scope={"account_ids": ["acct-2", "acct-1"]},
+            operator_domains=["z.example", "a.example"],
+            selector=selector,
+        )
+    )
+    assert result.action == "created"
+
+
+def test_differing_path_orders_only_lists_that_carry_order() -> None:
+    from adcp.reporting.subscriptions.facade import differing_path
+
+    assert (
+        differing_path({"operator_domains": ["b", "a"]}, {"operator_domains": ["a", "b"]}) is None
+    )
+    assert differing_path({"operator_domains": ["b", "a"]}, {"operator_domains": ["a", "c"]}) == (
+        "/operator_domains"
+    )
+    overrides = [
+        {"destination_id": "x", "account_ids": ["1", "2"]},
+        {"destination_id": "y", "operator_domains": ["o.example"]},
+    ]
+    stored = [
+        {"destination_id": "y", "operator_domains": ["o.example"], "added": True},
+        {"destination_id": "x", "account_ids": ["2", "1"]},
+    ]
+    assert (
+        differing_path({"destination_overrides": overrides}, {"destination_overrides": stored})
+        is None
+    )
+    stored[0]["destination_id"] = "z"
+    assert (
+        differing_path({"destination_overrides": overrides}, {"destination_overrides": stored})
+        == "/destination_overrides/1"
+    )
+    # Any other array still compares element for element.
+    assert differing_path({"other": ["a", "b"]}, {"other": ["b", "a"]}) == "/other/0"
+
+
 class Roster(Client):
     def __init__(self, seller: Seller, accounts: list[dict[str, Any]], offerings=None) -> None:
         super().__init__(seller)

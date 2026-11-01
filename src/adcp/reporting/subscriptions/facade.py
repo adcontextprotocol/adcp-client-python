@@ -217,15 +217,41 @@ async def guard_sync_principal(
     )
 
 
+#: Subscription arrays that are ``uniqueItems`` sets: a seller may return them
+#: in any order, such as sorted, so the readback compares them as sets.
+_SET_ARRAYS = frozenset({"account_ids", "exclude_account_ids", "operator_domains", "dimensions"})
+#: Arrays of objects whose order carries no meaning: ``destination_overrides``
+#: select disjoint accounts, so each sent entry matches any stored one.
+_UNORDERED_ARRAYS = frozenset({"destination_overrides"})
+
+
 def differing_path(sent: Any, stored: Any, path: str = "") -> str | None:
     """The first JSON Pointer at which ``stored`` lacks or changes a value the buyer sent.
 
-    Fields the seller adds (defaults it fills) are ignored; arrays must match
-    element for element.
+    Fields the seller adds (defaults it fills) are ignored. Set-valued arrays
+    (``account_ids``, ``exclude_account_ids``, ``operator_domains``,
+    ``dimensions``) and ``destination_overrides`` compare without regard to
+    order; every other array must match element for element.
     """
     if isinstance(sent, list):
         if not isinstance(stored, list) or len(stored) != len(sent):
             return path or "/"
+        key = path.rsplit("/", 1)[-1]
+        if key in _SET_ARRAYS and all(isinstance(item, (str, int)) for item in sent):
+            if sorted(map(str, sent)) != sorted(map(str, stored)):
+                return path or "/"
+            return None
+        if key in _UNORDERED_ARRAYS:
+            unmatched = list(stored)
+            for index, item in enumerate(sent):
+                match = next(
+                    (i for i, other in enumerate(unmatched) if differing_path(item, other) is None),
+                    None,
+                )
+                if match is None:
+                    return f"{path}/{index}"
+                unmatched.pop(match)
+            return None
         for index, item in enumerate(sent):
             found = differing_path(item, stored[index], f"{path}/{index}")
             if found is not None:
