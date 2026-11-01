@@ -145,10 +145,13 @@ report.receipts.submitted, report.receipts.deferred, report.receipts.rejected
 
 With `mode="verified"`, the SDK handles each `consumer_receipt` obligation whose current revision is materialized and not yet receipted:
 1. It verifies the materialization itself: the manifest through `resource_reader` (the built-in inspector), or your `inspect` adapter. This gives the observed row count, control totals and digest.
-2. A materialization that does not match its revision is receipted `rejected` with the SDK's codes, and `commit` is not called.
+2. If verification fails, `commit` is not called:
+   - A materialization the built-in inspector refuses (a digest, row-count or object mismatch), or cannot read, goes to `report.receipts.failed` with the code, and nothing is receipted for it.
+   - An `inspect` adapter that returns a mismatched observation gets a `rejected` receipt with the SDK's codes.
 3. Otherwise `commit` runs, and the `accepted` receipt carries your `consumer_commit_ref`.
 
 Other rules:
 - **Mode off.** Billing periods read `receipt: {"status": "owed_by_buyer"}` and `responsible_party: "buyer"`, and the client logs a warning once.
 - **Adjustments.** They are offered to `adjustments(adjustment)` and deferred by default. Billing never auto-accepts. Accept or reject an adjustment with its raw evidence through `client.reporting.submit_receipts(account_id, adjustment_receipts=[...])`, the typed manual path over `sync_reporting_receipts`.
+- **Once per materialization.** Receipt ids are stable per obligation, revision and materialization. A materialization already receipted, accepted or rejected, is not receipted again.
 - **Ownership.** Receipts are submitted under the principal that owns the subscription: the client you call `reconcile` on.

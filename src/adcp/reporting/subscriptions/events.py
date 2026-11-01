@@ -542,11 +542,13 @@ class ReportingEvents:
         self._listening += 1
         try:
             while stop is None or not stop.is_set():
+                # Consume the ring before polling: one that lands during the
+                # poll, the loop body or the ack survives and polls again at once.
+                self._doorbell.clear()
                 batch = await self.poll(grace=grace)
                 for event in batch.events:
                     yield event
                 await batch.ack()
-                self._doorbell.clear()
                 waiters = [asyncio.ensure_future(self._doorbell.wait())]
                 if stop is not None:
                     waiters.append(asyncio.ensure_future(stop.wait()))
