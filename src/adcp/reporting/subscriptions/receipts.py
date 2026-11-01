@@ -212,7 +212,8 @@ async def apply_receipt_policy(
         try:
             observation = await inspect(context)
         except Exception as error:  # noqa: BLE001 - one revision never fails the account
-            code = str(getattr(error, "code", None) or "INSPECTION_FAILED")
+            raw = getattr(error, "code", None)
+            code = "INSPECTION_FAILED" if raw is None else _enum(raw)
             report.failed.append((obligation.reporting_obligation_id, code))
             logger.warning(
                 "receipts: %s could not be verified (%s); nothing was receipted for it",
