@@ -155,3 +155,37 @@ async def test_a_failed_read_never_fabricates_events() -> None:
         await batch.ack()
         client.fail.discard(task)
     world.seller.accounts[ACCOUNT] = account
+
+
+async def test_a_ring_during_a_cycle_is_not_swallowed() -> None:
+    world = _World()
+    await world.subscribe()
+    reporting = ReportingClient(InProcessBuyer(world.platform, _ctx))
+    source = reporting._event_source()
+    polls = 0
+    original = source.poll
+
+    async def counting(**kwargs):
+        nonlocal polls
+        polls += 1
+        batch = await original(**kwargs)
+        if polls == 1:
+            # A webhook rings while the first cycle is still running.
+            source._doorbell.set()
+        return batch
+
+    source.poll = counting
+    stop = asyncio.Event()
+
+    async def consume() -> None:
+        async for _event in reporting.events(poll_every=timedelta(hours=1), stop=stop):
+            pass
+
+    task = asyncio.create_task(consume())
+    for _ in range(200):
+        if polls >= 2:
+            break
+        await asyncio.sleep(0.05)
+    stop.set()
+    await asyncio.wait_for(task, timeout=30)
+    assert polls >= 2
