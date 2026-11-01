@@ -36,6 +36,7 @@
     "fix_product_fields_item_reference": true,
     "fix_audience_evidence_attestation_subject": true,
     "fix_legacy_purchase_accepted_losses": true,
+    "dedupe_enum_member_values": true,
     "drop_empty_model_arms_from_array_fields": true,
     "preserve_request_signing_operation_strings": true,
     "enforce_change_term_runtime_constraints": true,

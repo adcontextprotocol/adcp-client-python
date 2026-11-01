@@ -476,8 +476,6 @@ class TransitionMode(StrEnum):
     instant = 'instant'
     animated = 'animated'
     scroll_linked = 'scroll_linked'
-    instant_1 = 'instant'
-    animated_1 = 'animated'
 
 
 class ScrollReference(StrEnum):

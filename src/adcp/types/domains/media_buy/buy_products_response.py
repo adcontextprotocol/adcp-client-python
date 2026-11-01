@@ -42,8 +42,6 @@ class Code(StrEnum):
     inventory_shortfall_forecast = 'inventory_shortfall_forecast'
     flight_change_creates_pacing_risk = 'flight_change_creates_pacing_risk'
     fields_ignored_due_to_precedence = 'fields_ignored_due_to_precedence'
-    inventory_shortfall_forecast_1 = 'inventory_shortfall_forecast'
-    flight_change_creates_pacing_risk_1 = 'flight_change_creates_pacing_risk'
 
 
 class Status(StrEnum):

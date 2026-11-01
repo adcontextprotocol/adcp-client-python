@@ -7631,6 +7631,57 @@ def point_rootmodels_at_adcp_root() -> None:
     print(f"  Pointed root models at AdCPRootModel in {modified} file(s)")
 
 
+def dedupe_enum_member_values() -> None:
+    """Drop the ``<name>_N`` enum members that repeat a value (#1782).
+
+    When an object's ``anyOf`` arm re-declares a property with a narrower
+    ``enum`` (``postal-country-system.json`` arm 0 narrows ``system`` to
+    ``['zip', 'zip_plus_four']``), datamodel-code-generator merges the arm's
+    values into the root enum without deduplicating, so the generated
+    ``StrEnum`` carries ``zip = 'zip'`` and ``zip_1 = 'zip'``. Python makes the
+    second member an alias of the first, so nothing breaks at runtime, but
+    ``__members__``, autocomplete and ``member.name`` then offer names that are
+    not AdCP values. Keep the first member for each value and remove the rest;
+    ``tests/test_generated_enums_have_no_aliases.py`` holds the tree to it.
+    """
+    modified = 0
+    removed = 0
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = path.read_text()
+        if "Enum)" not in source:
+            continue
+        tree = ast.parse(source)
+        lines = source.splitlines(keepends=True)
+        doomed: list[tuple[int, int]] = []
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef) or not any(
+                isinstance(base, ast.Name) and base.id.endswith("Enum") for base in node.bases
+            ):
+                continue
+            seen: set[object] = set()
+            for statement in node.body:
+                if (
+                    isinstance(statement, ast.Assign)
+                    and len(statement.targets) == 1
+                    and isinstance(statement.targets[0], ast.Name)
+                    and isinstance(statement.value, ast.Constant)
+                ):
+                    value = statement.value.value
+                    if value in seen:
+                        assert statement.end_lineno is not None
+                        doomed.append((statement.lineno, statement.end_lineno))
+                    else:
+                        seen.add(value)
+        if not doomed:
+            continue
+        for start, end in sorted(doomed, reverse=True):
+            del lines[start - 1 : end]
+            removed += 1
+        path.write_text("".join(lines))
+        modified += 1
+    print(f"  Removed {removed} duplicate-valued enum member(s) from {modified} module(s)")
+
+
 def preserve_request_signing_operation_strings() -> None:
     """Keep request-signing operation lists source-compatible with beta.5.
 
@@ -8781,6 +8832,7 @@ def main(argv: list[str] | None = None) -> int:
         fix_product_fields_item_reference,
         fix_audience_evidence_attestation_subject,
         fix_legacy_purchase_accepted_losses,
+        dedupe_enum_member_values,
         drop_empty_model_arms_from_array_fields,
         preserve_request_signing_operation_strings,
         enforce_change_term_runtime_constraints,
