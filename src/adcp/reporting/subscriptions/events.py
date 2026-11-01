@@ -548,7 +548,12 @@ class ReportingEvents:
                 batch = await self.poll(grace=grace)
                 for event in batch.events:
                     yield event
-                await batch.ack()
+                try:
+                    await batch.ack()
+                except ReportingEventConflictError:
+                    # Another worker acknowledged first: poll again at once.
+                    # Events it already acknowledged are not redelivered.
+                    continue
                 waiters = [asyncio.ensure_future(self._doorbell.wait())]
                 if stop is not None:
                     waiters.append(asyncio.ensure_future(stop.wait()))
