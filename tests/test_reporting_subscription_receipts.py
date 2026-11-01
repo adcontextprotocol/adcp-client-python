@@ -170,7 +170,11 @@ async def test_a_rejection_is_sent_once_and_an_unverifiable_revision_is_not_rece
     from adcp.reporting_inspection import ReportingInspectionError
 
     async def refusing(_context):
-        raise ReportingInspectionError("MANIFEST_DIGEST_MISMATCH", "the manifest does not match")
+        from adcp.reporting_inspection import ReportingInspectionCode
+
+        raise ReportingInspectionError(
+            ReportingInspectionCode("MANIFEST_DIGEST_MISMATCH"), "the manifest does not match"
+        )
 
     fresh = _Client()
     failed = ReceiptReport()
