@@ -183,9 +183,9 @@ async def test_capabilities_advertise_the_principal_layer_the_service_serves() -
     capabilities = await world.platform.get_adcp_capabilities({}, _ctx())
     principal = capabilities["adcp"]["principal"]
     assert principal["sync_task"] == "sync_principal" and principal["read_task"] == "get_principal"
-    assert {"reporting_destinations", "reporting_subscriptions"} <= set(
-        principal["supported_sections"]
-    )
+    # reporting_destinations needs seller facts this fixture does not advertise.
+    assert principal["supported_sections"] == ["reporting_subscriptions"]
+    assert principal["optimistic_concurrency"] is True
     assert {"protocol.principal", "media_buy.reporting_subscriptions"} <= set(
         capabilities["experimental_features"]
     )
@@ -572,3 +572,43 @@ async def test_a_hung_platform_read_is_bounded_by_read_timeout() -> None:
     [failure] = world.failures
     assert failure.error.code == "SUBSCRIPTION_ROSTER_UNAVAILABLE"
     assert "RuntimeError" in str(failure.error)
+
+
+@pytest.mark.asyncio
+async def test_issue_1771_managed_capabilities_pass_the_sdk_response_validation(
+    monkeypatch,
+) -> None:
+    from adcp.validation.schema_loader import get_named_validator
+
+    base = Seller.get_adcp_capabilities
+
+    async def capabilities(self: Any, params: Any, context: Any = None) -> Any:
+        payload = await base(self, params, context)
+        # The seller's own fact: whether it honors idempotency_key replay.
+        payload["adcp"]["idempotency"] = {"supported": True, "replay_ttl_seconds": 86400}
+        return payload
+
+    monkeypatch.setattr(Seller, "get_adcp_capabilities", capabilities)
+    world = _World()
+    served = await world.platform.get_adcp_capabilities({"adcp_version": "3.3-beta.3"}, _ctx())
+    validator = get_named_validator("protocol/get-adcp-capabilities-response.json")
+    payload = {"status": "completed", **served}
+    errors = [f"{list(e.absolute_path)} {e.message}" for e in validator.iter_errors(payload)]
+    assert errors == []
+    # A buyer negotiates the 3.3 line instead of falling back to 3.0.
+    assert "3.3-beta.3" in served["adcp"]["supported_versions"]
+
+
+@pytest.mark.asyncio
+async def test_issue_1771_status_is_served_to_a_plain_mcp_caller() -> None:
+    from adcp.server.base import ToolContext
+
+    world = _World()
+    await world.subscribe()
+    world.clock.set(START + timedelta(hours=3, minutes=30))
+    await world.service.run_worker()
+    status = await world.platform.get_reporting_status(
+        {"account": {"account_id": ACCOUNT}, "view": "summary"},
+        ToolContext(caller_identity=AGENCY),
+    )
+    assert status["subscription_coverage"][0]["subscription_id"] == "analytics-hourly"
