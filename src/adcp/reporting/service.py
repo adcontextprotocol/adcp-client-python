@@ -600,7 +600,9 @@ class ReliableReportingService:
         self._initialize_source_storage = initialize_source_storage
         self.sources = ReportingAdapterRegistry(clock=effective_clock, staging=staging, seals=seals)
         self._context_resolver = account_context
-        self._caller_resolver = caller_resolver or self._default_caller
+        self._caller_resolver = caller_resolver or (
+            self._managed_caller if subscriptions is not None else self._default_caller
+        )
         self._consumer_status_enabled = consumer_status_enabled
         self._escalation = escalation or ReportingDeliveryEscalation()
         self._clock = effective_clock
@@ -1611,6 +1613,29 @@ class ReliableReportingService:
             raise TypeError("caller_resolver must resolve ReportingStatusCaller")
         return caller
 
+    @classmethod
+    def _managed_caller(cls, request: Any, context: Any | None) -> ReportingStatusCaller:
+        """The managed subscription path's default caller, which also works over plain MCP.
+
+        As :meth:`_default_caller`; when the context carries an authenticated
+        caller but no resolved account (a plain ``ToolContext`` from
+        ``serve()``), the account is the one the request names. The
+        subscription grant check then refuses an account the caller holds no
+        grant on, as for any other read (adcp-client-python#1771).
+        """
+        try:
+            return cls._default_caller(request, context)
+        except ReliableReportingConfigurationError:
+            from adcp.reporting.subscriptions.managed import request_principal_id
+
+            consumer_id = request_principal_id(context)
+            payload = _wire(request) if request is not None else {}
+            account = payload.get("account") if isinstance(payload, Mapping) else None
+            account_id = account.get("account_id") if isinstance(account, Mapping) else None
+            if not consumer_id or not account_id:
+                raise
+            return ReportingStatusCaller(account_id=str(account_id), consumer_id=consumer_id)
+
     @staticmethod
     def _default_caller(request: Any, context: Any | None) -> ReportingStatusCaller:
         del request
@@ -1886,6 +1911,19 @@ class ReliableReportingService:
                 serves_subscriptions,
             )
 
+            if self._managed is not None:
+                # Subscriptions are served from 3.3; without supported_versions
+                # a buyer negotiates down from major_versions and never reaches
+                # them (adcp-client-python#1771). Advertise the releases this
+                # SDK serves unless the seller states its own.
+                adcp = dict(payload.get("adcp") or {})
+                if not adcp.get("supported_versions"):
+                    from adcp._version import get_supported_adcp_versions
+
+                    adcp["supported_versions"] = [
+                        item for item in get_supported_adcp_versions() if "-rc" not in item
+                    ]
+                    payload["adcp"] = adcp
             if self._managed is not None and serves_subscriptions(adcp_version):
                 payload = self._managed.advertise_principal(payload)
             try:

@@ -133,3 +133,56 @@ async def test_the_pytest_fixture_runs_the_reference_seller(adcp_reporting_kit) 
     await buyer.reporting.subscribe(SUBSCRIPTION)
     await adcp_reporting_kit.clock.advance("P3D")
     await adcp_reporting_kit.assert_agreement("agency-x")
+
+
+async def test_issue_1770_gaps_keep_the_boundaries_of_the_schedule_they_removed() -> None:
+    """After revoke, re-grant and a version cutover, served gaps[] match the owed set."""
+    local = offerings.daily_analytics(offering_id="off_daily_local", alignment="account_timezone")
+    utc = offerings.daily_analytics(offering_id="off_daily_utc", alignment="utc")
+    selector = {
+        "feed_purpose": "analytics",
+        "period_duration": "P1D",
+        "required_finality": "snapshot",
+    }
+
+    def version(alignment: str) -> dict:
+        return {
+            "subscription_id": "analytics-daily",
+            "scope": {"all_authorized_accounts": True},
+            "selector": {**selector, "alignment": alignment, "dimensions": ["package"]},
+            "reconciliation_mode": "delivery_only",
+        }
+
+    async with reporting_test_kit(
+        start="2026-09-01T00:00:00Z",
+        offerings=[local, utc],
+        accounts=[{"account_id": "acct_1", "timezone": "America/Santiago"}],
+        buys=[
+            {
+                "media_buy_id": "mb_1",
+                "account_id": "acct_1",
+                "confirmed_at": "2026-09-01T00:00:00Z",
+                "start_time": "2026-09-02T00:00:00Z",
+                "end_time": "2026-09-20T00:00:00Z",
+                "packages": [
+                    {
+                        "package_id": "p1",
+                        "reporting_delivery_offering_ids": ["off_daily_local", "off_daily_utc"],
+                    }
+                ],
+            }
+        ],
+    ) as kit:
+        buyer = kit.buyer("buyer-x")
+        await buyer.reporting.subscribe(version("account_timezone"))
+        await kit.clock.advance_to("2026-09-04T12:00:00Z")
+        await buyer.reporting.subscribe(version("utc"))
+        await kit.clock.advance_to("2026-09-08T06:00:00Z")
+        await kit.grants.revoke("buyer-x", "acct_1")
+        await kit.clock.advance_to("2026-09-09T18:00:00Z")
+        await kit.grants.regrant("buyer-x", "acct_1")
+        await kit.clock.advance_to("2026-09-12T12:00:00Z")
+        await kit.assert_agreement("buyer-x")
+        await buyer.reporting.subscribe(version("account_timezone"))
+        await kit.clock.advance_to("2026-09-16T00:00:00Z")
+        await kit.assert_agreement("buyer-x")
