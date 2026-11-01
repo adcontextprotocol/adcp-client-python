@@ -184,3 +184,20 @@ async def test_a_rejection_is_sent_once_and_an_unverifiable_revision_is_not_rece
     )
     assert failed.failed == [("obligation-billing", "MANIFEST_DIGEST_MISMATCH")]
     assert fresh.recorded_receipt is None
+
+
+async def test_a_commit_that_raises_is_retried_later_and_never_drops_other_receipts() -> None:
+    async def inspect(_context):
+        return _observation()
+
+    def broken(_revision):
+        raise TimeoutError("warehouse unavailable")
+
+    client = _Client()
+    report = ReceiptReport()
+    policy = ReceiptPolicy(mode="verified", commit=broken, inspect=inspect)
+    assert not await apply_receipt_policy(
+        client, "account-1", await _ledger(client), policy, report, now=NOW
+    )
+    assert report.failed == [("obligation-billing", "COMMIT_FAILED")]
+    assert client.recorded_receipt is None

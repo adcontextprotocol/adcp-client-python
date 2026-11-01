@@ -148,7 +148,7 @@ With `mode="verified"`, the SDK handles each `consumer_receipt` obligation whose
 2. If verification fails, `commit` is not called:
    - A materialization the built-in inspector refuses (a digest, row-count or object mismatch), or cannot read, goes to `report.receipts.failed` with the code, and nothing is receipted for it.
    - An `inspect` adapter that returns a mismatched observation gets a `rejected` receipt with the SDK's codes.
-3. Otherwise `commit` runs, and the `accepted` receipt carries your `consumer_commit_ref`.
+3. Otherwise `commit` runs, and the `accepted` receipt carries your `consumer_commit_ref`. `commit` runs at least once per revision. A `commit` that raises is listed in `report.receipts.failed` as `COMMIT_FAILED`, and a receipt write that fails after it is retried, so the next reconcile calls `commit` again. Make it idempotent on `revision.resource`, for example by keying the load on the materialization id.
 
 Other rules:
 - **Mode off.** Billing periods read `receipt: {"status": "owed_by_buyer"}` and `responsible_party: "buyer"`, and the client logs a warning once.
