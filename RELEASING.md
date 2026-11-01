@@ -79,6 +79,20 @@ so that merges in either direction never change the other line's release flow:
   to `main`'s releases, and adopters opt in with `pip install --pre adcp` or
   `adcp==10.0.0a0`.
 
+- The companion gate (`scripts/check_companion_releases.py`, #1605, #1763)
+  runs for every publish of either package, from `main` and from `next`. An
+  `adcp` publish needs a published `adcp-reporting-storage` whose range
+  accepts it **and that works with it**: the workflow installs the wheel it
+  just built with that storage release into a private environment and runs
+  `scripts/companion_smoke.py`, which refuses a pair whose storage contracts
+  differ (`adcp.reporting.ledger.storage_contract` versus
+  `adcp_reporting_storage.contract`) and round-trips ledger records on a
+  PostgreSQL service. A storage publish is gated the same way against the
+  oldest and the newest published `adcp` its own requirement accepts. So when
+  the contract changes, order the releases: publish the storage release that
+  implements the new contract (its floor is the first `adcp` of that
+  contract) before the `adcp` release that declares it.
+
 One-time setup: add `next` to the `release-publish` environment's deployment
 branches (GitHub Settings → Environments). The PyPI Trusted Publisher needs no
 change, because it is bound to the `release-publish.yml` file name and the
