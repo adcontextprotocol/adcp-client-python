@@ -289,15 +289,13 @@ def test_the_smoke_script_classifies_releases_without_a_declaration(
     monkeypatch.setitem(sys.modules, "adcp.reporting.ledger.storage_contract", None)
     monkeypatch.setitem(sys.modules, "adcp_reporting_storage.contract", None)
     assert smoke.storage_contract() == 1
-    assert smoke.adcp_contract() == 2  # this checkout's columns carry offering_id
+    without = _record_rows._OBLIGATION_COLUMNS.replace(", offering_id", "")
+    monkeypatch.setattr(_record_rows, "_OBLIGATION_COLUMNS", without)
+    assert smoke.adcp_contract() == 1  # 9.x and 10.0.0b0-b3
+    smoke.check_contract()
+    monkeypatch.setattr(_record_rows, "_OBLIGATION_COLUMNS", without + ", offering_id")
+    assert smoke.adcp_contract() == 2  # 10.0.0b4 and b5
     with pytest.raises(
         SystemExit, match="storage contract 2 but the storage implements contract 1"
     ):
         smoke.check_contract()  # the #1763 pair
-    monkeypatch.setattr(
-        _record_rows,
-        "_OBLIGATION_COLUMNS",
-        _record_rows._OBLIGATION_COLUMNS.replace(", offering_id", ""),
-    )
-    assert smoke.adcp_contract() == 1  # 9.x and 10.0.0b0-b3
-    smoke.check_contract()
