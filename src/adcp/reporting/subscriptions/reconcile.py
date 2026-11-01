@@ -735,6 +735,30 @@ async def reconcile_subscriptions(
     now: datetime | None = None,
 ) -> ReconcileReport:
     """What every covered account is owed, and its status. See :meth:`ReportingClient.reconcile`."""
+    report, _context = await _reconcile(
+        client,
+        state=state,
+        since=since,
+        accounts=accounts,
+        subscription_id=subscription_id,
+        grace=grace,
+        include_not_owed=include_not_owed,
+        now=now,
+    )
+    return report
+
+
+async def _reconcile(
+    client: Any,
+    *,
+    state: BuyerReportingState | None,
+    since: Any,
+    accounts: Sequence[str] | Literal["covered"],
+    subscription_id: str | None,
+    grace: timedelta,
+    include_not_owed: bool,
+    now: datetime | None,
+) -> tuple[ReconcileReport, _Context]:
     instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
     if not isinstance(grace, timedelta) or grace < timedelta(0):
         raise ValueError("grace must be a non-negative timedelta")
@@ -816,7 +840,7 @@ async def reconcile_subscriptions(
         counts[line.status] += 1
         if line.status != "not_owed":
             counts["owed"] += 1
-    return ReconcileReport(
+    report = ReconcileReport(
         as_of=iso_z(instant),
         definitive=complete and not context.issues,
         summary=ReconcileSummary(**counts),
@@ -824,6 +848,7 @@ async def reconcile_subscriptions(
         issues=tuple(context.issues),
         accounts=tuple(record.account_id for record in records),
     )
+    return report, context
 
 
 def _not_owed_line(trace: CoverageTrace) -> PeriodLine:

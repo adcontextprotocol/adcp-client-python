@@ -93,7 +93,41 @@ traces = await client.reporting.explain(account_id="acc_a", subscription_id="ana
 
 ## Events
 
-`client.reporting.poll()`, `events()` and `handle_webhook()` arrive in a later beta. Until then, pass each `principal.changed` payload to `tracker.handle_notification(...)`.
+```python
+# A long-running worker: each batch is acked once the loop body ran for all of it.
+async for event in client.reporting.events(poll_every=timedelta(minutes=5)):
+    match event.type:
+        case "revision.available": await ingest(event.reporting_revision_id)
+        case "period.late": await alert_seller(event)
+        case "account.unauthorized": await pause_dashboards(event.account_id)
+
+# Serverless: one batch per invocation.
+batch = await client.reporting.poll()
+await handle(batch.events)
+await batch.ack()
+
+# Webhook endpoint: a doorbell, never the event content.
+outcome = await receiver.receive(...)               # verifies the signature
+await client.reporting.handle_webhook(VerifiedWebhook.from_outcome(outcome))
+```
+
+- **Derived, not pushed.** Each poll runs `reconcile` and reads the subscription readback and coverage, then compares the result with the snapshot saved at the last `ack`. A crash before `ack` redelivers the same events with the same ids, so deliver at least once and deduplicate on `event.id`.
+- **Deterministic ids.** `event.id` is `sha256(agent, type, natural key, version)`.
+- **Durable state.** Pass `ReportingClient(client, event_store=...)` for a store that survives restarts. It implements `load(agent_id)` and a compare-and-set `save(...)`. The default `InMemoryReportingEventStore` is process-local. Two workers that ack the same snapshot get `ReportingEventConflictError` on the second ack.
+- **Cold start.** `poll(baseline=True)` on a consumer with no snapshot records the present without emitting it.
+- **Webhooks.** `handle_webhook` takes a `VerifiedWebhook` (or a verified, non-rejected `WebhookOutcome`) and refuses anything else. With an `events()` loop running it wakes the loop; otherwise it polls and returns the batch for you to handle and `ack`.
+- **Partial reads.** An account that could not be read keeps its previous state, so it never produces a spurious "closed" or "gone" event.
+
+| Event | When | Key fields |
+|---|---|---|
+| `revision.available` | a revision appears for an owed period | `reporting_revision_id`, `reporting_obligation_id`, `period`, `finality` |
+| `revision.adjusted` | a new revision replaces one you saw | `superseded_reporting_revision_id` |
+| `period.late`, `period.missing_obligation`, `period.withheld` | a period reaches that status | the period line |
+| `coverage.exception_opened`, `coverage.exception_closed` | an `excluded[]` entry opens or closes | `reason`, `from`, `until`, `media_buy_id` |
+| `account.covered` | an account enters a subscription | `subscription_id`, `account_id` |
+| `account.unauthorized`, `account.regranted` | authority is lost, or returns | `unauthorized_at`, `regranted_at`, `chain` |
+| `subscription.state_changed` | `active`, `inactive` or `action_required` | `state`, `previous_state`, `pending_action` |
+| `timezone.cutover` | a `timezone_cutovers[]` entry appears | `effective_at`, `timezone`, `previous_timezone` |
 
 ## Receipts for billing feeds
 
