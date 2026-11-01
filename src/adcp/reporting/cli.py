@@ -10,6 +10,11 @@ as ``module:attribute`` (a callable attribute is called, and awaited if it is
 a coroutine function), the way ASGI servers name an app. ``--tenant`` sets the
 principal's tenant.
 
+Buyer side, against a saved agent alias, a URL or a JSON agent config::
+
+    python -m adcp reporting explain --agent my-seller --account acc_a --period 2026-11-03
+    python -m adcp reporting reconcile --agent my-seller [--since 2026-11-01] [--json]
+
 Comparing a buyer's trace with a seller's::
 
     python -m adcp reporting diff buyer.json seller.json
@@ -29,7 +34,7 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-USAGE = "python -m adcp reporting {explain,diff} ..."
+USAGE = "python -m adcp reporting {explain,reconcile,diff} ..."
 
 
 def _load_app(target: str) -> Any:
@@ -73,9 +78,34 @@ def _print_traces(traces: Sequence[Any], *, as_json: bool) -> None:
         print(f"  {trace.explanation}")
 
 
+def _agent_client(identifier: str) -> Any:
+    from adcp.__main__ import resolve_agent_config
+    from adcp.client import ADCPClient
+    from adcp.types.core import AgentConfig, Protocol
+
+    config = dict(resolve_agent_config(identifier))
+    config.setdefault("id", config.get("agent_uri", "unknown"))
+    protocol = config.get("protocol", "mcp")
+    config["protocol"] = Protocol(protocol.lower()) if isinstance(protocol, str) else protocol
+    return ADCPClient(AgentConfig(**config))
+
+
 async def _explain(args: argparse.Namespace) -> int:
     from adcp._principal_ref import PrincipalRef
 
+    if args.agent:
+        async with _agent_client(args.agent) as client:
+            traces = await client.reporting.explain(
+                account_id=args.account,
+                period=args.period,
+                subscription_id=args.subscription,
+                media_buy_id=args.media_buy,
+                offering_id=args.offering,
+            )
+        _print_traces(traces, as_json=args.json)
+        return 0
+    if not args.principal:
+        raise SystemExit("--app needs --principal")
     service = await _resolve_app(args.app)
     traces = await service.explain_coverage(
         PrincipalRef(args.tenant, args.principal),
@@ -86,6 +116,32 @@ async def _explain(args: argparse.Namespace) -> int:
         offering_id=args.offering,
     )
     _print_traces(traces, as_json=args.json)
+    return 0
+
+
+async def _reconcile(args: argparse.Namespace) -> int:
+    async with _agent_client(args.agent) as client:
+        report = await client.reporting.reconcile(
+            since=args.since, include_not_owed=args.include_not_owed
+        )
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+        return 0
+    summary = report.summary
+    print(
+        f"{'definitive' if report.definitive else 'NOT definitive'} as of {report.as_of}: "
+        f"{summary.owed} owed, {summary.delivered} delivered, {summary.pending} pending, "
+        f"{summary.late} late, {summary.missing_obligation} missing, "
+        f"{summary.withheld} withheld"
+    )
+    for issue in report.issues:
+        print(f"  ! {issue.code}: {issue.message}")
+    for line in report.periods:
+        print(
+            f"{line.account_id} {line.subscription_id} v{line.subscription_version} "
+            f"{line.period['start']}..{line.period['end']} {line.status} [{line.reason}] "
+            f"{line.responsible_party}"
+        )
     return 0
 
 
@@ -140,8 +196,10 @@ def main(argv: Sequence[str]) -> int:
     explain = commands.add_parser(
         "explain", help="Explain why periods are or are not owed (seller, from your service)"
     )
-    explain.add_argument("--app", required=True, help="module:attribute of your service")
-    explain.add_argument("--principal", required=True, help="principal id")
+    source = explain.add_mutually_exclusive_group(required=True)
+    source.add_argument("--app", help="seller: module:attribute of your service")
+    source.add_argument("--agent", help="buyer: saved alias, URL or JSON agent config")
+    explain.add_argument("--principal", default=None, help="seller: principal id")
     explain.add_argument("--tenant", default=None, help="tenant id, when multi-tenant")
     explain.add_argument("--account", required=True, help="account_id")
     explain.add_argument(
@@ -153,12 +211,21 @@ def main(argv: Sequence[str]) -> int:
     explain.add_argument("--media-buy", default=None, help="one media_buy_id")
     explain.add_argument("--offering", default=None, help="one offering_id")
     explain.add_argument("--json", action="store_true", help="print the CoverageTrace JSON")
+    reconcile = commands.add_parser(
+        "reconcile", help="List what a seller owes your subscriptions, and each status (buyer)"
+    )
+    reconcile.add_argument("--agent", required=True, help="saved alias, URL or JSON config")
+    reconcile.add_argument("--since", default=None, help="skip periods starting earlier")
+    reconcile.add_argument("--include-not-owed", action="store_true")
+    reconcile.add_argument("--json", action="store_true")
     diff = commands.add_parser("diff", help="Compare two CoverageTrace JSON files")
     diff.add_argument("left")
     diff.add_argument("right")
     args = parser.parse_args(list(argv))
     if args.command == "diff":
         return _diff(args)
+    if args.command == "reconcile":
+        return asyncio.run(_reconcile(args))
     return asyncio.run(_explain(args))
 
 

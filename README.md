@@ -365,12 +365,15 @@ platform = reporting.install(MySeller())  # serves get_principal/sync_principal,
 ```python
 await client.reporting.subscribe(analytics_daily, register_destination=archive)
 await client.reporting.unsubscribe("pacing-hourly")
+report = await client.reporting.reconcile()      # every owed period: delivered, late, missing, withheld
+traces = await client.reporting.explain(account_id="acc_a", period="2026-11-03")  # why, rule by rule
 outcome = await client.accounts.ensure(key, billing="operator")  # AccountReady | AccountPending | ...
 ```
 
 - **Storage.** One object; process-local storage is refused in production. Apply schema changes with `python -m adcp migrate`.
 - **Grants.** The SDK is the only source of `authorized_at`. End a relationship with `wind_down_grant()` instead of revoking.
-- **Coming in later betas:** buyer `reconcile`, `explain` and events, the test kit, and explain traces.
+- **Explain.** Seller `reporting.explain_coverage(...)` and buyer `client.reporting.explain(...)` return the same `CoverageTrace`; `python -m adcp reporting diff` compares them.
+- **Coming in later betas:** buyer events and the test kit.
 
 Guides: [seller](docs/reporting-subscriptions-seller.md) · [buyer](docs/reporting-subscriptions-buyer.md) · [coverage](docs/reporting-subscriptions-coverage.md) · [accounts](docs/accounts-ensure-and-change.md) · [migrating from account-level configs](docs/reporting-subscriptions-migration.md) · [testing](docs/reporting-subscriptions-testing.md) · [errors](docs/reporting-subscriptions-errors.md)
 

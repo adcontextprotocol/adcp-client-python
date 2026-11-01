@@ -317,7 +317,12 @@ class _AccountRecord:
 
 
 class ReportingSubscriptionTracker:
-    """A buyer's own records for its subscriptions with one seller.
+    """A buyer's own records for its subscriptions with one seller (advanced).
+
+    Most buyers call ``client.reporting.reconcile()`` and ``explain()``
+    instead: they derive the roster and grant history from the wire on each
+    run, so there is nothing to record. This tracker stays for code that
+    keeps its own records.
 
     Register through :meth:`sync` so every version's configuration is kept.
     Record what :func:`list_accounts` shows with :meth:`observe_account`.

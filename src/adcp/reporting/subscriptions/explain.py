@@ -1101,201 +1101,242 @@ def _digest(document: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical_json_utf8_v1(_plain(document))).hexdigest()
 
 
-def explain_subscription_coverage(
-    *,
-    subscription: Any,
-    account_id: str,
-    buys: Sequence[SubscriptionBuy],
-    offerings: Sequence[SubscriptionOffering],
-    account_timezone: str | None,
-    now: datetime,
-    period: Any,
-    media_buy_id: str | None = None,
-    offering_id: str | None = None,
-    side: CoverageSide = "buyer",
-    principal_id: str | None = None,
-    invisible_media_buy_ids: Iterable[str] = (),
-    seller_only: Mapping[str, Any] | None = None,
-    authorizations: Sequence[SubscriptionAuthorization] = (),
-    exceptions: Sequence[Any] = (),
-    gaps: Sequence[Any] = (),
-    coverage: Any | None = None,
-    backfill_on_regrant: bool = False,
-    status_retention_days: int | None = None,
-    destinations: Mapping[str, Any] | None = None,
-    account_operator: str | None = None,
-    version_configurations: Mapping[int, Any] | None = None,
-    timezone_changes: Sequence[AccountTimezoneChange] = (),
-    max_periods: int = DEFAULT_MAX_PERIODS,
-    max_iterations: int = DEFAULT_MAX_ITERATIONS,
-) -> list[CoverageTrace]:
-    """One :class:`CoverageTrace` per (buy, offering, period) the request selects.
+def _parse_z(value: str) -> datetime:
+    return utc_instant(datetime.fromisoformat(value.replace("Z", "+00:00")))
 
-    Takes exactly the input of :func:`owed_subscription_periods`, plus:
 
-    :param period: a ``YYYY-MM-DD`` local date, read in each offering's zone
-        (every period of the offering that starts on that date); an instant
-        (the period containing it); or ``{"start", "end"}``, which must be a
-        period of the offering's schedule.
-    :param media_buy_id: one buy; every buy the caller can see when omitted.
-    :param offering_id: one offering; every offering the buy's packages list
-        when omitted. A buy that resolves no offering yields one trace without
-        ``offering_id``.
-    :param side: ``buyer`` or ``seller``; only the seller passes
-        ``invisible_media_buy_ids`` (buys in the account the caller cannot see,
-        reason ``buy_not_visible``) and ``seller_only``.
+class CoverageExplainer:
+    """One coverage input, prepared once, explaining as many periods as asked.
 
-    Traces are sorted by period start, buy and offering (byte order). A buy
-    without a match for the selection yields no trace.
+    :func:`explain_subscription_coverage` is the one-call form; the buyer's
+    ``reconcile`` uses this to classify every period of an account against
+    one owed set. The constructor takes the input of
+    :func:`explain_subscription_coverage` without the selection.
     """
-    now = utc_instant(now, field="now")
-    if side not in ("buyer", "seller"):
-        raise ValueError("side is 'buyer' or 'seller'")
-    hidden = frozenset(invisible_media_buy_ids)
-    if hidden and side != "seller":
-        raise ValueError("invisible_media_buy_ids is seller-only")
-    every_buy = list(buys)
-    context = _coverage_context(
-        subscription=subscription,
-        account_id=account_id,
-        buys=every_buy,
-        offerings=offerings,
-        account_timezone=account_timezone,
-        authorizations=authorizations,
-        exceptions=exceptions,
-        gaps=gaps,
-        coverage=coverage,
-        status_retention_days=status_retention_days,
-        destinations=destinations,
-        account_operator=account_operator,
-        version_configurations=version_configurations,
-        timezone_changes=timezone_changes,
-    )
-    if context is None:
-        return []
-    visible = [buy for buy in every_buy if buy.media_buy_id not in hidden]
-    owed = owed_subscription_periods(
-        subscription=context.windows,
-        account_id=account_id,
-        buys=visible,
-        offerings=offerings,
-        account_timezone=account_timezone,
-        now=now,
-        authorizations=authorizations,
-        exceptions=exceptions,
-        gaps=gaps,
-        coverage=coverage,
-        backfill_on_regrant=backfill_on_regrant,
-        status_retention_days=status_retention_days,
-        destinations=destinations,
-        account_operator=account_operator,
-        timezone_changes=timezone_changes,
-        include_unresolved=True,
-        max_periods=max_periods,
-        max_iterations=max_iterations,
-    )
-    owed_index: dict[tuple[str, str, datetime, datetime, str], OwedSubscriptionPeriod] = {}
-    for item in owed:
-        start = utc_instant(datetime.fromisoformat(item.period_start.replace("Z", "+00:00")))
-        end = utc_instant(datetime.fromisoformat(item.period_end.replace("Z", "+00:00")))
-        for buy_id in item.media_buy_ids:
-            owed_index[(buy_id, item.offering_id, start, end, item.source_timezone)] = item
 
-    kind, value = _period_spec(period)
-    selected = [
-        buy for buy in every_buy if media_buy_id is None or buy.media_buy_id == media_buy_id
-    ]
-    if media_buy_id is not None and not selected:
-        raise CoverageInputError(
-            "invalid_input", f"media_buy_id {media_buy_id!r} is not among the buys passed"
+    def __init__(
+        self,
+        *,
+        subscription: Any,
+        account_id: str,
+        buys: Sequence[SubscriptionBuy],
+        offerings: Sequence[SubscriptionOffering],
+        account_timezone: str | None,
+        now: datetime,
+        side: CoverageSide = "buyer",
+        principal_id: str | None = None,
+        invisible_media_buy_ids: Iterable[str] = (),
+        seller_only: Mapping[str, Any] | None = None,
+        authorizations: Sequence[SubscriptionAuthorization] = (),
+        exceptions: Sequence[Any] = (),
+        gaps: Sequence[Any] = (),
+        coverage: Any | None = None,
+        backfill_on_regrant: bool = False,
+        status_retention_days: int | None = None,
+        destinations: Mapping[str, Any] | None = None,
+        account_operator: str | None = None,
+        version_configurations: Mapping[int, Any] | None = None,
+        timezone_changes: Sequence[AccountTimezoneChange] = (),
+        max_periods: int = DEFAULT_MAX_PERIODS,
+        max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    ) -> None:
+        self.now = utc_instant(now, field="now")
+        if side not in ("buyer", "seller"):
+            raise ValueError("side is 'buyer' or 'seller'")
+        self.side: CoverageSide = side
+        self.hidden = frozenset(invisible_media_buy_ids)
+        if self.hidden and side != "seller":
+            raise ValueError("invisible_media_buy_ids is seller-only")
+        self.principal_id = principal_id
+        self.seller_only = dict(seller_only or {})
+        self.account_id = account_id
+        self.account_timezone = account_timezone
+        self.backfill = backfill_on_regrant
+        self.retention_days = status_retention_days
+        self.buys = list(buys)
+        self.offerings = {item.offering_id: item for item in offerings}
+        context = _coverage_context(
+            subscription=subscription,
+            account_id=account_id,
+            buys=self.buys,
+            offerings=offerings,
+            account_timezone=account_timezone,
+            authorizations=authorizations,
+            exceptions=exceptions,
+            gaps=gaps,
+            coverage=coverage,
+            status_retention_days=status_retention_days,
+            destinations=destinations,
+            account_operator=account_operator,
+            version_configurations=version_configurations,
+            timezone_changes=timezone_changes,
         )
-    by_id = {item.offering_id: item for item in offerings}
-    if offering_id is not None and offering_id not in by_id:
-        raise CoverageInputError(
-            "invalid_input", f"offering_id {offering_id!r} is not among the offerings passed"
-        )
-    stubs = {
-        (buy_id, item.offering_id): (
-            utc_instant(datetime.fromisoformat(item.period_start.replace("Z", "+00:00"))),
-            utc_instant(datetime.fromisoformat(item.period_end.replace("Z", "+00:00"))),
-        )
-        for item in owed
-        if item.stub
-        for buy_id in item.media_buy_ids
-    }
-
-    candidates: list[_Candidate] = []
-    for buy in selected:
-        listed = sorted({oid for _pkg, ids in buy.product_offering_ids() for oid in ids})
-        wanted = [offering_id] if offering_id is not None else [o for o in listed if o in by_id]
-        if not wanted:
-            zone = account_timezone or "UTC"
-            if kind == "range":
-                periods = [value]
-            elif kind == "instant":
-                day = value.astimezone(require_zone(zone)).date()
-                periods = [_local_day(day, zone)]
-            else:
-                periods = [_local_day(value, zone)]
-            candidates.extend(_Candidate(buy, None, None, s, e, zone) for s, e in periods)
-            continue
-        for oid in wanted:
-            offering = by_id[oid]
-            reference = (
-                value[0]
-                if kind == "range"
-                else (
-                    value if kind == "instant" else _local_day(value, account_timezone or "UTC")[0]
-                )
+        self.context = context
+        self.owed: list[OwedSubscriptionPeriod] = []
+        if context is not None:
+            self.owed = owed_subscription_periods(
+                subscription=context.windows,
+                account_id=account_id,
+                buys=[buy for buy in self.buys if buy.media_buy_id not in self.hidden],
+                offerings=offerings,
+                account_timezone=account_timezone,
+                now=self.now,
+                authorizations=authorizations,
+                exceptions=exceptions,
+                gaps=gaps,
+                coverage=coverage,
+                backfill_on_regrant=backfill_on_regrant,
+                status_retention_days=status_retention_days,
+                destinations=destinations,
+                account_operator=account_operator,
+                timezone_changes=timezone_changes,
+                include_unresolved=True,
+                max_periods=max_periods,
+                max_iterations=max_iterations,
             )
-            seen: set[tuple[datetime, datetime]] = set()
-            around = [reference, reference + timedelta(days=1)]
-            for zone in _zones(context, offering, around):
-                calendar = PeriodCalendar.for_schedule(
-                    period_duration=offering.period_duration,
-                    delivery_sla=offering.delivery_sla,
-                    zone_name=zone,
-                    anchor=offering.period_anchor
-                    if offering.alignment == "billing_cycle"
-                    else None,
-                    local=offering.alignment != "utc",
-                )
-                periods = _periods_for(calendar, kind, value, zone)
-                stub = stubs.get((buy.media_buy_id, oid))
-                if kind == "range" and not periods and stub == tuple(value):
+        self._index: dict[tuple[str, str, datetime, datetime, str], OwedSubscriptionPeriod] = {}
+        self._stubs: dict[tuple[str, str], tuple[datetime, datetime]] = {}
+        for item in self.owed:
+            start, end = _parse_z(item.period_start), _parse_z(item.period_end)
+            for buy_id in item.media_buy_ids:
+                self._index[(buy_id, item.offering_id, start, end, item.source_timezone)] = item
+                if item.stub:
+                    self._stubs[(buy_id, item.offering_id)] = (start, end)
+        self._authorization = _authorization_projection(authorizations, status_retention_days)
+
+    @property
+    def subscription_id(self) -> str | None:
+        return None if self.context is None else self.context.subscription_id
+
+    def owed_period(
+        self, media_buy_id: str, offering_id: str, start: datetime, end: datetime, zone: str
+    ) -> OwedSubscriptionPeriod | None:
+        """The owed period (including not yet ended) for one buy, if any."""
+        return self._index.get((media_buy_id, offering_id, start, end, zone))
+
+    def _calendar(self, offering: SubscriptionOffering, zone: str) -> PeriodCalendar:
+        return PeriodCalendar.for_schedule(
+            period_duration=offering.period_duration,
+            delivery_sla=offering.delivery_sla,
+            zone_name=zone,
+            anchor=offering.period_anchor if offering.alignment == "billing_cycle" else None,
+            local=offering.alignment != "utc",
+        )
+
+    def select(
+        self, period: Any, *, media_buy_id: str | None = None, offering_id: str | None = None
+    ) -> list[_Candidate]:
+        """The (buy, offering, period) candidates a ``period`` selection names."""
+        context = self.context
+        if context is None:
+            return []
+        kind, value = _period_spec(period)
+        selected = [b for b in self.buys if media_buy_id is None or b.media_buy_id == media_buy_id]
+        if media_buy_id is not None and not selected:
+            raise CoverageInputError(
+                "invalid_input", f"media_buy_id {media_buy_id!r} is not among the buys passed"
+            )
+        if offering_id is not None and offering_id not in self.offerings:
+            raise CoverageInputError(
+                "invalid_input", f"offering_id {offering_id!r} is not among the offerings passed"
+            )
+        zone_default = self.account_timezone or "UTC"
+        candidates: list[_Candidate] = []
+        for buy in selected:
+            listed = sorted({oid for _pkg, ids in buy.product_offering_ids() for oid in ids})
+            wanted = (
+                [offering_id]
+                if offering_id is not None
+                else [o for o in listed if o in self.offerings]
+            )
+            if not wanted:
+                if kind == "range":
                     periods = [value]
-                for s, e in periods:
-                    if (s, e) in seen:
-                        continue
-                    seen.add((s, e))
-                    candidates.append(_Candidate(buy, offering, calendar, s, e, zone))
-            if kind == "range" and not seen:
-                raise CoverageInputError(
-                    "invalid_input",
-                    f"{iso_z(value[0])}/{iso_z(value[1])} is not a period of offering {oid!r}",
+                elif kind == "instant":
+                    day = value.astimezone(require_zone(zone_default)).date()
+                    periods = [_local_day(day, zone_default)]
+                else:
+                    periods = [_local_day(value, zone_default)]
+                candidates.extend(
+                    _Candidate(buy, None, None, s, e, zone_default) for s, e in periods
                 )
+                continue
+            for oid in wanted:
+                offering = self.offerings[oid]
+                if kind == "range":
+                    reference = value[0]
+                elif kind == "instant":
+                    reference = value
+                else:
+                    reference = _local_day(value, zone_default)[0]
+                seen: set[tuple[datetime, datetime]] = set()
+                for zone in _zones(context, offering, [reference, reference + timedelta(days=1)]):
+                    calendar = self._calendar(offering, zone)
+                    periods = _periods_for(calendar, kind, value, zone)
+                    if (
+                        kind == "range"
+                        and not periods
+                        and self._stubs.get((buy.media_buy_id, oid)) == tuple(value)
+                    ):
+                        periods = [value]
+                    for s, e in periods:
+                        if (s, e) not in seen:
+                            seen.add((s, e))
+                            candidates.append(_Candidate(buy, offering, calendar, s, e, zone))
+                if kind == "range" and not seen:
+                    raise CoverageInputError(
+                        "invalid_input",
+                        f"{iso_z(value[0])}/{iso_z(value[1])} is not a period of offering {oid!r}",
+                    )
+        return candidates
 
-    authorization = _authorization_projection(authorizations, status_retention_days)
+    def flight_candidates(
+        self, *, since: datetime | None = None, until: datetime | None = None
+    ) -> list[_Candidate]:
+        """Every period of each listed offering that overlaps each buy's flight.
 
-    traces: list[CoverageTrace] = []
-    for candidate in candidates:
+        Bounded by ``[since, until)`` (``until`` defaults to now), so the
+        buyer's ``reconcile`` can list what is not owed, and why.
+        """
+        context = self.context
+        if context is None:
+            return []
+        upper_bound = self.now if until is None else utc_instant(until, field="until")
+        result: list[_Candidate] = []
+        for buy in self.buys:
+            low = buy._earliest_start()
+            high = min(buy._latest_stop(), upper_bound)
+            if since is not None:
+                low = max(low, utc_instant(since, field="since"))
+            if high <= low:
+                continue
+            listed = sorted({oid for _pkg, ids in buy.product_offering_ids() for oid in ids})
+            for oid in [o for o in listed if o in self.offerings]:
+                offering = self.offerings[oid]
+                for zone in _zones(context, offering, [low, high]):
+                    calendar = self._calendar(offering, zone)
+                    for s, e in calendar.periods(
+                        starts_from=calendar.floor(low), starts_before=high
+                    ):
+                        result.append(_Candidate(buy, offering, calendar, s, e, zone))
+        return result
+
+    def trace(self, candidate: _Candidate) -> CoverageTrace:
+        """The trace of one candidate."""
+        context = self.context
+        assert context is not None
         key_offering = candidate.offering.offering_id if candidate.offering else ""
-        owed_item = owed_index.get(
-            (
-                candidate.buy.media_buy_id,
-                key_offering,
-                candidate.start,
-                candidate.end,
-                candidate.zone,
-            )
+        buy_id = candidate.buy.media_buy_id
+        owed_item = self._index.get(
+            (buy_id, key_offering, candidate.start, candidate.end, candidate.zone)
         )
         elsewhere = None
         if owed_item is None and candidate.offering is not None:
             elsewhere = next(
                 (
                     item
-                    for (buy_id, oid, s, e, _zone), item in owed_index.items()
-                    if buy_id == candidate.buy.media_buy_id
+                    for (owed_buy, oid, s, e, _zone), item in self._index.items()
+                    if owed_buy == buy_id
                     and oid == key_offering
                     and s < candidate.end
                     and e > candidate.start
@@ -1307,17 +1348,17 @@ def explain_subscription_coverage(
             candidate,
             owed_item,
             elsewhere,
-            now=now,
-            backfill=backfill_on_regrant,
-            invisible=candidate.buy.media_buy_id in hidden,
+            now=self.now,
+            backfill=self.backfill,
+            invisible=buy_id in self.hidden,
         )
         assert walk.reason is not None
         reason = _reason(walk.reason)
         subject: dict[str, Any] = {
-            "account_id": account_id,
+            "account_id": self.account_id,
             "subscription_id": context.subscription_id,
             "subscription_version": version,
-            "media_buy_id": candidate.buy.media_buy_id,
+            "media_buy_id": buy_id,
             "offering_id": candidate.offering.offering_id if candidate.offering else None,
             "period": {
                 "start": iso_z(candidate.start),
@@ -1325,43 +1366,89 @@ def explain_subscription_coverage(
                 "timezone": candidate.zone,
             },
         }
-        if principal_id is not None:
-            subject = {"principal_id": principal_id, **subject}
+        if self.principal_id is not None:
+            subject = {"principal_id": self.principal_id, **subject}
         inputs = _inputs_document(
             context,
             candidate,
             subject,
-            authorization=authorization,
-            backfill=backfill_on_regrant,
-            status_retention_days=status_retention_days,
+            authorization=self._authorization,
+            backfill=self.backfill,
+            status_retention_days=self.retention_days,
         )
         only = None
-        if side == "seller":
-            only = {"buy_visible": candidate.buy.media_buy_id not in hidden, **(seller_only or {})}
-        traces.append(
-            CoverageTrace(
-                side=side,
-                subject=subject,
-                verdict=reason.verdict,
-                reason=reason.code,
-                explanation=_explanation(reason.code, subject, walk.params),
-                steps=tuple(walk.steps),
-                inputs_digest=_digest(inputs),
-                seller_only=only,
-            )
+        if self.side == "seller":
+            only = {"buy_visible": buy_id not in self.hidden, **self.seller_only}
+        return CoverageTrace(
+            side=self.side,
+            subject=subject,
+            verdict=reason.verdict,
+            reason=reason.code,
+            explanation=_explanation(reason.code, subject, walk.params),
+            steps=tuple(walk.steps),
+            inputs_digest=_digest(inputs),
+            seller_only=only,
         )
-    traces.sort(
+
+    def explain(
+        self, period: Any, *, media_buy_id: str | None = None, offering_id: str | None = None
+    ) -> list[CoverageTrace]:
+        traces = [
+            self.trace(candidate)
+            for candidate in self.select(period, media_buy_id=media_buy_id, offering_id=offering_id)
+        ]
+        return sort_traces(traces)
+
+
+def sort_traces(traces: Iterable[CoverageTrace]) -> list[CoverageTrace]:
+    """Traces by period start, buy and offering (byte order), then zone."""
+    return sorted(
+        traces,
         key=lambda t: (
             t.subject["period"]["start"],
-            str(t.subject["media_buy_id"]).encode(),
-            str(t.subject["offering_id"] or "").encode(),
+            str(t.subject.get("media_buy_id")).encode(),
+            str(t.subject.get("offering_id") or "").encode(),
             t.subject["period"]["timezone"],
-        )
+        ),
     )
-    return traces
+
+
+def explain_subscription_coverage(
+    *,
+    period: Any,
+    media_buy_id: str | None = None,
+    offering_id: str | None = None,
+    **inputs: Any,
+) -> list[CoverageTrace]:
+    """One :class:`CoverageTrace` per (buy, offering, period) the request selects.
+
+    Takes the input of :func:`owed_subscription_periods` (``subscription``,
+    ``account_id``, ``buys``, ``offerings``, ``account_timezone``, ``now``
+    and the optional facts), plus:
+
+    :param period: a ``YYYY-MM-DD`` local date, read in each offering's zone
+        (every period of the offering that starts on that date); an instant
+        (the period containing it); or ``{"start", "end"}``, which must be a
+        period of the offering's schedule.
+    :param media_buy_id: one buy; every buy passed when omitted.
+    :param offering_id: one offering; every offering the buy's packages list
+        when omitted. A buy that lists no offering yields one trace without
+        ``offering_id``.
+    :param side: ``buyer`` (default) or ``seller``; only the seller passes
+        ``invisible_media_buy_ids`` (buys in the account the caller cannot see,
+        reason ``buy_not_visible``) and ``seller_only``.
+    :param principal_id: the seller's name for the caller, echoed in the subject.
+
+    Traces are sorted by period start, buy and offering (byte order). A buy
+    without a match for the selection yields no trace.
+    """
+    explainer = CoverageExplainer(**inputs)
+    return explainer.explain(period, media_buy_id=media_buy_id, offering_id=offering_id)
 
 
 __all__ = [
+    "CoverageExplainer",
+    "sort_traces",
     "EXPLAIN_TEMPLATES",
     "EXPLAIN_TEMPLATES_VERSION",
     "TRACE_VERSION",

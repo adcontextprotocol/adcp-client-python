@@ -21,7 +21,8 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from adcp.reporting.subscriptions.consumer import (
@@ -32,6 +33,13 @@ from adcp.reporting.subscriptions.consumer import (
 )
 from adcp.reporting.subscriptions.registry import _semantic
 from adcp.types import GetPrincipalRequest, SyncPrincipalRequest
+
+if TYPE_CHECKING:
+    from adcp.reporting.subscriptions.explain import CoverageTrace
+    from adcp.reporting.subscriptions.reconcile import ReconcileReport
+
+#: The default ``grace`` of :meth:`ReportingClient.reconcile`: one hour, never zero.
+DEFAULT_GRACE = timedelta(hours=1)
 
 SubscribeAction = Literal["created", "updated", "unchanged", "reactivated", "deactivated"]
 
@@ -265,6 +273,9 @@ class ReportingClient:
         self._client = client
         self._attempts = max_attempts
         self._key = idempotency_key or (lambda: f"rsub-{uuid4()}")
+        from adcp.reporting.subscriptions.reconcile import BuyerReportingState
+
+        self._state = BuyerReportingState()
 
     # -- public API ---------------------------------------------------------------
 
@@ -383,6 +394,84 @@ class ReportingClient:
 
         plan_result = await self._write(build, single=False)
         return plan_result.readback
+
+    async def reconcile(
+        self,
+        *,
+        since: Any = None,
+        accounts: Sequence[str] | Literal["covered"] = "covered",
+        subscription_id: str | None = None,
+        grace: timedelta = DEFAULT_GRACE,
+        include_not_owed: bool = False,
+        now: datetime | None = None,
+    ) -> ReconcileReport:
+        """What the seller owes every covered account, and whose move each period is.
+
+        Reads everything from the wire on each run: the roster is
+        ``list_accounts`` ∩ the subscriptions' scopes plus their
+        ``accounts_unauthorized[]``; grant history is ``authorized_at``,
+        ``regranted_at`` and ``unauthorized_at``. Each owed period that has
+        ended becomes a :class:`~adcp.reporting.subscriptions.reconcile.PeriodLine`:
+        ``delivered``, ``pending``, ``late`` (the revision is ``grace`` past
+        ``expected_at``), ``missing_obligation`` (no obligation ``grace`` after
+        the period ended), or ``withheld`` (authority lost). ``reason`` is the
+        spec reason code and ``responsible_party`` says who acts.
+
+        :param since: a date or instant; earlier periods are skipped. The
+            default is all retained coverage.
+        :param accounts: ``"covered"`` (the derived roster) or explicit ids.
+        :param grace: how long the seller may take after a period end, or after
+            ``expected_at``, before a missing obligation or revision counts.
+            Defaults to one hour, never zero.
+        :param include_not_owed: add a ``not_owed`` line, with its reason, for
+            every other period of each buy's flight (the audit trail).
+
+        ``report.definitive`` is true only when every read completed;
+        otherwise ``report.issues`` say what to retry.
+        """
+        from adcp.reporting.subscriptions.reconcile import reconcile_subscriptions
+
+        return await reconcile_subscriptions(
+            self._client,
+            state=self._state,
+            since=since,
+            accounts=accounts,
+            subscription_id=subscription_id,
+            grace=grace,
+            include_not_owed=include_not_owed,
+            now=now,
+        )
+
+    async def explain(
+        self,
+        *,
+        account_id: str,
+        period: Any,
+        subscription_id: str | None = None,
+        media_buy_id: str | None = None,
+        offering_id: str | None = None,
+        now: datetime | None = None,
+    ) -> list[CoverageTrace]:
+        """Why each selected period is, or is not, owed: the buyer's ``CoverageTrace`` list.
+
+        The same trace the seller's ``explain_coverage`` builds, with
+        ``side="buyer"``, from the facts this client reads. ``period`` is a
+        ``YYYY-MM-DD`` local date read in each offering's zone, an instant, or
+        ``{"start", "end"}``. Compare with a seller trace through
+        :func:`~adcp.reporting.subscriptions.diff_coverage_traces`.
+        """
+        from adcp.reporting.subscriptions.reconcile import explain_buyer_coverage
+
+        return await explain_buyer_coverage(
+            self._client,
+            account_id=account_id,
+            period=period,
+            state=self._state,
+            subscription_id=subscription_id,
+            media_buy_id=media_buy_id,
+            offering_id=offering_id,
+            now=now,
+        )
 
     # -- planning -------------------------------------------------------------------
 
