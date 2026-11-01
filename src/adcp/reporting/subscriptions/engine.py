@@ -65,6 +65,7 @@ from adcp.reporting.subscriptions.coverage import (
     SubscriptionBuy,
     SubscriptionException,
     SubscriptionVersionWindow,
+    _timezone_at,
     authorization_chain_start,
     authorization_regranted_at,
     owed_subscription_periods,
@@ -1892,7 +1893,11 @@ class ReportingSubscriptionEngine:
         destinations: Mapping[str, Any],
         now: datetime,
     ) -> list[tuple[str, PeriodCalendar]]:
-        """``(offering_id, calendar)`` for each offering the account resolves to."""
+        """``(offering_id, calendar)`` for each offering the account resolves to at ``now``.
+
+        Each calendar is in the zone in effect at ``now``, so a gap served for
+        a loss before a timezone change stays on the calendar it removed.
+        """
         if account is None:
             return []
         selector = SubscriptionSelector.from_subscription(state["configuration"])
@@ -1912,7 +1917,13 @@ class ReportingSubscriptionEngine:
             ).offerings:
                 found[item.offering_id] = item
         return [
-            (item.offering_id, item.calendar(account.timezone, selector.period_timezone))
+            (
+                item.offering_id,
+                item.calendar(
+                    _timezone_at(now, account.timezone, account.timezone_changes, item.offering_id),
+                    selector.period_timezone,
+                ),
+            )
             for item in sorted(found.values(), key=lambda value: value.offering_id.encode())
         ]
 

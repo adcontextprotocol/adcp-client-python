@@ -375,7 +375,7 @@ outcome = await client.accounts.ensure(key, billing="operator")  # AccountReady 
 - **Explain.** Seller `reporting.explain_coverage(...)` and buyer `client.reporting.explain(...)` return the same `CoverageTrace`; `python -m adcp reporting diff` compares them.
 - **Events.** `client.reporting.poll()` / `events()` derive events from saved state with deterministic ids; `handle_webhook()` treats a verified webhook as a doorbell.
 - **Receipts.** Off by default; `reconcile(receipts=ReceiptPolicy(mode="verified", commit=...))` receipts a billing revision only after the SDK verified it and your commit returned a reference.
-- **Coming in later betas:** the test kit.
+- **Test kit.** `adcp.testing.reporting.reporting_test_kit(...)` (and the `adcp_reporting_kit` pytest fixture) runs the reference seller under a virtual clock with real buyers and `assert_agreement`.
 
 Guides: [seller](docs/reporting-subscriptions-seller.md) · [buyer](docs/reporting-subscriptions-buyer.md) · [coverage](docs/reporting-subscriptions-coverage.md) · [accounts](docs/accounts-ensure-and-change.md) · [migrating from account-level configs](docs/reporting-subscriptions-migration.md) · [testing](docs/reporting-subscriptions-testing.md) · [errors](docs/reporting-subscriptions-errors.md)
 
