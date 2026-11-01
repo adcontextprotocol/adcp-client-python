@@ -456,3 +456,18 @@ def test_traces_on_either_side_of_the_period_end_differ_in_their_inputs() -> Non
     assert explain_subscription_coverage(**later, period="2026-11-05")[0].inputs_digest == (
         ended.inputs_digest
     )
+
+
+def test_a_period_ended_before_an_open_revocation_is_owed_withheld() -> None:
+    from adcp.reporting.subscriptions import SubscriptionAuthorization
+
+    scenario = _scenario()
+    scenario["authorizations"] = [
+        SubscriptionAuthorization(
+            datetime(2026, 10, 1, tzinfo=timezone.utc), datetime(2026, 11, 7, tzinfo=timezone.utc)
+        )
+    ]
+    scenario["status_retention_days"] = 30
+    trace = explain_subscription_coverage(**scenario, period="2026-11-05")[0]
+    assert (trace.verdict, trace.reason) == ("owed", "owed:withheld")
+    assert "lost authority for acc_a at 2026-11-07T00:00Z" in trace.explanation

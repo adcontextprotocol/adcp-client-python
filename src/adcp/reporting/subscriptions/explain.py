@@ -475,7 +475,14 @@ def _offering_facts(offering: SubscriptionOffering | None) -> dict[str, Any] | N
         "period_duration": offering.period_duration,
         "alignment": offering.alignment,
         "delivery_sla": offering.delivery_sla,
-        "period_timezone": offering.period_timezone,
+        # The zone the offering publishes; an account-resolved source zone is
+        # not on the wire, so it is not part of the facts.
+        "period_timezone": (
+            None
+            if offering.alignment == "source_timezone"
+            and offering.period_timezone_policy != "fixed"
+            else offering.period_timezone
+        ),
         "period_anchor": _z(offering.period_anchor),
         "available_from": _z(offering.available_from),
         "withdrawn_at": _z(offering.withdrawn_at),
@@ -972,7 +979,9 @@ def _classify(
     walk.params.update(expected_at=owed.expected_at)
     if end > now:
         walk.reason = "period_not_ended"
-    elif owed.withheld:
+    elif owed.withheld or (chains and chains[-1].end is not None and end <= chains[-1].end):
+        # reason-codes.json: the period ended at or before the latest
+        # unauthorized_at and no re-grant has followed yet.
         last = chains[-1] if chains else None
         walk.reason = "owed:withheld"
         walk.params.update(unauthorized_at=None if last is None else last.end)
