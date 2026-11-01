@@ -39,7 +39,7 @@ import contextlib
 import copy
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from adcp.reporting.subscriptions._clock import iso_z, parse_delivery_sla, utc_instant
@@ -210,7 +210,16 @@ class ReferenceReportingSeller(ADCPHandler[ToolContext]):
         self.world = world
 
     async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
-        return {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
+        return {
+            "adcp": {
+                "major_versions": [3],
+                # Reporting subscriptions need the 3.3 line; advertise it so a
+                # runner negotiates it rather than falling back to 3.0.
+                "supported_versions": ["3.3-beta.3"],
+                "idempotency": {"supported": True, "replay_ttl_seconds": 86_400},
+            },
+            "supported_protocols": ["media_buy"],
+        }
 
     async def list_accounts(self, params: Any, context: Any = None) -> Any:
         principal = _principal(context)
@@ -280,6 +289,17 @@ class ReferenceSeller:
     controller: ReportingTestController
     offerings: tuple[dict[str, Any], ...]
 
+    def account_resolver(self, ref: Mapping[str, Any] | None, *, auth_info: Any = None) -> Any:
+        """The controller's sandbox-authority gate: only the world's sandbox accounts."""
+        if not ref:
+            return None
+        account = self.world.accounts.get(str(ref.get("account_id") or ""))
+        if account is None or not account.get("sandbox", True):
+            raise TestControllerError("NOT_FOUND", "not a sandbox account of this seller")
+        from types import SimpleNamespace
+
+        return SimpleNamespace(id=account["account_id"], mode="sandbox", sandbox=True)
+
     def context(self, principal: str = DEFAULT_PRINCIPAL, account_id: str | None = None) -> Any:
         return AccountAwareToolContext(caller_identity=principal, account_id=account_id)
 
@@ -294,7 +314,12 @@ class ReferenceSeller:
             return ToolContext(caller_identity=principal)
 
         server = create_mcp_server(self.platform, name=name, context_factory=context_factory)
-        register_test_controller(server, self.controller, context_factory=context_factory)
+        register_test_controller(
+            server,
+            self.controller,
+            context_factory=context_factory,
+            account_resolver=self.account_resolver,
+        )
         return server
 
 
@@ -332,7 +357,13 @@ def create_reference_reporting_seller(
             "sandbox": True,
         },
     ):
-        record = {"name": account["account_id"], "status": "active", "timezone": "UTC", **account}
+        record = {
+            "name": account["account_id"],
+            "status": "active",
+            "timezone": "UTC",
+            "sandbox": True,
+            **account,
+        }
         world.accounts[str(record["account_id"])] = record
     for buy in buys:
         _add_buy(world, buy)
@@ -584,6 +615,78 @@ def _boundaries(seller: ReferenceSeller, after: datetime, through: datetime) -> 
                     if after < point <= through:
                         points.add(point)
     return sorted(points)
+
+
+def _bearer_principal(meta: Any) -> ToolContext:
+    """The sandbox trust model: the bearer token names the principal."""
+    request = getattr(meta, "request_context", None)
+    header = ""
+    if request is not None:
+        header = str(getattr(request, "headers", {}).get("authorization", ""))
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    return ToolContext(caller_identity=token or DEFAULT_PRINCIPAL)
+
+
+def serve_reference_reporting_seller(
+    *,
+    port: int | None = None,
+    host: str | None = None,
+    start: Any = None,
+    **options: Any,
+) -> None:
+    """Serve the reference seller over MCP until interrupted (sandbox only).
+
+    The bearer token names the principal (``storyboard-buyer`` without one),
+    storage is process-local, and the virtual clock starts at ``start``
+    (default: now) and moves only through ``comply_test_controller``
+    ``reporting_subscription_probe`` ``advance_time``. ``comply_test_controller``
+    also serves ``seed_media_buy`` and the grant and timezone probes.
+    """
+    import os
+
+    from adcp.server.serve import serve
+
+    os.environ.setdefault("ADCP_ENV", "development")
+    seller = create_reference_reporting_seller(
+        start=start or datetime.now(timezone.utc).replace(microsecond=0), **options
+    )
+
+    async def initialize() -> None:
+        await seller.service.run_worker()
+
+    serve(
+        seller.platform,
+        name="adcp-reference-reporting-seller",
+        port=port,
+        host=host,
+        # MCP at /mcp and A2A at /; this transport runs the startup hook that
+        # opens the reporting service.
+        transport="both",
+        test_controller=seller.controller,
+        test_controller_account_resolver=seller.account_resolver,
+        context_factory=_bearer_principal,
+        on_startup=[initialize],
+    )
+
+
+def main(argv: Sequence[str]) -> int:
+    """``python -m adcp reference-seller reporting [--port N] [--host H] [--start ISO]``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m adcp reference-seller reporting")
+    parser.add_argument("kind", choices=["reporting"])
+    parser.add_argument("--port", type=int, default=None)
+    parser.add_argument("--host", default=None)
+    parser.add_argument("--start", default=None, help="virtual clock start (RFC 3339)")
+    parser.add_argument("--backfill-on-regrant", action="store_true")
+    args = parser.parse_args(list(argv))
+    serve_reference_reporting_seller(
+        port=args.port,
+        host=args.host,
+        start=args.start,
+        backfill_on_regrant=args.backfill_on_regrant,
+    )
+    return 0
 
 
 # -- the kit ---------------------------------------------------------------------------
@@ -979,6 +1082,7 @@ async def reporting_test_kit(
 
 
 __all__ = [
+    "serve_reference_reporting_seller",
     "DEFAULT_PRINCIPAL",
     "REFERENCE_ACCOUNT",
     "AgreementError",

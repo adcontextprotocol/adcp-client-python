@@ -55,6 +55,8 @@ The reference seller (`python -m adcp reference-seller reporting`) is a complete
 - **Partial grants.** A grant that keeps the account covered refuses a task it does not list with `SCOPE_INSUFFICIENT`.
 - **Billing stubs and `regranted_at`.** A billing cutover owes a stub obligation (`stub: true`), and `list_accounts` serves `authorization.regranted_at`.
 
+The reference seller, `adcp.testing.reporting.create_reference_reporting_seller`, is a complete example on this path. A ~100-line handler serves `list_accounts` and `get_media_buys`, and `ReliableReportingService(subscriptions=SubscriptionOptions(...))` adds the rest. Run it with `python -m adcp reference-seller reporting`; see [Testing](reporting-subscriptions-testing.md#the-reference-seller).
+
 ## What the SDK derives
 
 - **The principal runtime.** `install()` serves `get_principal` and `sync_principal` and advertises the principal section. The service's `PrincipalService` is `reporting.principals`.
