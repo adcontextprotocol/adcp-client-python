@@ -125,6 +125,10 @@ class SubscriptionOffering:
     method_transport: str | None = None
     available_from: datetime | None = None
     withdrawn_at: datetime | None = None
+    #: Whether the offering published ``standard_dimensions``. One that did
+    #: not is refused (``missing_standard_dimensions``) only when it is a
+    #: candidate for a selector.
+    dimensions_published: bool = True
 
     def __post_init__(self) -> None:
         if not self.offering_id:
@@ -195,16 +199,15 @@ class SubscriptionOffering:
             offering = offering.model_dump(mode="json", exclude_none=True)
         if not isinstance(offering, Mapping):
             raise TypeError("offering must be a ReportingDeliveryOffering or a mapping")
+        published = True
         if dimensions is None:
             if "standard_dimensions" not in offering:
                 # adcp#8585: sellers advertising subscriptions MUST publish it,
-                # and matching never guesses a breakdown.
-                raise CoverageInputError(
-                    "missing_standard_dimensions",
-                    f"offering {offering.get('offering_id')!r} has no standard_dimensions. "
-                    "The seller must publish standard_dimensions on every offering.",
-                )
-            dimensions = tuple(offering["standard_dimensions"] or ())
+                # and matching never guesses a breakdown. error-codes.json
+                # refuses only a *candidate* offering without it, so the
+                # refusal waits until the offering is one.
+                published = False
+            dimensions = tuple(offering.get("standard_dimensions") or ())
         schedule = offering["schedule"]
         fixed_zone = schedule.get("period_timezone")
         if fixed_zone is not None and period_timezone is not None and fixed_zone != period_timezone:
@@ -233,6 +236,7 @@ class SubscriptionOffering:
                 datetime.fromisoformat(str(anchor).replace("Z", "+00:00")) if anchor else None
             ),
             period_anchor_policy=schedule.get("period_anchor_policy"),
+            dimensions_published=published,
             period_timezone_policy=schedule.get("period_timezone_policy"),
             method_pattern=method.get("pattern"),
             method_transport=method.get("transport"),
@@ -477,7 +481,15 @@ def _is_candidate(
         or offering.method_transport != destination.transport
     ):
         return False
-    return offering.can_produce(selector.period_timezone)
+    if not offering.can_produce(selector.period_timezone):
+        return False
+    if not offering.dimensions_published:
+        raise CoverageInputError(
+            "missing_standard_dimensions",
+            f"offering {offering.offering_id!r} has no standard_dimensions. "
+            "The seller must publish standard_dimensions on every offering.",
+        )
+    return True
 
 
 def resolve_subscription_offerings(
