@@ -125,6 +125,19 @@ async def test_a_partial_roster_is_never_a_smaller_success() -> None:
     assert "SUBSCRIPTION_ROSTER_UNAVAILABLE" in {issue.code for issue in report.issues}
 
 
+async def test_a_failed_principal_read_is_an_issue_for_reconcile_and_raises_for_explain() -> None:
+    from adcp.reporting.subscriptions import ReportingSubscriptionError
+
+    world = await _delivered_world()
+    reporting, client = _buyer(world)
+    client.fail.add("get_principal")
+    report = await reporting.reconcile(now=world.clock())
+    assert not report.definitive and report.periods == ()
+    assert [issue.code for issue in report.issues] == ["SUBSCRIPTION_PRINCIPAL_UNAVAILABLE"]
+    with pytest.raises(ReportingSubscriptionError):
+        await reporting.explain(account_id=ACCOUNT, period="2026-11-01", now=world.clock())
+
+
 async def test_a_lost_account_reads_from_the_last_facts_and_withholds() -> None:
     world = _World()
     await world.subscribe()

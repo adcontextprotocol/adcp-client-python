@@ -447,10 +447,28 @@ class _Context:
     ) -> None:
         self.issues.append(ReconcileIssue(code, message, account_id, subscription_id))
 
-    async def load(self, *, accounts: Sequence[str] | None) -> list[_Account]:
+    async def load(self, *, accounts: Sequence[str] | None, strict: bool = False) -> list[_Account]:
+        """Read the principal, capabilities and roster.
+
+        Every read degrades to an issue, including ``get_principal``
+        (``SUBSCRIPTION_PRINCIPAL_UNAVAILABLE``, after which nothing can be
+        computed and the report is empty and not definitive). ``strict``
+        (``explain``, which has no issue channel) raises it instead.
+        """
+        from adcp.reporting.subscriptions.consumer import ReportingSubscriptionError
         from adcp.reporting.subscriptions.facade import read_principal
 
-        principal = await read_principal(self.client)
+        try:
+            principal = await read_principal(self.client)
+        except ReportingSubscriptionError as error:
+            if strict:
+                raise
+            self.issue(
+                "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE",
+                f"The subscriptions could not be read ({error}). Nothing was computed; retry "
+                "once get_principal answers.",
+            )
+            return []
         self.subscriptions = principal.subscriptions
         try:
             self.seller = await _seller_facts(self.client)
@@ -882,7 +900,7 @@ async def explain_buyer_coverage(
     """The buyer's :class:`CoverageTrace` list. See :meth:`ReportingClient.explain`."""
     instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
     context = _Context(client, state or BuyerReportingState())
-    records = await context.load(accounts=[account_id])
+    records = await context.load(accounts=[account_id], strict=True)
     record = next((item for item in records if item.account_id == account_id), None)
     if record is None:
         record = context.state.accounts.get(account_id)
