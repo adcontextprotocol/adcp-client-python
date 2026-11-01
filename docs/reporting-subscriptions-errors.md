@@ -41,21 +41,10 @@ Every SDK error carries `code` and `recovery` (`transient`, `correctable` or `te
 | Code | Class | `dispatched` | `recovery` | Fix |
 |---|---|---|---|---|
 | `REPORTING_EVENTS_CONFLICT` | `ReportingEventConflictError` | absent | transient | another worker acknowledged this snapshot first; poll again |
-| `RECEIPT_WRITE_FAILED` | `ReportingReconciliationError` | absent | transient | the seller did not record the receipts; reconcile again |
+
+When the seller does not record submitted receipts, `reconcile` raises `ReportingReconciliationError` with `code` `RECEIPT_WRITE_FAILED` (it carries no `recovery`); reconcile again.
 
 A revision the receipts policy could not verify is listed in `report.receipts.failed` as `(reporting_obligation_id, code)`. The code is the inspector's, for example `MANIFEST_DIGEST_MISMATCH`, or `INSPECTION_FAILED`. Nothing is receipted for it.
-
-## Accounts
-
-`client.accounts.change()` refuses locally, before anything is sent, with `AccountRequestError` (`dispatched=False`, `recovery="correctable"`):
-
-| Code | Cause | Fix |
-|---|---|---|
-| `ACCOUNT_REVISION_REQUIRED` | a change to `billing`, `billing_entity` or `payment_terms` without `revision` | pass the revision the change was approved against, read from `list_accounts` |
-| `ACCOUNT_CHANGE_INVALID` | no attribute, or one `change()` cannot change | change `brand`, `operator_unit`, `currency`, `timezone` or a money term |
-| `ACCOUNT_REQUESTS_UNSUPPORTED` | the seller does not advertise `account.requests` | change the account through `sync_accounts` |
-
-A seller rejection is a value: `AccountRejected`. Its `requires_new_account` is `True` for `ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`; resend with `allow_separate_account=True`. A `CONFLICT` on a money change is raised as `AccountRequestError`, because the human must approve the change against the new revision.
 
 ## Coverage traces
 

@@ -4,12 +4,13 @@ A subscription registers reporting once on the principal, so it follows the call
 
 ```python
 # 1. Subscribe, scoped to the accounts already served at account level.
-await client.reporting.subscribe({
+subscription = {
     "subscription_id": "analytics-daily",            # never equal to a delivery_config_id
     "scope": {"account_ids": ["acc_a", "acc_b"]},
     "selector": {"feed_purpose": "analytics", "period_duration": "P1D", "required_finality": "official"},
     "reconciliation_mode": "delivery_only",
-})
+}
+await client.reporting.subscribe(subscription)
 # 2. Check what the subscription would own: your account-level configs still take precedence.
 report = await client.reporting.reconcile(include_not_owed=True)   # overridden periods read excluded:overridden
 # 3. Hand over: end the account-level configs where the subscription resolves an offering.
