@@ -185,18 +185,158 @@ async def test_a_foreign_reference_to_the_key_refuses_the_widening() -> None:
             await PgReportingLedgerStore(pool=pool).create_schema()
 
 
-async def test_status_notifications_refuse_subscription_generations() -> None:
+async def test_status_notifications_cover_subscription_generations() -> None:
     async with isolated_reporting_pool() as pool:
         store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
         await store.create_schema()
         world = await _world_with(
-            AGENCY, [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-03T04:00:00Z")]
+            AGENCY,
+            [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-03T04:00:00Z")],
+            selector={
+                "feed_purpose": "analytics",
+                "period_duration": "P1D",
+                "required_finality": "official",
+                "dimensions": ["package"],
+                "match": "all",
+            },
         )
-        # A store with status notifications on (its outbox schema aside).
+        # A store with status notifications on (its outbox schema aside):
+        # status checkpoints are keyed by offering, so every offering of one
+        # subscription version is admitted.
         store._notifications_enabled = True
-        with pytest.raises(LedgerConflictError) as refused:
-            await _plan(world, AGENCY, store, "2026-10-04T00:00:00Z")
-        assert refused.value.code == "UNSUPPORTED_FEATURE"
+        (plan,) = await _plan(world, AGENCY, store, "2026-10-04T00:00:00Z")
+        assert len({key.offering_id for key in plan.generations}) == len(plan.generations) > 1
+
+
+async def test_a_six_column_status_checkpoint_schema_is_keyed_by_offering() -> None:
+    """Migration 0006 widens status checkpoints and events published on the version key."""
+    import json
+    from dataclasses import replace
+
+    from adcp_reporting_storage.migrations import migrate, migrations, pending_migrations
+    from adcp_reporting_storage.outbox.status_schema import validate_status_schema
+
+    from adcp.reporting.ledger import ReportingSubscriptionGeneration
+    from adcp.reporting.ledger.models import ledger_asdict
+    from adcp.reporting.ledger.notification_models import (
+        ReportingDomainEvent,
+        ReportingStatusScope,
+        StatusChanged,
+        event_storage,
+    )
+    from tests.conformance.reporting._generation_support import configuration
+
+    async def checkpoint(connection, scope: ReportingStatusScope) -> None:
+        await connection.execute(
+            "INSERT INTO reporting_status_scope_checkpoints (account_id, consumer_namespace,"
+            " delivery_config_id, version, scope_kind, obligation_namespace, offering_id, scope,"
+            " fingerprint, snapshot, generation, source_sequence, baseline, publishable,"
+            " initialized) VALUES (%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s::jsonb,1,0,TRUE,TRUE,TRUE)",
+            (
+                *scope.checkpoint_key,
+                json.dumps(ledger_asdict(scope)),
+                "a" * 64,
+                json.dumps({"health": "complete", "issues": []}),
+            ),
+        )
+
+    async def event(connection, scope: ReportingStatusScope, *, widened: bool) -> None:
+        value = ReportingDomainEvent(
+            "acct_a",
+            f"rpn_{scope.generation_key.offering_id or 'account'}",
+            NOW,
+            StatusChanged(scope, "complete", "a" * 64, 1),
+        )
+        key = scope.checkpoint_key if widened else scope.checkpoint_key[:6]
+        await connection.execute(
+            "INSERT INTO reporting_status_notification_events (account_id, consumer_namespace,"
+            " delivery_config_id, version, scope_kind, obligation_namespace,"
+            + (" offering_id," if widened else "")
+            + " notification_id, notification_type, cause_kind, cause_id, cause_generation,"
+            " fingerprint, fired_at, snapshot) VALUES ("
+            + ",".join(["%s"] * (len(key) + 7))
+            + ",%s::jsonb)",
+            (
+                *key,
+                value.notification_id,
+                value.notification_type,
+                "status_changed",
+                value.cause_id,
+                1,
+                "a" * 64,
+                NOW,
+                json.dumps(event_storage(value)),
+            ),
+        )
+
+    def scope(config) -> ReportingStatusScope:
+        return ReportingStatusScope("acct_a", config.generation_key, feed_purpose="analytics")
+
+    (widening,) = [item for item in migrations() if item.version == "0006"]
+    assert widening.stopped_worker
+    assert widening.includes == ("ledger/reporting_status_checkpoint_offerings.sql",)
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        await migrate(pool)  # 0006 changes nothing without status notifications
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        account = replace(configuration(), delivery_config_id="hourly")
+        offerings = {
+            offering: replace(
+                configuration(), subscription=ReportingSubscriptionGeneration("daily", offering)
+            )
+            for offering in ("pkg-a", "pkg-b")
+        }
+        for config in (account, *offerings.values()):
+            await store.put_configuration(config)
+        ledger = files("adcp_reporting_storage.ledger")
+        async with pool.connection() as connection:
+            # The published status layout: checkpoints and their events keyed
+            # per subscription version, holding at most one offering of it.
+            for name in (
+                "reporting_status_notifications.sql",
+                "reporting_status_selector_version.sql",
+            ):
+                await connection.execute(ledger.joinpath(name).read_text())
+            await connection.execute("INSERT INTO reporting_status_accounts VALUES ('acct_a')")
+            for config in (account, offerings["pkg-a"]):
+                await checkpoint(connection, scope(config))
+                await event(connection, scope(config), widened=False)
+            await connection.execute("DELETE FROM adcp_schema_migrations WHERE version = '0006'")
+        assert [item.version for item in await pending_migrations(pool)] == ["0006"]
+        assert [item.version for item in await migrate(pool)] == ["0006"]
+        assert await migrate(pool) == []
+        async with pool.connection() as connection:
+            for statement in widening.statements():  # idempotent
+                await connection.execute(statement)
+            await validate_status_schema(connection)
+            primary = await (
+                await connection.execute(
+                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid ="
+                    " 'reporting_status_scope_checkpoints'::regclass AND contype = 'p'"
+                )
+            ).fetchone()
+            assert primary[0].endswith("obligation_namespace, offering_id)")
+            # Each event takes its checkpoint's offering.
+            rows = await (
+                await connection.execute(
+                    "SELECT notification_id, offering_id FROM reporting_status_notification_events"
+                    " ORDER BY notification_id"
+                )
+            ).fetchall()
+            assert rows == [("rpn_account", ""), ("rpn_pkg-a", "pkg-a")]
+            # A second offering of the version keeps its own checkpoint and events.
+            await checkpoint(connection, scope(offerings["pkg-b"]))
+            await event(connection, scope(offerings["pkg-b"]), widened=True)
+            keys = await (
+                await connection.execute(
+                    "SELECT delivery_config_id, scope_kind, offering_id"
+                    " FROM reporting_status_scope_checkpoints ORDER BY 1, 3"
+                )
+            ).fetchall()
+        assert keys == [
+            ("daily", "configuration", "pkg-a"),
+            ("daily", "configuration", "pkg-b"),
+            ("hourly", "configuration", ""),
+        ]
 
 
 async def test_an_account_only_managed_delivery_schema_is_upgraded() -> None:

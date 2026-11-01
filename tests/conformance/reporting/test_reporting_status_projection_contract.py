@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 from adcp_reporting_storage import PgStatusNotificationStore
 
-from adcp.reporting.ledger import InMemoryReportingLedgerStore
+from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingSubscriptionGeneration
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import StatusProjectionInput, project_status_scope
@@ -297,3 +297,65 @@ async def test_partial_coverage_has_a_public_schema_valid_issue(status_harness):
     coverage = next(i for i in summary["issues"] if i["code"] == "REPORTING_COVERAGE_INCOMPLETE")
     assert coverage["issue_id"] in (await h.events())[-1].cause.issue_ids
     assert await h.status.baseline_ready(account_id="acct_a")
+
+
+async def test_each_resolved_offering_of_a_subscription_version_has_its_own_checkpoint(
+    status_harness,
+):
+    """One subscription version, one account and owner, two resolved offerings.
+
+    A reporting subscription keeps one generation per resolved offering of a
+    version (adcp-client-python#1729), so each offering's configuration and
+    obligations keep their own status checkpoint and event history.
+    """
+    h = status_harness
+    obligations = {}
+    for offering in ("pkg-a", "pkg-b"):
+        config = replace(
+            configuration(),
+            subscription=ReportingSubscriptionGeneration("daily", offering),
+        )
+        await h.ledger.put_configuration(config)
+        obligations[offering] = await h.ledger.commit_obligation(
+            replace(
+                obligation_for(config),
+                reporting_obligation_id=f"rpo_acct_a_{offering}",
+                offering_id=offering,
+            )
+        )
+    await h.status.baseline(account_id="acct_a")
+    checkpoints = await h.status.checkpoints(account_id="acct_a")
+    assert sorted(
+        (
+            c.scope.generation_key.offering_id,
+            c.scope.reporting_obligation_id is not None,
+        )
+        for c in checkpoints
+    ) == [("pkg-a", False), ("pkg-a", True), ("pkg-b", False), ("pkg-b", True)]
+    assert len({c.scope.checkpoint_key for c in checkpoints}) == 4
+    # Each offering's configuration scope advances and publishes on its own.
+    h.clock.now = max(o.automated_recovery_deadline_at for o in obligations.values())
+    await h.drain()
+    await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    events = await h.events(obligation=False)
+    assert sorted(e.cause.scope.generation_key.offering_id for e in events) == ["pkg-a", "pkg-b"]
+    assert len({e.cause_id for e in events}) == 2
+    assert len({e.notification_id for e in events}) == 2
+
+
+def test_account_level_checkpoint_identity_is_unchanged():
+    """Persisted status ids derived from an account-level checkpoint stay byte-identical."""
+    import hashlib
+
+    from adcp.reporting.canonical_json import canonical_json_utf8_v1
+
+    config = configuration()
+    scope = ReportingStatusScope("acct_a", config.generation_key, feed_purpose="analytics")
+    assert scope.checkpoint_key[-1] == ""
+    legacy = hashlib.sha256(canonical_json_utf8_v1(scope.checkpoint_key[:6])).hexdigest()
+    assert scope.checkpoint_digest == legacy
+    subscription = replace(config, subscription=ReportingSubscriptionGeneration("daily", "pkg"))
+    offering = ReportingStatusScope("acct_a", subscription.generation_key, feed_purpose="analytics")
+    assert offering.checkpoint_key[:6] == scope.checkpoint_key[:6]
+    assert offering.checkpoint_key[-1] == "pkg"
+    assert offering.checkpoint_digest != scope.checkpoint_digest

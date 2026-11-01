@@ -51,6 +51,7 @@ OWNED_SQL = (
     "reporting_status_notifications.sql",
     "reporting_status_selector_version.sql",
     "reporting_projection.sql",
+    "reporting_status_checkpoint_offerings.sql",
     "reporting_projection_notifications.sql",
     "reporting_projection_feed.sql",
     "reporting_production.sql",
