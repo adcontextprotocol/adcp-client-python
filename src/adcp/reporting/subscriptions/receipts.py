@@ -9,12 +9,20 @@ yet receipted:
    through ``resource_reader`` (the built-in manifest inspector) or your
    ``inspect`` adapter, giving the observed row count, control totals and
    digest;
-2. a materialization that does not match its revision is receipted
-   ``rejected`` with the SDK's own codes (``ROW_COUNT_MISMATCH`` and friends);
+2. a materialization the verifier cannot read, or whose content the
+   built-in inspector refuses (a digest, row-count or object mismatch), is
+   listed in ``report.receipts.failed`` with the code and receipted nothing;
+   an ``inspect`` adapter that returns a mismatched observation gets a
+   ``rejected`` receipt with the SDK's codes (``ROW_COUNT_MISMATCH`` and
+   friends), and ``commit`` is not called;
 3. otherwise your ``commit(revision)`` hook runs: load the data, then return
    :class:`CommitResult` (``accepted``, with ``consumer_commit_ref``),
    ``"defer"`` (try again next run) or :class:`Reject` (``rejected``, with
    your codes).
+
+Receipt ids are stable per (obligation, revision, materialization), and a
+materialization already receipted, accepted or rejected, is not receipted
+again.
 
 ``mode="off"`` (the default) submits nothing; billing periods then show
 ``receipt: {"status": "owed_by_buyer"}`` and ``responsible_party: "buyer"``,
@@ -26,6 +34,7 @@ auto-accepts. Accepting an adjustment needs its raw evidence, so it stays on
 
 from __future__ import annotations
 
+import hashlib
 import inspect as _inspect
 import logging
 from collections.abc import Awaitable, Callable, Sequence
@@ -113,8 +122,26 @@ class ReceiptReport:
     submitted: list[Any] = field(default_factory=list)
     rejected: list[Any] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
+    #: ``(reporting_obligation_id, code)`` for revisions the SDK could not verify:
+    #: the built-in inspector refused the materialization (a digest, row-count or
+    #: object mismatch) or a read failed. Nothing is receipted for them.
+    failed: list[tuple[str, str]] = field(default_factory=list)
     adjustments_deferred: list[str] = field(default_factory=list)
     owed_by_buyer: int = 0
+
+
+def _receipt_id(obligation: Any, revision: Any, materialization: Any) -> str:
+    """A stable receipt id per (obligation, revision, materialization), so a resend replays."""
+    digest = hashlib.sha256(
+        "\x1f".join(
+            (
+                obligation.reporting_obligation_id,
+                revision.reporting_revision_id,
+                materialization.reporting_materialization_id,
+            )
+        ).encode()
+    ).hexdigest()
+    return f"reporting-receipt:{digest[:40]}"
 
 
 async def _resolve(value: Any) -> Any:
@@ -161,6 +188,15 @@ async def apply_receipt_policy(
             continue
         if any(_receipt_matches(item, revision, materialization) for item in ledger.receipts):
             continue
+        if any(
+            item.reporting_obligation_id == obligation.reporting_obligation_id
+            and item.reporting_revision_id == revision.reporting_revision_id
+            and item.reporting_materialization_id == materialization.reporting_materialization_id
+            for item in ledger.receipts
+        ):
+            # Already receipted, rejected included: a refusal is stated once per
+            # materialization, never re-sent on every run.
+            continue
         for adjustment in index.adjustments_by_revision.get(revision.reporting_revision_id, []):
             decision = "defer"
             if policy.adjustments is not None:
@@ -173,11 +209,21 @@ async def apply_receipt_policy(
                 )
             report.adjustments_deferred.append(adjustment.reporting_adjustment_id)
         context = ReportingInspectionContext(obligation, revision, materialization)
-        observation = await inspect(context)
+        try:
+            observation = await inspect(context)
+        except Exception as error:  # noqa: BLE001 - one revision never fails the account
+            code = str(getattr(error, "code", None) or "INSPECTION_FAILED")
+            report.failed.append((obligation.reporting_obligation_id, code))
+            logger.warning(
+                "receipts: %s could not be verified (%s); nothing was receipted for it",
+                obligation.reporting_obligation_id,
+                code,
+            )
+            continue
         receipt = build_reporting_receipt(
             context,
             observation,
-            reporting_receipt_id=f"reporting-receipt:{uuid4()}",
+            reporting_receipt_id=_receipt_id(obligation, revision, materialization),
             observed_at=now,
         )
         if _enum(receipt.status) == "rejected":
