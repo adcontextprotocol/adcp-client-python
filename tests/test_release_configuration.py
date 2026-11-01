@@ -139,15 +139,18 @@ def test_release_please_keeps_next_on_the_beta_channel() -> None:
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:
-    """The storage distribution's adcp range is one major on main.
+    """The storage distribution's adcp range is one major, floored at its contract.
 
-    On the next draft-spec line the range also spans adcp 10 pre-releases, or
-    next's first ``10.0.0aN`` release could not install the storage package
-    from the workspace. next never releases the storage distribution; its
-    first adcp-10 release sets the one-major range again (see RELEASING.md).
+    The floor is the first adcp release of the storage contract the package
+    implements (``adcp_reporting_storage.contract``): on next that is
+    10.0.0b4, which added ``offering_id`` to the ledger column lists; a wider
+    floor let 10.0.0b4 install beside a storage release that lacked the
+    column (#1763). The ceiling stays the next major (see RELEASING.md).
     """
     pyproject = (STORAGE / "pyproject.toml").read_text()
     if (ROOT / "release-please-config.next.json").exists():
-        assert re.search(r'"adcp>=9\.0\.0(?:b\d+)?,<11"', pyproject), "next spans adcp 9 and 10"
+        assert re.search(
+            r'"adcp>=10\.0\.0b4,<11"', pyproject
+        ), "next's storage floor is the first adcp of its storage contract"
     else:
         assert re.search(r'"adcp>=9\.0\.0(?:b\d+)?,<10"', pyproject), "adcp range must be one major"
