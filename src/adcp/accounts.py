@@ -512,6 +512,10 @@ class AccountRegistry:
         account; the registry is not re-pointed until :meth:`use`),
         :class:`~adcp.account_outcomes.AccountPending` and
         :class:`~adcp.account_outcomes.AccountRejected`.
+
+        A pending change is not kept in the registry, which maps natural keys,
+        not account ids: keep its ``request_id`` and read it back with
+        :meth:`change_status`. A new change request supersedes an open one.
         """
         payload = {
             key: _payload(value) if hasattr(value, "model_dump") else value
@@ -583,6 +587,23 @@ class AccountRegistry:
                     continue
             raise failure
         raise AssertionError("unreachable")  # pragma: no cover
+
+    async def change_status(self, account_id: str, request_id: str) -> AccountChangeOutcome:
+        """The current outcome of a change request (``list_accounts`` ``request_ids``)."""
+        found = await self._read_requests([request_id])
+        wire = found.get(request_id)
+        if wire is None:
+            return AccountRejected(
+                errors=(
+                    {
+                        "code": "ACCOUNT_REQUEST_NOT_FOUND",
+                        "message": "The seller no longer knows this request; send it again.",
+                    },
+                ),
+                via="request_account",
+                request_id=request_id,
+            )
+        return await self._change_outcome(account_id, wire)
 
     async def use(
         self,

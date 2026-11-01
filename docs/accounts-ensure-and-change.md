@@ -41,6 +41,7 @@ match outcome:
 ```
 
 - **Default.** `allow_separate_account` defaults to `False`, as in the spec. A seller that would accept the change only as a separate account rejects it, and `outcome.requires_new_account` is `True` (`ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`).
+- **Pending changes.** A pending change is not kept in the registry. Keep its `request_id` and read it back with `await client.accounts.change_status(account_id, request_id)`; a new change request supersedes an open one.
 - **No silent re-point.** `change()` never re-points the registry; `use()` records the account with its own status from `list_accounts`, so the spend gate still holds a `payment_required` or pending account. After `AccountSeparate` or `AccountMatched`, the natural key keeps naming the old account until you call `client.accounts.use(key, account_id)`. Which account carries new buys stays your explicit choice.
 - **Not carried over.** `AccountSeparate.not_carried_over` lists the account-level configurations the new account lacks. `subscriptions_not_covering` lists the `account_ids`-scoped reporting subscriptions that will not see it.
 - **Next step.** `next_step(outcome)` is `none` for `AccountUpdated`, `AccountSeparate` and `AccountMatched`.

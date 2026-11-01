@@ -203,3 +203,29 @@ async def test_change_refuses_unknown_fields_and_sellers_without_account_request
     assert unsupported.value.error_codes == ["ACCOUNT_REQUESTS_UNSUPPORTED"]
     assert is_pre_dispatch_error(unsupported.value)
     plain.adapter.request_account.assert_not_called()
+
+
+async def test_a_pending_change_is_read_back_by_request_id() -> None:
+    client = _client()
+    client.adapter.list_accounts = AsyncMock(
+        side_effect=[
+            _completed(
+                {
+                    "accounts": [],
+                    "account_requests": [
+                        _record(
+                            "resolved",
+                            account_id="acc-1",
+                            resolution="updated",
+                            account={**ACCOUNT, "revision": 4},
+                        )
+                    ],
+                }
+            ),
+            _completed({"accounts": [], "account_requests": []}),
+        ]
+    )
+    resolved = await client.accounts.change_status("acc-1", "req-1")
+    assert isinstance(resolved, AccountUpdated) and resolved.revision == 4
+    gone = await client.accounts.change_status("acc-1", "req-1")
+    assert isinstance(gone, AccountRejected)
