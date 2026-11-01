@@ -112,3 +112,57 @@ helpers skip them. Do not fill one in. Tell the affected buyers to update
 `control_media_buy`, and resume scheduled sends once the updated registration is
 stored. Before deploying, test the whole path: buyer serialization, seller
 validation, durable storage, scheduled send, and authenticated receipt.
+
+## AdCP 3.3: registrations without `authentication`
+
+On a request served at AdCP 3.3, `reporting_webhook.authentication` and
+`artifact_webhook.authentication` are optional. A registration without one is
+signed under its `signing_profile` (`adcp/webhook-signing/v1`, RFC 9421, when
+that is omitted too). Below 3.3, `authentication` stays required, and a
+registration may not combine it with `signing_profile`.
+
+Check a registration when the buyer sends it, with the version it was served
+at:
+
+```python
+from adcp.webhooks import WebhookRegistrationError, webhook_signing_profile_for
+
+try:
+    profile = webhook_signing_profile_for(
+        request.reporting_webhook, adcp_version=ctx.resolved_adcp_version
+    )
+except WebhookRegistrationError as exc:
+    raise AdcpError(
+        "INVALID_REQUEST", message=str(exc), field=f"reporting_webhook.{exc.field}"
+    ) from exc
+# None: the legacy Bearer / HMAC scheme in `authentication` applies.
+```
+
+With strict request validation the SDK server already refuses a 3.2 request
+without `authentication` (schema validation), and a 3.3 request without it sent
+to a server pinned to 3.2 (the downgrade cannot invent one). With the default,
+non-strict validation a 3.2 request reaches the handler, so call
+`webhook_signing_profile_for` yourself.
+
+`WebhookSender.send_media_buy_delivery` and `prepare_media_buy_delivery` read
+the same rule from the stored registration. When it has no `authentication`,
+the prepared request records `required_signing_profile`, and `send_prepared`
+raises `WebhookSigningProfileUnavailableError` before any network I/O unless the
+sender signs under that profile. A bearer or HMAC sender
+(`from_bearer_token`, `from_adcp_legacy_hmac`, `from_standard_webhooks_secret`)
+would otherwise send a credential the buyer never registered. Use
+`WebhookSender.from_jwk` / `from_pem` for these registrations. The SDK does not
+yet sign webhooks under `web-bot-auth`, so a registration selecting it also
+raises; do not list `web-bot-auth` in `webhook_signing.profiles` and reject such
+registrations with `INVALID_REQUEST`. For artifact webhooks pass the stored
+`artifact_webhook` as `registration=` to `prepare_artifact_webhook` /
+`send_artifact_webhook`, or call `sender.check_registration(registration)`.
+
+## Receivers ignore `aggregated_totals`
+
+`aggregated_totals` is API-only (`get_media_buy_delivery`). A sender must not
+put it in a delivery webhook, and `create_media_buy_delivery_webhook_payload`
+drops it with a warning. A receiver ignores it rather than rejecting the
+report: `WebhookReceiver` removes it from a `media_buy_delivery` result before
+parsing, whatever its value, after signature verification and the dedup claim
+have covered the bytes as received.

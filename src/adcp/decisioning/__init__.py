@@ -116,10 +116,13 @@ from adcp.decisioning.measurement_terms import (
 )
 from adcp.decisioning.media_buy_store import (
     InMemoryMediaBuyContextStore,
+    MediaBuyChange,
+    MediaBuyChangeOrigin,
     MediaBuyContexts,
     MediaBuyContextStore,
     MediaBuyStore,
     create_media_buy_store,
+    record_media_buy_change,
 )
 from adcp.decisioning.mock_ad_server import (
     InMemoryMockAdServer,
@@ -239,10 +242,12 @@ from adcp.decisioning.state_machines import (
     MEDIA_BUY_TERMINAL_STATUSES,
     MEDIA_BUY_TRANSITIONS,
     OBSERVED_MEDIA_BUY_TRANSITIONS,
+    PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES,
     assert_creative_transition,
     assert_media_buy_transition,
     is_observable_media_buy_transition,
     is_terminal_media_buy_status,
+    media_buy_status_at_flight_start,
 )
 from adcp.decisioning.task_registry import (
     InMemoryTaskRegistry,
@@ -437,6 +442,8 @@ __all__ = [
     "MEDIA_BUY_TRANSITIONS",
     "MaybeAsync",
     "MediaBuyNotFoundError",
+    "MediaBuyChange",
+    "MediaBuyChangeOrigin",
     "MediaBuyContextStore",
     "MediaBuyContexts",
     "MediaBuyStore",
@@ -446,6 +453,7 @@ __all__ = [
     "OAuthCredential",
     "OBSERVED_MEDIA_BUY_TRANSITIONS",
     "OpenOpportunitiesPlatform",
+    "PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES",
     "OwnedSignalsPlatform",
     "PermissionDeniedError",
     "PgProposalStore",
@@ -544,6 +552,8 @@ __all__ = [
     "is_observable_media_buy_transition",
     "is_sandbox_or_mock_account",
     "is_terminal_media_buy_status",
+    "media_buy_status_at_flight_start",
+    "record_media_buy_change",
     "bearer_only_registry",
     "compose_method",
     "create_adcp_server_from_platform",

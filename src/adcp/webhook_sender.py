@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -238,6 +238,36 @@ class PreparedWebhook:
     idempotency_key: str
     body: bytes
     extra_headers: Mapping[str, str] = field(default_factory=dict)
+    #: The webhook-signing profile the registration requires, when the
+    #: delivery was prepared from one without legacy ``authentication``
+    #: (AdCP 3.3). :meth:`WebhookSender.send_prepared` refuses to send it
+    #: under any other mode. ``None`` imposes nothing.
+    required_signing_profile: str | None = None
+
+
+class WebhookSigningProfileUnavailableError(ValueError):
+    """The sender cannot sign under the profile a webhook registration requires.
+
+    A ``reporting_webhook`` / ``artifact_webhook`` registration without
+    ``authentication`` (AdCP 3.3) must be signed under its ``signing_profile``
+    (``adcp/webhook-signing/v1`` when omitted). Raised before any network I/O
+    when the sender would instead send a bearer token or legacy HMAC the buyer
+    never registered, or when it cannot produce the selected profile (this SDK
+    does not yet sign webhooks under ``web-bot-auth``). Configure an RFC 9421
+    sender (:meth:`WebhookSender.from_jwk` / :meth:`WebhookSender.from_pem`),
+    or reject registrations naming a profile the seller does not list in
+    ``webhook_signing.profiles`` with ``INVALID_REQUEST``.
+    """
+
+    def __init__(self, *, required_profile: str, sender_profile: str | None) -> None:
+        self.required_profile = required_profile
+        self.sender_profile = sender_profile
+        mode = sender_profile if sender_profile is not None else "legacy bearer/HMAC auth"
+        super().__init__(
+            f"webhook registration has no authentication and requires signing under "
+            f"{required_profile!r}, but this WebhookSender signs with {mode}; "
+            "refusing to send"
+        )
 
 
 class ScopePermanentlyUnknown(RuntimeError):  # noqa: N818 - public issue contract
@@ -645,6 +675,40 @@ class WebhookSender:
         return f"WebhookSender(auth={type(self._auth).__name__}, key_id={self._key_id!r})"
 
     @property
+    def signing_profile(self) -> str | None:
+        """The webhook-signing profile this sender produces, or ``None``.
+
+        ``adcp/webhook-signing/v1`` for an RFC 9421 sender (:meth:`from_jwk`,
+        :meth:`from_pem`); ``None`` for the bearer and HMAC senders, which
+        serve only registrations carrying legacy ``authentication``.
+        """
+        return WEBHOOK_SIGNING_PROFILE_ADCP if self.signs_with_rfc9421 else None
+
+    def check_registration(self, registration: BaseModel | Mapping[str, Any]) -> str | None:
+        """Check this sender can deliver to a webhook registration; no network I/O.
+
+        Returns the profile the registration requires (``None`` when it
+        carries legacy ``authentication``, which this check leaves to the
+        caller). :meth:`send_media_buy_delivery` and
+        :meth:`prepare_artifact_webhook` with ``registration=`` apply it
+        automatically.
+
+        :raises WebhookRegistrationError: the registration is malformed (see
+            :func:`~adcp.webhooks.webhook_signing_profile_for`).
+        :raises WebhookSigningProfileUnavailableError: the registration omits
+            ``authentication`` and this sender cannot sign under its profile.
+        """
+        required = webhook_signing_profile_for(registration)
+        self._require_profile(required)
+        return required
+
+    def _require_profile(self, required: str | None) -> None:
+        if required is not None and required != self.signing_profile:
+            raise WebhookSigningProfileUnavailableError(
+                required_profile=required, sender_profile=self.signing_profile
+            )
+
+    @property
     def signs_with_rfc9421(self) -> bool:
         """``True`` iff this sender uses the RFC 9421 webhook-signing profile.
 
@@ -807,7 +871,10 @@ class WebhookSender:
         """Prepare and send one scheduled delivery report to a stored registration.
 
         Raises :class:`~adcp.webhooks.ReportingWebhookOperationIdMissingError`
-        without network I/O when the registration has no ``operation_id``.
+        without network I/O when the registration has no ``operation_id``, and
+        :class:`WebhookSigningProfileUnavailableError` when the registration
+        omits ``authentication`` and this sender cannot sign under its
+        ``signing_profile``.
         """
         return await self.send_prepared(
             self.prepare_media_buy_delivery(
@@ -840,14 +907,22 @@ class WebhookSender:
         registration, so the report echoes exactly what the buyer registered.
         See :func:`~adcp.webhooks.create_media_buy_delivery_webhook_payload`.
 
+        A registration without legacy ``authentication`` (AdCP 3.3) records
+        its ``signing_profile`` on the prepared request as
+        ``required_signing_profile``; :meth:`send_prepared` sends it only from a
+        sender that signs under that profile.
+
         :raises ReportingWebhookOperationIdMissingError: the registration has
             no ``operation_id``. Skip the send and flag it for the buyer.
+        :raises WebhookRegistrationError: the registration combines
+            ``authentication`` with ``signing_profile``.
         """
         webhook = (
             registration
             if isinstance(registration, ReportingWebhook)
             else ReportingWebhook.model_validate(registration)
         )
+        required_profile = webhook_signing_profile_for(webhook)
         payload = create_media_buy_delivery_webhook_payload(
             webhook,
             task_id=task_id,
@@ -857,7 +932,8 @@ class WebhookSender:
             message=message,
             idempotency_key=idempotency_key,
         )
-        return WebhookSender._prepare_mcp_payload(str(webhook.url), payload, extra_headers)
+        prepared = WebhookSender._prepare_mcp_payload(str(webhook.url), payload, extra_headers)
+        return replace(prepared, required_signing_profile=required_profile)
 
     async def send_prepared(
         self,
@@ -870,7 +946,11 @@ class WebhookSender:
 
         Durable publishers can recheck an expiring fence after DNS/signing and
         immediately before HTTP. A false result aborts without sending bytes.
+
+        :raises WebhookSigningProfileUnavailableError: ``prepared`` carries a
+            ``required_signing_profile`` this sender does not sign under.
         """
+        self._require_profile(prepared.required_signing_profile)
         if not prepared.idempotency_key:
             raise ValueError("prepared webhook idempotency_key must be non-empty")
         if not prepared.body:
@@ -1357,8 +1437,14 @@ class WebhookSender:
         artifacts: list[dict[str, Any]],
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
+        registration: BaseModel | Mapping[str, Any] | None = None,
     ) -> WebhookDeliveryResult:
-        """Prepare and send a notification in one attempt."""
+        """Prepare and send a notification in one attempt.
+
+        Pass the stored ``artifact_webhook`` as ``registration`` so a
+        registration without ``authentication`` is sent only under its
+        ``signing_profile`` (see :meth:`prepare_artifact_webhook`).
+        """
         return await self.send_prepared(
             self.prepare_artifact_webhook(
                 url=url,
@@ -1368,6 +1454,7 @@ class WebhookSender:
                 artifacts=artifacts,
                 idempotency_key=idempotency_key,
                 extra_headers=extra_headers,
+                registration=registration,
             )
         )
 
@@ -1381,8 +1468,21 @@ class WebhookSender:
         artifacts: list[dict[str, Any]],
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
+        registration: BaseModel | Mapping[str, Any] | None = None,
     ) -> PreparedWebhook:
-        """Prepare a validated content-standards artifact webhook."""
+        """Prepare a validated content-standards artifact webhook.
+
+        ``registration`` is the buyer's stored ``artifact_webhook``. When it
+        omits ``authentication`` (AdCP 3.3), its ``signing_profile`` is
+        recorded as ``required_signing_profile`` and :meth:`send_prepared`
+        refuses a sender that does not sign under it.
+
+        :raises WebhookRegistrationError: the registration combines
+            ``authentication`` with ``signing_profile``.
+        """
+        required_profile = (
+            webhook_signing_profile_for(registration) if registration is not None else None
+        )
         key = idempotency_key or generate_webhook_idempotency_key()
         payload: dict[str, Any] = {
             "idempotency_key": key,
@@ -1391,9 +1491,10 @@ class WebhookSender:
             "timestamp": timestamp,
             "artifacts": artifacts,
         }
-        return WebhookSender.prepare_raw(
+        prepared = WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
         )
+        return replace(prepared, required_signing_profile=required_profile)
 
     async def send_collection_list_changed(
         self,
@@ -1958,11 +2059,13 @@ class WebhookSender:
 # bottom (after the classes are defined) to break the webhooks <-> webhook_sender
 # cycle — see the note next to the removed top-level import.
 from adcp.webhooks import (  # noqa: E402
+    WEBHOOK_SIGNING_PROFILE_ADCP,
     create_mcp_webhook_payload,
     create_media_buy_delivery_webhook_payload,
     create_webhook_challenge_payload,
     generate_webhook_idempotency_key,
     to_wire_dict,
+    webhook_signing_profile_for,
 )
 
 __all__ = [
@@ -1975,4 +2078,5 @@ __all__ = [
     "WebhookSender",
     "WebhookSenderResolution",
     "WebhookSenderResolver",
+    "WebhookSigningProfileUnavailableError",
 ]

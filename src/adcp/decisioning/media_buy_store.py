@@ -43,6 +43,13 @@ Usage::
 
 The wrapper is always a fresh object so adopters can reason about
 identity at the assignment site without aliasing surprises.
+
+AdCP 3.3 also requires the buy's ``revision`` to advance on every committed
+change, whatever its origin, and ``history`` entries for changes made outside
+an AdCP task to carry ``origin.kind``. The seller's own persistence owns the
+revision counter (``update_media_buy`` compares it atomically with the
+write), so :func:`record_media_buy_change` builds the next revision and its
+history entry for the adopter to store in that same write.
 """
 
 from __future__ import annotations
@@ -52,17 +59,21 @@ import logging
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Literal, Protocol, get_args, runtime_checkable
 
 if TYPE_CHECKING:
     from adcp.decisioning.platform import DecisioningCapabilities
 
 __all__ = [
     "InMemoryMediaBuyContextStore",
+    "MediaBuyChange",
+    "MediaBuyChangeOrigin",
     "MediaBuyContextStore",
     "MediaBuyContexts",
     "MediaBuyStore",
     "create_media_buy_store",
+    "record_media_buy_change",
 ]
 
 logger = logging.getLogger(__name__)
@@ -419,3 +430,133 @@ def create_media_buy_store(
     if echo_context:
         contexts = context_store if context_store is not None else InMemoryMediaBuyContextStore()
     return _MediaBuyStoreWrapper(adopter_store, overlays=bool(claimed), contexts=contexts)
+
+
+#: ``history[].origin.kind`` on ``get_media_buys`` (AdCP 3.3, DR-0031): the
+#: same vocabulary as ``account.change.origin``. ``adcp`` is a change that
+#: arrived through an AdCP task (``update_media_buy``, a ``sync_creatives``
+#: assignment); the other kinds are changes made outside one.
+MediaBuyChangeOrigin = Literal[
+    "adcp", "seller_operator", "seller_system", "connected_platform", "unknown"
+]
+
+_CHANGE_ORIGINS: frozenset[str] = frozenset(get_args(MediaBuyChangeOrigin))
+_SUMMARY_MAX = 500
+_CONNECTION_ID_MAX = 255
+
+
+@dataclass(frozen=True)
+class MediaBuyChange:
+    """One committed change to a media buy, as :func:`record_media_buy_change` built it.
+
+    :param revision: The buy's ``revision`` after the change. Store it in the
+        same write that applies the change, and report it on
+        ``get_media_buys`` and ``update_media_buy`` from then on.
+    :param history_entry: The ``get_media_buys`` ``history[]`` entry for the
+        change, in wire form. Entries are append-only.
+    """
+
+    revision: int
+    history_entry: dict[str, Any]
+
+
+def _rfc3339(value: datetime) -> str:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("timestamp must be timezone-aware")
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def record_media_buy_change(
+    current_revision: int,
+    *,
+    action: str,
+    origin: MediaBuyChangeOrigin,
+    timestamp: datetime | None = None,
+    actor: str | None = None,
+    summary: str | None = None,
+    package_id: str | None = None,
+    connection_id: str | None = None,
+    ext: Mapping[str, Any] | None = None,
+) -> MediaBuyChange:
+    """Build the next ``revision`` and ``history`` entry for a committed change.
+
+    AdCP 3.3 ``core/media-buy.json``: ``revision`` advances on every committed
+    change to what the buy's authoritative read reports, whatever its origin:
+    an AdCP task, a seller operator, seller automation, another authorized
+    principal or a connected platform. ``get_media_buys`` ``history[]``
+    entries for a change that did not arrive through an AdCP task MUST carry
+    ``origin.kind``, and entries for AdCP task changes SHOULD carry
+    ``kind: "adcp"``.
+
+    Call this when the seller commits a change the AdCP task path did not
+    record itself: an operator edit in the seller's UI (``seller_operator``),
+    an optimizer or pacing job (``seller_system``), an order changed in a
+    connected ad server and ingested by the seller (``connected_platform``),
+    or a creative assignment made through ``sync_creatives`` (``adcp``).
+    Store the returned revision and entry in the same transaction as the
+    change, under the same compare-and-set the seller uses for
+    ``update_media_buy``. Reads, validation-only calls and idempotent replays
+    are not changes and must not call this.
+
+    ``origin`` is server-derived: never copy one a caller supplied. Use
+    ``unknown`` when the seller cannot classify the change or the caller is
+    not authorized to see its source.
+
+    :param current_revision: The buy's revision before the change (``0`` for
+        the ``created`` entry of a new buy).
+    :param action: What happened. Standard actions: ``created``,
+        ``activated``, ``paused``, ``resumed``, ``canceled``, ``rejected``,
+        ``completed``, ``updated_budget``, ``updated_dates``,
+        ``updated_packages``, ``package_canceled``, ``package_paused``,
+        ``package_resumed``. Seller-specific actions such as
+        ``creative_assigned`` are allowed.
+    :param origin: The server-derived ``origin.kind``.
+    :param timestamp: When the change occurred; timezone-aware. Defaults to
+        now (UTC).
+    :param actor: Who made the change, at the granularity the reader is
+        authorized to see. Omit direct personal identifiers for changes made
+        outside an AdCP task unless the reader is authorized for them.
+    :param summary: Human-readable summary, at most 500 characters.
+    :param package_id: The package the change targeted, if any.
+    :param connection_id: Opaque, non-secret reference to the connected
+        source; only with ``origin="connected_platform"``, at most 255
+        characters.
+    :param ext: Extension object for structured metadata about the change.
+
+    :raises ValueError: on an unknown ``origin``, a negative
+        ``current_revision``, an empty ``action``, a naive ``timestamp``, an
+        over-long ``summary`` or ``connection_id``, or a ``connection_id``
+        with an origin other than ``connected_platform``.
+    """
+    if type(current_revision) is not int or current_revision < 0:
+        raise ValueError("current_revision must be a non-negative integer")
+    if origin not in _CHANGE_ORIGINS:
+        raise ValueError(f"origin must be one of {sorted(_CHANGE_ORIGINS)}, got {origin!r}")
+    if not isinstance(action, str) or not action:
+        raise ValueError("action must be a non-empty string")
+    if summary is not None and len(summary) > _SUMMARY_MAX:
+        raise ValueError(f"summary must be at most {_SUMMARY_MAX} characters")
+    if connection_id is not None:
+        if origin != "connected_platform":
+            raise ValueError("connection_id is only meaningful with origin='connected_platform'")
+        if not connection_id or len(connection_id) > _CONNECTION_ID_MAX:
+            raise ValueError(f"connection_id must be 1 to {_CONNECTION_ID_MAX} characters")
+    revision = current_revision + 1
+    origin_value: dict[str, Any] = {"kind": origin}
+    if connection_id is not None:
+        origin_value["connection_id"] = connection_id
+    entry: dict[str, Any] = {
+        "revision": revision,
+        "timestamp": _rfc3339(timestamp or datetime.now(timezone.utc)),
+        "action": action,
+        "origin": origin_value,
+    }
+    if actor is not None:
+        entry["actor"] = actor
+    if summary is not None:
+        entry["summary"] = summary
+    if package_id is not None:
+        entry["package_id"] = package_id
+    if ext is not None:
+        entry["ext"] = deepcopy(dict(ext))
+    return MediaBuyChange(revision=revision, history_entry=entry)
