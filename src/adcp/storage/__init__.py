@@ -102,10 +102,13 @@ def postgres_storage(
     Resolved through the distribution's ``adcp.storage`` entry point, so
     ``adcp`` never imports it by name.
     """
+    from adcp.reporting.ledger.storage_contract import require_storage_contract
+
     build = _plugin("adcp.storage", "postgres")
     storage = build(pool=pool, dsn=dsn, clock=clock, max_size=max_size)
     if not isinstance(storage, ReportingStorage):
         raise TypeError("the adcp.storage postgres entry point must return ReportingStorage")
+    require_storage_contract(storage.ledger)  # an incompatible distribution fails here
     return storage
 
 

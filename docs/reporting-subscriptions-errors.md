@@ -16,7 +16,7 @@ Every SDK error carries `code` and `recovery` (`transient`, `correctable` or `te
 | `COVERAGE_INPUT_INCOMPLETE`, `COVERAGE_INPUT_INVALID` | `CoverageInputError` | n/a | correctable | supply the named input |
 | `COVERAGE_BUDGET_EXCEEDED` | `CoverageInputError` | n/a | correctable | narrow the input |
 | `REPORTING_STORAGE_NOT_DURABLE` | `ReliableReportingConfigurationError` | n/a | correctable | `storage=postgres_storage(...)`, or `ADCP_ENV=development` |
-| `REPORTING_SCHEMA_BEHIND` | `ReliableReportingConfigurationError` | n/a | correctable | run `python -m adcp migrate` |
+| `REPORTING_SCHEMA_BEHIND` | `ReliableReportingConfigurationError` | n/a | correctable | run `python -m adcp migrate`; or, when the installed `adcp-reporting-storage` implements another storage contract than this `adcp` ([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)), install the release the message names |
 | `SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS` | `ReliableReportingConfigurationError` | n/a | correctable | publish `standard_dimensions` on the named offering |
 | `SUBSCRIPTION_ROSTER_UNAVAILABLE` | `ReliableReportingConfigurationError` | n/a | correctable | serve `list_accounts`, or supply `SubscriptionOptions.accounts` |
 
