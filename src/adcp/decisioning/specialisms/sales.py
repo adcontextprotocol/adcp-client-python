@@ -82,10 +82,14 @@ if TYPE_CHECKING:
         GetMediaBuysResponse,
         GetProductsRequest,
         GetProductsResponse,
+        ListCollectionsRequest,
+        ListCollectionsResponse,
         ListCreativesRequest,
         ListCreativesResponse,
         ListProductsRequest,
         ListProductsResponse,
+        ListProposalsRequest,
+        ListProposalsResponse,
         ProvidePerformanceFeedbackRequest,
         ProvidePerformanceFeedbackResponse,
         RefineProposalsRequest,
@@ -150,6 +154,51 @@ class CompactMediaBuyPlatform(Protocol, Generic[TMeta]):
     def control_media_buy(
         self, req: ControlMediaBuyRequest, ctx: RequestContext[TMeta]
     ) -> SalesResult[ControlMediaBuyResponse]: ...
+
+
+@runtime_checkable
+class OpenOpportunitiesPlatform(Protocol, Generic[TMeta]):
+    """Optional AdCP 3.3 ``list_proposals`` read (experimental).
+
+    ``list_proposals`` returns each stored proposal snapshot byte-for-byte as
+    issued, beside its seller-tracked ``disposition``, plus the current state
+    of the opportunities those proposals belong to. It completes synchronously
+    and never mutates proposal or opportunity state, so return the response
+    directly; there is no task handoff.
+
+    Declare it with ``media_buy.lifecycle_tools`` containing
+    ``list_proposals`` or ``media_buy.open_opportunities.list_proposals=True``,
+    and list ``media_buy.open_opportunities`` in ``experimental_features``.
+    The framework advertises the tool only for such a declaration, refuses a
+    caller below AdCP 3.3 with ``UNSUPPORTED_FEATURE``, and fails boot when
+    the declaration names a method the platform does not implement.
+    """
+
+    def list_proposals(
+        self, req: ListProposalsRequest, ctx: RequestContext[TMeta]
+    ) -> MaybeAsync[ListProposalsResponse]: ...
+
+
+@runtime_checkable
+class CollectionCatalogPlatform(Protocol, Generic[TMeta]):
+    """Optional AdCP 3.3 ``list_collections`` read (experimental).
+
+    Returns the seller's collection cards (``core/response-collection.json``
+    copies) by key or with filters, never products. ``account`` is optional:
+    without it the response is ``cache_scope: public``. The call is side
+    effect free and never provisions an account.
+
+    Declare it by listing ``media_buy.collection_catalog`` (and
+    ``media_buy.collection_cards``, which the capabilities schema requires
+    alongside it) in ``experimental_features``. The framework advertises the
+    tool only for that declaration, refuses a caller below AdCP 3.3 with
+    ``UNSUPPORTED_FEATURE`` as the spec requires, and fails boot when the
+    declaration has no ``list_collections`` method behind it.
+    """
+
+    def list_collections(
+        self, req: ListCollectionsRequest, ctx: RequestContext[TMeta]
+    ) -> MaybeAsync[ListCollectionsResponse]: ...
 
 
 @runtime_checkable

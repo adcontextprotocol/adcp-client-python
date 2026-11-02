@@ -75,6 +75,14 @@ def notification_payload(kind: str) -> dict[str, Any]:
             "changed_indicator_types": ["pacing_risk"],
             "observed_at": AT,
         },
+        "proposal_created": {
+            "notification_id": "prop_1",
+            "account_id": "acct_1",
+            "proposal_id": "prop_1",
+            "opportunity_id": "opp_1",
+            "later_reason": "event_package",
+            "expires_at": AT,
+        },
     }
     return {**common, **fields[kind]}
 
@@ -88,6 +96,7 @@ TYPED_KINDS = [
     "creative_assignment_changed",
     "creative_purged",
     "indicators_changed",
+    "proposal_created",
 ]
 
 

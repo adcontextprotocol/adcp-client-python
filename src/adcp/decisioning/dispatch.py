@@ -968,6 +968,14 @@ def validate_platform(
         method_name = entry.value if hasattr(entry, "value") else str(entry)
         if not _has_overridden_method(platform, method_name):
             missing.append(("media_buy.lifecycle_tools", method_name))
+    # AdCP 3.3 experimental reads are served only when declared; a declaration
+    # needs the same-named platform method behind it.
+    from adcp.decisioning.experimental_reads import declared_experimental_reads
+
+    reported = {method for _, method in missing}
+    for declaration, method_name in declared_experimental_reads(platform.capabilities):
+        if method_name not in reported and not _has_overridden_method(platform, method_name):
+            missing.append((declaration, method_name))
 
     if unknown:
         # Three buckets:

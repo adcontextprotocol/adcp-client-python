@@ -10,6 +10,7 @@ NOTIFICATION_SCHEMAS = {
     "account.change_recorded": "core/account-change-recorded-webhook.json",
     "capabilities.changed": "core/capabilities-changed-webhook.json",
     "principal.changed": "core/principal-changed-webhook.json",
+    "proposal.created": "core/proposal-created-webhook.json",
     "creative.status_changed": "creative/creative-status-changed-webhook.json",
     "creative.assignment_changed": "creative/creative-assignment-changed-webhook.json",
     "creative.purged": "creative/creative-purged-webhook.json",
@@ -90,6 +91,8 @@ def validate_notification_body(
     error = next(validator.iter_errors(schema_payload), None)
     if error is not None:
         raise ValueError(f"notification envelope failed schema validation ({error.validator})")
+    if kind == "proposal.created" and payload["notification_id"] != payload["proposal_id"]:
+        raise ValueError("notification_id must equal proposal_id")
     if kind.startswith(("product.", "signal.")) or kind == "wholesale_feed.bulk_change":
         event = payload["event"]
         if payload["notification_id"] != event["event_id"]:

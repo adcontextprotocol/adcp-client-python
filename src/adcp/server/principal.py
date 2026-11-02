@@ -326,6 +326,13 @@ _ACCOUNT_NOTIFICATION_TYPES = frozenset(
         "reporting.ledger_changed",
         "reporting.delivery_ready",
         "reporting.status_changed",
+        # AdCP 3.3 experimental account-anchored types.
+        "creative.staged_update_changed",
+        "collection_card.updated",
+        "collection_card.removed",
+        "collection_catalog.bulk_change",
+        "proposal.created",
+        "proposal.offered",
     }
 )
 _SECRET_COORDINATE_RE = re.compile(
@@ -740,9 +747,7 @@ class PrincipalService:
                 action = (
                     "would_clear"
                     if changed and cleared
-                    else "would_update"
-                    if changed
-                    else "would_be_unchanged"
+                    else "would_update" if changed else "would_be_unchanged"
                 )
                 return SyncPrincipalResponse.model_validate(
                     {

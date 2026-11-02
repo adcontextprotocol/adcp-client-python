@@ -15,8 +15,8 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `sync_principal` | protocol | SyncPrincipalRequest | Synchronize authenticated principal configuration |
 | `get_products` | media_buy | GetProductsRequest | Return ad products matching a brief |
 | `list_products` | media_buy | ListProductsRequest | List products with the compact lifecycle |
-| `list_collections` | media_buy | ListCollectionsRequest | List collection cards (AdCP 3.3, experimental) |
-| `list_proposals` | media_buy | ListProposalsRequest | List open opportunities and proposals (AdCP 3.3, experimental) |
+| `list_collections` | media_buy | ListCollectionsRequest | List collection cards (AdCP 3.3, experimental `media_buy.collection_catalog`) |
+| `list_proposals` | media_buy | ListProposalsRequest | List proposal snapshots and their dispositions (AdCP 3.3, experimental `media_buy.open_opportunities`) |
 | `request_proposals` | media_buy | RequestProposalsRequest | Request seller proposals |
 | `refine_proposals` | media_buy | RefineProposalsRequest | Refine seller proposals |
 | `decline_proposals` | media_buy | DeclineProposalsRequest | Decline seller proposals |

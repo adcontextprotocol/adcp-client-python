@@ -91,6 +91,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "buy_products",
         "accept_proposal",
         "control_media_buy",
+        # AdCP 3.3 experimental reads (advertised only when declared)
+        "list_proposals",
+        "list_collections",
         # Account roster (unioned into every sales-* claim)
         "sync_accounts",
         "list_accounts",

@@ -490,30 +490,35 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "list_collections",
-        "description": "List collection cards a seller publishes (AdCP 3.3, experimental media_buy.collection_lists). Filter by platform, genres or talent.",
+        "description": "List a seller's collection cards (shows, creators, podcasts) by key or with filters, without products (AdCP 3.3, experimental media_buy.collection_catalog).",
         "annotations": _RO,
         "inputSchema": {
             "type": "object",
             "properties": {
                 "account": {"type": "object"},
+                "collections": {"type": "array", "items": {"type": "object"}},
                 "filters": {"type": "object"},
                 "pagination": {"type": "object"},
+                "if_collections_version": {"type": "string"},
             },
         },
     },
     {
         "name": "list_proposals",
-        "description": "List open opportunities and the proposals under them (AdCP 3.3, experimental media_buy.open_opportunities). Filter by media_buy_id, opportunity_id or proposal_id.",
+        "description": "List the seller's current proposals and their lifecycle state for an account or opportunity (AdCP 3.3, experimental media_buy.open_opportunities).",
         "annotations": _RO,
         "inputSchema": {
             "type": "object",
             "properties": {
                 "account": {"type": "object"},
-                "media_buy_id": {"type": "string"},
-                "opportunity_id": {"type": "string"},
-                "proposal_id": {"type": "string"},
-                "pagination": {"type": "object"},
+                "opportunity_ids": {"type": "array", "items": {"type": "string"}},
+                "media_buy_ids": {"type": "array", "items": {"type": "string"}},
+                "proposal_ids": {"type": "array", "items": {"type": "string"}},
+                "dispositions": {"type": "array", "items": {"type": "string"}},
+                "cursor": {"type": "string"},
+                "max_results": {"type": "integer"},
             },
+            "required": ["account"],
         },
     },
     {
@@ -3509,7 +3514,7 @@ def create_tool_caller(
         detect_wire_version,
     )
     from adcp.validation.schema_errors import build_adcp_validation_error_payload
-    from adcp.validation.schema_loader import Direction
+    from adcp.validation.schema_loader import Direction, get_portable_schema
     from adcp.validation.schema_validator import (
         format_issues,
         validate_request,
@@ -3589,6 +3594,28 @@ def create_tool_caller(
                 loss_log_level=logging.DEBUG,
             )
         except ADCPFeatureUnsupportedError as exc:
+            if (
+                direction == "request"
+                and not isinstance(exc, ADCPVersionConversionError)
+                and get_portable_schema(method_name, "request", version=source_version) is None
+            ):
+                # The caller's release does not define this task (list_proposals
+                # or list_collections for a 3.2 caller). Its version is
+                # supported; the task is not, which the spec reports as
+                # UNSUPPORTED_FEATURE (list_collections requires it).
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="UNSUPPORTED_FEATURE",
+                            message=(
+                                f"{method_name} is not defined in AdCP {source_version}; "
+                                "negotiate a release that defines it"
+                            ),
+                            details={"task": method_name, "adcp_version": source_version},
+                        )
+                    ],
+                ) from exc
             details = None
             if isinstance(exc, ADCPVersionConversionError):
                 details = {

@@ -526,18 +526,21 @@ class ADCPHandler(ABC, Generic[TContext]):
     async def list_collections(
         self, params: ListCollectionsRequest | dict[str, Any], context: TContext | None = None
     ) -> Any:
-        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_lists``).
+        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_catalog``).
 
-        Override this to serve collection cards.
+        Override this to serve collection cards. The spec forbids serving the
+        task to a caller below 3.3; the dispatcher refuses such a caller with
+        ``UNSUPPORTED_FEATURE`` before the handler runs.
         """
         return self._not_supported("list_collections")
 
     async def list_proposals(
         self, params: ListProposalsRequest | dict[str, Any], context: TContext | None = None
     ) -> Any:
-        """List open opportunities and proposals (AdCP 3.3, experimental).
+        """List proposal snapshots and their dispositions (AdCP 3.3, experimental).
 
-        Override this to serve ``media_buy.open_opportunities``.
+        Override this to serve ``media_buy.open_opportunities``. The task is
+        synchronous and never mutates proposal or opportunity state.
         """
         return self._not_supported("list_proposals")
 
