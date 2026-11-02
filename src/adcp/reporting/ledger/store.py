@@ -112,9 +112,12 @@ class LedgerConflictError(RuntimeError):
     matching on prose.
     """
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, *, field: str | None = None) -> None:
         super().__init__(message)
         self.code = code
+        #: The request field the error is about, carried to the wire error's
+        #: ``field`` (``reporting_revision_id`` for an unknown revision).
+        self.field = field
 
 
 @dataclass(frozen=True)

@@ -56,8 +56,8 @@ def _request(value: Any) -> dict[str, Any]:
     )
 
 
-def _task_error(task: str, code: str, message: str) -> ADCPTaskError:
-    return ADCPTaskError(operation=task, errors=[reporting_error(code, message)])
+def _task_error(task: str, code: str, message: str, *, field: str | None = None) -> ADCPTaskError:
+    return ADCPTaskError(operation=task, errors=[reporting_error(code, message, field=field)])
 
 
 _Method = TypeVar("_Method", bound=Callable[..., Any])
@@ -223,7 +223,9 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             caller = await self._authorize(request, context)
             await hooks.require(caller, request, context, task)
         except (ReportingReceiptError, LedgerConflictError) as error:
-            raise _task_error(task, error.code, str(error)) from None
+            raise _task_error(
+                task, error.code, str(error), field=getattr(error, "field", None)
+            ) from None
         return caller
 
     @_admitted
@@ -388,6 +390,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 dict[str, Any] | NotImplementedResponse,
                 await self._delegate("get_media_buy_delivery", params, context),
             )
+        field: str | None = None
         try:
             from adcp.validation.schema_loader import get_named_validator
 
@@ -408,13 +411,21 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             # ownership/visibility and complete captured reconciliation checks.
             projected = await self.get_reporting_status(status_request, context)
             if not isinstance(projected, dict) or "revision" not in projected:
-                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
+                raise LedgerConflictError(
+                    "REFERENCE_NOT_FOUND",
+                    "no such revision is available",
+                    field="reporting_revision_id",
+                )
             store = self.production.store
             revision = await store.get_revision(
                 account_id=caller.account_id, reporting_revision_id=revision_id
             )
             if revision is None:
-                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
+                raise LedgerConflictError(
+                    "REFERENCE_NOT_FOUND",
+                    "no such revision is available",
+                    field="reporting_revision_id",
+                )
             if not revision.readable:
                 # A retained revision this seller still owes but cannot serve is never
                 # not-found, and never rows that fail the binding.
@@ -485,7 +496,11 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 account_id=caller.account_id, reporting_revision_id=revision_id
             )
             if after != revision:
-                raise LedgerConflictError("REFERENCE_NOT_FOUND", "no such revision is available")
+                raise LedgerConflictError(
+                    "REFERENCE_NOT_FOUND",
+                    "no such revision is available",
+                    field="reporting_revision_id",
+                )
             wire = projected["revision"]
             totals = (
                 [r.to_wire() for r in revision.managed_control_totals]
@@ -521,6 +536,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             raise
         except (ReportingReceiptError, LedgerConflictError) as error:
             code, message = error.code, str(error)
+            field = getattr(error, "field", None)
         except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
             raise
         except Exception as error:
@@ -535,7 +551,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 message = "reporting revision rows are temporarily unavailable"
             else:
                 code, message = "REPORTING_CONTENT_UNAVAILABLE", "reporting content is unavailable"
-        raise _task_error("get_media_buy_delivery", code, message)
+        raise _task_error("get_media_buy_delivery", code, message, field=field)
 
 
 def _application_method(task: str) -> Callable[..., Any]:

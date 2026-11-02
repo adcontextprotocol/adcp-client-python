@@ -108,13 +108,15 @@ class ReliableReportingConfigurationError(ValueError):
         )
 
 
-def reporting_error(code: str, message: str) -> Error:
+def reporting_error(code: str, message: str, *, field: str | None = None) -> Error:
     """Preserve the domain code and use the SDK's normative recovery defaults."""
     if code == "REVISION_NOT_FOUND":
         # A store-internal code for an unknown or retired revision. The protocol's
-        # nondisclosing answer is the standard reference error.
+        # nondisclosing answer is the standard reference error, naming the
+        # reporting_revision_id it could not resolve (AdCP 3.3).
         code = "REFERENCE_NOT_FOUND"
         message = "Reporting revision not found"
+        field = "reporting_revision_id"
     elif code == "LOOKUP_UNAVAILABLE":
         # A buyer-supplied reporting reference that does not resolve for this
         # caller. Typed parameters without a dedicated code use the standard,
@@ -127,7 +129,9 @@ def reporting_error(code: str, message: str) -> Error:
             recovery = "correctable"
         elif code in _REPORTING_TRANSIENT:
             recovery = "transient"
-    return Error.model_validate(adcp_error(code, message, recovery=recovery)["errors"][0])
+    return Error.model_validate(
+        adcp_error(code, message, recovery=recovery, field=field)["errors"][0]
+    )
 
 
 async def installed_reporting_call(
@@ -149,7 +153,7 @@ async def installed_reporting_call(
         )
         cause = error
     except LedgerConflictError as error:
-        wire = reporting_error(error.code, str(error))
+        wire = reporting_error(error.code, str(error), field=getattr(error, "field", None))
         cause = error
     except ReliableReportingConfigurationError as error:
         code, message = {
