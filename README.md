@@ -366,6 +366,7 @@ platform = reporting.install(MySeller())  # serves get_principal/sync_principal,
 await client.reporting.subscribe(analytics_daily, register_destination=archive)
 await client.reporting.unsubscribe("pacing-hourly")
 report = await client.reporting.reconcile()      # every owed period: delivered, late, missing, withheld
+fleet = await multi.reporting.reconcile()        # every seller of an ADCPMultiAgentClient
 traces = await client.reporting.explain(account_id="acc_a", period="2026-11-03")  # why, rule by rule
 outcome = await client.accounts.ensure(key, billing="operator")  # AccountReady | AccountPending | ...
 ```

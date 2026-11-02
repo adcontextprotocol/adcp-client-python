@@ -45,7 +45,11 @@ async def test_reconcile_derives_the_roster_and_reports_delivered_periods() -> N
     reporting, _ = _buyer(world)
     report = await reporting.reconcile(now=world.clock())
     assert report.definitive, report.issues
-    assert report.accounts == (ACCOUNT,)
+    assert [item.to_dict() for item in report.accounts] == [
+        {"account_id": ACCOUNT, "subscription_ids": ["analytics-hourly"], "status": "reconciled"}
+    ]
+    assert report.account_ids == (ACCOUNT,)
+    assert report.to_dict()["accounts"][0]["status"] == "reconciled"
     assert report.summary.owed == report.summary.delivered == 2
     first = report.periods[0]
     assert first.to_dict() | {"message": None} == {
@@ -123,6 +127,23 @@ async def test_a_partial_roster_is_never_a_smaller_success() -> None:
     report = await reporting.reconcile(now=world.clock())
     assert not report.definitive
     assert "SUBSCRIPTION_ROSTER_UNAVAILABLE" in {issue.code for issue in report.issues}
+    roster = report.accounts[0]
+    assert (roster.account_id, roster.status) == ("*", "failed")
+    assert roster.error is not None and roster.error.task == "list_accounts"
+    assert "*" not in report.account_ids
+
+
+async def test_an_account_whose_reads_fail_is_failed_with_the_task() -> None:
+    world = await _delivered_world()
+    reporting, client = _buyer(world)
+    client.fail.add("get_reporting_status")
+    report = await reporting.reconcile(now=world.clock())
+    assert not report.definitive
+    (entry,) = report.accounts
+    assert (entry.account_id, entry.status) == (ACCOUNT, "failed")
+    assert entry.error is not None
+    assert (entry.error.task, entry.error.code) == ("get_reporting_status", "TASK_FAILED")
+    assert entry.to_dict()["error"]["task"] == "get_reporting_status"
 
 
 async def test_a_failed_principal_read_is_an_issue_for_reconcile_and_raises_for_explain() -> None:
@@ -134,6 +155,7 @@ async def test_a_failed_principal_read_is_an_issue_for_reconcile_and_raises_for_
     report = await reporting.reconcile(now=world.clock())
     assert not report.definitive and report.periods == ()
     assert [issue.code for issue in report.issues] == ["SUBSCRIPTION_PRINCIPAL_UNAVAILABLE"]
+    assert [(item.account_id, item.status) for item in report.accounts] == [("*", "failed")]
     with pytest.raises(ReportingSubscriptionError):
         await reporting.explain(account_id=ACCOUNT, period="2026-11-01", now=world.clock())
 
@@ -145,13 +167,17 @@ async def test_a_lost_account_reads_from_the_last_facts_and_withholds() -> None:
     world.clock.set(START + timedelta(hours=2, minutes=5))
     # The buyer read the account while authorized.
     first = await reporting.reconcile(now=world.clock())
-    assert first.accounts == (ACCOUNT,)
+    assert first.account_ids == (ACCOUNT,)
     # The 01:00 period ended at 02:00 and is due 02:10; authority is lost before that.
     del world.seller.accounts[ACCOUNT]
     await world.service.touch(account_id=ACCOUNT)
     await world.service.drain_subscription_triggers()
     report = await reporting.reconcile(now=world.clock())
-    assert report.accounts == (ACCOUNT,)
+    (entry,) = report.accounts
+    assert (entry.account_id, entry.status) == (ACCOUNT, "unauthorized")
+    assert entry.unauthorized_at == "2026-11-01T02:05:00Z"
+    assert entry.withheld_period_count is not None and entry.error is None
+    assert entry.subscription_ids == ("analytics-hourly",)
     assert [(line.status, line.reason) for line in report.periods] == [
         ("withheld", "owed:withheld")
     ]
@@ -205,3 +231,47 @@ async def test_the_cli_reconciles_and_explains_against_an_agent(monkeypatch, cap
     argv = ["explain", "--agent", "seller", "--account", ACCOUNT, "--period", "2026-11-01"]
     assert await loop.run_in_executor(None, cli.main, argv) == 0
     assert "[owed]" in capsys.readouterr().out
+
+
+async def test_the_fleet_reconciles_each_seller_and_names_the_unreadable_ones() -> None:
+    from adcp.reporting.subscriptions import ReportingSubscriptionError
+    from adcp.reporting.subscriptions.facade import FleetReportingClient
+
+    world = await _delivered_world()
+    healthy = InProcessBuyer(world.platform, _ctx)
+    broken = InProcessBuyer(world.platform, _ctx)
+    broken.fail.add("get_principal")
+    partial = InProcessBuyer(world.platform, _ctx)
+    partial.fail.add("get_reporting_status")
+    fleet = FleetReportingClient({"a": healthy, "b": broken, "c": partial})
+    report = await fleet.reconcile(now=world.clock(), concurrency=2)
+    assert sorted(report.by_seller) == ["a", "c"]
+    assert report.by_seller["a"].definitive and not report.by_seller["c"].definitive
+    assert [(issue.agent_id, issue.code) for issue in report.issues] == [
+        ("b", "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE")
+    ]
+    assert not report.definitive
+    assert report.summary.owed == 4 and report.summary.delivered == 2
+    assert report.to_dict()["issues"][0]["agent_id"] == "b"
+    only = await fleet.reconcile(now=world.clock(), agent_ids=["a"])
+    assert list(only.by_seller) == ["a"] and only.definitive and only.issues == ()
+    with pytest.raises(ReportingSubscriptionError, match="concurrency"):
+        await fleet.reconcile(concurrency=0)
+    with pytest.raises(ReportingSubscriptionError, match="Unknown agent ids"):
+        await fleet.reconcile(agent_ids=["z"])
+
+
+async def test_the_multi_agent_client_exposes_the_fleet() -> None:
+    from adcp.client import ADCPMultiAgentClient
+    from adcp.reporting.subscriptions.facade import FleetReportingClient
+    from adcp.types.core import AgentConfig, Protocol
+
+    multi = ADCPMultiAgentClient(
+        [
+            AgentConfig(id="s1", agent_uri="https://s1.example/mcp", protocol=Protocol.MCP),
+            AgentConfig(id="s2", agent_uri="https://s2.example/mcp", protocol=Protocol.MCP),
+        ]
+    )
+    fleet = multi.reporting
+    assert isinstance(fleet, FleetReportingClient)
+    assert fleet._reporting("s1") is multi.agent("s1").reporting

@@ -244,7 +244,7 @@ def _snapshot(report: ReconcileReport, context: Any) -> dict[str, Any]:
     exceptions: dict[str, dict[str, Any]] = {}
     cutovers: dict[str, dict[str, Any]] = {}
     authorizations: dict[str, dict[str, Any]] = {}
-    for account_id in report.accounts:
+    for account_id in report.account_ids:
         record = context.state.accounts.get(account_id)
         if record is None:
             continue
@@ -602,7 +602,7 @@ def _merge_partial(
     previous: Mapping[str, Any], current: dict[str, Any], report: ReconcileReport
 ) -> dict[str, Any]:
     unread = {issue.account_id for issue in report.issues if issue.account_id}
-    everything = not report.accounts or any(issue.account_id is None for issue in report.issues)
+    everything = not report.account_ids or any(issue.account_id is None for issue in report.issues)
     merged = dict(current)
     for section in ("periods", "exceptions", "cutovers"):
         values = dict(current.get(section) or {})

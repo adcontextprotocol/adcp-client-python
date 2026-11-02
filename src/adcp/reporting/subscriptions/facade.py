@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     )
     from adcp.reporting.subscriptions.explain import CoverageTrace
     from adcp.reporting.subscriptions.receipts import ReceiptPolicy
-    from adcp.reporting.subscriptions.reconcile import ReconcileReport
+    from adcp.reporting.subscriptions.reconcile import FleetReconcileReport, ReconcileReport
 
 #: The default ``grace`` of :meth:`ReportingClient.reconcile`: one hour, never zero.
 DEFAULT_GRACE = timedelta(hours=1)
@@ -981,6 +981,64 @@ class ReportingClient:
                 raise fail(f"stores a different configuration at {found}")
 
 
+class FleetReportingClient:
+    """``multi_client.reporting``: reconcile every seller of an ``ADCPMultiAgentClient``.
+
+    Each seller is read through its own ``client.reporting``, so the per-seller
+    cache of last-read facts (what shows an account whose authority was lost)
+    carries across fleet runs.
+    """
+
+    def __init__(self, clients: Mapping[str, Any]) -> None:
+        self._clients = clients
+        self._readers: dict[str, Any] = {}
+
+    def _reporting(self, agent_id: str) -> Any:
+        reader = self._readers.get(agent_id)
+        if reader is None:
+            client = self._clients[agent_id]
+            reader = getattr(client, "reporting", None) or ReportingClient(client)
+            self._readers[agent_id] = reader
+        return reader
+
+    async def reconcile(
+        self,
+        *,
+        agent_ids: Sequence[str] | None = None,
+        concurrency: int = 4,
+        since: Any = None,
+        accounts: Sequence[str] | Literal["covered"] = "covered",
+        subscription_id: str | None = None,
+        grace: timedelta = DEFAULT_GRACE,
+        include_not_owed: bool = False,
+        receipts: ReceiptPolicy | None = None,
+        now: datetime | None = None,
+    ) -> FleetReconcileReport:
+        """:meth:`ReportingClient.reconcile` on every seller, ``concurrency`` at a time.
+
+        Returns a :class:`~adcp.reporting.subscriptions.reconcile.FleetReconcileReport`:
+        ``by_seller`` (agent id to report), ``issues`` (sellers that could not
+        be reconciled at all, each with ``agent_id``), ``definitive`` and the
+        summed ``summary``. ``agent_ids`` narrows the run; an unknown id is
+        refused before anything is sent. The other options are
+        :meth:`ReportingClient.reconcile`'s, applied to every seller.
+        """
+        from adcp.reporting.subscriptions.reconcile import reconcile_fleet
+
+        return await reconcile_fleet(
+            {key: self._reporting(key) for key in self._clients},
+            agent_ids=agent_ids,
+            concurrency=concurrency,
+            since=since,
+            accounts=accounts,
+            subscription_id=subscription_id,
+            grace=grace,
+            include_not_owed=include_not_owed,
+            receipts=receipts,
+            now=now,
+        )
+
+
 @dataclass
 class _Plan:
     configuration: dict[str, Any] | None
@@ -1050,6 +1108,7 @@ def _mismatches(
 
 
 __all__ = [
+    "FleetReportingClient",
     "PreviewResult",
     "ReportingClient",
     "SubscribeResult",

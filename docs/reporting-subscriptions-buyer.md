@@ -77,6 +77,25 @@ Each owed period that has ended becomes a `PeriodLine`, with wire-style keys and
 - `grace` defaults to one hour, never zero, so a fresh period is not flagged as missing.
 - `report.definitive` is true only when the roster, every account's obligations walk and every owed set completed. Otherwise `report.issues` say what to retry; a partial roster is never used.
 - An account whose authority you lost is reported from the last facts read for it, with its unpaid periods `withheld`.
+- `report.accounts` has one `ReconcileAccount` per account, the same shape as the TS SDK's: `account_id`, `subscription_ids` and a `status`.
+  - `reconciled`: its facts were read and its owed set computed.
+  - `unauthorized`: your authority ended at `unauthorized_at`; `withheld_period_count` is the seller's count of withheld periods.
+  - `failed`: `error` (`task`, `code`, `message`) names the read that failed. The account id is `"*"` when the principal or the roster could not be read at all.
+
+  `report.account_ids` is the tuple of ids that `report.accounts` was before.
+
+### Across sellers
+
+```python
+multi = ADCPMultiAgentClient(agents)
+fleet = await multi.reporting.reconcile(since="2026-11-01", concurrency=4)
+for agent_id, report in fleet.by_seller.items():
+    print(agent_id, report.definitive, report.summary)
+for issue in fleet.issues:  # sellers that could not be reconciled at all
+    print(issue.agent_id, issue.code, issue.message)
+```
+
+`multi.reporting.reconcile()` runs `reconcile()` on every seller, `concurrency` at a time, with the same options. Each seller is read through its own `multi.agent(agent_id).reporting`. `fleet.summary` sums the sellers' summaries. A seller whose principal could not be read is in `fleet.issues` (`SUBSCRIPTION_PRINCIPAL_UNAVAILABLE`, with `agent_id`), not in `by_seller`. `fleet.definitive` is true only when every seller's report is definitive and no seller failed. `agent_ids=` narrows the run.
 
 From a shell: `python -m adcp reporting reconcile --agent <alias> [--since 2026-11-01] [--json]`.
 
