@@ -18,7 +18,7 @@ This module ships two layers of projection:
    every emit path the framework controls; adopters typically don't
    call them directly.
 
-The AdCP v3 spec marks two write-only paths that the framework MUST
+The AdCP v3 spec marks write-only paths that the framework MUST
 strip on every response:
 
 * :attr:`BusinessEntity.bank` — bank coordinates flow buyer→seller in
@@ -28,6 +28,11 @@ strip on every response:
   credentials the seller persists for outbound ``check_governance``
   calls but MUST NOT echo to the buyer or land in the idempotency
   replay cache.
+* :attr:`Account.destination_billing_entity` — the staged billing
+  identity for an operator-domain handoff. The buyer sends it on a
+  ``sync_accounts`` request; it MUST NOT appear in any account read
+  model (``list_accounts`` rows, ``account_requests[]``,
+  ``request_account``, ``sync_accounts`` results, embedded accounts).
 
 The schemas describe both rules in docstrings; neither is structurally
 enforced by Pydantic. The helpers here ARE the structural enforcement.
@@ -80,18 +85,22 @@ def project_account_for_response(account: Account) -> Account:
     marks bank details as write-only. Adopters that persist the full
     :class:`BusinessEntity` (with bank populated for invoicing) MUST
     project through this helper before serializing on any response.
+    Also clears :attr:`Account.destination_billing_entity`, a
+    request-only staging field that MUST NOT appear in account read
+    models.
 
-    Returns the input unchanged when ``billing_entity`` is ``None``
-    or ``billing_entity.bank`` is already absent — defensive copy
-    via ``model_copy()`` so callers can mutate the returned object
-    freely without touching the caller's input.
+    Returns an unchanged copy when neither field needs stripping —
+    defensive copy via ``model_copy()`` so callers can mutate the
+    returned object freely without touching the caller's input.
 
     The original ``account`` object is not modified.
     """
-    if account.billing_entity is None or account.billing_entity.bank is None:
-        return account.model_copy()
-    safe_billing_entity = account.billing_entity.model_copy(update={"bank": None})
-    return account.model_copy(update={"billing_entity": safe_billing_entity})
+    update: dict[str, Any] = {}
+    if account.destination_billing_entity is not None:
+        update["destination_billing_entity"] = None
+    if account.billing_entity is not None and account.billing_entity.bank is not None:
+        update["billing_entity"] = account.billing_entity.model_copy(update={"bank": None})
+    return account.model_copy(update=update) if update else account.model_copy()
 
 
 def project_business_entity_for_response(entity: BusinessEntity) -> BusinessEntity:
@@ -385,6 +394,9 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
     * ``billing_entity.bank`` — write-only bank coordinates.
     * ``notification_configs[i].authentication.credentials`` — legacy
       webhook bearer/HMAC secret.
+    * ``destination_billing_entity`` — request-only handoff staging
+      field; dropped wholesale (non-bank fields included) because it
+      MUST NOT appear in any account read model.
 
     Walks recursively into nested dicts and lists. Returns a NEW dict —
     the input is not mutated, so callers (idempotency replay cache,
@@ -392,6 +404,8 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
     """
     out: dict[str, Any] = {}
     for key, sub in value.items():
+        if key == "destination_billing_entity":
+            continue
         if key == "governance_agents" and isinstance(sub, list):
             out[key] = [
                 (
@@ -483,8 +497,9 @@ def strip_credentials_from_wire_result(method_name: str, result: Any) -> Any:
 
     Defense-in-depth boundary called by the dispatcher on every
     response that may surface an :class:`Account` envelope. Removes
-    ``governance_agents[i].authentication`` and ``billing_entity.bank``
-    recursively — the same fields the typed projections
+    ``governance_agents[i].authentication``, ``billing_entity.bank`` and
+    the request-only ``destination_billing_entity`` recursively — the
+    same fields the typed projections
     (:func:`to_wire_account`, :func:`to_wire_sync_governance_row`)
     strip when the adopter returns the framework's typed dataclasses.
 

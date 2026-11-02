@@ -33,6 +33,7 @@ from adcp.types import (
     ListAccountsResponse,
     RequestAccountRequest,
     RequestAccountResponse,
+    SyncAccountsRequest,
 )
 from adcp.types.core import TaskResult, TaskStatus
 
@@ -293,6 +294,7 @@ async def test_a_python_buyer_ensures_against_the_seller_and_refreshes_to_ready(
 _BANK = {"account_holder": "Acme Inc", "iban": "DE89370400440532013000"}
 _GOVERNANCE_SECRET = "gov-secret-token-0123456789abcdef"
 _WEBHOOK_SECRET = "webhook-secret-0123456789abcdefghij"
+_DESTINATION = {"legal_name": "Confidential Destination GmbH", "bank": dict(_BANK)}
 
 
 def _credentialed_account() -> dict[str, Any]:
@@ -314,6 +316,7 @@ def _credentialed_account() -> dict[str, Any]:
                 "authentication": {"schemes": ["Bearer"], "credentials": _WEBHOOK_SECRET},
             }
         ],
+        "destination_billing_entity": dict(_DESTINATION),
     }
 
 
@@ -321,7 +324,9 @@ def _assert_scrubbed(account: dict[str, Any]) -> None:
     assert account["billing_entity"] == {"legal_name": "Acme Inc"}
     assert account["governance_agents"] == [{"url": "https://governance.example"}]
     assert "credentials" not in account["notification_configs"][0]["authentication"]
-    for secret in (_BANK["iban"], _GOVERNANCE_SECRET, _WEBHOOK_SECRET):
+    # Request-only staging field: never on an account read, not even its non-bank fields.
+    assert "destination_billing_entity" not in account
+    for secret in (_BANK["iban"], _GOVERNANCE_SECRET, _WEBHOOK_SECRET, _DESTINATION["legal_name"]):
         assert secret not in repr(account)
 
 
@@ -347,3 +352,40 @@ async def test_account_requests_are_scrubbed_like_the_accounts_beside_them() -> 
     )
     assert answered["request"]["state"] == "resolved"
     _assert_scrubbed(answered["request"]["account"])
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_rows_never_serve_destination_billing_entity() -> None:
+    class _LooseRowStore(_Store):
+        def list(self, filter: dict[str, Any] | None = None, ctx: Any = None) -> Any:
+            return [_credentialed_account()]
+
+    listed = await _handler(_LooseRowStore()).list_accounts(ListAccountsRequest(), _ctx())
+    (row,) = listed["accounts"]
+    _assert_scrubbed(row)
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_results_never_serve_destination_billing_entity() -> None:
+    class _EchoingStore(_Store):
+        def upsert(self, refs: list[Any], ctx: Any = None) -> list[dict[str, Any]]:
+            # The natural echo idiom: spread the stored account onto the result row.
+            return [{**_credentialed_account(), **KEY, "action": "updated"}]
+
+    synced = await _handler(_EchoingStore()).sync_accounts(
+        SyncAccountsRequest.model_validate(
+            {
+                "idempotency_key": "k" * 16,
+                "accounts": [
+                    {
+                        **KEY,
+                        "billing": "operator",
+                        "destination_billing_entity": {"legal_name": "Destination GmbH"},
+                    }
+                ],
+            }
+        ),
+        _ctx(),
+    )
+    (row,) = synced["accounts"]
+    _assert_scrubbed(row)
