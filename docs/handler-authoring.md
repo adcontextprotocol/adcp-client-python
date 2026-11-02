@@ -704,6 +704,15 @@ class MySeller(ADCPHandler):
         return capabilities_response(["media_buy"], idempotency=idempotency.capability())
 ```
 
+A wrapped method may hand off: a `TaskHandoff` or `WorkflowHandoff`
+(`ctx.handoff_to_task(...)` / `ctx.handoff_to_workflow(...)`) is returned to
+the dispatcher uncached, because it is a control marker rather than a
+response. Nothing is stored for that key, so a retry with the same
+`idempotency_key` runs the method again; make the work the handoff enqueues
+deduplicate on the key. To keep other results out of the replay cache, pass a
+predicate: `@idempotency.wrap(cache_response=lambda result: ...)` caches a
+result only when it returns `True`.
+
 For production, swap `MemoryBackend()` for `PgBackend` (note the
 import path — `PgBackend` lives in `adcp.server.idempotency`, not the
 top-level `adcp.server`):

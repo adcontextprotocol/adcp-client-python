@@ -39,7 +39,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from pydantic import BaseModel
 
@@ -123,6 +123,17 @@ _MIN_TTL_SECONDS = 3600
 _MAX_TTL_SECONDS = 604800
 
 HandlerFn = Callable[..., Awaitable[Any]]
+#: Predicate deciding whether a completed handler result is cached for replay.
+CacheResponsePredicate = Callable[[Any], bool]
+
+
+def _is_handoff(response: Any) -> bool:
+    """A ``TaskHandoff`` / ``WorkflowHandoff`` control marker, not a response."""
+    # Local import: the server middleware must not import the decisioning
+    # package at module import time.
+    from adcp.decisioning.types import is_task_handoff, is_workflow_handoff
+
+    return is_task_handoff(response) or is_workflow_handoff(response)
 
 
 class IdempotencyStore:
@@ -237,7 +248,22 @@ class IdempotencyStore:
             operation=operation,
         )
 
-    def wrap(self, handler: HandlerFn) -> HandlerFn:
+    @overload
+    def wrap(
+        self, handler: HandlerFn, *, cache_response: CacheResponsePredicate | None = None
+    ) -> HandlerFn: ...
+
+    @overload
+    def wrap(
+        self, handler: None = None, *, cache_response: CacheResponsePredicate | None = None
+    ) -> Callable[[HandlerFn], HandlerFn]: ...
+
+    def wrap(
+        self,
+        handler: HandlerFn | None = None,
+        *,
+        cache_response: CacheResponsePredicate | None = None,
+    ) -> HandlerFn | Callable[[HandlerFn], HandlerFn]:
         """Decorator that adds idempotency semantics to an AdCP handler method.
 
         Supports three calling conventions the framework dispatches with:
@@ -265,7 +291,24 @@ class IdempotencyStore:
         re-validation on a hit (when the handler's declared return
         type exposes ``model_validate``). Callers that return raw
         dicts get dicts back.
+
+        **Uncached results.** A :class:`~adcp.decisioning.TaskHandoff` or
+        :class:`~adcp.decisioning.WorkflowHandoff` is a control marker for
+        the dispatcher, not a response, so it is returned uncached: the
+        dispatcher allocates the task and owns what happens next. Use
+        ``@store.wrap(cache_response=predicate)`` to mark other results
+        as not cacheable; ``predicate(result)`` returning ``False``
+        returns the result uncached (a handoff is never cached, whatever
+        the predicate says). An uncached result holds no replay entry, so
+        a retry with the same ``idempotency_key`` runs the method again:
+        deduplicate the work a handoff enqueues on that key.
         """
+        if handler is None:
+
+            def _decorate(fn: HandlerFn) -> HandlerFn:
+                return self.wrap(fn, cache_response=cache_response)
+
+            return _decorate
 
         @wraps(handler)
         async def _wrapped(*args: Any, **kwargs: Any) -> Any:
@@ -343,6 +386,16 @@ class IdempotencyStore:
                         return _replay_cached(cached)
 
                     response = await handler(*args, **kwargs)
+                    if _is_handoff(response) or (
+                        cache_response is not None and not cache_response(response)
+                    ):
+                        logger.debug(
+                            "idempotency: %s result not cached: scope=%s key_prefix=%s",
+                            operation,
+                            _scope_log_id(scope_key),
+                            idempotency_key[:8],
+                        )
+                        return response
                     # Deep-copy when caching so post-return mutation of the caller's
                     # copy can't poison future replays. `_clone_response` also deep-
                     # copies on the hit path, giving independent objects per replay.
