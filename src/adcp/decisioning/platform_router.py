@@ -186,7 +186,15 @@ _KNOWN_SPECIALISM_PROTOCOLS: tuple[type, ...] = (
 # per-tenant (the AccountStore IS the tenant resolver, so threading
 # resolution through itself would loop).
 _ACCOUNT_STORE_METHODS: frozenset[str] = frozenset(
-    {"resolve", "upsert", "upsert_request", "list", "sync_governance"}
+    {
+        "resolve",
+        "upsert",
+        "upsert_request",
+        "list",
+        "list_requests",
+        "request_account",
+        "sync_governance",
+    }
 )
 
 

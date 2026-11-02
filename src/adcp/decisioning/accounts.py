@@ -64,7 +64,12 @@ from adcp.decisioning.types import (
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgent
-    from adcp.types import AccountReference, SyncAccountsRequest
+    from adcp.types import (
+        AccountReference,
+        ListAccountsRequest,
+        RequestAccountRequest,
+        SyncAccountsRequest,
+    )
 
 #: Per-platform metadata generic.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
@@ -396,6 +401,97 @@ class AccountStoreList(Protocol, Generic[TMeta]):
             scope the listing per-principal (e.g., return only
             accounts visible to the calling buyer agent) without
             re-deriving identity from the request.
+        """
+        ...
+
+
+@dataclass
+class AccountRequestsPage:
+    """One page of the caller's account requests, returned by
+    :meth:`AccountStoreListRequests.list_requests`.
+
+    The framework serves ``items`` as ``account_requests[]`` on
+    ``list_accounts`` and builds ``account_requests_pagination`` from
+    ``next_cursor`` (``has_more`` is ``next_cursor is not None``) and
+    ``total_count``. Items are wire ``AccountRequest`` records, as dicts
+    or Pydantic models.
+    """
+
+    items: list[Any]
+    next_cursor: str | None = None
+    total_count: int | None = None
+
+
+@runtime_checkable
+class AccountStoreRequestAccount(Protocol):
+    """``request_account`` API surface (AdCP 3.3, experimental ``account.requests``).
+
+    Implementing it serves the ``request_account`` tool and advertises
+    ``account.requests`` on ``get_adcp_capabilities`` (``supported: true``,
+    ``request_task: "request_account"``, ``read_task: "list_accounts"``, and
+    ``account.requests`` in ``experimental_features``) to callers on 3.3 or
+    later. Optional lists in the block (``changeable_attributes``,
+    ``pending_action_kinds``, ``event_type``) come from
+    ``DecisioningCapabilities.account.requests``. The block needs
+    ``account.supported_billing``: the framework never invents billing
+    claims, so a store with this hook and no declared ``supported_billing``
+    is refused at construction.
+
+    Pair it with :class:`AccountStoreListRequests`: buyers poll a pending
+    request through ``list_accounts``.
+    """
+
+    def request_account(
+        self,
+        params: RequestAccountRequest,
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[Any] | Any:
+        """Open, match or change an account; return the wire ``AccountRequest``.
+
+        Return the request record (a dict or model with ``request_id``,
+        ``state``, ``requested``, ...); the framework serves it as
+        ``{"status": "completed", "request": ...}``. A full response dict
+        with a ``request`` key passes through. An ``in_review``,
+        ``ambiguous`` or ``rejected`` request is a normal outcome, not an
+        error. Raise :class:`adcp.decisioning.AdcpError` only for a call
+        you cannot process (``INVALID_REQUEST``, a stale ``revision`` as
+        ``CONFLICT``, an unsupported change as ``UNSUPPORTED_FEATURE``).
+
+        A change names ``params.account_id``: check that the caller
+        (``ctx.agent`` / ``ctx.auth_info``) may change that account, as
+        :meth:`AccountStore.resolve` does, and refuse a money change
+        (``billing``, ``billing_entity``, ``payment_terms``) without
+        ``revision``. Idempotency on ``params.idempotency_key`` is the
+        framework's, as for every mutating task.
+        """
+        ...
+
+
+@runtime_checkable
+class AccountStoreListRequests(Protocol):
+    """The caller's account requests on ``list_accounts`` (AdCP 3.3, experimental).
+
+    Called only when the buyer asks for them, with ``include_requests``,
+    ``request_ids`` or ``requests_pagination``, and only for callers on
+    3.3 or later. The accounts page is unaffected. Requires
+    :class:`AccountStoreList`.
+    """
+
+    def list_requests(
+        self,
+        params: ListAccountsRequest,
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[AccountRequestsPage | list[Any]] | AccountRequestsPage | list[Any]:
+        """Return the caller's requests, newest ``updated_at`` first.
+
+        Return only the caller's own requests (identify the caller from
+        ``ctx.agent`` / ``ctx.auth_info``, as for ``list``): every open
+        request (``in_review``, ``ambiguous``) plus requests that changed
+        state in the last 30 days, at most 100 per page. With
+        ``params.request_ids``, return only those, omitting unknown and
+        other callers' ids silently. Page from
+        ``params.requests_pagination.cursor``. A plain list is one
+        complete page.
         """
         ...
 

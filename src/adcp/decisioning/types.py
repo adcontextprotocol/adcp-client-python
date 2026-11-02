@@ -480,6 +480,8 @@ class Account(Generic[TMeta]):
         authorization for any individual request.
     :param timezone: The account's IANA timezone, emitted as ``timezone``.
     :param operator: The account's operator domain, emitted as ``operator``.
+    :param revision: The account's revision, emitted as ``revision`` to
+        AdCP 3.2+ callers.
     :param mode: SDK-internal account mode — ``'live'`` (default,
         production), ``'sandbox'`` (adopter's test infra), or
         ``'mock'`` (Phase 2 — SDK routes to mock-server backend).
@@ -517,6 +519,10 @@ class Account(Generic[TMeta]):
     timezone: str | None = None
     #: The operator domain the account belongs to (wire ``operator``).
     operator: str | None = None
+    #: The account's optimistic-concurrency revision (wire ``revision``, AdCP
+    #: 3.2+). Buyers read it from ``list_accounts`` and send it with a
+    #: ``request_account`` change, so a concurrent change is never overwritten.
+    revision: int | None = None
 
     # SDK-internal account mode for sandbox-authority gating. Default
     # ``'live'`` preserves all existing-adopter behavior — pre-mode

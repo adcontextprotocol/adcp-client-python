@@ -57,3 +57,42 @@ A change to `billing`, `billing_entity` or `payment_terms` needs the explicit ac
 ## Cold start
 
 `list_accounts` with `include_requests` reads back your open requests and their pending actions. `refresh()` uses `account_request_ids`.
+
+## Serving `request_account` (sellers)
+
+On the decisioning platform, an `AccountStore` serves AdCP 3.3 `account.requests` with two optional hooks:
+
+```python
+from adcp.decisioning import AccountRequestsPage, DecisioningCapabilities
+from adcp.decisioning.capabilities import Account as AccountCaps
+
+class MyAccounts:
+    def resolve(self, ref, auth_info=None): ...
+    def list(self, filter=None, ctx=None): ...           # Account(..., revision=3) serves revision
+
+    async def request_account(self, params, ctx=None):
+        # Open, match or change; return the wire AccountRequest record.
+        return await db.request(params, caller=ctx.agent)
+
+    async def list_requests(self, params, ctx=None):
+        # Only when the buyer sends include_requests, request_ids or requests_pagination.
+        page = await db.requests_for(ctx.agent, ids=params.request_ids,
+                                     cursor=params.requests_pagination and params.requests_pagination.cursor)
+        return AccountRequestsPage(items=page.records, next_cursor=page.next)
+
+capabilities = DecisioningCapabilities(
+    specialisms=["sales-non-guaranteed"],
+    account=AccountCaps(
+        supported_billing=["operator"],
+        # Optional, advisory: what change requests accept and which pending actions you issue.
+        requests={"supported": True, "changeable_attributes": ["billing", "payment_terms", "timezone"],
+                  "pending_action_kinds": ["review", "accept_terms"]},
+    ),
+)
+```
+
+- **Advertised for you.** With `request_account`, the handler serves the tool and advertises `account.requests` on `get_adcp_capabilities`: `supported: true`, `request_task: "request_account"`, `read_task: "list_accounts"`, plus your optional lists. It also adds `account.requests` to `experimental_features`. Callers on releases before 3.3 see neither, and an `experimental_features` claim without the hook is dropped. Buyers route `ensure` and `change` by this block.
+- **`supported_billing` is yours to state.** The account block requires it, and the framework never invents one: a store with `request_account` and no `account.supported_billing` is refused at construction (`ConfigurationError`).
+- **Return values.** `request_account` returns the request record, which is served as `{"status": "completed", "request": ...}`. `in_review`, `ambiguous` and `rejected` are normal outcomes. Raise `AdcpError` only for calls you cannot process. A change names `params.account_id`: check that the caller may change that account, and refuse a money change (`billing`, `billing_entity`, `payment_terms`) without `revision`.
+- **Polling.** `list_requests` serves `account_requests[]` and `account_requests_pagination` on `list_accounts`. It runs only when the buyer asks, and only for 3.3 callers. Return only the caller's requests, newest `updated_at` first, at most 100 per page, and omit unknown or foreign `request_ids` silently. It needs `list`. With `request_account` but no `list_requests`, the handler warns at construction that buyers cannot poll a pending request.
+- **`revision`.** `Account.revision` is served on `list_accounts` to 3.2+ callers. Buyers send it with a change.
