@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.6...v10.0.0-beta.7) (2026-11-02)
+
+
+### Bug Fixes
+
+* **reporting-storage:** upgrade 0.1.0b4/0.2.0b0 ledgers in place and pin the adcp storage contract ([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) ([#1787](https://github.com/adcontextprotocol/adcp-client-python/issues/1787)) ([9cce1ff](https://github.com/adcontextprotocol/adcp-client-python/commit/9cce1ff29cc69261824bfb5c422fe7de7ba9a39d))
+
 ## [10.0.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.5...v10.0.0-beta.6) (2026-11-02)
 
 
