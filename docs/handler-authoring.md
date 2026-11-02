@@ -829,6 +829,49 @@ the list as `AdcpError("INVALID_REQUEST", message="2 problems", errors=problems)
 A list in `details["errors"]` whose entries carry a string `code` and
 `message` is lifted into `errors[]` too.
 
+### Did the failed mutation apply? (`mutation_outcome`)
+
+AdCP 3.3 lets an error on a state-changing request say whether seller state
+changed, so the buyer knows whether to re-plan:
+
+- `not_applied`: you hold pre-commit evidence that nothing was written, such
+  as a typed rejection from validation that runs before the first write.
+- `unknown`: some of the change may have committed, and the idempotency claim
+  is fenced so a same-key resend cannot run the mutation again.
+- `applied`: the change committed and the error reports a later failure.
+
+Leave it unset on reads, on warnings and whenever you make no claim. A
+timeout, a crash, or anything raised during or after a write is not
+pre-commit evidence.
+
+```python
+raise AdcpError("BUDGET_TOO_LOW", message="budget below minimum",
+                recovery="correctable", field="packages[0].budget",
+                mutation_outcome="not_applied")
+```
+
+The framework sets `not_applied` itself on the rejections it raises before a
+mutating handler runs (schema and model validation, version gates,
+pre-validation hooks) and on `IDEMPOTENCY_CONFLICT`. It never sets the field
+on an error your method raises, and never on the `INTERNAL_ERROR` that wraps an
+unexpected exception.
+
+Reject an unsupported or removed targeting dimension with
+`UnsupportedTargetingDimensionError`, which emits `UNSUPPORTED_FEATURE` with
+the `unsupported-targeting-dimension` details:
+
+```python
+from adcp.decisioning import UnsupportedTargetingDimensionError
+
+raise UnsupportedTargetingDimensionError(
+    unsupported_dimension="geo_metros",
+    field="packages[0].targeting_overlay.geo_metros",
+    deprecated=True,
+    replacement_dimension="geo_regions",
+    mutation_outcome="not_applied",
+)
+```
+
 ## Response builders
 
 Manual `model_dump()` on response Pydantic objects is error-prone —

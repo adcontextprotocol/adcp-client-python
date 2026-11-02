@@ -737,7 +737,7 @@ def _task_error_to_adcp_error(exc: ADCPTaskError) -> AdcpError:
     both paths answer with the same code, message, recovery, field,
     suggestion and sanitized details.
     """
-    from adcp.server.translate import _extract_structured_fields
+    from adcp.server.translate import _extract_structured_fields, _mutation_outcome
 
     code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(exc)
     return AdcpError(
@@ -747,6 +747,7 @@ def _task_error_to_adcp_error(exc: ADCPTaskError) -> AdcpError:
         field=field,
         suggestion=suggestion,
         details=details,
+        mutation_outcome=typing.cast(Any, _mutation_outcome(exc)),
     )
 
 

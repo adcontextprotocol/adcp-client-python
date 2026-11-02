@@ -1245,7 +1245,11 @@ class ADCPAgentExecutor(AgentExecutor):
         # Lazy import — ``translate.py`` pulls in heavier server deps
         # (mcp.types) which the A2A module doesn't otherwise need.
         from adcp.server.helpers import inject_context
-        from adcp.server.translate import _extract_structured_fields, _payload_errors
+        from adcp.server.translate import (
+            _extract_structured_fields,
+            _mutation_outcome,
+            _payload_errors,
+        )
 
         code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(
             exc
@@ -1264,6 +1268,9 @@ class ADCPAgentExecutor(AgentExecutor):
         retry_after = getattr(exc, "retry_after", None)
         if retry_after is not None:
             adcp_error["retry_after"] = retry_after
+        mutation_outcome = _mutation_outcome(exc)
+        if mutation_outcome is not None:
+            adcp_error["mutation_outcome"] = mutation_outcome
         if details:
             adcp_error["details"] = dict(details)
 

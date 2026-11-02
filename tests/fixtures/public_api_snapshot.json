@@ -735,6 +735,7 @@
       "normalize_assets_required": "adcp.utils.format_assets",
       "normalize_domain": "adcp.identifiers",
       "normalize_identifier": "adcp.identifiers",
+      "normalize_mutation_outcome": "adcp.exceptions",
       "parse_managerdomains": "adcp.adagents",
       "project_available_actions": "adcp.media_buy_actions",
       "properties_for_publisher_domain": "adcp.adagents",
