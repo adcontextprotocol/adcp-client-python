@@ -61,6 +61,9 @@ WIDENED = {
     "reporting_materializer_discovery",
     "reporting_status_scope_checkpoints",
     "reporting_production_generations",
+    # Migration 0006 (status checkpoint offerings) re-keys these the same way.
+    "reporting_status_checkpoints",
+    "reporting_status_events",
 }
 ACCOUNTS = ("account-redacted", "account-b")
 SEEDED_KEYS = {
@@ -174,12 +177,21 @@ def b4_with_this_storage(workspace: Path) -> Path:
     return python
 
 
-def _settings(pool: Any, action: str) -> dict[str, Any]:
-    return {"conninfo": pool.conninfo, "kwargs": pool.kwargs, "action": action}
+def _settings(pool: Any, action: str, *, notifications: bool = False) -> dict[str, Any]:
+    return {
+        "conninfo": pool.conninfo,
+        "kwargs": pool.kwargs,
+        "action": action,
+        "notifications": notifications,
+    }
 
 
-async def _seed(python: Path, pool: Any, cwd: Path) -> dict[str, Any]:
-    result = await asyncio.to_thread(_run, python, _settings(pool, "seed"), cwd=cwd)
+async def _seed(
+    python: Path, pool: Any, cwd: Path, *, notifications: bool = False
+) -> dict[str, Any]:
+    result = await asyncio.to_thread(
+        _run, python, _settings(pool, "seed", notifications=notifications), cwd=cwd
+    )
     assert "error" not in result, result["error"]
     assert sorted(result["readback"]["revisions"]) == sorted(
         f"rpr_{account}_{ordinal}" for account in ACCOUNTS for ordinal in range(2)
@@ -209,11 +221,25 @@ def assert_evidence_unchanged(before: dict[str, Any], after: dict[str, Any]) -> 
         assert after[table] == [], f"the upgrade wrote rows into new table {table}"
 
 
+#: The migrations create_schema() owns and records; the rest are migrate's.
+LEDGER_VERSIONS = ["0001", "0002", "0003"]
+
+
+def _shipped() -> list[str]:
+    from adcp_reporting_storage.migrations import migrations
+
+    return [item.version for item in migrations()]
+
+
+def _rest() -> list[str]:
+    return [version for version in _shipped() if version not in LEDGER_VERSIONS]
+
+
 async def _versions(pool: Any) -> list[str]:
-    from adcp_reporting_storage.migrations import migration_status, migrations
+    from adcp_reporting_storage.migrations import migration_status
 
     statuses = await migration_status(pool)
-    assert [item.migration.version for item in statuses] == [m.version for m in migrations()]
+    assert [item.migration.version for item in statuses] == _shipped()
     return [item.migration.version for item in statuses if not item.pending]
 
 
@@ -262,7 +288,7 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
 
         # The ledger's own migrations are applied and recorded; the ones that
         # only postgres_storage needs stay pending for python -m adcp migrate.
-        assert await _versions(pool) == ["0001", "0002", "0003"]
+        assert await _versions(pool) == LEDGER_VERSIONS
         after = await _image_here(pool)
         assert_evidence_unchanged(seeded["image"], after)
         assert await _readback_here(pool) == seeded["readback"]
@@ -270,10 +296,10 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
 
         await store.create_schema()  # re-runnable: nothing changes
         assert await _image_here(pool) == after
-        assert await _versions(pool) == ["0001", "0002", "0003"]
+        assert await _versions(pool) == LEDGER_VERSIONS
 
         applied = await migrate(pool)
-        assert [item.version for item in applied] == ["0004", "0005"]
+        assert [item.version for item in applied] == _rest()
         await postgres_storage(pool=pool).check_schema()  # the migrations-managed path agrees
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
     async with isolated_reporting_pool(autocommit=True) as fresh:
@@ -291,7 +317,7 @@ async def test_migrate_upgrades_a_published_ledger_to_the_fresh_catalog(
     async with isolated_reporting_pool(autocommit=True) as pool:
         seeded = await _seed(python, pool, workspace)
         applied = await migrate(pool)
-        assert [item.version for item in applied] == ["0001", "0002", "0003", "0004", "0005"]
+        assert [item.version for item in applied] == _shipped()
         assert await migrate(pool) == []
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
         assert await _readback_here(pool) == seeded["readback"]
@@ -389,13 +415,37 @@ async def test_concurrent_boots_and_migrate_serialize_on_a_published_ledger(
         finally:
             for item in pools:
                 await item.close()
-        assert await _versions(pool) == ["0001", "0002", "0003", "0004", "0005"]
+        assert await _versions(pool) == _shipped()
         async with pool.connection() as connection:
             row = await (
                 await connection.execute("SELECT count(*) FROM adcp_schema_migrations")
             ).fetchone()
-        assert row[0] == 5  # each version recorded once across the four runners
+        assert row[0] == len(_shipped())  # each version recorded once across the four runners
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
+
+
+async def test_a_notifications_enabled_published_ledger_upgrades_through_every_migration(
+    published: tuple[str, Path], workspace: Path
+) -> None:
+    """Status notifications add the checkpoint tables that migration 0006 re-keys."""
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate
+
+    from tests.conformance.reporting import _published_ledger_seed as seed
+
+    _, python = published
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        seeded = await _seed(python, pool, workspace, notifications=True)
+        assert "reporting_status_checkpoints" in seeded["image"]
+        store = PgReportingLedgerStore(pool=pool, notifications=True)
+        await seed.create_schema(pool, store, notifications=True)  # a seller's boot
+        assert await _versions(pool) == LEDGER_VERSIONS
+        applied = await migrate(pool)
+        assert [item.version for item in applied] == _rest()
+        assert await _versions(pool) == _shipped()
+        assert await migrate(pool) == []
+        assert_evidence_unchanged(seeded["image"], await _image_here(pool))
+        assert await _readback_here(pool) == seeded["readback"]
 
 
 async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one(
@@ -420,4 +470,4 @@ async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one
         assert "error" not in upgraded, upgraded["error"]
         assert upgraded["readback"] == seeded["readback"]
         assert_evidence_unchanged(seeded["image"], upgraded["image"])
-        assert await _versions(pool) == ["0001", "0002", "0003"]
+        assert await _versions(pool) == LEDGER_VERSIONS

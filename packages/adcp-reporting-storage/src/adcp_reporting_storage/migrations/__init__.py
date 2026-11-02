@@ -22,7 +22,8 @@ so concurrent runners serialize and a failure commits nothing.
 DDL it owns (``0001``–``0003``), recorded the same way, inside its own
 bootstrap transaction (:func:`apply_pending`), so a ledger created or upgraded
 by either entry point carries its schema version; ``python -m adcp migrate``
-then adds what only ``postgres_storage`` needs (``0004``, ``0005``).
+then adds the later ones (``0004`` onward), which only ``postgres_storage``
+and the notification stores need.
 """
 
 from __future__ import annotations

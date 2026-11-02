@@ -486,8 +486,9 @@ class PgReportingLedgerStore:
         0.1.0b4 or 0.2.0b0 is upgraded in place: ``offering_id`` is added with
         ``''`` for every existing account-level generation, and the applied
         versions are recorded, so ``python -m adcp migrate --status`` reads
-        them. Re-running is a no-op. ``postgres_storage`` additionally needs
-        ``0004``/``0005``, which only ``python -m adcp migrate`` applies.
+        them. Re-running is a no-op. The later migrations (``0004`` onward: subscription
+        state, inline storage, status checkpoint offerings) are applied and
+        recorded by ``python -m adcp migrate``, or by the stores that own them.
 
         The bootstrap takes a transaction-scoped schema lock before any DDL.
         Keep the migration in that transaction, including with an autocommit
@@ -700,8 +701,8 @@ class PgReportingLedgerStore:
         # recorded as applied, so a 0.1.0b4/0.2.0b0 ledger is upgraded in place
         # and carries its version; the idempotent files below then only
         # re-verify what they installed. Migrations of other stores' tables
-        # (0004 subscription state, 0005 inline storage) stay pending for
-        # python -m adcp migrate: the catalog contract of this store's older
+        # (0004 subscription state, 0005 inline storage, 0006 status checkpoint
+        # offerings) stay pending for python -m adcp migrate: the catalog contract of this store's older
         # binaries is exactly its own reporting_* objects.
         package = Path(__file__).resolve().parents[1]
         await apply_pending(

@@ -4,7 +4,9 @@ Reads one JSON settings object on stdin and prints one JSON result. ``seed``
 creates the ledger with the installed pair's own ``create_schema()`` and writes
 two account-level generations with obligations, revisions and rows, the way a
 seller on that release did; ``read`` reads them back; ``upgrade`` runs the
-installed storage's ``create_schema()`` first. Every action returns an ``image``
+installed storage's ``create_schema()`` first. With ``notifications`` the
+outbox and status-notification stores are created too, as a seller with
+status notifications boots them. Every action returns an ``image``
 of every ``reporting_*``/``adcp_reporting_*`` table so the test can prove no
 retained evidence changed. Only APIs common to adcp 9.3.1 and 10.0.0b2+ are used.
 """
@@ -172,19 +174,33 @@ async def readback(store):
     return result
 
 
+async def create_schema(pool, store, *, notifications):
+    """The stores a notifications-enabled seller boots, in the order it boots them."""
+    if notifications:
+        from adcp_reporting_storage import PgReportingOutbox
+
+        await PgReportingOutbox(pool=pool).create_schema()
+    await store.create_schema()
+    if notifications:
+        from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
+
+        await PgStatusNotificationStore(store).create_schema()
+
+
 async def main(settings):
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
     from psycopg_pool import AsyncConnectionPool
 
+    notifications = bool(settings.get("notifications"))
     async with AsyncConnectionPool(
         settings["conninfo"], kwargs=settings["kwargs"], min_size=1, max_size=4, open=False
     ) as pool:
         await pool.open()
-        store = PgReportingLedgerStore(pool=pool)
+        store = PgReportingLedgerStore(pool=pool, notifications=notifications)
         result = {"action": settings["action"]}
         try:
             if settings["action"] in {"seed", "upgrade"}:
-                await store.create_schema()
+                await create_schema(pool, store, notifications=notifications)
             if settings["action"] == "seed":
                 for account_id in ACCOUNTS:
                     configuration = _configuration(account_id)
