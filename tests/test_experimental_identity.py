@@ -681,3 +681,47 @@ async def test_grant_expiring_during_intermediary_fetch_is_not_authorized():
         agent_origin=ORIGIN, brand_domain="brand.com", account_operator="agency.com"
     )
     assert not result.authorized
+
+
+async def test_unreadable_intermediary_is_an_outage_only_when_no_chain_authorizes():
+    # adcp#8473: every covering first grant is a candidate chain.
+    docs = {
+        trust_record_url("brand.com"): {"grants": [grant("down.com"), grant("agency.com")]},
+        trust_record_url("down.com"): OSError("offline"),
+        trust_record_url("agency.com"): {"grants": [grant("platform.com")]},
+    }
+    accepted = await check(docs, operator="brand.com")
+    assert accepted.authorized and accepted.source == "trust"
+    docs[trust_record_url("agency.com")] = {"grants": []}
+    outage = await check(docs, operator="brand.com")
+    assert not outage.authorized and outage.error_code == "SERVICE_UNAVAILABLE"
+
+
+async def test_exclusive_grants_is_exhaustive_whatever_the_scope():
+    called = []
+
+    async def authorize(request):
+        called.append(request)
+        return True
+
+    docs = {
+        trust_record_url(ORIGIN): SIGNER_RECORD,
+        trust_record_url("brand.com"): {
+            "grants": [{"grantee": "other.com", "scopes": ["adcp:creative_generation"]}],
+            "exclusive_grants": True,
+        },
+    }
+    evaluator, _ = records(docs)
+    denied = await TrustGrantEvaluator(
+        evaluator, clock=lambda: 1000, seller_authorization=authorize
+    ).check(agent_origin=ORIGIN, brand_domain="brand.com", account_operator="agency.com")
+    assert not denied.authorized and denied.reason == "grant_absent" and not called
+    # A non-covering grant to the account operator never narrows the seller's discretion.
+    docs[trust_record_url("brand.com")] = {
+        "grants": [{"grantee": "agency.com", "scopes": ["adcp:creative_generation"]}]
+    }
+    evaluator, _ = records(docs)
+    allowed = await TrustGrantEvaluator(
+        evaluator, clock=lambda: 1000, seller_authorization=authorize
+    ).check(agent_origin=ORIGIN, brand_domain="brand.com", account_operator="agency.com")
+    assert allowed.authorized and allowed.source == "seller" and len(called) == 1
