@@ -2614,7 +2614,11 @@ class ADCPClient:
         account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListCollectionsResponse]:
-        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_lists``)."""
+        """List collection cards (AdCP 3.3, experimental ``media_buy.collection_catalog``).
+
+        A peer negotiated below 3.3 has no such task: the call fails with
+        ``UNSUPPORTED_FEATURE`` before anything is sent.
+        """
         return cast(
             TaskResult[ListCollectionsResponse],
             await self._execute_typed_task("list_collections", request, ListCollectionsResponse),
@@ -2628,7 +2632,12 @@ class ADCPClient:
         account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListProposalsResponse]:
-        """List open opportunities and proposals (AdCP 3.3, experimental)."""
+        """List proposal snapshots and their dispositions (AdCP 3.3, experimental).
+
+        Requires a seller advertising ``media_buy.open_opportunities``. A peer
+        negotiated below 3.3 has no such task: the call fails with
+        ``UNSUPPORTED_FEATURE`` before anything is sent.
+        """
         return cast(
             TaskResult[ListProposalsResponse],
             await self._execute_typed_task("list_proposals", request, ListProposalsResponse),
@@ -7484,7 +7493,7 @@ class ADCPMultiAgentClient:
     async def list_proposals(
         self, request: ListProposalsRequest
     ) -> list[TaskResult[ListProposalsResponse]]:
-        """List open opportunities and proposals across all agents."""
+        """List proposal snapshots and their dispositions across all agents."""
 
         return await _gather_agent_results(
             *(agent.list_proposals(request) for agent in self.agents.values())
