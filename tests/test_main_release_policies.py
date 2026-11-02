@@ -19,6 +19,8 @@ from scripts.check_main_policies import ReleaseRejectedError
 
 LEDGER_SHA = "d" * 40
 BREAKING_SUBJECT = "fix(reporting)!: scope configuration generations by account (#1174)"
+# A PR title carries no PR number; the squash subject appends it.
+BREAKING_PR_TITLE = BREAKING_SUBJECT.removesuffix(" (#1174)")
 BREAKING_FOOTER = (
     "BREAKING CHANGE: generation_key returns ReportingConfigurationGenerationKey "
     "instead of a two-tuple. Use its named fields."
@@ -107,7 +109,7 @@ def test_conventional_rerun_reads_the_corrected_pr_body(history: list[str]) -> N
         "number": 1174,
         "head": {"sha": history[-1]},
         "base": {"sha": history[0]},
-        "title": BREAKING_SUBJECT,
+        "title": BREAKING_PR_TITLE,
         "body": "Missing the breaking footer in the original webhook.",
     }
     api.data["pulls/1174"] = {**pr, "body": BREAKING_FOOTER}
@@ -124,13 +126,74 @@ def test_conventional_rerun_rejects_a_newly_invalid_pr_message(history: list[str
         "number": 1174,
         "head": {"sha": history[-1]},
         "base": {"sha": history[0]},
-        "title": BREAKING_SUBJECT,
+        "title": BREAKING_PR_TITLE,
         "body": BREAKING_FOOTER,
     }
     api.data["pulls/1174"] = {**pr, "body": None}
 
     with pytest.raises(ReleaseRejectedError, match="BREAKING CHANGE"):
         policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+def test_conventional_pr_title_keeps_a_trailing_issue_reference(history: list[str]) -> None:
+    # A PR title has no PR number yet; the squash appends one. A title ending
+    # in "(#1780)" would integrate as "... (#1780) (#1810)", which main rejects.
+    api = PolicyAPI(history)
+    pr = {
+        "number": 1810,
+        "head": {"sha": history[-1]},
+        "base": {"sha": history[0]},
+        "title": "feat(decisioning): reject a request with every error (#1780)",
+        "body": "",
+    }
+    api.data["pulls/1810"] = pr
+
+    with pytest.raises(ReleaseRejectedError, match="unsafe release description"):
+        policies.conventional("pull_request", history[-1], {"pull_request": pr}, api=api)
+
+
+@pytest.mark.parametrize(
+    ("message", "integrated", "accepted"),
+    [
+        ("fix: handle the empty case (#1810)", True, True),
+        ("fix: handle the empty case (#1810)", False, False),
+        ("fix: handle the empty case (#1780) (#1810)", True, False),
+        ("fix: handle the empty case", False, True),
+    ],
+)
+def test_pr_number_is_stripped_only_from_integrated_subjects(
+    message: str, integrated: bool, accepted: bool
+) -> None:
+    if accepted:
+        policies.validate_message(message, integrated=integrated)
+    else:
+        with pytest.raises(ReleaseRejectedError, match="unsafe release description"):
+            policies.validate_message(message, integrated=integrated)
+
+
+HISTORICAL_DESCRIPTION_SHA = "272fced52d57632dedf32f2c175cf294100bff63"
+HISTORICAL_DESCRIPTION_SUBJECT = (
+    "feat(decisioning): let a raised AdcpError reject a request with every error (#1780) (#1810)"
+)
+
+
+@pytest.mark.parametrize(
+    ("commit_sha", "subject", "accepted"),
+    [
+        (HISTORICAL_DESCRIPTION_SHA, HISTORICAL_DESCRIPTION_SUBJECT, True),
+        ("a" * 40, HISTORICAL_DESCRIPTION_SUBJECT, False),
+        (None, HISTORICAL_DESCRIPTION_SUBJECT, False),
+        (HISTORICAL_DESCRIPTION_SHA, "fix: bad (description) (#1810)", False),
+    ],
+)
+def test_historical_description_exception_requires_exact_commit_and_subject(
+    commit_sha: str | None, subject: str, accepted: bool
+) -> None:
+    if accepted:
+        policies.validate_message(subject, commit_sha=commit_sha)
+    else:
+        with pytest.raises(ReleaseRejectedError, match="unsafe release description"):
+            policies.validate_message(subject, commit_sha=commit_sha)
 
 
 def test_conventional_rerun_cannot_validate_a_different_pr_head(history: list[str]) -> None:
