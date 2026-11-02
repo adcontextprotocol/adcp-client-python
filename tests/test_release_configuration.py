@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+import yaml
+
 from scripts.normalize_pyproject_prerelease import pep440_prerelease
 
 ROOT = Path(__file__).parent.parent
@@ -67,6 +69,36 @@ def test_storage_distribution_version_matches_its_manifest_entry() -> None:
     # Release Please hands the root path every commit unless told otherwise;
     # without this a storage-only fix or breaking change would release adcp.
     assert config["packages"]["."]["exclude-paths"] == ["packages/adcp-reporting-storage"]
+
+
+def test_release_publish_gates_both_packages_on_a_working_companion() -> None:
+    """The companion gate (#1605, #1763) runs for every publish of either package.
+
+    It runs after the build, so the wheel just built is installed beside the
+    published companion and smoked, with a PostgreSQL service available: a
+    pair whose version ranges admit each other but whose storage contracts
+    differ never reaches PyPI.
+    """
+    publisher = yaml.load(
+        (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    steps = publisher["jobs"]["build"]["steps"]
+    companion_steps = [
+        index
+        for index, step in enumerate(steps)
+        if "check_companion_releases.py" in step.get("run", "")
+    ]
+    assert len(companion_steps) == 1
+    companion = steps[companion_steps[0]]
+    assert "if" not in companion, "both packages are gated"
+    assert "--dist dist/adcp-*.whl" in companion["run"]
+    assert '--package "$PACKAGE" --dist dist/adcp_reporting_storage-*.whl' in companion["run"]
+    assert companion["env"]["ADCP_PG_TEST_URL"].startswith("postgresql://")
+    build_steps = [
+        index for index, step in enumerate(steps) if "python -m build" in step.get("run", "")
+    ]
+    assert build_steps and build_steps[0] < companion_steps[0], "gate the built wheel"
+    assert publisher["jobs"]["build"]["services"]["postgres"]["image"].startswith("postgres:")
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:
