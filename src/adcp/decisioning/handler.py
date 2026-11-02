@@ -66,6 +66,11 @@ from adcp.decisioning.dispatch import (
     _invoke_platform_method,
 )
 from adcp.decisioning.domain_lists import bound_capability_domain_lists
+from adcp.decisioning.experimental_reads import (
+    EXPERIMENTAL_READ_TOOLS,
+    declared_experimental_reads,
+    refuse_caller_below_release,
+)
 from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.measurement_terms import check_advertised_measurement_terms
 from adcp.decisioning.negotiation import (
@@ -201,6 +206,8 @@ from adcp.types import (
     ListAccountsResponse,
     ListCollectionListsRequest,
     ListCollectionListsResponse,
+    ListCollectionsRequest,
+    ListCollectionsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
     ListCreativesRequest,
@@ -209,6 +216,8 @@ from adcp.types import (
     ListProductsResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
+    ListProposalsRequest,
+    ListProposalsResponse,
     ListTasksRequest,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
@@ -363,6 +372,8 @@ _COMPACT_LIFECYCLE_TOOLS: frozenset[str] = frozenset(
         "buy_products",
         "accept_proposal",
         "control_media_buy",
+        # AdCP 3.3 adds list_proposals to the lifecycle_tools enum.
+        "list_proposals",
     }
 )
 #: Account roster surface unioned into every sales-* claim. Per the
@@ -1318,6 +1329,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         | set(_CONTENT_STANDARDS_ADVERTISED_TOOLS)
         | set(_PROPERTY_LISTS_ADVERTISED_TOOLS)
         | set(_COLLECTION_LISTS_ADVERTISED_TOOLS)
+        | set(EXPERIMENTAL_READ_TOOLS)
         | {
             "get_reporting_status",
             "sync_reporting_status",
@@ -1380,6 +1392,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 self._platform, tool_name
             ):
                 serving.add(tool_name)
+        for _declaration, method_name in declared_experimental_reads(self._platform.capabilities):
+            if _implements_optional_method(self._platform, method_name):
+                serving.add(method_name)
         if not serving:
             # Preserve the existing class-universe fallback for novel specialisms.
             serving.update(self.advertised_tools)
@@ -1725,6 +1740,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 "request_proposals",
                 "refine_proposals",
                 "decline_proposals",
+                "list_collections",
             }:
                 return _PublicAccount(id="")
             raise AdcpError(
@@ -2494,6 +2510,34 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         return cast(
             "ControlMediaBuyResponse",
             await self._invoke_compact_lifecycle("control_media_buy", params, context),
+        )
+
+    async def list_proposals(  # type: ignore[override]
+        self, params: ListProposalsRequest, context: ToolContext | None = None
+    ) -> ListProposalsResponse:
+        """AdCP 3.3 experimental proposal read; the spec makes it synchronous."""
+        refuse_caller_below_release(
+            "list_proposals", context.resolved_adcp_version if context is not None else None
+        )
+        return cast(
+            "ListProposalsResponse",
+            await self._invoke_compact_lifecycle(
+                "list_proposals", params, context, allow_workflow_handoff=False
+            ),
+        )
+
+    async def list_collections(  # type: ignore[override]
+        self, params: ListCollectionsRequest, context: ToolContext | None = None
+    ) -> ListCollectionsResponse:
+        """AdCP 3.3 experimental collection-card read; ``account`` is optional."""
+        refuse_caller_below_release(
+            "list_collections", context.resolved_adcp_version if context is not None else None
+        )
+        return cast(
+            "ListCollectionsResponse",
+            await self._invoke_compact_lifecycle(
+                "list_collections", params, context, allow_workflow_handoff=False
+            ),
         )
 
     async def get_task_status(  # type: ignore[override]

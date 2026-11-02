@@ -1095,6 +1095,55 @@ class WebhookSender:
         )
 
     @staticmethod
+    def prepare_proposal_created(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``proposal.created`` notification.
+
+        AdCP 3.3, experimental ``media_buy.open_opportunities``: fire it after a
+        later proposal is readable through ``list_proposals``. The payload
+        carries identifiers only. The type, fire timestamp and delivery key
+        are filled when absent, and ``notification_id`` defaults to
+        ``proposal_id``, which the spec requires it to equal.
+        """
+        value = (
+            payload.model_dump(mode="json", exclude_none=True)
+            if isinstance(payload, BaseModel)
+            else dict(payload)
+        )
+        if "proposal_id" in value:
+            value.setdefault("notification_id", value["proposal_id"])
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="proposal.created",
+            payload=value,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_proposal_created(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``proposal.created`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_proposal_created(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
     def prepare_creative_status_changed(
         *,
         url: str,

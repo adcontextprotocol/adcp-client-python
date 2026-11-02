@@ -34,7 +34,12 @@ that answer against the application schema (under the configured response
 mode) and converts it to the buyer's version: up (a 3.2 server answering a
 `3.3-beta.3` buyer), unchanged (a same-release buyer), or down (a 3.1 or 3.0
 buyer). A conversion the target schema refuses fails as a structured
-`VERSION_UNSUPPORTED` error rather than reaching the peer invalid.
+`VERSION_UNSUPPORTED` error rather than reaching the peer invalid. A task the
+buyer's release does not define at all (`list_proposals` or `list_collections`
+from a 3.2 buyer) fails before the handler as `UNSUPPORTED_FEATURE` with
+`details: {"task", "adcp_version"}`: the buyer's version is supported, the task
+is not. `PlatformHandler` applies the same refusal to those two 3.3 reads when
+the handler itself runs on an older release.
 
 So a production seller can keep its handler code on the stable 3.2 contract
 while the SDK's default is a pre-release:

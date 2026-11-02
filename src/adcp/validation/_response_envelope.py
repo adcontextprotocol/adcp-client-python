@@ -3,8 +3,10 @@
 Through AdCP 3.2, ``list_products`` forbids ``status`` outright and the
 synchronous ``decline_proposals`` arm permits it only on its submitted arm, so
 grafting ``completed`` onto either makes the result fail the pinned response
-schema. From 3.3.0-beta.3 every task response and async status payload
-composes ``core/protocol-envelope.json`` (adcontextprotocol/adcp#8547), whose
+schema. The 3.3 prereleases before beta.3 add ``list_proposals`` and
+``list_collections`` with closed roots that forbid it too. From 3.3.0-beta.3
+every task response and async status payload composes
+``core/protocol-envelope.json`` (adcontextprotocol/adcp#8547), whose
 ``status`` is required, so the exception ends.
 
 The served release's own response schema decides, not its version string, so a
@@ -21,6 +23,8 @@ _NATIVE_COMPACT_ENVELOPE_TOOLS: frozenset[str] = frozenset(
     {
         "list_products",
         "decline_proposals",
+        "list_proposals",
+        "list_collections",
     }
 )
 

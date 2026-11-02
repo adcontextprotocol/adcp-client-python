@@ -607,7 +607,9 @@ async def test_server_rejects_new_task_on_old_contract_with_structured_error() -
     caller = create_tool_caller(ADCPHandler(), "list_products")
     with pytest.raises(ADCPTaskError) as exc:
         await caller({"adcp_version": "3.0"})
-    assert exc.value.errors[0].code == "VERSION_UNSUPPORTED"
+    # The caller's release is supported; the task is not defined in it.
+    assert exc.value.errors[0].code == "UNSUPPORTED_FEATURE"
+    assert exc.value.errors[0].details == {"task": "list_products", "adcp_version": "3.0"}
 
 
 @pytest.mark.parametrize("selected", [None, ("3.0", "3.1")])

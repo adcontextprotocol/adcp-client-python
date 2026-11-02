@@ -152,6 +152,28 @@ Framework-managed `TaskHandoff` completions pass through the same validator.
 the registry directly would bypass response verification; use `TaskHandoff` or
 validate in an adopter-owned registry wrapper before exposing a custom flow.
 
+## Reading proposals back (`list_proposals`, AdCP 3.3)
+
+`list_proposals` is the experimental `media_buy.open_opportunities` read: each
+snapshot byte-for-byte as issued, beside its seller-tracked `disposition`
+(`available`, `accepted`, `declined`, `expired`, `withdrawn`), plus the state of
+the opportunities those proposals belong to. It is synchronous and never mutates
+state, and it is the repair read for the `proposal.created` notification.
+
+On a `DecisioningPlatform`, implement `list_proposals(req, ctx)`
+(`OpenOpportunitiesPlatform`) and declare it with `media_buy.lifecycle_tools`
+containing `list_proposals` or
+`media_buy=MediaBuy(open_opportunities=OpenOpportunities(list_proposals=True))`,
+and list `media_buy.open_opportunities` in `experimental_features`. The framework
+advertises the tool only for that declaration, fails boot when the declaration
+has no method behind it, and refuses a caller below 3.3 with
+`UNSUPPORTED_FEATURE`. Announce a later proposal with
+`WebhookSender.prepare_proposal_created(...)` once it is readable.
+
+The framework does not yet serve `list_proposals` from a `ProposalStore`: the
+store keeps the `get_products` proposal payloads it hydrates recipes from, not
+canonical snapshots with dispositions, and it cannot list by account.
+
 ## Also see
 
 - `proposals/product-architecture.md` — design rationale for the
