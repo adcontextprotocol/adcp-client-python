@@ -49,7 +49,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.canonical_formats.registry import (
@@ -173,10 +173,13 @@ def _v1_version_constraints(
     """Collect VAST/DAAST version values from a v1 format.
 
     The version may live at the top level (a flat catalog entry) or
-    inside per-asset requirements. Walks both. Returns an empty list
+    inside per-asset requirements. Walks both dictionary and typed-model
+    inputs, including root-model version lists. Returns an empty list
     when none are declared.
     """
     out: list[str] = []
+    if isinstance(v1_format, BaseModel):
+        v1_format = v1_format.model_dump(exclude_none=True)
     src = v1_format if isinstance(v1_format, dict) else None
     if src is None:
         return out

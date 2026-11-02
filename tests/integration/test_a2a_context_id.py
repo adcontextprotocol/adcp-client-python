@@ -60,7 +60,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-class _EchoHandler(ADCPHandler):
+class _ContextIdEchoHandler(ADCPHandler):
     """Minimal handler for the happy-path tests — the assertions are at
     the protocol layer, not the handler. Returns spec-compliant empty
     payloads so the client's strict response validator passes."""
@@ -195,7 +195,7 @@ async def test_two_calls_share_server_assigned_context_id():
     assertion that calls[0] == calls[1] catches that regression."""
     observer = _Observer()
     wire_messages: list[dict[str, Any]] = []
-    async with _running_server(_EchoHandler(), observer) as base_url:
+    async with _running_server(_ContextIdEchoHandler(), observer) as base_url:
         config = AgentConfig(
             id="ctx-test-agent",
             agent_uri=base_url,
@@ -237,7 +237,7 @@ async def test_reset_context_produces_new_server_side_session():
     different server-side context than the one before. If reset were a
     no-op the two server-observed ids would match and this would fire."""
     observer = _Observer()
-    async with _running_server(_EchoHandler(), observer) as base_url:
+    async with _running_server(_ContextIdEchoHandler(), observer) as base_url:
         config = AgentConfig(
             id="ctx-test-agent",
             agent_uri=base_url,
@@ -262,7 +262,7 @@ async def test_seeded_context_id_reaches_server_on_first_call():
     state lands on the same server-side session."""
     seed = f"buyer-seeded-{uuid4()}"
     observer = _Observer()
-    async with _running_server(_EchoHandler(), observer) as base_url:
+    async with _running_server(_ContextIdEchoHandler(), observer) as base_url:
         config = AgentConfig(
             id="ctx-test-agent",
             agent_uri=base_url,
@@ -505,7 +505,7 @@ async def test_resume_across_simulated_restart_lands_on_same_session():
     with the persisted id, and its first call must carry that id so
     the server can reattach it to the original session."""
     observer = _Observer()
-    async with _running_server(_EchoHandler(), observer) as base_url:
+    async with _running_server(_ContextIdEchoHandler(), observer) as base_url:
         config = AgentConfig(
             id="ctx-test-agent",
             agent_uri=base_url,
