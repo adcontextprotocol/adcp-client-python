@@ -2483,10 +2483,7 @@ async def _project_handoff(
     # deliberately NOT on the wire — it lives on TaskRecord for
     # ``tasks/get`` reads only, since the Python method name leaking to
     # buyers would couple the wire to handler-internal naming.
-    return _FrameworkSubmittedProjection(
-        task_id=task_id,
-        status="submitted",
-    )
+    return _submitted_projection(task_id, method_name, handoff._expected_confirmation_at)
 
 
 #: Strong-ref the in-flight handoff tasks so the asyncio loop's
@@ -2606,10 +2603,33 @@ async def _project_workflow_handoff(
     # intentional. ``task_type`` lives on the registry row (for
     # ``tasks/get``), not on the wire envelope, per the same posture
     # as :func:`_project_handoff`.
-    return _FrameworkSubmittedProjection(
-        task_id=task_id,
-        status="submitted",
-    )
+    return _submitted_projection(task_id, method_name, handoff._expected_confirmation_at)
+
+
+def _submitted_projection(
+    task_id: str, method_name: str, expected_confirmation_at: str | None
+) -> _FrameworkSubmittedProjection:
+    """The wire Submitted envelope, with the AdCP 3.3 confirmation estimate.
+
+    The estimate is defined only on the tasks in
+    :data:`adcp.server.responses.EXPECTED_CONFIRMATION_TASKS`; on any other
+    task it is dropped with a warning rather than sent off-schema. The
+    dispatcher's version conversion drops it for older callers where the
+    spec requires.
+    """
+    from adcp.server.responses import EXPECTED_CONFIRMATION_TASKS
+
+    projection = _FrameworkSubmittedProjection(task_id=task_id, status="submitted")
+    if expected_confirmation_at is not None:
+        if method_name in EXPECTED_CONFIRMATION_TASKS:
+            projection["expected_confirmation_at"] = expected_confirmation_at
+        else:
+            logger.warning(
+                "expected_confirmation_at is not defined for %s; omitted from the "
+                "submitted envelope",
+                method_name,
+            )
+    return projection
 
 
 __all__ = [

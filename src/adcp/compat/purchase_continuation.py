@@ -250,6 +250,38 @@ class CompatibilityPurchaseOperation:
     reserved_result_bytes: int = 0
     result: JsonObject | None = None
 
+    @property
+    def expected_confirmation_at(self) -> datetime | None:
+        """The seller's confirmation estimate on a pending result (AdCP 3.3), if any."""
+        if self.state != CompatibilityOperationState.PENDING or self.result is None:
+            return None
+        from adcp.status_checks import expected_confirmation_at
+
+        return expected_confirmation_at(self.result)
+
+    def next_refresh_delay(
+        self,
+        *,
+        poll_interval: float,
+        max_interval: float,
+        now: datetime | None = None,
+    ) -> float:
+        """Seconds before calling ``refresh_pending_legacy_purchase`` again.
+
+        Scheduled from :attr:`expected_confirmation_at` when the seller sent
+        one, bounded by ``poll_interval`` (floor) and ``max_interval``
+        (ceiling); otherwise ``poll_interval``. The estimate is never a
+        failure deadline.
+        """
+        from adcp.status_checks import next_status_check_delay
+
+        return next_status_check_delay(
+            self.expected_confirmation_at,
+            poll_interval=poll_interval,
+            max_interval=max_interval,
+            now=now,
+        )
+
 
 @dataclass(frozen=True)
 class LegacyPurchaseExecution:

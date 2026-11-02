@@ -100,6 +100,10 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "validate_identifier",
         "validate_publisher_domain",
     ),
+    "adcp.status_checks": (
+        "expected_confirmation_at",
+        "next_status_check_delay",
+    ),
     "adcp.property_lists": (
         "MCPPropertyListFetcher",
         "ResolvedPropertyList",
@@ -1043,6 +1047,8 @@ __all__ = [
     "normalize_identifier",
     "validate_identifier",
     "validate_publisher_domain",
+    "expected_confirmation_at",
+    "next_status_check_delay",
     "MCPPropertyListFetcher",
     "ProductPropertyAssessment",
     "ProductPropertyPolicy",
@@ -2062,6 +2068,7 @@ if TYPE_CHECKING:
         ReportingResourceReader,
         ReportingTrustedOriginPolicy,
     )
+    from adcp.status_checks import expected_confirmation_at, next_status_check_delay
     from adcp.substitution import (
         MacroMapping,
         MacroMappingEntry,

@@ -325,15 +325,22 @@ class TaskHandoff(Generic[T]):
     where the work runs (in-process / framework-managed / adopter-owned).
     """
 
-    __slots__ = ("_fn",)
+    __slots__ = ("_fn", "_expected_confirmation_at")
 
-    def __init__(self, fn: Callable[[Any], Awaitable[T] | T]) -> None:
+    def __init__(
+        self,
+        fn: Callable[[Any], Awaitable[T] | T],
+        *,
+        expected_confirmation_at: str | None = None,
+    ) -> None:
         # ``fn`` is ``Callable[[TaskHandoffContext], Awaitable[T] | T]``
         # but TaskHandoffContext lives in dispatch.py to avoid a cycle.
         # The framework calls ``handoff._fn(task_ctx)`` at dispatch time;
         # adopters pass either a coroutine function or a sync callable
         # and the dispatcher detects via ``inspect.iscoroutine``.
         self._fn = fn
+        # RFC 3339 estimate projected onto the Submitted envelope (AdCP 3.3).
+        self._expected_confirmation_at = expected_confirmation_at
 
     def __repr__(self) -> str:
         return "TaskHandoff(<sealed>)"
@@ -421,9 +428,14 @@ class WorkflowHandoff:
     registry-side only.
     """
 
-    __slots__ = ("_fn",)
+    __slots__ = ("_fn", "_expected_confirmation_at")
 
-    def __init__(self, fn: Callable[[Any], Awaitable[None] | None]) -> None:
+    def __init__(
+        self,
+        fn: Callable[[Any], Awaitable[None] | None],
+        *,
+        expected_confirmation_at: str | None = None,
+    ) -> None:
         # ``fn`` is ``Callable[[TaskHandoffContext], Awaitable[None] |
         # None]`` — the framework calls it once synchronously (or
         # awaits it if a coroutine) at handoff time. Return value
@@ -431,6 +443,8 @@ class WorkflowHandoff:
         # ``registry.complete()`` later, NOT via fn return.
         # TaskHandoffContext lives in task_registry.py to avoid a cycle.
         self._fn = fn
+        # RFC 3339 estimate projected onto the Submitted envelope (AdCP 3.3).
+        self._expected_confirmation_at = expected_confirmation_at
 
     def __repr__(self) -> str:
         return "WorkflowHandoff(<sealed>)"
