@@ -854,6 +854,12 @@ class GrantAuthorization:
     include_grant_absent_details: bool = True
     outage_expires_at: float | None = None
     stale_on_outage: bool = False
+    #: How an authorized claim was established: ``"implicit"`` (the brand's or
+    #: its house's own agent), ``"trust"`` (a grant chain), ``"seller"`` (the
+    #: seller's discretion over an uncovered claim) or ``"legacy"`` (brand.json
+    #: ``authorized_operators`` before the house published a trust record).
+    #: ``None`` when not authorized.
+    source: Literal["implicit", "trust", "seller", "legacy"] | None = None
 
     def require(self) -> None:
         """Only call after signer establishment/registry authorization, avoiding an oracle."""
@@ -918,19 +924,36 @@ def _instant(value: str) -> float:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
-def _grant_matches(
+#: Candidate intermediary records fetched concurrently for one claim.
+_INTERMEDIARY_FETCH_CONCURRENCY = 8
+
+
+def _registrable_grantee(grant: Mapping[str, Any]) -> str | None:
+    """The grant's grantee when it is itself a registrable domain, else ``None``.
+
+    Compared exactly: a host grantee is never reduced to its eTLD+1.
+    """
+    grantee = grant["grantee"]
+    return grantee if isinstance(grantee, str) and _registrable(grantee) == grantee else None
+
+
+def _grant_matches(grant: Mapping[str, Any], *, grantee: str, **claim: Any) -> bool:
+    # ``grantee`` is a registrable domain; the grant's is compared exactly,
+    # never reduced (see TrustGrantEvaluator).
+    return grant["grantee"] == grantee and _grant_covers(grant, **claim)
+
+
+def _grant_covers(
     grant: Mapping[str, Any],
     *,
-    grantee: str,
     origin: str,
     scope: str,
     brand_id: str | None,
     countries: frozenset[str],
     now: float,
 ) -> bool:
-    # ``grantee`` is a registrable domain; the grant's is compared exactly,
-    # never reduced (see TrustGrantEvaluator).
-    if grant["grantee"] != grantee or not _scope_covers(grant["scopes"], scope):
+    """Every covering condition but the grantee: scope, agents, brands, countries, window."""
+    if not _scope_covers(grant["scopes"], scope):
         return False
     # agents[] narrows the link that reaches the signer: the signer's
     # canonical origin must be listed, or the chain ends at this link.
@@ -977,8 +1000,9 @@ class TrustGrantEvaluator:
       consulted.
     * Domains compare as registrable domains under the pinned PSL snapshot.
       Authority is implicit when ``account.operator`` and the signer's
-      operator share one with the brand's domain or with its house's: an
-      organization's own agents act for its child brands without a grant.
+      operator are each the brand's domain or its house's (in any
+      combination): an organization's own agents act for its child brands
+      without a grant.
       The house is the one ``resolve_house`` returns, so implicit authority
       and the authorizing record never disagree; a house the brand claims but
       that does not reciprocate is the resolver's ``None``, and its operator
@@ -989,18 +1013,24 @@ class TrustGrantEvaluator:
       a denial.
     * A grant's ``grantee`` must itself be a registrable domain. A grant
       whose grantee is not one (``ads.platform.com``, or a public suffix such
-      as ``github.io``) covers no claim, and its ``scopes`` still count for
-      ``exclusive_grants``.
-    * Otherwise a chain must reach the signer's operator with
-      ``account.operator`` on it: the house grants the signer's operator,
-      which is ``account.operator``; the brand is ``account.operator`` (a
-      self-operated brand) and its house grants the signer's operator; or the
-      house grants ``account.operator``, whose own record grants the signer's
-      operator. There is no third link.
+      as ``github.io``) covers no claim.
+    * Otherwise one delegation-chain rule applies (adcp#8473): at most two
+      grants lead from the house's record to the signer's operator, either
+      one grant to it, or one grant to an intermediary whose own record
+      grants it. ``account.operator`` must be on the chain: the brand, its
+      house, or the first grant's grantee. Every covering first grant is a
+      candidate; distinct intermediary records are read concurrently, and an
+      unreadable one is an outage only when no other chain authorizes. There
+      is no third link.
     * Every link must cover the scope, brand, countries and agent narrowing
       (a narrowed link that does not list the signer ends the chain), and the
       check time must fall inside every link's ``valid_from``/``valid_until``
       window, so effective authority is the intersection along the chain.
+    * With no covering chain, ``exclusive_grants: true`` on the house's
+      record makes ``grants[]`` the complete list, whatever the scope:
+      ``grant_absent``. Without it the claim is at ``seller_authorization``'s
+      discretion; a grant that does not cover the claim never narrows that
+      discretion, and no other record's flag counts.
     * A 200 from the house's trust.json makes it the only source of grants:
       ``legacy_authorization`` (brand.json ``authorized_operators``) runs only
       while the house has never published one. A record that cannot be read,
@@ -1038,6 +1068,7 @@ class TrustGrantEvaluator:
         legacy_fallback_allowed: bool = False,
         agent_origin: str | None = None,
         legacy_unpublished_domain: str | None = None,
+        source: Literal["implicit", "trust", "seller", "legacy"] | None = None,
     ) -> GrantAuthorization:
         if authorized:
             try:
@@ -1067,6 +1098,7 @@ class TrustGrantEvaluator:
                 else None
             ),
             stale_on_outage=any(record.stale_on_outage for record in records),
+            source=source if authorized else None,
         )
 
     def _outage_deadline(self, record: EvaluatedTrustRecord) -> float:
@@ -1128,7 +1160,9 @@ class TrustGrantEvaluator:
                 return listing
             signer_record = listing
             if signer_operator == brand_operator == operator:
-                return await self._authorization(True, [signer_record], agent_origin=origin)
+                return await self._authorization(
+                    True, [signer_record], agent_origin=origin, source="implicit"
+                )
         house = brand_domain
         # Implicit authority on the brand's own domain never depends on its
         # house, so an RFC 9421 brand-implicit claim keeps reading the
@@ -1148,10 +1182,13 @@ class TrustGrantEvaluator:
         house_operator = _registrable(house)
         if house_operator is None:
             return _unlisted("grant_absent")
-        if signer_record is not None and signer_operator == operator == house_operator:
-            # The house operates its own child brand: implicit, and the
-            # signer's record is the house's record.
-            return await self._authorization(True, [signer_record], agent_origin=origin)
+        # account.operator and the signer's operator are each the brand or its
+        # house: implicit. The signer's record, already matched, lists the agent.
+        own = {brand_operator, house_operator}
+        if signer_record is not None and signer_operator in own and operator in own:
+            return await self._authorization(
+                True, [signer_record], agent_origin=origin, source="implicit"
+            )
         try:
             brand_record = await self.records.evaluate(house, allow_stale_on_outage=non_spend)
         except TrustRecordAbsentError:
@@ -1167,12 +1204,14 @@ class TrustGrantEvaluator:
                         legacy_fallback_allowed=True,
                         agent_origin=origin,
                         legacy_unpublished_domain=house,
+                        source="legacy",
                     )
                 return await self._authorization(
                     authorized,
                     [],
                     legacy_fallback_allowed=True,
                     legacy_unpublished_domain=house,
+                    source="legacy",
                 )
             return GrantAuthorization(False, "trust_record_absent", legacy_fallback_allowed=True)
         except TrustRecordError:
@@ -1187,8 +1226,10 @@ class TrustGrantEvaluator:
             if isinstance(listing, GrantAuthorization):
                 return listing
             signer_record = listing
-            if signer_operator == operator and operator in {brand_operator, house_operator}:
-                return await self._authorization(True, [signer_record], agent_origin=origin)
+            if signer_operator in own and operator in own:
+                return await self._authorization(
+                    True, [signer_record], agent_origin=origin, source="implicit"
+                )
         args: dict[str, Any] = {
             "origin": origin,
             "scope": scope,
@@ -1197,52 +1238,95 @@ class TrustGrantEvaluator:
             "now": self._clock(),
         }
         grants = brand_record.document.get("grants", [])
+
+        def first_links() -> dict[str, list[Mapping[str, Any]]]:
+            """The house's covering grants that can start a chain, by grantee.
+
+            account.operator must be on the chain: the brand, its house, or
+            the first grant's grantee.
+            """
+            firsts: dict[str, list[Mapping[str, Any]]] = {}
+            for grant in grants:
+                grantee = _registrable_grantee(grant)
+                if grantee is None or (operator not in own and operator != grantee):
+                    continue
+                if _grant_covers(grant, **args):
+                    firsts.setdefault(grantee, []).append(grant)
+            return firsts
+
+        # The one delegation-chain rule (L2 Grants in trust records): at most
+        # two grants from the house's record to the signer's operator, every
+        # grant covering the claim. There is no third link.
+        firsts = first_links()
         links: list[list[Mapping[str, Any]]] = []
         used_records = [signer_record, brand_record]
-        if operator in {signer_operator, brand_operator}:
-            # The house grants the signer's operator, which is account.operator;
-            # or a self-operated brand (it is account.operator) whose house
-            # grants the signer's operator directly.
-            links = [[g for g in grants if _grant_matches(g, grantee=signer_operator, **args)]]
-        else:
-            first = [g for g in grants if _grant_matches(g, grantee=operator, **args)]
-            if first:
-                try:
-                    intermediary: EvaluatedTrustRecord | None = await self.records.evaluate(
-                        operator, allow_stale_on_outage=non_spend
-                    )
-                except TrustRecordAbsentError:
-                    # The intermediary publishes no record: no second link.
-                    intermediary = None
-                except TrustRecordError:
-                    return _unavailable("trust_record_unavailable")
-                second: list[Mapping[str, Any]] = []
-                if intermediary is not None:
+        outage = False
+        if signer_operator in firsts:
+            links = [firsts[signer_operator]]
+        elif firsts:
+            intermediaries = list(firsts)
+            semaphore = asyncio.Semaphore(_INTERMEDIARY_FETCH_CONCURRENCY)
+
+            async def read(domain: str) -> EvaluatedTrustRecord | TrustRecordError | None:
+                async with semaphore:
+                    try:
+                        return await self.records.evaluate(domain, allow_stale_on_outage=non_spend)
+                    except TrustRecordAbsentError:
+                        # The intermediary publishes no record: no second link.
+                        return None
+                    except TrustRecordError as exc:
+                        return exc
+
+            # Each distinct intermediary record is read once, a bounded number
+            # at a time, so N candidate chains cost about N / concurrency
+            # fetch timeouts rather than N.
+            fetched = await asyncio.gather(*(read(domain) for domain in intermediaries))
+            # Fetching may outlive an earlier grant: evaluate every link at the
+            # decision time.
+            args["now"] = self._clock()
+            firsts = first_links()
+            readable: list[EvaluatedTrustRecord] = []
+            for domain, intermediary in zip(intermediaries, fetched):
+                if isinstance(intermediary, TrustRecordError):
+                    # Another chain may still authorize; an unreadable link is
+                    # an outage only if none does.
+                    outage = True
+                    continue
+                if intermediary is None:
+                    continue
+                readable.append(intermediary)
+                second = [
+                    g
+                    for g in intermediary.document.get("grants", [])
+                    if _grant_matches(g, grantee=signer_operator, **args)
+                ]
+                if firsts.get(domain) and second:
+                    links = [firsts[domain], second]
                     used_records.append(intermediary)
-                    # Fetching the intermediary may outlive an earlier grant.
-                    # Evaluate both links at the decision time.
-                    args["now"] = self._clock()
-                    first = [g for g in first if _grant_matches(g, grantee=operator, **args)]
-                    second = [
-                        g
-                        for g in intermediary.document.get("grants", [])
-                        if _grant_matches(g, grantee=signer_operator, **args)
-                    ]
-                links = [first, second]
+                    break
+            if not links:
+                # A seller decision relies on every record read finding no chain.
+                used_records.extend(readable)
         if any(record.expires_at <= self._clock() for record in used_records):
             return _unavailable("trust_record_unavailable")
-        if not links or any(not link for link in links):
-            exhaustive = brand_record.document.get("exclusive_grants", False) and any(
-                _scope_covers(grant["scopes"], scope) for grant in grants
-            )
-            if not exhaustive and self._seller_authorization is not None:
+        if not links:
+            if outage:
+                return _unavailable("trust_record_unavailable")
+            # L2 Absence: exclusive_grants on the house's record makes grants[]
+            # the complete list, whatever the scope. Without it an uncovered
+            # claim is at the seller's discretion, and a grant that does not
+            # cover the claim never narrows that discretion.
+            exclusive = brand_record.document.get("exclusive_grants") is True
+            if not exclusive and self._seller_authorization is not None:
                 authorized = bool(await self._seller_authorization(request))
                 # Seller discretion cannot outlive the records it relied on.
                 if any(record.expires_at <= self._clock() for record in used_records):
                     return _unavailable("trust_record_unavailable")
-                return await self._authorization(authorized, used_records, agent_origin=origin)
+                return await self._authorization(
+                    authorized, used_records, agent_origin=origin, source="seller"
+                )
             return GrantAuthorization(False, "grant_absent")
-        # Every surviving grant covers the requested dimensions. The best path
+        # Every surviving grant covers the requested dimensions. The chain
         # expires at the minimum over links of each link's latest valid_until.
         # Avoid materializing the cartesian product of untrusted grant arrays.
         grant_expiry = min(
@@ -1254,7 +1338,7 @@ class TrustGrantEvaluator:
         if any(record.expires_at <= self._clock() for record in used_records):
             return _unavailable("trust_record_unavailable")
         return await self._authorization(
-            True, used_records, grant_expiry=grant_expiry, agent_origin=origin
+            True, used_records, grant_expiry=grant_expiry, agent_origin=origin, source="trust"
         )
 
 

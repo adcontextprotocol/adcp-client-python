@@ -1677,14 +1677,15 @@ async def test_an_operator_outside_the_brand_and_its_house_still_needs_a_grant()
     ).check(agent_origin=HOUSE_AGENT, brand_domain="novamotors.com", account_operator="agency.com")
     assert not other_account.authorized and other_account.reason == "grant_absent"
 
-    # The house's agent under its self-operated child brand's account is not
-    # implicit: account.operator is the brand, not the signer's operator.
+    # The house's agent under its self-operated child brand's account is
+    # implicit (adcp#8473): account.operator and the signer's operator are
+    # each the brand or its house.
     self_operated = await TrustGrantEvaluator(
         _grant_records(_house_documents()), resolve_house=_mutual_assertion_house
     ).check(
         agent_origin=HOUSE_AGENT, brand_domain="novamotors.com", account_operator="novamotors.com"
     )
-    assert not self_operated.authorized and self_operated.reason == "grant_absent"
+    assert self_operated.authorized and self_operated.source == "implicit"
 
     granted = await TrustGrantEvaluator(
         _grant_records(
