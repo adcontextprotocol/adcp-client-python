@@ -61,6 +61,15 @@ _INTERIM_EXT_FIELDS = frozenset({"age_determination_bases"})
 #: the object unrepresentable rather than shorter. A price breakdown without
 #: its ``operator_fee`` rows would no longer walk list_price to fixed_price.
 _WHOLE_OBJECTS = frozenset({"Price Breakdown"})
+#: AdCP 3.3 ``pixel_tracker`` playback events. ``event`` is required, so an
+#: older release whose enum lacks one cannot drop it; the 3.2 interim form is
+#: ``event: custom`` with ``custom_event_name`` set to the 3.3 value (the 3.3
+#: migration guide lets an SDK rewrite it). Never ``impression``: a quartile URL
+#: fired at impression time counts every impression as a quartile view. Mirrors
+#: ``adcp.canonical_formats.pixel_tracker._PLAYBACK_EVENTS`` (the 3.0 drop).
+_PLAYBACK_PIXEL_EVENTS = frozenset(
+    {"start", "first_quartile", "midpoint", "third_quartile", "complete"}
+)
 
 
 @dataclass(frozen=True)
@@ -457,6 +466,31 @@ def _parent_pointer(pointer: str) -> str:
     return pointer.rsplit("/", 1)[0]
 
 
+def _playback_tracker_as_custom(
+    value: dict[str, Any], target: dict[str, Any], target_root: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The 3.2 interim spelling of a 3.3 playback ``pixel_tracker``, or ``None``.
+
+    Applies only where the target's ``event`` enum lacks the value and has
+    ``custom``. A tracker that already carries ``custom_event_name`` arrived
+    invalid (3.3 forbids it outside ``custom``) and is left as it is.
+    """
+    event = value.get("event")
+    if (
+        value.get("asset_type") != "pixel_tracker"
+        or event not in _PLAYBACK_PIXEL_EVENTS
+        or "custom_event_name" in value
+    ):
+        return None
+    target_event = _property(target, "event")
+    if target_event is None:
+        return None
+    allowed = _view(target_event, event, target_root).get("enum", ())
+    if event in allowed or "custom" not in allowed:
+        return None
+    return {**value, "event": "custom", "custom_event_name": event}
+
+
 def _project(
     value: Any,
     source: Any,
@@ -519,6 +553,17 @@ def _project(
                 value = {key: child for key, child in value.items() if key != "country"}
                 value["system"] = next(iter(aliases))
                 source = _view(source, value, source_root)
+        rewritten = _playback_tracker_as_custom(value, target, target_root)
+        if rewritten is not None:
+            losses.append(
+                ConversionLoss(
+                    _pointer(path, "event"),
+                    source_version,
+                    target_version,
+                    "playback_event_as_custom",
+                )
+            )
+            value = rewritten
         projected = {}
         interim: dict[str, Any] = {}
         for key, child in value.items():
