@@ -704,6 +704,15 @@ class MySeller(ADCPHandler):
         return capabilities_response(["media_buy"], idempotency=idempotency.capability())
 ```
 
+A wrapped method may hand off: a `TaskHandoff` or `WorkflowHandoff`
+(`ctx.handoff_to_task(...)` / `ctx.handoff_to_workflow(...)`) is returned to
+the dispatcher uncached, because it is a control marker rather than a
+response. Nothing is stored for that key, so a retry with the same
+`idempotency_key` runs the method again; make the work the handoff enqueues
+deduplicate on the key. To keep other results out of the replay cache, pass a
+predicate: `@idempotency.wrap(cache_response=lambda result: ...)` caches a
+result only when it returns `True`.
+
 For production, swap `MemoryBackend()` for `PgBackend` (note the
 import path — `PgBackend` lives in `adcp.server.idempotency`, not the
 top-level `adcp.server`):
@@ -791,6 +800,33 @@ except ADCPTaskError as exc:
 
 Custom error codes (outside `STANDARD_ERROR_CODES`) default to
 `recovery="terminal"`. Override with `adcp_error("MY_CODE", recovery="correctable")`.
+
+### Rejecting a request with every problem
+
+A `DecisioningPlatform` method that validates a whole request raises one
+`AdcpError` carrying every problem, so the buyer fixes the request in one
+pass. `AdcpError.from_errors` puts the first entry in the envelope
+`adcp_error` and all of them in the payload `errors[]`, on MCP and A2A:
+
+```python
+from adcp.decisioning import AdcpError
+
+problems = []
+if package_budget < floor:
+    problems.append(AdcpError("BUDGET_TOO_LOW", message="budget below minimum",
+                              recovery="correctable", field="packages[0].budget"))
+if end_time <= start_time:
+    problems.append(AdcpError("INVALID_REQUEST", message="end_time before start_time",
+                              recovery="correctable", field="end_time"))
+if problems:
+    raise AdcpError.from_errors(problems)
+```
+
+Entries may also be generated `Error` models or wire mappings; one without
+`recovery` takes the raised error's. To keep a summary envelope instead, pass
+the list as `AdcpError("INVALID_REQUEST", message="2 problems", errors=problems)`.
+A list in `details["errors"]` whose entries carry a string `code` and
+`message` is lifted into `errors[]` too.
 
 ## Response builders
 

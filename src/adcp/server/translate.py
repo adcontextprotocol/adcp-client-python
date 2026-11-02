@@ -167,7 +167,7 @@ def _extract_structured_fields(
         suggestion = decisioning_exc.suggestion
         recovery = decisioning_exc.recovery
         details = decisioning_exc.details or None
-        errors = None
+        errors = decisioning_exc.errors_to_wire() if decisioning_exc.errors else None
         field = decisioning_exc.field
     elif isinstance(exc, ADCPError):
         code = _error_code_for_exception(exc)
@@ -192,6 +192,17 @@ def _extract_structured_fields(
     return code, message, recovery, field, suggestion, details, errors
 
 
+def _payload_errors(exc: Any, adcp_error: dict[str, Any]) -> list[dict[str, Any]]:
+    """The payload ``errors[]`` for a fatal failure.
+
+    Every error a raised decisioning ``AdcpError`` carries (see its
+    ``errors`` parameter), else a copy of the envelope ``adcp_error``.
+    """
+    if isinstance(exc, _get_decisioning_adcp_error_types()) and cast(Any, exc).errors:
+        return cast("list[dict[str, Any]]", cast(Any, exc).errors_to_wire())
+    return [dict(adcp_error)]
+
+
 def build_mcp_error_result(
     exc: ADCPError | Error | Any,
     *,
@@ -208,7 +219,8 @@ def build_mcp_error_result(
     same envelope — the transport-errors.mdx §MCP Binding ``adcp_error``
     plus the payload ``errors[]`` that L3 error handling says a fatal
     failure SHOULD also carry (storyboards read both ``/adcp_error/code``
-    and ``errors[0].field``).
+    and ``errors[0].field``). A decisioning ``AdcpError`` raised with
+    several ``errors`` puts all of them in ``errors[]``.
 
     The text fallback in ``content[]`` preserves human-readable display
     for clients that do not consume ``structuredContent`` (LLM tool-use
@@ -263,7 +275,10 @@ def build_mcp_error_result(
 
     # A fatal failure populates both layers (L3 error handling): the payload
     # carries the protocol-neutral ``errors[]`` and the envelope ``adcp_error``.
-    structured: dict[str, Any] = {"adcp_error": adcp_error, "errors": [dict(adcp_error)]}
+    structured: dict[str, Any] = {
+        "adcp_error": adcp_error,
+        "errors": _payload_errors(exc, adcp_error),
+    }
     if params is not None:
         inject_context(params, structured)
 

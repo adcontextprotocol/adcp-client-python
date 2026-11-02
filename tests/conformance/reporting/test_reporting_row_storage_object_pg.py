@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -442,13 +443,18 @@ async def test_the_producer_stages_object_uploads_outside_its_publication_transa
     from tests.test_reporting_settling import _capabilities, _harness, _revisions
 
     async with isolated_reporting_pool() as pool:
-        producer, store, _, _ = await _harness(
+        producer, store, _, clock = await _harness(
             _capabilities(restatement_window="P3D"),
             store_factory=lambda clock: PgReportingLedgerStore(
                 pool=pool, clock=clock, row_storage=options(tmp_path)
             ),
         )
         assert isinstance(producer, ReportingProducer)
+        # The row upload checks the worker lease against the database's
+        # clock_timestamp(), so the lease the injected clock stamps must lie in
+        # the real future: run the turn at the wall clock, not the harness's
+        # fixed instant, which is already in the past.
+        clock[0] = datetime.now(timezone.utc)
         turn = await producer.run_worker()
         assert turn.revisions_committed
         (revision,) = await _revisions(store)
