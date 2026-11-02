@@ -53,3 +53,24 @@ the SDK-relevant inventory is [docs/adcp-3.3-sdk-inventory.md](docs/adcp-3.3-sdk
 | Generated enums name each value once | The `_1` alias members codegen emitted when an `anyOf` arm repeated an enum value (`System.zip_1`, `Field17.ad_request_url_1`, 19 enums on 10.0.0b4) are gone; each value has one member, the first-declared one. Code that referenced an alias name (`System.zip_1`) must use the real member (`System.zip`); `System("zip")` and `member.value` are unchanged. |
 | `list_account_changes` pages are checked and projected per caller | AdCP 3.3 requires non-empty `changed_paths` on every `adcp` / `seller_operator` change record (`[""]` for a whole-resource create, delete or purge) and lets the originating request's `idempotency_key` reach only the principal that sent it. A handler on 3.3 or later that returns such a record without `changed_paths` now fails the call with `VALIDATION_ERROR` (`field` `/changes/N/changed_paths`), whatever the validation mode; and every record loses `idempotency_key` unless it is an `adcp` record built with `adcp.account_change_feed.attribute_account_change(record, originator)` whose originator is the caller (`ToolContext.tenant_id` + `caller_identity`). Persist the originator when the mutation commits and attribute records when serving the page. `WebhookSender.prepare_account_change_recorded` / `send_account_change_recorded` also accept the change record itself (with `subscriber_id=`), refuse one without `changed_paths`, and never carry its `idempotency_key`. |
 | `get_adcp_capabilities` reports `adcp.implementation` | `serve()` (and `adcp.decisioning.serve()`) now adds AdCP 3.3 `adcp.implementation.sdks[]` to capabilities served at 3.3 or later: one entry `{"name": "adcp", "version": <installed adcp version>, "components": [...]}`, listing only components the server provably wires agent-wide (`transport` always; `types` for Decisioning platforms; `schema_validation` with strict request and response validation and no `2.5` in `supported_versions`; `authentication` with `auth=BearerTokenAuth(...)` and no widened discovery set; `idempotency` when every advertised mutating task is `@IdempotencyStore.wrap`ped; `webhooks` / `signing` only when the SDK owns and signs every outbound webhook; `lifecycle` never automatically). A 3.0 to 3.2 caller never sees it. Tests that compare a whole 3.3 capabilities response need the new key. Opt out with `serve(report_implementation=False)` (or `ServeConfig(report_implementation=False)`); add components or other SDKs with `ImplementationReport(extra_components=[...], extra_sdks=[...])`; or declare the block yourself (`Adcp(implementation=...)` on `DecisioningCapabilities`, `capabilities_response(implementation=...)`, or in your own handler's response), which the SDK never overwrites. `adcp.server.adcp_sdk_entry()` builds this SDK's entry for a hand-written block. `DecisioningCapabilities.adcp.implementation` was previously dropped from the projection; it is now emitted. |
+
+## Reporting storage contract (adcp-reporting-storage)
+
+adcp 10.0.0b4 widened the reporting ledger's generation key with `offering_id`
+(AdCP 3.3 reporting subscriptions). The layout `adcp` and
+`adcp-reporting-storage` share is now named by one integer on each side,
+`adcp.reporting.ledger.storage_contract.REPORTING_STORAGE_CONTRACT` and
+`adcp_reporting_storage.STORAGE_CONTRACT` (2 for SDK 10; SDK 9 and
+adcp 10.0.0b0–b3 are 1):
+
+- `adcp-reporting-storage` 0.2.0b1 requires `adcp>=10.0.0b4,<11`; the
+  0.2.0b0 / 0.1.0b4 releases do not work with 10.0.0b4 or later
+  ([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)).
+- Startup (`ReliableReportingService`, `postgres_storage`) refuses a pair whose
+  contracts differ with `REPORTING_SCHEMA_BEHIND`, naming both versions and
+  the release to install.
+- An existing SDK 9 ledger is upgraded in place by `create_schema()` or
+  `python -m adcp migrate`: `offering_id` is added with `''` for every
+  existing account-level generation, obligation and status, and the applied
+  schema versions are recorded. Stop every SDK 9 reporting worker first; see
+  [docs/reporting-ledger-migration.md](docs/reporting-ledger-migration.md).
