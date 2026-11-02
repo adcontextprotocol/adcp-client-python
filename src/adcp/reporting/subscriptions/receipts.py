@@ -30,9 +30,13 @@ again.
 
 ``mode="off"`` (the default) submits nothing; billing periods then show
 ``receipt: {"status": "owed_by_buyer"}`` and ``responsible_party: "buyer"``,
-and the client logs a warning once. Adjustments are offered to
+and the client logs a warning once. A period whose current revision the buyer
+rejected reads ``receipt: {"status": "rejected_by_buyer"}`` and
+``responsible_party: "seller"``, which corrects and re-delivers it. Adjustments are offered to
 ``adjustments(adjustment)``; the default defers, and billing never
-auto-accepts. Accepting an adjustment needs its raw evidence, so it stays on
+auto-accepts. Each adjustment without an adjustment receipt is offered, also
+on a revision already receipted (an adjustment corrects a receipted revision).
+Accepting an adjustment needs its raw evidence, so it stays on
 :meth:`ReportingClient.submit_receipts`.
 """
 
@@ -183,6 +187,7 @@ async def apply_receipt_policy(
     commit = policy.commit
     assert commit is not None
     _leaves, _complete, index = _validate_read_ledger(ledger)
+    answered = {item.reporting_adjustment_id for item in ledger.adjustment_receipts}
     outgoing: list[Any] = []
     for obligation in ledger.obligations:
         if _enum(obligation.reconciliation_mode) != "consumer_receipt":
@@ -190,6 +195,22 @@ async def apply_receipt_policy(
         revision, materialization, reasons = index.selections[obligation.reporting_obligation_id]
         if revision is None or materialization is None or reasons:
             continue
+        # An adjustment corrects a revision after the buyer receipted it, so the
+        # pending ones (no adjustment receipt yet) are offered whether or not the
+        # revision itself still needs a receipt.
+        for adjustment in index.adjustments_by_revision.get(revision.reporting_revision_id, []):
+            if adjustment.reporting_adjustment_id in answered:
+                continue
+            decision = "defer"
+            if policy.adjustments is not None:
+                decision = str(await _resolve(policy.adjustments(adjustment)))
+            if decision != "defer":
+                logger.warning(
+                    "adjustment %s: only 'defer' is applied by the receipts policy; accept or "
+                    "reject it with client.reporting.submit_receipts",
+                    adjustment.reporting_adjustment_id,
+                )
+            report.adjustments_deferred.append(adjustment.reporting_adjustment_id)
         if any(_receipt_matches(item, revision, materialization) for item in ledger.receipts):
             continue
         if any(
@@ -201,17 +222,6 @@ async def apply_receipt_policy(
             # Already receipted, rejected included: a refusal is stated once per
             # materialization, never re-sent on every run.
             continue
-        for adjustment in index.adjustments_by_revision.get(revision.reporting_revision_id, []):
-            decision = "defer"
-            if policy.adjustments is not None:
-                decision = str(await _resolve(policy.adjustments(adjustment)))
-            if decision != "defer":
-                logger.warning(
-                    "adjustment %s: only 'defer' is applied by the receipts policy; accept or "
-                    "reject it with client.reporting.submit_receipts",
-                    adjustment.reporting_adjustment_id,
-                )
-            report.adjustments_deferred.append(adjustment.reporting_adjustment_id)
         context = ReportingInspectionContext(obligation, revision, materialization)
         try:
             observation = await inspect(context)

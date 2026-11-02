@@ -605,7 +605,10 @@ class _Obligation:
     obligation_id: str
     revision_id: str | None
     finality: str | None
-    receipt_owed: bool
+    #: ``owed_by_buyer`` until the buyer states anything about the current
+    #: revision, ``rejected_by_buyer`` once it rejected it, ``None`` when accepted
+    #: or not a billing (``consumer_receipt``) obligation.
+    receipt: str | None
 
 
 async def _obligations(
@@ -646,9 +649,34 @@ async def _obligations(
             obligation.reporting_obligation_id,
             None if revision is None else revision.reporting_revision_id,
             finality,
-            bool(outcome and "MISSING_MATCHING_CONSUMER_RECEIPT" in outcome.reasons),
+            _receipt_state(
+                obligation.reporting_obligation_id,
+                None if revision is None else revision.reporting_revision_id,
+                bool(outcome and "MISSING_MATCHING_CONSUMER_RECEIPT" in outcome.reasons),
+                ledger.receipts,
+            ),
         )
     return index, ledger._read_fingerprint is not None, ledger
+
+
+def _receipt_state(
+    obligation_id: str, revision_id: str | None, missing: bool, receipts: Iterable[Any]
+) -> str | None:
+    """Where a delivered billing revision's receipt stands, as in the TS SDK.
+
+    Only an accepted receipt clears ``MISSING_MATCHING_CONSUMER_RECEIPT``. A
+    rejected one is final (the receipts policy never resends it), so the
+    period is the seller's to correct and re-deliver, not the buyer's.
+    """
+    if not missing:
+        return None
+    rejected = any(
+        item.reporting_obligation_id == obligation_id
+        and item.reporting_revision_id == revision_id
+        and str(getattr(item.status, "value", item.status)) == "rejected"
+        for item in receipts
+    )
+    return "rejected_by_buyer" if rejected else "owed_by_buyer"
 
 
 def _line(
@@ -679,9 +707,13 @@ def _line(
         )
     ):
         status = "delivered"
-        if obligation.receipt_owed:
+        if obligation.receipt == "owed_by_buyer":
             responsible = "buyer"
             receipt = {"status": "owed_by_buyer"}
+        elif obligation.receipt == "rejected_by_buyer":
+            # The buyer rejected the current revision: the seller corrects it.
+            responsible = "seller"
+            receipt = {"status": "rejected_by_buyer"}
     elif period.withheld or trace_reason == "owed:withheld":
         # Withheld while authority is lost: never missing or late.
         status = "withheld"

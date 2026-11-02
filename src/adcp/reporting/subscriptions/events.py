@@ -519,6 +519,8 @@ class ReportingEvents:
         previous, revision = (None, None) if loaded is None else loaded
         if previous is not None and previous.get("snapshot_version") != SNAPSHOT_VERSION:
             previous = None
+        if previous is not None:
+            _remember_authorizations(previous, current)
         if not report.definitive and previous is not None:
             # Never treat an unread account as a change: keep the previous view of
             # what this run could not read.
@@ -596,6 +598,22 @@ class ReportingEvents:
             self._doorbell.set()
             return None
         return await self.poll()
+
+
+def _remember_authorizations(previous: Mapping[str, Any], current: dict[str, Any]) -> None:
+    """Keep the last authorization of an account that is unauthorized now.
+
+    An unauthorized account is missing from ``list_accounts``, so the
+    snapshot taken during the loss would have no authorization for it, and
+    a re-grant would always read ``chain: "new"``, even one within
+    retention that keeps ``authorized_at``. The TS SDK does the same.
+    """
+    known = previous.get("authorizations") or {}
+    authorizations = dict(current.get("authorizations") or {})
+    for account_id in current.get("unauthorized") or {}:
+        if account_id not in authorizations and account_id in known:
+            authorizations[account_id] = known[account_id]
+    current["authorizations"] = authorizations
 
 
 def _merge_partial(

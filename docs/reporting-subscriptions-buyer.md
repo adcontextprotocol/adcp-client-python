@@ -66,7 +66,7 @@ Each owed period that has ended becomes a `PeriodLine`, with wire-style keys and
 
 | `status` | Meaning | `responsible_party` |
 |---|---|---|
-| `delivered` | a current revision meets the selector's `required_finality` | `none`, or `buyer` when a billing receipt is owed (`receipt.status: owed_by_buyer`) |
+| `delivered` | a current revision meets the selector's `required_finality` | `none`; `buyer` when a billing receipt is owed (`receipt.status: owed_by_buyer`); `seller` once you rejected the revision (`receipt.status: rejected_by_buyer`: the seller corrects and re-delivers) |
 | `pending` | not yet due: within `grace` of the period end, or of `expected_at` | `none` |
 | `late` | an obligation exists, but its revision is more than `grace` past `expected_at` | `seller` |
 | `missing_obligation` | no obligation `grace` after the period ended | `seller` |
@@ -152,6 +152,7 @@ With `mode="verified"`, the SDK handles each `consumer_receipt` obligation whose
 
 Other rules:
 - **Mode off.** Billing periods read `receipt: {"status": "owed_by_buyer"}` and `responsible_party: "buyer"`, and the client logs a warning once.
-- **Adjustments.** They are offered to `adjustments(adjustment)` and deferred by default. Billing never auto-accepts. Accept or reject an adjustment with its raw evidence through `client.reporting.submit_receipts(account_id, adjustment_receipts=[...])`, the typed manual path over `sync_reporting_receipts`.
+- **Rejected.** A period whose current revision you rejected reads `receipt: {"status": "rejected_by_buyer"}` and `responsible_party: "seller"`: the rejection is final for that materialization, and the seller corrects and re-delivers.
+- **Adjustments.** Each adjustment without an adjustment receipt is offered to `adjustments(adjustment)`, also on a revision already receipted, and deferred by default. Billing never auto-accepts. Accept or reject an adjustment with its raw evidence through `client.reporting.submit_receipts(account_id, adjustment_receipts=[...])`, the typed manual path over `sync_reporting_receipts`.
 - **Once per materialization.** Receipt ids are stable per obligation, revision and materialization. A materialization already receipted, accepted or rejected, is not receipted again.
 - **Ownership.** Receipts are submitted under the principal that owns the subscription: the client you call `reconcile` on.
