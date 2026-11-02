@@ -3344,6 +3344,58 @@ def _apply_unknown_field_policy(
     )
 
 
+def _requires_changed_paths(application_version: str | None) -> bool:
+    """Whether the handler's release requires ``changed_paths`` (AdCP 3.3 and later)."""
+    from adcp._version import normalize_to_release_precision
+
+    if application_version is None:
+        return True
+    try:
+        release = normalize_to_release_precision(application_version)
+        major, minor = release.split("-", 1)[0].split(".")[:2]
+        return (int(major), int(minor)) >= (3, 3)
+    except (TypeError, ValueError):
+        return True
+
+
+def _project_account_change_feed(
+    result: Any, ctx: ToolContext, application_version: str | None
+) -> Any:
+    """Project a ``list_account_changes`` page for the caller (#1647).
+
+    Records lose ``idempotency_key`` unless the caller originated them, and a
+    page carrying an ``adcp`` / ``seller_operator`` record without
+    ``changed_paths`` is refused rather than served.
+    """
+    from adcp.account_change_feed import (
+        AccountChangeRecordError,
+        project_list_account_changes_response,
+    )
+
+    try:
+        return project_list_account_changes_response(
+            result,
+            reader=ctx,
+            require_changed_paths=_requires_changed_paths(application_version),
+        )
+    except AccountChangeRecordError as exc:
+        from adcp.exceptions import ADCPTaskError
+        from adcp.types import Error
+
+        logger.error("list_account_changes handler returned a non-conformant record: %s", exc)
+        raise ADCPTaskError(
+            operation="list_account_changes",
+            errors=[
+                Error(
+                    code="VALIDATION_ERROR",
+                    field=exc.pointer or None,
+                    message=f"list_account_changes response failed validation: {exc}",
+                    details={"tool": "list_account_changes", "side": "response"},
+                )
+            ],
+        ) from exc
+
+
 def _creative_capabilities_for_handler(handler: Any) -> Any:
     """Return deterministic server-owned creative capability evidence.
 
@@ -4105,6 +4157,8 @@ def create_tool_caller(
                     ],
                 ) from exc
         result = await method(call_params, ctx)
+        if method_name == "list_account_changes":
+            result = _project_account_change_feed(result, ctx, application_version)
         if method_name == "get_adcp_capabilities":
             if isinstance(result, dict):
                 from adcp.canonical_formats.dialect import canonical_creatives_capability

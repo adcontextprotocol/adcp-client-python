@@ -1059,12 +1059,58 @@ class WebhookSender:
         payload: Mapping[str, Any] | BaseModel,
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
+        subscriber_id: str | None = None,
+        through_cursor: str | None = None,
     ) -> PreparedWebhook:
         """Prepare a schema-validated ``account.change_recorded`` notification.
 
-        Supply the wire fields as a mapping or a Pydantic model. The type,
-        fire timestamp and delivery key are filled when absent.
+        ``payload`` is either the notification's wire fields (a mapping or a
+        Pydantic model) or the :class:`~adcp.types.domains.core.account_change.AccountChange`
+        record it announces. The type, fire timestamp and delivery key are
+        filled when absent.
+
+        From a record, the body is built by
+        :func:`adcp.account_change_feed.account_change_recorded_payload`:
+        ``subscriber_id`` is required and ``through_cursor`` optional, a record
+        that breaks the change-feed rules (an ``adcp`` / ``seller_operator``
+        origin without ``changed_paths``) raises
+        :class:`~adcp.account_change_feed.AccountChangeRecordError`, and the
+        record's ``idempotency_key`` is never carried: the delivery key is
+        ``idempotency_key`` when given, else freshly minted, and may not equal
+        the originating request's key. Notification bodies are passed through;
+        their ``idempotency_key`` is the delivery key, so never copy a record's
+        key into one.
         """
+        from adcp.account_change_feed import (
+            account_change_recorded_payload,
+            is_account_change_record,
+        )
+
+        if is_account_change_record(payload):
+            if not subscriber_id:
+                raise ValueError(
+                    "preparing account.change_recorded from a change record needs subscriber_id"
+                )
+            source_key = (
+                payload.get("idempotency_key")
+                if isinstance(payload, Mapping)
+                else getattr(payload, "idempotency_key", None)
+            )
+            if source_key is not None and idempotency_key == source_key:
+                raise ValueError(
+                    "account.change_recorded delivery idempotency_key must not reuse the "
+                    "originating request's idempotency_key"
+                )
+            payload = account_change_recorded_payload(
+                payload,  # type: ignore[arg-type]
+                subscriber_id=subscriber_id,
+                through_cursor=through_cursor,
+            )
+        elif subscriber_id is not None or through_cursor is not None:
+            raise ValueError(
+                "subscriber_id and through_cursor apply only when payload is a change record; "
+                "set them in the notification payload"
+            )
         return WebhookSender._prepare_notification(
             url=url,
             notification_type="account.change_recorded",
@@ -1080,14 +1126,22 @@ class WebhookSender:
         payload: Mapping[str, Any] | BaseModel,
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
+        subscriber_id: str | None = None,
+        through_cursor: str | None = None,
     ) -> WebhookDeliveryResult:
-        """Prepare and send a ``account.change_recorded`` notification in one attempt."""
+        """Prepare and send a ``account.change_recorded`` notification in one attempt.
+
+        Accepts a change record or notification fields; see
+        :meth:`prepare_account_change_recorded`.
+        """
         return await self.send_prepared(
             self.prepare_account_change_recorded(
                 url=url,
                 payload=payload,
                 idempotency_key=idempotency_key,
                 extra_headers=extra_headers,
+                subscriber_id=subscriber_id,
+                through_cursor=through_cursor,
             )
         )
 
