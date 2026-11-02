@@ -234,6 +234,7 @@ Some 3.3 additions need more than dropping the field. These rules run on the
 | `daypart_targets[].start_time` / `end_time` | `ADCPVersionConversionError`, request or response; never rounded to whole hours | none |
 | `age_determination_bases` | Moved to `ext.adcp.age_determination_bases`, replacing any interim value there | `moved_to_ext_adcp` |
 | `price_breakdown` with an `operator_fee` adjustment | Response: breakdown omitted, since the rest no longer sums to `fixed_price`; request: error | `enum_unavailable` on the kind, `unrepresentable_in_target` on the breakdown |
+| `pixel_tracker` `event` `start`, `first_quartile`, `midpoint`, `third_quartile`, `complete` | Rewritten to `event: custom` with `custom_event_name` set to the 3.3 value, the 3.2 interim form; never an impression tracker. Upgrading keeps the `custom` form | `playback_event_as_custom` |
 | New `error.code` values (`RIGHTS_CHANNEL_VIOLATION`, `ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`, ...) | Kept: 3.2 `error.code` is open, and receivers classify it by `recovery` | none |
 | Other new enum values | Dropped when optional, refused when required (see above) | `enum_unavailable` |
 
@@ -246,8 +247,9 @@ buyer converting a 3.2 response up reads `ext.adcp.age_determination_bases`
 into an absent top-level field; a top-level value wins, and the extension bag
 is left unchanged. Capability discovery is not version-gated, so a buyer
 pinned to 3.2 still parses a 3.3 seller's capabilities with the packaged
-models. `expected_confirmation_at` (#1640) and playback pixel trackers (#1643)
-have their own rules. Definition pins and `REFERENCE_DEFINITION_CHANGED` were
+models. `expected_confirmation_at` (#1640) has its own rules. The 3.0
+`tracker_pixel` shape drops playback trackers, including the `custom` interim
+form (`downgrade_pixel_tracker`, `PIXEL_TRACKER_LOSSY_DOWNGRADE`). Definition pins and `REFERENCE_DEFINITION_CHANGED` were
 withdrawn from 3.3 in 3.3.0-beta.2 (adcontextprotocol/adcp#8537).
 
 ## Conversion reports
