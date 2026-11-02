@@ -115,6 +115,8 @@ async def test_since_and_explicit_accounts_narrow_the_report() -> None:
     reporting, _ = _buyer(world)
     report = await reporting.reconcile(now=world.clock(), since="2026-11-01T02:00:00Z")
     assert [line.period["start"] for line in report.periods] == ["2026-11-01T02:00:00Z"]
+    other = await reporting.reconcile(now=world.clock(), subscription_id="not-this-one")
+    assert other.accounts == () and other.periods == ()
     unknown = await reporting.reconcile(now=world.clock(), accounts=["account-unknown"])
     assert not unknown.definitive and unknown.periods == ()
     assert [issue.code for issue in unknown.issues] == ["SUBSCRIPTION_ACCOUNT_NOT_COVERED"]

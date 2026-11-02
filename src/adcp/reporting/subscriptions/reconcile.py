@@ -976,7 +976,9 @@ async def _reconcile(
                     if trace.verdict == "owed":
                         continue
                     lines.append(_not_owed_line(trace))
-        entries.append(_account_entry(context, record, subscription_ids))
+        if subscription_ids or subscription_id is None or record.account_id in context.failures:
+            # With subscription_id=, an account only other subscriptions cover is not listed.
+            entries.append(_account_entry(context, record, subscription_ids))
     lines.sort(
         key=lambda line: (
             line.account_id.encode(),
