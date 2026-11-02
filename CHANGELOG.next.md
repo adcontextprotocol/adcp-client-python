@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.7...v10.0.0-beta.8) (2026-11-02)
+
+
+### Bug Fixes
+
+* **identity:** one delegation-chain rule for demand-side grants ([#1817](https://github.com/adcontextprotocol/adcp-client-python/issues/1817)) ([d7ef70b](https://github.com/adcontextprotocol/adcp-client-python/commit/d7ef70b21f7c0ce61e5d70abc02211f29a10f3ac))
+
 ## [10.0.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.6...v10.0.0-beta.7) (2026-11-02)
 
 
