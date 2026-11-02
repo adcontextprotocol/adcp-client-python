@@ -122,19 +122,30 @@ def test_release_please_keeps_next_on_the_beta_channel() -> None:
     assert "release-publish.yml --ref next -f package=adcp-reporting-storage" in workflow
     manifest = json.loads((ROOT / ".release-please-manifest.next.json").read_text())
     assert set(manifest) == {".", "packages/adcp-reporting-storage"}
-    # The companion gate (#1605) runs for every adcp publish, on next too: the
-    # 10.0.0-beta.0 publish needs next's storage pre-release on PyPI first.
+    # The companion gate (#1605, #1763) runs for every publish of either
+    # package, on next too, after the build: the wheel just built is installed
+    # beside the published companion and smoked, with PostgreSQL available.
     publisher = yaml.load(
         (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
     )
+    steps = publisher["jobs"]["build"]["steps"]
     companion_steps = [
-        step
-        for step in publisher["jobs"]["build"]["steps"]
+        index
+        for index, step in enumerate(steps)
         if "check_companion_releases.py" in step.get("run", "")
     ]
     assert len(companion_steps) == 1
-    assert companion_steps[0]["if"] == "inputs.package == 'adcp'"
-    gate = publisher["jobs"]["build"]["steps"][1]["run"]
+    companion = steps[companion_steps[0]]
+    assert "if" not in companion, "both packages are gated"
+    assert "--dist dist/adcp-*.whl" in companion["run"]
+    assert '--package "$PACKAGE" --dist dist/adcp_reporting_storage-*.whl' in companion["run"]
+    assert companion["env"]["ADCP_PG_TEST_URL"].startswith("postgresql://")
+    build_steps = [
+        index for index, step in enumerate(steps) if "python -m build" in step.get("run", "")
+    ]
+    assert build_steps and build_steps[0] < companion_steps[0], "gate the built wheel"
+    assert publisher["jobs"]["build"]["services"]["postgres"]["image"].startswith("postgres:")
+    gate = steps[1]["run"]
     assert 'adcp-reporting-storage) [[ "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]]' in gate
 
 
