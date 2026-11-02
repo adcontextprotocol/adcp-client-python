@@ -21,7 +21,7 @@ without dragging in the transport stack.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, Literal
 
@@ -50,6 +50,7 @@ if TYPE_CHECKING:
         AccountScope,
         BusinessEntity,
         CreditLimit,
+        Error,
         GovernanceAgent,
         PaymentTerms,
         ReportingBucket,
@@ -105,8 +106,28 @@ class AdcpError(Exception):
         error.
     :param retry_after: Seconds to wait before retrying. Only
         meaningful with ``recovery='transient'``.
-    :param details: Free-form extras for codes that need them
-        (e.g. ``{'errors': [...]}`` for multi-error preflight).
+    :param details: Free-form extras for codes that need them.
+    :param errors: Every problem found, for a request rejected with
+        several at once (a whole-request preflight). Each entry is an
+        :class:`AdcpError`, a generated ``Error`` model or a wire mapping
+        with string ``code`` and ``message``; an entry without
+        ``recovery`` takes this error's. The framework writes the list to
+        the payload ``errors[]`` and this error to the envelope
+        ``adcp_error``. :meth:`from_errors` builds the error from the
+        list, so ``adcp_error`` is the first entry. Without ``errors``,
+        ``errors[]`` carries this error alone, unless ``details['errors']``
+        holds entries of that shape (the slot this class documented for
+        multi-error preflight before ``errors`` existed), which are
+        lifted into ``errors[]``.
+
+    Example — reject a whole request with every problem::
+
+        raise AdcpError.from_errors([
+            AdcpError("BUDGET_TOO_LOW", message="budget below minimum",
+                      recovery="correctable", field="packages[0].budget"),
+            AdcpError("INVALID_REQUEST", message="end_time before start_time",
+                      recovery="correctable", field="end_time"),
+        ])
     """
 
     def __init__(
@@ -121,6 +142,7 @@ class AdcpError(Exception):
         suggestion: str | None = None,
         retry_after: int | None = None,
         details: dict[str, Any] | None = None,
+        errors: Sequence[AdcpError | Error | Mapping[str, Any]] | None = None,
     ) -> None:
         super().__init__(message or code)
         self.code = code
@@ -129,6 +151,38 @@ class AdcpError(Exception):
         self.suggestion = suggestion
         self.retry_after = retry_after
         self.details = details or {}
+        if errors is not None:
+            self.errors: list[dict[str, Any]] = [
+                _error_entry_to_wire(entry, recovery) for entry in errors
+            ]
+        else:
+            self.errors = _lift_detail_errors(self.details, recovery)
+
+    @classmethod
+    def from_errors(cls, errors: Sequence[AdcpError | Error | Mapping[str, Any]], /) -> AdcpError:
+        """Build one raisable error that rejects a request for every entry.
+
+        The first entry fills the envelope ``adcp_error``; all of them,
+        in order, fill the payload ``errors[]``. Entries are as for the
+        ``errors`` parameter; one without ``recovery`` takes the first
+        entry's (``terminal`` when the first has none).
+
+        :raises ValueError: if ``errors`` is empty.
+        """
+        if not errors:
+            raise ValueError("AdcpError.from_errors needs at least one error")
+        first = _error_entry_to_wire(errors[0], "terminal")
+        details = first.get("details")
+        return AdcpError(
+            first["code"],
+            message=first["message"],
+            recovery=first["recovery"],
+            field=first.get("field"),
+            suggestion=first.get("suggestion"),
+            retry_after=first.get("retry_after"),
+            details=dict(details) if isinstance(details, Mapping) else None,
+            errors=errors,
+        )
 
     def __str__(self) -> str:
         return f"AdcpError[{self.code} / {self.recovery}]: {self.args[0]}"
@@ -157,6 +211,53 @@ class AdcpError(Exception):
             if details:
                 out["details"] = details
         return out
+
+    def errors_to_wire(self) -> list[dict[str, Any]]:
+        """Project to the payload ``errors[]``: every entry, else this error."""
+        if self.errors:
+            return [dict(entry) for entry in self.errors]
+        return [self.to_wire()]
+
+
+def _error_entry_to_wire(entry: Any, recovery: str) -> dict[str, Any]:
+    """Normalize one ``errors`` entry to its wire dict."""
+    if isinstance(entry, AdcpError):
+        return entry.to_wire()
+    if hasattr(entry, "model_dump"):
+        entry = entry.model_dump(mode="json", exclude_none=True)
+    if not isinstance(entry, Mapping):
+        raise TypeError(
+            "AdcpError errors entries must be AdcpError, Error or a mapping, "
+            f"got {type(entry).__name__}"
+        )
+    code, message = entry.get("code"), entry.get("message")
+    if not isinstance(code, str) or not code or not isinstance(message, str):
+        raise ValueError("AdcpError errors entries need a non-empty string code and a message")
+    out = {key: value for key, value in entry.items() if value is not None}
+    out.setdefault("recovery", recovery)
+    if out.get("details"):
+        details = sanitize_error_details(code, out["details"])
+        if details:
+            out["details"] = details
+        else:
+            del out["details"]
+    return out
+
+
+def _lift_detail_errors(details: Mapping[str, Any], recovery: str) -> list[dict[str, Any]]:
+    """Read the documented ``details['errors']`` multi-error slot, if well formed."""
+    entries = details.get("errors")
+    if not isinstance(entries, Sequence) or isinstance(entries, (str, bytes)) or not entries:
+        return []
+    if not all(
+        isinstance(entry, Mapping)
+        and isinstance(entry.get("code"), str)
+        and entry["code"]
+        and isinstance(entry.get("message"), str)
+        for entry in entries
+    ):
+        return []
+    return [_error_entry_to_wire(entry, recovery) for entry in entries]
 
 
 #: Per-platform metadata generic. Defaults to ``dict[str, Any]`` for

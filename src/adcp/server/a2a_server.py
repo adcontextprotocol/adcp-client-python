@@ -839,7 +839,7 @@ class ADCPAgentExecutor(AgentExecutor):
         # Lazy import — ``translate.py`` pulls in heavier server deps
         # (mcp.types) which the A2A module doesn't otherwise need.
         from adcp.server.helpers import inject_context
-        from adcp.server.translate import _extract_structured_fields
+        from adcp.server.translate import _extract_structured_fields, _payload_errors
 
         code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(
             exc
@@ -863,7 +863,10 @@ class ADCPAgentExecutor(AgentExecutor):
 
         # A fatal failure populates both layers (L3 error handling): the payload
         # carries the protocol-neutral ``errors[]`` and the envelope ``adcp_error``.
-        data: dict[str, Any] = {"adcp_error": adcp_error, "errors": [dict(adcp_error)]}
+        data: dict[str, Any] = {
+            "adcp_error": adcp_error,
+            "errors": _payload_errors(exc, adcp_error),
+        }
         if params is not None:
             inject_context(params, data)
 
