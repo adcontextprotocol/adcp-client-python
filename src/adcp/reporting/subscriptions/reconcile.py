@@ -32,6 +32,7 @@ seller then reports as unknown, with its owed periods ``withheld``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -162,6 +163,55 @@ class ReconcileIssue:
 
 
 @dataclass(frozen=True)
+class ReconcileAccountError:
+    """What could not be read for one account: the task, a code and the detail."""
+
+    task: str
+    code: str
+    message: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"task": self.task, "code": self.code, "message": self.message}
+
+
+AccountStatus = Literal["reconciled", "unauthorized", "failed"]
+
+
+@dataclass(frozen=True)
+class ReconcileAccount:
+    """One account the run reconciled, or could not; the same shape as the TS SDK's.
+
+    * ``reconciled``: its facts were read and its owed set computed.
+    * ``unauthorized``: the caller's authority ended at ``unauthorized_at``;
+      ``withheld_period_count`` is the seller's count of withheld periods.
+    * ``failed``: ``error`` says which read failed. Its lines, if any, come
+      from the last facts read for it. ``account_id`` is ``"*"`` when the
+      principal or the roster could not be read at all.
+    """
+
+    account_id: str
+    subscription_ids: tuple[str, ...] = ()
+    status: AccountStatus = "reconciled"
+    unauthorized_at: str | None = None
+    withheld_period_count: int | None = None
+    error: ReconcileAccountError | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "account_id": self.account_id,
+            "subscription_ids": list(self.subscription_ids),
+            "status": self.status,
+        }
+        if self.unauthorized_at is not None:
+            result["unauthorized_at"] = self.unauthorized_at
+        if self.withheld_period_count is not None:
+            result["withheld_period_count"] = self.withheld_period_count
+        if self.error is not None:
+            result["error"] = self.error.to_dict()
+        return result
+
+
+@dataclass(frozen=True)
 class ReconcileReport:
     """The result of ``client.reporting.reconcile()``.
 
@@ -176,19 +226,36 @@ class ReconcileReport:
     summary: ReconcileSummary
     periods: tuple[PeriodLine, ...]
     issues: tuple[ReconcileIssue, ...] = ()
-    accounts: tuple[str, ...] = ()
+    #: One entry per account, with its status (``reconciled``, ``unauthorized``
+    #: or ``failed``). Before 3.3 this was a tuple of account ids; that shape is
+    #: :attr:`account_ids`.
+    accounts: tuple[ReconcileAccount, ...] = ()
     #: What the receipts policy did; ``None`` with ``mode="off"``.
     receipts: ReceiptReport | None = None
+    #: The seller's agent id, when the client has one.
+    agent_id: str | None = None
+    #: The window start the run used; ``None`` when no ``since`` was given.
+    since: str | None = None
+
+    @property
+    def account_ids(self) -> tuple[str, ...]:
+        """The ids of :attr:`accounts`, the shape ``accounts`` had before."""
+        return tuple(item.account_id for item in self.accounts if item.account_id != "*")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "as_of": self.as_of,
             "definitive": self.definitive,
             "summary": self.summary.to_dict(),
             "periods": [line.to_dict() for line in self.periods],
             "issues": [vars(issue) for issue in self.issues],
-            "accounts": list(self.accounts),
+            "accounts": [item.to_dict() for item in self.accounts],
         }
+        if self.agent_id is not None:
+            result["agent_id"] = self.agent_id
+        if self.since is not None:
+            result["since"] = self.since
+        return result
 
 
 # -- wire reads ----------------------------------------------------------------------
@@ -212,9 +279,22 @@ def _data(result: Any, task: str) -> Any:
 
 
 class _UnreadableError(Exception):
-    def __init__(self, task: str, detail: str) -> None:
+    def __init__(self, task: str, detail: str, code: str = "TASK_FAILED") -> None:
         super().__init__(f"{task} failed: {detail}")
         self.task = task
+        self.code = code
+
+
+def _failure(error: BaseException, task: str) -> ReconcileAccountError:
+    """The ``error`` of a ``failed`` account: the task that failed, its code and detail."""
+    if isinstance(error, _UnreadableError):
+        return ReconcileAccountError(error.task, error.code, str(error))
+    if isinstance(error, CoverageInputError):
+        return ReconcileAccountError("coverage", error.code, str(error))
+    code = getattr(error, "code", None)
+    return ReconcileAccountError(
+        task, str(getattr(code, "value", code) or "TASK_FAILED"), str(error) or type(error).__name__
+    )
 
 
 def _instant(value: Any) -> datetime | None:
@@ -310,7 +390,9 @@ async def _roster(client: Any) -> list[dict[str, Any]]:
         cursor = pagination.get("cursor") if pagination.get("has_more") else None
         if not cursor:
             return accounts
-    raise _UnreadableError("list_accounts", f"did not finish paging within {_MAX_PAGES} pages")
+    raise _UnreadableError(
+        "list_accounts", f"did not finish paging within {_MAX_PAGES} pages", "LIMIT_EXCEEDED"
+    )
 
 
 async def _buys(client: Any, account_id: str) -> list[dict[str, Any]]:
@@ -336,7 +418,9 @@ async def _buys(client: Any, account_id: str) -> list[dict[str, Any]]:
         cursor = pagination.get("cursor") if pagination.get("has_more") else None
         if not cursor:
             return buys
-    raise _UnreadableError("get_media_buys", f"did not finish paging within {_MAX_PAGES} pages")
+    raise _UnreadableError(
+        "get_media_buys", f"did not finish paging within {_MAX_PAGES} pages", "LIMIT_EXCEEDED"
+    )
 
 
 async def _coverage(client: Any, account_id: str) -> dict[str, dict[str, Any]]:
@@ -447,6 +531,17 @@ class _Context:
         self.subscriptions: tuple[Any, ...] = ()
         self.seller: _Seller | None = None
         self.roster_complete = False
+        #: account_id -> the latest ``unauthorized_at`` in ``accounts_unauthorized[]``
+        self.unauthorized: dict[str, datetime] = {}
+        #: account_id -> the seller's withheld-period count, summed over subscriptions
+        self.withheld: dict[str, int] = {}
+        #: account_id -> the first read that failed for it
+        self.failures: dict[str, ReconcileAccountError] = {}
+        #: the principal or roster read that failed, which no account can name
+        self.roster_failure: ReconcileAccountError | None = None
+
+    def fail(self, account_id: str, error: BaseException, task: str) -> None:
+        self.failures.setdefault(account_id, _failure(error, task))
 
     def issue(
         self,
@@ -474,6 +569,7 @@ class _Context:
         except ReportingSubscriptionError as error:
             if strict:
                 raise
+            self.roster_failure = _failure(error, "get_principal")
             self.issue(
                 "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE",
                 f"The subscriptions could not be read ({error}). Nothing was computed; retry "
@@ -496,6 +592,8 @@ class _Context:
                 if at is not None:
                     previous = unauthorized.get(entry.account_id)
                     unauthorized[entry.account_id] = max(at, previous) if previous else at
+                count = getattr(entry, "withheld_period_count", None) or 0
+                self.withheld[entry.account_id] = self.withheld.get(entry.account_id, 0) + count
             listed = getattr(state, "accounts_unauthorized_count", None)
             inline = len(getattr(state, "accounts_unauthorized", None) or ())
             if listed is not None and listed > inline:
@@ -510,6 +608,7 @@ class _Context:
             self.roster_complete = True
         except Exception as error:  # noqa: BLE001
             roster = []
+            self.roster_failure = _failure(error, "list_accounts")
             self.issue(
                 "SUBSCRIPTION_ROSTER_UNAVAILABLE",
                 f"The account roster could not be read completely ({error}); a partial roster "
@@ -528,6 +627,7 @@ class _Context:
             authorization = raw.get("authorization") or {}
             record.authorized_at = _instant(authorization.get("authorized_at"))
             record.regranted_at = _instant(authorization.get("regranted_at"))
+        self.unauthorized = unauthorized
         for account_id, lost in unauthorized.items():
             record = self.state.account(account_id)
             if account_id not in seen:
@@ -567,6 +667,7 @@ class _Context:
             record.buys = await _buys(self.client, record.account_id)
             record.coverage = await _coverage(self.client, record.account_id)
         except Exception as error:  # noqa: BLE001
+            self.fail(record.account_id, error, "get_media_buys")
             self.issue(
                 "SUBSCRIPTION_ACCOUNT_UNREADABLE",
                 f"Account {record.account_id!r} could not be read ({error}). The last facts "
@@ -801,6 +902,9 @@ async def _reconcile(
     context = _Context(client, state or BuyerReportingState())
     records = await context.load(accounts=None if accounts == "covered" else list(accounts))
     lines: list[PeriodLine] = []
+    entries: list[ReconcileAccount] = []
+    if context.roster_failure is not None:
+        entries.append(ReconcileAccount("*", (), "failed", error=context.roster_failure))
     complete = context.roster_complete
     for record in records:
         readable = await context.refresh(record)
@@ -818,12 +922,14 @@ async def _reconcile(
                 complete = complete and walked
             except Exception as error:  # noqa: BLE001
                 complete = False
+                context.fail(record.account_id, error, "get_reporting_status")
                 context.issue(
                     "SUBSCRIPTION_LEDGER_UNAVAILABLE",
                     f"The obligations of {record.account_id!r} could not be walked completely "
                     f"({error}); periods are reported without delivery status. Retry later.",
                     account_id=record.account_id,
                 )
+        subscription_ids: list[str] = []
         for state_item in context.subscriptions:
             sub_id = str(state_item.subscription_id)
             if subscription_id is not None and sub_id != subscription_id:
@@ -833,10 +939,12 @@ async def _reconcile(
                 for entry in getattr(state_item, "accounts_unauthorized", None) or ()
             ):
                 continue
+            subscription_ids.append(sub_id)
             try:
                 explainer = context.explainer(state_item, record, instant)
             except CoverageInputError as error:
                 complete = False
+                context.fail(record.account_id, error, "coverage")
                 context.issue(
                     error.code,
                     f"{sub_id} on {record.account_id!r}: {error}",
@@ -868,6 +976,9 @@ async def _reconcile(
                     if trace.verdict == "owed":
                         continue
                     lines.append(_not_owed_line(trace))
+        if subscription_ids or subscription_id is None or record.account_id in context.failures:
+            # With subscription_id=, an account only other subscriptions cover is not listed.
+            entries.append(_account_entry(context, record, subscription_ids))
     lines.sort(
         key=lambda line: (
             line.account_id.encode(),
@@ -900,10 +1011,37 @@ async def _reconcile(
         summary=ReconcileSummary(**counts),
         periods=tuple(lines),
         issues=tuple(context.issues),
-        accounts=tuple(record.account_id for record in records),
+        accounts=tuple(sorted(entries, key=lambda entry: entry.account_id.encode())),
         receipts=receipt_report if policy is not None and policy.mode != "off" else None,
+        agent_id=_agent_id(client),
+        since=None if lower is None else iso_z(lower),
     )
     return report, context
+
+
+def _agent_id(client: Any) -> str | None:
+    config = getattr(client, "agent_config", None)
+    identifier = getattr(config, "id", None)
+    return None if identifier is None else str(identifier)
+
+
+def _account_entry(
+    context: _Context, record: _Account, subscription_ids: Sequence[str]
+) -> ReconcileAccount:
+    ids = tuple(sorted(set(subscription_ids), key=str.encode))
+    failure = context.failures.get(record.account_id)
+    if failure is not None:
+        return ReconcileAccount(record.account_id, ids, "failed", error=failure)
+    lost = context.unauthorized.get(record.account_id)
+    if not record.listed and lost is not None:
+        return ReconcileAccount(
+            record.account_id,
+            ids,
+            "unauthorized",
+            unauthorized_at=iso_z(lost),
+            withheld_period_count=context.withheld.get(record.account_id, 0),
+        )
+    return ReconcileAccount(record.account_id, ids, "reconciled")
 
 
 def _not_owed_line(trace: CoverageTrace) -> PeriodLine:
@@ -920,6 +1058,129 @@ def _not_owed_line(trace: CoverageTrace) -> PeriodLine:
         reason=trace.reason,
         responsible_party="none",
         message=trace.explanation,
+    )
+
+
+# -- fleet ------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FleetReconcileIssue:
+    """A seller the fleet run could not reconcile at all, with its ``agent_id``."""
+
+    agent_id: str
+    code: str
+    message: str
+    account_id: str | None = None
+    subscription_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(vars(self))
+
+
+@dataclass(frozen=True)
+class FleetReconcileReport:
+    """``multi_client.reporting.reconcile()``: one report per seller and the summed summary.
+
+    ``by_seller`` maps an agent id to its :class:`ReconcileReport`, whose own
+    ``issues`` and ``accounts`` say what that run could not read. ``issues``
+    names the sellers that could not be reconciled at all (their principal
+    could not be read, or the run raised); they are not in ``by_seller`` and
+    their periods are not in ``summary``. ``definitive`` is true only when
+    every seller's report is definitive and no seller failed.
+    """
+
+    by_seller: Mapping[str, ReconcileReport]
+    issues: tuple[FleetReconcileIssue, ...]
+    definitive: bool
+    summary: ReconcileSummary
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "by_seller": {key: report.to_dict() for key, report in self.by_seller.items()},
+            "issues": [issue.to_dict() for issue in self.issues],
+            "definitive": self.definitive,
+            "summary": self.summary.to_dict(),
+        }
+
+
+async def reconcile_fleet(
+    clients: Mapping[str, Any],
+    *,
+    agent_ids: Sequence[str] | None = None,
+    concurrency: int = 4,
+    since: Any = None,
+    accounts: Sequence[str] | Literal["covered"] = "covered",
+    subscription_id: str | None = None,
+    grace: timedelta = DEFAULT_GRACE,
+    include_not_owed: bool = False,
+    receipts: ReceiptPolicy | None = None,
+    now: datetime | None = None,
+) -> FleetReconcileReport:
+    """Reconcile each seller with bounded concurrency. See :meth:`FleetReportingClient.reconcile`.
+
+    ``clients`` maps an agent id to an object with a ``reconcile`` coroutine
+    taking :func:`reconcile_subscriptions`' keyword options (a
+    :class:`~adcp.reporting.subscriptions.facade.ReportingClient`).
+    """
+    from adcp.reporting.subscriptions.facade import _invalid
+
+    if type(concurrency) is not int or concurrency < 1:
+        raise _invalid("concurrency must be a positive integer. Pass concurrency=4 or more.")
+    if agent_ids is not None:
+        unknown = sorted(set(agent_ids) - set(clients))
+        if unknown:
+            raise _invalid(f"Unknown agent ids {unknown}. Pass ids from multi_client.agent_ids.")
+    selected = [key for key in clients if agent_ids is None or key in agent_ids]
+    options: dict[str, Any] = {
+        "since": since,
+        "accounts": accounts,
+        "subscription_id": subscription_id,
+        "grace": grace,
+        "include_not_owed": include_not_owed,
+        "receipts": receipts,
+        "now": now,
+    }
+    reports: dict[str, ReconcileReport] = {}
+    issues: list[FleetReconcileIssue] = []
+    gate = asyncio.Semaphore(concurrency)
+
+    async def one(agent_id: str) -> None:
+        async with gate:
+            try:
+                report = await clients[agent_id].reconcile(**options)
+            except Exception as error:  # noqa: BLE001 - one seller never fails the fleet
+                code = getattr(error, "code", None) or "TASK_FAILED"
+                issues.append(
+                    FleetReconcileIssue(
+                        agent_id,
+                        "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE",
+                        f"{error} ({getattr(code, 'value', code)})",
+                    )
+                )
+                return
+        unread = next(
+            (item for item in report.issues if item.code == "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE"),
+            None,
+        )
+        if unread is not None:
+            # Nothing could be computed for this seller: a fleet issue, as in the TS SDK.
+            issues.append(FleetReconcileIssue(agent_id, unread.code, unread.message))
+            return
+        reports[agent_id] = report
+
+    await asyncio.gather(*(one(agent_id) for agent_id in selected))
+    counts = {name: 0 for name in ReconcileSummary.__dataclass_fields__}
+    for report in reports.values():
+        for name in counts:
+            counts[name] += getattr(report.summary, name)
+    by_seller = {key: reports[key] for key in selected if key in reports}
+    ordered = sorted(issues, key=lambda issue: selected.index(issue.agent_id))
+    return FleetReconcileReport(
+        by_seller=by_seller,
+        issues=tuple(ordered),
+        definitive=not ordered and all(report.definitive for report in by_seller.values()),
+        summary=ReconcileSummary(**counts),
     )
 
 
@@ -968,12 +1229,17 @@ async def explain_buyer_coverage(
 __all__ = [
     "DEFAULT_GRACE",
     "BuyerReportingState",
+    "FleetReconcileIssue",
+    "FleetReconcileReport",
     "PeriodLine",
     "PeriodStatus",
+    "ReconcileAccount",
+    "ReconcileAccountError",
     "ReconcileIssue",
     "ReconcileReport",
     "ReconcileSummary",
     "ResponsibleParty",
     "explain_buyer_coverage",
+    "reconcile_fleet",
     "reconcile_subscriptions",
 ]

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     import httpx
     from mcp import ClientSession
 
-    from adcp.reporting.subscriptions.facade import ReportingClient
+    from adcp.reporting.subscriptions.facade import FleetReportingClient, ReportingClient
 
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._response_limit import (
@@ -7438,6 +7438,17 @@ class ADCPMultiAgentClient:
     def agent_ids(self) -> list[str]:
         """Get list of agent IDs."""
         return list(self.agents.keys())
+
+    @property
+    def reporting(self) -> FleetReportingClient:
+        """Fleet-wide reporting reads: ``reconcile`` across every agent.
+
+        See :class:`adcp.reporting.subscriptions.facade.FleetReportingClient`.
+        Each seller is read through ``multi.agent(agent_id).reporting``.
+        """
+        from adcp.reporting.subscriptions.facade import FleetReportingClient
+
+        return FleetReportingClient(self.agents)
 
     async def close(self) -> None:
         """Close all agent clients and clean up resources."""

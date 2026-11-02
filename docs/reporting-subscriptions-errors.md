@@ -48,6 +48,10 @@ A seller rejection is a value: `AccountRejected`. Its `requires_new_account` is 
 | `SUBSCRIPTION_ACCOUNT_NOT_COVERED` | an explicit `accounts=` id is not readable, or no subscription covers it | check `list_accounts` and the subscription scopes |
 | `COVERAGE_INPUT_INCOMPLETE`, `COVERAGE_INPUT_INVALID` | an owed set could not be computed, for example a missing account zone | the `detail` names the input |
 
+An account an issue names is also `status: "failed"` in `report.accounts`, with `error.task` set to the read that failed (`get_media_buys`, `get_reporting_status`, `coverage`, ...). A principal or roster failure is the entry `"*"`.
+
+`multi.reporting.reconcile()` lifts a seller whose principal could not be read, or whose run raised, into `fleet.issues` as `SUBSCRIPTION_PRINCIPAL_UNAVAILABLE` with its `agent_id`. Every other issue stays on that seller's report in `fleet.by_seller`.
+
 ## Events and receipts
 
 | Code | Class | `dispatched` | `recovery` | Fix |
