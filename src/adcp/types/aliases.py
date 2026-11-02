@@ -88,6 +88,7 @@ from adcp.types._generated import (
     UpdateMediaBuyRequest,
     VcpmPricingOption,
 )
+from adcp.types.domains.core.assets import asset_union as _asset_union
 from adcp.types.domains.core.assets.asset_union import (
     DaastAsset1,
     DaastAsset2,
@@ -1046,6 +1047,123 @@ UrlDaastAsset: TypeAlias = DaastAsset1
 
 InlineDaastAsset: TypeAlias = DaastAsset2
 """DAAST asset with inline XML content - delivery_type='inline'."""
+
+# ============================================================================
+# MACRO DECLARATION ALIASES - one variant per asset arm (#1783)
+# ============================================================================
+# AdCP 3.3 gives each asset delivery its own ``macro_declarations`` item shape
+# (``location.field`` is ``url`` for a tag URL, ``markup`` for inline markup,
+# ``ad_request_url`` / ``clickthrough_url`` for a paired redirect, ...), and the
+# generator names the variants by position: ``MacroDeclaration``,
+# ``MacroDeclaration15``, ``asset_union.MacroDeclaration6``. The numbers move
+# when the bundle changes. These names are keyed on the owning asset arm's
+# ``asset_type`` / ``delivery_type`` literals instead; a renumber fails
+# ``tests/test_macro_declaration_names.py``, which derives the same mapping
+# from the arms, rather than silently repointing a name. The classes are the
+# ones ``AssetVariant`` (``Format.assets``, a creative manifest) validates;
+# :func:`macro_declaration_model` resolves one at runtime from the literals.
+
+TagUrlMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration2
+"""Macro declaration on a display tag delivered as a tag URL (``location.field='url'``)."""
+
+InlineMarkupMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration3
+"""Macro declaration on inline display-tag markup (``location.field='markup'``)."""
+
+PairedRedirectMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration4
+"""Macro declaration on a paired-redirect display tag (``ad_request_url``/``clickthrough_url``)."""
+
+UrlVastMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration
+"""Macro declaration on a VAST asset delivered by URL."""
+
+InlineVastMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration1
+"""Macro declaration on inline VAST content."""
+
+UrlDaastMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration6
+"""Macro declaration on a DAAST asset delivered by URL."""
+
+InlineDaastMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration7
+"""Macro declaration on inline DAAST content."""
+
+UrlAssetMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration5
+"""Macro declaration on a URL asset."""
+
+PixelTrackerMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration8
+"""Macro declaration on a pixel tracker."""
+
+VastTrackerMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration9
+"""Macro declaration on a VAST tracker."""
+
+DaastTrackerMacroDeclaration: TypeAlias = _asset_union.MacroDeclaration10
+"""Macro declaration on a DAAST tracker."""
+
+
+def macro_declaration_model(asset_type: str, delivery_type: str | None = None) -> type[Any]:
+    """The model a ``macro_declarations`` item of this asset arm validates as.
+
+    Resolved from the ``AssetVariant`` arms by their ``asset_type`` and
+    ``delivery_type`` literals, never by a generated class number, so it keeps
+    answering across bundle bumps. An asset type with several deliveries
+    (``display_tag``, ``vast``, ``daast``) needs ``delivery_type``; one with a
+    single arm (``url``, ``pixel_tracker``, ...) takes ``None``. Raises
+    ``KeyError`` naming the arms that exist when nothing matches.
+    """
+    variants = macro_declaration_variants()
+    try:
+        return variants[(asset_type, delivery_type)]
+    except KeyError:
+        if delivery_type is None:
+            deliveries = sorted(d for (a, d) in variants if a == asset_type and d is not None)
+            if deliveries:
+                raise KeyError(
+                    f"asset_type {asset_type!r} has one macro declaration shape per "
+                    f"delivery_type; pass one of {deliveries}"
+                ) from None
+        raise KeyError(
+            f"no AssetVariant arm has asset_type={asset_type!r}, delivery_type={delivery_type!r}; "
+            f"arms: {sorted(variants)}"
+        ) from None
+
+
+def macro_declaration_variants() -> dict[tuple[str, str | None], type[Any]]:
+    """``(asset_type, delivery_type)`` → macro declaration model, read off ``AssetVariant``."""
+    from types import UnionType
+    from typing import Union, get_args, get_origin
+
+    from pydantic import RootModel
+
+    def leaves(annotation: Any) -> list[type[Any]]:
+        # An arm is a model, an ``Annotated[...]`` wrapper, a union of arms, or a
+        # root model over a union of arms (the per-delivery asset shapes).
+        origin = get_origin(annotation)
+        if origin is _Annotated:
+            return leaves(get_args(annotation)[0])
+        if origin is Union or origin is UnionType:
+            return [leaf for arm in get_args(annotation) for leaf in leaves(arm)]
+        if isinstance(annotation, type) and issubclass(annotation, RootModel):
+            return leaves(annotation.model_fields["root"].annotation)
+        if isinstance(annotation, type) and hasattr(annotation, "model_fields"):
+            return [annotation]
+        return []
+
+    found: dict[tuple[str, str | None], type[Any]] = {}
+    for cls in leaves(_asset_union.AssetVariant):
+        fields = cls.model_fields
+        if "macro_declarations" not in fields:
+            continue
+        literals = {
+            name: get_args(field.annotation)[0]
+            for name, field in fields.items()
+            if name in ("asset_type", "delivery_type") and get_origin(field.annotation) is Literal
+        }
+        if "asset_type" not in literals:
+            continue
+        annotation = fields["macro_declarations"].annotation
+        # ``list[X] | None`` → ``list[X]`` → ``X``
+        candidates = [a for a in get_args(annotation) if get_origin(a) is list] or [annotation]
+        item = get_args(candidates[0])[0]
+        found[(literals["asset_type"], literals.get("delivery_type"))] = item
+    return found
+
 
 # ============================================================================
 # PACKAGE TYPE ALIASES - Resolving Type Name Collisions
@@ -2381,6 +2499,19 @@ __all__ = [
     "UrlDaastAsset",
     "UrlPreviewRender",
     "UrlVastAsset",
+    "TagUrlMacroDeclaration",
+    "InlineMarkupMacroDeclaration",
+    "PairedRedirectMacroDeclaration",
+    "UrlVastMacroDeclaration",
+    "InlineVastMacroDeclaration",
+    "UrlDaastMacroDeclaration",
+    "InlineDaastMacroDeclaration",
+    "UrlAssetMacroDeclaration",
+    "PixelTrackerMacroDeclaration",
+    "VastTrackerMacroDeclaration",
+    "DaastTrackerMacroDeclaration",
+    "macro_declaration_model",
+    "macro_declaration_variants",
     # Authorized agent variants
     "AuthorizedAgentsByPropertyId",
     "AuthorizedAgentsByPropertyTag",
