@@ -287,6 +287,7 @@ def capabilities_response(
     features: dict[str, Any] | None = None,
     idempotency: dict[str, Any] | None = None,
     compliance_testing: dict[str, Any] | None = None,
+    implementation: Any = None,
 ) -> dict[str, Any]:
     """Build a get_adcp_capabilities response.
 
@@ -322,6 +323,13 @@ def capabilities_response(
         compliance_testing: Optional top-level ``compliance_testing`` block
             to advertise compliance-testing capabilities. When provided,
             emitted as a sibling of ``adcp`` in the response.
+        implementation: Optional AdCP 3.3 ``adcp.implementation`` block
+            (a dict or the generated ``Implementation`` model), emitted
+            verbatim. Leave it unset to let :func:`adcp.server.serve`
+            self-report this SDK (see :mod:`adcp.server.implementation`); a
+            declared block replaces that report.
+            :func:`adcp.server.implementation.adcp_sdk_entry` builds this
+            SDK's entry for a hand-written block.
 
     Example::
 
@@ -354,6 +362,12 @@ def capabilities_response(
         adcp_info["build_version"] = build_version
     if idempotency:
         adcp_info["idempotency"] = idempotency
+    if implementation is not None:
+        adcp_info["implementation"] = (
+            implementation.model_dump(mode="json", exclude_none=True)
+            if hasattr(implementation, "model_dump")
+            else _strip_none_values(dict(implementation))
+        )
     resp: dict[str, Any] = {
         "status": "completed",
         "adcp": adcp_info,
