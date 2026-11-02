@@ -252,6 +252,8 @@ async def reserve_transaction(
                             {
                                 "code": "IDEMPOTENCY_CONFLICT",
                                 "message": "idempotency_key reused with a different payload",
+                                # Detected on lookup: this request wrote nothing.
+                                "mutation_outcome": "not_applied",
                             }
                         ],
                     )

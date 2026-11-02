@@ -297,6 +297,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "AccountRequestError",
         "ConfigurationError",
         "extract_adcp_error_info",
+        "normalize_mutation_outcome",
         "is_pre_dispatch_error",
         "is_pre_dispatch_error",
         "IdempotencyConflictError",
@@ -1688,6 +1689,7 @@ __all__ = [
     "AdcpErrorInfo",
     "BuyerReasonInfo",
     "extract_adcp_error_info",
+    "normalize_mutation_outcome",
     "AccountNotFoundError",
     "AccountSetupRequiredError",
     "AccountPaymentRequiredError",
@@ -1974,6 +1976,7 @@ if TYPE_CHECKING:
         RegistryValidationIssue,
         extract_adcp_error_info,
         is_pre_dispatch_error,
+        normalize_mutation_outcome,
     )
     from adcp.feed_mirror import (
         EventHandler,

@@ -107,9 +107,11 @@ from adcp.decisioning.errors import (
     ServiceUnavailableError,
     TermsRejectedError,
     UnsupportedFeatureError,
+    UnsupportedTargetingDimensionError,
     ValidationError,
     creative_merge_rejected_details,
     rights_channel_violation_details,
+    unsupported_targeting_dimension_details,
 )
 from adcp.decisioning.helpers import ref_account_id
 from adcp.decisioning.implementation_config import ProductConfigStore
@@ -278,6 +280,7 @@ from adcp.decisioning.types import (
     AdcpError,
     DiscoveryResult,
     MaybeAsync,
+    MutationOutcome,
     SalesResult,
     SyncAccountsResultRow,
     SyncGovernanceEntry,
@@ -401,6 +404,7 @@ __all__ = [
     "AccountStoreUpsert",
     "AccountStoreUpsertRequest",
     "AdcpError",
+    "MutationOutcome",
     "ApiKey",
     "ApiKeyCredential",
     "AuthContext",
@@ -531,6 +535,8 @@ __all__ = [
     "TranslationMap",
     "UNKNOWN_UPDATE_ACTION",
     "UnsupportedFeatureError",
+    "UnsupportedTargetingDimensionError",
+    "unsupported_targeting_dimension_details",
     "TermsRejectedError",
     "CreativeMergeRejectedError",
     "RightsChannelViolationError",
