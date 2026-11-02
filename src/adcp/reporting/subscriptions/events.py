@@ -45,6 +45,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.subscriptions._clock import iso_z, utc_instant
 from adcp.reporting.subscriptions.reconcile import (
     DEFAULT_GRACE,
+    DEFAULT_READ_TIMEOUT,
     BuyerReportingState,
     ReconcileReport,
     _reconcile,
@@ -496,11 +497,12 @@ class ReportingEvents:
         grace: timedelta = DEFAULT_GRACE,
         baseline: bool = False,
         now: datetime | None = None,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> EventBatch:
         """One batch of events since the last acknowledgement; call ``batch.ack()`` after handling.
 
         ``baseline=True`` on a consumer with no snapshot yet records the
-        current state without emitting it.
+        current state without emitting it. ``read_timeout`` bounds each read.
         """
         instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
         report, context = await _reconcile(
@@ -513,6 +515,7 @@ class ReportingEvents:
             include_not_owed=False,
             now=instant,
             receipts=None,
+            read_timeout=read_timeout,
         )
         current = _snapshot(report, context)
         loaded = await self.store.load(self.agent_id)
@@ -539,6 +542,7 @@ class ReportingEvents:
         poll_every: timedelta = timedelta(minutes=5),
         stop: asyncio.Event | None = None,
         grace: timedelta = DEFAULT_GRACE,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> AsyncIterator[ReportingEvent]:
         """Every event, forever (or until ``stop`` is set).
 
@@ -553,7 +557,7 @@ class ReportingEvents:
                 # Consume the ring before polling: one that lands during the
                 # poll, the loop body or the ack survives and polls again at once.
                 self._doorbell.clear()
-                batch = await self.poll(grace=grace)
+                batch = await self.poll(grace=grace, read_timeout=read_timeout)
                 for event in batch.events:
                     yield event
                 try:

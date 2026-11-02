@@ -49,6 +49,9 @@ if TYPE_CHECKING:
 
 #: The default ``grace`` of :meth:`ReportingClient.reconcile`: one hour, never zero.
 DEFAULT_GRACE = timedelta(hours=1)
+#: The default ``read_timeout`` of :meth:`ReportingClient.reconcile`: each
+#: read of one seller is bounded to 30 seconds, as in the TS SDK.
+DEFAULT_READ_TIMEOUT = timedelta(seconds=30)
 
 SubscribeAction = Literal["created", "updated", "unchanged", "reactivated", "deactivated"]
 
@@ -443,6 +446,7 @@ class ReportingClient:
         include_not_owed: bool = False,
         receipts: ReceiptPolicy | None = None,
         now: datetime | None = None,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> ReconcileReport:
         """What the seller owes every covered account, and whose move each period is.
 
@@ -468,6 +472,11 @@ class ReportingClient:
             The default is off: nothing is receipted on read. ``mode="verified"``
             receipts a billing revision only after the SDK verified its
             materialization and your ``commit`` hook returned a reference.
+        :param read_timeout: bounds each read (and the receipts policy's write),
+            so one unresponsive seller cannot stall the report. A read that
+            does not answer in time fails as ``TIMEOUT``, naming
+            ``read_timeout``, the same way any other failed read does. Defaults
+            to 30 seconds; ``None`` for no bound.
 
         ``report.definitive`` is true only when every read completed;
         otherwise ``report.issues`` say what to retry.
@@ -484,6 +493,7 @@ class ReportingClient:
             include_not_owed=include_not_owed,
             receipts=receipts,
             now=now,
+            read_timeout=read_timeout,
         )
 
     async def submit_receipts(
@@ -532,6 +542,7 @@ class ReportingClient:
         media_buy_id: str | None = None,
         offering_id: str | None = None,
         now: datetime | None = None,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> list[CoverageTrace]:
         """Why each selected period is, or is not, owed: the buyer's ``CoverageTrace`` list.
 
@@ -540,6 +551,9 @@ class ReportingClient:
         ``YYYY-MM-DD`` local date read in each offering's zone, an instant, or
         ``{"start", "end"}``. Compare with a seller trace through
         :func:`~adcp.reporting.subscriptions.diff_coverage_traces`.
+        ``read_timeout`` bounds each read, as in :meth:`reconcile`; a read that
+        does not answer in time raises a ``TIMEOUT``
+        :class:`ReportingSubscriptionError`.
         """
         from adcp.reporting.subscriptions.reconcile import explain_buyer_coverage
 
@@ -552,6 +566,7 @@ class ReportingClient:
             media_buy_id=media_buy_id,
             offering_id=offering_id,
             now=now,
+            read_timeout=read_timeout,
         )
 
     def _event_source(self) -> ReportingEvents:
@@ -567,6 +582,7 @@ class ReportingClient:
         grace: timedelta = DEFAULT_GRACE,
         baseline: bool = False,
         now: datetime | None = None,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> EventBatch:
         """One batch of reporting events since the last ``ack``; serverless-safe.
 
@@ -575,8 +591,11 @@ class ReportingClient:
         ``reconcile`` and coverage with the snapshot saved at the last ack, so
         a crash before ``ack`` redelivers the same events with the same ids.
         Pass ``event_store=`` to :class:`ReportingClient` for a durable store.
+        ``read_timeout`` bounds each read, as in :meth:`reconcile`.
         """
-        return await self._event_source().poll(grace=grace, baseline=baseline, now=now)
+        return await self._event_source().poll(
+            grace=grace, baseline=baseline, now=now, read_timeout=read_timeout
+        )
 
     def events(
         self,
@@ -584,13 +603,16 @@ class ReportingClient:
         poll_every: timedelta = timedelta(minutes=5),
         stop: Any = None,
         grace: timedelta = DEFAULT_GRACE,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> AsyncIterator[ReportingEvent]:
         """``async for event in client.reporting.events(): ...``, acked per batch.
 
         Polls every ``poll_every``, or at once when :meth:`handle_webhook`
         rings. ``stop`` is an ``asyncio.Event`` that ends the loop.
         """
-        return self._event_source().events(poll_every=poll_every, stop=stop, grace=grace)
+        return self._event_source().events(
+            poll_every=poll_every, stop=stop, grace=grace, read_timeout=read_timeout
+        )
 
     async def handle_webhook(self, verified: Any) -> EventBatch | None:
         """Treat a verified seller webhook as a doorbell.
@@ -1013,6 +1035,7 @@ class FleetReportingClient:
         include_not_owed: bool = False,
         receipts: ReceiptPolicy | None = None,
         now: datetime | None = None,
+        read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
     ) -> FleetReconcileReport:
         """:meth:`ReportingClient.reconcile` on every seller, ``concurrency`` at a time.
 
@@ -1021,7 +1044,10 @@ class FleetReportingClient:
         be reconciled at all, each with ``agent_id``), ``definitive`` and the
         summed ``summary``. ``agent_ids`` narrows the run; an unknown id is
         refused before anything is sent. The other options are
-        :meth:`ReportingClient.reconcile`'s, applied to every seller.
+        :meth:`ReportingClient.reconcile`'s, applied to every seller:
+        ``read_timeout`` bounds each read of each seller, so a seller that
+        stops answering is reported in ``issues`` and frees its slot instead
+        of holding the run.
         """
         from adcp.reporting.subscriptions.reconcile import reconcile_fleet
 
@@ -1036,6 +1062,7 @@ class FleetReportingClient:
             include_not_owed=include_not_owed,
             receipts=receipts,
             now=now,
+            read_timeout=read_timeout,
         )
 
 

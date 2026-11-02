@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from adcp import types as wire
@@ -30,8 +31,12 @@ class InProcessBuyer:
         self._platform = platform
         self._context = context
         self.fail: set[str] = set()
+        #: Tasks that never answer, as a hung seller.
+        self.hang: set[str] = set()
 
     async def _call(self, task: str, request: Any, model: Any) -> TaskResult[Any]:
+        if task in self.hang:
+            await asyncio.Event().wait()
         if task in self.fail:
             return TaskResult.model_construct(
                 status=TaskStatus.FAILED, data=None, success=False, error=f"{task} unavailable"
@@ -55,4 +60,6 @@ class InProcessBuyer:
         return await self._call("get_reporting_status", request, wire.GetReportingStatusResponse)
 
     async def fetch_capabilities(self) -> Any:
+        if "get_adcp_capabilities" in self.hang:
+            await asyncio.Event().wait()
         return _plain(await self._platform.get_adcp_capabilities({}, self._context()))

@@ -40,6 +40,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 
 from adcp.reporting.subscriptions._clock import CoverageInputError, iso_z, utc_instant
+from adcp.reporting.subscriptions.consumer import ReportingSubscriptionError
 from adcp.reporting.subscriptions.coverage import (
     OwedSubscriptionPeriod,
     SubscriptionAuthorization,
@@ -53,6 +54,7 @@ from adcp.reporting.subscriptions.explain import (
     _Candidate,
     sort_traces,
 )
+from adcp.reporting.subscriptions.facade import DEFAULT_READ_TIMEOUT, _invalid
 from adcp.reporting.subscriptions.receipts import (
     ReceiptPolicy,
     ReceiptReport,
@@ -285,8 +287,93 @@ class _UnreadableError(Exception):
         self.code = code
 
 
+class _ReadTimeoutError(ReportingSubscriptionError):
+    """A read that did not answer within ``read_timeout``: code ``TIMEOUT``, transient."""
+
+    def __init__(self, task: str, seconds: float) -> None:
+        super().__init__(
+            f"{task} did not answer within read_timeout ({seconds:g}s). Retry once the "
+            "seller answers, or pass a longer read_timeout.",
+            code="TIMEOUT",
+            recovery="transient",
+        )
+        self.task = task
+
+
+#: The client methods a run calls, each bounded by ``read_timeout``, and their
+#: wire task names. The receipts policy's write is bounded too, so a hung
+#: seller never holds the report (the TS SDK's ``withReadTimeout`` set).
+_BOUNDED_TASKS = {
+    "get_principal": "get_principal",
+    "fetch_capabilities": "get_adcp_capabilities",
+    "list_accounts": "list_accounts",
+    "get_media_buys": "get_media_buys",
+    "get_reporting_status": "get_reporting_status",
+    "sync_reporting_receipts": "sync_reporting_receipts",
+}
+
+
+def _read_timeout_seconds(read_timeout: timedelta | None) -> float | None:
+    """``read_timeout`` in seconds; ``None`` is no bound, a non-positive value is refused."""
+    if read_timeout is None:
+        return None
+    if not isinstance(read_timeout, timedelta) or read_timeout <= timedelta(0):
+        raise _invalid(
+            "read_timeout must be a positive timedelta, or None for no bound. "
+            "Pass read_timeout=timedelta(seconds=30)."
+        )
+    return read_timeout.total_seconds()
+
+
+def _consume(task: asyncio.Future[Any]) -> None:
+    if not task.cancelled():
+        task.exception()  # retrieved, so an abandoned read never logs "never retrieved"
+
+
+class _BoundedClient:
+    """The client with every read bounded: one that does not answer in time raises ``TIMEOUT``.
+
+    The read is cancelled and abandoned at the deadline, without waiting for it
+    to unwind, so a seller that ignores cancellation still releases the run (and
+    its fleet concurrency slot). Every other attribute is the client's own.
+    """
+
+    def __init__(self, client: Any, seconds: float) -> None:
+        self._client = client
+        self._seconds = seconds
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._client, name)
+        task_name = _BOUNDED_TASKS.get(name)
+        if task_name is None or not callable(attribute):
+            return attribute
+        seconds = self._seconds
+
+        async def bounded(*args: Any, **kwargs: Any) -> Any:
+            call = asyncio.ensure_future(attribute(*args, **kwargs))
+            try:
+                done, _pending = await asyncio.wait({call}, timeout=seconds)
+            except BaseException:
+                call.cancel()
+                raise
+            if call in done:
+                return call.result()
+            call.cancel()
+            call.add_done_callback(_consume)
+            raise _ReadTimeoutError(task_name, seconds)
+
+        return bounded
+
+
+def _bounded(client: Any, read_timeout: timedelta | None) -> Any:
+    seconds = _read_timeout_seconds(read_timeout)
+    return client if seconds is None else _BoundedClient(client, seconds)
+
+
 def _failure(error: BaseException, task: str) -> ReconcileAccountError:
     """The ``error`` of a ``failed`` account: the task that failed, its code and detail."""
+    if isinstance(error, _ReadTimeoutError):
+        return ReconcileAccountError(error.task, "TIMEOUT", str(error))
     if isinstance(error, _UnreadableError):
         return ReconcileAccountError(error.task, error.code, str(error))
     if isinstance(error, CoverageInputError):
@@ -897,6 +984,7 @@ async def reconcile_subscriptions(
     include_not_owed: bool = False,
     receipts: ReceiptPolicy | None = None,
     now: datetime | None = None,
+    read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
 ) -> ReconcileReport:
     """What every covered account is owed, and its status. See :meth:`ReportingClient.reconcile`."""
     report, _context = await _reconcile(
@@ -909,6 +997,7 @@ async def reconcile_subscriptions(
         grace=grace,
         include_not_owed=include_not_owed,
         now=now,
+        read_timeout=read_timeout,
     )
     return report
 
@@ -924,10 +1013,12 @@ async def _reconcile(
     include_not_owed: bool,
     now: datetime | None,
     receipts: ReceiptPolicy | None = None,
+    read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
 ) -> tuple[ReconcileReport, _Context]:
     instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
     if not isinstance(grace, timedelta) or grace < timedelta(0):
         raise ValueError("grace must be a non-negative timedelta")
+    client = _bounded(client, read_timeout)
     lower = _since(since)
     policy = receipts
     receipt_report = ReceiptReport()
@@ -1148,17 +1239,19 @@ async def reconcile_fleet(
     include_not_owed: bool = False,
     receipts: ReceiptPolicy | None = None,
     now: datetime | None = None,
+    read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
 ) -> FleetReconcileReport:
     """Reconcile each seller with bounded concurrency. See :meth:`FleetReportingClient.reconcile`.
 
     ``clients`` maps an agent id to an object with a ``reconcile`` coroutine
     taking :func:`reconcile_subscriptions`' keyword options (a
     :class:`~adcp.reporting.subscriptions.facade.ReportingClient`).
+    ``read_timeout`` bounds each read of each seller, so a hung seller fails
+    as a fleet issue and frees its concurrency slot.
     """
-    from adcp.reporting.subscriptions.facade import _invalid
-
     if type(concurrency) is not int or concurrency < 1:
         raise _invalid("concurrency must be a positive integer. Pass concurrency=4 or more.")
+    _read_timeout_seconds(read_timeout)  # refused once here, not once per seller
     if agent_ids is not None:
         unknown = sorted(set(agent_ids) - set(clients))
         if unknown:
@@ -1172,6 +1265,7 @@ async def reconcile_fleet(
         "include_not_owed": include_not_owed,
         "receipts": receipts,
         "now": now,
+        "read_timeout": read_timeout,
     }
     reports: dict[str, ReconcileReport] = {}
     issues: list[FleetReconcileIssue] = []
@@ -1226,10 +1320,11 @@ async def explain_buyer_coverage(
     media_buy_id: str | None = None,
     offering_id: str | None = None,
     now: datetime | None = None,
+    read_timeout: timedelta | None = DEFAULT_READ_TIMEOUT,
 ) -> list[CoverageTrace]:
     """The buyer's :class:`CoverageTrace` list. See :meth:`ReportingClient.explain`."""
     instant = utc_instant(now, field="now") if now is not None else datetime.now(timezone.utc)
-    context = _Context(client, state or BuyerReportingState())
+    context = _Context(_bounded(client, read_timeout), state or BuyerReportingState())
     records = await context.load(accounts=[account_id], strict=True)
     record = next((item for item in records if item.account_id == account_id), None)
     if record is None:
@@ -1260,6 +1355,7 @@ async def explain_buyer_coverage(
 
 __all__ = [
     "DEFAULT_GRACE",
+    "DEFAULT_READ_TIMEOUT",
     "BuyerReportingState",
     "FleetReconcileIssue",
     "FleetReconcileReport",
