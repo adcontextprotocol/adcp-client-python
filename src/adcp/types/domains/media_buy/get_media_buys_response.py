@@ -62,9 +62,6 @@ class IndicatorTypesEvaluatedEnum(StrEnum):
     budget_constrained = 'budget_constrained'
     flight_extension_opportunity = 'flight_extension_opportunity'
     scale_budget_opportunity = 'scale_budget_opportunity'
-    budget_constrained_1 = 'budget_constrained'
-    flight_extension_opportunity_1 = 'flight_extension_opportunity'
-    scale_budget_opportunity_1 = 'scale_budget_opportunity'
 
 
 class ProposalStatus(StrEnum):
@@ -114,13 +111,6 @@ class IndicatorTypesEvaluatedEnum1(StrEnum):
     budget_constrained = 'budget_constrained'
     flight_extension_opportunity = 'flight_extension_opportunity'
     scale_budget_opportunity = 'scale_budget_opportunity'
-    creative_diversity_low_1 = 'creative_diversity_low'
-    audience_saturation_1 = 'audience_saturation'
-    inventory_shortfall_forecast_1 = 'inventory_shortfall_forecast'
-    pacing_risk_1 = 'pacing_risk'
-    budget_constrained_1 = 'budget_constrained'
-    flight_extension_opportunity_1 = 'flight_extension_opportunity'
-    scale_budget_opportunity_1 = 'scale_budget_opportunity'
 
 
 class Cancellation1(AdCPBaseModel):
@@ -151,8 +141,6 @@ class IndicatorTypesEvaluatedEnum2(StrEnum):
     budget_constrained = 'budget_constrained'
     flight_extension_opportunity = 'flight_extension_opportunity'
     scale_budget_opportunity = 'scale_budget_opportunity'
-    creative_fatigue_1 = 'creative_fatigue'
-    creative_quality_opportunity_1 = 'creative_quality_opportunity'
 
 
 class Snapshot(AdCPBaseModel):

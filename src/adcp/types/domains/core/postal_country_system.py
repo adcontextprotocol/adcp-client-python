@@ -35,8 +35,6 @@ class System(StrEnum):
     au_postcode = 'au_postcode'
     ch_plz = 'ch_plz'
     at_plz = 'at_plz'
-    zip_1 = 'zip'
-    zip_plus_four_1 = 'zip_plus_four'
 
 
 class PostalCountrySystem1(AdCPBaseModel):
@@ -74,8 +72,6 @@ class System11(StrEnum):
     au_postcode = 'au_postcode'
     ch_plz = 'ch_plz'
     at_plz = 'at_plz'
-    outward_1 = 'outward'
-    full_1 = 'full'
 
 
 class PostalCountrySystem2(AdCPBaseModel):
@@ -113,8 +109,6 @@ class System12(StrEnum):
     au_postcode = 'au_postcode'
     ch_plz = 'ch_plz'
     at_plz = 'at_plz'
-    fsa_1 = 'fsa'
-    full_1 = 'full'
 
 
 class PostalCountrySystem3(AdCPBaseModel):
@@ -258,8 +252,6 @@ class System19(StrEnum):
     au_postcode = 'au_postcode'
     ch_plz = 'ch_plz'
     at_plz = 'at_plz'
-    postal_code_1 = 'postal_code'
-    custom_1 = 'custom'
 
 
 class PostalCountrySystem10(AdCPBaseModel):

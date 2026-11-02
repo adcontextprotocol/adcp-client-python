@@ -562,8 +562,6 @@ class Field1(StrEnum):
     content = 'content'
     ad_request_url = 'ad_request_url'
     clickthrough_url = 'clickthrough_url'
-    ad_request_url_1 = 'ad_request_url'
-    clickthrough_url_1 = 'clickthrough_url'
 
 
 class Location5(AdCPBaseModel):

@@ -72,8 +72,6 @@ class IndicatorTypesEvaluatedEnum(StrEnum):
     budget_constrained = 'budget_constrained'
     flight_extension_opportunity = 'flight_extension_opportunity'
     scale_budget_opportunity = 'scale_budget_opportunity'
-    creative_fatigue_1 = 'creative_fatigue'
-    creative_quality_opportunity_1 = 'creative_quality_opportunity'
 
 
 class Indicator(AdCPBaseModel):
