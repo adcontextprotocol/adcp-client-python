@@ -46,6 +46,32 @@ def _normalize_recovery(raw: Any) -> RecoveryLiteral | None:
     return None
 
 
+# Wire values of AdCP 3.3 `error.mutation_outcome`.
+MutationOutcomeLiteral = Literal["not_applied", "unknown", "applied"]
+_MUTATION_OUTCOME_VALUES: frozenset[str] = frozenset(("not_applied", "unknown", "applied"))
+
+
+def normalize_mutation_outcome(error: Any) -> MutationOutcomeLiteral | None:
+    """Read an error's AdCP 3.3 `mutation_outcome` the way the spec tells a buyer to.
+
+    `None` when the error makes no claim (the field is absent): apply the
+    absent-field idempotency guidance. An unrecognized, empty or non-string
+    value reads as `"unknown"`, never as a reason to discard the error.
+    Accepts a pydantic `Error`, a raw dict or a duck-typed object.
+    """
+    if isinstance(error, dict):
+        if "mutation_outcome" not in error:
+            return None
+        raw = error["mutation_outcome"]
+    else:
+        raw = getattr(error, "mutation_outcome", None)
+        if raw is None:
+            return None
+    if isinstance(raw, str) and raw in _MUTATION_OUTCOME_VALUES:
+        return raw  # type: ignore[return-value]
+    return "unknown"
+
+
 @dataclass(frozen=True, slots=True)
 class BuyerReasonInfo:
     """Typed extraction of an AdCP `error.buyer_reason` object.
@@ -79,6 +105,9 @@ class AdcpErrorInfo:
     suggestion: str | None = None
     retry_after: float | None = None
     details: dict[str, Any] | None = None
+    #: AdCP 3.3: whether the failed request changed seller state, normalized
+    #: by :func:`normalize_mutation_outcome` (`None` = no claim).
+    mutation_outcome: MutationOutcomeLiteral | None = None
 
 
 def extract_adcp_error_info(err: Any) -> AdcpErrorInfo:
@@ -126,6 +155,7 @@ def extract_adcp_error_info(err: Any) -> AdcpErrorInfo:
         suggestion=_access(err, "suggestion"),
         retry_after=retry_after,
         details=details,
+        mutation_outcome=normalize_mutation_outcome(err),
     )
 
 
@@ -742,6 +772,15 @@ class ADCPTaskError(ADCPError):
         """
         reasons = self.buyer_reasons
         return reasons[0] if reasons else None
+
+    @property
+    def mutation_outcome(self) -> MutationOutcomeLiteral | None:
+        """AdCP 3.3: whether the failed request changed seller state.
+
+        Read off the first error, the one that terminates the request (and
+        fills ``adcp_error``). ``None`` means the seller made no claim.
+        """
+        return normalize_mutation_outcome(self.errors[0]) if self.errors else None
 
     @property
     def wire_recoveries(self) -> tuple[RecoveryLiteral, ...]:

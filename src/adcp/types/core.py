@@ -271,6 +271,27 @@ class TaskResult(BaseModel, Generic[T]):
     # ``adcp.exceptions.is_pre_dispatch_error``.
     dispatched: Literal[False] | None = None
 
+    @property
+    def mutation_outcome(self) -> Literal["not_applied", "unknown", "applied"] | None:
+        """AdCP 3.3: whether the failed state-changing request changed seller state.
+
+        Read off ``adcp_error``, else the first payload ``errors[]`` entry.
+        ``"not_applied"``: nothing was written, re-plan freely.
+        ``"unknown"``: resend with the same ``idempotency_key`` only.
+        ``"applied"``: the change committed. ``None``: the seller made no
+        claim. An unrecognized value reads as ``"unknown"``.
+        """
+        from adcp.exceptions import normalize_mutation_outcome
+
+        if self.adcp_error is not None:
+            return normalize_mutation_outcome(self.adcp_error)
+        errors = getattr(self.data, "errors", None)
+        if errors is None and isinstance(self.data, dict):
+            errors = self.data.get("errors")
+        if isinstance(errors, list) and errors:
+            return normalize_mutation_outcome(errors[0])
+        return None
+
 
 class ActivityType(str, Enum):
     """Types of activity events."""

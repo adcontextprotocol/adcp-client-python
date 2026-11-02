@@ -110,12 +110,15 @@ def _build_error_data(
     suggestion: str | None = None,
     details: dict[str, Any] | None = None,
     errors: list[Any] | None = None,
+    mutation_outcome: str | None = None,
 ) -> dict[str, Any]:
     """Build the structured data payload for protocol error responses."""
     data: dict[str, Any] = {
         "error_code": code,
         "recovery": recovery or _recovery_for_code(code),
     }
+    if mutation_outcome:
+        data["mutation_outcome"] = mutation_outcome
     if suggestion:
         data["suggestion"] = suggestion
     if details:
@@ -192,6 +195,25 @@ def _extract_structured_fields(
     return code, message, recovery, field, suggestion, details, errors
 
 
+def _mutation_outcome(exc: Any) -> str | None:
+    """The AdCP 3.3 ``mutation_outcome`` a raised error states, if any.
+
+    Read off a decisioning ``AdcpError`` or an ``Error`` model, or off the
+    first entry of an ``ADCPTaskError`` (the entry that fills ``adcp_error``).
+    """
+    value = getattr(exc, "mutation_outcome", None)
+    if value is None and isinstance(exc, ADCPError):
+        entries = getattr(exc, "errors", None)
+        if entries:
+            first = entries[0]
+            value = (
+                first.get("mutation_outcome")
+                if isinstance(first, dict)
+                else getattr(first, "mutation_outcome", None)
+            )
+    return value if isinstance(value, str) and value else None
+
+
 def _payload_errors(exc: Any, adcp_error: dict[str, Any]) -> list[dict[str, Any]]:
     """The payload ``errors[]`` for a fatal failure.
 
@@ -262,6 +284,9 @@ def build_mcp_error_result(
     retry_after = getattr(exc, "retry_after", None)
     if retry_after is not None:
         adcp_error["retry_after"] = retry_after
+    mutation_outcome = _mutation_outcome(exc)
+    if mutation_outcome is not None:
+        adcp_error["mutation_outcome"] = mutation_outcome
     if details:
         adcp_error["details"] = dict(details)
 
@@ -351,6 +376,7 @@ def translate_error(
         suggestion=suggestion,
         details=details,
         errors=errors,
+        mutation_outcome=_mutation_outcome(exc),
     )
 
 
@@ -490,6 +516,7 @@ def _to_a2a(
     suggestion: str | None = None,
     details: dict[str, Any] | None = None,
     errors: list[Any] | None = None,
+    mutation_outcome: str | None = None,
 ) -> A2AError:
     """Format error as an A2AError subclass for A2A servers.
 
@@ -504,6 +531,7 @@ def _to_a2a(
         suggestion=suggestion,
         details=details,
         errors=errors,
+        mutation_outcome=mutation_outcome,
     )
 
     # Use InvalidParamsError for correctable errors (client can fix),
