@@ -364,6 +364,7 @@ def to_wire_sync_governance_row(row: SyncGovernanceResultRow) -> dict[str, Any]:
 CREDENTIAL_BEARING_METHODS: frozenset[str] = frozenset(
     {
         "list_accounts",
+        "request_account",
         "sync_accounts",
         "sync_governance",
         "create_media_buy",

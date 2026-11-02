@@ -3594,7 +3594,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             page = _call_with_optional_ctx(list_requests, params, ctx=resolve_ctx)
             if inspect.isawaitable(page):
                 page = await page
-            served.update(_project_account_requests_page(page))
+            # The rows above were scrubbed before the requests were attached;
+            # a resolved request carries a full Account, so scrub them too.
+            served.update(
+                strip_credentials_from_wire_result(
+                    "list_accounts", _project_account_requests_page(page)
+                )
+            )
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
             # Managed reporting subscriptions serve the grant journal's
@@ -3623,7 +3629,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         result = _call_with_optional_ctx(request_account, params, ctx=resolve_ctx)
         if inspect.isawaitable(result):
             result = await result
-        return _project_request_account(result)
+        return strip_credentials_from_wire_result(
+            "request_account", _project_request_account(result)
+        )
 
     # ----- Optional-method gate -----
 
