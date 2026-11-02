@@ -225,6 +225,7 @@ from adcp.types import (
     RefineProposalsResponse,
     ReportPlanOutcomeRequest,
     ReportPlanOutcomeResponse,
+    RequestAccountRequest,
     RequestProposalsRequest,
     RequestProposalsResponse,
     SyncAccountsRequest,
@@ -337,6 +338,70 @@ def _is_adcp_32_or_newer(version: str | None) -> bool:
     except (AttributeError, TypeError, ValueError):
         return False
     return major > 3 or (major == 3 and minor >= 2)
+
+
+#: The first release that defines ``request_account`` and ``account.requests``.
+_ACCOUNT_REQUESTS_MIN_ADCP_VERSION = "3.3.0-beta.0"
+_ACCOUNT_REQUESTS_FEATURE = "account.requests"
+
+
+def _serves_account_requests(version: str | None) -> bool:
+    """Whether a response served at ``version`` may carry ``account.requests``."""
+    if version is None:
+        return False
+    try:
+        return is_adcp_version_at_least(
+            resolve_adcp_version_alias(version.strip()), _ACCOUNT_REQUESTS_MIN_ADCP_VERSION
+        )
+    except ValueError:
+        return False
+
+
+def _validate_account_requests_config(platform: Any) -> None:
+    """Refuse an ``account.requests`` configuration the framework would have to invent.
+
+    The advertised block needs ``account.supported_billing``, which only the
+    seller can state, and ``list_requests`` rides on ``list_accounts``.
+    """
+    from adcp.exceptions import ConfigurationError
+
+    accounts = getattr(platform, "accounts", None)
+    capabilities = getattr(platform, "capabilities", None)
+    serves = callable(getattr(accounts, "request_account", None))
+    lists = callable(getattr(accounts, "list_requests", None))
+    account_caps = getattr(capabilities, "account", None)
+    declared = getattr(account_caps, "requests", None)
+    if lists and not callable(getattr(accounts, "list", None)):
+        raise ConfigurationError(
+            "accounts.list_requests serves account_requests[] on list_accounts and needs "
+            "accounts.list. Implement both on the AccountStore."
+        )
+    if declared is not None and not serves:
+        raise ConfigurationError(
+            "capabilities.account.requests describes request_account, but the AccountStore "
+            "has no request_account hook. Implement accounts.request_account, or remove "
+            "account.requests from the capabilities."
+        )
+    if not serves:
+        return
+    billing = getattr(account_caps, "supported_billing", None) or getattr(
+        capabilities, "supported_billing", None
+    )
+    if not billing:
+        raise ConfigurationError(
+            "accounts.request_account advertises account.requests, whose account block "
+            "requires supported_billing, and none is declared. Set "
+            "capabilities.account=Account(supported_billing=[...]) to the billing parties "
+            "this seller invoices."
+        )
+    if not lists:
+        warnings.warn(
+            "accounts.request_account is set without accounts.list_requests: list_accounts "
+            "(the advertised account.requests read_task) returns no account_requests, so "
+            "buyers cannot poll a pending request. Implement accounts.list_requests.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1097,6 +1162,58 @@ def _project_list_accounts(result: Any) -> Any:
     return strip_credentials_from_wire_result("list_accounts", envelope)
 
 
+def _wire(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json", exclude_none=True)
+    return value
+
+
+def _project_request_account(result: Any) -> dict[str, Any]:
+    """Serve a ``request_account`` hook's return as the wire response.
+
+    An ``AccountRequest`` record becomes ``{"status": "completed",
+    "request": ...}``; a full response (a mapping with ``request`` or
+    ``errors``) passes through.
+    """
+    body = _wire(result)
+    if not isinstance(body, Mapping):
+        raise TypeError(
+            "accounts.request_account returns the wire AccountRequest (a dict or model), "
+            f"not {type(result).__name__}."
+        )
+    if "request" in body or "errors" in body:
+        response = dict(body)
+        response.setdefault("status", "completed" if "request" in body else "failed")
+        if "request" in response:
+            response["request"] = _wire(response["request"])
+        return response
+    return {"status": "completed", "request": dict(body)}
+
+
+def _project_account_requests_page(page: Any) -> dict[str, Any]:
+    """``account_requests[]`` and ``account_requests_pagination`` from a ``list_requests`` page."""
+    from adcp.decisioning.accounts import AccountRequestsPage
+
+    if isinstance(page, AccountRequestsPage):
+        items, cursor, total = page.items, page.next_cursor, page.total_count
+    elif isinstance(page, (list, tuple)):
+        items, cursor, total = list(page), None, None
+    else:
+        raise TypeError(
+            "accounts.list_requests returns an AccountRequestsPage or a list of wire "
+            f"AccountRequest records, not {type(page).__name__}."
+        )
+    pagination: dict[str, Any] = {"has_more": cursor is not None}
+    if cursor is not None:
+        pagination["cursor"] = cursor
+    if total is not None:
+        pagination["total_count"] = total
+    return {
+        "account_requests": [_wire(item) for item in items],
+        "account_requests_pagination": pagination,
+    }
+
+
 def _build_list_accounts_filter(params: Any) -> dict[str, Any]:
     """Build the filter dict :meth:`AccountStoreList.list` expects from
     a parsed :class:`ListAccountsRequest`. Strips ``None`` so adopter
@@ -1331,6 +1448,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         | set(_COLLECTION_LISTS_ADVERTISED_TOOLS)
         | set(EXPERIMENTAL_READ_TOOLS)
         | {
+            # AdCP 3.3 account.requests, when the AccountStore implements it.
+            "request_account",
             "get_reporting_status",
             "sync_reporting_status",
             "sync_reporting_receipts",
@@ -1425,6 +1544,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ):
             serving.discard("list_accounts")
             self._log_account_tool_dropped("list_accounts", "list")
+        if accounts is not None and callable(getattr(accounts, "request_account", None)):
+            # AdCP 3.3 account.requests: served whenever the store implements it.
+            serving.add("request_account")
         for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
             if wire_name in serving and not _implements_optional_method(
                 self._platform, adopter_name
@@ -1546,6 +1668,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             supported_versions, adcp_version=self._adcp_version
         )
         self._platform = platform
+        _validate_account_requests_config(platform)
         installed_reporting = getattr(platform, "_reliable_reporting_service", None)
         if installed_reporting is not None:
             # Managed reporting subscriptions read accounts and buys through
@@ -2268,6 +2391,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # alongside, which the flat field can't supply.
         if caps.supported_billing and caps.account is None:
             response["account"] = {"supported_billing": list(caps.supported_billing)}
+        self._project_account_requests(
+            response,
+            (context.resolved_adcp_version if context is not None else None) or self._adcp_version,
+        )
         if caps.pricing_models and caps.media_buy is None and "media_buy" in supported_protocols:
             # Spec requires uniqueItems on supported_pricing_models;
             # dedupe via dict.fromkeys to preserve declaration order.
@@ -2316,6 +2443,47 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             _validate_response_dict(response)
 
         return response
+
+    def _project_account_requests(self, response: dict[str, Any], version: str | None) -> None:
+        """Advertise AdCP 3.3 ``account.requests`` when the store serves ``request_account``.
+
+        ``supported``, ``request_task`` and ``read_task`` are always the
+        framework's; the advisory lists come from the declared
+        ``account.requests``. A caller before 3.3 sees neither the block nor
+        the ``account.requests`` feature id, and neither does any caller when
+        the store has no ``request_account`` hook.
+        """
+        serves = callable(getattr(self._platform.accounts, "request_account", None))
+        advertise = serves and _serves_account_requests(version)
+        account = response.get("account")
+        features = [
+            item
+            for item in response.get("experimental_features") or ()
+            if item != _ACCOUNT_REQUESTS_FEATURE
+        ]
+        if advertise:
+            if not isinstance(account, dict) or not account.get("supported_billing"):
+                from adcp.exceptions import ConfigurationError
+
+                raise ConfigurationError(
+                    "accounts.request_account advertises account.requests, whose account "
+                    "block requires supported_billing, and these capabilities declare none. "
+                    "Set account=Account(supported_billing=[...])."
+                )
+            declared = account.get("requests")
+            account["requests"] = {
+                **(declared if isinstance(declared, dict) else {}),
+                "supported": True,
+                "request_task": "request_account",
+                "read_task": "list_accounts",
+            }
+            features.append(_ACCOUNT_REQUESTS_FEATURE)
+        elif isinstance(account, dict):
+            account.pop("requests", None)
+        if features:
+            response["experimental_features"] = features
+        else:
+            response.pop("experimental_features", None)
 
     # ----- Sales tools -----
 
@@ -3402,12 +3570,56 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
             projected = omit_account_activity(projected)
         served = strip_credentials_from_wire_result("list_accounts", projected)
+        version = tool_ctx.resolved_adcp_version or self._adcp_version
+        if isinstance(served, dict) and not _is_adcp_32_or_newer(version):
+            # Account.revision is an AdCP 3.2 field.
+            for row in served.get("accounts") or ():
+                if isinstance(row, dict):
+                    row.pop("revision", None)
+        list_requests = getattr(self._platform.accounts, "list_requests", None)
+        if (
+            isinstance(served, dict)
+            and callable(list_requests)
+            and _serves_account_requests(version)
+            and (
+                getattr(params, "include_requests", None) is True
+                or getattr(params, "request_ids", None) is not None
+                or getattr(params, "requests_pagination", None) is not None
+            )
+        ):
+            page = _call_with_optional_ctx(list_requests, params, ctx=resolve_ctx)
+            if inspect.isawaitable(page):
+                page = await page
+            served.update(_project_account_requests_page(page))
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
             # Managed reporting subscriptions serve the grant journal's
             # authorized_at, the value coverage uses.
             served = await reporting._project_accounts(served, tool_ctx)
         return cast("ListAccountsResponse", served)
+
+    async def request_account(  # type: ignore[override]
+        self,
+        params: RequestAccountRequest,
+        context: ToolContext | None = None,
+    ) -> Any:
+        """Route ``request_account`` to :meth:`AccountStoreRequestAccount.request_account`.
+
+        AdCP 3.3 ``account.requests``. ``OPERATION_NOT_SUPPORTED`` when the
+        store has no hook. Like ``sync_accounts``, this is a bootstrap
+        task: it primes the caller's identity without resolving an
+        account. The hook scopes a change to the caller.
+        """
+        request_account = getattr(self._platform.accounts, "request_account", None)
+        if not callable(request_account):
+            return self._not_supported("request_account")
+        tool_ctx = context or ToolContext()
+        await self._prime_auth_context(tool_ctx)
+        resolve_ctx = self._make_resolve_context(tool_ctx, "request_account")
+        result = _call_with_optional_ctx(request_account, params, ctx=resolve_ctx)
+        if inspect.isawaitable(result):
+            result = await result
+        return _project_request_account(result)
 
     # ----- Optional-method gate -----
 

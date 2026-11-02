@@ -253,6 +253,9 @@ def to_wire_account(account: DecisioningAccount[Any]) -> dict[str, Any]:
         wire["timezone"] = account.timezone
     if account.operator is not None:
         wire["operator"] = account.operator
+    revision = getattr(account, "revision", None)
+    if revision is not None:
+        wire["revision"] = revision
     return wire
 
 

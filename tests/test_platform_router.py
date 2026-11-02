@@ -601,6 +601,8 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
     from adcp.decisioning.accounts import (
         AccountStore,
         AccountStoreList,
+        AccountStoreListRequests,
+        AccountStoreRequestAccount,
         AccountStoreSyncGovernance,
         AccountStoreUpsert,
         AccountStoreUpsertRequest,
@@ -612,6 +614,8 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
     expected = (
         _protocol_method_names(AccountStore)
         | _protocol_method_names(AccountStoreList)
+        | _protocol_method_names(AccountStoreListRequests)
+        | _protocol_method_names(AccountStoreRequestAccount)
         | _protocol_method_names(AccountStoreUpsert)
         | _protocol_method_names(AccountStoreUpsertRequest)
         | _protocol_method_names(AccountStoreSyncGovernance)

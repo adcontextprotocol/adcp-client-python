@@ -97,6 +97,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         # Account roster (unioned into every sales-* claim)
         "sync_accounts",
         "list_accounts",
+        # AdCP 3.3 account.requests (advertised only when the AccountStore serves it)
+        "request_account",
         # Creative (Builder + AdServer)
         "build_creative",
         "preview_creative",
