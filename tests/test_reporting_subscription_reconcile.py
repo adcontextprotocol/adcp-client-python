@@ -277,3 +277,140 @@ async def test_the_multi_agent_client_exposes_the_fleet() -> None:
     fleet = multi.reporting
     assert isinstance(fleet, FleetReportingClient)
     assert fleet._reporting("s1") is multi.agent("s1").reporting
+
+
+# -- read_timeout -------------------------------------------------------------------------
+
+_FAST = timedelta(milliseconds=50)
+
+
+async def test_a_hung_seller_times_out_in_the_fleet_and_frees_its_slot() -> None:
+    import asyncio
+
+    from adcp.reporting.subscriptions.facade import FleetReportingClient
+
+    world = await _delivered_world()
+    hung = InProcessBuyer(world.platform, _ctx)
+    hung.hang.add("get_principal")
+    fleet = FleetReportingClient(
+        {
+            "hung": hung,
+            "a": InProcessBuyer(world.platform, _ctx),
+            "b": InProcessBuyer(world.platform, _ctx),
+        }
+    )
+    # One slot and the hung seller first: the others still run once it times out.
+    report = await asyncio.wait_for(
+        fleet.reconcile(now=world.clock(), concurrency=1, read_timeout=_FAST), timeout=10
+    )
+    assert sorted(report.by_seller) == ["a", "b"]
+    assert all(item.definitive for item in report.by_seller.values())
+    ((agent_id, code, message),) = [
+        (issue.agent_id, issue.code, issue.message) for issue in report.issues
+    ]
+    assert (agent_id, code) == ("hung", "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE")
+    assert "get_principal did not answer within read_timeout" in message
+    assert not report.definitive
+    assert report.summary.owed == 4
+
+
+async def test_a_read_that_does_not_answer_fails_its_account_as_timeout() -> None:
+    world = await _delivered_world()
+    reporting, client = _buyer(world)
+    client.hang.add("get_media_buys")
+    report = await reporting.reconcile(now=world.clock(), read_timeout=_FAST)
+    assert not report.definitive
+    (entry,) = report.accounts
+    assert (entry.account_id, entry.status) == (ACCOUNT, "failed")
+    assert entry.error is not None
+    assert (entry.error.task, entry.error.code) == ("get_media_buys", "TIMEOUT")
+    assert "read_timeout" in entry.error.message
+    assert [issue.code for issue in report.issues] == ["SUBSCRIPTION_ACCOUNT_UNREADABLE"]
+
+
+async def test_a_principal_read_that_does_not_answer_is_reported_and_raises_for_explain() -> None:
+    from adcp.reporting.subscriptions import ReportingSubscriptionError
+
+    world = await _delivered_world()
+    reporting, client = _buyer(world)
+    client.hang.add("get_principal")
+    report = await reporting.reconcile(now=world.clock(), read_timeout=_FAST)
+    assert not report.definitive and report.periods == ()
+    (issue,) = report.issues
+    assert issue.code == "SUBSCRIPTION_PRINCIPAL_UNAVAILABLE"
+    assert "read_timeout" in issue.message
+    (roster,) = report.accounts
+    assert roster.error is not None
+    assert (roster.account_id, roster.error.task, roster.error.code) == (
+        "*",
+        "get_principal",
+        "TIMEOUT",
+    )
+    with pytest.raises(ReportingSubscriptionError, match="read_timeout") as raised:
+        await reporting.explain(
+            account_id=ACCOUNT, period="2026-11-01", now=world.clock(), read_timeout=_FAST
+        )
+    assert raised.value.code == "TIMEOUT" and raised.value.recovery == "transient"
+
+
+async def test_read_timeout_none_disables_the_bound_and_non_positive_is_refused() -> None:
+    import asyncio
+
+    from adcp.reporting.subscriptions import ReportingSubscriptionError
+    from adcp.reporting.subscriptions.facade import FleetReportingClient
+
+    world = await _delivered_world()
+    reporting, client = _buyer(world)
+    unbounded = await reporting.reconcile(now=world.clock(), read_timeout=None)
+    assert unbounded.definitive
+    client.hang.add("get_principal")
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(reporting.reconcile(now=world.clock(), read_timeout=None), 0.2)
+    fleet = FleetReportingClient({"a": InProcessBuyer(world.platform, _ctx)})
+    for bad in (timedelta(0), timedelta(seconds=-1), 30):
+        with pytest.raises(ReportingSubscriptionError, match="read_timeout") as raised:
+            await reporting.reconcile(read_timeout=bad)  # type: ignore[arg-type]
+        assert raised.value.code == "INVALID_REQUEST"
+        # Refused before any seller is read, never one issue per seller.
+        with pytest.raises(ReportingSubscriptionError, match="read_timeout"):
+            await fleet.reconcile(read_timeout=bad)  # type: ignore[arg-type]
+        with pytest.raises(ReportingSubscriptionError, match="read_timeout"):
+            await reporting.explain(
+                account_id=ACCOUNT,
+                period="2026-11-01",
+                read_timeout=bad,  # type: ignore[arg-type]
+            )
+
+
+async def test_a_read_that_ignores_cancellation_still_releases_the_run() -> None:
+    import asyncio
+
+    from adcp.reporting.subscriptions.reconcile import _BoundedClient, _ReadTimeoutError
+
+    finished = asyncio.Event()
+
+    class Stubborn:
+        agent_config = "kept"
+
+        async def get_principal(self, request: object) -> str:
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                await asyncio.sleep(0.2)  # unwinds slowly instead of stopping
+            finally:
+                finished.set()
+            return "late"
+
+        async def list_accounts(self, request: object) -> object:
+            raise TimeoutError("the transport's own timeout")
+
+    bounded = _BoundedClient(Stubborn(), 0.05)
+    assert bounded.agent_config == "kept"
+    started = asyncio.get_running_loop().time()
+    with pytest.raises(_ReadTimeoutError, match="get_principal did not answer"):
+        await bounded.get_principal({})
+    assert asyncio.get_running_loop().time() - started < 0.2
+    # A client's own TimeoutError is its own failure, not read_timeout's.
+    with pytest.raises(TimeoutError, match="transport"):
+        await bounded.list_accounts({})
+    await asyncio.wait_for(finished.wait(), 1)

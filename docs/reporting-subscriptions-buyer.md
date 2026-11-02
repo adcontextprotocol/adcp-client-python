@@ -57,7 +57,7 @@ for line in report.periods:
         print(line.account_id, line.period["start"], line.status, line.reason, line.message)
 ```
 
-`reconcile()` reads everything from the wire on each run. Never compute periods yourself.
+`reconcile()` reads everything from the wire on each run. Never compute periods yourself. Each read is bounded by `read_timeout` (default 30 seconds, `None` for no bound), so one unresponsive seller cannot stall the report: a read that does not answer in time fails as `TIMEOUT` like any other failed read.
 - **Roster:** `list_accounts` ∩ your subscriptions' scopes, plus each subscription's `accounts_unauthorized[]`. There is no account list to keep.
 - **Grant history:** `authorization.authorized_at` and `regranted_at` from `list_accounts`, and `unauthorized_at` from `accounts_unauthorized[]`. You never record grants.
 - **Facts:** buys from `get_media_buys`, offerings from capabilities, and `subscription_coverage[]` and the obligations from a complete `get_reporting_status` periods walk.
@@ -95,7 +95,7 @@ for issue in fleet.issues:  # sellers that could not be reconciled at all
     print(issue.agent_id, issue.code, issue.message)
 ```
 
-`multi.reporting.reconcile()` runs `reconcile()` on every seller, `concurrency` at a time, with the same options. Each seller is read through its own `multi.agent(agent_id).reporting`. `fleet.summary` sums the sellers' summaries. A seller whose principal could not be read is in `fleet.issues` (`SUBSCRIPTION_PRINCIPAL_UNAVAILABLE`, with `agent_id`), not in `by_seller`. `fleet.definitive` is true only when every seller's report is definitive and no seller failed. `agent_ids=` narrows the run.
+`multi.reporting.reconcile()` runs `reconcile()` on every seller, `concurrency` at a time, with the same options. Each seller is read through its own `multi.agent(agent_id).reporting`. `fleet.summary` sums the sellers' summaries. A seller whose principal could not be read is in `fleet.issues` (`SUBSCRIPTION_PRINCIPAL_UNAVAILABLE`, with `agent_id`), not in `by_seller`. `fleet.definitive` is true only when every seller's report is definitive and no seller failed. `agent_ids=` narrows the run. `read_timeout` bounds each read of each seller, so a hung seller lands in `fleet.issues` (or fails its accounts) and frees its `concurrency` slot instead of holding the run.
 
 From a shell: `python -m adcp reporting reconcile --agent <alias> [--since 2026-11-01] [--json]`.
 

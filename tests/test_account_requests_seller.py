@@ -288,3 +288,62 @@ async def test_a_python_buyer_ensures_against_the_seller_and_refreshes_to_ready(
     again = await client.accounts.ensure(KEY)
     assert isinstance(again, AccountReady) and again.account_id == "acc-1"
     assert len(store.requests) == 1
+
+
+_BANK = {"account_holder": "Acme Inc", "iban": "DE89370400440532013000"}
+_GOVERNANCE_SECRET = "gov-secret-token-0123456789abcdef"
+_WEBHOOK_SECRET = "webhook-secret-0123456789abcdefghij"
+
+
+def _credentialed_account() -> dict[str, Any]:
+    """A wire Account carrying every credential-shaped field the scrubber strips."""
+    return {
+        "account_id": "acc-1",
+        "name": "Acme",
+        "status": "active",
+        "billing_entity": {"legal_name": "Acme Inc", "bank": dict(_BANK)},
+        "governance_agents": [
+            {
+                "url": "https://governance.example",
+                "authentication": {"schemes": ["Bearer"], "credentials": _GOVERNANCE_SECRET},
+            }
+        ],
+        "notification_configs": [
+            {
+                "url": "https://buyer.example/hooks",
+                "authentication": {"schemes": ["Bearer"], "credentials": _WEBHOOK_SECRET},
+            }
+        ],
+    }
+
+
+def _assert_scrubbed(account: dict[str, Any]) -> None:
+    assert account["billing_entity"] == {"legal_name": "Acme Inc"}
+    assert account["governance_agents"] == [{"url": "https://governance.example"}]
+    assert "credentials" not in account["notification_configs"][0]["authentication"]
+    for secret in (_BANK["iban"], _GOVERNANCE_SECRET, _WEBHOOK_SECRET):
+        assert secret not in repr(account)
+
+
+@pytest.mark.asyncio
+async def test_account_requests_are_scrubbed_like_the_accounts_beside_them() -> None:
+    store = _Store()
+    store.requests["req-1"] = _record(
+        "req-1",
+        "resolved",
+        resolution="created",
+        account_id="acc-1",
+        account=_credentialed_account(),
+    )
+    handler = _handler(store)
+    listed = await handler.list_accounts(ListAccountsRequest(include_requests=True), _ctx())
+    (item,) = listed["account_requests"]
+    _assert_scrubbed(item["account"])
+    # The hook's record is not mutated: the scrub copies.
+    assert store.requests["req-1"]["account"]["billing_entity"]["bank"] == _BANK
+
+    answered = await handler.request_account(
+        RequestAccountRequest.model_validate({"idempotency_key": "k" * 16, **KEY}), _ctx()
+    )
+    assert answered["request"]["state"] == "resolved"
+    _assert_scrubbed(answered["request"]["account"])
