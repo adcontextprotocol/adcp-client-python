@@ -235,6 +235,8 @@ Some 3.3 additions need more than dropping the field. These rules run on the
 | `age_determination_bases` | Moved to `ext.adcp.age_determination_bases`, replacing any interim value there | `moved_to_ext_adcp` |
 | `price_breakdown` with an `operator_fee` adjustment | Response: breakdown omitted, since the rest no longer sums to `fixed_price`; request: error | `enum_unavailable` on the kind, `unrepresentable_in_target` on the breakdown |
 | `pixel_tracker` `event` `start`, `first_quartile`, `midpoint`, `third_quartile`, `complete` | Rewritten to `event: custom` with `custom_event_name` set to the 3.3 value, the 3.2 interim form; never an impression tracker. Upgrading keeps the `custom` form | `playback_event_as_custom` |
+| `expected_confirmation_at` on `buy_products`, `accept_proposal`, `refine_proposals` | Dropped from every arm, submitted included, even where the 3.2 async schema is open: the spec sends it only to 3.3 callers | `field_unavailable` |
+| `expected_confirmation_at` on `create_media_buy`'s submitted envelope and on `get_media_buys` buys | Kept for 3.2, 3.1 and 3.0, whose objects are open: the spec makes it safe for any release to ignore | none |
 | New `error.code` values (`RIGHTS_CHANNEL_VIOLATION`, `ACCOUNT_CHANGE_REQUIRES_NEW_ACCOUNT`, ...) | Kept: 3.2 `error.code` is open, and receivers classify it by `recovery` | none |
 | Other new enum values | Dropped when optional, refused when required (see above) | `enum_unavailable` |
 

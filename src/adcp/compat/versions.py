@@ -70,6 +70,19 @@ _WHOLE_OBJECTS = frozenset({"Price Breakdown"})
 _PLAYBACK_PIXEL_EVENTS = frozenset(
     {"start", "first_quartile", "midpoint", "third_quartile", "complete"}
 )
+#: Newer response fields the spec lets a seller send to older peers whose
+#: object is open: ``expected_confirmation_at`` on ``create_media_buy``'s
+#: submitted envelope and on ``get_media_buys`` buys is an estimate any
+#: release can ignore. Where the older object is closed it is dropped as usual.
+_OLDER_PEER_SAFE_FIELDS = frozenset({"expected_confirmation_at"})
+#: Top-level response fields a task sends only to peers on the 3.3 line
+#: (AdCP 3.3: ``expected_confirmation_at`` on ``buy_products``,
+#: ``accept_proposal`` and ``refine_proposals``). Each async schema may not
+#: declare the field, so the drop is explicit rather than left to projection.
+_LATEST_LINE_ONLY_FIELDS: dict[str, tuple[str, ...]] = {
+    tool: ("expected_confirmation_at",)
+    for tool in ("buy_products", "accept_proposal", "refine_proposals")
+}
 
 
 @dataclass(frozen=True)
@@ -610,6 +623,9 @@ def _project(
                         target_version=target_version,
                         reason="the older contract cannot express an explicit null clear",
                     )
+                if key in _OLDER_PEER_SAFE_FIELDS and response and _is_open(target):
+                    projected[key] = child
+                    continue
                 # Schema maps (e.g. asset IDs) are application-owned keys.
                 additional = target.get("additionalProperties")
                 if isinstance(additional, dict) or target.get("patternProperties"):
@@ -1248,6 +1264,11 @@ def _convert_payload(
                 result.setdefault("cache_scope", scope)
         if direction != "request":
             _convert_compact_status(tool, result, source, target, step, losses)
+            if step < 0 and minor == 3:
+                for name in _LATEST_LINE_ONLY_FIELDS.get(tool, ()):
+                    if name in result:
+                        del result[name]
+                        losses.append(ConversionLoss(_pointer("", name), source, target))
         if step > 0 and _carries_interim_ext(result):
             _hoist_interim_ext(result, target_schema, target_schema)
         if step < 0:

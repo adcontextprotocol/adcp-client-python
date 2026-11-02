@@ -609,6 +609,8 @@ class RequestContext(ToolContext, Generic[TMeta]):
     def handoff_to_task(
         self,
         fn: Callable[[Any], Awaitable[T] | T],
+        *,
+        expected_confirmation_at: datetime | str | None = None,
     ) -> TaskHandoff[T]:
         """Promote this call to a background task.
 
@@ -635,12 +637,23 @@ class RequestContext(ToolContext, Generic[TMeta]):
         — use :meth:`handoff_to_workflow` instead. The split is purely
         about where the work runs (in-process / framework-managed vs.
         adopter-owned external system).
+
+        ``expected_confirmation_at`` (AdCP 3.3) is the seller's estimate of
+        when it will confirm, for ``create_media_buy``, ``buy_products``,
+        ``accept_proposal`` and finalize-only or extend_hold-only
+        ``refine_proposals``. It rides on the Submitted envelope; see
+        :func:`adcp.server.responses.submitted_response` for the version
+        rules.
         """
-        return TaskHandoff(fn)
+        return TaskHandoff(
+            fn, expected_confirmation_at=_confirmation_estimate(expected_confirmation_at)
+        )
 
     def handoff_to_workflow(
         self,
         fn: Callable[[Any], Awaitable[None] | None],
+        *,
+        expected_confirmation_at: datetime | str | None = None,
     ) -> WorkflowHandoff:
         """Promote this call to an externally-completed task.
 
@@ -708,6 +721,18 @@ class RequestContext(ToolContext, Generic[TMeta]):
                         )
 
         See :class:`adcp.decisioning.WorkflowHandoff` for the full
-        semantics.
+        semantics. ``expected_confirmation_at`` is as on
+        :meth:`handoff_to_task`.
         """
-        return WorkflowHandoff(fn)
+        return WorkflowHandoff(
+            fn, expected_confirmation_at=_confirmation_estimate(expected_confirmation_at)
+        )
+
+
+def _confirmation_estimate(value: datetime | str | None) -> str | None:
+    """Validate an ``expected_confirmation_at`` estimate at the handoff site."""
+    if value is None:
+        return None
+    from adcp.server.responses import format_expected_confirmation_at
+
+    return format_expected_confirmation_at(value)

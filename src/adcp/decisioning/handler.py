@@ -64,6 +64,7 @@ from adcp.decisioning.dispatch import (
     _internal_error_details,
     _internal_error_message,
     _invoke_platform_method,
+    _is_framework_submitted_projection,
 )
 from adcp.decisioning.domain_lists import bound_capability_domain_lists
 from adcp.decisioning.experimental_reads import (
@@ -1994,7 +1995,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         "submitted"`` predicate so an adopter who legitimately returns a
         sync ``{"status": "submitted", ...}`` remains an inline result.
         """
-        if (
+        if _is_framework_submitted_projection(result) or (
             isinstance(result, dict)
             and set(result.keys()) == {"task_id", "status"}
             and result.get("status") == "submitted"
