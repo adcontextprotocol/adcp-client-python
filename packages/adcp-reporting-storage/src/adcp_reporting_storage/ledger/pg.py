@@ -702,8 +702,9 @@ class PgReportingLedgerStore:
         # and carries its version; the idempotent files below then only
         # re-verify what they installed. Migrations of other stores' tables
         # (0004 subscription state, 0005 inline storage, 0006 status checkpoint
-        # offerings) stay pending for python -m adcp migrate: the catalog contract of this store's older
-        # binaries is exactly its own reporting_* objects.
+        # offerings) stay pending for python -m adcp migrate: the catalog
+        # contract of this store's older binaries is exactly its own
+        # reporting_* objects.
         package = Path(__file__).resolve().parents[1]
         await apply_pending(
             connection,
