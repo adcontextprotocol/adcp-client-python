@@ -405,6 +405,16 @@ def test_envelope_composition_is_rendered_as_a_base_class() -> None:
     test above and still leave consumers with nothing to bind to.
     """
     counted: dict[Path, int] = {path: 0 for path in _MIN_ENVELOPE_DESCENDANTS}
+    # From adcp#8547 the protocol envelope composes the version envelope and
+    # responses compose only the protocol envelope, so a response is a version
+    # envelope descendant through it. Count it as one, and hold the ancestry.
+    version, protocol = Path("core/version-envelope.json"), Path("core/protocol-envelope.json")
+    transitive = {
+        composition.target
+        for composition in _compositions()
+        if composition.schema == protocol and composition.target == version
+    }
+    version_type = _generated_type(version)
     for composition, composing, parent in _graded():
         if composition.target not in counted:
             continue
@@ -413,6 +423,13 @@ def test_envelope_composition_is_rendered_as_a_base_class() -> None:
                 cls, parent
             ), f"{composition.schema}::{cls.__name__} does not inherit {parent.__name__}"
         counted[composition.target] += 1
+        if composition.target == protocol and transitive and version_type is not None:
+            for cls in composing:
+                assert issubclass(cls, version_type[0]), (
+                    f"{composition.schema}::{cls.__name__} does not inherit "
+                    f"{version_type[0].__name__} through {parent.__name__}"
+                )
+            counted[version] += 1
 
     short = {
         path: (found, floor)
