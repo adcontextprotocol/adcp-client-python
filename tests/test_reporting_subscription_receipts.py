@@ -201,3 +201,79 @@ async def test_a_commit_that_raises_is_retried_later_and_never_drops_other_recei
     )
     assert report.failed == [("obligation-billing", "COMMIT_FAILED")]
     assert client.recorded_receipt is None
+
+
+async def test_pending_adjustments_are_offered_on_an_already_receipted_revision(
+    monkeypatch,
+) -> None:
+    """An adjustment corrects a revision after it was receipted, so it is still offered."""
+    from types import SimpleNamespace
+
+    import adcp.reporting._reconcile as reconcile_module
+
+    async def inspect(_context):
+        return _observation()
+
+    client = _Client()
+    policy = ReceiptPolicy(
+        mode="verified", commit=lambda _r: CommitResult("job-1"), inspect=inspect
+    )
+    assert await apply_receipt_policy(
+        client, "account-1", await _ledger(client), policy, ReceiptReport(), now=NOW
+    )
+    ledger = await _ledger(client)
+    real = reconcile_module._validate_read_ledger
+
+    def with_adjustments(value):
+        leaves, complete, index = real(value)
+        obligation = value.obligations[0]
+        revision = index.selections[obligation.reporting_obligation_id][0]
+        index.adjustments_by_revision[revision.reporting_revision_id] = [
+            SimpleNamespace(reporting_adjustment_id="adjustment-pending"),
+            SimpleNamespace(reporting_adjustment_id="adjustment-answered"),
+        ]
+        value.adjustment_receipts.append(
+            SimpleNamespace(reporting_adjustment_id="adjustment-answered")
+        )
+        return leaves, complete, index
+
+    monkeypatch.setattr(reconcile_module, "_validate_read_ledger", with_adjustments)
+    seen: list[str] = []
+    offered = ReceiptPolicy(
+        mode="verified",
+        commit=lambda _r: CommitResult("job-2"),
+        inspect=inspect,
+        adjustments=lambda adjustment: seen.append(adjustment.reporting_adjustment_id) or "defer",
+    )
+    report = ReceiptReport()
+    assert not await apply_receipt_policy(client, "account-1", ledger, offered, report, now=NOW)
+    assert seen == report.adjustments_deferred == ["adjustment-pending"]
+    assert report.submitted == []
+
+
+async def test_a_rejected_revision_is_the_sellers_to_correct_not_owed_by_the_buyer() -> None:
+    from adcp.reporting.subscriptions.reconcile import _obligations
+
+    async def inspect(_context):
+        return _observation()
+
+    async def receipt_state(client: _Client) -> list[str | None]:
+        index, walked, _ledger_read = await _obligations(client, "account-1", NOW)
+        assert walked
+        return [item.receipt for item in index.values() if item.revision_id is not None]
+
+    client = _Client()
+    assert await receipt_state(client) == ["owed_by_buyer"]
+    policy = ReceiptPolicy(
+        mode="verified", commit=lambda _r: Reject(["LOAD_FAILED"]), inspect=inspect
+    )
+    await apply_receipt_policy(
+        client, "account-1", await _ledger(client), policy, ReceiptReport(), now=NOW
+    )
+    assert await receipt_state(client) == ["rejected_by_buyer"]
+    accepted = _Client()
+    policy = ReceiptPolicy(mode="verified", commit=lambda _r: CommitResult("job"), inspect=inspect)
+    await apply_receipt_policy(
+        accepted, "account-1", await _ledger(accepted), policy, ReceiptReport(), now=NOW
+    )
+    assert await receipt_state(accepted) == [None]

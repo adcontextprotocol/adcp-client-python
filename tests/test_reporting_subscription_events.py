@@ -91,6 +91,35 @@ async def test_losing_and_regaining_authority_are_events() -> None:
     await world.service.drain_subscription_triggers()
     back = await reporting.poll(now=world.clock())
     assert "account.regranted" in _types(back)
+    regranted = next(e for e in back.events if e.type == "account.regranted")
+    # A re-grant within retention keeps authorized_at: the chain continues.
+    assert regranted.to_dict()["data"]["chain"] == "continued"
+    assert regranted.to_dict()["data"]["authorized_at"] == "2026-10-01T00:00:00Z"
+
+
+async def test_a_fresh_client_reads_the_chain_from_the_saved_snapshot() -> None:
+    from adcp.reporting.subscriptions import InMemoryReportingEventStore
+
+    world = _World()
+    await world.subscribe()
+    store = InMemoryReportingEventStore()
+
+    def fresh() -> ReportingClient:
+        return ReportingClient(InProcessBuyer(world.platform, _ctx), event_store=store)
+
+    world.clock.set(START + timedelta(minutes=30))
+    await (await fresh().poll(baseline=True, now=world.clock())).ack()
+    account = world.seller.accounts.pop(ACCOUNT)
+    await world.service.touch(account_id=ACCOUNT)
+    await world.service.drain_subscription_triggers()
+    await (await fresh().poll(now=world.clock())).ack()
+    world.clock.set(START + timedelta(hours=1))
+    world.seller.accounts[ACCOUNT] = account
+    await world.service.touch(account_id=ACCOUNT)
+    await world.service.drain_subscription_triggers()
+    back = await fresh().poll(now=world.clock())
+    regranted = next(e for e in back.events if e.type == "account.regranted")
+    assert regranted.to_dict()["data"]["chain"] == "continued"
 
 
 async def test_handle_webhook_needs_a_verified_delivery_and_polls_inline() -> None:
