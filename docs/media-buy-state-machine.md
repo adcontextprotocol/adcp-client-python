@@ -73,3 +73,34 @@ Some ad-server moves have no edge in AdCP 3.2, and the SDK does not add one:
 A seller that sees one of these should keep the status it reports to buyers on
 the published graph, and track the platform's state separately, rather than
 send a history that `status.monotonic` rejects.
+
+## Provisional buys (AdCP 3.3)
+
+Seller commitment is a separate axis from status. A buy whose `confirmed_at` is
+null is provisional: it is never `active`, and it stays `pending_creatives` or
+`pending_start`, through its flight start, until the seller confirms or rejects
+it (`enums/media-buy-status.json`). It can still be canceled or rejected.
+
+Pass `provisional=True` to either check for such a buy. Moves into `active` or
+`paused` (`PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES`) are then refused:
+`assert_media_buy_transition` raises `INVALID_STATE`, and
+`is_observable_media_buy_transition` returns `False`, so an ad server that
+starts the order early does not make the buy active to the buyer.
+
+A flight-start scheduler uses `media_buy_status_at_flight_start`. Only a
+committed `pending_start` buy moves, to `active`, or to `paused` when it was
+created held:
+
+```python
+from adcp.decisioning import media_buy_status_at_flight_start
+
+for buy in buys_whose_flight_started:
+    status = media_buy_status_at_flight_start(
+        buy.status, confirmed_at=buy.confirmed_at, paused=buy.created_paused
+    )
+    if status != buy.status:
+        commit_status_change(buy, status)  # advances revision; see media-buy-store.md
+```
+
+When the seller later confirms a provisional buy whose flight has started, set
+`confirmed_at` and move it from `pending_start` to `active` in the same change.

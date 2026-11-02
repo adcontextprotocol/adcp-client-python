@@ -983,6 +983,8 @@ class WebhookReceiver:
 
     def _parse(self, payload_dict: dict[str, Any]) -> WebhookPayload | None:
         model = _MODEL_BY_KIND[self._config.kind]
+        if self._config.kind == "mcp":
+            payload_dict = _without_delivery_aggregated_totals(payload_dict)
         try:
             return cast(WebhookPayload, model.model_validate(payload_dict))
         except ValidationError as exc:
@@ -995,6 +997,31 @@ class WebhookReceiver:
                 exc.errors(include_url=False),
             )
             return None
+
+
+def _without_delivery_aggregated_totals(payload_dict: dict[str, Any]) -> dict[str, Any]:
+    """Drop ``aggregated_totals`` from a ``media_buy_delivery`` webhook result.
+
+    ``aggregated_totals`` is API-only (``get_media_buy_delivery``); a sender
+    must not put it in a delivery webhook, and a receiver ignores it rather
+    than rejecting the payload (AdCP 3.3 ``media-buy-delivery-webhook-result.json``,
+    ``webhooks.mdx``). Dropping it before parsing keeps a malformed value from
+    failing validation and keeps the application from reading cross-buy totals
+    the sender should not have sent. Runs after signature verification and the
+    dedup claim, which cover the bytes as received.
+    """
+    result = payload_dict.get("result")
+    if (
+        payload_dict.get("task_type") != "media_buy_delivery"
+        or not isinstance(result, dict)
+        or "aggregated_totals" not in result
+    ):
+        return payload_dict
+    logger.debug("ignored aggregated_totals in a media_buy_delivery webhook result")
+    return {
+        **payload_dict,
+        "result": {key: value for key, value in result.items() if key != "aggregated_totals"},
+    }
 
 
 def _has_9421_headers(headers: Mapping[str, str]) -> bool:

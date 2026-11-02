@@ -101,3 +101,44 @@ keep their `null` values on every dump, including the default
 `exclude_none=True`. A buyer's `{"a": null, "b": 1}` is echoed as sent, both
 by the persisted echo above and by any platform that returns a typed response
 carrying the request's `context`. Keys you exclude by name stay excluded.
+
+## `revision` and `history` from any origin (AdCP 3.3)
+
+A buy's `revision` advances on every committed change to what `get_media_buys`
+reports, whatever its origin: an AdCP task, a seller operator, seller
+automation, another authorized principal, or a connected platform whose change
+the seller ingests. `history[]` entries for a change that did not arrive
+through an AdCP task must carry `origin.kind`; entries for AdCP task changes
+should carry `kind: "adcp"`. Reads, validation-only calls and idempotent
+replays do not advance it.
+
+Your persistence owns the revision counter, because `update_media_buy` compares
+it atomically with the write. `record_media_buy_change` builds the next revision
+and a schema-valid history entry; store both in the same transaction as the
+change:
+
+```python
+from adcp.decisioning import record_media_buy_change
+
+change = record_media_buy_change(
+    buy.revision,
+    action="updated_budget",
+    origin="seller_operator",  # server-derived; never copied from a caller
+    actor="Sales ops",
+    summary="Budget increased from $5,000 to $7,500",
+)
+await db.update_buy(
+    buy.media_buy_id,
+    expected_revision=buy.revision,
+    revision=change.revision,
+    history_append=change.history_entry,
+    total_budget=7500,
+)
+```
+
+`origin` is one of `adcp`, `seller_operator`, `seller_system`,
+`connected_platform` (optionally with a non-secret `connection_id`) and
+`unknown`. A creative assignment made through `sync_creatives` is an AdCP task
+change on the buy: record it with `origin="adcp"` and an action such as
+`creative_assigned`. The framework media-buy store does not keep revisions or
+history itself.

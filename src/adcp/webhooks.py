@@ -337,6 +337,110 @@ class ReportingWebhookOperationIdMissingError(ValueError):
         )
 
 
+#: The AdCP RFC 9421 webhook-signing profile (``enums/webhook-signing-profile.json``).
+#: A ``reporting_webhook`` / ``artifact_webhook`` registration without
+#: ``authentication`` or ``signing_profile`` is signed under it.
+WEBHOOK_SIGNING_PROFILE_ADCP = "adcp/webhook-signing/v1"
+#: The Web Bot Auth webhook-signing profile (experimental, AdCP 3.3).
+WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH = "web-bot-auth"
+_WEBHOOK_SIGNING_PROFILES = frozenset(
+    {WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH}
+)
+
+
+class WebhookRegistrationError(ValueError):
+    """A webhook registration the seller must reject with ``INVALID_REQUEST``.
+
+    Raised by :func:`webhook_signing_profile_for`. ``field`` names the
+    registration member at fault (``authentication`` or ``signing_profile``)
+    so a handler can report it as ``error.field`` under its own prefix, for
+    example ``reporting_webhook.authentication``.
+    """
+
+    code = "INVALID_REQUEST"
+
+    def __init__(self, message: str, *, field: str) -> None:
+        self.field = field
+        super().__init__(message)
+
+
+def _registration_member(registration: Any, name: str) -> Any:
+    if isinstance(registration, Mapping):
+        return registration.get(name)
+    # Read the stored value directly: ``authentication`` is a deprecated
+    # generated field, and attribute access would warn on every delivery.
+    stored = getattr(registration, "__dict__", {})
+    if name in stored:
+        return stored[name]
+    extra = getattr(registration, "__pydantic_extra__", None) or {}
+    return extra.get(name)
+
+
+def _served_at_or_after_3_3(adcp_version: str) -> bool:
+    from adcp._version import _semver_parts
+
+    core, _prerelease = _semver_parts(adcp_version)
+    return core[:2] >= (3, 3)
+
+
+def webhook_signing_profile_for(
+    registration: PydanticBaseModel | Mapping[str, Any],
+    *,
+    adcp_version: str | None = None,
+) -> str | None:
+    """Return the signing profile deliveries to a webhook registration use.
+
+    Applies to ``reporting_webhook`` and ``artifact_webhook`` registrations
+    (and any registration carrying ``authentication`` / ``signing_profile``).
+    AdCP 3.3 ``core/reporting-webhook.json``:
+
+    * With legacy ``authentication`` (Bearer or HMAC-SHA256), the legacy
+      scheme applies: returns ``None``.
+    * Without it, the seller signs every delivery under ``signing_profile``,
+      :data:`WEBHOOK_SIGNING_PROFILE_ADCP` (``adcp/webhook-signing/v1``)
+      when that is omitted too: returns the profile.
+
+    :param registration: The registration as received or stored: a generated
+        model (``ReportingWebhook``, ``ArtifactWebhook``) or its JSON form.
+    :param adcp_version: The AdCP version the registering request was served
+        at, when known (``ToolContext.resolved_adcp_version``).
+        ``authentication`` is required on a request served below 3.3, so a
+        registration without it is refused there.
+    :raises WebhookRegistrationError: the registration combines
+        ``authentication`` with ``signing_profile`` (the schema forbids it),
+        names an unknown ``signing_profile``, or omits ``authentication`` on a
+        request served below AdCP 3.3. Reject the request with
+        ``INVALID_REQUEST`` and ``error.field`` set from
+        :attr:`WebhookRegistrationError.field`.
+    """
+    authentication = _registration_member(registration, "authentication")
+    profile = _registration_member(registration, "signing_profile")
+    if profile is not None and hasattr(profile, "value"):
+        profile = profile.value
+    if authentication is not None:
+        if profile is not None:
+            raise WebhookRegistrationError(
+                "signing_profile must not be combined with authentication",
+                field="signing_profile",
+            )
+        return None
+    if adcp_version is not None and not _served_at_or_after_3_3(adcp_version):
+        raise WebhookRegistrationError(
+            f"authentication is required on a webhook registration served at AdCP "
+            f"{adcp_version}; only AdCP 3.3 and later sign deliveries when it is omitted",
+            field="authentication",
+        )
+    if profile is None:
+        return WEBHOOK_SIGNING_PROFILE_ADCP
+    if profile not in _WEBHOOK_SIGNING_PROFILES:
+        raise WebhookRegistrationError(
+            f"unknown signing_profile {profile!r}; expected one of "
+            f"{sorted(_WEBHOOK_SIGNING_PROFILES)}",
+            field="signing_profile",
+        )
+    return cast(str, profile)
+
+
 def _delivery_report_media_buy_ids(result: Mapping[str, Any]) -> tuple[str, ...]:
     deliveries = result.get("media_buy_deliveries")
     if not isinstance(deliveries, list):
@@ -2161,6 +2265,7 @@ from adcp.webhook_sender import (  # noqa: E402
     WebhookSender,
     WebhookSenderResolution,
     WebhookSenderResolver,
+    WebhookSigningProfileUnavailableError,
 )
 from adcp.webhook_supervisor_pg import (  # noqa: E402
     PgWebhookDeliverySupervisor,
@@ -2176,6 +2281,11 @@ __all__ = [
     "create_media_buy_delivery_webhook_payload",
     "REPORTING_WEBHOOK_OPERATION_ID_MISSING",
     "ReportingWebhookOperationIdMissingError",
+    "WEBHOOK_SIGNING_PROFILE_ADCP",
+    "WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH",
+    "WebhookRegistrationError",
+    "WebhookSigningProfileUnavailableError",
+    "webhook_signing_profile_for",
     "generate_webhook_idempotency_key",
     "generate_webhook_challenge_value",
     "create_webhook_challenge_payload",

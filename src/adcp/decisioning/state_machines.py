@@ -21,6 +21,13 @@ move a seller may record when it mirrors status from its own platform.
 It is a strict superset, and it equals the full AdCP 3.2 published
 lifecycle graph.
 
+Seller commitment is a separate axis (AdCP 3.3): a provisional buy, one
+whose ``confirmed_at`` is null, is never ``active``. It stays in
+``pending_creatives`` or ``pending_start`` until the seller confirms or
+rejects it, even after its flight start. Pass ``provisional=True`` to the
+transition checks for such a buy, and use
+:func:`media_buy_status_at_flight_start` in a flight-start scheduler.
+
 State enum values track the AdCP spec at
 ``schemas/cache/enums/media-buy-status.json`` and
 ``schemas/cache/enums/creative-status.json``.
@@ -29,6 +36,7 @@ State enum values track the AdCP spec at
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 
 from adcp.decisioning.types import AdcpError
 
@@ -121,6 +129,16 @@ OBSERVED_MEDIA_BUY_TRANSITIONS: Mapping[str, frozenset[str]] = {
 }
 
 
+#: Statuses a provisional media buy (``confirmed_at: null``) may not enter.
+#:
+#: AdCP 3.3 ``enums/media-buy-status.json``: a buy whose ``confirmed_at``
+#: is null "MUST NOT be ``active``", and "a provisional buy never becomes
+#: active until the seller commits". It stays ``pending_start`` through its
+#: flight start, so the flight-start moves into ``paused`` (a buy created
+#: held) are closed to it as well. Cancellation and rejection stay open.
+PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES: frozenset[str] = frozenset({"active", "paused"})
+
+
 def is_terminal_media_buy_status(status: str) -> bool:
     """Return whether ``status`` is a terminal media-buy status.
 
@@ -133,7 +151,9 @@ def is_terminal_media_buy_status(status: str) -> bool:
     return status in MEDIA_BUY_TERMINAL_STATUSES
 
 
-def is_observable_media_buy_transition(from_state: str, to_state: str) -> bool:
+def is_observable_media_buy_transition(
+    from_state: str, to_state: str, *, provisional: bool = False
+) -> bool:
     """Return whether a seller may record ``from_state → to_state``.
 
     Use when mirroring status from the seller's own platform, where the
@@ -150,7 +170,14 @@ def is_observable_media_buy_transition(from_state: str, to_state: str) -> bool:
 
     :param from_state: Status the seller last recorded.
     :param to_state: Status the seller's platform now reports.
+    :param provisional: ``True`` when the buy's ``confirmed_at`` is null.
+        A provisional buy may not enter ``active`` or ``paused``
+        (:data:`PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES`): an ad server that
+        starts the order before the seller commits does not make the buy
+        active to the buyer.
     """
+    if provisional and to_state in PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES:
+        return False
     return to_state in OBSERVED_MEDIA_BUY_TRANSITIONS.get(from_state, frozenset())
 
 
@@ -159,6 +186,7 @@ def assert_media_buy_transition(
     to_state: str,
     *,
     media_buy_id: str | None = None,
+    provisional: bool = False,
 ) -> None:
     """Raise ``INVALID_STATE`` on illegal media-buy transitions.
 
@@ -170,10 +198,30 @@ def assert_media_buy_transition(
     :param to_state: Requested next status.
     :param media_buy_id: Optional id, surfaced in ``error.details`` for
         buyer-side debugging.
+    :param provisional: ``True`` when the buy's ``confirmed_at`` is null.
+        Such a buy may not enter ``active`` or ``paused`` until the seller
+        commits (AdCP 3.3); the seller confirms it first, then activates.
     :raises AdcpError: with ``code='INVALID_STATE'`` and
         ``recovery='correctable'`` per the spec when the transition is
-        not in :data:`MEDIA_BUY_TRANSITIONS`.
+        not in :data:`MEDIA_BUY_TRANSITIONS`, or when a provisional buy
+        would enter ``active`` or ``paused``.
     """
+    if (
+        provisional
+        and from_state in MEDIA_BUY_TRANSITIONS
+        and to_state in PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES
+        and to_state in MEDIA_BUY_TRANSITIONS[from_state]
+    ):
+        raise AdcpError(
+            "INVALID_STATE",
+            message=(
+                f"Media buy is provisional (confirmed_at is null); it cannot move "
+                f"{from_state!r} → {to_state!r} until the seller confirms it."
+            ),
+            recovery="correctable",
+            field="status",
+            details=_details("media_buy_id", media_buy_id, from_state, to_state),
+        )
     _assert_transition(
         from_state,
         to_state,
@@ -182,6 +230,32 @@ def assert_media_buy_transition(
         resource_id=media_buy_id,
         id_field="media_buy_id",
     )
+
+
+def media_buy_status_at_flight_start(
+    status: str,
+    *,
+    confirmed_at: datetime | str | None,
+    paused: bool = False,
+) -> str:
+    """Return the status a media buy takes when its flight start arrives.
+
+    For a flight-start scheduler. Only a committed ``pending_start`` buy
+    moves: to ``active``, or to ``paused`` when it was created held
+    (``paused: true``). A provisional buy (``confirmed_at`` null) stays
+    ``pending_start`` until the seller confirms or rejects it (AdCP 3.3,
+    adcontextprotocol/adcp#7963). Every other status is returned
+    unchanged: a ``pending_creatives`` buy is still waiting on creatives,
+    and a buy already past ``pending_start`` is not restarted.
+
+    :param status: The buy's current status.
+    :param confirmed_at: The buy's ``confirmed_at``; ``None`` when it is
+        provisional.
+    :param paused: Whether the buy carries a create-time hold.
+    """
+    if status != "pending_start" or confirmed_at is None:
+        return status
+    return "paused" if paused else "active"
 
 
 # ---------------------------------------------------------------------------
@@ -309,8 +383,10 @@ __all__ = [
     "MEDIA_BUY_TERMINAL_STATUSES",
     "MEDIA_BUY_TRANSITIONS",
     "OBSERVED_MEDIA_BUY_TRANSITIONS",
+    "PROVISIONAL_MEDIA_BUY_BLOCKED_STATUSES",
     "assert_creative_transition",
     "assert_media_buy_transition",
     "is_observable_media_buy_transition",
     "is_terminal_media_buy_status",
+    "media_buy_status_at_flight_start",
 ]
