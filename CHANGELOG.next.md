@@ -1,5 +1,77 @@
 # Changelog
 
+## [10.0.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.5...v10.0.0-beta.6) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **accounts:** a list_account_changes handler returning an adcp or seller_operator record without changed_paths now fails the call, and idempotency_key is stripped from every record not attributed to the caller via adcp.account_change_feed.attribute_account_change.
+* ReconcileReport.accounts is a tuple of ReconcileAccount instead of account-id strings, and to_dict serves objects under accounts. Read report.account_ids for the ids.
+* **media-buy:** WebhookSender.send_media_buy_delivery, send_prepared for a prepared media_buy_delivery, and the artifact helpers given registration= raise WebhookSigningProfileUnavailableError instead of sending when a registration without authentication would go out through a bearer or HMAC sender or names web-bot-auth. Use WebhookSender.from_jwk or from_pem for these registrations. WebhookReceiver no longer passes aggregated_totals through on media_buy_delivery results.
+* **codegen:** the _1 alias members of generated enums (System.zip_1, Field17.ad_request_url_1, ...) are removed. Use the real member (System.zip); System("zip") and member.value are unchanged.
+* a server asked for a task its caller's release does not define now fails with UNSUPPORTED_FEATURE instead of VERSION_UNSUPPORTED. validate_platform fails when a platform declares list_proposals or media_buy.collection_catalog without the method. Agent-level notification registrations of proposal.created, proposal.offered, collection_card.*, collection_catalog.bulk_change or creative.staged_update_changed require all_authorized_accounts true.
+* **adagents:** resolve_properties_for_agent(mode="permissive") raises ValueError unless publisher_domain= (or allow_any_domain=True) is passed, and with publisher_domain its bare-entry fallback returns only domain properties under that domain. See MIGRATION_v9_to_v10.md.
+
+### Features
+
+* **accounts:** add accounts.change and use for account requests ([6207e4c](https://github.com/adcontextprotocol/adcp-client-python/commit/6207e4c75240fc634d7f910d729b4637d12fbf74))
+* **accounts:** add accounts.change and use for account requests ([40504d9](https://github.com/adcontextprotocol/adcp-client-python/commit/40504d9deef521bad05af2f89d6e709ae5c2efc7))
+* **accounts:** enforce change feed changed_paths and per-reader idempotency_key ([#1647](https://github.com/adcontextprotocol/adcp-client-python/issues/1647)) ([#1805](https://github.com/adcontextprotocol/adcp-client-python/issues/1805)) ([d9ba90c](https://github.com/adcontextprotocol/adcp-client-python/commit/d9ba90cb430ca8bc18f87d7a768dc71fdb5801b6))
+* **accounts:** read a pending account change back with change_status ([539d829](https://github.com/adcontextprotocol/adcp-client-python/commit/539d829b2d01c10216b4e7fddd5262aa39f4a938))
+* **adagents:** attribute properties to a publisher domain, gate permissive resolution, verify cross-domain claims ([#1711](https://github.com/adcontextprotocol/adcp-client-python/issues/1711)) ([f775e13](https://github.com/adcontextprotocol/adcp-client-python/commit/f775e1344c94def42c5d018ecc9f45185a7cf2be))
+* **canonical-formats:** rewrite 3.3 playback pixel trackers to custom for 3.2 peers ([#1643](https://github.com/adcontextprotocol/adcp-client-python/issues/1643)) ([#1800](https://github.com/adcontextprotocol/adcp-client-python/issues/1800)) ([41c3988](https://github.com/adcontextprotocol/adcp-client-python/commit/41c39887dbbfbd255a1e099b13feb97df635505e))
+* **decisioning:** let a raised AdcpError reject a request with every error ([#1780](https://github.com/adcontextprotocol/adcp-client-python/issues/1780)) ([#1804](https://github.com/adcontextprotocol/adcp-client-python/issues/1804)) ([0439d67](https://github.com/adcontextprotocol/adcp-client-python/commit/0439d676584391cb310fe84463bdfca51e8575e9))
+* **media-buy:** enforce AdCP 3.3 provisional-buy, revision-origin and webhook-signing rules ([#1807](https://github.com/adcontextprotocol/adcp-client-python/issues/1807)) ([c6aa913](https://github.com/adcontextprotocol/adcp-client-python/commit/c6aa91332979a3f798eecafcadf480817ad9d520)), closes [#1644](https://github.com/adcontextprotocol/adcp-client-python/issues/1644)
+* per-account reconcile report and fleet reconcile for reporting subscriptions ([#1802](https://github.com/adcontextprotocol/adcp-client-python/issues/1802)) ([33a8bb0](https://github.com/adcontextprotocol/adcp-client-python/commit/33a8bb0e645eb9734e17b5e8d65f2ef2bd011c9f))
+* **reporting:** add buyer reconcile and explain on client.reporting ([c830344](https://github.com/adcontextprotocol/adcp-client-python/commit/c830344ed5297551f9bf9ef0beeea756027f12ab))
+* **reporting:** add buyer reconcile and explain on client.reporting ([dbf329f](https://github.com/adcontextprotocol/adcp-client-python/commit/dbf329f11a5d603ca795d075bfed3ce23bf9312e))
+* **reporting:** add the buyer receipts policy to reconcile ([9072f35](https://github.com/adcontextprotocol/adcp-client-python/commit/9072f3511113695e26315d55da2d57bc7171cef1))
+* **reporting:** add the buyer receipts policy to reconcile ([42b919e](https://github.com/adcontextprotocol/adcp-client-python/commit/42b919e4fab1983d1dfb8c8363b083948105fddd))
+* **reporting:** add the reporting test kit, reference seller and pytest fixture ([0dac622](https://github.com/adcontextprotocol/adcp-client-python/commit/0dac622ff94ae020154af66ab03886c99cf3a8e9))
+* **reporting:** add the reporting test kit, reference seller and pytest fixture ([1842153](https://github.com/adcontextprotocol/adcp-client-python/commit/184215360b7b1c1321289c79b4da22555cb9866d))
+* **reporting:** derive buyer reporting events with poll, events and handle_webhook ([49ea7de](https://github.com/adcontextprotocol/adcp-client-python/commit/49ea7deab231f23533548b77ce8e8f4642fc07fe))
+* **reporting:** derive buyer reporting events with poll, events and handle_webhook ([f0e8c9d](https://github.com/adcontextprotocol/adcp-client-python/commit/f0e8c9d1e072e7ca440c221717913daffabd9fc4))
+* **reporting:** explain coverage with a shared CoverageTrace ([a025dbd](https://github.com/adcontextprotocol/adcp-client-python/commit/a025dbd77bf9d560ffc9997a14a10ef945bdead8))
+* **reporting:** explain coverage with a shared CoverageTrace ([6657c75](https://github.com/adcontextprotocol/adcp-client-python/commit/6657c75a18c86420192b3ec0cc4aa97e7c697293))
+* **reporting:** serve the reference seller standalone and pass the TypeScript storyboard ([76812b8](https://github.com/adcontextprotocol/adcp-client-python/commit/76812b8bdb836b8d061410bd9fe124fb82959865))
+* **reporting:** serve the reference seller standalone and pass the TypeScript storyboard ([fa7fccf](https://github.com/adcontextprotocol/adcp-client-python/commit/fa7fccfb0020958f64f1cce18c897298fe44c068))
+* serve request_account and account requests from the AccountStore ([#1808](https://github.com/adcontextprotocol/adcp-client-python/issues/1808)) ([e556c3b](https://github.com/adcontextprotocol/adcp-client-python/commit/e556c3b1ed07e1669996e79a6b481ccf3c05ef28))
+* **types:** name macro declaration variants by their asset arm ([#1801](https://github.com/adcontextprotocol/adcp-client-python/issues/1801)) ([64bc9b7](https://github.com/adcontextprotocol/adcp-client-python/commit/64bc9b773d77aba5c31e0b911d45f58306518132)), closes [#1783](https://github.com/adcontextprotocol/adcp-client-python/issues/1783)
+* wire the list_proposals and list_collections tasks ([#1803](https://github.com/adcontextprotocol/adcp-client-python/issues/1803)) ([0dc1b21](https://github.com/adcontextprotocol/adcp-client-python/commit/0dc1b21e23ee8136643cf37ffd0c2aafc9254b48))
+
+
+### Bug Fixes
+
+* **accounts:** keep the account status when use re-points a key ([80ce9f0](https://github.com/adcontextprotocol/adcp-client-python/commit/80ce9f02c4dbc9eeee3057af6233299787395dd8))
+* **codegen:** name each generated enum value once ([#1799](https://github.com/adcontextprotocol/adcp-client-python/issues/1799)) ([0357253](https://github.com/adcontextprotocol/adcp-client-python/commit/03572535a5651f5ffda217bd289ec303492f6eb5))
+* reporting re-grant chain, adjustment offers and rejected receipts match TS ([#1806](https://github.com/adcontextprotocol/adcp-client-python/issues/1806)) ([7d36906](https://github.com/adcontextprotocol/adcp-client-python/commit/7d369066bdf76a62b2706b11ba65bc02df47af4e))
+* **reporting:** compare set-valued subscription arrays without order on readback ([99abea8](https://github.com/adcontextprotocol/adcp-client-python/commit/99abea8c95851e69c5a57a7ae9e2ba8186fd4303))
+* **reporting:** compare set-valued subscription arrays without order on readback ([0697a2d](https://github.com/adcontextprotocol/adcp-client-python/commit/0697a2d6148b25e69046d6eb45328e1ac8fd3f4a))
+* **reporting:** consume the events doorbell before each poll ([25a6e7b](https://github.com/adcontextprotocol/adcp-client-python/commit/25a6e7b0e201b8273831c3dc31944545bf35c389))
+* **reporting:** explain periods before an open revocation as owed:withheld ([9eb96a0](https://github.com/adcontextprotocol/adcp-client-python/commit/9eb96a012f48454c3c825e83919bcf5047dd1fde))
+* **reporting:** fold whether the period has ended into the trace digest ([f1c23ca](https://github.com/adcontextprotocol/adcp-client-python/commit/f1c23ca5e9237c34a12917c4296aed9ac6eb1c23))
+* **reporting:** give each account rejoin a new account.covered event id ([db016f8](https://github.com/adcontextprotocol/adcp-client-python/commit/db016f898fbd49d9e33b2e8b3fc67335c6c726ad))
+* **reporting:** isolate a failing receipt commit and state its at-least-once contract ([80cfb79](https://github.com/adcontextprotocol/adcp-client-python/commit/80cfb798439c0df3a6b13d53116bef2f9ae77882))
+* **reporting:** keep subscriptions and losses across a partial events poll ([4c64141](https://github.com/adcontextprotocol/adcp-client-python/commit/4c641410944bfd1d02fe82bc0e40ab5d82c06894))
+* **reporting:** keep the events loop running after an ack conflict ([cf71c7d](https://github.com/adcontextprotocol/adcp-client-python/commit/cf71c7dfad87e367ec36db0f83f7710ef1286389))
+* **reporting:** key status checkpoints by resolved offering ([d490481](https://github.com/adcontextprotocol/adcp-client-python/commit/d49048161de72fe3499da1938ca406a304e278e1))
+* **reporting:** key status checkpoints by resolved offering ([9494c95](https://github.com/adcontextprotocol/adcp-client-python/commit/9494c95b56bf93b21a28fbf2b95b97b0d1b4d728))
+* **reporting:** list each flight period once in the not-owed audit ([9defc4c](https://github.com/adcontextprotocol/adcp-client-python/commit/9defc4c13f4a32d670d11174c5e2a92cdbf40634))
+* **reporting:** make the managed seller pass the SDK's own capability validation ([922fb87](https://github.com/adcontextprotocol/adcp-client-python/commit/922fb8777f8f158f285fa5bd2703b581f25eddec))
+* **reporting:** make the managed seller pass the SDK's own capability validation ([c6a2575](https://github.com/adcontextprotocol/adcp-client-python/commit/c6a2575075c07601b22e5c11a9547e7b68f7cc75))
+* **reporting:** name reporting_revision_id on the not-found answer for an unknown revision ([#1796](https://github.com/adcontextprotocol/adcp-client-python/issues/1796)) ([8cc8818](https://github.com/adcontextprotocol/adcp-client-python/commit/8cc8818a9ecc48e4b364320df0c53daedfd59ece)), closes [#1669](https://github.com/adcontextprotocol/adcp-client-python/issues/1669)
+* **reporting:** read each package offering snapshot from get_media_buys ([131b9ba](https://github.com/adcontextprotocol/adcp-client-python/commit/131b9ba9536755445f13c045500d54f8f5d1007a))
+* **reporting:** read each package offering snapshot from get_media_buys ([f1479f5](https://github.com/adcontextprotocol/adcp-client-python/commit/f1479f5d79e7c5813c7dc207804ef3878b999e5c))
+* **reporting:** receipt each materialization once and isolate verifier failures ([b1cc1c4](https://github.com/adcontextprotocol/adcp-client-python/commit/b1cc1c4ba6e2a96e85f937adf872f17118e772a0))
+* **reporting:** record the bare inspector code for an unverifiable revision ([cc9b9e0](https://github.com/adcontextprotocol/adcp-client-python/commit/cc9b9e08a577ea52eb2da7e390344088c3c239bd))
+* **reporting:** refuse coverage input only where a schedule reads it ([fc370c6](https://github.com/adcontextprotocol/adcp-client-python/commit/fc370c61a7e55f082ac67011fbb2d571828e110a))
+* **reporting:** report a failed principal read as a reconcile issue ([d476b42](https://github.com/adcontextprotocol/adcp-client-python/commit/d476b42a721e1545c781ea57c9f1225100dd812c))
+* **reporting:** report every owed period before an open revocation as withheld ([e112cc1](https://github.com/adcontextprotocol/adcp-client-python/commit/e112cc11c103fe2febbd71f13007aa3130da3a1c))
+* **reporting:** serve gaps in the boundaries of the schedule they removed ([6a41458](https://github.com/adcontextprotocol/adcp-client-python/commit/6a4145829908ad7c235304fb232ad48537889b23))
+* **reporting:** validate every kit buyer read except fixture buys ([d69132b](https://github.com/adcontextprotocol/adcp-client-python/commit/d69132b186984cdfffb6d34828424b9173dd9d76))
+* **server:** return task and workflow handoffs uncached from IdempotencyStore.wrap ([#1794](https://github.com/adcontextprotocol/adcp-client-python/issues/1794)) ([91fe87e](https://github.com/adcontextprotocol/adcp-client-python/commit/91fe87e35195f7884c7ddb6448ab6242d948a6e4)), closes [#1781](https://github.com/adcontextprotocol/adcp-client-python/issues/1781)
+* **types:** make the domain package roots lazy so a types package imports first in any order ([#1797](https://github.com/adcontextprotocol/adcp-client-python/issues/1797)) ([8331c88](https://github.com/adcontextprotocol/adcp-client-python/commit/8331c88d0a6db6befea155b676872d6503df8e5c)), closes [#1784](https://github.com/adcontextprotocol/adcp-client-python/issues/1784)
+
 ## [10.0.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.4...v10.0.0-beta.5) (2026-10-31)
 
 
