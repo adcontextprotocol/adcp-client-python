@@ -111,6 +111,7 @@ from adcp.signing.autosign import (
 )
 from adcp.signing.negotiated_profiles import NegotiatedSigningProfiles
 from adcp.signing.signer import sign_request
+from adcp.status_checks import expected_confirmation_at, next_status_check_delay
 from adcp.task_options import (
     TaskOptions,
     _get_task_execution,
@@ -2752,16 +2753,26 @@ class ADCPClient:
         source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
         timeout: float = 300.0,
         poll_interval: float = 1.0,
+        max_poll_interval: float = 60.0,
         now: datetime | None = None,
         options: TaskOptions | None = None,
     ) -> VerifiedRefinementResult:
-        """Poll a submitted refinement and verify its exact terminal payload."""
+        """Poll a submitted refinement and verify its exact terminal payload.
+
+        When the submitted response carries ``expected_confirmation_at``
+        (AdCP 3.3), the next check is scheduled for that time, bounded by
+        ``poll_interval`` (floor) and ``max_poll_interval`` (ceiling); after it
+        passes, or without one, checks run every ``poll_interval`` seconds.
+        """
 
         if initial.valid or not initial.pending:
             return initial
-        if timeout <= 0 or poll_interval <= 0:
-            raise ValueError("timeout and poll_interval must be positive")
+        if timeout <= 0 or poll_interval <= 0 or max_poll_interval <= 0:
+            raise ValueError("timeout, poll_interval and max_poll_interval must be positive")
         raw = (initial.task_result.metadata or {}).get(WIRE_RESPONSE_METADATA_KEY)
+        # The seller's estimate rides on the submitted response; task status
+        # polls do not repeat it, so it schedules every check until it passes.
+        estimate = initial.task_result.expected_confirmation_at or expected_confirmation_at(raw)
         task_id = raw.get("task_id") if isinstance(raw, Mapping) else None
         if not isinstance(task_id, str):
             data = initial.task_result.data
@@ -2808,7 +2819,12 @@ class ADCPClient:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError(f"refinement task {task_id!r} did not complete in time")
-            await asyncio.sleep(min(poll_interval, remaining))
+            delay = next_status_check_delay(
+                estimate,
+                poll_interval=poll_interval,
+                max_interval=max(max_poll_interval, poll_interval),
+            )
+            await asyncio.sleep(min(delay, remaining))
 
     @_task_options_method
     async def decline_proposals(

@@ -914,6 +914,77 @@ def sync_catalogs_response(
 
 
 # ============================================================================
+# Submitted tasks
+# ============================================================================
+
+#: Tasks whose AdCP 3.3 ``submitted`` envelope carries ``expected_confirmation_at``.
+#: ``refine_proposals`` carries it only for a finalize-only or extend_hold-only
+#: request; sellers SHOULD NOT send it on revise requests.
+EXPECTED_CONFIRMATION_TASKS: frozenset[str] = frozenset(
+    {"create_media_buy", "buy_products", "accept_proposal", "refine_proposals"}
+)
+
+
+def format_expected_confirmation_at(value: datetime | str) -> str:
+    """Normalize an ``expected_confirmation_at`` estimate to an RFC 3339 UTC string.
+
+    Accepts a timezone-aware :class:`~datetime.datetime` or an RFC 3339
+    string with an offset. A naive datetime or an offset-less string is
+    refused: the estimate must name an instant. A time in the past is
+    allowed (the spec says sellers SHOULD NOT send one) and logged.
+    """
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("expected_confirmation_at must be an RFC 3339 date-time") from exc
+    elif isinstance(value, datetime):
+        parsed = value
+    else:
+        raise TypeError("expected_confirmation_at must be a datetime or an RFC 3339 string")
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("expected_confirmation_at must carry a timezone")
+    parsed = parsed.astimezone(timezone.utc)
+    if parsed < datetime.now(timezone.utc):
+        _logger.warning("expected_confirmation_at %s is in the past", parsed.isoformat())
+    return parsed.isoformat().replace("+00:00", "Z")
+
+
+def submitted_response(
+    task_id: str,
+    *,
+    expected_confirmation_at: datetime | str | None = None,
+    message: str | None = None,
+) -> dict[str, Any]:
+    """Build a ``submitted`` task envelope.
+
+    ``expected_confirmation_at`` (AdCP 3.3) is the seller's estimate of when
+    it will confirm, for confirmation that waits on a scheduled event such as
+    a booking round or a review window. It is valid on ``create_media_buy``,
+    ``buy_products``, ``accept_proposal`` and finalize-only or
+    extend_hold-only ``refine_proposals``. Sellers SHOULD set it when they
+    know that event. The dispatcher drops it for a ``buy_products``,
+    ``accept_proposal`` or ``refine_proposals`` caller below 3.3, recording a
+    conversion loss; ``create_media_buy`` keeps it for every release, whose
+    submitted envelope is open.
+
+    Decisioning platforms pass the same value to
+    ``ctx.handoff_to_task(fn, expected_confirmation_at=...)`` or
+    ``ctx.handoff_to_workflow(...)`` instead.
+    """
+    if not task_id:
+        raise ValueError("task_id must be non-empty")
+    response: dict[str, Any] = {"status": "submitted", "task_id": task_id}
+    if expected_confirmation_at is not None:
+        response["expected_confirmation_at"] = format_expected_confirmation_at(
+            expected_confirmation_at
+        )
+    if message is not None:
+        response["message"] = message
+    return response
+
+
+# ============================================================================
 # Generic Helpers
 # ============================================================================
 

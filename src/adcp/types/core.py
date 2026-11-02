@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+from datetime import datetime
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 from urllib.parse import urlparse
@@ -270,6 +271,21 @@ class TaskResult(BaseModel, Generic[T]):
     # the failure says nothing about the agent's health. None otherwise. See
     # ``adcp.exceptions.is_pre_dispatch_error``.
     dispatched: Literal[False] | None = None
+
+    @property
+    def expected_confirmation_at(self) -> datetime | None:
+        """The seller's estimate of when a submitted task confirms (AdCP 3.3).
+
+        Read from the response (``create_media_buy``, ``buy_products``,
+        ``accept_proposal`` and finalize-only ``refine_proposals`` submitted
+        envelopes). ``None`` when the seller sent none. An estimate, not a
+        deadline: schedule the next status check with
+        :func:`adcp.next_status_check_delay`, never treat a passed time as
+        failure.
+        """
+        from adcp.status_checks import expected_confirmation_at
+
+        return expected_confirmation_at(self)
 
 
 class ActivityType(str, Enum):
