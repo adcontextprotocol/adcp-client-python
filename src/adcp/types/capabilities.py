@@ -65,6 +65,7 @@ from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     Governance,
     Idempotency,
     Identity,
+    Implementation,
     KeyOrigins,
     KeywordTargets,
     LaterProposals,
@@ -77,6 +78,7 @@ from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     OpenOpportunities,
     Portfolio,
     RequestSigning,
+    Sdk,
     Signals,
     Specialism,
     SponsoredIntelligence,
@@ -113,6 +115,12 @@ from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
 # import site self-documenting.
 from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
     Capabilities as SiCapabilities,
+)
+
+# AdCP 3.3 ``adcp.implementation.sdks[].components`` values. The generated
+# name ``Component`` is too generic to export bare.
+from adcp.types.domains.bundled.protocol.get_adcp_capabilities_response import (
+    Component as ImplementationComponent,
 )
 
 # ``ContentStandards`` collides with ``adcp.types.ContentStandards`` (the
@@ -268,6 +276,8 @@ __all__ = [
     "IdempotencySupported",
     "IdempotencyUnsupported",
     "Identity",
+    "Implementation",
+    "ImplementationComponent",
     "KeyOrigins",
     "KeywordTargets",
     "LaterProposals",
@@ -281,6 +291,7 @@ __all__ = [
     "OpenOpportunities",
     "Portfolio",
     "RequestSigning",
+    "Sdk",
     "SiCapabilities",
     "Signals",
     "SignalsFeatures",

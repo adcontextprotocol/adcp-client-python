@@ -134,6 +134,7 @@ from adcp.server.helpers import (  # noqa: F401
     valid_actions_for_status,
 )
 from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+from adcp.server.implementation import ImplementationReport, adcp_sdk_entry
 from adcp.server.mcp_sessions import MCPSessionStats, get_mcp_session_stats
 from adcp.server.mcp_tools import (
     DISCOVERY_METHODS,
@@ -278,6 +279,8 @@ __all__ = [
     "ResponseEnhancer",
     "SchemaMode",
     "ServeConfig",
+    "ImplementationReport",
+    "adcp_sdk_entry",
     "create_mcp_tools",
     "create_mcp_server",
     "get_tools_for_handler",

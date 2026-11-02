@@ -41,6 +41,11 @@ from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.helpers import ResponseEnhancer
 from adcp.server.http_policy import HostOriginMiddleware, transport_security_settings
+from adcp.server.implementation import (
+    ImplementationReport,
+    ImplementationReporter,
+    resolve_implementation_report,
+)
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
@@ -345,6 +350,9 @@ class ServeConfig:
     # --- Lifespan hooks (transport="both" only today) ---
     on_startup: Sequence[LifespanHook] | None = None
     on_shutdown: Sequence[LifespanHook] | None = None
+
+    # --- AdCP 3.3 ``adcp.implementation`` self-report ---
+    report_implementation: bool | ImplementationReport = True
 
     # --- Debug endpoints ---
     enable_debug_endpoints: bool = False
@@ -1041,6 +1049,7 @@ def serve(
     public_url: str | PublicUrlResolver | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
+    report_implementation: bool | ImplementationReport = True,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -1348,6 +1357,16 @@ def serve(
             propagates. SDK cleanup diagnostics omit exception text and
             callable representations. Same ``transport="both"`` restriction
             as ``on_startup``.
+        report_implementation: AdCP 3.3 ``adcp.implementation`` self-report
+            on ``get_adcp_capabilities`` responses served at 3.3 or later.
+            ``True`` (default) adds ``{"name": "adcp", "version": <installed>,
+            "components": [...]}`` listing only the components this server
+            provably wires agent-wide (see :mod:`adcp.server.implementation`).
+            ``False`` omits the block. Pass an
+            :class:`~adcp.server.implementation.ImplementationReport` to add
+            components the SDK cannot detect or further ``sdks[]`` entries.
+            A capabilities response that already declares
+            ``adcp.implementation`` is never changed.
 
     Example (MCP):
         from adcp.server import ADCPHandler, serve
@@ -1416,6 +1435,7 @@ def serve(
         public_url = config.public_url
         on_startup = config.on_startup
         on_shutdown = config.on_shutdown
+        report_implementation = config.report_implementation
 
     if unauthenticated_routes and transport == "stdio":
         raise ValueError("unauthenticated_routes requires an HTTP transport")
@@ -1451,6 +1471,23 @@ def serve(
         handler=handler,
         adcp_version=_resolve_handler_adcp_version(handler, None),
     )
+
+    # AdCP 3.3 ``adcp.implementation``: report this SDK and the components
+    # this server provably wires. Runs ahead of the adopter's enhancer so
+    # that enhancer can still amend or drop the block.
+    implementation_report = resolve_implementation_report(report_implementation)
+    if implementation_report is not None:
+        response_enhancer = ImplementationReporter(
+            handler,
+            report=implementation_report,
+            transport=transport,
+            validation=validation,
+            supported_versions=supported_versions,
+            auth=auth,
+            request_signature_verification=request_signature_verification,
+            advertise_all=advertise_all,
+            then=response_enhancer,
+        )
 
     # Compose debug endpoints as the outermost ASGI middleware on HTTP
     # transports. stdio has no HTTP layer, so debug endpoints are ignored

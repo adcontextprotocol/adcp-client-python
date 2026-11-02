@@ -2263,6 +2263,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             supported_versions=adcp.get("supported_versions"),
             build_version=adcp.get("build_version"),
             idempotency=adcp.get("idempotency") or {"supported": False},
+            # A declared AdCP 3.3 ``adcp.implementation`` wins over the
+            # self-report ``serve()`` adds (adcp.server.implementation).
+            implementation=adcp.get("implementation"),
         )
 
         from adcp.server.version_policy import project_supported_versions
