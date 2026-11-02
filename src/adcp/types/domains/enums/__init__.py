@@ -9,225 +9,237 @@ A type this domain declares in more than one schema is not here: import
     it from its own schema's module, ``adcp.types.domains.enums.<schema>``.
 Nothing here is renamed.
 
+This root is lazy (PEP 562): importing it, or a schema module under it,
+does not import every schema in the domain. A name is bound from its
+declaring module on first access and cached here. That is what keeps a
+schema module's ``from ...<domain> import <sibling>`` from re-entering a
+half-initialized module through this package (#1784).
+
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-04 18:45:11 UTC
+Generation date: 2026-11-01 23:49:37 UTC
 """
 
 # ruff: noqa: E501, I001
 from __future__ import annotations
 
-from adcp.types.domains.enums.account_currency_mode import AccountCurrencyMode
-from adcp.types.domains.enums.account_scope import AccountScope
-from adcp.types.domains.enums.account_status import AccountStatus
-from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedReason
-from adcp.types.domains.enums.action_source import ActionSource
-from adcp.types.domains.enums.activation_method import CreativeActivationMethod
-from adcp.types.domains.enums.adcp_protocol import AdcpProtocol
-from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
-from adcp.types.domains.enums.advertiser_industry import AdvertiserIndustry
-from adcp.types.domains.enums.age_determination_basis import AgeDeterminationBasis
-from adcp.types.domains.enums.age_verification_method import AgeVerificationMethod
-from adcp.types.domains.enums.assessment_status import AssessmentStatus
-from adcp.types.domains.enums.asset_content_type import AssetContentType
-from adcp.types.domains.enums.attestation_claim import AttestationClaim
-from adcp.types.domains.enums.attribution_methodology import AttributionMethodology
-from adcp.types.domains.enums.attribution_model import AttributionModel
-from adcp.types.domains.enums.audience_evidence_methodology import AudienceEvidenceMethodology
-from adcp.types.domains.enums.audience_resolution_method import AudienceResolutionMethod
-from adcp.types.domains.enums.audience_source import AudienceSource
-from adcp.types.domains.enums.audience_status import AudienceStatus
-from adcp.types.domains.enums.audience_subject_type import AudienceSubjectType
-from adcp.types.domains.enums.audio_channel_layout import AudioChannelLayout
-from adcp.types.domains.enums.audio_distribution_type import AudioDistributionType
-from adcp.types.domains.enums.auth_scheme import AuthenticationScheme
-from adcp.types.domains.enums.availability_status import AvailabilityStatus
-from adcp.types.domains.enums.available_metric import AvailableMetric
-from adcp.types.domains.enums.billing_party import BillingParty
-from adcp.types.domains.enums.binary_verdict import BinaryVerdict
-from adcp.types.domains.enums.brand_agent_type import BrandAgentType
-from adcp.types.domains.enums.browser_family import BrowserFamily
-from adcp.types.domains.enums.c2pa_watermark_action import C2PaWatermarkAction
-from adcp.types.domains.enums.canceled_by import CanceledBy
-from adcp.types.domains.enums.canonical_media_buy_action import CanonicalMediaBuyActionName
-from adcp.types.domains.enums.canonical_media_buy_action_mode import CanonicalMediaBuyActionMode
-from adcp.types.domains.enums.catalog_action import CatalogAction
-from adcp.types.domains.enums.catalog_item_status import CatalogItemStatus
-from adcp.types.domains.enums.catalog_type import CatalogType
-from adcp.types.domains.enums.channels import MediaChannel
-from adcp.types.domains.enums.cloud_storage_protocol import CloudStorageProtocol
-from adcp.types.domains.enums.co_branding_requirement import CoBrandingRequirement
-from adcp.types.domains.enums.collection_cadence import CollectionCadence
-from adcp.types.domains.enums.collection_kind import CollectionKind
-from adcp.types.domains.enums.collection_relationship import CollectionRelationship
-from adcp.types.domains.enums.collection_status import CollectionStatus
-from adcp.types.domains.enums.completion_source import CompletionSource
-from adcp.types.domains.enums.consent_basis import ConsentBasis
-from adcp.types.domains.enums.content_id_type import ContentIdType
-from adcp.types.domains.enums.content_rating_system import ContentRatingSystem
-from adcp.types.domains.enums.creative_action import CreativeAction
-from adcp.types.domains.enums.creative_agent_capability import CreativeAgentCapability
-from adcp.types.domains.enums.creative_approval_status import CreativeApprovalStatus
-from adcp.types.domains.enums.creative_event_reason_code import CreativeEventReasonCode
-from adcp.types.domains.enums.creative_identifier_type import CreativeIdentifierType
-from adcp.types.domains.enums.creative_quality import CreativeQuality
-from adcp.types.domains.enums.creative_selection_strategy import CreativeSelectionStrategy
-from adcp.types.domains.enums.creative_sort_field import CreativeSortField
-from adcp.types.domains.enums.creative_status import CreativeStatus
-from adcp.types.domains.enums.ctv_ad_experience import CtvAdExperience
-from adcp.types.domains.enums.daast_tracking_event import DaastTrackingEvent
-from adcp.types.domains.enums.daast_version import DaastVersion
-from adcp.types.domains.enums.day_of_week import DayOfWeek
-from adcp.types.domains.enums.daypart_timezone_mode import DaypartTimezoneMode
-from adcp.types.domains.enums.delegation_authority import DelegationAuthority
-from adcp.types.domains.enums.delivery_recipient_cloud import DeliveryRecipientCloud
-from adcp.types.domains.enums.delivery_status import DeliveryStatus
-from adcp.types.domains.enums.delivery_type import DeliveryType
-from adcp.types.domains.enums.demographic_system import DemographicSystem
-from adcp.types.domains.enums.derivative_type import DerivativeType
-from adcp.types.domains.enums.device_platform import DevicePlatform
-from adcp.types.domains.enums.device_type import DeviceType
-from adcp.types.domains.enums.digital_source_type import DigitalSourceType
-from adcp.types.domains.enums.dimension_unit import DimensionUnit
-from adcp.types.domains.enums.disclosure_persistence import DisclosurePersistence
-from adcp.types.domains.enums.disclosure_position import DisclosurePosition
-from adcp.types.domains.enums.distance_unit import DistanceUnit
-from adcp.types.domains.enums.distribution_identifier_type import DistributionIdentifierType
-from adcp.types.domains.enums.dooh_motion_type import DoohMotionType
-from adcp.types.domains.enums.embedded_provenance_method import EmbeddedProvenanceMethod
-from adcp.types.domains.enums.error_code import ErrorCode
-from adcp.types.domains.enums.error_scope import ErrorScope
-from adcp.types.domains.enums.escalation_severity import EscalationSeverity
-from adcp.types.domains.enums.event_type import EventType
-from adcp.types.domains.enums.exclusivity import Exclusivity
-from adcp.types.domains.enums.feature_check_status import FeatureCheckStatus
-from adcp.types.domains.enums.feed_format import FeedFormat
-from adcp.types.domains.enums.feedback_source import FeedbackSource
-from adcp.types.domains.enums.forecast_method import ForecastMethod
-from adcp.types.domains.enums.forecast_range_unit import ForecastRangeUnit
-from adcp.types.domains.enums.forecastable_metric import ForecastableMetric
-from adcp.types.domains.enums.format_id_parameter import FormatIdParameter
-from adcp.types.domains.enums.frame_rate_type import FrameRateType
-from adcp.types.domains.enums.frequency_cap_control_mode import FrequencyCapControlMode
-from adcp.types.domains.enums.frequency_cap_mutable_field import FrequencyCapMutableField
-from adcp.types.domains.enums.frequency_cap_scope import FrequencyCapScope
-from adcp.types.domains.enums.genre_taxonomy import GenreTaxonomy
-from adcp.types.domains.enums.geo_level import GeographicTargetingLevel
-from adcp.types.domains.enums.gop_type import GopType
-from adcp.types.domains.enums.governance_decision import GovernanceDecision
-from adcp.types.domains.enums.governance_domain import GovernanceDomain
-from adcp.types.domains.enums.governance_mode import GovernanceMode
-from adcp.types.domains.enums.governance_phase import GovernancePhase
-from adcp.types.domains.enums.history_entry_type import HistoryEntryType
-from adcp.types.domains.enums.http_method import HttpMethod
-from adcp.types.domains.enums.identifier_types import PropertyIdentifierTypes
-from adcp.types.domains.enums.impairment_offline_state import ImpairmentOfflineState
-from adcp.types.domains.enums.impairment_reason_code import ImpairmentReasonCode
-from adcp.types.domains.enums.indicator_type import IndicatorType
-from adcp.types.domains.enums.installment_status import InstallmentStatus
-from adcp.types.domains.enums.javascript_module_type import JavascriptModuleType
-from adcp.types.domains.enums.landing_page_requirement import LandingPageRequirement
-from adcp.types.domains.enums.legacy_postal_system import CountryFusedPostalCodeSystem
-from adcp.types.domains.enums.lift_dimension import LiftDimension
-from adcp.types.domains.enums.logo_slot import LogoSlot
-from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
-from adcp.types.domains.enums.macro_mapping_status import MacroMappingStatus
-from adcp.types.domains.enums.macro_processing_operation import MacroProcessingOperation
-from adcp.types.domains.enums.macro_resolution_reason import MacroResolutionReason
-from adcp.types.domains.enums.macro_resolver import MacroProcessingActor
-from adcp.types.domains.enums.macro_value_context import MacroValueContext
-from adcp.types.domains.enums.makegood_remedy import MakegoodRemedy
-from adcp.types.domains.enums.markdown_flavor import MarkdownFlavor
-from adcp.types.domains.enums.match_id_type import MatchIdType
-from adcp.types.domains.enums.match_type import MatchType
-from adcp.types.domains.enums.media_buy_action_mode import MediaBuyActionMode
-from adcp.types.domains.enums.media_buy_frequency_cap_control_mode import (
-    MediaBuyFrequencyCapControlMode,
-)
-from adcp.types.domains.enums.media_buy_health import MediaBuyHealth
-from adcp.types.domains.enums.media_buy_status import MediaBuyStatus
-from adcp.types.domains.enums.media_buy_valid_action import MediaBuyValidAction
-from adcp.types.domains.enums.metric_scope import MetricScope
-from adcp.types.domains.enums.metric_type import MetricType
-from adcp.types.domains.enums.metro_system import MetroAreaSystem
-from adcp.types.domains.enums.moov_atom_position import MoovAtomPosition
-from adcp.types.domains.enums.motion_level import CreativeMotionLevel
-from adcp.types.domains.enums.notification_type import NotificationType
-from adcp.types.domains.enums.offering_availability_status import OfferingAvailabilityStatus
-from adcp.types.domains.enums.outcome_target_cost_strength import OutcomeTargetCostStrength
-from adcp.types.domains.enums.outcome_type import OutcomeType
-from adcp.types.domains.enums.pacing import Pacing
-from adcp.types.domains.enums.payment_terms import PaymentTerms
-from adcp.types.domains.enums.performance_baseline import PerformanceBaseline
-from adcp.types.domains.enums.performance_standard_metric import PerformanceStandardMetric
-from adcp.types.domains.enums.pixel_tracking_event import PixelTrackingEvent
-from adcp.types.domains.enums.policy_category import PolicyCategory
-from adcp.types.domains.enums.policy_enforcement import PolicyEnforcementLevel
-from adcp.types.domains.enums.postal_system import PostalCodeSystem
-from adcp.types.domains.enums.preview_output_format import PreviewOutputFormat
-from adcp.types.domains.enums.pricing_model import PricingModel
-from adcp.types.domains.enums.pricing_structure import PricingStructure
-from adcp.types.domains.enums.principal_kind import PrincipalKind
-from adcp.types.domains.enums.production_quality import ProductionQuality
-from adcp.types.domains.enums.property_type import PropertyType
-from adcp.types.domains.enums.proposal_decline_reason import ProposalDeclineReason
-from adcp.types.domains.enums.proposal_refinement_reason import ProposalRefinementReason
-from adcp.types.domains.enums.proposal_status import ProposalStatus
-from adcp.types.domains.enums.publisher_identifier_types import PublisherIdentifierTypes
-from adcp.types.domains.enums.purchase_type import PurchaseType
-from adcp.types.domains.enums.reach_aggregation import ReachAggregation
-from adcp.types.domains.enums.reach_unit import ReachUnit
-from adcp.types.domains.enums.reporting_destination_setup_state import (
-    ReportingDestinationSetupState,
-)
-from adcp.types.domains.enums.reporting_finality import ReportingFinality
-from adcp.types.domains.enums.reporting_frequency import ReportingFrequency
-from adcp.types.domains.enums.reporting_health import ReportingHealth
-from adcp.types.domains.enums.representation_selection_strategy import (
-    RepresentationSelectionStrategy,
-)
-from adcp.types.domains.enums.request_signing_error_code import RequestSigningErrorCode
-from adcp.types.domains.enums.response_type import TmpResponseType
-from adcp.types.domains.enums.restricted_attribute import RestrictedAttribute
-from adcp.types.domains.enums.right_type import RightType
-from adcp.types.domains.enums.right_use import RightUse
-from adcp.types.domains.enums.rights_billing_period import RightsBillingPeriod
-from adcp.types.domains.enums.scan_type import ScanType
-from adcp.types.domains.enums.seller_policy_decline_reason import SellerPolicyDeclineReason
-from adcp.types.domains.enums.si_session_status import SiSessionStatus
-from adcp.types.domains.enums.signal_catalog_type import SignalAvailabilityType, SignalCatalogType
-from adcp.types.domains.enums.signal_source import SignalSource
-from adcp.types.domains.enums.signal_value_type import SignalValueType
-from adcp.types.domains.enums.snapshot_unavailable_reason import SnapshotUnavailableReason
-from adcp.types.domains.enums.social_placement_surface import SocialPlacementSurface
-from adcp.types.domains.enums.sort_direction import SortDirection
-from adcp.types.domains.enums.sort_metric import SortMetric
-from adcp.types.domains.enums.special_category import SpecialCategory
-from adcp.types.domains.enums.specialism import AdcpSpecialism
-from adcp.types.domains.enums.sponsored_placement_type import SponsoredPlacementType
-from adcp.types.domains.enums.talent_role import TalentRole
-from adcp.types.domains.enums.task_status import TaskStatus
-from adcp.types.domains.enums.task_type import TaskType
-from adcp.types.domains.enums.tracker_execution_actor import TrackerExecutionActor
-from adcp.types.domains.enums.tracker_firing_path import TrackerFiringPath
-from adcp.types.domains.enums.transport_mode import TransportMode
-from adcp.types.domains.enums.travel_time_unit import TravelTimeUnit
-from adcp.types.domains.enums.uid_type import UidType
-from adcp.types.domains.enums.universal_macro import UniversalMacro
-from adcp.types.domains.enums.update_frequency import UpdateFrequency
-from adcp.types.domains.enums.url_asset_type import UrlAssetType
-from adcp.types.domains.enums.validation_mode import ValidationMode
-from adcp.types.domains.enums.vast_media_delivery_method import VastMediaDeliveryMethod
-from adcp.types.domains.enums.vast_tracking_event import VastTrackingEvent
-from adcp.types.domains.enums.vast_version import VastVersion
-from adcp.types.domains.enums.vendor_relationship import VendorRelationship
-from adcp.types.domains.enums.video_placement_type import VideoPlacementType
-from adcp.types.domains.enums.view_threshold_basis import ViewThresholdBasis
-from adcp.types.domains.enums.viewability_standard import ViewabilityStandard
-from adcp.types.domains.enums.warning_code import WarningCode
-from adcp.types.domains.enums.watermark_media_type import WatermarkMediaType
-from adcp.types.domains.enums.wcag_level import WcagLevel
-from adcp.types.domains.enums.webhook_response_type import WebhookResponseType
-from adcp.types.domains.enums.webhook_security_method import WebhookSecurityMethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from adcp.types.domains.enums.account_currency_mode import AccountCurrencyMode
+    from adcp.types.domains.enums.account_scope import AccountScope
+    from adcp.types.domains.enums.account_status import AccountStatus
+    from adcp.types.domains.enums.action_not_allowed_reason import ActionNotAllowedReason
+    from adcp.types.domains.enums.action_source import ActionSource
+    from adcp.types.domains.enums.activation_method import CreativeActivationMethod
+    from adcp.types.domains.enums.adcp_protocol import AdcpProtocol
+    from adcp.types.domains.enums.adjustment_kind import PriceAdjustmentKind
+    from adcp.types.domains.enums.advertiser_industry import AdvertiserIndustry
+    from adcp.types.domains.enums.age_determination_basis import AgeDeterminationBasis
+    from adcp.types.domains.enums.age_verification_method import AgeVerificationMethod
+    from adcp.types.domains.enums.assessment_status import AssessmentStatus
+    from adcp.types.domains.enums.asset_content_type import AssetContentType
+    from adcp.types.domains.enums.attestation_claim import AttestationClaim
+    from adcp.types.domains.enums.attribution_methodology import AttributionMethodology
+    from adcp.types.domains.enums.attribution_model import AttributionModel
+    from adcp.types.domains.enums.audience_evidence_methodology import AudienceEvidenceMethodology
+    from adcp.types.domains.enums.audience_resolution_method import AudienceResolutionMethod
+    from adcp.types.domains.enums.audience_source import AudienceSource
+    from adcp.types.domains.enums.audience_status import AudienceStatus
+    from adcp.types.domains.enums.audience_subject_type import AudienceSubjectType
+    from adcp.types.domains.enums.audio_channel_layout import AudioChannelLayout
+    from adcp.types.domains.enums.audio_distribution_type import AudioDistributionType
+    from adcp.types.domains.enums.auth_scheme import AuthenticationScheme
+    from adcp.types.domains.enums.availability_status import AvailabilityStatus
+    from adcp.types.domains.enums.available_metric import AvailableMetric
+    from adcp.types.domains.enums.billing_party import BillingParty
+    from adcp.types.domains.enums.binary_verdict import BinaryVerdict
+    from adcp.types.domains.enums.brand_agent_type import BrandAgentType
+    from adcp.types.domains.enums.browser_family import BrowserFamily
+    from adcp.types.domains.enums.c2pa_watermark_action import C2PaWatermarkAction
+    from adcp.types.domains.enums.canceled_by import CanceledBy
+    from adcp.types.domains.enums.canonical_media_buy_action import CanonicalMediaBuyActionName
+    from adcp.types.domains.enums.canonical_media_buy_action_mode import CanonicalMediaBuyActionMode
+    from adcp.types.domains.enums.catalog_action import CatalogAction
+    from adcp.types.domains.enums.catalog_item_status import CatalogItemStatus
+    from adcp.types.domains.enums.catalog_type import CatalogType
+    from adcp.types.domains.enums.channels import MediaChannel
+    from adcp.types.domains.enums.cloud_storage_protocol import CloudStorageProtocol
+    from adcp.types.domains.enums.co_branding_requirement import CoBrandingRequirement
+    from adcp.types.domains.enums.collection_cadence import CollectionCadence
+    from adcp.types.domains.enums.collection_kind import CollectionKind
+    from adcp.types.domains.enums.collection_relationship import CollectionRelationship
+    from adcp.types.domains.enums.collection_status import CollectionStatus
+    from adcp.types.domains.enums.completion_source import CompletionSource
+    from adcp.types.domains.enums.consent_basis import ConsentBasis
+    from adcp.types.domains.enums.content_id_type import ContentIdType
+    from adcp.types.domains.enums.content_rating_system import ContentRatingSystem
+    from adcp.types.domains.enums.creative_action import CreativeAction
+    from adcp.types.domains.enums.creative_agent_capability import CreativeAgentCapability
+    from adcp.types.domains.enums.creative_approval_status import CreativeApprovalStatus
+    from adcp.types.domains.enums.creative_event_reason_code import CreativeEventReasonCode
+    from adcp.types.domains.enums.creative_identifier_type import CreativeIdentifierType
+    from adcp.types.domains.enums.creative_quality import CreativeQuality
+    from adcp.types.domains.enums.creative_selection_strategy import CreativeSelectionStrategy
+    from adcp.types.domains.enums.creative_sort_field import CreativeSortField
+    from adcp.types.domains.enums.creative_status import CreativeStatus
+    from adcp.types.domains.enums.ctv_ad_experience import CtvAdExperience
+    from adcp.types.domains.enums.daast_tracking_event import DaastTrackingEvent
+    from adcp.types.domains.enums.daast_version import DaastVersion
+    from adcp.types.domains.enums.day_of_week import DayOfWeek
+    from adcp.types.domains.enums.daypart_timezone_mode import DaypartTimezoneMode
+    from adcp.types.domains.enums.delegation_authority import DelegationAuthority
+    from adcp.types.domains.enums.delivery_recipient_cloud import DeliveryRecipientCloud
+    from adcp.types.domains.enums.delivery_status import DeliveryStatus
+    from adcp.types.domains.enums.delivery_type import DeliveryType
+    from adcp.types.domains.enums.demographic_system import DemographicSystem
+    from adcp.types.domains.enums.derivative_type import DerivativeType
+    from adcp.types.domains.enums.device_platform import DevicePlatform
+    from adcp.types.domains.enums.device_type import DeviceType
+    from adcp.types.domains.enums.digital_source_type import DigitalSourceType
+    from adcp.types.domains.enums.dimension_unit import DimensionUnit
+    from adcp.types.domains.enums.disclosure_persistence import DisclosurePersistence
+    from adcp.types.domains.enums.disclosure_position import DisclosurePosition
+    from adcp.types.domains.enums.distance_unit import DistanceUnit
+    from adcp.types.domains.enums.distribution_identifier_type import DistributionIdentifierType
+    from adcp.types.domains.enums.dooh_motion_type import DoohMotionType
+    from adcp.types.domains.enums.embedded_provenance_method import EmbeddedProvenanceMethod
+    from adcp.types.domains.enums.error_code import ErrorCode
+    from adcp.types.domains.enums.error_scope import ErrorScope
+    from adcp.types.domains.enums.escalation_severity import EscalationSeverity
+    from adcp.types.domains.enums.event_type import EventType
+    from adcp.types.domains.enums.exclusivity import Exclusivity
+    from adcp.types.domains.enums.feature_check_status import FeatureCheckStatus
+    from adcp.types.domains.enums.feed_format import FeedFormat
+    from adcp.types.domains.enums.feedback_source import FeedbackSource
+    from adcp.types.domains.enums.forecast_method import ForecastMethod
+    from adcp.types.domains.enums.forecast_range_unit import ForecastRangeUnit
+    from adcp.types.domains.enums.forecastable_metric import ForecastableMetric
+    from adcp.types.domains.enums.format_id_parameter import FormatIdParameter
+    from adcp.types.domains.enums.frame_rate_type import FrameRateType
+    from adcp.types.domains.enums.frequency_cap_control_mode import FrequencyCapControlMode
+    from adcp.types.domains.enums.frequency_cap_mutable_field import FrequencyCapMutableField
+    from adcp.types.domains.enums.frequency_cap_scope import FrequencyCapScope
+    from adcp.types.domains.enums.genre_taxonomy import GenreTaxonomy
+    from adcp.types.domains.enums.geo_level import GeographicTargetingLevel
+    from adcp.types.domains.enums.gop_type import GopType
+    from adcp.types.domains.enums.governance_decision import GovernanceDecision
+    from adcp.types.domains.enums.governance_domain import GovernanceDomain
+    from adcp.types.domains.enums.governance_mode import GovernanceMode
+    from adcp.types.domains.enums.governance_phase import GovernancePhase
+    from adcp.types.domains.enums.history_entry_type import HistoryEntryType
+    from adcp.types.domains.enums.http_method import HttpMethod
+    from adcp.types.domains.enums.identifier_types import PropertyIdentifierTypes
+    from adcp.types.domains.enums.impairment_offline_state import ImpairmentOfflineState
+    from adcp.types.domains.enums.impairment_reason_code import ImpairmentReasonCode
+    from adcp.types.domains.enums.indicator_type import IndicatorType
+    from adcp.types.domains.enums.installment_status import InstallmentStatus
+    from adcp.types.domains.enums.javascript_module_type import JavascriptModuleType
+    from adcp.types.domains.enums.landing_page_requirement import LandingPageRequirement
+    from adcp.types.domains.enums.legacy_postal_system import CountryFusedPostalCodeSystem
+    from adcp.types.domains.enums.lift_dimension import LiftDimension
+    from adcp.types.domains.enums.logo_slot import LogoSlot
+    from adcp.types.domains.enums.macro_dialect import MacroDialectFamily
+    from adcp.types.domains.enums.macro_mapping_status import MacroMappingStatus
+    from adcp.types.domains.enums.macro_processing_operation import MacroProcessingOperation
+    from adcp.types.domains.enums.macro_resolution_reason import MacroResolutionReason
+    from adcp.types.domains.enums.macro_resolver import MacroProcessingActor
+    from adcp.types.domains.enums.macro_value_context import MacroValueContext
+    from adcp.types.domains.enums.makegood_remedy import MakegoodRemedy
+    from adcp.types.domains.enums.markdown_flavor import MarkdownFlavor
+    from adcp.types.domains.enums.match_id_type import MatchIdType
+    from adcp.types.domains.enums.match_type import MatchType
+    from adcp.types.domains.enums.media_buy_action_mode import MediaBuyActionMode
+    from adcp.types.domains.enums.media_buy_frequency_cap_control_mode import (
+        MediaBuyFrequencyCapControlMode,
+    )
+    from adcp.types.domains.enums.media_buy_health import MediaBuyHealth
+    from adcp.types.domains.enums.media_buy_status import MediaBuyStatus
+    from adcp.types.domains.enums.media_buy_valid_action import MediaBuyValidAction
+    from adcp.types.domains.enums.metric_scope import MetricScope
+    from adcp.types.domains.enums.metric_type import MetricType
+    from adcp.types.domains.enums.metro_system import MetroAreaSystem
+    from adcp.types.domains.enums.moov_atom_position import MoovAtomPosition
+    from adcp.types.domains.enums.motion_level import CreativeMotionLevel
+    from adcp.types.domains.enums.notification_type import NotificationType
+    from adcp.types.domains.enums.offering_availability_status import OfferingAvailabilityStatus
+    from adcp.types.domains.enums.outcome_target_cost_strength import OutcomeTargetCostStrength
+    from adcp.types.domains.enums.outcome_type import OutcomeType
+    from adcp.types.domains.enums.pacing import Pacing
+    from adcp.types.domains.enums.payment_terms import PaymentTerms
+    from adcp.types.domains.enums.performance_baseline import PerformanceBaseline
+    from adcp.types.domains.enums.performance_standard_metric import PerformanceStandardMetric
+    from adcp.types.domains.enums.pixel_tracking_event import PixelTrackingEvent
+    from adcp.types.domains.enums.policy_category import PolicyCategory
+    from adcp.types.domains.enums.policy_enforcement import PolicyEnforcementLevel
+    from adcp.types.domains.enums.postal_system import PostalCodeSystem
+    from adcp.types.domains.enums.preview_output_format import PreviewOutputFormat
+    from adcp.types.domains.enums.pricing_model import PricingModel
+    from adcp.types.domains.enums.pricing_structure import PricingStructure
+    from adcp.types.domains.enums.principal_kind import PrincipalKind
+    from adcp.types.domains.enums.production_quality import ProductionQuality
+    from adcp.types.domains.enums.property_type import PropertyType
+    from adcp.types.domains.enums.proposal_decline_reason import ProposalDeclineReason
+    from adcp.types.domains.enums.proposal_refinement_reason import ProposalRefinementReason
+    from adcp.types.domains.enums.proposal_status import ProposalStatus
+    from adcp.types.domains.enums.publisher_identifier_types import PublisherIdentifierTypes
+    from adcp.types.domains.enums.purchase_type import PurchaseType
+    from adcp.types.domains.enums.reach_aggregation import ReachAggregation
+    from adcp.types.domains.enums.reach_unit import ReachUnit
+    from adcp.types.domains.enums.reporting_destination_setup_state import (
+        ReportingDestinationSetupState,
+    )
+    from adcp.types.domains.enums.reporting_finality import ReportingFinality
+    from adcp.types.domains.enums.reporting_frequency import ReportingFrequency
+    from adcp.types.domains.enums.reporting_health import ReportingHealth
+    from adcp.types.domains.enums.representation_selection_strategy import (
+        RepresentationSelectionStrategy,
+    )
+    from adcp.types.domains.enums.request_signing_error_code import RequestSigningErrorCode
+    from adcp.types.domains.enums.response_type import TmpResponseType
+    from adcp.types.domains.enums.restricted_attribute import RestrictedAttribute
+    from adcp.types.domains.enums.right_type import RightType
+    from adcp.types.domains.enums.right_use import RightUse
+    from adcp.types.domains.enums.rights_billing_period import RightsBillingPeriod
+    from adcp.types.domains.enums.scan_type import ScanType
+    from adcp.types.domains.enums.seller_policy_decline_reason import SellerPolicyDeclineReason
+    from adcp.types.domains.enums.si_session_status import SiSessionStatus
+    from adcp.types.domains.enums.signal_catalog_type import (
+        SignalAvailabilityType,
+        SignalCatalogType,
+    )
+    from adcp.types.domains.enums.signal_source import SignalSource
+    from adcp.types.domains.enums.signal_value_type import SignalValueType
+    from adcp.types.domains.enums.snapshot_unavailable_reason import SnapshotUnavailableReason
+    from adcp.types.domains.enums.social_placement_surface import SocialPlacementSurface
+    from adcp.types.domains.enums.sort_direction import SortDirection
+    from adcp.types.domains.enums.sort_metric import SortMetric
+    from adcp.types.domains.enums.special_category import SpecialCategory
+    from adcp.types.domains.enums.specialism import AdcpSpecialism
+    from adcp.types.domains.enums.sponsored_placement_type import SponsoredPlacementType
+    from adcp.types.domains.enums.talent_role import TalentRole
+    from adcp.types.domains.enums.task_status import TaskStatus
+    from adcp.types.domains.enums.task_type import TaskType
+    from adcp.types.domains.enums.tracker_execution_actor import TrackerExecutionActor
+    from adcp.types.domains.enums.tracker_firing_path import TrackerFiringPath
+    from adcp.types.domains.enums.transport_mode import TransportMode
+    from adcp.types.domains.enums.travel_time_unit import TravelTimeUnit
+    from adcp.types.domains.enums.uid_type import UidType
+    from adcp.types.domains.enums.universal_macro import UniversalMacro
+    from adcp.types.domains.enums.update_frequency import UpdateFrequency
+    from adcp.types.domains.enums.url_asset_type import UrlAssetType
+    from adcp.types.domains.enums.validation_mode import ValidationMode
+    from adcp.types.domains.enums.vast_media_delivery_method import VastMediaDeliveryMethod
+    from adcp.types.domains.enums.vast_tracking_event import VastTrackingEvent
+    from adcp.types.domains.enums.vast_version import VastVersion
+    from adcp.types.domains.enums.vendor_relationship import VendorRelationship
+    from adcp.types.domains.enums.video_placement_type import VideoPlacementType
+    from adcp.types.domains.enums.view_threshold_basis import ViewThresholdBasis
+    from adcp.types.domains.enums.viewability_standard import ViewabilityStandard
+    from adcp.types.domains.enums.warning_code import WarningCode
+    from adcp.types.domains.enums.watermark_media_type import WatermarkMediaType
+    from adcp.types.domains.enums.wcag_level import WcagLevel
+    from adcp.types.domains.enums.webhook_response_type import WebhookResponseType
+    from adcp.types.domains.enums.webhook_security_method import WebhookSecurityMethod
 
 # Explicit exports
 __all__ = [
@@ -439,3 +451,230 @@ __all__ = [
     "WebhookResponseType",
     "WebhookSecurityMethod",
 ]
+
+
+#: The schema module that declares each name, for the lazy binding below.
+_DECLARED_IN = {
+    "AccountCurrencyMode": "adcp.types.domains.enums.account_currency_mode",
+    "AccountScope": "adcp.types.domains.enums.account_scope",
+    "AccountStatus": "adcp.types.domains.enums.account_status",
+    "ActionNotAllowedReason": "adcp.types.domains.enums.action_not_allowed_reason",
+    "ActionSource": "adcp.types.domains.enums.action_source",
+    "AdcpProtocol": "adcp.types.domains.enums.adcp_protocol",
+    "AdcpSpecialism": "adcp.types.domains.enums.specialism",
+    "AdvertiserIndustry": "adcp.types.domains.enums.advertiser_industry",
+    "AgeDeterminationBasis": "adcp.types.domains.enums.age_determination_basis",
+    "AgeVerificationMethod": "adcp.types.domains.enums.age_verification_method",
+    "AssessmentStatus": "adcp.types.domains.enums.assessment_status",
+    "AssetContentType": "adcp.types.domains.enums.asset_content_type",
+    "AttestationClaim": "adcp.types.domains.enums.attestation_claim",
+    "AttributionMethodology": "adcp.types.domains.enums.attribution_methodology",
+    "AttributionModel": "adcp.types.domains.enums.attribution_model",
+    "AudienceEvidenceMethodology": "adcp.types.domains.enums.audience_evidence_methodology",
+    "AudienceResolutionMethod": "adcp.types.domains.enums.audience_resolution_method",
+    "AudienceSource": "adcp.types.domains.enums.audience_source",
+    "AudienceStatus": "adcp.types.domains.enums.audience_status",
+    "AudienceSubjectType": "adcp.types.domains.enums.audience_subject_type",
+    "AudioChannelLayout": "adcp.types.domains.enums.audio_channel_layout",
+    "AudioDistributionType": "adcp.types.domains.enums.audio_distribution_type",
+    "AuthenticationScheme": "adcp.types.domains.enums.auth_scheme",
+    "AvailabilityStatus": "adcp.types.domains.enums.availability_status",
+    "AvailableMetric": "adcp.types.domains.enums.available_metric",
+    "BillingParty": "adcp.types.domains.enums.billing_party",
+    "BinaryVerdict": "adcp.types.domains.enums.binary_verdict",
+    "BrandAgentType": "adcp.types.domains.enums.brand_agent_type",
+    "BrowserFamily": "adcp.types.domains.enums.browser_family",
+    "C2PaWatermarkAction": "adcp.types.domains.enums.c2pa_watermark_action",
+    "CanceledBy": "adcp.types.domains.enums.canceled_by",
+    "CanonicalMediaBuyActionMode": "adcp.types.domains.enums.canonical_media_buy_action_mode",
+    "CanonicalMediaBuyActionName": "adcp.types.domains.enums.canonical_media_buy_action",
+    "CatalogAction": "adcp.types.domains.enums.catalog_action",
+    "CatalogItemStatus": "adcp.types.domains.enums.catalog_item_status",
+    "CatalogType": "adcp.types.domains.enums.catalog_type",
+    "CloudStorageProtocol": "adcp.types.domains.enums.cloud_storage_protocol",
+    "CoBrandingRequirement": "adcp.types.domains.enums.co_branding_requirement",
+    "CollectionCadence": "adcp.types.domains.enums.collection_cadence",
+    "CollectionKind": "adcp.types.domains.enums.collection_kind",
+    "CollectionRelationship": "adcp.types.domains.enums.collection_relationship",
+    "CollectionStatus": "adcp.types.domains.enums.collection_status",
+    "CompletionSource": "adcp.types.domains.enums.completion_source",
+    "ConsentBasis": "adcp.types.domains.enums.consent_basis",
+    "ContentIdType": "adcp.types.domains.enums.content_id_type",
+    "ContentRatingSystem": "adcp.types.domains.enums.content_rating_system",
+    "CountryFusedPostalCodeSystem": "adcp.types.domains.enums.legacy_postal_system",
+    "CreativeAction": "adcp.types.domains.enums.creative_action",
+    "CreativeActivationMethod": "adcp.types.domains.enums.activation_method",
+    "CreativeAgentCapability": "adcp.types.domains.enums.creative_agent_capability",
+    "CreativeApprovalStatus": "adcp.types.domains.enums.creative_approval_status",
+    "CreativeEventReasonCode": "adcp.types.domains.enums.creative_event_reason_code",
+    "CreativeIdentifierType": "adcp.types.domains.enums.creative_identifier_type",
+    "CreativeMotionLevel": "adcp.types.domains.enums.motion_level",
+    "CreativeQuality": "adcp.types.domains.enums.creative_quality",
+    "CreativeSelectionStrategy": "adcp.types.domains.enums.creative_selection_strategy",
+    "CreativeSortField": "adcp.types.domains.enums.creative_sort_field",
+    "CreativeStatus": "adcp.types.domains.enums.creative_status",
+    "CtvAdExperience": "adcp.types.domains.enums.ctv_ad_experience",
+    "DaastTrackingEvent": "adcp.types.domains.enums.daast_tracking_event",
+    "DaastVersion": "adcp.types.domains.enums.daast_version",
+    "DayOfWeek": "adcp.types.domains.enums.day_of_week",
+    "DaypartTimezoneMode": "adcp.types.domains.enums.daypart_timezone_mode",
+    "DelegationAuthority": "adcp.types.domains.enums.delegation_authority",
+    "DeliveryRecipientCloud": "adcp.types.domains.enums.delivery_recipient_cloud",
+    "DeliveryStatus": "adcp.types.domains.enums.delivery_status",
+    "DeliveryType": "adcp.types.domains.enums.delivery_type",
+    "DemographicSystem": "adcp.types.domains.enums.demographic_system",
+    "DerivativeType": "adcp.types.domains.enums.derivative_type",
+    "DevicePlatform": "adcp.types.domains.enums.device_platform",
+    "DeviceType": "adcp.types.domains.enums.device_type",
+    "DigitalSourceType": "adcp.types.domains.enums.digital_source_type",
+    "DimensionUnit": "adcp.types.domains.enums.dimension_unit",
+    "DisclosurePersistence": "adcp.types.domains.enums.disclosure_persistence",
+    "DisclosurePosition": "adcp.types.domains.enums.disclosure_position",
+    "DistanceUnit": "adcp.types.domains.enums.distance_unit",
+    "DistributionIdentifierType": "adcp.types.domains.enums.distribution_identifier_type",
+    "DoohMotionType": "adcp.types.domains.enums.dooh_motion_type",
+    "EmbeddedProvenanceMethod": "adcp.types.domains.enums.embedded_provenance_method",
+    "ErrorCode": "adcp.types.domains.enums.error_code",
+    "ErrorScope": "adcp.types.domains.enums.error_scope",
+    "EscalationSeverity": "adcp.types.domains.enums.escalation_severity",
+    "EventType": "adcp.types.domains.enums.event_type",
+    "Exclusivity": "adcp.types.domains.enums.exclusivity",
+    "FeatureCheckStatus": "adcp.types.domains.enums.feature_check_status",
+    "FeedFormat": "adcp.types.domains.enums.feed_format",
+    "FeedbackSource": "adcp.types.domains.enums.feedback_source",
+    "ForecastMethod": "adcp.types.domains.enums.forecast_method",
+    "ForecastRangeUnit": "adcp.types.domains.enums.forecast_range_unit",
+    "ForecastableMetric": "adcp.types.domains.enums.forecastable_metric",
+    "FormatIdParameter": "adcp.types.domains.enums.format_id_parameter",
+    "FrameRateType": "adcp.types.domains.enums.frame_rate_type",
+    "FrequencyCapControlMode": "adcp.types.domains.enums.frequency_cap_control_mode",
+    "FrequencyCapMutableField": "adcp.types.domains.enums.frequency_cap_mutable_field",
+    "FrequencyCapScope": "adcp.types.domains.enums.frequency_cap_scope",
+    "GenreTaxonomy": "adcp.types.domains.enums.genre_taxonomy",
+    "GeographicTargetingLevel": "adcp.types.domains.enums.geo_level",
+    "GopType": "adcp.types.domains.enums.gop_type",
+    "GovernanceDecision": "adcp.types.domains.enums.governance_decision",
+    "GovernanceDomain": "adcp.types.domains.enums.governance_domain",
+    "GovernanceMode": "adcp.types.domains.enums.governance_mode",
+    "GovernancePhase": "adcp.types.domains.enums.governance_phase",
+    "HistoryEntryType": "adcp.types.domains.enums.history_entry_type",
+    "HttpMethod": "adcp.types.domains.enums.http_method",
+    "ImpairmentOfflineState": "adcp.types.domains.enums.impairment_offline_state",
+    "ImpairmentReasonCode": "adcp.types.domains.enums.impairment_reason_code",
+    "IndicatorType": "adcp.types.domains.enums.indicator_type",
+    "InstallmentStatus": "adcp.types.domains.enums.installment_status",
+    "JavascriptModuleType": "adcp.types.domains.enums.javascript_module_type",
+    "LandingPageRequirement": "adcp.types.domains.enums.landing_page_requirement",
+    "LiftDimension": "adcp.types.domains.enums.lift_dimension",
+    "LogoSlot": "adcp.types.domains.enums.logo_slot",
+    "MacroDialectFamily": "adcp.types.domains.enums.macro_dialect",
+    "MacroMappingStatus": "adcp.types.domains.enums.macro_mapping_status",
+    "MacroProcessingActor": "adcp.types.domains.enums.macro_resolver",
+    "MacroProcessingOperation": "adcp.types.domains.enums.macro_processing_operation",
+    "MacroResolutionReason": "adcp.types.domains.enums.macro_resolution_reason",
+    "MacroValueContext": "adcp.types.domains.enums.macro_value_context",
+    "MakegoodRemedy": "adcp.types.domains.enums.makegood_remedy",
+    "MarkdownFlavor": "adcp.types.domains.enums.markdown_flavor",
+    "MatchIdType": "adcp.types.domains.enums.match_id_type",
+    "MatchType": "adcp.types.domains.enums.match_type",
+    "MediaBuyActionMode": "adcp.types.domains.enums.media_buy_action_mode",
+    "MediaBuyFrequencyCapControlMode": "adcp.types.domains.enums.media_buy_frequency_cap_control_mode",
+    "MediaBuyHealth": "adcp.types.domains.enums.media_buy_health",
+    "MediaBuyStatus": "adcp.types.domains.enums.media_buy_status",
+    "MediaBuyValidAction": "adcp.types.domains.enums.media_buy_valid_action",
+    "MediaChannel": "adcp.types.domains.enums.channels",
+    "MetricScope": "adcp.types.domains.enums.metric_scope",
+    "MetricType": "adcp.types.domains.enums.metric_type",
+    "MetroAreaSystem": "adcp.types.domains.enums.metro_system",
+    "MoovAtomPosition": "adcp.types.domains.enums.moov_atom_position",
+    "NotificationType": "adcp.types.domains.enums.notification_type",
+    "OfferingAvailabilityStatus": "adcp.types.domains.enums.offering_availability_status",
+    "OutcomeTargetCostStrength": "adcp.types.domains.enums.outcome_target_cost_strength",
+    "OutcomeType": "adcp.types.domains.enums.outcome_type",
+    "Pacing": "adcp.types.domains.enums.pacing",
+    "PaymentTerms": "adcp.types.domains.enums.payment_terms",
+    "PerformanceBaseline": "adcp.types.domains.enums.performance_baseline",
+    "PerformanceStandardMetric": "adcp.types.domains.enums.performance_standard_metric",
+    "PixelTrackingEvent": "adcp.types.domains.enums.pixel_tracking_event",
+    "PolicyCategory": "adcp.types.domains.enums.policy_category",
+    "PolicyEnforcementLevel": "adcp.types.domains.enums.policy_enforcement",
+    "PostalCodeSystem": "adcp.types.domains.enums.postal_system",
+    "PreviewOutputFormat": "adcp.types.domains.enums.preview_output_format",
+    "PriceAdjustmentKind": "adcp.types.domains.enums.adjustment_kind",
+    "PricingModel": "adcp.types.domains.enums.pricing_model",
+    "PricingStructure": "adcp.types.domains.enums.pricing_structure",
+    "PrincipalKind": "adcp.types.domains.enums.principal_kind",
+    "ProductionQuality": "adcp.types.domains.enums.production_quality",
+    "PropertyIdentifierTypes": "adcp.types.domains.enums.identifier_types",
+    "PropertyType": "adcp.types.domains.enums.property_type",
+    "ProposalDeclineReason": "adcp.types.domains.enums.proposal_decline_reason",
+    "ProposalRefinementReason": "adcp.types.domains.enums.proposal_refinement_reason",
+    "ProposalStatus": "adcp.types.domains.enums.proposal_status",
+    "PublisherIdentifierTypes": "adcp.types.domains.enums.publisher_identifier_types",
+    "PurchaseType": "adcp.types.domains.enums.purchase_type",
+    "ReachAggregation": "adcp.types.domains.enums.reach_aggregation",
+    "ReachUnit": "adcp.types.domains.enums.reach_unit",
+    "ReportingDestinationSetupState": "adcp.types.domains.enums.reporting_destination_setup_state",
+    "ReportingFinality": "adcp.types.domains.enums.reporting_finality",
+    "ReportingFrequency": "adcp.types.domains.enums.reporting_frequency",
+    "ReportingHealth": "adcp.types.domains.enums.reporting_health",
+    "RepresentationSelectionStrategy": "adcp.types.domains.enums.representation_selection_strategy",
+    "RequestSigningErrorCode": "adcp.types.domains.enums.request_signing_error_code",
+    "RestrictedAttribute": "adcp.types.domains.enums.restricted_attribute",
+    "RightType": "adcp.types.domains.enums.right_type",
+    "RightUse": "adcp.types.domains.enums.right_use",
+    "RightsBillingPeriod": "adcp.types.domains.enums.rights_billing_period",
+    "ScanType": "adcp.types.domains.enums.scan_type",
+    "SellerPolicyDeclineReason": "adcp.types.domains.enums.seller_policy_decline_reason",
+    "SiSessionStatus": "adcp.types.domains.enums.si_session_status",
+    "SignalAvailabilityType": "adcp.types.domains.enums.signal_catalog_type",
+    "SignalCatalogType": "adcp.types.domains.enums.signal_catalog_type",
+    "SignalSource": "adcp.types.domains.enums.signal_source",
+    "SignalValueType": "adcp.types.domains.enums.signal_value_type",
+    "SnapshotUnavailableReason": "adcp.types.domains.enums.snapshot_unavailable_reason",
+    "SocialPlacementSurface": "adcp.types.domains.enums.social_placement_surface",
+    "SortDirection": "adcp.types.domains.enums.sort_direction",
+    "SortMetric": "adcp.types.domains.enums.sort_metric",
+    "SpecialCategory": "adcp.types.domains.enums.special_category",
+    "SponsoredPlacementType": "adcp.types.domains.enums.sponsored_placement_type",
+    "TalentRole": "adcp.types.domains.enums.talent_role",
+    "TaskStatus": "adcp.types.domains.enums.task_status",
+    "TaskType": "adcp.types.domains.enums.task_type",
+    "TmpResponseType": "adcp.types.domains.enums.response_type",
+    "TrackerExecutionActor": "adcp.types.domains.enums.tracker_execution_actor",
+    "TrackerFiringPath": "adcp.types.domains.enums.tracker_firing_path",
+    "TransportMode": "adcp.types.domains.enums.transport_mode",
+    "TravelTimeUnit": "adcp.types.domains.enums.travel_time_unit",
+    "UidType": "adcp.types.domains.enums.uid_type",
+    "UniversalMacro": "adcp.types.domains.enums.universal_macro",
+    "UpdateFrequency": "adcp.types.domains.enums.update_frequency",
+    "UrlAssetType": "adcp.types.domains.enums.url_asset_type",
+    "ValidationMode": "adcp.types.domains.enums.validation_mode",
+    "VastMediaDeliveryMethod": "adcp.types.domains.enums.vast_media_delivery_method",
+    "VastTrackingEvent": "adcp.types.domains.enums.vast_tracking_event",
+    "VastVersion": "adcp.types.domains.enums.vast_version",
+    "VendorRelationship": "adcp.types.domains.enums.vendor_relationship",
+    "VideoPlacementType": "adcp.types.domains.enums.video_placement_type",
+    "ViewThresholdBasis": "adcp.types.domains.enums.view_threshold_basis",
+    "ViewabilityStandard": "adcp.types.domains.enums.viewability_standard",
+    "WarningCode": "adcp.types.domains.enums.warning_code",
+    "WatermarkMediaType": "adcp.types.domains.enums.watermark_media_type",
+    "WcagLevel": "adcp.types.domains.enums.wcag_level",
+    "WebhookResponseType": "adcp.types.domains.enums.webhook_response_type",
+    "WebhookSecurityMethod": "adcp.types.domains.enums.webhook_security_method",
+}
+
+if not TYPE_CHECKING:
+    import importlib as _importlib
+
+    def __getattr__(name: str) -> object:
+        module_name = _DECLARED_IN.get(name)
+        if module_name is None:
+            # Not a declared name: let the import system try a submodule, or fail.
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        value = getattr(_importlib.import_module(module_name), name)
+        globals()[name] = value
+        return value
+
+    def __dir__() -> list[str]:
+        return sorted(set(globals()) | set(__all__))
