@@ -192,6 +192,21 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.4.0...v9.5.0) (2026-11-02)
+
+
+### Features
+
+* **decisioning:** let a raised AdcpError reject a request with every error ([#1780](https://github.com/adcontextprotocol/adcp-client-python/issues/1780)) ([#1810](https://github.com/adcontextprotocol/adcp-client-python/issues/1810)) ([272fced](https://github.com/adcontextprotocol/adcp-client-python/commit/272fced52d57632dedf32f2c175cf294100bff63))
+
+
+### Bug Fixes
+
+* **canonical-formats:** check narrowing on seller-asserted references ([#1758](https://github.com/adcontextprotocol/adcp-client-python/issues/1758)) ([617762e](https://github.com/adcontextprotocol/adcp-client-python/commit/617762e94371b5817f400481bbbc866c760a6a1a))
+* **canonical-formats:** read versions from typed legacy formats ([#1757](https://github.com/adcontextprotocol/adcp-client-python/issues/1757)) ([6714203](https://github.com/adcontextprotocol/adcp-client-python/commit/67142036f40e6a68fd9ca3d5c51acaa7bfe402fb))
+* **server:** return task and workflow handoffs uncached from IdempotencyStore.wrap ([#1795](https://github.com/adcontextprotocol/adcp-client-python/issues/1795)) ([126f905](https://github.com/adcontextprotocol/adcp-client-python/commit/126f9052ab79399f1e7bab8a53f34e24999ef95e)), closes [#1781](https://github.com/adcontextprotocol/adcp-client-python/issues/1781)
+* **types:** make the domain package roots lazy so a types package imports first in any order ([#1798](https://github.com/adcontextprotocol/adcp-client-python/issues/1798)) ([7447d00](https://github.com/adcontextprotocol/adcp-client-python/commit/7447d00ceba97490109c46f0cf2f0ca9d6f8e5f3))
+
 ## [9.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.1...v9.4.0) (2026-10-31)
 
 
