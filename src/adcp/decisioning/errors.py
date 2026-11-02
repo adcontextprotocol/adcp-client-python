@@ -23,10 +23,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
-from adcp.decisioning.types import AdcpError
+from adcp.decisioning.types import AdcpError, MutationOutcome
 
 if TYPE_CHECKING:
-    from adcp.types.error_details import CreativeMergeRejectedDetails, Rejection
+    from adcp.types.error_details import (
+        CreativeMergeRejectedDetails,
+        Rejection,
+        UnsupportedTargetingDimensionDetails,
+    )
 
 __all__ = [
     "AccountNotFoundError",
@@ -41,9 +45,11 @@ __all__ = [
     "ServiceUnavailableError",
     "TermsRejectedError",
     "UnsupportedFeatureError",
+    "UnsupportedTargetingDimensionError",
     "ValidationError",
     "creative_merge_rejected_details",
     "rights_channel_violation_details",
+    "unsupported_targeting_dimension_details",
 ]
 
 
@@ -332,6 +338,80 @@ class UnsupportedFeatureError(AdcpError):
         )
 
 
+class UnsupportedTargetingDimensionError(UnsupportedFeatureError):
+    """``UNSUPPORTED_FEATURE`` for an unsupported or removed targeting dimension.
+
+    AdCP 3.3 (adcp#8052): the rejection SHOULD carry
+    ``error-details/unsupported-targeting-dimension.json`` and ``error.field``
+    SHOULD point at the targeting path, for example
+    ``packages[0].targeting_overlay.geo_postal_areas``. It replaces the
+    adapter-minted ``UNSUPPORTED_TARGETING_DIMENSION`` and
+    ``DEPRECATED_TARGETING_DIMENSION`` codes. The details are validated
+    against the generated ``UnsupportedTargetingDimensionDetails`` model.
+
+    :param unsupported_dimension: The rejected targeting field name
+        (``geo_countries``), not an individual value.
+    :param field: The targeting path in the request; authoritative over
+        ``package_index``.
+    :param supported_dimensions: Dimensions the caller could already read
+        from ``get_adcp_capabilities`` or the product's ``overlay_support``.
+    :param deprecated: ``True`` when the dimension was accepted before and
+        has been removed.
+    :param replacement_dimension: The dimension that replaces it.
+    :param product_id: The product, when support is product-scoped.
+    :param package_index: Zero-based index of the offending package.
+    :param mutation_outcome: Usually ``'not_applied'``: the rejection comes
+        from validation that runs before any write.
+    """
+
+    def __init__(
+        self,
+        *,
+        unsupported_dimension: str,
+        field: str,
+        supported_dimensions: Sequence[str] | None = None,
+        deprecated: bool | None = None,
+        replacement_dimension: str | None = None,
+        product_id: str | None = None,
+        package_index: int | None = None,
+        message: str | None = None,
+        suggestion: str | None = None,
+        mutation_outcome: MutationOutcome | None = None,
+    ) -> None:
+        from adcp.types.error_details import UnsupportedTargetingDimensionDetails
+
+        details = UnsupportedTargetingDimensionDetails.model_validate(
+            {
+                "unsupported_dimension": unsupported_dimension,
+                "supported_dimensions": (
+                    list(supported_dimensions) if supported_dimensions is not None else None
+                ),
+                "deprecated": deprecated,
+                "replacement_dimension": replacement_dimension,
+                "product_id": product_id,
+                "package_index": package_index,
+            }
+        ).model_dump(mode="json", exclude_none=True)
+        if message is None:
+            message = (
+                f"Targeting dimension {unsupported_dimension!r} is no longer supported."
+                if deprecated
+                else f"Targeting dimension {unsupported_dimension!r} is not supported."
+            )
+        if suggestion is None and replacement_dimension is not None:
+            suggestion = f"Use {replacement_dimension!r} instead."
+        AdcpError.__init__(
+            self,
+            "UNSUPPORTED_FEATURE",
+            message=message,
+            recovery="correctable",
+            field=field,
+            suggestion=suggestion,
+            details=details,
+            mutation_outcome=mutation_outcome,
+        )
+
+
 class TermsRejectedError(AdcpError):
     """Spec ``TERMS_REJECTED`` (``recovery='correctable'``).
 
@@ -535,3 +615,26 @@ def rights_channel_violation_details(error: Any) -> RightsChannelViolationDetail
         channel=_text("channel"),
         capability_id=_text("capability_id"),
     )
+
+
+def unsupported_targeting_dimension_details(
+    error: Any,
+) -> UnsupportedTargetingDimensionDetails | None:
+    """Narrow an ``UNSUPPORTED_FEATURE`` error's details to the targeting model.
+
+    Accepts an :class:`AdcpError`, a generated ``Error`` or a wire mapping.
+    Returns ``None`` for any other code, or when the details are absent or are
+    not ``error-details/unsupported-targeting-dimension.json`` (an
+    ``UNSUPPORTED_FEATURE`` for something other than a targeting dimension).
+    """
+    from pydantic import ValidationError as PydanticValidationError
+
+    from adcp.types.error_details import UnsupportedTargetingDimensionDetails
+
+    code, details = _code_and_details(error)
+    if code != "UNSUPPORTED_FEATURE" or details is None:
+        return None
+    try:
+        return UnsupportedTargetingDimensionDetails.model_validate(details)
+    except PydanticValidationError:
+        return None

@@ -365,6 +365,8 @@ class IdempotencyStore:
                                 "idempotency_key reused with a different payload "
                                 "(canonical hash mismatch)"
                             ),
+                            # Detected on lookup: this request wrote nothing.
+                            "mutation_outcome": "not_applied",
                         }
                     ],
                 )

@@ -60,6 +60,10 @@ if TYPE_CHECKING:
     )
 
 
+#: AdCP 3.3 ``error.mutation_outcome`` values (``core/error.json``).
+MutationOutcome = Literal["not_applied", "unknown", "applied"]
+
+
 class AdcpError(Exception):
     """Wire-shaped structured error raised by platform methods.
 
@@ -107,6 +111,16 @@ class AdcpError(Exception):
     :param retry_after: Seconds to wait before retrying. Only
         meaningful with ``recovery='transient'``.
     :param details: Free-form extras for codes that need them.
+    :param mutation_outcome: Whether the failed state-changing request
+        changed seller state (AdCP 3.3 ``error.mutation_outcome``):
+        ``'not_applied'`` only with pre-commit evidence that no write was
+        attempted (a typed rejection from validation that runs before the
+        first write), ``'unknown'`` when some of the change may have
+        committed and the idempotency claim is fenced, ``'applied'`` when
+        the change committed and the error reports a later failure. Leave
+        it ``None`` on reads and whenever the seller makes no claim. The
+        framework sets ``'not_applied'`` on the rejections it raises
+        before a mutating handler runs.
     :param errors: Every problem found, for a request rejected with
         several at once (a whole-request preflight). Each entry is an
         :class:`AdcpError`, a generated ``Error`` model or a wire mapping
@@ -143,6 +157,7 @@ class AdcpError(Exception):
         retry_after: int | None = None,
         details: dict[str, Any] | None = None,
         errors: Sequence[AdcpError | Error | Mapping[str, Any]] | None = None,
+        mutation_outcome: MutationOutcome | None = None,
     ) -> None:
         super().__init__(message or code)
         self.code = code
@@ -151,6 +166,7 @@ class AdcpError(Exception):
         self.suggestion = suggestion
         self.retry_after = retry_after
         self.details = details or {}
+        self.mutation_outcome = mutation_outcome
         if errors is not None:
             self.errors: list[dict[str, Any]] = [
                 _error_entry_to_wire(entry, recovery) for entry in errors
@@ -182,6 +198,7 @@ class AdcpError(Exception):
             retry_after=first.get("retry_after"),
             details=dict(details) if isinstance(details, Mapping) else None,
             errors=errors,
+            mutation_outcome=first.get("mutation_outcome"),
         )
 
     def __str__(self) -> str:
@@ -206,6 +223,8 @@ class AdcpError(Exception):
             out["suggestion"] = self.suggestion
         if self.retry_after is not None:
             out["retry_after"] = self.retry_after
+        if self.mutation_outcome is not None:
+            out["mutation_outcome"] = self.mutation_outcome
         if self.details:
             details = sanitize_error_details(self.code, self.details)
             if details:

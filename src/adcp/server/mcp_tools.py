@@ -24,6 +24,7 @@ import logging
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Literal
 
+from adcp._idempotency import is_mutating
 from adcp.server._hooks import (
     PreValidationHookChain,
     PreValidationHookError,
@@ -3420,6 +3421,32 @@ def _creative_capabilities_for_handler(handler: Any) -> Any:
     return getattr(handler, "_framework_adcp_capabilities", None)
 
 
+def mark_not_applied(exc: BaseException) -> None:
+    """Set ``mutation_outcome='not_applied'`` on a pre-commit rejection.
+
+    For a structured error the framework raised before a mutating handler
+    ran (schema and model validation, version gates, pre-validation hooks):
+    AdCP 3.3 lets a seller claim ``not_applied`` only with pre-commit
+    evidence, which a rejection that never reached the handler is. A value
+    the raise already states is kept; any other exception (a crash the
+    catch-all turns into ``INTERNAL_ERROR``) is left without a claim.
+    """
+    from adcp.decisioning.types import AdcpError
+    from adcp.exceptions import ADCPTaskError
+
+    if isinstance(exc, AdcpError):
+        if exc.mutation_outcome is None:
+            exc.mutation_outcome = "not_applied"
+    elif isinstance(exc, ADCPTaskError):
+        for entry in exc.errors:
+            if isinstance(entry, dict):
+                entry.setdefault("mutation_outcome", "not_applied")
+            elif hasattr(entry, "mutation_outcome") and entry.mutation_outcome is None:
+                entry.mutation_outcome = "not_applied"
+        # ``error_info`` is cached from the entries as they were at __init__.
+        exc.__dict__.pop("error_info", None)
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
@@ -3695,7 +3722,23 @@ def create_tool_caller(
         )
         return converted
 
+    mutating = is_mutating(method_name)
+
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
+        if not mutating:
+            return await _call_tool(params, context, None)
+        dispatched = [False]
+        try:
+            return await _call_tool(params, context, dispatched)
+        except Exception as exc:
+            if not dispatched[0]:
+                # Rejected before the handler ran: no write was attempted.
+                mark_not_applied(exc)
+            raise
+
+    async def _call_tool(
+        params: dict[str, Any], context: ToolContext | None, dispatched: list[bool] | None
+    ) -> Any:
         ctx = context if context is not None else ToolContext()
         ctx.application_adcp_version = application_version
 
@@ -4156,6 +4199,8 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
+        if dispatched is not None:
+            dispatched[0] = True
         result = await method(call_params, ctx)
         if method_name == "list_account_changes":
             result = _project_account_change_feed(result, ctx, application_version)
