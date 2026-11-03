@@ -572,8 +572,9 @@ class PgReportingLedgerStore:
     ) -> ReportingChangesPageV1:
         """Read the shared host change feed; see :mod:`adcp_reporting_storage.ledger.change_feed`.
 
-        Account feeds order by ``seq``; the deployment-wide feed orders by ``(xid, seq)``
-        below the reading snapshot's ``xmin``. A cursor older than the retained history
+        Every feed, account-scoped or deployment-wide, orders by ``(xid, seq)`` below the
+        reading snapshot's ``xmin``; an account cursor from before that carries only ``seq``
+        and is mapped to a position that skips nothing. A cursor older than the retained history
         raises ``ReportingChangeCursorExpiredError``, and so does a read with no cursor when a
         prune commits while the page is being read (the horizon is read again after the page).
         Requires ``change_feed=True``.

@@ -18,6 +18,23 @@ restart across the upgrade does not turn a replay into a conflict. This is part 
 the shared layout in adcontextprotocol/adcp#7996 (Stage 2, tracked in
 [#1457](https://github.com/adcontextprotocol/adcp-client-python/issues/1457)).
 
+## Account change feed orders by `(xid, seq)`
+
+The account change feed (`changes_after(account_id=...)`) now orders by `(xid, seq)` behind
+`xid < pg_snapshot_xmin(pg_current_snapshot())`, as the deployment-wide feed already did, matching the JavaScript SDK
+([adcp-client#3289](https://github.com/adcontextprotocol/adcp-client/pull/3289)). It replaces the page truncation at
+the first in-flight change from #1483, and no longer depends on the account lock for its order: a lower `seq` that
+commits late is returned on a later page, never skipped. Account cursors now carry `xid`. A seq-only account cursor
+saved by an earlier release is still accepted and mapped to a position that skips nothing, at the cost of redelivering
+a few changes, and it still expires exactly (`pruned_through_seq` is kept). `reporting_changes.sql` is re-applied by
+`create_schema` and is idempotent: it adds the account horizon's xid columns, replaces the consumer check constraint,
+and creates `adcp_reporting_changes_account_xid`. Create that index with `CREATE INDEX CONCURRENTLY` first on a large
+changes table, stop older hosts' change maintenance before the new reader runs, and do not roll back after a consumer
+saved a new-format account cursor. Not affected: deployment-wide cursors, the buyer-facing `changes_after` projection and
+anyone who never enabled `change_feed`. See
+[host change feed and consumers](reporting-row-storage.md#host-change-feed-and-consumers)
+([#1825](https://github.com/adcontextprotocol/adcp-client-python/issues/1825)).
+
 ## Feed consumer checkpoints are forward-only
 
 `save_feed_consumer_cursor` used to replace the saved position unconditionally. It now ignores a cursor behind the

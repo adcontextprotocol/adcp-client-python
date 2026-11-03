@@ -89,6 +89,7 @@ class _RacingConnection:
 def feed_cases() -> list[Any]:
     return [
         pytest.param(ACCOUNT, "with-cursor", id="account-with-cursor"),
+        pytest.param(ACCOUNT, "legacy-cursor", id="account-seq-only-cursor"),
         pytest.param(ACCOUNT, "no-cursor", id="account-without-cursor"),
         pytest.param(None, "with-cursor", id="deployment-with-cursor"),
         pytest.param(None, "no-cursor", id="deployment-without-cursor"),
@@ -99,7 +100,9 @@ def starting_cursor(account: str | None, mode: str) -> str | None:
     if mode == "no-cursor":
         return None
     if account is not None:
-        return encode_reporting_change_cursor_v1(account=account, seq="0")
+        # A seq-only cursor is the form an older SDK saved: the horizon check is exact for it.
+        xid = None if mode == "legacy-cursor" else "0"
+        return encode_reporting_change_cursor_v1(account=account, seq="0", xid=xid)
     return encode_reporting_change_cursor_v1(account=None, seq="0", xid="0")
 
 
@@ -150,7 +153,7 @@ async def test_a_prune_that_commits_before_the_read_starts_is_not_a_race(
         await seed_changes(pool)
         assert await store.prune_changes() == 2
 
-        if mode == "with-cursor":
+        if mode != "no-cursor":
             with pytest.raises(ReportingChangeCursorExpiredError):
                 await store.changes_after(account_id=account, cursor=starting_cursor(account, mode))
         else:
