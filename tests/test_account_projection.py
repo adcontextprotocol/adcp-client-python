@@ -122,6 +122,21 @@ def test_project_account_does_not_mutate_input() -> None:
     assert account.billing_entity.bank is not None
 
 
+def test_project_account_clears_destination_billing_entity() -> None:
+    """Request-only handoff staging never rides an account read model."""
+    account = _account_fixture().model_copy(
+        update={"destination_billing_entity": {"legal_name": "Destination GmbH"}}
+    )
+
+    projected = project_account_for_response(account)
+
+    assert projected.destination_billing_entity is None
+    assert "destination_billing_entity" not in projected.model_dump(mode="json", exclude_none=True)
+    assert projected.billing_entity is not None
+    assert projected.billing_entity.bank is None
+    assert account.destination_billing_entity == {"legal_name": "Destination GmbH"}
+
+
 def test_project_account_when_billing_entity_is_none() -> None:
     """No billing_entity to project — return a defensive copy."""
     account = Account(account_id="acct_x", name="x", status="active")
