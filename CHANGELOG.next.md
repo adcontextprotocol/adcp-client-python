@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.0.0-beta.10](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.9...v10.0.0-beta.10) (2026-11-03)
+
+
+### Bug Fixes
+
+* **accounts:** never serve framework-internal account metadata or auth_info ([#1826](https://github.com/adcontextprotocol/adcp-client-python/issues/1826)) ([2e79ea9](https://github.com/adcontextprotocol/adcp-client-python/commit/2e79ea9b633576965ba4bf7e9dd85ae1e015040b))
+* **server:** preserve valid creatives in lenient legacy batches on next ([a541585](https://github.com/adcontextprotocol/adcp-client-python/commit/a541585495efb37752be6ce51978e37f14a8be55))
+
 ## [10.0.0-beta.9](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.8...v10.0.0-beta.9) (2026-11-03)
 
 
