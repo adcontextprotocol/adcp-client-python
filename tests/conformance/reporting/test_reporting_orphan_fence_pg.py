@@ -617,8 +617,8 @@ async def test_a_cancelled_claim_leaves_no_advisory_lock_on_a_pooled_connection(
                     break
                 await asyncio.sleep(0.025)
             task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
+            (outcome,) = await asyncio.gather(task, return_exceptions=True)
+            assert isinstance(outcome, asyncio.CancelledError)
             await holder.execute(
                 "SELECT pg_advisory_unlock(hashtextextended(%s, 0))",
                 (f"adcp.orphan_fence:{scope}",),
