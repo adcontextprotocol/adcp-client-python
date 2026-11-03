@@ -192,6 +192,13 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.5.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.5.0...v9.5.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ci:** check PR titles without stripping a trailing issue reference ([#1819](https://github.com/adcontextprotocol/adcp-client-python/issues/1819)) ([495593e](https://github.com/adcontextprotocol/adcp-client-python/commit/495593ec319bca75b22174c582fa5417f9730860))
+
 ## [9.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.4.0...v9.5.0) (2026-11-02)
 
 
