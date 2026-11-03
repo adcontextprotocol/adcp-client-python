@@ -272,6 +272,56 @@ def test_strip_credentials_walks_recursively() -> None:
     assert "authentication" not in str(out)
 
 
+def test_scrubber_drops_framework_internal_account_keys_at_account_positions() -> None:
+    """``metadata`` / ``auth_info`` are fields of the framework's internal
+    ``adcp.decisioning.Account``, never wire fields. A store or handler that
+    serves the internal record as a dict (``vars(account)``, a spread) must
+    not put them on the wire, wherever an account is embedded."""
+    internal = {
+        "metadata": {"upstream_access_token": _BEARER},
+        "auth_info": {"principal": "principal-internal"},
+    }
+    out = strip_credentials_from_wire_result(
+        "get_media_buys",
+        {
+            "media_buys": [
+                {
+                    "media_buy_id": "mb-1",
+                    "account": {"account_id": "acc-1", "name": "Acme", **internal},
+                }
+            ]
+        },
+    )
+    assert out["media_buys"][0]["account"] == {"account_id": "acc-1", "name": "Acme"}
+    governance = strip_credentials_from_wire_result(
+        "sync_governance",
+        {"accounts": [{"account": {"account_id": "acc-1", **internal}, "status": "synced"}]},
+    )
+    assert governance["accounts"] == [{"account": {"account_id": "acc-1"}, "status": "synced"}]
+    assert _BEARER not in str(out) + str(governance)
+
+
+def test_scrubber_keeps_wire_metadata_outside_account_positions() -> None:
+    """``metadata`` IS a wire field off the account
+    (``list_creatives`` ``creatives[].pricing_options[].metadata``); the
+    framework-internal drop is positional, never by bare name."""
+    payload = {
+        "creatives": [
+            {
+                "creative_id": "c-1",
+                "pricing_options": [{"pricing_option_id": "po-1", "metadata": {"tier": "gold"}}],
+                "account": {"account_id": "acc-1", "metadata": {"internal": True}},
+            }
+        ]
+    }
+    out = strip_credentials_from_wire_result("list_creatives", payload)
+    (creative,) = out["creatives"]
+    assert creative["pricing_options"][0]["metadata"] == {"tier": "gold"}
+    assert creative["account"] == {"account_id": "acc-1"}
+    # Input not mutated.
+    assert payload["creatives"][0]["account"]["metadata"] == {"internal": True}
+
+
 def test_dispatch_scrubber_strips_bank_from_nested_pydantic_entities() -> None:
     entity = _EntityWithBank(
         legal_name="Acme Inc.",

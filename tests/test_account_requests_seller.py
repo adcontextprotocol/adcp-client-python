@@ -295,6 +295,9 @@ _BANK = {"account_holder": "Acme Inc", "iban": "DE89370400440532013000"}
 _GOVERNANCE_SECRET = "gov-secret-token-0123456789abcdef"
 _WEBHOOK_SECRET = "webhook-secret-0123456789abcdefghij"
 _DESTINATION = {"legal_name": "Confidential Destination GmbH", "bank": dict(_BANK)}
+# Framework-internal Account fields (adcp.decisioning.Account.metadata / .auth_info).
+_UPSTREAM_TOKEN = "upstream-oauth-token-0123456789abcdef"
+_PRINCIPAL = "principal-internal-0123456789"
 
 
 def _credentialed_account() -> dict[str, Any]:
@@ -317,6 +320,9 @@ def _credentialed_account() -> dict[str, Any]:
             }
         ],
         "destination_billing_entity": dict(_DESTINATION),
+        # A store returning its internal record as a plain dict.
+        "metadata": {"network_id": "net-1", "upstream_access_token": _UPSTREAM_TOKEN},
+        "auth_info": {"principal": _PRINCIPAL, "scopes": ["accounts:read"]},
     }
 
 
@@ -326,7 +332,17 @@ def _assert_scrubbed(account: dict[str, Any]) -> None:
     assert "credentials" not in account["notification_configs"][0]["authentication"]
     # Request-only staging field: never on an account read, not even its non-bank fields.
     assert "destination_billing_entity" not in account
-    for secret in (_BANK["iban"], _GOVERNANCE_SECRET, _WEBHOOK_SECRET, _DESTINATION["legal_name"]):
+    # Framework-internal Account fields: never wire fields.
+    assert "metadata" not in account
+    assert "auth_info" not in account
+    for secret in (
+        _BANK["iban"],
+        _GOVERNANCE_SECRET,
+        _WEBHOOK_SECRET,
+        _DESTINATION["legal_name"],
+        _UPSTREAM_TOKEN,
+        _PRINCIPAL,
+    ):
         assert secret not in repr(account)
 
 

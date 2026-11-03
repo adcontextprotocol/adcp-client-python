@@ -137,6 +137,29 @@ def test_project_account_clears_destination_billing_entity() -> None:
     assert account.destination_billing_entity == {"legal_name": "Destination GmbH"}
 
 
+def test_project_account_drops_framework_internal_extras() -> None:
+    """``metadata`` / ``auth_info`` (framework-internal Account fields) never
+    ride a wire Account, even as ``extra='allow'`` extras."""
+    account = Account.model_validate(
+        {
+            "account_id": "acct_x",
+            "name": "x",
+            "status": "active",
+            "metadata": {"upstream_access_token": "tok"},
+            "auth_info": {"principal": "p"},
+            "x_vendor": "kept",
+        }
+    )
+
+    projected = project_account_for_response(account)
+
+    dumped = projected.model_dump(mode="json")
+    assert "metadata" not in dumped
+    assert "auth_info" not in dumped
+    assert dumped["x_vendor"] == "kept"
+    assert account.model_extra is not None and "metadata" in account.model_extra
+
+
 def test_project_account_when_billing_entity_is_none() -> None:
     """No billing_entity to project — return a defensive copy."""
     account = Account(account_id="acct_x", name="x", status="active")
