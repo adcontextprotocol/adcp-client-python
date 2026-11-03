@@ -30,6 +30,8 @@ import rfc8785
 from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 
 __all__ = [
+    "REPORTING_ROW_BINDING_ID_MAX_LENGTH",
+    "REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH",
     "REPORTING_ROW_DEFAULT_KEY_TEMPLATE",
     "REPORTING_ROW_KEY_PLACEHOLDERS",
     "REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH",
@@ -65,6 +67,13 @@ class ReportingRowObjectContextV1:
 #: characters. The row-storage ``CHECK`` constraints enforce the same.
 REPORTING_ROW_OBJECT_REF_MAX_LENGTH = 1024
 REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH = 1024
+#: Bound on a row binding ID, 1 to 255 characters of ``A-Za-z0-9_.:-``: the AdCP identifier
+#: bound that ``reporting_revision_id``, ``resource_ref`` and ``destination_ref`` use
+#: (``^[A-Za-z0-9_.:-]{1,255}$``). The ``adcp_reporting_row_bindings`` ``CHECK`` enforces the same.
+REPORTING_ROW_BINDING_ID_MAX_LENGTH = 255
+#: Bound on a binding's ``credential_ref`` (and on the keys of a provider's ``clients`` map): the
+#: same 1 to 255 characters of ``A-Za-z0-9_.:-`` as a row binding ID.
+REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH = 255
 
 
 @dataclass(frozen=True, slots=True)

@@ -36,6 +36,21 @@ Reads handle both forms. `migrate_inline_rows` moves legacy rows with verificati
 rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
 closed. See [row storage](reporting-row-storage.md).
 
+## Row binding IDs and credential references accept 255 characters
+
+`row_binding_id` and a binding's `credential_ref` were capped at 128 characters. Every comparable AdCP identifier
+(`reporting_revision_id`, `resource_ref`, `destination_ref`) allows 255, so an ID derived from an AdCP destination
+reference could be refused for no protocol reason. Both now accept 1 to 255 characters of `A-Za-z0-9_.:-`, matching the
+JavaScript SDK ([adcp-client#3595](https://github.com/adcontextprotocol/adcp-client/pull/3595)). The configuration
+check, the `adcp_reporting_row_bindings` `CHECK` and the provider `clients` map share the bound, which is exported as
+`REPORTING_ROW_BINDING_ID_MAX_LENGTH` and `REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH`. A malformed value that the old
+check let through (a trailing newline) is now refused too. `create_schema` replaces the original unnamed 128-character
+`CHECK` with `adcp_reporting_row_bindings_row_binding_id_bounds` in place, idempotently, with no data migration; stop
+older writers first, because an older binary requires the original constraint and fails closed against an upgraded
+database. Nothing that was valid before is refused. See
+[stored names follow AdCP](reporting-row-storage.md#stored-names-follow-adcp)
+([#1498](https://github.com/adcontextprotocol/adcp-client-python/issues/1498)).
+
 ## Row storage field alignment (breaking for row storage adopters)
 
 Row storage stores every value in the format AdCP defines for it, matching the JavaScript SDK byte for byte:
