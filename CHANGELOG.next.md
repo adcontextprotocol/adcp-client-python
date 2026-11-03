@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.11](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.10...v10.0.0-beta.11) (2026-11-03)
+
+
+### Bug Fixes
+
+* **reporting:** isolate handler registrations for each installation ([#1849](https://github.com/adcontextprotocol/adcp-client-python/issues/1849)) ([5450616](https://github.com/adcontextprotocol/adcp-client-python/commit/5450616ad28f44a61984edc9c319788d4f00d0b8))
+
 ## [10.0.0-beta.10](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.9...v10.0.0-beta.10) (2026-11-03)
 
 
