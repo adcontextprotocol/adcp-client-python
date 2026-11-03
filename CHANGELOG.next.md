@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.0.0-beta.9](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.8...v10.0.0-beta.9) (2026-11-03)
+
+
+### Bug Fixes
+
+* **accounts:** never serve destination_billing_entity on account reads ([#1823](https://github.com/adcontextprotocol/adcp-client-python/issues/1823)) ([50dc31e](https://github.com/adcontextprotocol/adcp-client-python/commit/50dc31e5d523ad0bd14198deba77d547628ae79f))
+* **reporting:** bound each seller read in reconcile; scrub account_requests[] ([#1820](https://github.com/adcontextprotocol/adcp-client-python/issues/1820)) ([f203f26](https://github.com/adcontextprotocol/adcp-client-python/commit/f203f2609bc2d33b16d15f24e03c161cc7240ab5))
+
 ## [10.0.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.7...v10.0.0-beta.8) (2026-11-02)
 
 
