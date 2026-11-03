@@ -192,6 +192,13 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.0...v9.6.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **reporting:** isolate handler registrations for each installation ([#1847](https://github.com/adcontextprotocol/adcp-client-python/issues/1847)) ([86302d0](https://github.com/adcontextprotocol/adcp-client-python/commit/86302d09404067410a60d3f9d0f850790038a36f))
+
 ## [9.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.5.1...v9.6.0) (2026-11-03)
 
 
