@@ -123,6 +123,9 @@ _ARCHIVE_REGISTRY = "adcp_reporting_ownership_archives"
 _STARTUP_ROWS = {
     "adcp_reporting_change_horizon": "pruned_through_seq = 0 AND pruned_through_xid = '0'",
     "adcp_reporting_row_bindings": "TRUE",
+    # An opt-in orphan collector's claim on its bucket namespace. A replacement also drops the
+    # installation identity, so the namespace it fenced is not this ledger's any more.
+    "adcp_reporting_orphan_collector_fences": "TRUE",
 }
 _DEPENDENT_OBJECTS_STILL_EXIST = "2BP01"
 _SAVEPOINT = "adcp_reporting_replacement"

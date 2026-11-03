@@ -220,3 +220,51 @@ async def test_a_quiet_pass_logs_nothing_and_still_records_its_counters(
         "protected": 0,
         "held": 0,
     }
+
+
+async def test_orphan_collection_reports_fenced_and_unsupported_bindings_as_integer_counters(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A fenced namespace is stalled work; a binding that cannot list is pending work.
+
+    Only the closed operation name and counters are logged, never a binding or bucket name.
+    """
+    from types import SimpleNamespace
+
+    class OrphanStore:
+        def maintenance_operations(self) -> tuple[tuple[str, Any], ...]:
+            async def run() -> Any:
+                return SimpleNamespace(
+                    failed=2,
+                    fenced=("secret-binding", "other-binding"),
+                    unsupported=("nolist-binding",),
+                    deleted=9,
+                )
+
+            return (("orphan_collection", run),)
+
+    worker = service(OrphanStore())
+    with caplog.at_level(logging.INFO, logger="adcp.reporting.production"):
+        await worker._maintain()
+    by_code = {
+        code: [r for r in caplog.records if getattr(r, "code", "") == code]
+        for code in (
+            "REPORTING_MAINTENANCE_FAILED",
+            "REPORTING_MAINTENANCE_PENDING",
+            "REPORTING_MAINTENANCE_STALLED",
+        )
+    }
+    assert [r.operation for r in by_code["REPORTING_MAINTENANCE_FAILED"]] == ["orphan_collection"]
+    (pending,) = by_code["REPORTING_MAINTENANCE_PENDING"]
+    assert pending.operation == "orphan_collection" and pending.unsupported == 1
+    (stalled,) = by_code["REPORTING_MAINTENANCE_STALLED"]
+    assert stalled.operation == "orphan_collection" and stalled.fenced == 2
+    assert stalled.levelno == logging.WARNING
+    assert all(
+        "binding" not in r.getMessage() and "secret" not in r.getMessage() for r in caplog.records
+    )
+    assert worker.maintenance_report["orphan_collection"] == {
+        "failed": 2,
+        "fenced": 2,
+        "unsupported": 1,
+    }
