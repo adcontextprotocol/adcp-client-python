@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 
 from adcp.reporting._errors import ReliableReportingConfigurationError
@@ -146,3 +148,113 @@ async def test_a_managed_service_runs_on_postgres_storage() -> None:
             assert await engine.list_subscription_principals() == [PrincipalRef(None, AGENCY)]
         finally:
             await service.close()
+
+
+def test_no_storage_existence_check_resolves_through_the_search_path() -> None:
+    """#1838: ``to_regclass('name')`` finds a table in any schema on the path.
+
+    An existence check that does would read, skip or alter another schema's
+    tables; qualify it with ``quote_ident(current_schema())``.
+    """
+    import re
+    from pathlib import Path
+
+    import adcp_reporting_storage
+
+    root = Path(adcp_reporting_storage.__file__).parent
+    unqualified = re.compile(r"to_regclass\(\s*'")
+    found = [
+        f"{path.relative_to(root)}:{number}"
+        for path in sorted(root.rglob("*"))
+        if path.suffix in {".py", ".sql"}
+        for number, line in enumerate(path.read_text().splitlines(), 1)
+        if unqualified.search(line)
+    ]
+    assert found == []
+
+
+async def _schema(pool) -> str:
+    async with pool.connection() as connection:
+        return (await (await connection.execute("SELECT current_schema()")).fetchone())[0]
+
+
+async def _catalog(pool, schema: str) -> list[tuple]:
+    """Columns, constraints and recorded migrations of ``schema``."""
+    async with pool.connection() as connection:
+        columns = await (
+            await connection.execute(
+                "SELECT table_name, column_name, data_type FROM information_schema.columns"
+                " WHERE table_schema = %s ORDER BY 1, 2",
+                (schema,),
+            )
+        ).fetchall()
+        constraints = await (
+            await connection.execute(
+                "SELECT c.conrelid::regclass::text, c.conname, pg_get_constraintdef(c.oid)"
+                " FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace"
+                " WHERE n.nspname = %s ORDER BY 1, 2",
+                (schema,),
+            )
+        ).fetchall()
+        recorded = await (
+            await connection.execute("SELECT version FROM adcp_schema_migrations ORDER BY 1")
+        ).fetchall()
+    return [*columns, *constraints, *recorded]
+
+
+@asynccontextmanager
+async def _search_path(*schemas: str):
+    import os
+
+    from psycopg_pool import AsyncConnectionPool
+
+    async with AsyncConnectionPool(
+        os.environ["ADCP_PG_TEST_URL"],
+        kwargs={"options": f"-csearch_path={','.join(schemas)}", "autocommit": True},
+        min_size=1,
+        max_size=2,
+        open=False,
+    ) as pool:
+        await pool.wait(timeout=10)
+        yield pool
+
+
+@pytest.mark.asyncio
+async def test_migrate_upgrades_its_own_schema_beside_a_migrated_one() -> None:
+    """#1838: a migrated schema later on the search_path is not this schema's record."""
+    from adcp_reporting_storage.migrations import migrate, migrations, pending_migrations
+
+    every = [item.version for item in migrations()]
+    async with (
+        isolated_reporting_pool(autocommit=True) as other,
+        isolated_reporting_pool(autocommit=True) as own,
+    ):
+        await migrate(other)
+        other_schema, own_schema = await _schema(other), await _schema(own)
+        before = await _catalog(other, other_schema)
+        async with _search_path(own_schema, other_schema) as shared:
+            assert [item.version for item in await pending_migrations(shared)] == every
+            assert [item.version for item in await migrate(shared)] == every
+            assert await pending_migrations(shared) == []
+        assert await pending_migrations(own) == []
+        assert await _catalog(own, own_schema) == before  # the same schema, built in place
+        assert await _catalog(other, other_schema) == before
+
+
+@pytest.mark.asyncio
+async def test_create_schema_builds_its_own_schema_beside_a_migrated_one() -> None:
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate, pending_migrations
+
+    async with (
+        isolated_reporting_pool(autocommit=True) as other,
+        isolated_reporting_pool(autocommit=True) as own,
+    ):
+        await migrate(other)
+        other_schema, own_schema = await _schema(other), await _schema(own)
+        before = await _catalog(other, other_schema)
+        async with _search_path(own_schema, other_schema) as shared:
+            await PgReportingLedgerStore(pool=shared).create_schema()
+        # create_schema() records its own 0001-0003; the rest stay for ``migrate``.
+        assert [item.version for item in await pending_migrations(own)] == ["0004", "0005", "0006"]
+        assert await _catalog(other, other_schema) == before

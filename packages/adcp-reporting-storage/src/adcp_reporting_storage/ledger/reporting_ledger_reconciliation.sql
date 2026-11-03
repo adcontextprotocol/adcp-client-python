@@ -829,7 +829,10 @@ BEGIN
 
     -- The optional feed has a dense head for each authenticated principal. It
     -- never allocates Core ledger sequences or widens Core's record vocabulary.
-    feed_installed := to_regclass('reporting_reconciliation_changes') IS NOT NULL;
+    -- Look in this schema only, so another schema's feed on the search_path
+    -- cannot skip this one's backfill.
+    feed_installed := to_regclass(
+        quote_ident(current_schema()) || '.reporting_reconciliation_changes') IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS reporting_reconciliation_feed_identity
         ON reporting_reconciliation_records(account_id, consumer_id, namespace, record_id,
                                              record_kind, change_id, content_sha256);

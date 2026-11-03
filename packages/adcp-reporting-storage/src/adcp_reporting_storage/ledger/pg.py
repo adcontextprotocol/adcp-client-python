@@ -3301,7 +3301,8 @@ class PgReportingLedgerStore:
         # every catalog object on the lease path. Call only after the account lock.
         present = await (
             await connection.execute(
-                "SELECT to_regclass('reporting_materializer_candidates') IS NOT NULL"
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.reporting_materializer_candidates') IS NOT NULL"
             )
         ).fetchone()
         if not present[0]:
