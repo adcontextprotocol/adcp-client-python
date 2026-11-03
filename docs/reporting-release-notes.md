@@ -53,6 +53,18 @@ Reads handle both forms. `migrate_inline_rows` moves legacy rows with verificati
 rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
 closed. See [row storage](reporting-row-storage.md).
 
+## The per-object lock is kept only where it pairs
+
+Retirement, the intent sweep and a commit that adopts an object its own intent recorded no longer take the per-object
+advisory lock, and no longer hold a transaction or pooled connection across the provider delete. The lock stays in the
+two places that pair with each other: the orphan collector's delete, which locks every binding's key for the object, and
+a commit that adopts an object its intent did not record. The lock text is unchanged, so a Python deleter and a
+JavaScript adopter still agree, and rolling upgrades between a version that locks everywhere and this one are safe (every
+pair that needs exclusion keeps the lock on both sides). A commit now closes its intent with `RETURNING created_objects`
+to know which adopted objects it recorded. No schema or wire change. See
+[the object lock contract](reporting-row-storage.md#the-object-lock-contract)
+([#1492](https://github.com/adcontextprotocol/adcp-client-python/issues/1492), adcp-client#3606).
+
 ## Opt-in orphaned-object collector, fenced against clones
 
 `PgReportingLedgerStore(orphan_collection=ReportingOrphanCollectionOptionsV1(...))` and

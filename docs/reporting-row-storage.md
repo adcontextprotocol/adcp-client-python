@@ -327,6 +327,36 @@ stays as a small marker that makes reads answer as expired; the records are alre
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
 
+## The object lock contract
+
+The per-object advisory lock is kept only where nothing else orders the two sides, in the contract the JavaScript SDK
+shares ([adcp-client#3606](https://github.com/adcontextprotocol/adcp-client/pull/3606)). The lock text is
+`adcp-reporting-object:` + binding ID + `:` + object ref, passed to `pg_advisory_xact_lock(hashtextextended(text, 0))`,
+so a Python deleter and a JavaScript adopter agree in one database.
+
+1. **No lock:** retirement, the intent sweep and a commit that adopts an object its own intent recorded. Per object, one
+   statement checks that no `live` or `unavailable` row set outside the operation names the same binding, `object_ref`
+   and `native_version_ref`, and no `open` intent in the binding lists it in `created_objects` (both the current and the
+   pre-alignment `objectKey` / `nativeVersion` spellings are read); then the exact version is deleted. No transaction or
+   pooled connection is held across the provider delete.
+2. **A commit** takes the account lock and closes its intent with `DELETE ... WHERE owner_token = ... AND state =
+   'open' RETURNING created_objects` (no row fails `STATE_UNAVAILABLE`). For each adopted object whose
+   `(object_ref, native_version_ref)` is **not** in the returned list it takes its binding's object lock, in object-ref
+   order. It then proves every adopted object with a version-pinned `stat` (a full read when the provider has none)
+   before inserting the chunk rows.
+3. **The orphan collector** locks every binding's key for the object (configured plus registered, sorted by binding
+   ID), repeats the reference check across all bindings under those locks, then deletes. It is the only locked delete.
+4. Lock order: the account lock, then object locks. Native versions must be write-unique (the conformance suite's
+   `write-unique-version`).
+
+Why this is safe without the lock: the account lock orders commits, retirement phase 1, intent takeover and the sweep
+claim; `pruning` is committed under it before any delete, and `pruning` row sets neither count as references nor can be
+shared; an intent moves `open -> sweeping` against the commit's `DELETE ... WHERE state = 'open'`, in the same transaction
+as the chunk insert, so a reader sees the open intent or the chunk rows, never neither; deletes name an exact native
+version; and every writable key includes `{revision_key}`, so one row set alone can name it. **Precondition (documented,
+not enforced):** two writable bindings must not share one bucket and prefix, because the reference check is per binding
+outside the collector.
+
 ## Orphaned objects: the opt-in listing collector
 
 The intent sweep deletes only what an intent lists, so it cannot see three cases: an upload whose `PUT` succeeded before
@@ -363,7 +393,7 @@ these hold:
    old or new JSON keys) naming the key. Two bindings can share a bucket and prefix (a retired `read_only` binding kept
    next to its successor), so the check is not scoped to the collecting binding.
 4. Under the per-object advisory lock of **every** binding, taken in a fixed order so the delete is serialized with an
-   adoption through any of them, no `live` or `unavailable` row set references that exact version and no open intent
+   adoption through any of them (see [the object lock contract](#the-object-lock-contract)), no `live` or `unavailable` row set references that exact version and no open intent
    created it. The provider then deletes that exact version.
 
 `read_only` bindings are skipped unless `include_read_only`. `dry_run` deletes nothing and reports up to 1000

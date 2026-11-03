@@ -26,7 +26,7 @@ import hashlib
 import inspect
 import json
 import zlib
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
@@ -369,6 +369,25 @@ def _assert_native_version_ref(value: object) -> None:
         raise ReportingRowStoreError(
             "PROVIDER_UNAVAILABLE", "provider returned an invalid native version reference"
         )
+
+
+def recorded_intent_objects(created_objects: object) -> set[tuple[str, str]]:
+    """The ``(object_ref, native_version_ref)`` pairs a write intent recorded.
+
+    Reads both the current keys and an older writer's pre-alignment ``objectKey`` and
+    ``nativeVersion``, which a writer still running during a rolling upgrade records.
+    """
+    pairs: set[tuple[str, str]] = set()
+    if not isinstance(created_objects, list):
+        return pairs
+    for item in created_objects:
+        if not isinstance(item, dict):
+            continue
+        object_ref = item.get("object_ref", item.get("objectKey"))
+        version = item.get("native_version_ref", item.get("nativeVersion"))
+        if isinstance(object_ref, str) and isinstance(version, str):
+            pairs.add((object_ref, version))
+    return pairs
 
 
 def _inflate(physical: bytes, compression: Compression, byte_count: int) -> bytes | None:
@@ -1408,13 +1427,25 @@ class ReportingRowStorageV1:
 
     # -- object lifetime --------------------------------------------------
     #
-    # Chunks are adopted create-only, so a custom key template that omits an identity
-    # placeholder lets two row sets name the same (binding, key, version). Every path that
-    # deletes an object and every commit that adopts one serialize on a transaction-scoped
-    # advisory lock per object: the deleter checks references and deletes under it, and the
-    # committer re-verifies the adopted object under it, so whichever runs second sees the
-    # other's effect. The lock text is shared with the JavaScript SDK and hashed in SQL so
-    # both SDKs derive the same lock id in one database.
+    # The cross-SDK contract (adcp-client#3606, adcp-client-python#1492). The per-object advisory
+    # lock ``adcp-reporting-object:{binding}:{object_ref}`` is kept in exactly two places that pair
+    # with each other, because nothing else orders them: the orphan collector's delete
+    # (``delete_orphaned_object``) and a commit that adopts an object its own intent did not record
+    # (``lock_and_verify_adopted``). Retirement, the intent sweep and a commit that adopts an object
+    # its own intent recorded take no object lock and hold no connection across a provider delete.
+    # Lock order everywhere: the account lock, then object locks. The lock text is hashed in SQL so
+    # both SDKs derive one lock id from it in one database.
+    #
+    # Fences that exist without the lock: (A) the account lock held by a commit, retirement phase 1,
+    # an intent takeover and the sweep claim; (B) ``rows_state`` moves to ``pruning`` under the
+    # account lock before any delete, and ``pruning`` row sets neither count as references nor can
+    # be shared; (C) the intent moves ``open -> sweeping`` against the commit's ``DELETE ... WHERE
+    # state = 'open'``, in the same transaction as the chunk insert, so a reader sees the open
+    # intent or the chunk rows, never neither; (D) deletes name an exact native version, so native
+    # versions must be write-unique; (E) every writable key includes ``{revision_key}`` and
+    # ``{content_sha256}``, so only one row set can name a key through a writable binding.
+    # Precondition, documented and not enforced: two writable bindings must not share one bucket and
+    # prefix, because the reference check is per binding outside the collector.
 
     @staticmethod
     def _object_lock_text(binding_id: str, object_ref: str) -> str:
@@ -1425,19 +1456,33 @@ class ReportingRowStorageV1:
         connection: Any,
         binding_id: str,
         locators: Sequence[ReportingRowChunkLocatorV1],
+        recorded: Collection[tuple[str, str]] = (),
     ) -> None:
-        """Hold the object lock for every adopted object and prove each still exists.
+        """Prove every adopted object is still there, locking the ones no record names.
 
-        Call inside the ledger transaction, after the account lock and before the chunk rows
-        are inserted. Objects this upload created are protected by its open write intent
-        instead. (A writer's own just-created object is not locked: the window between its
-        create and the intent record is the same one the JavaScript SDK leaves open.)
+        Call inside the ledger transaction, after the account lock and the intent close, before
+        the chunk rows are inserted. ``recorded`` is the ``(object_ref, native_version_ref)`` pairs
+        the closed intent listed in ``created_objects`` (``recorded_intent_objects``).
+
+        An object the writer's own intent recorded as created (an earlier attempt at this row set
+        that was taken over) needs no lock: until this transaction commits the open intent names
+        it, so no delete skips the reference check, the sweep cannot claim an intent this commit
+        just closed or one a takeover renewed, and the key is unique to this row set. An adopted
+        object the intent does not record (an earlier attempt's PUT that landed before it was
+        recorded, or one created after a takeover) is named by no record; only the orphan collector
+        deletes such an object, and it deletes under the per-object lock, so take it here, in key
+        order, until this transaction ends: a delete that held it finished first and the
+        version-pinned ``stat`` fails this commit, and any later delete sees the chunk rows
+        inserted next and skips. (A writer's own just-created object is not locked: the window
+        between its create and the intent record is the same one the JavaScript SDK leaves open.)
         """
         adopted = sorted((x for x in locators if not x.created), key=lambda x: x.object_ref)
         if not adopted:
             return
         binding, provider = self._object_binding(binding_id)
         for locator in adopted:
+            if (locator.object_ref, locator.native_version_ref) in recorded:
+                continue
             await connection.execute(
                 "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
                 (self._object_lock_text(binding_id, locator.object_ref),),
@@ -1496,90 +1541,124 @@ class ReportingRowStorageV1:
         *,
         obligation_id: str | None = None,
         row_set_id: str | None = None,
-        any_binding: bool = False,
     ) -> int:
         """Delete each object nothing outside the operation's scope still needs.
 
-        An object is kept while a chunk of a live or unavailable row set of the same binding
-        references it (outside ``obligation_id`` / ``row_set_id``, the thing being deleted),
-        or another open write intent created it. Row sets already pruning or pruned do not
-        count: their own operation deletes the object. One transaction per object: the lock,
-        the reference check and the provider delete happen together, so a concurrent commit
-        adopting the object either already references it (it is kept) or finds it gone and
-        fails closed. Returns the number of objects deleted.
-
-        ``any_binding`` widens both checks to every binding and takes every binding's object lock,
-        in a fixed order: two bindings can share a bucket and prefix, and a writer adopting an
-        object takes the lock of its own binding only, so the delete must be serialized with an
-        adoption through any of them. Writers hold one such lock, so no cycle forms. The orphan
-        collector deletes this way.
+        Takes no advisory lock and holds no transaction or pooled connection across the provider
+        delete: per object, one statement checks the references, then the exact version is
+        deleted. An object is kept while a chunk of a live or unavailable row set of the same
+        binding references it (outside ``obligation_id`` / ``row_set_id``, the thing being
+        deleted), or another open write intent created it. Row sets already ``pruning`` or
+        ``pruned`` do not count: their own operation deletes the object, and counting them would
+        let two concurrent retirements each skip the object and leak it. Each deleter commits
+        ``pruning`` before its check, so for any two at least one deletes. See the contract above
+        (``# -- object lifetime``) for why no lock is needed against a committing writer. A skipped
+        object stays for the row set that owns it: its own retirement or sweep deletes it.
+        Returns the number of objects deleted.
         """
         deleted = 0
         for object_ref, native_version_ref in objects:
-            async with pool.connection() as connection, connection.transaction():
-                lock_bindings = [binding_id]
-                if any_binding:
-                    known = await (
-                        await connection.execute(
-                            "SELECT row_binding_id FROM adcp_reporting_row_bindings"
-                        )
-                    ).fetchall()
-                    lock_bindings = sorted(
-                        {binding_id, *self.object_binding_ids(), *(row[0] for row in known)}
-                    )
-                for lock_binding in lock_bindings:
-                    await connection.execute(
-                        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-                        (self._object_lock_text(lock_binding, object_ref),),
-                    )
-                referenced = await (
-                    await connection.execute(
-                        "(SELECT 1 FROM adcp_reporting_row_chunks chunk"
-                        "   JOIN adcp_reporting_row_sets row_set"
-                        "     ON row_set.row_set_id = chunk.row_set_id"
-                        "  WHERE (%(any_binding)s::boolean OR row_set.row_binding_id = %(binding)s)"
-                        "    AND chunk.object_ref = %(key)s"
-                        "    AND chunk.native_version_ref = %(version)s"
-                        "    AND row_set.rows_state IN ('live', 'unavailable')"
-                        "    AND (%(obligation)s::text IS NULL"
-                        "         OR chunk.obligation_id <> %(obligation)s)"
-                        "    AND (%(row_set)s::text IS NULL OR chunk.row_set_id <> %(row_set)s)"
-                        "  LIMIT 1)"
-                        " UNION ALL"
-                        " (SELECT 1 FROM adcp_reporting_row_write_intents intent"
-                        "  WHERE (%(any_binding)s::boolean OR intent.row_binding_id = %(binding)s)"
-                        "    AND intent.state = 'open'"
-                        "    AND (intent.created_objects @> %(created)s::jsonb"
-                        "         OR intent.created_objects @> %(created_legacy)s::jsonb)"
-                        "  LIMIT 1)",
-                        {
-                            "binding": binding_id,
-                            "any_binding": any_binding,
-                            "key": object_ref,
-                            "version": native_version_ref,
-                            "obligation": obligation_id,
-                            "row_set": row_set_id,
-                            "created": json.dumps(
-                                [
-                                    {
-                                        "object_ref": object_ref,
-                                        "native_version_ref": native_version_ref,
-                                    }
-                                ]
-                            ),
-                            # A writer from before the AdCP field alignment, still running during a
-                            # rolling upgrade, records the earlier keys.
-                            "created_legacy": json.dumps(
-                                [{"objectKey": object_ref, "nativeVersion": native_version_ref}]
-                            ),
-                        },
-                    )
-                ).fetchone()
-                if referenced is not None:
-                    continue
-                await self.delete_objects(binding_id, [(object_ref, native_version_ref)])
-                deleted += 1
+            async with pool.connection() as connection:
+                referenced = await self._is_referenced(
+                    connection,
+                    binding_id,
+                    object_ref,
+                    native_version_ref,
+                    obligation_id=obligation_id,
+                    row_set_id=row_set_id,
+                )
+            if referenced:
+                continue
+            await self.delete_objects(binding_id, [(object_ref, native_version_ref)])
+            deleted += 1
         return deleted
+
+    async def delete_orphaned_object(
+        self, pool: Any, binding_id: str, object_ref: str, native_version_ref: str
+    ) -> bool:
+        """Delete one object no ledger record named when the collector listed it.
+
+        Under the advisory lock ``adcp-reporting-object:{binding}:{object_ref}`` of every binding
+        that can name it: the only delete that takes the lock. An object no record names can be
+        adopted, unrecorded, by a writer's commit (a retry that finds an object an earlier attempt
+        created but never recorded), and that commit takes the same lock before it proves the
+        object and inserts its chunk rows. So either this delete wins and the commit's
+        version-pinned ``stat`` fails it cleanly, or the commit wins and this check sees its chunk
+        rows and skips. A writer takes the lock of its own binding only, so every binding (those
+        this host configures and those the database has registered, which can share a bucket and
+        prefix) is locked, sorted by binding ID. The reference check then runs across all bindings.
+        Lock order: the account lock, then object locks; this never waits on the account lock while
+        holding an object lock. Returns whether the object was deleted.
+        """
+        async with pool.connection() as connection, connection.transaction():
+            known = await (
+                await connection.execute("SELECT row_binding_id FROM adcp_reporting_row_bindings")
+            ).fetchall()
+            for lock_binding in sorted(
+                {binding_id, *self.object_binding_ids(), *(r[0] for r in known)}
+            ):
+                await connection.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (self._object_lock_text(lock_binding, object_ref),),
+                )
+            if await self._is_referenced(
+                connection, binding_id, object_ref, native_version_ref, any_binding=True
+            ):
+                return False
+            await self.delete_objects(binding_id, [(object_ref, native_version_ref)])
+            return True
+
+    async def _is_referenced(
+        self,
+        connection: Any,
+        binding_id: str,
+        object_ref: str,
+        native_version_ref: str,
+        *,
+        obligation_id: str | None = None,
+        row_set_id: str | None = None,
+        any_binding: bool = False,
+    ) -> bool:
+        """Whether a live or unavailable row set outside the scope, or an open write intent, still
+        names this exact object version. ``any_binding`` widens the check to every binding."""
+        found = await (
+            await connection.execute(
+                "(SELECT 1 FROM adcp_reporting_row_chunks chunk"
+                "   JOIN adcp_reporting_row_sets row_set"
+                "     ON row_set.row_set_id = chunk.row_set_id"
+                "  WHERE (%(any_binding)s::boolean OR row_set.row_binding_id = %(binding)s)"
+                "    AND chunk.object_ref = %(key)s"
+                "    AND chunk.native_version_ref = %(version)s"
+                "    AND row_set.rows_state IN ('live', 'unavailable')"
+                "    AND (%(obligation)s::text IS NULL OR chunk.obligation_id <> %(obligation)s)"
+                "    AND (%(row_set)s::text IS NULL OR chunk.row_set_id <> %(row_set)s)"
+                "  LIMIT 1)"
+                " UNION ALL"
+                " (SELECT 1 FROM adcp_reporting_row_write_intents intent"
+                "  WHERE (%(any_binding)s::boolean OR intent.row_binding_id = %(binding)s)"
+                "    AND intent.state = 'open'"
+                "    AND (intent.created_objects @> %(created)s::jsonb"
+                "         OR intent.created_objects @> %(created_legacy)s::jsonb)"
+                "  LIMIT 1)",
+                {
+                    "binding": binding_id,
+                    "any_binding": any_binding,
+                    "key": object_ref,
+                    "version": native_version_ref,
+                    "obligation": obligation_id,
+                    "row_set": row_set_id,
+                    "created": json.dumps(
+                        [{"object_ref": object_ref, "native_version_ref": native_version_ref}]
+                    ),
+                    # A writer from before the AdCP field alignment, still running during a
+                    # rolling upgrade, records the earlier keys.
+                    "created_legacy": json.dumps(
+                        [{"objectKey": object_ref, "nativeVersion": native_version_ref}]
+                    ),
+                },
+            )
+        ).fetchone()
+        return found is not None
 
     # -- read -------------------------------------------------------------
 

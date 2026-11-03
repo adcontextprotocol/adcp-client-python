@@ -15,7 +15,8 @@ collector lists each configured object binding under its owned prefix,
 * no row set that is not already ``pruned`` has a chunk at its key, and no write intent lists it,
   at any version and under any binding (a pre-check that errs towards leaking, because two bindings
   can share a bucket and prefix);
-* under the per-object advisory lock of **every** binding, no ``live`` or ``unavailable`` row set
+* under the per-object advisory lock of **every** binding (taken only here and by a commit that
+  adopts an object its own intent did not record), no ``live`` or ``unavailable`` row set
   under any binding references that exact version and no open intent created it (the check every
   other delete makes, widened to every binding), and the provider then deletes that exact version.
 
@@ -541,15 +542,13 @@ async def collect_orphaned_row_objects(
                         since_fence_check = 0
                     since_fence_check += 1
                     try:
-                        # The per-object lock and exact-version reference check every other
-                        # delete makes, widened to every binding.
-                        removed = await storage.delete_unreferenced(
-                            store._pool,
-                            summary.id,
-                            [(entry.object_ref, entry.native_version_ref)],
-                            any_binding=True,
+                        # The only delete that takes the per-object lock: no record names this
+                        # object, so a commit may be adopting it unrecorded. The reference check
+                        # across every binding runs under the lock of every binding.
+                        removed = await storage.delete_orphaned_object(
+                            store._pool, summary.id, entry.object_ref, entry.native_version_ref
                         )
-                        if removed > 0:
+                        if removed:
                             outcome.deleted += 1
                         else:
                             outcome.referenced += 1
