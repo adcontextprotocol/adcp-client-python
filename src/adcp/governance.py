@@ -1683,11 +1683,16 @@ def _jose_key(alg: str, key: Any) -> OKPKey | ECKey:
     Public keys go through ``crypto.import_jwk``, which also enforces the
     RFC 7518 P-256 coordinate length joserfc leaves open.
     """
+    # joserfc's Python 3.11 Self return type must also support our 3.10
+    # static contract. Both factories preserve their declared key class.
+    imported: OKPKey | ECKey
     if alg == "EdDSA":
-        return OKPKey.import_key(key)
-    if alg == "ES256":
-        return ECKey.import_key(key)
-    raise ValueError(f"unsupported governance alg {alg!r}")
+        imported = OKPKey.import_key(key)
+    elif alg == "ES256":
+        imported = ECKey.import_key(key)
+    else:
+        raise ValueError(f"unsupported governance alg {alg!r}")
+    return imported
 
 
 def _public_jwk(jwk: Mapping[str, Any]) -> dict[str, Any]:

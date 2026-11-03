@@ -35,7 +35,10 @@ def jwk_thumbprint(key: Mapping[str, Any]) -> str | None:
         if member.required and name in key
     }
     try:
-        return key_type.import_key({"kty": key["kty"], **public}).thumbprint()
+        # Keep the boundary explicit when joserfc's Self annotation is
+        # unavailable to the SDK's Python 3.10 type-check target.
+        thumbprint: str = key_type.import_key({"kty": key["kty"], **public}).thumbprint()
+        return thumbprint
     except (JoseError, ValueError, TypeError):
         return None
 
