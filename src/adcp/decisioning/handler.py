@@ -2879,6 +2879,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._maybe_auto_emit_sync_completion("update_media_buy", params, result)
         return cast("UpdateMediaBuySuccessResponse", result)
 
+    # Partial creative admission is finalized at the managed completion seam,
+    # before task persistence, completion webhooks, or the inline response.
+    _supports_partial_creative_completion = True
+
     async def sync_creatives(  # type: ignore[override]
         self,
         params: SyncCreativesRequest,
@@ -2887,6 +2891,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx, tool_name="sync_creatives")
         ctx = self._build_ctx(tool_ctx, account)
+        from adcp.server._creative_batch import partial_creative_batch
+
+        batch = partial_creative_batch.get()
+
+        async def finalize_batch(result: Any) -> None:
+            if batch is not None:
+                batch.merge(result)
+
         result = await _invoke_platform_method(
             self._platform,
             "sync_creatives",
@@ -2894,6 +2906,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
+            on_complete=finalize_batch if batch is not None else None,
+            allow_workflow_handoff=batch is None,
             **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("sync_creatives", params, result)

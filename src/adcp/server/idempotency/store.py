@@ -63,6 +63,9 @@ logger = logging.getLogger(__name__)
 # also covers middleware whose wrapped callable is named call_next/execute.
 _RECEIPT_BATCH_DISPATCH: ContextVar[bool] = ContextVar("receipt_batch_dispatch", default=False)
 _FROZEN_FEED_DISPATCH: ContextVar[bool] = ContextVar("frozen_feed_dispatch", default=False)
+_CREATIVE_BATCH_HASH_SOURCE: ContextVar[dict[str, Any] | None] = ContextVar(
+    "creative_batch_hash_source", default=None
+)
 
 # Registry of functions returned by IdempotencyStore.wrap. Read by
 # adcp.decisioning.validate_idempotency.is_wrapped() to reconcile the
@@ -344,6 +347,19 @@ class IdempotencyStore:
                 # transparent on the no-key path.
                 return await handler(*args, **kwargs)
 
+            # Only the first matching boundary owns the original ingress
+            # identity. Consuming this hint prevents nested business calls
+            # (including same-key calls to another backend) inheriting it.
+            # Scope/key extraction always uses the actual incoming request,
+            # including an idempotency key supplied by a pre-validation hook.
+            creative_source = _CREATIVE_BATCH_HASH_SOURCE.get()
+            if (
+                operation == "sync_creatives"
+                and creative_source is not None
+                and creative_source.get("idempotency_key") == idempotency_key
+            ):
+                params_dict = creative_source
+                _CREATIVE_BATCH_HASH_SOURCE.set(None)
             payload_hash = self._hash_fn(params_dict)
 
             def _replay_cached(cached: CachedResponse) -> Any:
