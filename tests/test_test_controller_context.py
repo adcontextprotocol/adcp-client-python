@@ -25,14 +25,23 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any
 
+import httpx
 import pytest
+from asgi_lifespan import LifespanManager
 
+from adcp.decisioning.context import AuthInfo
+from adcp.decisioning.types import Account
 from adcp.server import (
     ADCPHandler,
+    BearerTokenAuthMiddleware,
+    Principal,
     RequestMetadata,
     ToolContext,
+    auth_context_factory,
     create_mcp_server,
+    validator_from_token_map,
 )
+from adcp.server.auth import REQUEST_STATE_PRINCIPAL, REQUEST_STATE_TENANT
 from adcp.server.test_controller import (
     TestControllerStore,
     _accepts_context_kwarg,
@@ -380,6 +389,7 @@ async def test_register_test_controller_threads_context_factory():
             return {"previous_state": "active", "current_state": status}
 
     def build_context(meta: RequestMetadata) -> ToolContext:
+        assert meta.request_context is None
         return ToolContext(
             metadata={
                 "tool_name": meta.tool_name,
@@ -460,3 +470,148 @@ async def test_register_test_controller_rejects_non_toolcontext_from_factory():
             scenario="force_account_status",
             params={"account_id": "acc-1", "status": "suspended"},
         )
+
+
+@pytest.mark.parametrize("stateless", [False, True], ids=["stateful", "stateless"])
+@pytest.mark.parametrize("factory_kind", ["request_state", "builtin"])
+async def test_controller_http_request_context(
+    stateless: bool, factory_kind: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Controllers receive the current HTTP request, like ordinary tools."""
+    monkeypatch.delenv("ADCP_SANDBOX", raising=False)
+    received: dict[str, ToolContext | None] = {}
+    metadata: dict[str, RequestMetadata] = {}
+    resolved_principals: list[str] = []
+
+    class Handler(ADCPHandler):
+        advertised_tools = {"get_products"}
+
+        async def get_products(
+            self, params: Any, context: ToolContext | None = None
+        ) -> dict[str, Any]:
+            received["get_products"] = context
+            return {"products": []}
+
+    class Store(TestControllerStore):
+        async def force_account_status(
+            self, account_id: str, status: str, *, context: ToolContext | None = None
+        ) -> dict[str, Any]:
+            received["comply_test_controller"] = context
+            return {"previous_state": "active", "current_state": status}
+
+    def build_context(meta: RequestMetadata) -> ToolContext:
+        metadata[meta.tool_name] = meta
+        if factory_kind == "builtin":
+            context = auth_context_factory(meta)
+        else:
+            state = getattr(meta.request_context, "state", None)
+            principal = getattr(state, REQUEST_STATE_PRINCIPAL, None)
+            context = ToolContext(
+                caller_identity=principal,
+                tenant_id=getattr(state, REQUEST_STATE_TENANT, None),
+            )
+            if principal is not None:
+                context.metadata["adcp.auth_info"] = AuthInfo(
+                    kind="bearer", principal=principal, credential=None
+                )
+        if meta.request_context is not None:
+            context.metadata["test_header"] = meta.request_context.headers.get("x-test-context")
+        return context
+
+    def resolve_account(
+        ref: dict[str, Any] | None, *, auth_info: AuthInfo | None = None
+    ) -> Account:
+        if auth_info is None or auth_info.principal != "fixture-principal":
+            raise PermissionError("authenticated principal required")
+        assert ref == {"account_id": "fixture-account", "sandbox": True}
+        resolved_principals.append(auth_info.principal)
+        return Account(id="fixture-account", mode="sandbox", _mode_explicit=True)
+
+    mcp = create_mcp_server(
+        Handler(),
+        name="test-agent",
+        context_factory=build_context,
+        allowed_hosts=["localhost"],
+        stateless_http=stateless,
+    )
+    register_test_controller(
+        mcp, Store(), context_factory=build_context, account_resolver=resolve_account
+    )
+    app = mcp.streamable_http_app()
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator_from_token_map(
+            {
+                "fixture-token": Principal(
+                    caller_identity="fixture-principal", tenant_id="fixture-tenant"
+                )
+            }
+        ),
+    )
+    headers = {
+        "content-type": "application/json",
+        "accept": "application/json, text/event-stream",
+    }
+    calls = [
+        ("get_products", {"buying_mode": "brief", "brief": "video"}),
+        (
+            "comply_test_controller",
+            {
+                "account": {"account_id": "fixture-account", "sandbox": True},
+                "scenario": "force_account_status",
+                "params": {"account_id": "fixture-account", "status": "suspended"},
+            },
+        ),
+    ]
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://localhost",
+            follow_redirects=True,
+        ) as client:
+            init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "test", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+            assert init.status_code == 200, init.text
+            if not stateless:
+                headers["mcp-session-id"] = init.headers["mcp-session-id"]
+            headers["authorization"] = "Bearer fixture-token"
+            for index, (name, arguments) in enumerate(calls, start=1):
+                response = await client.post(
+                    "/mcp/",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": index,
+                        "method": "tools/call",
+                        "params": {"name": name, "arguments": arguments},
+                    },
+                    headers={**headers, "x-test-context": name},
+                )
+                assert response.status_code == 200, response.text
+                body = response.json()
+                assert "error" not in body, body
+                assert not body["result"].get("isError"), body
+                if name == "comply_test_controller":
+                    assert body["result"]["structuredContent"].get("success") is True, body
+
+    for name, _ in calls:
+        assert metadata[name].request_context is not None
+        assert metadata[name].transport == "mcp"
+        context = received[name]
+        assert context is not None
+        assert context.caller_identity == "fixture-principal"
+        assert context.tenant_id == "fixture-tenant"
+        assert context.metadata["test_header"] == name
+        assert context.metadata["adcp.auth_info"].principal == "fixture-principal"
+    assert resolved_principals == ["fixture-principal"]
