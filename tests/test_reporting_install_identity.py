@@ -11,7 +11,8 @@ from adcp.server import ADCPHandler
 from adcp.server.mcp_tools import get_tools_for_handler, register_handler_tools
 
 
-class Seller(ADCPHandler):
+# Raw handler names share a process-wide registry with other tests.
+class _InstallationIdentitySeller(ADCPHandler):
     def __init__(self, tool: str) -> None:
         super().__init__()
         self.tool = tool
@@ -35,12 +36,12 @@ async def test_install_preserves_distinct_seller_surfaces(same_service: bool) ->
         if same_service
         else ReliableReportingService.memory(account_context=lambda *_: None)
     )
-    first = first_service.install(Seller("get_products"))
+    first = first_service.install(_InstallationIdentitySeller("get_products"))
     first_type = type(first)
     assert first_service.install(first) is first
     assert type(first) is first_type
 
-    second = second_service.install(Seller("get_media_buys"))
+    second = second_service.install(_InstallationIdentitySeller("get_media_buys"))
     second_type = type(second)
     assert second_type.__name__ != first_type.__name__
     assert second_service.install(second) is second
