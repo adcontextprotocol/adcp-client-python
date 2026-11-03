@@ -662,6 +662,7 @@ def normalize_legacy_creative_request(
     *,
     legacy_format_converter: LegacyFormatConverter | None = None,
     projection_sources: list[Any] | None = None,
+    field_path: str = "request",
 ) -> dict[str, Any]:
     """Upgrade legacy selectors before a primary server handler runs.
 
@@ -766,7 +767,7 @@ def normalize_legacy_creative_request(
                 }
         return result
 
-    return cast(dict[str, Any], visit(value, "request"))
+    return cast(dict[str, Any], visit(value, field_path))
 
 
 def resolve_legacy_format_refs(
