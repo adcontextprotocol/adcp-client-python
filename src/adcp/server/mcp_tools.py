@@ -4004,7 +4004,9 @@ def create_tool_caller(
         result: Any
         token = partial_creative_batch.set(creative_batch)
         hash_token = _CREATIVE_BATCH_HASH_SOURCE.set(
-            raw_params if creative_batch is not None else None
+            {**raw_params, "idempotency_key": params.get("idempotency_key")}
+            if creative_batch is not None
+            else None
         )
         try:
             if all_creatives_rejected:

@@ -322,6 +322,87 @@ async def test_custom_async_surfaces_are_refused_before_dispatch(surface: str) -
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("same_key,wrap_outer", [(False, True), (True, True), (False, False)])
+async def test_nested_wrapped_sync_keeps_its_own_request_identity(
+    same_key: bool, wrap_outer: bool
+) -> None:
+    from adcp.server import IdempotencyStore, MemoryBackend
+    from adcp.server.idempotency.canonicalize import canonical_json_sha256
+
+    inner_backend = MemoryBackend()
+    inner_store = IdempotencyStore(inner_backend)
+    outer_store = IdempotencyStore(MemoryBackend())
+    request = {**batch(), "validation_mode": "lenient"}
+    child_key = request["idempotency_key"] if same_key else "child-operation-0001"
+    child_request = {"idempotency_key": child_key, "creatives": [], "child_operation": True}
+
+    class Inner:
+        @inner_store.wrap
+        async def sync_creatives(self, params: Any, context: Any) -> Any:
+            return {"creatives": []}
+
+    class Outer(Seller):
+        async def sync_creatives(
+            self, params: dict[str, Any], context: ToolContext
+        ) -> dict[str, Any]:
+            await Inner().sync_creatives(child_request, context)
+            return await super().sync_creatives(params, context)
+
+    class WrappedOuter(Outer):
+        @outer_store.wrap
+        async def sync_creatives(
+            self, params: dict[str, Any], context: ToolContext
+        ) -> dict[str, Any]:
+            return await super().sync_creatives(params, context)
+
+    seller = WrappedOuter() if wrap_outer else Outer()
+    await create_tool_caller(seller, "sync_creatives")(
+        request, ToolContext(caller_identity="buyer_one")
+    )
+    cached = await inner_backend.get("buyer_one", child_key)
+    assert cached is not None
+    assert cached.payload_hash == canonical_json_sha256(child_request)
+    if not same_key:
+        assert await inner_backend.get("buyer_one", request["idempotency_key"]) is None
+
+
+@pytest.mark.asyncio
+async def test_pre_validation_hook_key_still_deduplicates_partial_batches() -> None:
+    from adcp.exceptions import IdempotencyConflictError
+    from adcp.server import IdempotencyStore, MemoryBackend
+
+    store = IdempotencyStore(MemoryBackend())
+
+    class IdempotentSeller(Seller):
+        @store.wrap
+        async def sync_creatives(
+            self, params: dict[str, Any], context: ToolContext
+        ) -> dict[str, Any]:
+            return await super().sync_creatives(params, context)
+
+    seller = IdempotentSeller()
+    request = {**batch(), "validation_mode": "lenient"}
+    request.pop("idempotency_key")
+    caller = create_tool_caller(
+        seller,
+        "sync_creatives",
+        pre_validation_hook=lambda tool, params: {
+            **params,
+            "idempotency_key": "hook-provided-key-0001",
+        },
+    )
+    await caller(request, ToolContext(caller_identity="buyer_one"))
+    replay = await caller(deepcopy(request), ToolContext(caller_identity="buyer_one"))
+    assert replay["replayed"] is True
+    assert len(seller.received) == 1
+    changed = deepcopy(request)
+    changed["creatives"][0]["name"] = "different rejected content"
+    with pytest.raises(IdempotencyConflictError):
+        await caller(changed, ToolContext(caller_identity="buyer_one"))
+    assert len(seller.received) == 1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("completion", ["inline", "task", "workflow"])
 @pytest.mark.parametrize("typed", [False, True])
 async def test_managed_completion_preserves_rejection_rows(completion: str, typed: bool) -> None:

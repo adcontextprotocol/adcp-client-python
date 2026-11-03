@@ -334,12 +334,6 @@ class IdempotencyStore:
             handler_self, hash_source, context = _resolve_call_args(args, kwargs)
 
             operation = getattr(handler, "__name__", "handler")
-            # Partial projection must not collapse requests differing only in
-            # rejected creatives into the same replay identity. Adopter input
-            # remains the admitted subset; only hashing reads the original.
-            creative_source = _CREATIVE_BATCH_HASH_SOURCE.get()
-            if operation == "sync_creatives" and creative_source is not None:
-                hash_source = creative_source
             scope_key, idempotency_key, params_dict = self._prepare(hash_source, context, operation)
             if scope_key is None or idempotency_key is None:
                 # No key → spec says the server MUST reject with INVALID_REQUEST.
@@ -353,6 +347,19 @@ class IdempotencyStore:
                 # transparent on the no-key path.
                 return await handler(*args, **kwargs)
 
+            # Only the first matching boundary owns the original ingress
+            # identity. Consuming this hint prevents nested business calls
+            # (including same-key calls to another backend) inheriting it.
+            # Scope/key extraction always uses the actual incoming request,
+            # including an idempotency key supplied by a pre-validation hook.
+            creative_source = _CREATIVE_BATCH_HASH_SOURCE.get()
+            if (
+                operation == "sync_creatives"
+                and creative_source is not None
+                and creative_source.get("idempotency_key") == idempotency_key
+            ):
+                params_dict = creative_source
+                _CREATIVE_BATCH_HASH_SOURCE.set(None)
             payload_hash = self._hash_fn(params_dict)
 
             def _replay_cached(cached: CachedResponse) -> Any:
