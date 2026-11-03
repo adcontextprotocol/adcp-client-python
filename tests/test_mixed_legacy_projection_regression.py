@@ -480,3 +480,89 @@ async def test_managed_completion_preserves_rejection_rows(completion: str, type
         ]
         assert response["creatives"][0]["action"] == "failed"
         assert [row["action"] for row in response["creatives"][1:]] == ["created", "created"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("package_id", ["package.with.dot", ""])
+@pytest.mark.parametrize("handoff", [False, True], ids=["inline", "task"])
+async def test_typed_assignment_failures_keep_all_wire_valid_package_ids(
+    package_id: str, handoff: bool
+) -> None:
+    from adcp.decisioning import (
+        DecisioningCapabilities,
+        DecisioningPlatform,
+        InMemoryTaskRegistry,
+        SingletonAccounts,
+    )
+    from adcp.decisioning.handler import PlatformHandler
+    from adcp.server import IdempotencyStore, MemoryBackend
+    from adcp.types import SyncCreativesSuccessResponse
+    from adcp.validation import validate_response
+
+    store = IdempotencyStore(MemoryBackend())
+
+    class Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"], supported_protocols=["media_buy"]
+        )
+        accounts = SingletonAccounts(account_id="assignment_test")
+
+        def __init__(self) -> None:
+            self.uploaded: list[str] = []
+            self.response: Any = None
+            self.original_rows: list[Any] = []
+
+        @store.wrap
+        async def sync_creatives(self, req: Any, ctx: Any) -> Any:
+            def finish(task_ctx: Any = None) -> Any:
+                self.uploaded.extend(row.creative_id for row in req.creatives)
+                assert req.assignments is None
+                self.response = SyncCreativesSuccessResponse(
+                    creatives=[
+                        {"creative_id": row.creative_id, "action": "created", "status": "approved"}
+                        for row in req.creatives
+                    ]
+                )
+                self.original_rows = list(self.response.creatives)
+                return self.response
+
+            return ctx.handoff_to_task(finish) if handoff else finish()
+
+    platform = Platform()
+    registry = InMemoryTaskRegistry()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        handler = PlatformHandler(platform, executor=executor, registry=registry)
+        handler.adcp_capabilities = Seller.adcp_capabilities
+        request = {
+            **batch(),
+            "validation_mode": "lenient",
+            "account": {"account_id": "assignment_test"},
+            "assignments": [{"creative_id": "unsupported-native", "package_id": package_id}],
+        }
+        caller = create_tool_caller(
+            handler,
+            "sync_creatives",
+            validation=ValidationHookConfig(requests="strict", responses="strict"),
+        )
+        response = await caller(request)
+        if handoff:
+            for _ in range(100):
+                record = await registry.get(
+                    response["task_id"], expected_account_id="assignment_test:anonymous"
+                )
+                if record is not None and record["state"] in {"completed", "failed"}:
+                    break
+                await asyncio.sleep(0.01)
+            assert record is not None and record["state"] == "completed", record
+            response = record["result"]
+        assert validate_response("sync_creatives", response, version="3.1").valid
+        assert platform.uploaded == ["display-one", "display-two"]
+        assert response["creatives"][0]["action"] == "failed"
+        assert package_id in response["creatives"][0]["assignment_errors"]
+        assert platform.response.creatives[1] is platform.original_rows[0]
+        assert platform.response.creatives[2] is platform.original_rows[1]
+        if not handoff:
+            replay = await caller(deepcopy(request))
+            assert replay["replayed"] is True
+            assert replay["creatives"] == response["creatives"]
+            assert platform.uploaded == ["display-one", "display-two"]

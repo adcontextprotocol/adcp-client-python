@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from contextvars import ContextVar
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import ValidationError
@@ -25,6 +25,27 @@ from adcp.canonical_formats.projection import (
 class PartialCreativeBatch:
     submitted_ids: tuple[str, ...]
     failures: tuple[dict[str, Any], ...]
+    _typed_failures: dict[str, Any] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        from adcp.types import SyncCreativeResult
+
+        # Materialize SDK-owned failures BEFORE dispatch can mutate anything.
+        # The wire assignment_errors map permits arbitrary package IDs through
+        # additionalProperties; its generated model over-restricts every key.
+        # Validate our remaining fields, then retain our known string-valued
+        # map without applying that extra generated key restriction.
+        prepared = {}
+        for failure in self.failures:
+            row = SyncCreativeResult.model_validate(
+                {key: value for key, value in failure.items() if key != "assignment_errors"}
+            )
+            if "assignment_errors" in failure:
+                row = row.model_copy(
+                    update={"assignment_errors": deepcopy(failure["assignment_errors"])}
+                )
+            prepared[failure["creative_id"]] = row
+        object.__setattr__(self, "_typed_failures", prepared)
 
     def merge(self, result: Any) -> None:
         """Overlay once per terminal result, before persistence or delivery.
@@ -55,9 +76,21 @@ class PartialCreativeBatch:
         if isinstance(result, dict):
             result["creatives"] = ordered
         else:
-            from adcp.types import SyncCreativeResult
-
-            result.creatives = [SyncCreativeResult.model_validate(row) for row in ordered]
+            # Preserve the adopter's already-typed rows, including private
+            # metadata. Rebuilding them from serialized data can reject a
+            # conforming response or discard same-process projection state.
+            original = {
+                row["creative_id"] if isinstance(row, dict) else row.creative_id: row
+                for row in result.creatives
+            }
+            result.creatives = [
+                (
+                    self._typed_failures[row["creative_id"]].model_copy(deep=True)
+                    if row["creative_id"] in self._typed_failures
+                    else original[row["creative_id"]]
+                )
+                for row in ordered
+            ]
 
 
 partial_creative_batch: ContextVar[PartialCreativeBatch | None] = ContextVar(
