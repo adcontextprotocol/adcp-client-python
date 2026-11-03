@@ -44,6 +44,7 @@ from adcp_reporting_storage.ledger.row_storage import (
     ReportingPreparedRowSetV1,
     ReportingRowChunkLocatorV1,
     ReportingRowStoreError,
+    recorded_intent_objects,
 )
 
 if TYPE_CHECKING:
@@ -338,16 +339,25 @@ async def persist_revision_row_set(
                 "STATE_UNAVAILABLE", "the shared row set is no longer live"
             )
     else:
+        # Closing the intent and inserting the chunk rows are one transaction, so a reader of the
+        # ledger sees an object named by this open intent or by committed chunk rows, never neither.
         closed = await connection.execute(
             "DELETE FROM adcp_reporting_row_write_intents"
             " WHERE row_binding_id = %s AND row_set_id = %s AND content_sha256 = %s"
-            " AND owner_token = %s AND state = 'open'",
+            " AND owner_token = %s AND state = 'open' RETURNING created_objects",
             (prepared.binding_id, prepared.row_set_id, prepared.content_sha256, staged.owner_token),
         )
-        if closed.rowcount != 1:
+        closed_row = await closed.fetchone()
+        if closed_row is None:
             raise ReportingRowStoreError(
                 "STATE_UNAVAILABLE", "the row upload intent was taken over or swept"
             )
-    if staged.shared_from is None:
-        await storage.lock_and_verify_adopted(connection, prepared.binding_id, staged.locators)
+        # Adopted objects the intent recorded take no lock; any other adopted object takes its
+        # binding's object lock, then every adopted object is proven by a version-pinned stat.
+        await storage.lock_and_verify_adopted(
+            connection,
+            prepared.binding_id,
+            staged.locators,
+            recorded_intent_objects(closed_row[0]),
+        )
     await storage.write_in_transaction(connection, prepared, staged.locators, staged.shared_from)
