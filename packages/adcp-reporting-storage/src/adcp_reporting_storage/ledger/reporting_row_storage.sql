@@ -369,3 +369,24 @@ UPDATE adcp_reporting_row_write_intents
    SELECT 1 FROM jsonb_array_elements(created_objects) AS element(created)
     WHERE jsonb_typeof(created) = 'object' AND created ? 'objectKey'
  );
+
+-- The orphan collector's ownership fence (adcp-client#3593, adcp-client-python#1829): one row per
+-- fence, recording the (epoch, token) this database last claimed in the object store under
+-- {prefix}/{namespace_key}/_collector-fence/. collect_orphaned_row_objects deletes only while the
+-- object store's highest fence epoch is exactly the claim recorded here, so a clone or restore of
+-- this database that the original has since out-claimed refuses to delete. The same table and
+-- columns the JavaScript SDK ships, so either SDK reads the other's claim.
+--
+-- Deliberately outside the required-schema manifest and REPORTING_ROW_STORAGE_TABLES: the collector
+-- is opt-in, so a database that never enables it needs nothing from this table. Until it exists a
+-- collector pass refuses every binding as fenced (migration_required) and deletes nothing.
+CREATE TABLE IF NOT EXISTS adcp_reporting_orphan_collector_fences (
+  fence_scope TEXT COLLATE "C" PRIMARY KEY CHECK (fence_scope ~ '^[0-9a-f]{64}$'),
+  epoch BIGINT NOT NULL CHECK (epoch >= 1),
+  token TEXT COLLATE "C" NOT NULL
+    CHECK (token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  previous_token TEXT COLLATE "C"
+    CHECK (previous_token IS NULL
+           OR previous_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  claimed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);

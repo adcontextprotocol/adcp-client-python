@@ -714,14 +714,17 @@ class ReportingProductionSupport:
             # is visible instead of looking like a healthy idle worker.
             pending = {
                 key: counts[key]
-                for key in ("protected", "held", "deferred", "skipped_unconfigured")
+                for key in ("protected", "held", "deferred", "skipped_unconfigured", "unsupported")
                 if counts.get(key)
             }
             if pending:
                 _maintenance_pending(operation=name, counts=pending)
-            # Work nobody is reaching: intents expired past the overdue threshold, or periods that
-            # keep failing (five or more attempts). The same signals the JavaScript SDK reports.
-            stalled = {key: counts[key] for key in ("overdue", "stuck") if counts.get(key)}
+            # Work nobody is reaching: intents expired past the overdue threshold, periods that
+            # keep failing (five or more attempts), or orphan collection refused by another
+            # database's claim on its namespace. The same signals the JavaScript SDK reports.
+            stalled = {
+                key: counts[key] for key in ("overdue", "stuck", "fenced") if counts.get(key)
+            }
             if stalled:
                 _maintenance_stalled(operation=name, counts=stalled)
 
@@ -837,6 +840,8 @@ def _counts(result: Any) -> dict[str, int]:
         "stuck",
         "skipped_unconfigured",
         "overdue",
+        "unsupported",
+        "fenced",
     ):
         value = getattr(result, name, None)
         if isinstance(value, (tuple, list)):

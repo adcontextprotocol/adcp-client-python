@@ -53,18 +53,35 @@ from adcp.reporting.ledger.row_storage_errors import (
     ReportingRowStoreError,
     ReportingRowStoreErrorCode,
 )
+from adcp_reporting_storage.ledger.orphan_fence import (
+    ORPHAN_FENCE_MAX_BYTES,
+    OrphanFenceEntry,
+    OrphanFenceRecord,
+    encode_orphan_fence_record,
+    is_orphan_fence_key,
+    orphan_fence_directory,
+    orphan_fence_epoch_of_key,
+    orphan_fence_key,
+    orphan_fence_scope,
+    parse_orphan_fence_record,
+)
 from adcp_reporting_storage.ledger.row_storage_object import (
     REPORTING_ROW_BINDING_ID_MAX_LENGTH,
     REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH,
     REPORTING_ROW_DEFAULT_KEY_TEMPLATE,
+    REPORTING_ROW_OBJECT_REF_MAX_LENGTH,
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListEntryV1,
+    ReportingRowObjectListInputV1,
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectStatInputV1,
     assert_reporting_row_key_template_v1,
     assert_reporting_row_prefix_v1,
+    is_row_instant,
+    is_row_object_key_shape,
     render_reporting_row_object_key_v1,
 )
 from adcp_reporting_storage.ledger.row_storage_provider_io import is_row_identifier
@@ -371,6 +388,28 @@ def _inflate(physical: bytes, compression: Compression, byte_count: int) -> byte
         return logical
     except zlib.error:
         return None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingObjectBindingSummaryV1:
+    """An object binding this host configures, as the orphan collector sees it."""
+
+    id: str
+    read_only: bool
+    #: Whether the binding's provider implements ``list``.
+    listable: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectListingV1:
+    """One page of the objects under a binding's owned prefix, and nothing else."""
+
+    owned_prefix: str
+    objects: tuple[ReportingRowObjectListEntryV1, ...]
+    #: Entries dropped: outside the owned prefix, malformed, or left out by the provider as
+    #: unaddressable.
+    foreign: int
+    next_page_token: str | None = None
 
 
 class ReportingRowStorageV1:
@@ -1052,6 +1091,321 @@ class ReportingRowStorageV1:
                 self._options.write_deadline_seconds,
             )
 
+    # -- listing and the collector fence ----------------------------------
+
+    def object_binding_ids(self) -> list[str]:
+        """The object bindings this host configures, read-only ones included."""
+        return [
+            binding_id
+            for binding_id, binding in self._bindings.items()
+            if isinstance(binding, ReportingObjectRowBindingV1)
+        ]
+
+    def object_binding_summaries(self) -> list[ReportingObjectBindingSummaryV1]:
+        """Each object binding: whether it is ``read_only`` and whether its provider can list."""
+        return [
+            ReportingObjectBindingSummaryV1(
+                binding_id,
+                binding.read_only,
+                callable(getattr(self._providers.get(binding.provider), "list", None)),
+            )
+            for binding_id, binding in self._bindings.items()
+            if isinstance(binding, ReportingObjectRowBindingV1)
+        ]
+
+    def _lister_binding(
+        self, binding_id: str
+    ) -> tuple[ReportingObjectRowBindingV1, ReportingRowObjectProviderV1, Any]:
+        """The binding, its provider and the provider's ``list``; refuses one that cannot list."""
+        if self._installation is None:
+            raise ReportingRowStoreError("STATE_UNAVAILABLE", "row storage is not ready")
+        binding = self._bindings.get(binding_id)
+        if not isinstance(binding, ReportingObjectRowBindingV1):
+            raise ReportingRowStoreError(
+                "STATE_UNAVAILABLE", f"row binding {binding_id} is not configured for objects"
+            )
+        provider = self._providers[binding.provider]
+        lister = getattr(provider, "list", None)
+        if not callable(lister):
+            raise ReportingRowStoreError(
+                "INVALID_INPUT", f"row binding {binding_id}'s provider cannot list objects"
+            )
+        return binding, provider, lister
+
+    async def list_objects(
+        self, binding_id: str, *, page_size: int, page_token: str | None = None
+    ) -> ReportingRowObjectListingV1:
+        """One page of the objects under a binding's owned prefix, ``{prefix}/{namespace_key}/``.
+
+        An entry the provider returns outside it, or one that is not a well-formed object
+        reference, is dropped and counted in ``foreign`` instead of being returned. The collector's
+        own fence chain lives under the owned prefix; it is not a row object and not foreign.
+        Raises ``INVALID_INPUT`` when the binding's provider has no ``list``.
+        """
+        binding, _, lister = self._lister_binding(binding_id)
+        assert self._installation is not None
+        owned_prefix = f"{binding.prefix}/{self._installation[1]}/"
+        page = await self._provider_call(
+            lister(
+                ReportingRowObjectListInputV1(
+                    binding.location, owned_prefix, page_size, page_token, binding.credential_ref
+                ),
+                ReportingRowObjectContextV1(self._options.read_deadline_seconds),
+            ),
+            self._options.read_deadline_seconds,
+        )
+        if page is None or not isinstance(getattr(page, "objects", None), (tuple, list)):
+            raise ReportingRowStoreError(
+                "PROVIDER_UNAVAILABLE", "provider returned an invalid listing"
+            )
+        token = getattr(page, "next_page_token", None)
+        if token is not None and (not isinstance(token, str) or not token):
+            raise ReportingRowStoreError(
+                "PROVIDER_UNAVAILABLE", "provider returned an invalid page token"
+            )
+        if len(page.objects) > page_size:
+            raise ReportingRowStoreError(
+                "PROVIDER_UNAVAILABLE", "provider returned more objects than the page size"
+            )
+        skipped = getattr(page, "skipped", 0)
+        foreign = skipped if type(skipped) is int and skipped > 0 else 0
+        objects: list[ReportingRowObjectListEntryV1] = []
+        for entry in page.objects:
+            object_ref = getattr(entry, "object_ref", None)
+            if isinstance(object_ref, str) and is_orphan_fence_key(owned_prefix, object_ref):
+                continue
+            version = getattr(entry, "native_version_ref", None)
+            size = getattr(entry, "size_bytes", None)
+            if (
+                not is_row_object_key_shape(object_ref, REPORTING_ROW_OBJECT_REF_MAX_LENGTH)
+                or not isinstance(object_ref, str)
+                or not object_ref.startswith(owned_prefix)
+                or not isinstance(version, str)
+                or not 1 <= len(version) <= _NATIVE_VERSION_REF_MAX_LENGTH
+                or type(size) is not int
+                or size < 0
+                or not is_row_instant(getattr(entry, "created_at", None))
+            ):
+                foreign += 1
+                continue
+            objects.append(entry)
+        return ReportingRowObjectListingV1(owned_prefix, tuple(objects), foreign, token)
+
+    async def collector_fence_location(self, binding_id: str) -> tuple[str, str, str]:
+        """``(scope, directory, namespace_key)`` of an object binding's collector fence.
+
+        ``scope`` keys the database row; ``directory`` holds the chain in the object store.
+        Bindings that share provider, location, prefix and installation share a fence. Raises
+        ``STATE_UNAVAILABLE`` for a binding that is not an object binding and ``INVALID_INPUT``
+        when its provider cannot list (the fence is read by listing).
+        """
+        binding, provider, _ = self._lister_binding(binding_id)
+        assert self._installation is not None
+        namespace_key = self._installation[1]
+        return (
+            orphan_fence_scope(
+                # The provider's own name, not this host's registry key: two registry entries of
+                # one kind that reach the same bucket and prefix are one physical fence.
+                provider=provider.name,
+                location=binding.location,
+                prefix=binding.prefix,
+                namespace_key=namespace_key,
+            ),
+            orphan_fence_directory(f"{binding.prefix}/{namespace_key}/"),
+            namespace_key,
+        )
+
+    async def list_collector_fence(
+        self, binding_id: str, *, tolerant: bool = False
+    ) -> list[OrphanFenceEntry]:
+        """Every fence object of a binding's namespace, ordered by epoch.
+
+        Keys under the fence directory that are not an epoch name are ignored. Two live versions
+        of one epoch's key (a versioned store after a manual delete and re-create) are ambiguous
+        and fail closed with ``ROWS_INTEGRITY_FAILED``, as does a chain too long to be one this
+        collector wrote (it prunes to two objects). ``tolerant`` is for a takeover, which must be
+        able to supersede a damaged chain: every version of every epoch is returned, so it can all
+        be removed, and the page bound is wider.
+        """
+        _, directory, _ = await self.collector_fence_location(binding_id)
+        binding, _, lister = self._lister_binding(binding_id)
+        assert self._installation is not None
+        owned_prefix = f"{binding.prefix}/{self._installation[1]}/"
+        entries: dict[int, OrphanFenceEntry] = {}
+        versions: list[OrphanFenceEntry] = []
+        page_size = 50
+        token: str | None = None
+        page_number = 0
+        while True:
+            if page_number >= (200 if tolerant else 20):
+                raise ReportingRowStoreError(
+                    "ROWS_INTEGRITY_FAILED", "the collector fence directory holds too many objects"
+                )
+            page_number += 1
+            listed = await self._provider_call(
+                lister(
+                    ReportingRowObjectListInputV1(
+                        binding.location, directory, page_size, token, binding.credential_ref
+                    ),
+                    ReportingRowObjectContextV1(self._options.read_deadline_seconds),
+                ),
+                self._options.read_deadline_seconds,
+            )
+            if (
+                listed is None
+                or not isinstance(getattr(listed, "objects", None), (tuple, list))
+                or len(listed.objects) > page_size
+            ):
+                raise ReportingRowStoreError(
+                    "PROVIDER_UNAVAILABLE", "provider returned an invalid listing"
+                )
+            skipped = getattr(listed, "skipped", 0)
+            if not tolerant and type(skipped) is int and skipped > 0:
+                # The provider left out an entry it could not address or age. In a directory that
+                # holds only this collector's own objects that could be the newest claim, and a
+                # check cannot tell "no claim" from "a claim I cannot see": fail closed.
+                raise ReportingRowStoreError(
+                    "ROWS_INTEGRITY_FAILED", "the collector fence listing skipped an object"
+                )
+            for item in listed.objects:
+                object_ref = getattr(item, "object_ref", None)
+                version = getattr(item, "native_version_ref", None)
+                if not isinstance(object_ref, str) or not isinstance(version, str):
+                    continue
+                if not 1 <= len(version) <= _NATIVE_VERSION_REF_MAX_LENGTH:
+                    continue
+                epoch = orphan_fence_epoch_of_key(owned_prefix, object_ref)
+                if epoch is None or object_ref != orphan_fence_key(owned_prefix, epoch):
+                    continue
+                entry = OrphanFenceEntry(epoch, object_ref, version)
+                if tolerant:
+                    versions.append(entry)
+                if epoch in entries:
+                    if tolerant:
+                        continue
+                    raise ReportingRowStoreError(
+                        "ROWS_INTEGRITY_FAILED",
+                        "the collector fence holds two versions of one epoch",
+                    )
+                entries[epoch] = entry
+            following = getattr(listed, "next_page_token", None)
+            if following is None:
+                break
+            if not isinstance(following, str) or not following or following == token:
+                raise ReportingRowStoreError(
+                    "PROVIDER_UNAVAILABLE", "provider returned an invalid page token"
+                )
+            token = following
+        return sorted(versions if tolerant else entries.values(), key=lambda item: item.epoch)
+
+    async def read_collector_fence(
+        self, binding_id: str, entry: OrphanFenceEntry
+    ) -> OrphanFenceRecord:
+        """Read and verify one fence object.
+
+        A missing version is ``PROVIDER_UNAVAILABLE`` (it was listed a moment ago, so this is a
+        race to retry); content that is not exactly a fence of this namespace and epoch is
+        ``ROWS_INTEGRITY_FAILED``.
+        """
+        binding, provider = self._object_binding(binding_id)
+        assert self._installation is not None
+        try:
+            data = await self._provider_call(
+                provider.get(
+                    ReportingRowObjectGetInputV1(
+                        binding.location,
+                        entry.object_ref,
+                        entry.native_version_ref,
+                        ORPHAN_FENCE_MAX_BYTES,
+                        None,
+                        binding.credential_ref,
+                    ),
+                    ReportingRowObjectContextV1(self._options.read_deadline_seconds),
+                ),
+                self._options.read_deadline_seconds,
+            )
+        except ReportingRowStoreError as error:
+            # An object over the read cap is the same finding as bad content.
+            if error.code == "ROWS_INTEGRITY_FAILED":
+                raise ReportingRowStoreError(
+                    "ROWS_INTEGRITY_FAILED", "the collector fence object is malformed"
+                ) from None
+            raise
+        if data is None:
+            raise ReportingRowStoreError(
+                "PROVIDER_UNAVAILABLE", "a collector fence object disappeared while it was read"
+            )
+        record = parse_orphan_fence_record(
+            data, namespace_key=self._installation[1], epoch=entry.epoch
+        )
+        if record is None:
+            raise ReportingRowStoreError(
+                "ROWS_INTEGRITY_FAILED", "the collector fence object is malformed"
+            )
+        return record
+
+    async def put_collector_fence(
+        self, binding_id: str, record: OrphanFenceRecord
+    ) -> tuple[bool, OrphanFenceRecord]:
+        """Create-only write of one epoch's fence object.
+
+        When the key is taken, returns the record already there (verified), so the caller can tell
+        its own earlier write from another database's claim: ``(created, record)``.
+        """
+        binding, provider = self._object_binding(binding_id)
+        assert self._installation is not None
+        installation_id, namespace_key = self._installation
+        object_ref = orphan_fence_key(f"{binding.prefix}/{namespace_key}/", record.epoch)
+        put = await self._provider_call(
+            provider.put_if_absent(
+                ReportingRowObjectPutInputV1(
+                    binding.location,
+                    object_ref,
+                    encode_orphan_fence_record(namespace_key, record),
+                    "application/x-ndjson",
+                    {
+                        "adcp-installation": installation_id,
+                        "adcp-collector-fence": str(record.epoch),
+                    },
+                    binding.credential_ref,
+                ),
+                ReportingRowObjectContextV1(self._options.write_deadline_seconds),
+            ),
+            self._options.write_deadline_seconds,
+        )
+        _assert_native_version_ref(put.native_version_ref)
+        if put.created:
+            return True, record
+        return False, await self.read_collector_fence(
+            binding_id, OrphanFenceEntry(record.epoch, object_ref, put.native_version_ref)
+        )
+
+    async def delete_collector_fence(
+        self, binding_id: str, entries: Sequence[OrphanFenceEntry]
+    ) -> None:
+        """Delete superseded fence objects. Best effort: a failure leaves a stale object that the
+        next claim prunes."""
+        if not isinstance(self._bindings.get(binding_id), ReportingObjectRowBindingV1):
+            return
+        binding, provider = self._object_binding(binding_id)
+        context = ReportingRowObjectContextV1(self._options.write_deadline_seconds)
+        for entry in entries:
+            try:
+                await self._provider_call(
+                    provider.delete(
+                        ReportingRowObjectDeleteInputV1(
+                            binding.location,
+                            entry.object_ref,
+                            entry.native_version_ref,
+                            binding.credential_ref,
+                        ),
+                        context,
+                    ),
+                    self._options.write_deadline_seconds,
+                )
+            except ReportingRowStoreError:
+                continue
+
     # -- object lifetime --------------------------------------------------
     #
     # Chunks are adopted create-only, so a custom key template that omits an identity
@@ -1142,6 +1496,7 @@ class ReportingRowStorageV1:
         *,
         obligation_id: str | None = None,
         row_set_id: str | None = None,
+        any_binding: bool = False,
     ) -> int:
         """Delete each object nothing outside the operation's scope still needs.
 
@@ -1152,20 +1507,37 @@ class ReportingRowStorageV1:
         the reference check and the provider delete happen together, so a concurrent commit
         adopting the object either already references it (it is kept) or finds it gone and
         fails closed. Returns the number of objects deleted.
+
+        ``any_binding`` widens both checks to every binding and takes every binding's object lock,
+        in a fixed order: two bindings can share a bucket and prefix, and a writer adopting an
+        object takes the lock of its own binding only, so the delete must be serialized with an
+        adoption through any of them. Writers hold one such lock, so no cycle forms. The orphan
+        collector deletes this way.
         """
         deleted = 0
         for object_ref, native_version_ref in objects:
             async with pool.connection() as connection, connection.transaction():
-                await connection.execute(
-                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-                    (self._object_lock_text(binding_id, object_ref),),
-                )
+                lock_bindings = [binding_id]
+                if any_binding:
+                    known = await (
+                        await connection.execute(
+                            "SELECT row_binding_id FROM adcp_reporting_row_bindings"
+                        )
+                    ).fetchall()
+                    lock_bindings = sorted(
+                        {binding_id, *self.object_binding_ids(), *(row[0] for row in known)}
+                    )
+                for lock_binding in lock_bindings:
+                    await connection.execute(
+                        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                        (self._object_lock_text(lock_binding, object_ref),),
+                    )
                 referenced = await (
                     await connection.execute(
                         "(SELECT 1 FROM adcp_reporting_row_chunks chunk"
                         "   JOIN adcp_reporting_row_sets row_set"
                         "     ON row_set.row_set_id = chunk.row_set_id"
-                        "  WHERE row_set.row_binding_id = %(binding)s"
+                        "  WHERE (%(any_binding)s::boolean OR row_set.row_binding_id = %(binding)s)"
                         "    AND chunk.object_ref = %(key)s"
                         "    AND chunk.native_version_ref = %(version)s"
                         "    AND row_set.rows_state IN ('live', 'unavailable')"
@@ -1175,12 +1547,14 @@ class ReportingRowStorageV1:
                         "  LIMIT 1)"
                         " UNION ALL"
                         " (SELECT 1 FROM adcp_reporting_row_write_intents intent"
-                        "  WHERE intent.row_binding_id = %(binding)s AND intent.state = 'open'"
+                        "  WHERE (%(any_binding)s::boolean OR intent.row_binding_id = %(binding)s)"
+                        "    AND intent.state = 'open'"
                         "    AND (intent.created_objects @> %(created)s::jsonb"
                         "         OR intent.created_objects @> %(created_legacy)s::jsonb)"
                         "  LIMIT 1)",
                         {
                             "binding": binding_id,
+                            "any_binding": any_binding,
                             "key": object_ref,
                             "version": native_version_ref,
                             "obligation": obligation_id,

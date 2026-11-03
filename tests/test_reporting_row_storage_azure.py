@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 
@@ -18,6 +19,7 @@ from adcp_reporting_storage.ledger.row_storage_object import (  # noqa: E402
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListInputV1,
     ReportingRowObjectPutInputV1,
     run_reporting_row_object_provider_conformance_v1,
 )
@@ -43,6 +45,7 @@ class _Version:
     content_type: str | None
     cache_control: str | None
     current: bool = True
+    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def etag(self) -> str:
@@ -72,6 +75,55 @@ class FakeBlobService:
 
             def get_blob_client(self, key: str) -> Any:
                 return Blob(name, key)
+
+            def list_blobs(
+                self,
+                name_starts_with: str | None = None,
+                include: list[str] | None = None,
+                results_per_page: int | None = None,
+                **transport: Any,
+            ) -> Any:
+                service.transport.append(transport)
+                entries = [
+                    SimpleNamespace(
+                        name=key,
+                        version_id=version.version_id,
+                        size=len(version.data),
+                        creation_time=version.created,
+                        last_modified=version.created,
+                    )
+                    for (container, key), history in sorted(service.blobs.items())
+                    if container == name and key.startswith(name_starts_with or "")
+                    for version in history
+                ]
+
+                class Pages:
+                    continuation_token: str | None = None
+
+                    def __init__(self, start: int) -> None:
+                        self.start = start
+                        self.served = False
+
+                    def __iter__(self) -> Pages:
+                        return self
+
+                    def __next__(self) -> Any:
+                        if self.served:
+                            raise StopIteration
+                        self.served = True
+                        size = results_per_page or len(entries)
+                        chunk = entries[self.start : self.start + size]
+                        following = self.start + len(chunk)
+                        self.continuation_token = (
+                            str(following) if following < len(entries) else None
+                        )
+                        return iter(chunk)
+
+                class Paged:
+                    def by_page(self, continuation_token: str | None = None) -> Pages:
+                        return Pages(int(continuation_token) if continuation_token else 0)
+
+                return Paged()
 
         class Blob:
             def __init__(self, container: str, key: str) -> None:
@@ -216,7 +268,7 @@ async def test_passes_the_shared_provider_conformance_suite() -> None:
     passed = await run_reporting_row_object_provider_conformance_v1(
         provider, location=LOCATION, prefix="adcp-rows"
     )
-    assert passed[-1] == "write-unique-version" and "ranged-read" in passed
+    assert "write-unique-version" in passed and "ranged-read" in passed and passed[-1] == "list"
 
 
 async def test_create_only_upload_sets_headers_and_identifier_safe_metadata() -> None:
@@ -395,3 +447,60 @@ def test_the_official_client_exposes_everything_the_provider_calls() -> None:
     from azure.core import MatchConditions
 
     assert hasattr(MatchConditions, "IfNotModified")
+
+
+# -- list ---------------------------------------------------------------------------------------
+
+
+async def test_list_pages_every_version_and_carries_the_call_budget() -> None:
+    service = FakeBlobService()
+    provider = create_azure_blob_reporting_row_object_provider_v1(client=service)
+    keys = [f"adcp-rows/ns/o{index}.jsonl" for index in range(5)]
+    versions = {}
+    for key in keys:
+        versions[key] = (await provider.put_if_absent(put(key, b"abc"), CONTEXT)).native_version_ref
+    found = []
+    token = None
+    context = ReportingRowObjectContextV1(7.5)
+    for _ in range(20):
+        page = await provider.list(
+            ReportingRowObjectListInputV1(LOCATION, "adcp-rows/ns/", 2, token), context
+        )
+        assert len(page.objects) <= 2
+        found.extend(page.objects)
+        token = page.next_page_token
+        if token is None:
+            break
+    assert {(e.object_ref, e.native_version_ref, e.size_bytes) for e in found} == {
+        (key, versions[key], 3) for key in keys
+    }
+    assert service.transport[-1]["timeout"] == 8 and service.transport[-1]["read_timeout"] == 7.5
+
+
+async def test_list_skips_a_blob_without_a_version_id_size_or_time_and_counts_it() -> None:
+    service = FakeBlobService()
+    provider = create_azure_blob_reporting_row_object_provider_v1(client=service)
+    await provider.put_if_absent(put("adcp-rows/ns/good.jsonl"), CONTEXT)
+    # A blob written before versioning was enabled has no version ID.
+    service.blobs[("rows", "adcp-rows/ns/before-versioning.jsonl")] = [
+        type(service.blobs[("rows", "adcp-rows/ns/good.jsonl")][0])(
+            "not a version id!", b"x", {}, None, None
+        )
+    ]
+    page = await provider.list(
+        ReportingRowObjectListInputV1(LOCATION, "adcp-rows/ns/", 10), CONTEXT
+    )
+    assert [e.object_ref for e in page.objects] == ["adcp-rows/ns/good.jsonl"]
+    assert page.skipped == 1
+
+
+async def test_list_refuses_a_bad_page_size_and_an_oversized_prefix() -> None:
+    provider = create_azure_blob_reporting_row_object_provider_v1(client=FakeBlobService())
+    for size in (0, -1, 1.5):
+        with pytest.raises(ReportingRowStoreError) as failure:
+            await provider.list(
+                ReportingRowObjectListInputV1(LOCATION, "adcp-rows/", size), CONTEXT  # type: ignore[arg-type]
+            )
+        assert failure.value.code == "INVALID_INPUT"
+    with pytest.raises(ReportingRowStoreError):
+        await provider.list(ReportingRowObjectListInputV1(LOCATION, "p" * 1025, 5), CONTEXT)

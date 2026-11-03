@@ -327,6 +327,111 @@ stays as a small marker that makes reads answer as expired; the records are alre
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
 
+## Orphaned objects: the opt-in listing collector
+
+The intent sweep deletes only what an intent lists, so it cannot see three cases: an upload whose `PUT` succeeded before
+the intent recorded it, intents for a binding no running host configures, and intents lost to a database restore.
+`collect_orphaned_row_objects` covers them by listing, and it is **off unless you ask for it**. It mirrors the
+JavaScript SDK's collector and fence ([adcp-client#3291](https://github.com/adcontextprotocol/adcp-client/pull/3291),
+[#3593](https://github.com/adcontextprotocol/adcp-client/pull/3593)); the design record is
+`specs/shared-sdk-persistence-proposal.md` section 4.2.
+
+```python
+from adcp_reporting_storage import ReportingOrphanCollectionOptionsV1
+
+store = PgReportingLedgerStore(
+    pool=pool,
+    row_storage=options,
+    # Start with dry_run=True and read the candidates in the task result. A real pass needs the
+    # acknowledgement below.
+    orphan_collection=ReportingOrphanCollectionOptionsV1(acknowledge_exclusive_namespace=True),
+)
+# or, from your own scheduler:
+result = await store.collect_orphaned_row_objects(dry_run=True)
+```
+
+It lists each configured object binding under `{prefix}/{namespace_key}/` and deletes an object only when **all** of
+these hold:
+
+1. Its key is a well-formed row object (`.jsonl` or `.jsonl.gz`, the grammar `render_reporting_row_object_key_v1`
+   produces, no `.` or `..` segment) under that prefix. Anything else, or anything a provider returns outside the
+   prefix, is dropped and counted as `foreign`; `delete_objects` independently refuses keys outside the owned prefix.
+2. It was written more than `min_age_seconds` ago (default 7 days, **minimum 1 day**, against a write deadline of at
+   most 10 minutes). An unreadable or non-RFC 3339 write time counts as young. Providers report the later of creation
+   and modification time.
+3. A version- and binding-blind pre-check finds no chunk of a not-yet-`pruned` row set and no write intent (any state,
+   old or new JSON keys) naming the key. Two bindings can share a bucket and prefix (a retired `read_only` binding kept
+   next to its successor), so the check is not scoped to the collecting binding.
+4. Under the per-object advisory lock of **every** binding, taken in a fixed order so the delete is serialized with an
+   adoption through any of them, no `live` or `unavailable` row set references that exact version and no open intent
+   created it. The provider then deletes that exact version.
+
+`read_only` bindings are skipped unless `include_read_only`. `dry_run` deletes nothing and reports up to 1000
+`candidates`. Deleting requires `acknowledge_exclusive_namespace=True` (a dry run does not). `deleted` counts delete
+requests that found nothing referenced; an object another host removed first still counts. A delete that fails is
+counted and the pass moves on, and is retried on the next full listing; a listing failure retries the same page.
+
+**Providers.** A provider gains an optional `list` (`ReportingRowObjectListInputV1` in, a page of
+`ReportingRowObjectListEntryV1` out: `object_ref`, `native_version_ref`, `size_bytes`, `created_at`), implemented by the
+filesystem, GCS, S3 and Azure Blob providers (on versioned stores it lists noncurrent versions too and never delete
+markers). `run_reporting_row_object_provider_conformance_v1` checks it when present and then returns a `list` entry, so
+code that compares the whole list must expect it. A provider without `list` keeps working; its binding is reported
+`unsupported`. `list` must be read-after-write consistent for keys `put_if_absent` returned: the fence below reads the
+newest claim by listing. The filesystem provider's `list` reads and sorts each directory in full and neither lists nor follows symlinks, so it is
+for tests and single hosts.
+
+**Budget and resumability.** `limit` bounds the objects examined per binding per pass; a page cap bounds empty pages; a
+repeated page token or an oversized page fails the binding instead of looping; a failure on the first page of a resumed
+cursor drops the cursor so it cannot wedge. Pass `result.cursors` back as `cursors` and `result.completed` as
+`skip_bindings`. As a store option, `interval_seconds` (default one day) spaces full listings, a listing that does not
+finish within `limit` continues on every pass, and the position lives in the process, so a restart begins a new
+listing.
+
+### The clone fence
+
+A clone or point-in-time restore of the ledger database shares the live database's installation identity, namespace
+key and configuration, **including `acknowledge_exclusive_namespace`**, but sees an older set of references, so its
+collector would delete the live database's newer objects once they pass the age threshold. A real pass is therefore
+fenced:
+
+- **Fence.** `{prefix}/{namespace_key}/_collector-fence/{epoch:016d}.json`: one create-only object per epoch,
+  `{v, namespace_key, epoch, token, previous_token, claimed_at}`, the bytes the JavaScript SDK writes. The highest epoch
+  is the current claim. The database records its last `(epoch, token, previous_token)` in
+  `adcp_reporting_orphan_collector_fences`, keyed by a hash of provider, location, prefix and namespace key, so
+  bindings that reach the same bucket and prefix share one fence.
+- **Claim.** A real pass takes a session advisory lock, proceeds only if the bucket's highest epoch is exactly the
+  recorded claim, commits the intent for `epoch + 1` under a fresh token, writes that object create-only, verifies the
+  token at the key and prunes all but the predecessor. It holds the lock through the write, so a sibling host of the
+  same database cannot interleave, and it does this before the first delete. A claim holds one pool connection across
+  the object-store reads and write.
+- **Check.** The fence is read again before the first delete of every page and every 25 deletes within one. Any
+  mismatch stops the pass; `deleted` keeps what went before.
+- **Refusal.** A refused binding has `status == "fenced"` and `fence` (`cause`, `detail`, `fence_epoch`,
+  `recorded_epoch`); the result lists it in `fenced`. Causes: `claimed_elsewhere`, `fence_advanced`, `token_mismatch`,
+  `fence_missing`, `fence_regressed`, `fence_unreadable`, `claim_lost`, `migration_required`. Everything unexpected
+  fails closed, including a fence-directory listing in which the provider left out an entry it could not address (it could be
+  the newest claim). A provider or database error is `failed`, not `fenced`. `dry_run` reads the fence without claiming it
+  and reports fenced bindings too.
+- **Crash safety.** The intent commits before the object is written. A crash between the two leaves the database one
+  epoch ahead of the bucket with the matching previous token; the next pass finishes the claim under a **fresh** token,
+  so a copy taken in that window cannot adopt the same token as the original.
+- **Takeover.** After a restore, or when the previous owner is gone, `await store.take_over_orphan_collector_fence(
+  acknowledge_previous_owner_gone=True)` claims `max(epoch) + 1` and supersedes every older object and version,
+  including a damaged chain. It refuses without the acknowledgement. Stop the previous owner's collector first: a pass
+  already running notices the new epoch at its next check, at most 25 deletes later.
+
+Known limits. **First claim wins:** nothing in a database distinguishes a copy from the original until one of them
+claims, so a clone that collects before the original has run a pass since the copy claims first and the original is
+fenced (and reported). The clone still cannot delete an object the original wrote after the copy until it is
+`min_age_seconds` old. **Claim from the live database first** when you roll this out: one real pass, or a takeover.
+The fence needs write access to each collected binding (a `read_only` binding collected with `include_read_only`
+included), and a lifecycle rule must not expire `_collector-fence/`.
+
+**Rollout.** The fence table is created by `reporting_row_storage.sql` (`create_schema`), outside the required-schema
+manifest, so a deployment that never enables the collector needs nothing from it. Until it exists a pass reports every
+binding `fenced` with `migration_required`, a dry run included, and deletes nothing. Python supports one writer SDK per
+ledger database; if a JavaScript deployment shares the database, claim from one SDK only.
+
 ## Stored names follow AdCP
 
 Stored values use the names and bounds AdCP already defines (`reporting-file-manifest.json`,
@@ -556,6 +661,7 @@ Tombstones live in `adcp_reporting_period_tombstones`, created with row storage 
 | `row_storage` | `prune_expired_row_sets` | 20 periods |
 | `row_storage` or `change_feed` | `retire_expired_periods` | 20 periods |
 | `change_feed` | `prune_changes` | 10,000 rows |
+| `orphan_collection` | `collect_orphaned_row_objects` | `limit` objects per binding per pass (default 1000), full listings spaced by `interval_seconds` |
 
 Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it.
 Only the closed operation name and integer counters are logged, never an exception, provider message or identifier:
@@ -563,11 +669,13 @@ Only the closed operation name and integer counters are logged, never an excepti
 - `REPORTING_MAINTENANCE_FAILED` (warning): the operation raised or reported failed items (a binding that cannot
   delete, for example). Read `causes` from the result for the stable per-item code.
 - `REPORTING_MAINTENANCE_PENDING` (info): work was left in place on purpose, with the counters `protected`, `held`,
-  `deferred` and `skipped_unconfigured`. A retirement that does nothing because every period is held shows up here
+  `deferred`, `skipped_unconfigured` and `unsupported` (object bindings whose provider cannot list). A retirement that does nothing because every period is held shows up here
   instead of looking like a healthy idle worker.
 - `REPORTING_MAINTENANCE_STALLED` (warning): work nobody is reaching, with `overdue` (intents expired for more than
   `overdue_after_seconds`, default 24 hours, and still unswept: a binding no host configures any more, or one that
-  keeps failing, so objects leak) and `stuck` (periods with five or more failed retirement attempts).
+  keeps failing, so objects leak), `stuck` (periods with five or more failed retirement attempts) and `fenced`
+  (object bindings the orphan collector refused to delete from because another database holds the namespace's claim;
+  see [the clone fence](#the-clone-fence)).
 
 The last pass's counters are also on `ReportingProductionSupport.maintenance_report`, per operation.
 `prune_expired_row_sets` is scheduled so row bytes are reclaimed even while a period's records stay; its only hold is

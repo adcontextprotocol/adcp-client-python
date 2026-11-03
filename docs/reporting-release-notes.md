@@ -53,6 +53,29 @@ Reads handle both forms. `migrate_inline_rows` moves legacy rows with verificati
 rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
 closed. See [row storage](reporting-row-storage.md).
 
+## Opt-in orphaned-object collector, fenced against clones
+
+`PgReportingLedgerStore(orphan_collection=ReportingOrphanCollectionOptionsV1(...))` and
+`collect_orphaned_row_objects` list each object binding under its owned prefix and delete the objects no ledger record
+or open upload names, which the write-intent sweep cannot see (an upload that succeeded before its intent recorded it,
+intents for a binding no host configures, intents lost to a restore). It mirrors the JavaScript SDK
+([adcp-client#3291](https://github.com/adcontextprotocol/adcp-client/pull/3291) and the clone fence in
+[#3593](https://github.com/adcontextprotocol/adcp-client/pull/3593)). Nothing changes unless you opt in. An object is
+deleted only when it is a well-formed row key under `{prefix}/{namespace_key}/`, older than `min_age_seconds` (default
+7 days, minimum 1 day), named by no record or upload at any version under any binding, and unreferenced under the
+per-object lock of every binding. A real pass first claims the namespace in a create-only fence in the bucket and
+refuses to delete while another database holds a newer claim, so a clone or restore of the ledger database that shares
+its namespace key and its opt-in cannot delete the live database's newer objects; `take_over_orphan_collector_fence`
+is the deliberate step after a restore.
+
+Providers gain an optional `list`. The provider conformance suite checks it when present, so its result now ends with a
+`list` entry for providers that implement it; compare accordingly. A provider without `list` keeps working and is
+reported `unsupported`. `create_schema` adds the shared `adcp_reporting_orphan_collector_fences` table, additively and
+outside the required-schema manifest. The production worker reports `fenced` bindings as stalled work and `unsupported`
+bindings as pending work. **Roll out:** start with `dry_run=True`, claim from the live database first, and never enable
+the collector on a copy of the deployment. See [the listing collector](reporting-row-storage.md#orphaned-objects-the-opt-in-listing-collector)
+([#1829](https://github.com/adcontextprotocol/adcp-client-python/issues/1829)).
+
 ## Row binding IDs and credential references accept 255 characters
 
 `row_binding_id` and a binding's `credential_ref` were capped at 128 characters. Every comparable AdCP identifier
