@@ -126,7 +126,10 @@ def import_jwk(jwk: dict[str, Any], *, private: bool = False) -> OKPKey | ECKey:
                 member = jwk.get(name)
                 if not isinstance(member, str) or len(b64url_decode(member)) != _P256_MEMBER_BYTES:
                     raise ValueError(f"P-256 JWK {name} must be {_P256_MEMBER_BYTES} bytes")
-        return key_type.import_key(jwk)
+        # joserfc 1.8 uses Python 3.11 Self; retain the SDK's Python 3.10
+        # static contract at this library boundary.
+        imported: OKPKey | ECKey = key_type.import_key(jwk)
+        return imported
     except (JoseError, ValueError, TypeError, KeyError) as exc:
         raise ValueError(f"unusable {kty}/{crv} JWK: {exc}") from exc
 
