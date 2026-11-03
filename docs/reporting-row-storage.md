@@ -386,7 +386,7 @@ missing. The JavaScript SDK has no replay of `python-written.json`; the live tes
 
 `PgReportingLedgerStore(pool=pool, change_feed=True)` also appends one row to the shared `adcp_reporting_changes`
 table (PostgreSQL 13 or later, `xid8`) for every obligation, revision and adjustment, in the transaction that writes
-the record and after the account lock. The JavaScript SDK writes the same table. It is separate from
+the record. The JavaScript SDK writes the same table. It is separate from
 `reporting_ledger_changes`, the buyer-facing feed behind `changes_checkpoint` and `changes_after`, until the shared
 Core layout.
 
@@ -398,18 +398,44 @@ await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds ba
 await store.changes_after(account_id="acct_a", cursor=page.cursor)
 ```
 
-- **Account feeds** order by `seq` and truncate each page before the first change whose transaction is not below
-  every transaction still in flight (`xid >= pg_snapshot_xmin(pg_current_snapshot())`): a page is the committed prefix
-  in `seq` order and stops there, and its cursor never moves past a held-back change. `seq` is taken under the account
-  lock, but ordering does not rely on that lock. Truncation is deliberate: a plain `xid < xmin` *filter* would be
-  wrong, because `seq` order and `xid` order can differ, and it would hand out a later change while skipping an earlier
-  one it excluded. `xmin` is cluster-wide, so **any older open transaction anywhere in the database holds account pages
-  back until it ends, and an empty page can mean "caught up" or "held back"**; poll again rather than concluding
-  nothing is new. The row scan is still served by the `(account_id, seq)` index. This narrows the window for a second
-  writer but does not close it for every interleaving: one writer SDK per database remains the contract.
-- **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
-  older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
-  this feed; it never makes it lose a record.
+- **Every feed orders by `(xid, seq)`**, account-scoped or deployment-wide (no `account_id`), and returns only changes
+  whose transaction is older than every transaction still in flight (`xid < pg_snapshot_xmin(pg_current_snapshot())`),
+  so a slow commit is never skipped. The order does not depend on the account lock, on the order a writer drew `seq`
+  in, or on which lock key a writer took: a change with a lower `seq` and a higher `xid` that commits late is returned
+  on a later page, after the cursor. The cost is that `xmin` is cluster-wide, so **any older open transaction anywhere
+  in the database holds every feed back until it ends, and an empty page can mean "caught up" or "held back"**; poll
+  again rather than concluding nothing is new, and keep transactions short. The account scan is served by the
+  `(account_id, xid, seq)` index that `create_schema` creates. One writer SDK per database remains the contract: a
+  second SDK can write rows the first SDK's lifecycle, retention and idempotency logic does not know about.
+- **Account cursors carry `xid`** (`{"v":1,"account":...,"seq":...,"xid":...}`), the same bytes the JavaScript SDK
+  writes. Store the cursor string opaquely. Cursor `seq` and `xid` are range-checked, so a value the database would
+  reject raises `ValueError`, never a driver error.
+- **Upgrading from account cursors that carry only `seq`.** Account feeds used to order by `seq` and truncate each
+  page before the first in-flight change. A cursor saved then has no `xid`. `changes_after` accepts it and maps it to
+  the position `(X, S)`, where `X` is the smaller of the oldest `xid` among the account's changes after `S` and the
+  reading snapshot's `xmin`. Every change after `S` has an `xid` at or above both (a change that has not committed yet
+  belongs to a transaction at or above `xmin`), so nothing is skipped. The cost is redelivery: changes the consumer
+  already read can come back (those with a lower `seq` and a higher `xid`, and, if a long transaction was open at that
+  moment, every change committed since it began), so treat redelivery as normal, as for any at-least-once consumer.
+  The returned cursor is in the new format even on an empty page, so a sink saves it with its next batch. A seq-only
+  cursor raises `CURSOR_EXPIRED` when **any** change with a higher `seq` was pruned: `pruned_through_seq` still records
+  the highest `seq` pruned, whatever its `xid`, for exactly this check, because a tuple compare alone would miss a
+  pruned change with a higher `seq` and a lower `xid`. A consumer registered before the upgrade has a NULL `cursor_xid`
+  and holds retention by `seq` until its next `save_feed_consumer_cursor`; saving a seq-only cursor registers the
+  mapped position.
+- **Rolling out the `(xid, seq)` account feed.** `create_schema` applies `reporting_changes.sql`, which is idempotent:
+  it adds `pruned_through_xid` and `pruned_through_xid_seq` to `adcp_reporting_change_account_horizon`, replaces the
+  `adcp_reporting_feed_consumers` check constraint with `adcp_reporting_feed_consumers_cursor_scope` (an account
+  consumer may now carry an `xid`; a pre-upgrade account row keeps a NULL one), and creates
+  `adcp_reporting_changes_account_xid`. On a large `adcp_reporting_changes` table create the index first with
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS adcp_reporting_changes_account_xid ON adcp_reporting_changes
+  (account_id, xid, seq)`, because a plain `CREATE INDEX` blocks appends while it builds; the migration then skips it.
+  The old `(account_id, seq)` index stays, because it serves the seq-only mapping; drop it once no older host runs.
+  **Do not run an older host's change maintenance (`prune_changes`, `retire_expired_periods`) alongside the new
+  reader.** The older code holds an account consumer's changes by `seq` alone and records only `pruned_through_seq`,
+  so against a consumer holding new-format cursors it can prune a change the consumer has not read without advancing
+  the horizon the new reader checks. Stop the older hosts' maintenance, or the hosts, first. Rolling back after a
+  consumer saved a new-format account cursor is not supported (the older SDK rejects it): reset those consumers.
 - A cursor older than the retained history raises `ReportingChangeCursorExpiredError` (`code == "CURSOR_EXPIRED"`).
   Resynchronize from `list_current_revisions` and resume from the cursor returned with that read.
 - **A read with no cursor can raise `CURSOR_EXPIRED` too.** `changes_after` reads the prune horizon, reads the page,
@@ -418,12 +444,15 @@ await store.changes_after(account_id="acct_a", cursor=page.cursor)
   The page is rejected instead. Retrying the read starts from the new, later horizon, which is the oldest retained
   change; a consumer that had been reading from a cursor resynchronizes from `list_current_revisions` as usual. Handle
   `CURSOR_EXPIRED` on every `changes_after` call, including a first read, by matching `error.code`.
-- A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
-  `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
-  `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
+- A registered consumer holds back `prune_changes` and `retire_expired_periods` until it has passed those changes in
+  `(xid, seq)` order (an account consumer only within its account), up to `max_feed_hold_days` (default 7) after its
+  last update, so a dead consumer cannot block retention. `prune_changes` takes its victims in `(xid, seq)` order and
+  records a per-account `(xid, seq)` horizon, so a batch cut by its limit never leaves a retained change below the
+  horizon. Schedule `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes
+  in both SDKs.
 - **Checkpoints are forward-only within a feed scope.** `save_feed_consumer_cursor` ignores a cursor behind the saved
   one, so a delayed or repeated acknowledgment cannot pull the consumer, or its retention hold, backward and make it
-  reprocess changes. Account consumers compare `seq`; deployment consumers compare `(xid, seq)`. The call returns
+  reprocess changes. Every consumer compares `(xid, seq)`. The call returns
   `True` when it wrote the checkpoint and `False` when it ignored it (behind the saved position, or equal with
   `refresh_unchanged=False`). An equal cursor by default rewrites the checkpoint and renews the hold, which is the
   heartbeat for an idle consumer. A change of scope (account to deployment, deployment to account, or between
