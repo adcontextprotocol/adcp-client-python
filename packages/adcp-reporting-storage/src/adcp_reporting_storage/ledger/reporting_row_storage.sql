@@ -107,7 +107,9 @@ CREATE TABLE IF NOT EXISTS adcp_persistence_installation (
 INSERT INTO adcp_persistence_installation (singleton) VALUES (TRUE) ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS adcp_reporting_row_bindings (
-  row_binding_id TEXT COLLATE "C" PRIMARY KEY CHECK (row_binding_id ~ '^[A-Za-z0-9_.:-]{1,128}$'),
+  row_binding_id TEXT COLLATE "C" PRIMARY KEY
+    CONSTRAINT adcp_reporting_row_bindings_row_binding_id_bounds
+    CHECK (row_binding_id ~ '^[A-Za-z0-9_.:-]{1,255}$'),
   kind TEXT NOT NULL CHECK (kind IN ('postgres', 'object')),
   provider TEXT NOT NULL CHECK (provider ~ '^[a-z][a-z0-9_]{0,63}$'),
   identity_config JSONB NOT NULL CHECK (jsonb_typeof(identity_config) = 'object'),
@@ -315,6 +317,41 @@ BEGIN
   END IF;
 END
 $bounds$;
+
+-- row_binding_id is bounded like AdCP's comparable identifiers (reporting_revision_id,
+-- resource_ref and destination_ref use ^[A-Za-z0-9_.:-]{1,255}$): 255 characters, where the
+-- original CHECK allowed 128 (adcp-client-python#1498, adcp-client#3595). A database installed
+-- with the original unnamed CHECK drops it and gets the named constraint a fresh install carries
+-- inline. Guarded on the catalog, so a current schema changes nothing. Widening a CHECK needs no
+-- data migration, and the tables that reference row_binding_id hold it by foreign key only. The
+-- constraint name and the bound are the JavaScript SDK's, so either SDK re-applying is a no-op.
+DO $binding_id_bound$
+DECLARE
+  bindings regclass := to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_bindings');
+  legacy TEXT;
+BEGIN
+  IF bindings IS NULL THEN
+    RETURN;
+  END IF;
+  FOR legacy IN
+    SELECT conname FROM pg_constraint
+     WHERE conrelid = bindings AND contype = 'c'
+       AND conname <> 'adcp_reporting_row_bindings_row_binding_id_bounds'
+       AND strpos(pg_get_constraintdef(oid), 'row_binding_id') > 0
+       AND strpos(pg_get_constraintdef(oid), '{1,128}') > 0
+  LOOP
+    EXECUTE format('ALTER TABLE adcp_reporting_row_bindings DROP CONSTRAINT %I', legacy);
+  END LOOP;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conrelid = bindings AND conname = 'adcp_reporting_row_bindings_row_binding_id_bounds'
+  ) THEN
+    ALTER TABLE adcp_reporting_row_bindings
+      ADD CONSTRAINT adcp_reporting_row_bindings_row_binding_id_bounds
+      CHECK (row_binding_id ~ '^[A-Za-z0-9_.:-]{1,255}$');
+  END IF;
+END
+$binding_id_bound$;
 
 -- Open write intents written before the rename name objects objectKey / nativeVersion.
 UPDATE adcp_reporting_row_write_intents

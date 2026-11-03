@@ -164,6 +164,13 @@ await store.create_schema()
   fails with `UNSAFE_BINDING`, never `INVALID_INPUT`, which would read as bad rows), is not part of the binding
   identity, and is still used for reads and retirement. Rows already written stay readable at their recorded
   `object_ref`; reads never re-render a key. Keep a retired binding configured while revisions still reference it.
+- **Identifiers you choose are AdCP-bounded.** A binding ID and a binding's `credential_ref` (and the keys of a
+  provider's `clients` map) are 1 to 255 characters of `A-Za-z0-9_.:-`, the bound `reporting_revision_id`,
+  `resource_ref` and `destination_ref` use (`REPORTING_ROW_BINDING_ID_MAX_LENGTH` and
+  `REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH` in `adcp_reporting_storage.ledger.row_storage_object`). They were capped at
+  128, so an ID derived from an AdCP destination reference could be refused for no protocol reason. A longer or
+  malformed value fails `INVALID_INPUT` at configuration with the bound named (a long ID is truncated in the message,
+  never echoed whole). The `adcp_reporting_row_bindings` `CHECK` is the same bound.
 - **`{period_date}` is AdCP's `YYYY-MM-DD`**: the calendar date of the period start in the period's
   `source_timezone`, as one path segment (a period starting `2026-10-01T00:00:00Z` in `America/Los_Angeles` is
   `2026-09-30`). It fails closed (`INVALID_INPUT`) on a missing, unknown or non-IANA timezone and never assumes UTC;
@@ -334,6 +341,7 @@ by an earlier release in place, idempotently, under both SDKs' migration advisor
 | `adcp_reporting_row_chunks.byte_count` | `canonical_size_bytes` | uncompressed canonical bytes; the digest-pinned manifest value |
 | `adcp_reporting_row_sets.canonical_byte_count` | `content_size_bytes` | size of the content `content_sha256` covers (a revision's includes the envelope, so it is not the sum of its chunks) |
 | `adcp_reporting_row_sets.encoding` | `format` = `jsonl`, `algorithm` = `adcp_jcs_rows_v1` | `adcp_jcs_rows_v1` names the per-row RFC 8785 canonicalization |
+| `adcp_reporting_row_bindings.row_binding_id` `CHECK` `{1,128}` (unnamed) | `{1,255}`, named `adcp_reporting_row_bindings_row_binding_id_bounds` | AdCP's identifier bound; `credential_ref` is bounded the same in code (it lives in `operational_config`) |
 
 In Python: `ReportingRowChunkLocatorV1` has `object_ref`, `native_version_ref` and `size_bytes`; provider inputs take
 `object_ref` and `native_version_ref`; `ReportingRowBindingSelectionInputV1.content_size_bytes` replaces
@@ -342,6 +350,15 @@ In Python: `ReportingRowChunkLocatorV1` has `object_ref`, `native_version_ref` a
 change, and no digest changed: the format and algorithm tokens feed none. Open write intents record
 `{"object_ref", "native_version_ref"}`; the sweep and the reference check also read the earlier `objectKey` /
 `nativeVersion` spelling, for a writer still running during a rolling upgrade.
+
+Widening `row_binding_id` drops the original unnamed `{1,128}` `CHECK` (found through `pg_get_constraintdef`) and adds
+the named `{1,255}` one, only when the database still has the old one, so a current schema changes nothing and no data
+migrates; the two tables that reference the ID hold it by foreign key only. A host-customised constraint of another
+shape is left alone. The startup catalog check requires the new constraint, so an application upgraded before
+`create_schema` runs fails closed with `STATE_UNAVAILABLE` naming `adcp_reporting_row_bindings_row_binding_id_bounds`,
+and an older binary fails closed against an upgraded database (it requires the original constraint name): stop older
+writers first. The JavaScript SDK makes the same change with the same constraint name
+([adcp-client#3595](https://github.com/adcontextprotocol/adcp-client/pull/3595)).
 
 The migration does not rewrite recorded object keys. Objects written before the upgrade keep their recorded
 `object_ref` (rendered under the old UTC `yyyy/MM/dd` layout), so reads, retention and deletes keep working; new writes

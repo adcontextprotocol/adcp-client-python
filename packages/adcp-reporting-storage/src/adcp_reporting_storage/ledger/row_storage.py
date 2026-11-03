@@ -25,7 +25,6 @@ import gzip
 import hashlib
 import inspect
 import json
-import re
 import zlib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -55,6 +54,8 @@ from adcp.reporting.ledger.row_storage_errors import (
     ReportingRowStoreErrorCode,
 )
 from adcp_reporting_storage.ledger.row_storage_object import (
+    REPORTING_ROW_BINDING_ID_MAX_LENGTH,
+    REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH,
     REPORTING_ROW_DEFAULT_KEY_TEMPLATE,
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
@@ -66,6 +67,7 @@ from adcp_reporting_storage.ledger.row_storage_object import (
     assert_reporting_row_prefix_v1,
     render_reporting_row_object_key_v1,
 )
+from adcp_reporting_storage.ledger.row_storage_provider_io import is_row_identifier
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.row_encoding import (
@@ -105,8 +107,6 @@ RowSetKind = Literal["revision", "adjustment"]
 Compression = Literal["none", "gzip"]
 
 _DEFAULT_BINDING_ID = "postgres"
-_BINDING_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
-_CREDENTIAL_REF = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _NATIVE_VERSION_REF_MAX_LENGTH = 1024
 #: Upper bound for adopting an existing object whose encoding may differ byte for byte.
 _MAX_ADOPTED_OBJECT_BYTES = 2 * REPORTING_ROW_CHUNK_MAX_BYTES + 1024 * 1024
@@ -141,7 +141,8 @@ class ReportingObjectRowBindingV1:
     key_template: str | None = None
     #: Stored encoding. Digests always cover uncompressed bytes.
     compression: Compression = "gzip"
-    #: Host-mapped client reference passed to the provider; never a secret.
+    #: Host-mapped client reference passed to the provider; never a secret. 1 to
+    #: ``REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH`` (255) characters of ``A-Za-z0-9_.:-``.
     credential_ref: str | None = None
     #: Keep this binding configured only to read (and retire) row sets already written through
     #: it, for example under an older template without ``{revision_key}``. A read-only binding is
@@ -171,8 +172,9 @@ class ReportingRowStorageOptionsV1:
 
     ``bindings`` maps a logical binding ID to its immutable definition. Changing
     a definition requires a new ID; keep retired definitions configured while
-    revisions still reference them. ``deployment_namespace`` is combined with the
-    schema's installation identity into each binding's ``namespace_key``, so two
+    revisions still reference them. An ID is 1 to ``REPORTING_ROW_BINDING_ID_MAX_LENGTH`` (255)
+    characters of ``A-Za-z0-9_.:-``, the AdCP identifier bound. ``deployment_namespace`` is
+    combined with the schema's installation identity into each binding's ``namespace_key``, so two
     SDKs on one database must use the same value. ``select_row_binding`` picks the
     binding for each new row set; it defaults to the only binding, or ``postgres``.
     """
@@ -386,9 +388,13 @@ class ReportingRowStorageV1:
             raise ReportingRowStoreError("INVALID_INPUT", "at least one row binding is required")
         providers = dict(options.providers or {})
         for binding_id, binding in bindings.items():
-            if not _BINDING_ID.match(binding_id):
+            if not is_row_identifier(binding_id):
+                # Quoted and truncated, so a hostile ID is not echoed whole into logs.
+                shown = binding_id if len(str(binding_id)) <= 64 else f"{str(binding_id)[:64]}..."
                 raise ReportingRowStoreError(
-                    "INVALID_INPUT", f"invalid row binding ID {binding_id}"
+                    "INVALID_INPUT",
+                    f"invalid row binding ID {json.dumps(shown)}: use 1 to "
+                    f"{REPORTING_ROW_BINDING_ID_MAX_LENGTH} characters of A-Za-z0-9_.:-",
                 )
             if isinstance(binding, ReportingPostgresRowBindingV1):
                 continue
@@ -408,11 +414,11 @@ class ReportingRowStorageV1:
                 raise ReportingRowStoreError(
                     "INVALID_INPUT", f"row binding {binding_id} has an unsupported compression"
                 )
-            if binding.credential_ref is not None and not _CREDENTIAL_REF.match(
-                binding.credential_ref
-            ):
+            if binding.credential_ref is not None and not is_row_identifier(binding.credential_ref):
                 raise ReportingRowStoreError(
-                    "INVALID_INPUT", f"row binding {binding_id} has an invalid credential_ref"
+                    "INVALID_INPUT",
+                    f"row binding {binding_id} has an invalid credential_ref: use 1 to "
+                    f"{REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH} characters of A-Za-z0-9_.:-",
                 )
         namespace = options.deployment_namespace
         if not namespace or len(namespace) > 256:

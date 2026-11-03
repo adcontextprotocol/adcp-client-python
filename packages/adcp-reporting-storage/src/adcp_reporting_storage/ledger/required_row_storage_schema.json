@@ -291,9 +291,9 @@
     "enabled": true,
     "fingerprint": "b0825d60a99952fe5be6f33e0123ae5166e1d17eda49af821d22a5ca8856e13b"
   },
-  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_row_binding_id_check": {
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_row_binding_id_bounds": {
     "enabled": true,
-    "fingerprint": "a804a095e5b6b0b8434f809b087674c480399eef72e852c297ad00ecb3c5694c"
+    "fingerprint": "700166f3efc148bd5cab036b1fcdf3ae35acba6f2a127c24fa9f8888187d8c1d"
   },
   "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_state_check": {
     "enabled": true,
