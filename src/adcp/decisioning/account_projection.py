@@ -34,6 +34,15 @@ strip on every response:
   model (``list_accounts`` rows, ``account_requests[]``,
   ``request_account``, ``sync_accounts`` results, embedded accounts).
 
+The framework's own :class:`adcp.decisioning.Account` also carries two
+framework-internal fields that are never wire fields:
+``metadata`` (adopter state — upstream adapters, OAuth tokens, network
+ids) and ``auth_info`` (the verified principal). :func:`to_wire_account`
+omits them by construction; the scrubber drops them from every account
+position (see :data:`_FRAMEWORK_INTERNAL_ACCOUNT_KEYS`) so a store that
+returns plain dicts, or a handler that spreads the internal object, does
+not serve them either.
+
 The schemas describe both rules in docstrings; neither is structurally
 enforced by Pydantic. The helpers here ARE the structural enforcement.
 Defense-in-depth: even when an adopter returns a loosely-typed row
@@ -87,7 +96,9 @@ def project_account_for_response(account: Account) -> Account:
     project through this helper before serializing on any response.
     Also clears :attr:`Account.destination_billing_entity`, a
     request-only staging field that MUST NOT appear in account read
-    models.
+    models, and drops the framework-internal ``metadata`` /
+    ``auth_info`` keys when they ride the model as ``extra='allow'``
+    extras (neither is a wire ``Account`` field).
 
     Returns an unchanged copy when neither field needs stripping —
     defensive copy via ``model_copy()`` so callers can mutate the
@@ -100,7 +111,13 @@ def project_account_for_response(account: Account) -> Account:
         update["destination_billing_entity"] = None
     if account.billing_entity is not None and account.billing_entity.bank is not None:
         update["billing_entity"] = account.billing_entity.model_copy(update={"bank": None})
-    return account.model_copy(update=update) if update else account.model_copy()
+    projected = account.model_copy(update=update) if update else account.model_copy()
+    extra = projected.__pydantic_extra__
+    if extra and not _FRAMEWORK_INTERNAL_ACCOUNT_KEYS.isdisjoint(extra):
+        projected.__pydantic_extra__ = {
+            k: v for k, v in extra.items() if k not in _FRAMEWORK_INTERNAL_ACCOUNT_KEYS
+        }
+    return projected
 
 
 def project_business_entity_for_response(entity: BusinessEntity) -> BusinessEntity:
@@ -385,6 +402,25 @@ CREDENTIAL_BEARING_METHODS: frozenset[str] = frozenset(
 )
 
 
+#: Fields of the framework's internal :class:`adcp.decisioning.Account`
+#: that are never wire fields: ``metadata`` (adopter state, which can hold
+#: upstream adapters and OAuth tokens) and ``auth_info`` (the verified
+#: principal). :func:`to_wire_account` omits them; the scrubber drops them
+#: from account positions only (an ``account`` object, an ``accounts[]``
+#: row), because ``metadata`` IS a wire field elsewhere on scrubbed
+#: responses (``list_creatives`` ``creatives[].pricing_options[].metadata``).
+#: No AdCP ``Account``, account-with-authorization, ``sync_accounts`` or
+#: ``sync_governance`` row schema defines either key.
+_FRAMEWORK_INTERNAL_ACCOUNT_KEYS: frozenset[str] = frozenset({"metadata", "auth_info"})
+
+
+def _drop_framework_internal_account_keys(value: Any) -> Any:
+    """Drop :data:`_FRAMEWORK_INTERNAL_ACCOUNT_KEYS` from an account-position dict."""
+    if isinstance(value, dict) and not _FRAMEWORK_INTERNAL_ACCOUNT_KEYS.isdisjoint(value):
+        return {k: v for k, v in value.items() if k not in _FRAMEWORK_INTERNAL_ACCOUNT_KEYS}
+    return value
+
+
 def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``value`` with credential-shaped fields stripped.
 
@@ -397,6 +433,11 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
     * ``destination_billing_entity`` — request-only handoff staging
       field; dropped wholesale (non-bank fields included) because it
       MUST NOT appear in any account read model.
+    * ``metadata`` / ``auth_info`` on an ``account`` object or an
+      ``accounts[]`` row — framework-internal :class:`Account` fields
+      (:data:`_FRAMEWORK_INTERNAL_ACCOUNT_KEYS`), never wire fields.
+      Positional, not by bare name: ``metadata`` is a wire field
+      elsewhere.
 
     Walks recursively into nested dicts and lists. Returns a NEW dict —
     the input is not mutated, so callers (idempotency replay cache,
@@ -440,6 +481,10 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
                 _scrub_error_dict(error) if isinstance(error, dict) else error
                 for error in normalized_errors
             ]
+        elif key == "account":
+            out[key] = _drop_framework_internal_account_keys(_scrub_value(sub))
+        elif key == "accounts" and isinstance(sub, list):
+            out[key] = [_drop_framework_internal_account_keys(_scrub_value(a)) for a in sub]
         elif key == "adcp_error":
             normalized_error = _scrub_value(sub)
             out[key] = (
@@ -497,8 +542,9 @@ def strip_credentials_from_wire_result(method_name: str, result: Any) -> Any:
 
     Defense-in-depth boundary called by the dispatcher on every
     response that may surface an :class:`Account` envelope. Removes
-    ``governance_agents[i].authentication``, ``billing_entity.bank`` and
-    the request-only ``destination_billing_entity`` recursively — the
+    ``governance_agents[i].authentication``, ``billing_entity.bank``,
+    the request-only ``destination_billing_entity`` and the
+    framework-internal account ``metadata`` / ``auth_info`` recursively — the
     same fields the typed projections
     (:func:`to_wire_account`, :func:`to_wire_sync_governance_row`)
     strip when the adopter returns the framework's typed dataclasses.
