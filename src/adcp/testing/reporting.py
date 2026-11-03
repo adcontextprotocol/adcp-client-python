@@ -460,7 +460,7 @@ def _add_buy(world: ReportingWorld, buy: Mapping[str, Any]) -> dict[str, Any]:
 
 
 class ReportingTestController(TestControllerStore):
-    """``seed_media_buy`` and ``reporting_subscription_probe`` for the reference seller.
+    """The reference seller's controller: ``seed_media_buy``, the probe and ``reset_state``.
 
     Every probe acts on the authenticated caller's own grant on a sandbox
     account, then processes the change as production would (a reconcile and,
@@ -470,6 +470,12 @@ class ReportingTestController(TestControllerStore):
     def __init__(self, seller: ReferenceSeller) -> None:
         self._seller = seller
         self._lock = asyncio.Lock()
+        #: False after ``reset_state`` until the next ``advance_time``.
+        self._pinned = True
+        #: principal -> accounts its probe acted on since the last reset.
+        self._touched: dict[str, set[str]] = {}
+        #: account_id -> its timezone before the probe first changed it.
+        self._original_timezones: dict[str, str] = {}
 
     async def seed_media_buy(
         self,
@@ -501,17 +507,22 @@ class ReportingTestController(TestControllerStore):
         principal = _principal(context)
         result: dict[str, Any] = {}
         async with self._lock:
+            self._follow_wall_clock()
             if operation == "advance_time":
                 assert target_time is not None
                 await self._advance_to(_instant(target_time))
+                self._pinned = True
             else:
                 assert account_id is not None
                 if account_id not in seller.world.accounts:
                     raise TestControllerError("NOT_FOUND", f"unknown account {account_id!r}")
+                result["account_id"] = account_id
                 grant = seller.world.grant(principal, account_id)
+                self._touched.setdefault(principal, set()).add(account_id)
                 if operation == "revoke_grant":
                     grant.active = False
                     await self._touch(account_id, context, principal=principal)
+                    result["unauthorized_at"] = iso_z(seller.clock())
                 elif operation == "regrant":
                     grant.active = True
                     grant.allowed_tasks = GRANTED_TASKS
@@ -520,16 +531,101 @@ class ReportingTestController(TestControllerStore):
                 elif operation == "reduce_grant":
                     grant.allowed_tasks = tuple(allowed_tasks or ())
                     await self._touch(account_id, context, principal=principal)
+                    result["allowed_tasks"] = list(grant.allowed_tasks)
                 elif operation == "set_account_timezone":
                     assert timezone is not None
-                    account = seller.world.accounts[account_id]
-                    result["previous_timezone"] = account.get("timezone")
-                    account["timezone"] = timezone
-                    await self._touch(account_id, context, principal=principal)
-                    result["cutovers"] = await self._cutovers(principal, account_id)
+                    result.update(
+                        await self._set_timezone(principal, account_id, timezone, context)
+                    )
                 else:  # pragma: no cover - the dispatcher validated it
                     raise TestControllerError("INVALID_PARAMS", f"unknown operation {operation}")
-        return {"success": True, "simulated_now": iso_z(seller.clock()), **result}
+        return {"simulated_now": iso_z(seller.clock()), **result}
+
+    async def reset_state(self, *, context: ToolContext | None = None) -> dict[str, Any]:
+        """``reset_state`` (AdCP 3.3.0-beta.4): undo what the probe did for the caller.
+
+        Unpins the clock, so ``simulated_now`` reads the wall clock until the
+        next ``advance_time``, and keeps every account the caller's probe
+        acted on with its full default grant restarting now and the timezone
+        it had before the probe first changed it, with no recorded loss,
+        re-grant, reduction or cutover. The reference seller runs one clock
+        for every principal, so unpinning it is seen by every caller.
+        """
+        from adcp._principal_ref import PrincipalRef
+
+        seller = self._seller
+        principal = _principal(context)
+        engine = seller.service._subscriptions.engine
+        async with self._lock:
+            self._pinned = False
+            self._follow_wall_clock()
+            now = seller.clock()
+            for account_id in sorted(self._touched.pop(principal, set())):
+                account = seller.world.accounts.get(account_id)
+                if account is None:
+                    continue
+                grant = seller.world.grant(principal, account_id)
+                grant.active = True
+                grant.allowed_tasks = GRANTED_TASKS
+                original = self._original_timezones.get(account_id)
+                if original is not None:
+                    account["timezone"] = original
+                await engine.discard_sandbox_changes(
+                    PrincipalRef(None, principal),
+                    account_id,
+                    at=now,
+                    timezone=account.get("timezone"),
+                )
+                await self._touch(account_id, context, principal=principal)
+        return {"success": True}
+
+    def _follow_wall_clock(self) -> None:
+        """While unpinned (after ``reset_state``), the sandbox clock is the wall clock."""
+        if not self._pinned:
+            self._seller.clock.set(datetime.now(timezone.utc).replace(microsecond=0))
+
+    async def _set_timezone(
+        self, principal: str, account_id: str, zone: str, context: Any
+    ) -> dict[str, Any]:
+        """``SetAccountTimezoneResult`` (AdCP 3.3.0-beta.4)."""
+        from adcp.reporting.subscriptions._clock import require_zone
+        from adcp.reporting.subscriptions.resolution import SubscriptionOffering
+
+        seller = self._seller
+        try:
+            require_zone(zone)
+        except ValueError as error:
+            raise TestControllerError("INVALID_PARAMS", str(error)) from None
+        account = seller.world.accounts[account_id]
+        previous = str(account.get("timezone") or "UTC")
+        result: dict[str, Any] = {
+            "previous_timezone": previous,
+            "timezone": zone,
+            "timezone_cutovers": [],
+        }
+        if zone == previous:
+            return result  # nothing changed: no changed_at, no cutovers
+        changed_at = seller.clock()
+        self._original_timezones.setdefault(account_id, previous)
+        account["timezone"] = zone
+        await self._touch(account_id, context, principal=principal)
+        result["changed_at"] = iso_z(changed_at)
+        for raw in seller.offerings:
+            offering = SubscriptionOffering.from_offering(raw)
+            if offering.alignment != "account_timezone":
+                continue
+            # The end of the offering's last old-timezone period that started
+            # before changed_at: its first old-timezone boundary at or after it.
+            effective_at = offering.calendar(previous).ceil(changed_at)
+            result["timezone_cutovers"].append(
+                {
+                    "offering_id": offering.offering_id,
+                    "previous_timezone": previous,
+                    "timezone": zone,
+                    "effective_at": iso_z(effective_at),
+                }
+            )
+        return result
 
     async def _touch(self, account_id: str, context: Any, *, principal: str | None = None) -> None:
         service = self._seller.service
@@ -561,16 +657,6 @@ class ReportingTestController(TestControllerStore):
             result["authorized_at"] = iso_z(start)
         if regranted is not None:
             result["regranted_at"] = iso_z(regranted)
-        return result
-
-    async def _cutovers(self, principal: str, account_id: str) -> list[dict[str, Any]]:
-        from adcp._principal_ref import PrincipalRef
-
-        engine = self._seller.service._subscriptions.engine
-        result = []
-        for entry in await engine.subscription_coverage(PrincipalRef(None, principal), account_id):
-            for item in entry.timezone_cutovers or ():
-                result.append(item.model_dump(mode="json", exclude_none=True))
         return result
 
     async def _advance_to(self, target: datetime) -> None:
@@ -849,6 +935,36 @@ class KitBuys:
             "seed_media_buy", principal or self._kit.default_principal, fixture=dict(buy)
         )
         return str(result["media_buy_id"])
+
+    async def add_package(
+        self,
+        media_buy_id: str,
+        package: Mapping[str, Any],
+        *,
+        at: Any = None,
+        principal: str | None = None,
+    ) -> str:
+        """Add a package to a confirmed buy at ``at`` (default now).
+
+        ``get_media_buys`` then serves it with ``added_at`` (AdCP 3.3.0-beta.4),
+        the package's own ``confirmed_at``: it is owed the periods that end
+        after that instant, and adding it is never a cutover.
+        """
+        world = self._kit.world
+        if world is None:
+            raise NotImplementedError(
+                "add_package needs the reference seller; seed the change yourself"
+            )
+        buy = world.buys[media_buy_id]
+        when = self._kit.clock.now() if at is None else _instant(at)
+        record = {"product_id": "reference", **package, "added_at": iso_z(when)}
+        if not record.get("package_id"):
+            record["package_id"] = f"{media_buy_id}-pkg-{len(buy.get('packages') or ()) + 1}"
+        buy.setdefault("packages", []).append(record)
+        await self._kit._controller_call(
+            "seed_media_buy", principal or self._kit.default_principal, fixture=buy
+        )
+        return str(record["package_id"])
 
     async def cancel(
         self, media_buy_id: str, *, at: Any = None, principal: str | None = None

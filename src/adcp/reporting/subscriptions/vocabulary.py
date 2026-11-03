@@ -42,6 +42,7 @@ COVERAGE_REASON_CODES: Mapping[str, str | None] = {
     "outside_flight": "flight",
     "after_stop": "flight",
     "before_confirmation": "confirmation",
+    "before_package_added": "confirmation",
     "excluded:capacity": "exception",
     "excluded:overridden": "exception",
     "excluded:action_required": "exception",

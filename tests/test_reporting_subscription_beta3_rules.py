@@ -247,36 +247,36 @@ def test_a_billing_cutover_stub_is_owed_written_and_served() -> None:
 # -- seller refusals -------------------------------------------------------------
 
 
-def test_a_destination_offering_without_account_id_keys_is_warned(caplog) -> None:
-    """adcp#8619: a managed-delivery offering's rows are keyed by account_id.
+def test_a_destination_offering_without_account_id_keys_is_refused() -> None:
+    """adcp#8619, 3.3.0-beta.4: a managed-delivery offering's rows are keyed by account_id.
 
-    Warned at configuration rather than refused while existing row contracts
-    migrate; the warning names the offering.
+    Refused at configuration with SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY (it was
+    warned in beta.3); the error names the offering and what is missing.
     """
-    import logging
+    from adcp.reporting import ReliableReportingConfigurationError
 
     delivered = {
         **_offering("off-files", "utc"),
         "method": {"pattern": "file_transfer", "transport": "s3"},
         "reporting_profile": {"id": "delivery", "primary_keys": ["package_id"]},
     }
-    with caplog.at_level(logging.WARNING, logger="adcp.reporting.subscriptions.managed"):
-        (offering,) = ManagedSubscriptions._offerings([delivered], {})
-    assert offering.method_pattern == "file_transfer"
-    assert any(
-        getattr(record, "event", None) == "reporting.subscription.offering_primary_keys"
-        and "off-files" in record.getMessage()
-        for record in caplog.records
+    with pytest.raises(ReliableReportingConfigurationError) as refused:
+        ManagedSubscriptions._offerings([delivered], {})
+    error = refused.value
+    assert (error.code, error.recovery, error.config_field) == (
+        "SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY",
+        "correctable",
+        "capability_offerings",
     )
-    caplog.clear()
+    assert error.context == {"offering_id": "off-files", "missing": "primary_key"}
+    assert "off-files" in str(error)
     keyed = {**delivered, "reporting_profile": {"id": "delivery", "primary_keys": ["account_id"]}}
-    with caplog.at_level(logging.WARNING, logger="adcp.reporting.subscriptions.managed"):
-        ManagedSubscriptions._offerings([keyed], {})
+    (offering,) = ManagedSubscriptions._offerings([keyed], {})
+    assert offering.method_pattern == "file_transfer"
     # An API-delivered offering is not a managed-delivery offering.
     ManagedSubscriptions._offerings(
         [{**_offering("off-api", "utc"), "reporting_profile": {"id": "delivery"}}], {}
     )
-    assert not caplog.records
 
 
 def test_assert_reporting_task_granted_refuses_an_unlisted_task() -> None:

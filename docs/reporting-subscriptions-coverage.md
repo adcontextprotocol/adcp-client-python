@@ -97,6 +97,7 @@ The frozen vocabulary comes from the spec's `reason-codes.json`, packaged with t
 | `outside_flight` | not owed | flight | Not owed: the period ends {end}, at or before {buy} starts at {start_time}. |
 | `after_stop` | not owed | flight | Not owed: the period starts {start}, at or after {buy} stopped at {stop_time}. |
 | `before_confirmation` | not owed | confirmation | Not owed: the period ends {end}, before {buy} was confirmed at {confirmed_at}. |
+| `before_package_added` | not owed | confirmation | Not owed: the period ends {end}, by {added_at}, before any package of {buy} resolving {offering} was added to it. |
 | `excluded:capacity` | not owed | exception | Not owed: account {account} is beyond the seller's subscription capacity from {from}. |
 | `excluded:overridden` | not owed | exception | Not owed: another of the caller's delivery configurations takes {account} for this feed from {from}. |
 | `excluded:action_required` | not owed | exception | Not owed: the seller serves account {account} only after a pending action completes; excluded from {from}. |
@@ -119,6 +120,14 @@ A period that ends at or before the buy's `confirmed_at` is not owed (`before_co
 > Not owed: the period ends 2026-11-04T05:00Z, before mb_123 was confirmed at 2026-11-04T10:00Z.
 >
 > Owed: mb_123 under daily_pkg for the period 2026-11-04T05:00Z to 2026-11-05T05:00Z, due at 2026-11-05T11:00Z.
+
+### A package added later
+
+A package added to a confirmed buy carries `added_at` on `get_media_buys` (3.3.0-beta.4), and `added_at` is that package's own `confirmed_at`. Each package is owed from the later of the buy's `confirmed_at` and its `added_at` (`confirmed_at` alone when `added_at` is absent: the package was part of the buy at confirmation). The buy owes a period of an offering when the period ends after that instant for at least one package resolving the offering. So the period containing `added_at` is owed in full, earlier periods are owed only through packages the buy already had, and adding a package is never a cutover. When every package resolving the offering was added after the period ended, the reason is `before_package_added`.
+
+The package also resolves at the later of the version's `accepted_at` and its own `confirmed_at`, among the offerings available then. A `package_ids` exception removes a period when it names every package resolving the offering that is owed that period, so packages added and removed compose: a package keeps the buy covered from its `added_at` until an entry naming it takes it out.
+
+`SubscriptionBuy.from_media_buy` reads `packages[].added_at` into `SubscriptionBuyPackage.added_at`, and `SubscriptionBuy.package_confirmed_at(package_id)` is the instant it is owed from.
 
 ### Cancellation mid-period
 
@@ -150,7 +159,7 @@ When a cutover hands a billing feed to a schedule with no boundary at E, the str
 
 ### Sticky resolution
 
-A package resolves once, when its (buy, version) pair first does: at the later of the version's `accepted_at` and the buy's `confirmed_at`, among the offerings available then. An offering published later never re-resolves it. A resolved offering's `withdrawn_at` is the one change: the package re-resolves among the offerings available then, as a cutover.
+A package resolves once, when its (buy, version) pair first does: at the later of the version's `accepted_at` and the package's own `confirmed_at` (the buy's, or its `added_at` when later), among the offerings available then. An offering published later never re-resolves it. A resolved offering's `withdrawn_at` is the one change: the package re-resolves among the offerings available then, as a cutover.
 
 ### Reactivation
 
@@ -160,4 +169,8 @@ Coverage resumes at the first boundary at or after the later of the reactivation
 
 > Owed: mb_1 under off_e_pkg_acct_tz for the period 2026-11-01T04:00Z to 2026-11-02T05:00Z, due at 2026-11-02T11:00Z.
 
-That New York day is 25 hours long. `P1D` periods follow the local calendar, so DST days are 23 or 25 hours long. Under a local alignment each local date's first instant is always a boundary: local midnight, or the first instant after a DST gap at midnight (Havana, Santiago, Cairo). Days therefore nest in every sub-daily schedule, and `PT24H` equals `P1D`. Under `utc`, `PT24H` periods are always 24 hours. A sub-daily `billing_cycle` is refused (`invalid_period_duration`).
+That New York day is 25 hours long. `P1D` periods follow the local calendar, so DST days are 23 or 25 hours long. Under a local alignment each local date's first instant is always a boundary: local midnight, or the first instant after a DST gap at midnight (Havana, Santiago, Cairo). Days therefore nest in every sub-daily schedule, and `PT24H` equals `P1D`. Under `utc`, `PT24H` periods are always 24 hours. A sub-daily `billing_cycle` is refused (`invalid_period_duration`). Under a local alignment a duration cannot mix date and time components (`P1DT12H`); since 3.3.0-beta.4 the schedule schemas reject it too, while `P1DT0H`, `P0DT12H` and any duration under `utc` stay valid.
+
+### Time zones
+
+Zones come from Python's `zoneinfo`, so periods follow the IANA tzdata the host resolves: the system database, or the `tzdata` package where there is none (Windows). The spec's vectors are derived with tzdata 2026f over the whole database, including southern-hemisphere DST (Pacific/Auckland), a 45-minute offset (Pacific/Chatham), half-hour offsets (Asia/Kolkata) and the 2022 rule change in America/Mexico_City. Their dates are chosen where releases 2026b through 2026f agree, so any of those reproduces them; `tests/test_reporting_subscription_parity.py` pins `tzdata==2026.6` (2026f) and ignores the host's database. Run buyer and seller on the same tzdata release, or a current one, so both derive the same boundaries.

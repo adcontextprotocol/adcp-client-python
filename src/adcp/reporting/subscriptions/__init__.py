@@ -113,6 +113,10 @@ from adcp.reporting.subscriptions.ledger import (
     SubscriptionPlanResult,
     subscription_obligation_id,
 )
+from adcp.reporting.subscriptions.offering_checks import (
+    SubscriptionOfferingFailure,
+    check_subscription_offerings,
+)
 from adcp.reporting.subscriptions.receipts import (
     CommitResult,
     ReceiptPolicy,
@@ -244,6 +248,7 @@ __all__ = [
     "SubscriptionBuy",
     "SubscriptionBuyFlight",
     "SubscriptionBuyPackage",
+    "SubscriptionOfferingFailure",
     "SubscriptionDestination",
     "SubscriptionException",
     "SubscriptionMatch",
@@ -259,6 +264,7 @@ __all__ = [
     "subscription_capabilities",
     "subscription_covers_account",
     "subscription_exceptions",
+    "check_subscription_offerings",
     "subscription_version_windows",
     "with_subscription_dimensions",
     "SUBSCRIPTIONS_MIN_ADCP_VERSION",

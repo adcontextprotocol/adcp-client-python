@@ -138,7 +138,14 @@ SCENARIOS = [
     "reporting_core_lifecycle_probe",
     # AdCP 3.3.0-beta.3: reporting-subscription grants, timezone and clock.
     "reporting_subscription_probe",
+    # AdCP 3.3.0-beta.4: return the caller's sandbox to a baseline. Runners
+    # call it once before each storyboard; a seller listing
+    # reporting_subscription_probe MUST list it.
+    "reset_state",
 ]
+
+#: Scenarios that oblige a seller to also serve ``reset_state`` (AdCP 3.3.0-beta.4).
+_REQUIRES_RESET_STATE = frozenset({"reporting_subscription_probe"})
 
 _REPORTING_SUBSCRIPTION_PROBE_OPERATIONS = frozenset(
     {"revoke_grant", "regrant", "reduce_grant", "set_account_timezone", "advance_time"}
@@ -786,12 +793,42 @@ class TestControllerStore:
     ) -> dict[str, Any]:
         """Change the caller's own grant, an account timezone, or the sandbox clock.
 
-        AdCP 3.3.0-beta.3 (``media_buy.reporting_subscriptions``). ``operation``
-        is ``revoke_grant``, ``regrant``, ``reduce_grant`` (to exactly
+        AdCP 3.3 (``media_buy.reporting_subscriptions``). ``operation`` is
+        ``revoke_grant``, ``regrant``, ``reduce_grant`` (to exactly
         ``allowed_tasks``), ``set_account_timezone`` (to ``timezone``) or
         ``advance_time`` (to ``target_time`` on the one virtual clock,
         ``simulated_now``). Act only on the caller's own grant on sandbox
         accounts.
+
+        Return the ``SimulationSuccess.simulated`` object: ``simulated_now``,
+        ``account_id`` and the operation's fields. ``set_account_timezone``
+        returns ``SetAccountTimezoneResult`` (3.3.0-beta.4): ``previous_timezone``,
+        ``timezone``, ``changed_at`` when the zone changed (the call's
+        ``simulated_now``), and ``timezone_cutovers[]``, one per
+        ``account_timezone`` offering, each with ``offering_id``,
+        ``previous_timezone``, ``timezone`` and ``effective_at``. The
+        dispatcher nests a result without ``simulated`` under it.
+
+        A store implementing this MUST also implement :meth:`reset_state`
+        (3.3.0-beta.4); registration refuses one that does not.
+        """
+        raise NotImplementedError
+
+    async def reset_state(self, *, context: ToolContext | None = None) -> dict[str, Any]:
+        """Return the caller's own sandbox to its baseline (AdCP 3.3.0-beta.4).
+
+        Takes no params; the result is ``SeedSuccess`` (``{"success": true}``).
+        A runner that finds it in ``list_scenarios`` calls it once before each
+        storyboard. Act only on the caller's own sandbox state, never another
+        caller's. What it discards is implementation-defined except where a
+        scenario names its reset effects. For ``reporting_subscription_probe``
+        it MUST unpin the caller's sandbox clock (``simulated_now`` reads the
+        seller's wall clock until the next ``advance_time``) and discard every
+        grant revocation, re-grant, reduction and timezone change the probe
+        made, with what they recorded in coverage (``accounts_unauthorized[]``,
+        ``gaps[]``, ``timezone_cutovers[]``): either discard the accounts the
+        probe acted on, or keep them with the caller's full default grant and
+        each account's timezone from before the probe first changed it.
         """
         raise NotImplementedError
 
@@ -813,6 +850,32 @@ def _list_scenarios(store: TestControllerStore) -> list[str]:
                 implemented.append(scenario)
                 break
     return implemented
+
+
+def check_test_controller_store(store: TestControllerStore) -> None:
+    """Refuse a store whose scenarios break a ``list_scenarios`` obligation.
+
+    AdCP 3.3.0-beta.4: a seller that lists ``reporting_subscription_probe``
+    MUST also list ``reset_state``, so a runner can unpin the probe's clock
+    and discard its grant and timezone changes before each storyboard.
+
+    :raises ConfigurationError: naming the scenario to implement.
+    """
+    implemented = set(_list_scenarios(store))
+    missing = sorted(
+        scenario
+        for scenario in _REQUIRES_RESET_STATE & implemented
+        if "reset_state" not in implemented
+    )
+    if missing:
+        from adcp.exceptions import ConfigurationError
+
+        raise ConfigurationError(
+            f"{type(store).__name__} implements {', '.join(missing)} but not reset_state, "
+            "which AdCP 3.3 requires alongside it. Implement "
+            "TestControllerStore.reset_state to unpin the sandbox clock and undo the "
+            "probe's grant and timezone changes for the caller."
+        )
 
 
 def _controller_error(error: str, detail: str, current_state: str | None = None) -> dict[str, Any]:
@@ -1547,6 +1610,9 @@ async def _handle_test_controller(
                     )
             if operation == "advance_time":
                 _require_scenario_params(scenario_params, "target_time")
+        elif scenario == "reset_state":
+            # Takes no params (AdCP 3.3.0-beta.4); anything sent is ignored.
+            method_kwargs = {}
         elif scenario not in {
             "seed_product",
             "seed_pricing_option",
@@ -1570,6 +1636,18 @@ async def _handle_test_controller(
         )
     except Exception as e:
         return _controller_error("INTERNAL_ERROR", str(e))
+
+    if (
+        scenario == "reporting_subscription_probe"
+        and isinstance(result, dict)
+        and "simulated" not in result
+    ):
+        # SimulationSuccess carries the probe's result under ``simulated``
+        # (SetAccountTimezoneResult for set_account_timezone, 3.3.0-beta.4).
+        result = {
+            "success": result.get("success", True),
+            "simulated": {key: value for key, value in result.items() if key != "success"},
+        }
 
     # Wrap in success=True if the store didn't include it
     if isinstance(result, dict) and "success" not in result:
@@ -1650,6 +1728,8 @@ def register_test_controller(
     from mcp.server.mcpserver.tools import Tool
     from mcp.server.mcpserver.utilities.func_metadata import ArgModelBase, FuncMetadata
     from pydantic import ConfigDict
+
+    check_test_controller_store(store)
 
     from adcp.server.base import ToolContext as _ToolContext
     from adcp.server.serve import RequestMetadata as _RequestMetadata

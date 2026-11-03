@@ -179,10 +179,19 @@ def _stop(
 
 @dataclass(frozen=True)
 class SubscriptionBuyPackage:
-    """One package of a buy and its product's ``reporting_delivery_offering_ids``."""
+    """One package of a buy and its product's ``reporting_delivery_offering_ids``.
+
+    ``added_at`` (3.3.0-beta.4, ``get_media_buys`` ``packages[].added_at``) is
+    when a package added to the buy after its ``confirmed_at`` was itself
+    confirmed. ``None`` means the package was part of the buy when it was
+    confirmed. Sellers advertising subscriptions set it on every package added
+    after confirmation; a value at or before the buy's ``confirmed_at`` has no
+    effect.
+    """
 
     package_id: str
     reporting_delivery_offering_ids: tuple[str, ...]
+    added_at: datetime | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -190,6 +199,8 @@ class SubscriptionBuyPackage:
             "reporting_delivery_offering_ids",
             tuple(self.reporting_delivery_offering_ids),
         )
+        if self.added_at is not None:
+            object.__setattr__(self, "added_at", utc_instant(self.added_at, field="added_at"))
 
 
 @dataclass(frozen=True)
@@ -259,7 +270,8 @@ class SubscriptionBuy:
 
         Reads ``confirmed_at``, the flight, ``cancellation.canceled_at``,
         ``cancellation_effective_at``, ``completed_at``, ``flight_history[]``
-        and each package's ``reporting_delivery_offering_ids``.
+        and each package's ``reporting_delivery_offering_ids`` and
+        ``added_at``.
         ``package_offering_ids`` supplies a package's offering set when the
         seller's response does not carry it.
         """
@@ -275,7 +287,13 @@ class SubscriptionBuy:
             if offering_ids is None:
                 offering_ids = overrides.get(package_id, ())
             packages.append(
-                SubscriptionBuyPackage(package_id, tuple(_text(item) for item in offering_ids))
+                SubscriptionBuyPackage(
+                    package_id,
+                    tuple(_text(item) for item in offering_ids),
+                    added_at=_instant(
+                        _value(package, "added_at"), field=f"packages[{package_id}].added_at"
+                    ),
+                )
             )
         cancellation = _value(media_buy, "cancellation") or {}
         return cls(
@@ -312,6 +330,23 @@ class SubscriptionBuy:
                 for package in self.packages
             )
         return (("", self.reporting_delivery_offering_ids),)
+
+    def package_confirmed_at(self, package_id: str) -> datetime | None:
+        """When ``package_id`` joined the buy's coverage (3.3.0-beta.4).
+
+        The buy's ``confirmed_at``, or the package's ``added_at`` when later:
+        a package added after confirmation is owed periods, and resolves, as
+        if the buy were confirmed at its ``added_at``. ``None`` for an
+        unconfirmed buy, which is not covered.
+        """
+        if self.confirmed_at is None:
+            return None
+        for package in self.packages:
+            if package.package_id == package_id:
+                if package.added_at is not None and package.added_at > self.confirmed_at:
+                    return package.added_at
+                break
+        return self.confirmed_at
 
     def _earliest_start(self) -> datetime:
         return min((self.start_time, *(flight.start_time for flight in self.superseded_flights)))
@@ -688,6 +723,9 @@ class _Resolved:
         return (self.offering.offering_id, self.calendar.zone_name, self.calendar.origin)
 
 
+_PackageMap = dict[str, frozenset[str]]
+
+
 @dataclass
 class _Regime:
     start: datetime
@@ -701,6 +739,50 @@ class _Regime:
     #: Whether this regime took over from one that resolved offerings: a
     #: cutover, after which a billing offering owes a stub (adcp#8617).
     cutover: bool = False
+    #: Which packages resolve each offering, from each instant on: package
+    #: exceptions can change the set inside one regime without changing what
+    #: it resolves (3.3.0-beta.4: a period is owed through the packages
+    #: resolving its offering that are owed it).
+    #: Each entry is ``(since, resolving, listed)``: ``listed`` also counts the
+    #: packages a ``package_ids`` exception takes out, for explanations.
+    packages: list[tuple[datetime, _PackageMap, _PackageMap]] = field(default_factory=list)
+
+    def resolving_packages(
+        self, offering_id: str, at: datetime, *, excepted: bool = False
+    ) -> frozenset[str]:
+        """The packages resolving ``offering_id`` in effect at ``at``.
+
+        With ``excepted``, also those an open ``package_ids`` exception removes.
+        """
+        current = self.packages[0] if self.packages else None
+        for entry in self.packages:
+            if entry[0] > at:
+                break
+            current = entry
+        if current is None:
+            return frozenset()
+        by_offering = current[2] if excepted else current[1]
+        return by_offering.get(offering_id, frozenset())
+
+    def owing_packages(
+        self,
+        offering_id: str,
+        start: datetime,
+        end: datetime,
+        joined: Mapping[str, datetime | None],
+    ) -> frozenset[str]:
+        """The packages resolving ``offering_id`` that are owed ``[start, end)``.
+
+        A package is owed the periods that end after it joined the buy's
+        coverage (``joined``: the buy's ``confirmed_at``, or the package's
+        later ``added_at``), so the period containing that instant is owed in
+        full and adding a package is never a cutover (3.3.0-beta.4).
+        """
+        return frozenset(
+            package_id
+            for package_id in self.resolving_packages(offering_id, start)
+            if (since := joined.get(package_id)) is not None and end > since
+        )
 
 
 @dataclass
@@ -1154,7 +1236,10 @@ def owed_subscription_periods(
     for buy in buys:
         if buy.confirmed_at is None:
             continue
-        confirmed_at = buy.confirmed_at
+        joined = {
+            package_id: buy.package_confirmed_at(package_id)
+            for package_id, _ids in buy.product_offering_ids()
+        }
         regimes = context.regimes(buy)
         flights_start = buy._earliest_start()
         latest_stop = buy._latest_stop()
@@ -1191,10 +1276,13 @@ def owed_subscription_periods(
                         )
                     if not include_unresolved and end > now:
                         break
-                    if is_stub and (
-                        end <= confirmed_at or (regime.until is not None and start >= regime.until)
-                    ):
-                        continue  # the stub's own side and confirmation checks
+                    if is_stub and regime.until is not None and start >= regime.until:
+                        continue  # the stub's own side check
+                    # confirmation, per package (3.3.0-beta.4): the period ends
+                    # after the confirmed_at, or the later added_at, of a
+                    # package resolving the offering.
+                    if not regime.owing_packages(resolved.offering.offering_id, start, end, joined):
+                        continue
                     flight_start, flight_stop = buy.flight_at(end)
                     # An empty flight (stopped at or before it started)
                     # overlaps no period.
@@ -1305,16 +1393,20 @@ def _regimes(
             destination = destinations[destination_id]
         # adcp#8619: each package resolves when its (buy, version) pair first
         # does and keeps that result; a buy owes the union of its packages'.
-        first_resolved = window.accepted_at
-        if buy.confirmed_at is not None:
-            first_resolved = max(first_resolved, buy.confirmed_at)
+        # 3.3.0-beta.4: at the later of the version's accepted_at and the
+        # package's own confirmed_at (the buy's, or its later added_at).
         found: dict[str, SubscriptionOffering] = {}
+        by_offering: dict[str, set[str]] = {}
+        listed: dict[str, set[str]] = {}
         for package_id, offering_ids in buy.product_offering_ids():
-            if any(
+            removed = any(
                 item.removes_package(start, buy.media_buy_id, package_id)
                 for item in package_removals
-            ):
-                continue
+            )
+            joined = buy.package_confirmed_at(package_id)
+            first_resolved = (
+                window.accepted_at if joined is None else max(window.accepted_at, joined)
+            )
             for item in resolve_reporting_subscription_package(
                 selector,
                 offerings,
@@ -1323,7 +1415,14 @@ def _regimes(
                 resolves_at=first_resolved,
                 at=start,
             ):
-                found[item.offering_id] = item
+                listed.setdefault(item.offering_id, set()).add(package_id)
+                if not removed:
+                    found[item.offering_id] = item
+                    by_offering.setdefault(item.offering_id, set()).add(package_id)
+        packages = (
+            {key: frozenset(value) for key, value in by_offering.items()},
+            {key: frozenset(value) for key, value in listed.items()},
+        )
         resolved = tuple(
             _Resolved(
                 item,
@@ -1343,8 +1442,12 @@ def _regimes(
             and [item.key for item in previous.resolved] == [item.key for item in resolved]
         ):
             previous.until = until
+            if previous.packages[-1][1:] != packages:
+                previous.packages.append((start, *packages))
             continue
-        regime = _Regime(start, until, window.subscription_version, resolved)
+        regime = _Regime(
+            start, until, window.subscription_version, resolved, packages=[(start, *packages)]
+        )
         predecessor = regimes[-1] if regimes else None
         before_deactivation = (
             _regime_before_deactivation(regimes, window, start) if predecessor is None else None
