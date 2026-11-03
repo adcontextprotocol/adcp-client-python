@@ -3384,7 +3384,12 @@ def create_tool_caller(
         log_conversion_summary,
     )
     from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
+    from adcp.server._creative_batch import (
+        normalize_lenient_creative_batch,
+        partial_creative_batch,
+    )
     from adcp.server.helpers import inject_context
+    from adcp.server.idempotency.store import _CREATIVE_BATCH_HASH_SOURCE
     from adcp.server.version_policy import project_supported_versions, resolve_supported_versions
     from adcp.types import Error
     from adcp.validation.envelope import (
@@ -3807,6 +3812,22 @@ def create_tool_caller(
             post_adapter_validator_version = None
             ctx.metadata[CONVERSION_METADATA_KEY] = {"wire_version": wire_version, "losses": []}
 
+        if (
+            method_name == "sync_creatives"
+            and unwrap_enum_value(params.get("validation_mode")) == "lenient"
+            and params.get("assignment_operations")
+        ):
+            raise ADCPTaskError(
+                operation=method_name,
+                errors=[
+                    Error(
+                        code="INVALID_REQUEST",
+                        message="assignment_operations requires strict validation",
+                        field="validation_mode",
+                    )
+                ],
+            )
+
         creative_boundary_tools = {
             "create_media_buy",
             "get_creative_delivery",
@@ -3818,6 +3839,7 @@ def create_tool_caller(
             "update_media_buy",
         }
         legacy_projection_sources: list[Any] = []
+        creative_batch = None
         if method_name in creative_boundary_tools and isinstance(params, dict) and wire_version:
             try:
                 dialect = (
@@ -3830,11 +3852,40 @@ def create_tool_caller(
                     )
                 )
                 if dialect is CreativeDialect.LEGACY:
-                    params = normalize_legacy_creative_request(
-                        params,
-                        legacy_format_converter=getattr(handler, "legacy_format_converter", None),
-                        projection_sources=legacy_projection_sources,
-                    )
+                    if (
+                        method_name == "sync_creatives"
+                        and unwrap_enum_value(params.get("validation_mode")) == "lenient"
+                    ):
+                        params, creative_batch = normalize_lenient_creative_batch(
+                            params,
+                            legacy_format_converter=getattr(
+                                handler, "legacy_format_converter", None
+                            ),
+                            projection_sources=legacy_projection_sources,
+                        )
+                        if (
+                            creative_batch is not None
+                            and params.get("creatives")
+                            and not getattr(handler, "_supports_partial_creative_completion", False)
+                            and (
+                                params.get("push_notification_config") is not None
+                                or type(handler).get_task_status is not ADCPHandler.get_task_status
+                                or type(handler).list_tasks is not ADCPHandler.list_tasks
+                            )
+                        ):
+                            raise LegacyCreativeProjectionError(
+                                "Partially projected batches require inline sync_creatives "
+                                "completion or SDK-managed PlatformHandler tasks; custom "
+                                "asynchronous completion cannot retain projection failures"
+                            )
+                    else:
+                        params = normalize_legacy_creative_request(
+                            params,
+                            legacy_format_converter=getattr(
+                                handler, "legacy_format_converter", None
+                            ),
+                            projection_sources=legacy_projection_sources,
+                        )
                     # The normalized object is canonical handler input, not a
                     # valid instance of the caller's legacy wire schema.
                     post_adapter_validator_version = None
@@ -3866,7 +3917,8 @@ def create_tool_caller(
                 params_model=params_model,
             )
 
-        if request_mode is not None and request_mode != "off":
+        all_creatives_rejected = creative_batch is not None and not params.get("creatives")
+        if request_mode is not None and request_mode != "off" and not all_creatives_rejected:
             outcome = validate_request(method_name, params, version=post_adapter_validator_version)
             if not outcome.valid:
                 summary = format_issues(outcome.issues)
@@ -3889,7 +3941,7 @@ def create_tool_caller(
             call_params = raw_params
         elif frozen_reporting_feed:
             call_params = params
-        elif params_model is not None and isinstance(params, dict):
+        elif params_model is not None and isinstance(params, dict) and not all_creatives_rejected:
             try:
                 call_params = params_model.model_validate(params)
             except ValidationError as exc:
@@ -3949,7 +4001,21 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
-        result = await method(call_params, ctx)
+        result: Any
+        token = partial_creative_batch.set(creative_batch)
+        hash_token = _CREATIVE_BATCH_HASH_SOURCE.set(
+            raw_params if creative_batch is not None else None
+        )
+        try:
+            if all_creatives_rejected:
+                result = {"creatives": [], "dry_run": bool(params.get("dry_run"))}
+            else:
+                result = await method(call_params, ctx)
+        finally:
+            _CREATIVE_BATCH_HASH_SOURCE.reset(hash_token)
+            partial_creative_batch.reset(token)
+        if creative_batch is not None:
+            creative_batch.merge(result)
         if method_name == "get_adcp_capabilities":
             if isinstance(result, dict):
                 from adcp.canonical_formats.dialect import canonical_creatives_capability
