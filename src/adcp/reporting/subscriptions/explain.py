@@ -133,8 +133,9 @@ EXPLAIN_TEMPLATES: Mapping[str, str] = {
         "{confirmed_clause}."
     ),
     "before_package_added": (
-        "Not owed: the period ends {period_end}, by {added_at}, before any package of "
-        "{media_buy_id} resolving {offering_id} was added to it."
+        "Not owed: the period ends {period_end}, at or before {offering_id} joined "
+        "{media_buy_id}: every package resolving it was added after confirmation, the first "
+        "at {added_at}."
     ),
     "excluded:capacity": (
         "Not owed: account {account_id} is beyond the seller's subscription capacity from {from}."
@@ -494,6 +495,11 @@ def _offering_facts(offering: SubscriptionOffering | None) -> dict[str, Any] | N
 
 
 def _buy_facts(buy: SubscriptionBuy) -> dict[str, Any]:
+    added = {
+        package.package_id: package.added_at
+        for package in buy.packages
+        if package.added_at is not None
+    }
     return {
         "media_buy_id": buy.media_buy_id,
         "confirmed_at": _z(buy.confirmed_at),
@@ -506,15 +512,9 @@ def _buy_facts(buy: SubscriptionBuy) -> dict[str, Any]:
             {
                 "package_id": package_id,
                 "reporting_delivery_offering_ids": sorted(ids),
-                # Present only for a package added after confirmation, so
-                # earlier traces keep their digests.
-                **(
-                    {"added_at": _z(joined)}
-                    if (joined := buy.package_confirmed_at(package_id)) is not None
-                    and buy.confirmed_at is not None
-                    and joined > buy.confirmed_at
-                    else {}
-                ),
+                # Present only for a package served with added_at, so earlier
+                # traces keep their digests (as the TypeScript SDK writes it).
+                **({"added_at": _z(added[package_id])} if package_id in added else {}),
             }
             for package_id, ids in buy.product_offering_ids()
         ],
@@ -742,7 +742,8 @@ def _classify(
         walk.failed("scope", "buy_not_visible", {**scope_facts, "buy_visible": False})
         return walk, version
     if buyer_exclusion is not None or (
-        not context.membership_intervals and context.account_id in excluded_ids
+        not context.membership_edited[window.subscription_version]
+        and context.account_id in excluded_ids
     ):
         facts = {**scope_facts, "excluded_by_buyer": True}
         if buyer_exclusion is not None:
@@ -851,39 +852,37 @@ def _classify(
             {**offering_facts, **_exception_facts(unsupported)},
         )
         return walk, version
-    # Packages a package_ids exception takes out still resolve the offering,
-    # and the exception rule removes their periods, unless the entry says the
-    # offering does not report them (offering_unsupported).
-    excepted_only = (
-        regime.resolving_packages(offering.offering_id, start, excepted=True)
-        if regime is not None and offering is not None and offering.offering_id not in resolved
-        else frozenset()
-    )
-    unsupported_packages = next(
-        (
-            item
-            for item in context.package_removals
-            if item.reason == "offering_unsupported"
-            and excepted_only
-            and all(item.removes_package(start, buy.media_buy_id, p) for p in excepted_only)
-        ),
-        None,
-    )
-    if unsupported_packages is not None:
-        walk.failed(
-            "offering",
-            "excluded:offering_unsupported",
-            {**offering_facts, **_exception_facts(unsupported_packages)},
-        )
-        return walk, version
     resolves = offering is not None and (
         offering.offering_id in resolved
         # An unconfirmed buy resolves nothing yet; judge it by confirmation.
         or (buy.confirmed_at is None and offering.offering_id in candidates)
-        or bool(excepted_only)
     )
     if not resolves:
         walk.failed("offering", "excluded:offering_unsupported", offering_facts)
+        return walk, version
+    # 3.3.0-beta.4: the packages resolving the offering, each owed the periods
+    # that end after its own confirmed_at (the buy's, or its later added_at).
+    joined: dict[str, datetime] = {}
+    if regime is not None and offering is not None:
+        for package_id in regime.resolving_packages(offering.offering_id, start):
+            since = buy.package_confirmed_at(package_id)
+            if since is not None:
+                joined[package_id] = since
+    owing = sorted(package_id for package_id, since in joined.items() if end > since)
+    # A package_ids entry removes the period when it names every package
+    # resolving the offering that is owed it (the reference model's excepted).
+    package_exception = {
+        item.reason: item
+        for item in reversed(context.package_removals)
+        if offering is not None
+        and item.removes_packages(start, buy.media_buy_id, offering.offering_id, owing)
+    }
+    if "offering_unsupported" in package_exception:
+        walk.failed(
+            "offering",
+            "excluded:offering_unsupported",
+            {**offering_facts, **_exception_facts(package_exception["offering_unsupported"])},
+        )
         return walk, version
     walk.passed("offering", offering_facts)
 
@@ -916,31 +915,25 @@ def _classify(
             ),
         )
         return walk, version
-    # 3.3.0-beta.4: per package, the period ends after the confirmed_at, or
-    # the later added_at, of a package resolving the offering.
-    resolving = (
-        regime.resolving_packages(offering.offering_id, start, excepted=True)
-        if regime is not None and offering is not None
-        else frozenset()
+    # 3.3.0-beta.4: the buy owes the period when at least one package
+    # resolving the offering is owed it. Facts and sentence as the TypeScript
+    # SDK writes them, so both explain the same period byte for byte.
+    added = sorted(
+        (package_id, since) for package_id, since in joined.items() if since > buy.confirmed_at
     )
-    joined = {package_id: buy.package_confirmed_at(package_id) for package_id in resolving}
-    added = {
-        package_id: since
-        for package_id, since in joined.items()
-        if since is not None and since > buy.confirmed_at
-    }
     if added:
-        confirmation_facts["added_at"] = {
-            package_id: _z(since) for package_id, since in sorted(added.items())
+        confirmation_facts = {
+            **confirmation_facts,
+            "packages_added_at": {package_id: _z(since) for package_id, since in added},
         }
-    if resolving and not any(since is not None and end > since for since in joined.values()):
-        walk.failed(
-            "confirmation",
-            "before_package_added",
-            confirmation_facts,
-            added_at=min(added.values()) if added else None,
-        )
-        return walk, version
+        if not owing:
+            walk.failed(
+                "confirmation",
+                "before_package_added",
+                confirmation_facts,
+                added_at=min(joined.values()),
+            )
+            return walk, version
     walk.passed("confirmation", confirmation_facts)
 
     # exception -------------------------------------------------------------
@@ -954,30 +947,14 @@ def _classify(
         None,
     )
     if exception is None:
-        # A package_ids entry removes the period when the entries open at its
-        # start name every package resolving the offering that is owed it.
-        owing = [
-            package_id
-            for package_id in sorted(resolving)
-            if (since := joined.get(package_id)) is not None and end > since
-        ]
-        naming = [
-            item
-            for item in context.package_removals
-            if item.reason in {"capacity", "overridden", "action_required"}
-            and any(item.removes_package(start, buy.media_buy_id, p) for p in owing)
-        ]
-        if owing and all(
-            any(item.removes_package(start, buy.media_buy_id, p) for item in naming) for p in owing
-        ):
-            exception = next(
-                (
-                    item
-                    for item in naming
-                    if all(item.removes_package(start, buy.media_buy_id, p) for p in owing)
-                ),
-                naming[0],
-            )
+        exception = next(
+            (
+                package_exception[reason]
+                for reason in ("capacity", "overridden", "action_required")
+                if reason in package_exception
+            ),
+            None,
+        )
     if exception is not None:
         walk.failed(
             "exception",

@@ -125,7 +125,7 @@ A period that ends at or before the buy's `confirmed_at` is not owed (`before_co
 
 A package added to a confirmed buy carries `added_at` on `get_media_buys` (3.3.0-beta.4), and `added_at` is that package's own `confirmed_at`. Each package is owed from the later of the buy's `confirmed_at` and its `added_at` (`confirmed_at` alone when `added_at` is absent: the package was part of the buy at confirmation). The buy owes a period of an offering when the period ends after that instant for at least one package resolving the offering. So the period containing `added_at` is owed in full, earlier periods are owed only through packages the buy already had, and adding a package is never a cutover. When every package resolving the offering was added after the period ended, the reason is `before_package_added`.
 
-The package also resolves at the later of the version's `accepted_at` and its own `confirmed_at`, among the offerings available then. A `package_ids` exception removes a period when it names every package resolving the offering that is owed that period, so packages added and removed compose: a package keeps the buy covered from its `added_at` until an entry naming it takes it out.
+The package also resolves at the later of the version's `accepted_at` and its own `confirmed_at`, among the offerings available then. A `package_ids` exception removes a period when it names every package resolving the offering that is owed that period, so packages added and removed compose: a package keeps the buy covered from its `added_at` until an entry naming it takes it out. A `package_ids` exception never changes resolution, so it never starts a cutover.
 
 `SubscriptionBuy.from_media_buy` reads `packages[].added_at` into `SubscriptionBuyPackage.added_at`, and `SubscriptionBuy.package_confirmed_at(package_id)` is the instant it is owed from.
 
@@ -156,6 +156,8 @@ A timezone change takes effect at its `effective_at`, and each zone owes only it
 ### Billing stub
 
 When a cutover hands a billing feed to a schedule with no boundary at E, the stretch from E to the first incoming boundary is owed as one stub period. Its obligation carries `stub: true` (`OwedSubscriptionPeriod.stub`, `ReportingObligationRecord.stub`). Pacing and analytics feeds leave that stretch unowed.
+
+This applies at every cutover, an account-timezone change included, as the `cutover` text says. The reference model at adcontextprotocol/adcp 8ee1bfa2 emits no stub at a timezone cutover; the spec fixes that for beta.5, and both SDKs follow the text.
 
 ### Sticky resolution
 

@@ -313,3 +313,59 @@ async def test_reset_state_is_listed_dispatched_and_probe_results_nest_under_sim
         "success": True,
         "simulated": {"simulated_now": "2030-01-01T00:00:00Z", "account_id": "acc_a"},
     }
+
+
+# -- differential regressions (parity with the TypeScript SDK) -----------------------------
+
+#: Minimized scenarios from the spec's differential generator (adcontextprotocol/adcp
+#: 8ee1bfa2) on which an SDK disagreed with the reference model; the expected rows are
+#: the reference model's. Vendored from adcontextprotocol/adcp-client#3620.
+DIFFERENTIAL = json.loads(
+    (
+        Path(__file__).parent
+        / "fixtures"
+        / "reporting_subscriptions"
+        / "differential-regressions.json"
+    ).read_text()
+)
+
+
+@pytest.mark.parametrize(
+    "case", DIFFERENTIAL["cases"], ids=[case["id"] for case in DIFFERENTIAL["cases"]]
+)
+def test_differential_regressions_match_the_reference_model(case: dict[str, Any]) -> None:
+    from tests.test_reporting_subscription_parity import periods, rows
+
+    expected = [
+        (
+            at(row["period_start"]),
+            row["subscription_version"],
+            row["offering_id"].encode(),
+            row["media_buy_id"].encode(),
+            at(row["period_end"]),
+            row.get("stub", False),
+        )
+        for row in case["expected"]
+    ]
+    assert rows(periods(copy.deepcopy(case["input"]))) == expected, case["rule"]
+
+
+def test_a_billing_feed_owes_a_stub_at_an_account_timezone_cutover() -> None:
+    """The cutover text, not the reference model, as the TypeScript SDK does.
+
+    ``core/reporting-subscription.json`` ``cutover`` applies the billing stub
+    to every cutover, account-timezone changes included; the 8ee1bfa2 reference
+    model emits none at a timezone cutover (three differential disagreements,
+    billing offerings only), which the spec fixes for beta.5.
+    """
+    from tests.test_reporting_subscription_parity import periods, rows
+
+    input_ = _case("account-timezone-change-is-a-cutover")
+    input_["versions"][0]["configuration"]["selector"]["feed_purpose"] = "billing"
+    input_["offerings"][0]["feed_purpose"] = "billing"
+    owed = [(start, end, stub) for start, *_rest, end, stub in rows(periods(input_))]
+    # New York to Los Angeles: E is 05:00Z, the first Los Angeles boundary 08:00Z.
+    assert (at("2026-11-05T05:00:00Z"), at("2026-11-05T08:00:00Z"), True) in owed
+    assert [item for item in owed if item[2]] == [
+        (at("2026-11-05T05:00:00Z"), at("2026-11-05T08:00:00Z"), True)
+    ]
