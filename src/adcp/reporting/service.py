@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel
@@ -2086,7 +2087,8 @@ class ReliableReportingService:
 
             attrs[name] = passthrough(name, method)
 
-        installed_name = f"ReliableReporting{original.__name__}_{id(self):x}"
+        # Registrations outlive services, and one service can install several sellers.
+        installed_name = f"ReliableReporting{original.__name__}_{uuid4().hex}"
         installed = type(
             installed_name,
             (ReportingInstallMixin, original),
