@@ -812,13 +812,14 @@ async def test_concurrent_appliers_of_the_changes_migration_all_succeed() -> Non
 
 async def test_reapplying_the_changes_migration_upgrades_an_older_install_in_place() -> None:
     from adcp_reporting_storage.ledger.change_feed import REPORTING_CHANGES_DDL_PATH
-    from psycopg.errors import CheckViolation
+
+    psycopg = pytest.importorskip("psycopg")
 
     async with isolated_reporting_pool() as pool:
         await PgReportingLedgerStore(pool=pool).create_schema()
         async with pool.connection() as connection:
             await connection.execute(PREVIOUS_CHANGES_DDL)
-        with pytest.raises(CheckViolation):
+        with pytest.raises(psycopg.errors.CheckViolation):
             async with pool.connection() as connection:
                 await connection.execute(
                     "INSERT INTO adcp_reporting_feed_consumers"
@@ -841,7 +842,7 @@ async def test_reapplying_the_changes_migration_upgrades_an_older_install_in_pla
             " adcp_reporting_feed_consumers",
         ) == [("old-account-sink", None, "5")], "a seq-only account consumer is kept"
         # The deployment feed still needs an xid; the old check is gone, the new one stays.
-        with pytest.raises(CheckViolation):
+        with pytest.raises(psycopg.errors.CheckViolation):
             async with pool.connection() as connection:
                 await connection.execute(
                     "INSERT INTO adcp_reporting_feed_consumers"
