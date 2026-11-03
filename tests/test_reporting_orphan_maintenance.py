@@ -53,6 +53,7 @@ def test_deleting_needs_the_acknowledgement_and_every_bound_is_checked() -> None
 
 
 def test_the_store_option_needs_row_storage_and_adds_the_maintenance_operation() -> None:
+    pytest.importorskip("psycopg_pool")
     pool = object()
     with pytest.raises(ValueError, match="requires row_storage"):
         PgReportingLedgerStore(pool=pool, orphan_collection=options())  # type: ignore[arg-type]
