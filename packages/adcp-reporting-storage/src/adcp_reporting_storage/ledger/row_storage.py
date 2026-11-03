@@ -390,7 +390,8 @@ class ReportingRowStorageV1:
         for binding_id, binding in bindings.items():
             if not is_row_identifier(binding_id):
                 # Quoted and truncated, so a hostile ID is not echoed whole into logs.
-                shown = binding_id if len(str(binding_id)) <= 64 else f"{str(binding_id)[:64]}..."
+                text = str(binding_id)
+                shown = text if len(text) <= 64 else f"{text[:64]}..."
                 raise ReportingRowStoreError(
                     "INVALID_INPUT",
                     f"invalid row binding ID {json.dumps(shown)}: use 1 to "

@@ -118,14 +118,16 @@ def test_hostile_binding_ids_are_refused(tmp_path: Path, binding_id: str) -> Non
     assert failure.value.code == "INVALID_INPUT"
 
 
-def test_a_non_string_binding_id_is_refused_not_a_type_error() -> None:
+@pytest.mark.parametrize("key", [7, b"abc", ("a", "b"), None, 1.5, b"x" * 5000, object])
+def test_a_non_string_binding_id_is_refused_not_a_type_error(key: Any) -> None:
     with pytest.raises(ReportingRowStoreError) as failure:
         ReportingRowStorageV1(
             ReportingRowStorageOptionsV1(
-                bindings={7: ReportingPostgresRowBindingV1()}  # type: ignore[dict-item]
+                bindings={key: ReportingPostgresRowBindingV1()}  # type: ignore[dict-item]
             )
         )
     assert failure.value.code == "INVALID_INPUT"
+    assert len(str(failure.value)) < 300, "a hostile key is not echoed whole"
 
 
 @pytest.mark.parametrize("length", [128, 129, 255])
