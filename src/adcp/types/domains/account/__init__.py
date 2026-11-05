@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
         Kind,
         ListAccountChangesResponse,
         SourceCoverageItem,
-        Status54,
+        Status53,
     )
     from adcp.types.domains.account.list_accounts_request import ListAccountsRequest, RequestId
     from adcp.types.domains.account.list_accounts_response import ListAccountsResponse
@@ -110,7 +110,7 @@ __all__ = [
     "SourceCoverageItem",
     "Spend",
     "StartingPosition",
-    "Status54",
+    "Status53",
     "SyncAccountsRequest",
     "SyncAccountsResponse",
     "SyncAccountsResponse1",
@@ -153,7 +153,7 @@ _DECLARED_IN = {
     "SourceCoverageItem": "adcp.types.domains.account.list_account_changes_response",
     "Spend": "adcp.types.domains.account.get_account_financials_response",
     "StartingPosition": "adcp.types.domains.account.list_account_changes_request",
-    "Status54": "adcp.types.domains.account.list_account_changes_response",
+    "Status53": "adcp.types.domains.account.list_account_changes_response",
     "SyncAccountsRequest": "adcp.types.domains.account.sync_accounts_request",
     "SyncAccountsResponse": "adcp.types.domains.account.sync_accounts_response",
     "SyncAccountsResponse1": "adcp.types.domains.account.sync_accounts_response",

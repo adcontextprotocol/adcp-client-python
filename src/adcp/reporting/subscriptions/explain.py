@@ -132,6 +132,11 @@ EXPLAIN_TEMPLATES: Mapping[str, str] = {
         "Not owed: the period ends {period_end}, before {media_buy_id} was confirmed"
         "{confirmed_clause}."
     ),
+    "before_package_added": (
+        "Not owed: the period ends {period_end}, at or before {offering_id} joined "
+        "{media_buy_id}: every package resolving it was added after confirmation, the first "
+        "at {added_at}."
+    ),
     "excluded:capacity": (
         "Not owed: account {account_id} is beyond the seller's subscription capacity from {from}."
     ),
@@ -490,6 +495,11 @@ def _offering_facts(offering: SubscriptionOffering | None) -> dict[str, Any] | N
 
 
 def _buy_facts(buy: SubscriptionBuy) -> dict[str, Any]:
+    added = {
+        package.package_id: package.added_at
+        for package in buy.packages
+        if package.added_at is not None
+    }
     return {
         "media_buy_id": buy.media_buy_id,
         "confirmed_at": _z(buy.confirmed_at),
@@ -499,7 +509,13 @@ def _buy_facts(buy: SubscriptionBuy) -> dict[str, Any]:
         "cancellation_effective_at": _z(buy.cancellation_effective_at),
         "completed_at": _z(buy.completed_at),
         "packages": [
-            {"package_id": package_id, "reporting_delivery_offering_ids": sorted(ids)}
+            {
+                "package_id": package_id,
+                "reporting_delivery_offering_ids": sorted(ids),
+                # Present only for a package served with added_at, so earlier
+                # traces keep their digests (as the TypeScript SDK writes it).
+                **({"added_at": _z(added[package_id])} if package_id in added else {}),
+            }
             for package_id, ids in buy.product_offering_ids()
         ],
         "flight_history": [
@@ -726,7 +742,8 @@ def _classify(
         walk.failed("scope", "buy_not_visible", {**scope_facts, "buy_visible": False})
         return walk, version
     if buyer_exclusion is not None or (
-        not context.membership_intervals and context.account_id in excluded_ids
+        not context.membership_edited[window.subscription_version]
+        and context.account_id in excluded_ids
     ):
         facts = {**scope_facts, "excluded_by_buyer": True}
         if buyer_exclusion is not None:
@@ -843,6 +860,30 @@ def _classify(
     if not resolves:
         walk.failed("offering", "excluded:offering_unsupported", offering_facts)
         return walk, version
+    # 3.3.0-beta.4: the packages resolving the offering, each owed the periods
+    # that end after its own confirmed_at (the buy's, or its later added_at).
+    joined: dict[str, datetime] = {}
+    if regime is not None and offering is not None:
+        for package_id in regime.resolving_packages(offering.offering_id, start):
+            since = buy.package_confirmed_at(package_id)
+            if since is not None:
+                joined[package_id] = since
+    owing = sorted(package_id for package_id, since in joined.items() if end > since)
+    # A package_ids entry removes the period when it names every package
+    # resolving the offering that is owed it (the reference model's excepted).
+    package_exception = {
+        item.reason: item
+        for item in reversed(context.package_removals)
+        if offering is not None
+        and item.removes_packages(start, buy.media_buy_id, offering.offering_id, owing)
+    }
+    if "offering_unsupported" in package_exception:
+        walk.failed(
+            "offering",
+            "excluded:offering_unsupported",
+            {**offering_facts, **_exception_facts(package_exception["offering_unsupported"])},
+        )
+        return walk, version
     walk.passed("offering", offering_facts)
 
     # flight ----------------------------------------------------------------
@@ -861,7 +902,7 @@ def _classify(
     walk.passed("flight", flight_facts)
 
     # confirmation ----------------------------------------------------------
-    confirmation_facts = {"confirmed_at": _z(buy.confirmed_at)}
+    confirmation_facts: dict[str, Any] = {"confirmed_at": _z(buy.confirmed_at)}
     if buy.confirmed_at is None or end <= buy.confirmed_at:
         walk.failed(
             "confirmation",
@@ -874,6 +915,25 @@ def _classify(
             ),
         )
         return walk, version
+    # 3.3.0-beta.4: the buy owes the period when at least one package
+    # resolving the offering is owed it. Facts and sentence as the TypeScript
+    # SDK writes them, so both explain the same period byte for byte.
+    added = sorted(
+        (package_id, since) for package_id, since in joined.items() if since > buy.confirmed_at
+    )
+    if added:
+        confirmation_facts = {
+            **confirmation_facts,
+            "packages_added_at": {package_id: _z(since) for package_id, since in added},
+        }
+        if not owing:
+            walk.failed(
+                "confirmation",
+                "before_package_added",
+                confirmation_facts,
+                added_at=min(joined.values()),
+            )
+            return walk, version
     walk.passed("confirmation", confirmation_facts)
 
     # exception -------------------------------------------------------------
@@ -886,6 +946,15 @@ def _classify(
         ),
         None,
     )
+    if exception is None:
+        exception = next(
+            (
+                package_exception[reason]
+                for reason in ("capacity", "overridden", "action_required")
+                if reason in package_exception
+            ),
+            None,
+        )
     if exception is not None:
         walk.failed(
             "exception",

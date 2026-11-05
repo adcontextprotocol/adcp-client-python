@@ -43,15 +43,8 @@ from tests.conformance import _round_trip as rt
 #: is a regression. A class that stops occurring is deleted — this set only
 #: shrinks.
 ACCEPTED: dict[str, str] = {
-    # A document routed to an arm whose required discriminator it does not
-    # carry gains that arm's injected single-value ``Literal``. The generated
-    # arm classes merge the root's properties, so a document valid under a
-    # sibling arm validates under the first arm that accepts it. Arm routing
-    # is #1414's domain (closed by #1522's construction dispatch); a schema
-    # default the document omitted is no longer emitted (#1613).
-    "discriminator_emitted": (
-        "a document routed to an arm it does not satisfy gains the arm's discriminator (#1414)"
-    ),
+    # ``discriminator_emitted`` (#1414) no longer occurs under the AdCP
+    # 3.3.0-beta.4 schemas, so it is deleted (the set only shrinks).
 }
 
 #: Schemas whose bytes the protocol binds: no difference of any class, under

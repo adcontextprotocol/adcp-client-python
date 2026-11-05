@@ -1,5 +1,21 @@
 # Changelog
 
+## [10.0.0-beta.12](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.11...v10.0.0-beta.12) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reporting:** a managed-delivery offering (one with method) whose reporting_profile.primary_keys omit account_id is refused with SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY instead of logged. After a reduction that drops get_reporting_status, get_reporting_status answers SCOPE_INSUFFICIENT instead of ACCOUNT_NOT_FOUND. A TestControllerStore that implements reporting_subscription_probe must implement reset_state, and probe results reach the wire under simulated. The reference controller's set_account_timezone result replaces cutovers with timezone_cutovers.
+
+### Features
+
+* **reporting:** adopt AdCP 3.3.0-beta.4 coverage, grant and controller rules and the signed bundle ([#1851](https://github.com/adcontextprotocol/adcp-client-python/issues/1851)) ([a2fdc2b](https://github.com/adcontextprotocol/adcp-client-python/commit/a2fdc2b2c30edffec73567a09bc6a3a1dae86a75))
+
+
+### Bug Fixes
+
+* **reporting-storage:** check for reporting tables in the current schema only ([#1843](https://github.com/adcontextprotocol/adcp-client-python/issues/1843)) ([65d0c54](https://github.com/adcontextprotocol/adcp-client-python/commit/65d0c54e140aedfe6449d59f9a59a414b63268ac)), closes [#1838](https://github.com/adcontextprotocol/adcp-client-python/issues/1838)
+
 ## [10.0.0-beta.11](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.10...v10.0.0-beta.11) (2026-11-03)
 
 

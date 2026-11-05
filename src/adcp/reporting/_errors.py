@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Literal, TypeVar
 
 from adcp.exceptions import ADCPTaskError
@@ -66,6 +66,7 @@ SELLER_CONFIGURATION_CODES = frozenset(
         "REPORTING_STORAGE_NOT_DURABLE",
         "REPORTING_SCHEMA_BEHIND",
         "SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
+        "SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY",
         "SUBSCRIPTION_ROSTER_UNAVAILABLE",
     }
 )
@@ -80,10 +81,12 @@ class ReliableReportingConfigurationError(ValueError):
     ``code`` is set for the seller configuration codes of the cross-SDK
     vocabulary (``REPORTING_STORAGE_NOT_DURABLE``, ``REPORTING_SCHEMA_BEHIND``,
     ``SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS``,
-    ``SUBSCRIPTION_ROSTER_UNAVAILABLE``); those carry ``recovery="correctable"``
-    and a message whose last sentence is the fix; ``config_field`` names the
-    configuration key to change. ``dispatched`` is always ``None``: a
-    configuration check sends nothing.
+    ``SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY``, ``SUBSCRIPTION_ROSTER_UNAVAILABLE``);
+    those carry ``recovery="correctable"`` and a message whose last sentence is
+    the fix; ``config_field`` names the configuration key to change, and
+    ``context`` carries the code's ``error-codes.json`` context (for
+    ``SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY``, ``offering_id`` and ``missing``).
+    ``dispatched`` is always ``None``: a configuration check sends nothing.
     """
 
     dispatched = None
@@ -95,6 +98,7 @@ class ReliableReportingConfigurationError(ValueError):
         kind: Literal["misconfiguration", "auth_required", "invalid_request"] = "misconfiguration",
         code: str | None = None,
         config_field: str | None = None,
+        context: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         if code is not None and code not in SELLER_CONFIGURATION_CODES:
@@ -103,6 +107,8 @@ class ReliableReportingConfigurationError(ValueError):
         self.code = code
         #: The configuration key to change (the TypeScript SDK's ``configField``).
         self.config_field = config_field
+        #: The code's ``error-codes.json`` context, when it defines one.
+        self.context: dict[str, str] = dict(context or {})
         self.recovery: Literal["correctable", "terminal"] | None = (
             "correctable" if code is not None else None
         )

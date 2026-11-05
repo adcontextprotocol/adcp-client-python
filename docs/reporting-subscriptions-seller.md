@@ -24,12 +24,16 @@ The SDK reads these surfaces under each principal's identity. A principal sees e
 | Input | Read from | Must be present | Override |
 |---|---|---|---|
 | Authorized accounts | `list_accounts` (a decisioning platform's `accounts.list`) | `account_id`, `timezone` (IANA), `operator`, `authorization.allowed_tasks` | `SubscriptionOptions.accounts` |
-| Visible buys | `get_media_buys` | `confirmed_at`, `start_time`, `end_time`, `cancellation.canceled_at`, `cancellation_effective_at`, `completed_at`, `flight_history`, `packages[].package_id` | `SubscriptionOptions.buys` |
+| Visible buys | `get_media_buys` | `confirmed_at`, `start_time`, `end_time`, `cancellation.canceled_at`, `cancellation_effective_at`, `completed_at`, `flight_history`, `packages[].package_id`, and `packages[].added_at` on every package added after `confirmed_at` (3.3.0-beta.4) | `SubscriptionOptions.buys` |
 | Package offerings | `packages[].reporting_delivery_offering_ids` (fixed at confirmation; `[]` means none), else, only when the seller omits it, every registered offering | | `SubscriptionOptions.buy_offerings` |
-| Offerings | `capability_offerings` on each registered source | `standard_dimensions` on every offering; `available_from` / `withdrawn_at` when they apply; `account_id` in `reporting_profile.primary_keys` on every offering delivered to destinations (`method`), required by 3.3.0-beta.3 and logged as `reporting.subscription.offering_primary_keys` when missing | none |
+| Offerings | `capability_offerings` on each registered source | `standard_dimensions` on every offering (else `SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS`); `available_from` / `withdrawn_at` when they apply; on every offering delivered to destinations (`method`), `account_id` in `reporting_profile.primary_keys` and a row schema that declares `account_id` as a required string (else `SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY`, refused at configuration since 3.3.0-beta.4) | none |
 | Report content | `account_context`, called with `configuration.subscription` set | | `SubscriptionOptions.configure` |
 
 A decisioning `Account` carries `timezone=` and `operator=`. An account without a timezone is refused rather than read as UTC.
+
+A host that supplies `SubscriptionOptions.buys` builds each `SubscriptionBuyPackage` with `added_at` for a package added after the buy's `confirmed_at`; one served through `get_media_buys` keeps it from the wire, also under `buy_offerings`. Without it the package reads as part of the buy at confirmation, which owes it periods it was never in.
+
+`check_subscription_offerings(offerings, row_schemas)` runs the offering checks of the spec's `offering-checks.json` and returns every failure in offering order. Each failure's `.error()` is the `ReliableReportingConfigurationError` (`code`, `config_field`, and `context` with `offering_id` and `missing`: `primary_key` or `row_schema`). The service runs it on the registered offerings without row schemas; pass the row schemas you fetched to check those too.
 
 ### Capabilities and serving
 
@@ -45,14 +49,15 @@ The service fills in what it serves and leaves the rest to you:
 
 The reference seller (`python -m adcp reference-seller reporting`) is a complete example.
 
-## AdCP 3.3.0-beta.3 rules the engine applies
+## AdCP 3.3 rules the engine applies (3.3.0-beta.3 and beta.4)
 
 - **Admission under `max_accounts`.** Candidates are ordered by `authorization.authorized_at`, then `account_id` in byte order, and an admitted account keeps its slot. A waiting candidate carries a `capacity` exception.
 - **Several feeds per purpose.** A caller may hold several pacing or analytics subscriptions for one account. Where two resolve the same offering for a package, the lowest `subscription_id` owes it and the other records an `overridden` exception naming the `package_ids`. Billing stays one per account at a scope level.
-- **Membership in place.** Membership edits (`account_ids`, `exclude_account_ids`) keep the version. A removed account stays listed, `excluded`, with an `excluded_by_buyer` entry from the cutover. An added account gets a closed entry covering the time before it joined.
+- **Membership in place.** Membership edits (`account_ids`, `exclude_account_ids`) keep the version. A removed account stays listed, `excluded`, with an `excluded_by_buyer` entry from the cutover. An added account gets a closed entry covering the time before it joined. On the buyer side, `excluded_by_buyer` entries decide membership only for the versions whose span they overlap; any other version keeps its own lists.
 - **`destination_overrides`.** An account named by an override, by `account_ids` or `operator_domains`, resolves against the override's destination method. Its owed sets carry the override as the version's `destination`, so `bind_managed_generation` binds and checks the override's `path_template`.
 - **Bounded readback.** `prior_versions` lists the 16 newest inline, and the account lists 1,000, each with a total count. `get_principal` `reporting_subscription_page` pages the rest from the engine's state.
 - **Partial grants.** A grant that keeps the account covered refuses a task it does not list with `SCOPE_INSUFFICIENT`.
+- **Reduced grants (3.3.0-beta.4).** A grant reduced to `allowed_tasks` without `get_reporting_status` ends the caller's reporting authority exactly as a revocation does, at the reduction: the account is listed in `accounts_unauthorized` with that instant as `unauthorized_at`, nothing is delivered for periods ending after it, and owed periods not delivered by then are withheld. The account stays visible to the tasks the grant lists, so `get_reporting_status` refuses it with `SCOPE_INSUFFICIENT`, as for any task the grant omits; only a revoked account is unknown (`ACCOUNT_NOT_FOUND`). Adding `get_reporting_status` back is a re-grant for every rule: the chain, `regranted_at`, gaps, `backfill_on_regrant` and admission. A reduction that keeps `get_reporting_status` is not a loss of authority.
 - **Billing stubs and `regranted_at`.** A billing cutover owes a stub obligation (`stub: true`), and `list_accounts` serves `authorization.regranted_at`.
 
 The reference seller, `adcp.testing.reporting.create_reference_reporting_seller`, is a complete example on this path. A ~100-line handler serves `list_accounts` and `get_media_buys`, and `ReliableReportingService(subscriptions=SubscriptionOptions(...))` adds the rest. Run it with `python -m adcp reference-seller reporting`; see [Testing](reporting-subscriptions-testing.md#the-reference-seller).
@@ -91,7 +96,7 @@ The SDK is the only source of `authorization.authorized_at`.
 
 `authorized_at` is when the *current authorization chain* began, not when access was last granted. Never set it to "now" on a re-grant, and never move it earlier.
 
-**Wind down, don't revoke.** Revocation means no access at all, receipts and statuses included. To end a relationship while the buyer finishes reconciling:
+**Wind down, don't revoke.** Revocation means no access at all, receipts and statuses included. A reduction that drops `get_reporting_status` ends reporting authority the same way, though the account stays visible to the tasks it keeps (`SCOPE_INSUFFICIENT`, not unknown). To end a relationship while the buyer finishes reconciling, keep `get_reporting_status`:
 
 ```python
 from adcp.server import wind_down_grant

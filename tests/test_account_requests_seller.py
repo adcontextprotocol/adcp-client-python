@@ -117,7 +117,7 @@ def _handler(store: Any, capabilities: DecisioningCapabilities | None = None) ->
     )
 
 
-def _ctx(version: str | None = "3.3-beta.3") -> ToolContext:
+def _ctx(version: str | None = "3.3-beta.4") -> ToolContext:
     return ToolContext(resolved_adcp_version=version)
 
 

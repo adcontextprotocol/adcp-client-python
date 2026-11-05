@@ -22,8 +22,8 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.3` (was `3.3.0-beta.0`, then `3.3.0-beta.1` and `3.3.0-beta.2`; see sections 11 to 13); bundle key `3.3.0-beta.3` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
-| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.3`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.3, 3.2-rc.7`. | done (1) |
+| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.4` (was `3.3.0-beta.0`, then `3.3.0-beta.1`, `3.3.0-beta.2` and `3.3.0-beta.3`; see sections 11 to 14); bundle key `3.3.0-beta.4` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
+| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.4`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.3, 3.2-rc.7`. | done (1) |
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
@@ -286,3 +286,22 @@ in it.
 | Extensible `reporting-dimension` | The schema marks the vocabulary `x-extensible`; the generator closes it. | `adcp.types._forward_compat` reopens the five fields that carry it to the vocabulary's `x-pattern` |
 | `comply_test_controller` `reporting_subscription_probe` | `revoke_grant`, `regrant`, `reduce_grant` (`allowed_tasks`), `set_account_timezone` (`timezone`), `advance_time` (`target_time`). | `TestControllerStore.reporting_subscription_probe` hook with parameter validation; not implemented by default |
 | Generated renames | `PriorVersion` → `ReportingSubscriptionPriorVersion`, `AccountsWithException` → `ReportingSubscriptionAccountExceptions`, `AccountsUnauthorizedItem` → `ReportingSubscriptionUnauthorizedAccount`; numbered names renumber (`Status20` → `Status54`, ...). `adcp.types._generated.AllowedTask` now resolves to the controller's `allowed_tasks` item (both are task-name tokens); `adcp.types.domains.core.AllowedTask` is unchanged. | generated |
+
+## 14. 3.3.0-beta.4 delta
+
+Adopted from the signed `3.3.0-beta.4` bundle (pinned in
+`schemas/releases/3.3.0-beta.4.json`, source commit
+`8ee1bfa2e9e722449ae836d7aab2f5ba5c037365`, bundle sha256
+`3525423d25bce536ccdd1992dbce7fee5bb7642961cda9e68fa03db02a42aabd`). Sources:
+adcontextprotocol/adcp#8718, #8717 and #8724.
+
+| Item | Detail | SDK status |
+| --- | --- | --- |
+| Wire pin | `3.3.0-beta.4` / `3.3-beta.4`. `3.3-beta.3` is no longer advertised or accepted as a pin; its cache and compliance trees stay in the source tree and leave the wheel. | done |
+| Per-package `added_at` (#8718) | `get_media_buys` `packages[].added_at`; each package is owed from the later of the buy's `confirmed_at` and its `added_at` and resolves then; adding a package is never a cutover; reason `before_package_added`. | generated (`Package.added_at`); coverage, explain, the seller engine and the buyer reconcile follow it; the test kit serves it (`buys.add_package`) |
+| Reduced grants (#8718, #8724) | A grant reduced without `get_reporting_status` is a loss of reporting authority at the reduction; `get_reporting_status` refuses with `SCOPE_INSUFFICIENT`; adding it back is a re-grant. | done |
+| `SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY` (#8718) | Seller configuration code for the `account_id` key rule, with `offering-checks.json`. | `check_subscription_offerings`; the managed service refuses the offering |
+| Durations and `destination_overrides` (#8718) | Local alignments reject mixed date and time durations in the schema; the `destination_overrides[]` item is one `if`/`then`/`else`. | generated; `DestinationOverride` stays one model with `account_ids`, `operator_domains`, `destination_id` and `path_template` |
+| Full tzdata 2026f (#8718) | The reference model carries every zone; new vectors in Pacific/Auckland, Pacific/Chatham, Asia/Kolkata and America/Mexico_City. | the parity test runs all 138 vectors under `tzdata==2026.6` |
+| Controller (#8717) | `reset_state` (required alongside `reporting_subscription_probe`), `SetAccountTimezoneResult`, the `owed_periods_match` retention window. | `TestControllerStore.reset_state`, checked at registration; probe results nested under `simulated`; the reference seller serves both. No SDK runner implements `owed_periods_match` |
+| Generated renames | Numbered names renumber (`Status54` → `Status53`, `Status97` → `Status96`, `Status77` → `Status76`); `create_media_buy_request` drops `Opportunity` / `Status` (#8709). | generated |

@@ -620,33 +620,27 @@ class ManagedSubscriptions:
                 code="SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
                 config_field="capability_offerings",
             )
-        mapped: list[SubscriptionOffering] = []
+        from adcp.reporting.subscriptions.offering_checks import check_subscription_offerings
+
+        completed = []
         for offering in offerings:
             offering_id = str(offering.get("offering_id"))
             if "standard_dimensions" not in offering and offering_id in declared:
                 offering = {**offering, "standard_dimensions": list(declared[offering_id])}
-            if "standard_dimensions" not in offering:
-                raise ReliableReportingConfigurationError(
-                    f"offering {offering.get('offering_id')!r} has no standard_dimensions, so "
-                    "a buyer cannot resolve a subscription selector against it. Publish "
-                    "standard_dimensions (empty for totals only) in its capability_offerings "
-                    "entry.",
-                    code="SUBSCRIPTIONS_REQUIRE_STANDARD_DIMENSIONS",
-                    config_field="capability_offerings",
-                )
-            profile = offering.get("reporting_profile")
-            keys = profile.get("primary_keys") if isinstance(profile, Mapping) else None
-            if offering.get("method") is not None and "account_id" not in (keys or ()):
-                # adcp#8619: consolidated destinations validate and never
-                # collide only when every delivered row carries its account.
-                # Warned, not refused, while existing row contracts migrate.
-                logger.warning(
-                    "offering %s is delivered to destinations but its reporting_profile."
-                    "primary_keys omit account_id; AdCP 3.3.0-beta.3 requires its row schema "
-                    "to declare account_id as a required string and list it in primary_keys",
-                    offering_id,
-                    extra={"event": "reporting.subscription.offering_primary_keys"},
-                )
+            completed.append(offering)
+        # 3.3.0-beta.4 offering-checks.json: every offering publishes
+        # standard_dimensions, and every managed-delivery offering keys its
+        # rows by account_id (adcp#8619 consolidated destinations).
+        failures = check_subscription_offerings(completed)
+        if failures:
+            error = failures[0].error()
+            if len(failures) > 1:
+                # Before the closing period, so the message still ends with the fix.
+                more = f" ({len(failures) - 1} more offering check(s) also fail)"
+                error.args = (str(error).rstrip(".") + more + ".",)
+            raise error
+        mapped: list[SubscriptionOffering] = []
+        for offering in completed:
             try:
                 mapped.append(SubscriptionOffering.from_offering(offering))
             except (CoverageInputError, KeyError, ValueError) as error:
@@ -1000,8 +994,9 @@ class ManagedSubscriptions:
     def _buy(self, raw: Mapping[str, Any]) -> SubscriptionBuy | None:
         """One ``get_media_buys`` buy as coverage reads it (adcp#8617, #8618).
 
-        The flight, ``cancellation_effective_at`` and ``flight_history`` come
-        from the wire. Each package's offering set is ``buy_offerings`` when
+        The flight, ``cancellation_effective_at``, ``flight_history`` and each
+        package's ``added_at`` (3.3.0-beta.4) come from the wire. Each
+        package's offering set is ``buy_offerings`` when
         given, else the package's ``reporting_delivery_offering_ids`` snapshot
         (fixed at confirmation; an empty one means no offering reports the
         package), else, only when the seller omits the snapshot, every
@@ -1013,8 +1008,19 @@ class ManagedSubscriptions:
         media_buy = dict(raw)
         offerings = self.options.buy_offerings
         if offerings is not None:
+            # 3.3.0-beta.4: a package added after confirmation keeps its
+            # served added_at, whoever supplies its offering set.
+            added = {
+                str(package.get("package_id")): package.get("added_at")
+                for package in raw.get("packages") or ()
+                if isinstance(package, Mapping) and package.get("added_at") is not None
+            }
             media_buy["packages"] = [
-                {"package_id": str(key), "reporting_delivery_offering_ids": list(value)}
+                {
+                    "package_id": str(key),
+                    "reporting_delivery_offering_ids": list(value),
+                    **({"added_at": added[str(key)]} if str(key) in added else {}),
+                }
                 for key, value in sorted(offerings(raw).items())
             ]
         else:

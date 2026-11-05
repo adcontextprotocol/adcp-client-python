@@ -288,9 +288,12 @@ adcp 10.0.0b4 widened the configuration generation key with `offering_id`
 (AdCP 3.3 reporting subscriptions) and reads it from `reporting_configurations`,
 `reporting_obligations` and `reporting_consumer_statuses`. The storage releases
 before 0.2.0b1 do not create the column, so that pair fails every reporting
-turn with `column "offering_id" does not exist`. From 0.2.0b1 the pair is
-refused at startup instead (storage contract 1 versus 2; see
-`packages/adcp-reporting-storage/README.md`), and both schema entry points
+turn with `column "offering_id" does not exist`. adcp 10.0.0b7 and later
+refuse that pair at startup instead (storage contract 1 versus 2; see
+`packages/adcp-reporting-storage/README.md`). adcp 10.0.0b4 and 10.0.0b5
+predate the check and still install beside 0.2.0b0, so that pair fails every
+turn: install `adcp>=10.0.0b7` with `adcp-reporting-storage>=0.2.0b1`
+(10.0.0b6 was not published). From 0.2.0b1, both schema entry points
 upgrade an existing ledger in place:
 
 - `PgReportingLedgerStore.create_schema()`, which `ReliableReportingService`

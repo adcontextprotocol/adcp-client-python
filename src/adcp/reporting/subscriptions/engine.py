@@ -261,7 +261,11 @@ class _Account:
     operator: str | None
     grants: list[SubscriptionAuthorization] = field(default_factory=list)
     timezone_changes: list[AccountTimezoneChange] = field(default_factory=list)
-    #: The current grant's ``allowed_tasks``; ``None`` when the host does not scope tasks.
+    #: The current grant's ``allowed_tasks``; ``None`` when the host does not
+    #: scope tasks, or when no grant remains (revoked). A grant reduced to tasks
+    #: without ``get_reporting_status`` keeps them here while authority is lost
+    #: (3.3.0-beta.4): ``get_reporting_status`` is then refused with
+    #: ``SCOPE_INSUFFICIENT``, not as an unknown account.
     allowed_tasks: frozenset[str] | None = None
     #: How each entry of ``grants`` was learned: ``listed`` (the host's
     #: account listing, at reconcile or on a served ``list_accounts``/
@@ -271,6 +275,15 @@ class _Account:
 
     def grants_task(self, task: str) -> bool:
         return self.authorized and (self.allowed_tasks is None or task in self.allowed_tasks)
+
+    @property
+    def reduced(self) -> bool:
+        """A grant the host still shows, reduced to tasks without ``get_reporting_status``.
+
+        3.3.0-beta.4: a loss of reporting authority exactly like a revocation,
+        except that the account stays visible to the tasks the grant lists.
+        """
+        return not self.authorized and self.allowed_tasks is not None
 
     def set_timezone(self, timezone: str | None, at: datetime) -> None:
         """Record a zone; a change away from an unknown zone is not a cutover."""
@@ -1013,7 +1026,9 @@ class ReportingSubscriptionEngine:
                 ):
                     assert reported is not None
                     regressions.append((item.account_id, reported))
-                account.allowed_tasks = tasks if covered else None
+                # A shown grant keeps its tasks even when it no longer lists
+                # get_reporting_status (a reduction, not a revocation).
+                account.allowed_tasks = tasks
                 account.set_timezone(item.timezone, instant)
                 if item.operator is not None:
                     account.operator = item.operator
@@ -1188,10 +1203,49 @@ class ReportingSubscriptionEngine:
                     timezone=timezone, operator=operator
                 )
             self._observe(account, covered=covered, reported=None, at=instant, source=source)
-            account.allowed_tasks = tasks if covered else None
+            # A reduction keeps the grant's tasks; a revocation leaves none.
+            account.allowed_tasks = tasks if authorized else None
             account.set_timezone(timezone, instant)
             if operator is not None:
                 account.operator = operator
+
+        await self._mutate(identity.subject, change, now=instant)
+
+    async def discard_sandbox_changes(
+        self,
+        identity: PrincipalLike,
+        account_id: str,
+        *,
+        at: datetime,
+        timezone: str | None = None,
+    ) -> None:
+        """Forget the grant and timezone history of one sandbox account (``reset_state``).
+
+        For a ``comply_test_controller`` ``reset_state`` (AdCP 3.3.0-beta.4)
+        that keeps an account the ``reporting_subscription_probe`` acted on:
+        the caller's grant restarts at ``at`` with no recorded loss, re-grant
+        or reduction, the account's timezone is ``timezone`` with no cutovers,
+        and the withheld counts for the account are dropped, so nothing the
+        probe did shows in ``accounts_unauthorized[]``, ``gaps[]`` or
+        ``timezone_cutovers[]``. Sandbox only: never call it for a live
+        account, whose grant history is the coverage record.
+        """
+        instant = utc_instant(at, field="at")
+        if timezone is not None:
+            require_zone(timezone, field="timezone")
+
+        def change(principal: _PrincipalState) -> None:
+            account = principal.accounts.get(account_id)
+            if account is None:
+                return
+            account.grants = [SubscriptionAuthorization(instant)]
+            account.sources = ["listed"]
+            account.timezone_changes = []
+            account.allowed_tasks = None
+            if timezone is not None:
+                account.timezone = timezone
+            for key in [key for key in principal.withheld if key[1] == account_id]:
+                del principal.withheld[key]
 
         await self._mutate(identity.subject, change, now=instant)
 
@@ -1325,10 +1379,15 @@ class ReportingSubscriptionEngine:
         instant = self._now(now)
         # A grant that no longer lists get_reporting_status ends coverage, as a
         # revocation does: access means access.
-        listed = {
-            item.account_id: item
-            for item in await self._list_accounts(identity)
-            if _covers(item.allowed_tasks)
+        roster = await self._list_accounts(identity)
+        listed = {item.account_id: item for item in roster if _covers(item.allowed_tasks)}
+        # 3.3.0-beta.4: a grant reduced to tasks without get_reporting_status
+        # is a loss of authority at the reduction, but the account stays
+        # visible to the tasks it lists.
+        reduced = {
+            item.account_id: item.allowed_tasks
+            for item in roster
+            if not _covers(item.allowed_tasks)
         }
 
         regressions: list[tuple[str, datetime]] = []
@@ -1357,7 +1416,7 @@ class ReportingSubscriptionEngine:
                 if account_id not in listed and account.authorized:
                     self._apply_grant(account, authorized=False, at=instant)
                 if account_id not in listed:
-                    account.allowed_tasks = None
+                    account.allowed_tasks = reduced.get(account_id)
             principal.reconciled_at = max(instant, principal.reconciled_at or instant)
 
         await self._mutate(identity.subject, change, now=instant)
@@ -2447,14 +2506,17 @@ class ReportingSubscriptionEngine:
         return account is not None and account.grants_task(task)
 
     async def holds_grant(self, identity: PrincipalLike, account_id: str) -> bool:
-        """Whether the principal holds a covering grant on the account, whatever its tasks.
+        """Whether the principal still holds a grant on the account, whatever its tasks.
 
         A grant that lists ``get_reporting_status`` keeps the account covered;
         a task it does not list is refused with ``SCOPE_INSUFFICIENT``
-        (adcp#8619), while an account without such a grant is unknown.
+        (adcp#8619). A grant reduced to tasks without ``get_reporting_status``
+        has lost reporting authority, yet the account stays visible, so
+        ``get_reporting_status`` is refused with ``SCOPE_INSUFFICIENT`` too
+        (3.3.0-beta.4). Only a revoked account is unknown.
         """
         account = (await self._read(identity.subject)).accounts.get(account_id)
-        return account is not None and account.authorized
+        return account is not None and (account.authorized or account.reduced)
 
     async def authorizes_delivery(self, principal: PrincipalLike, account_id: str) -> bool:
         """Whether a principal's current grant still carries its subscriptions on the account.

@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -132,7 +132,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.governance.sync_plans_response import (
         Category,
         ResolvedPolicy,
-        Status97,
+        Status96,
         SyncPlansResponse,
     )
 
@@ -211,7 +211,7 @@ __all__ = [
     "RuntimeAttestation1",
     "RuntimeAttestationEvaluation",
     "SellerResponse",
-    "Status97",
+    "Status96",
     "Statuses",
     "Subject",
     "Subject4",
@@ -303,7 +303,7 @@ _DECLARED_IN = {
     "RuntimeAttestation1": "adcp.types.domains.governance.check_governance_request",
     "RuntimeAttestationEvaluation": "adcp.types.domains.governance.check_governance_response",
     "SellerResponse": "adcp.types.domains.governance.report_plan_outcome_request",
-    "Status97": "adcp.types.domains.governance.sync_plans_response",
+    "Status96": "adcp.types.domains.governance.sync_plans_response",
     "Statuses": "adcp.types.domains.governance.get_plan_audit_logs_response",
     "Subject": "adcp.types.domains.governance.check_governance_request",
     "Subject4": "adcp.types.domains.governance.check_governance_request",

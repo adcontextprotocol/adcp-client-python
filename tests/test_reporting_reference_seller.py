@@ -27,7 +27,7 @@ STORYBOARD_PATH = (
 #: adcontextprotocol/adcp-client commit the vendored storyboard comes from (PR #3534 and #3560).
 STORYBOARD_COMMIT = "eeeb370dec63002ddf599823f63b9c1115df3436"
 STORYBOARD_SHA256 = "5eac5cb2468d408d5fa08a4fb7735eab3b508b68e970f6c985aad9fdf191db7a"
-VERSION = "3.3-beta.3"
+VERSION = "3.3-beta.4"
 
 
 def test_the_vendored_storyboard_is_the_pinned_typescript_file() -> None:
@@ -95,12 +95,16 @@ async def test_the_controller_drives_grants_and_the_clock_over_mcp() -> None:
             {"scenario": scenario, "params": params, "account": account, "adcp_version": VERSION},
         )
         assert error is None and structured.get("success"), structured
-        return structured
+        # SimulationSuccess: the probe's result is under simulated.
+        return structured.get("simulated", structured)
 
     listed, _ = await call(
         "comply_test_controller", {"scenario": "list_scenarios", "account": account}
     )
-    assert {"reporting_subscription_probe", "seed_media_buy"} <= set(listed["scenarios"])
+    # AdCP 3.3.0-beta.4: listing reporting_subscription_probe obliges reset_state.
+    assert {"reporting_subscription_probe", "reset_state", "seed_media_buy"} <= set(
+        listed["scenarios"]
+    )
     await control(
         "seed_media_buy",
         media_buy_id="mb_1",
@@ -156,14 +160,62 @@ async def test_the_controller_drives_grants_and_the_clock_over_mcp() -> None:
         account_id="acct-reference",
         timezone="Europe/Paris",
     )
-    assert zone["previous_timezone"] == "UTC"
+    # SetAccountTimezoneResult (AdCP 3.3.0-beta.4).
+    assert zone["account_id"] == "acct-reference"
+    assert (zone["previous_timezone"], zone["timezone"]) == ("UTC", "Europe/Paris")
+    assert zone["changed_at"] == zone["simulated_now"] == "2026-11-04T09:00:00Z"
+    assert zone["timezone_cutovers"] == []  # the reference offering is UTC-aligned
+    again = await control(
+        "reporting_subscription_probe",
+        operation="set_account_timezone",
+        account_id="acct-reference",
+        timezone="Europe/Paris",
+    )
+    assert again["previous_timezone"] == again["timezone"] == "Europe/Paris"
+    assert "changed_at" not in again and again["timezone_cutovers"] == []
+    await control(
+        "reporting_subscription_probe", operation="advance_time", target_time="2026-11-04T09:30:00Z"
+    )
     reduced = await control(
         "reporting_subscription_probe",
         operation="reduce_grant",
         account_id="acct-reference",
-        allowed_tasks=["get_reporting_status"],
+        allowed_tasks=["list_accounts"],
     )
-    assert reduced["success"]
+    assert reduced["allowed_tasks"] == ["list_accounts"]
+    # 3.3.0-beta.4: a reduction without get_reporting_status is a loss of
+    # authority at the reduction, and get_reporting_status is out of scope.
+    principal, _ = await call("get_principal", {"adcp_version": VERSION})
+    state = principal["result"]["configuration"]["reporting_subscriptions"][0]
+    assert [
+        (entry["account_id"], entry["unauthorized_at"]) for entry in state["accounts_unauthorized"]
+    ] == [("acct-reference", reduced["simulated_now"])]
+    _, refused = await call(
+        "get_reporting_status",
+        {"account": {"account_id": "acct-reference"}, "view": "summary", "adcp_version": VERSION},
+    )
+    assert refused is not None and "SCOPE_INSUFFICIENT" in str(refused)
+
+    # reset_state: unpinned clock, the full default grant, the original zone,
+    # and nothing the probe recorded left in coverage.
+    reset, error = await call(
+        "comply_test_controller", {"scenario": "reset_state", "account": account}
+    )
+    assert error is None and reset["success"], reset
+    principal, _ = await call("get_principal", {"adcp_version": VERSION})
+    state = principal["result"]["configuration"]["reporting_subscriptions"][0]
+    assert not state.get("accounts_unauthorized")
+    listed, _ = await call("list_accounts", {"adcp_version": VERSION})
+    (shown,) = listed["accounts"]
+    assert shown["timezone"] == "UTC" and "regranted_at" not in shown["authorization"]
+    # Unpinned, the clock reads the wall clock until the next advance_time.
+    from datetime import datetime, timedelta, timezone
+
+    target = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    moved = await control(
+        "reporting_subscription_probe", operation="advance_time", target_time=target
+    )
+    assert moved["simulated_now"] == target
 
 
 def test_the_standalone_server_maps_bearer_tokens_to_principals(monkeypatch) -> None:

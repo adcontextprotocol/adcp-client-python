@@ -2,8 +2,8 @@
 
 ``tests/fixtures/reporting_subscriptions/spec/`` vendors
 ``static/compliance/source/test-vectors/reporting-subscriptions/`` from the spec
-repository at :data:`SPEC_COMMIT` (the signed 3.3.0-beta.3 source commit, with
-adcp#8617, #8618, #8619 and #8622), pinned below by SHA-256. Each
+repository at :data:`SPEC_COMMIT` (3.3.0-beta.4: adcp#8718, #8717 and #8724),
+pinned below by SHA-256. Each
 case gives the buyer-side input and either the exact owed rows, derived from
 the spec text its ``spec_refs`` cite and reproduced by an independent
 reference model, or the input error. Both SDKs must produce identical periods,
@@ -38,14 +38,14 @@ from adcp.reporting.subscriptions import (
 )
 
 SPEC = Path(__file__).parent / "fixtures" / "reporting_subscriptions" / "spec"
-#: adcontextprotocol/adcp commit the vendored files come from: the source commit
-#: of the signed 3.3.0-beta.3 bundle (schemas/releases/3.3.0-beta.3.json).
-SPEC_COMMIT = "d5f8de383df13525e11721ee3d493ee76352210f"
+#: adcontextprotocol/adcp commit the vendored files come from (3.3.0-beta.4).
+SPEC_COMMIT = "8ee1bfa2e9e722449ae836d7aab2f5ba5c037365"
 PINNED = {
-    "vectors.json": "56cc381bc336b31cb0abc589d73d0f1a8ecd52f5c42532fc47fb9112c3b594a4",
-    "case.schema.json": "17448cb98b1c8ce671b0c5f354492e4965f833320c78f4ee6722b184ab344c60",
-    "error-codes.json": "4e8e5142ada936fc8923735155d786a0801258922fb85b492785730479713481",
-    "reason-codes.json": "2574b2a32fb8260fc7f9a7d9cd1eac1b588aa22c54a350e54964a893b80e77c4",
+    "vectors.json": "dc45a2131d57b255cc03ca1844c81fb3cec66a834dc0841e93bf8b9fef77d580",
+    "case.schema.json": "afd4b40477ff9446e01053c9b9d5df8da7624f741549621423ed454d1d8c580c",
+    "error-codes.json": "fb0556b2f49f5a9d268bbb58de469053fe442f9c7c02f2c208b5c16f4cef9145",
+    "reason-codes.json": "4dde895f26665daef2c39b7cefc94a8a317a5562f504d81e90f5e03264d2b484",
+    "offering-checks.json": "968c22c017ad8ce7bcb91446e6d0dc2c6651c237549c561da144a5454565de5c",
 }
 #: tzdata 2026f is the 2026.6 distribution on PyPI.
 TZDATA = "2026.6"
@@ -263,7 +263,7 @@ def _wire_errors(validator, value) -> list[str]:
 
 
 def test_every_vector_wire_object_is_schema_valid() -> None:
-    """Each input's wire objects validate against the 3.3.0-beta.3 schemas.
+    """Each input's wire objects validate against the 3.3.0-beta.4 schemas.
 
     Subscriptions against ``core/reporting-subscription.json``, offerings
     (with ``available_from`` / ``withdrawn_at``) against
@@ -273,7 +273,7 @@ def test_every_vector_wire_object_is_schema_valid() -> None:
     """
     from adcp.validation import schema_loader
 
-    version = "3.3.0-beta.3"
+    version = "3.3.0-beta.4"
     subscription = schema_loader.get_named_validator(
         "core/reporting-subscription.json", version=version
     )

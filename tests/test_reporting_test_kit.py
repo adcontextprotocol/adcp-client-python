@@ -61,7 +61,17 @@ async def test_buyer_and_seller_agree_across_grants_cutovers_dst_and_cancellatio
         cutover = await kit.accounts.set_timezone(
             "acc_a", "America/Los_Angeles", principal="agency-x"
         )
-        assert cutover["previous_timezone"] == "America/New_York" and cutover["cutovers"]
+        # SetAccountTimezoneResult (AdCP 3.3.0-beta.4).
+        assert cutover["account_id"] == "acc_a"
+        assert (cutover["previous_timezone"], cutover["timezone"]) == (
+            "America/New_York",
+            "America/Los_Angeles",
+        )
+        assert cutover["changed_at"] == cutover["simulated_now"]
+        assert cutover["timezone_cutovers"] and all(
+            item["previous_timezone"] == "America/New_York" and item["offering_id"]
+            for item in cutover["timezone_cutovers"]
+        )
         await kit.clock.advance("P3D")
         await kit.assert_agreement("agency-x")
         await kit.buys.cancel("mb_1", principal="agency-x")

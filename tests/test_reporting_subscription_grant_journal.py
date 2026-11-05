@@ -310,9 +310,12 @@ async def test_a_served_reduction_is_read_by_the_next_grant_check() -> None:
     await world.service.run_worker()
     world.seller.accounts[ACCOUNT]["authorization"]["allowed_tasks"] = ["get_media_buys"]
     await world.platform.list_accounts({}, _ctx())
+    # 3.3.0-beta.4: a grant reduced without get_reporting_status loses
+    # reporting authority, but the account stays visible to the tasks it
+    # lists, so get_reporting_status is out of scope, not unknown.
     with pytest.raises(ADCPTaskError) as refused:
         await world.platform.get_reporting_status({"view": "periods"}, _ctx())
-    assert refused.value.errors[0].code == "ACCOUNT_NOT_FOUND"
+    assert refused.value.errors[0].code == "SCOPE_INSUFFICIENT"
 
 
 @pytest.mark.asyncio
