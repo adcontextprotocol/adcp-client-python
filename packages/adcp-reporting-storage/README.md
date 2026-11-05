@@ -58,14 +58,22 @@ the **storage contract**, numbered on both sides
 (`adcp_reporting_storage.STORAGE_CONTRACT`,
 `adcp.reporting.ledger.storage_contract.REPORTING_STORAGE_CONTRACT`) and bumped
 together whenever the shared layout changes. The dependency floor is the first
-`adcp` release of the contract this package implements, so an incompatible pair
-does not resolve; if one is forced, building a PostgreSQL store refuses at
-startup, naming both versions and the release to install.
+`adcp` release of the contract this package implements, so this release
+cannot be installed beside an older `adcp`. Forcing it anyway fails at import.
+From adcp 10.0.0b7, building a PostgreSQL store also refuses a package of another
+contract at startup (`REPORTING_SCHEMA_BEHIND`), naming both versions and the
+release to install.
+
+That check is in `adcp`, so it cannot cover releases that predate it:
+`adcp` 10.0.0b4 and 10.0.0b5 still resolve beside 0.2.0b0 and fail every
+reporting turn with `column "offering_id" does not exist`
+([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)).
+Install `adcp>=10.0.0b7` with this release.
 
 | adcp-reporting-storage | storage contract | adcp |
 |---|---|---|
 | 0.1.0b4 (SDK 9 line) | 1 | `>=9.0.0,<10` |
-| 0.2.0b0 | 1 | `>=9.0.0,<11` (**do not pair with 10.0.0b4+**, [#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) |
+| 0.2.0b0 | 1 | `>=9.0.0,<11` (**do not pair with 10.0.0b4+**: 10.0.0b4 and b5 install beside it and fail, b7+ refuse it, [#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) |
 | 0.2.0b1+ | 2 | `>=10.0.0b4,<11` |
 
 `adcp` never imports this package; a test in the main repository enforces that.

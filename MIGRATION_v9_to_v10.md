@@ -66,9 +66,12 @@ adcp 10.0.0b0–b3 are 1):
 - `adcp-reporting-storage` 0.2.0b1 requires `adcp>=10.0.0b4,<11`; the
   0.2.0b0 / 0.1.0b4 releases do not work with 10.0.0b4 or later
   ([#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)).
-- Startup (`ReliableReportingService`, `postgres_storage`) refuses a pair whose
-  contracts differ with `REPORTING_SCHEMA_BEHIND`, naming both versions and
-  the release to install.
+- From adcp 10.0.0b7, startup (`ReliableReportingService`, `postgres_storage`)
+  refuses a pair whose contracts differ with `REPORTING_SCHEMA_BEHIND`, naming
+  both versions and the release to install. adcp 10.0.0b4 and 10.0.0b5 have no
+  such check and still install beside 0.2.0b0, which then fails every reporting
+  turn, so install `adcp>=10.0.0b7`
+  ([#1837](https://github.com/adcontextprotocol/adcp-client-python/issues/1837)).
 - An existing SDK 9 ledger is upgraded in place by `create_schema()` or
   `python -m adcp migrate`: `offering_id` is added with `''` for every
   existing account-level generation, obligation and status, and the applied
