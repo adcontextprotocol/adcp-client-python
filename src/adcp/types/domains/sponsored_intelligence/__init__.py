@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -87,7 +87,7 @@ if TYPE_CHECKING:
         HostReceipt,
         SiSponsoredContextReceipt,
         Status,
-        Status77,
+        Status76,
     )
     from adcp.types.domains.sponsored_intelligence.si_terminate_session_request import (
         Reason,
@@ -149,7 +149,7 @@ __all__ = [
     "SiUiElement",
     "StandardEnum",
     "Status",
-    "Status77",
+    "Status76",
     "TerminationContext",
     "Timing",
     "TransactionIntent",
@@ -206,7 +206,7 @@ _DECLARED_IN = {
     "SiUiElement": "adcp.types.domains.sponsored_intelligence.si_ui_element",
     "StandardEnum": "adcp.types.domains.sponsored_intelligence.si_capabilities",
     "Status": "adcp.types.domains.sponsored_intelligence.si_sponsored_context_receipt",
-    "Status77": "adcp.types.domains.sponsored_intelligence.si_sponsored_context_receipt",
+    "Status76": "adcp.types.domains.sponsored_intelligence.si_sponsored_context_receipt",
     "TerminationContext": "adcp.types.domains.sponsored_intelligence.si_terminate_session_request",
     "Timing": "adcp.types.domains.sponsored_intelligence.si_sponsored_context",
     "TransactionIntent": "adcp.types.domains.sponsored_intelligence.si_terminate_session_request",

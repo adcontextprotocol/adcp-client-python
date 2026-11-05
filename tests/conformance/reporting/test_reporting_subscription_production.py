@@ -10,6 +10,7 @@ store and, with ``ADCP_PG_TEST_URL``, the PostgreSQL production store.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import sqlite3
@@ -21,6 +22,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import rfc8785
 
 from adcp.decisioning.capabilities import Account as AccountCapabilities
 from adcp.reporting.ledger import (
@@ -103,10 +105,20 @@ def _subscription_verifier() -> ReportingRevisionVerifier:
     root = files("adcp.reporting.materializer").joinpath("assets")
     schema = json.loads(root.joinpath("reference-row-schema.json").read_text())
     schema["properties"]["account_id"] = {"type": "string", "minLength": 1}
+    schema["required"] = [*schema.get("required", []), "account_id"]
     schema_bytes = json.dumps(schema).encode()
     schema_sha256 = hashlib.sha256(schema_bytes).hexdigest()
     contract = json.loads(base.canonicalization_bytes)
     contract["schema_sha256"] = schema_sha256
+    # 3.3.0-beta.4 (SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY): a managed-delivery
+    # offering's rows are keyed by account.
+    contract["primary_keys"] = ["account_id", *contract["primary_keys"]]
+    for vector in contract["golden_vectors"].values():
+        vector["input_rows"] = [{**row, "account_id": ACCOUNT} for row in vector["input_rows"]]
+        ordered = sorted(vector["input_rows"], key=lambda row: (row["account_id"], row["row_id"]))
+        canonical = rfc8785.dumps(ordered)
+        vector["canonical_utf8_base64"] = base64.b64encode(canonical).decode()
+        vector["sha256"] = hashlib.sha256(canonical).hexdigest()
     contract_bytes = json.dumps(contract).encode()
     definition = replace(base.key.definition, schema_sha256=schema_sha256)
     canonicalization = replace(
@@ -191,7 +203,9 @@ async def _composed(tmp_path, clock, store, pool_buys, notifications, managed=Fa
                 "schema_dialect": key.definition.schema_dialect,
                 "schema_ref_policy": key.definition.schema_ref_policy,
                 "grain": "row",
-                "primary_keys": ["row_id"],
+                # 3.3.0-beta.4: a managed-delivery offering keys its rows by
+                # account (SUBSCRIPTIONS_REQUIRE_ACCOUNT_ID_KEY).
+                "primary_keys": ["account_id", "row_id"],
                 "canonicalization_id": key.canonicalization.canonicalization_id,
                 "canonicalization_contract_version": "1.0",
                 "canonicalization_media_type": (

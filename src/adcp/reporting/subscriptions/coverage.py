@@ -179,10 +179,19 @@ def _stop(
 
 @dataclass(frozen=True)
 class SubscriptionBuyPackage:
-    """One package of a buy and its product's ``reporting_delivery_offering_ids``."""
+    """One package of a buy and its product's ``reporting_delivery_offering_ids``.
+
+    ``added_at`` (3.3.0-beta.4, ``get_media_buys`` ``packages[].added_at``) is
+    when a package added to the buy after its ``confirmed_at`` was itself
+    confirmed. ``None`` means the package was part of the buy when it was
+    confirmed. Sellers advertising subscriptions set it on every package added
+    after confirmation; a value at or before the buy's ``confirmed_at`` has no
+    effect.
+    """
 
     package_id: str
     reporting_delivery_offering_ids: tuple[str, ...]
+    added_at: datetime | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -190,6 +199,8 @@ class SubscriptionBuyPackage:
             "reporting_delivery_offering_ids",
             tuple(self.reporting_delivery_offering_ids),
         )
+        if self.added_at is not None:
+            object.__setattr__(self, "added_at", utc_instant(self.added_at, field="added_at"))
 
 
 @dataclass(frozen=True)
@@ -259,7 +270,8 @@ class SubscriptionBuy:
 
         Reads ``confirmed_at``, the flight, ``cancellation.canceled_at``,
         ``cancellation_effective_at``, ``completed_at``, ``flight_history[]``
-        and each package's ``reporting_delivery_offering_ids``.
+        and each package's ``reporting_delivery_offering_ids`` and
+        ``added_at``.
         ``package_offering_ids`` supplies a package's offering set when the
         seller's response does not carry it.
         """
@@ -275,7 +287,13 @@ class SubscriptionBuy:
             if offering_ids is None:
                 offering_ids = overrides.get(package_id, ())
             packages.append(
-                SubscriptionBuyPackage(package_id, tuple(_text(item) for item in offering_ids))
+                SubscriptionBuyPackage(
+                    package_id,
+                    tuple(_text(item) for item in offering_ids),
+                    added_at=_instant(
+                        _value(package, "added_at"), field=f"packages[{package_id}].added_at"
+                    ),
+                )
             )
         cancellation = _value(media_buy, "cancellation") or {}
         return cls(
@@ -312,6 +330,23 @@ class SubscriptionBuy:
                 for package in self.packages
             )
         return (("", self.reporting_delivery_offering_ids),)
+
+    def package_confirmed_at(self, package_id: str) -> datetime | None:
+        """When ``package_id`` joined the buy's coverage (3.3.0-beta.4).
+
+        The buy's ``confirmed_at``, or the package's ``added_at`` when later:
+        a package added after confirmation is owed periods, and resolves, as
+        if the buy were confirmed at its ``added_at``. ``None`` for an
+        unconfirmed buy, which is not covered.
+        """
+        if self.confirmed_at is None:
+            return None
+        for package in self.packages:
+            if package.package_id == package_id:
+                if package.added_at is not None and package.added_at > self.confirmed_at:
+                    return package.added_at
+                break
+        return self.confirmed_at
 
     def _earliest_start(self) -> datetime:
         return min((self.start_time, *(flight.start_time for flight in self.superseded_flights)))
@@ -386,8 +421,9 @@ class SubscriptionException:
     #: ``offering_id``); ``None`` is every offering.
     offering_id: str | None = None
     #: A package-level entry (``package_ids``, with ``media_buy_id``): it removes
-    #: those packages from the buy's coverage while open, never periods. An
-    #: ``overridden`` entry names the packages a lower ``subscription_id`` owes.
+    #: a period only when it names every package resolving the offering that is
+    #: owed the period, and never changes resolution. An ``overridden`` entry
+    #: names the packages a lower ``subscription_id`` owes.
     package_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -404,6 +440,26 @@ class SubscriptionException:
             and (self.media_buy_id is None or self.media_buy_id == media_buy_id)
             and self.from_ <= at
             and (self.until is None or at < self.until)
+        )
+
+    def removes_packages(
+        self, start: datetime, media_buy_id: str, offering_id: str, owing: Iterable[str]
+    ) -> bool:
+        """Whether this package-level entry removes a period starting at ``start``.
+
+        3.3.0-beta.4 (the reference model's ``excepted``): it covers the start,
+        applies to the buy and offering, and names every package resolving the
+        offering that is owed the period (``owing``, never empty).
+        """
+        owing = tuple(owing)
+        return (
+            bool(self.package_ids)
+            and bool(owing)
+            and (self.media_buy_id is None or self.media_buy_id == media_buy_id)
+            and (self.offering_id is None or self.offering_id == offering_id)
+            and self.from_ <= start
+            and (self.until is None or start < self.until)
+            and all(package_id in self.package_ids for package_id in owing)
         )
 
     def removes(self, start: datetime, media_buy_id: str, offering_id: str | None = None) -> bool:
@@ -424,8 +480,8 @@ def subscription_exceptions(
 
     An entry naming ``package_ids`` (``offering_unsupported``, or
     ``overridden`` by a lower ``subscription_id`` resolving the same offering,
-    adcp#8619) removes those packages from the buy's coverage while it is
-    open, not periods.
+    adcp#8619) removes a period whose start it covers only when it names every
+    package resolving the offering that is owed the period (3.3.0-beta.4).
     """
     result: list[SubscriptionException] = []
     for entry in excluded:
@@ -688,6 +744,9 @@ class _Resolved:
         return (self.offering.offering_id, self.calendar.zone_name, self.calendar.origin)
 
 
+_PackageMap = dict[str, frozenset[str]]
+
+
 @dataclass
 class _Regime:
     start: datetime
@@ -701,6 +760,41 @@ class _Regime:
     #: Whether this regime took over from one that resolved offerings: a
     #: cutover, after which a billing offering owes a stub (adcp#8617).
     cutover: bool = False
+    #: Which packages resolve each offering, from each instant on (3.3.0-beta.4:
+    #: a period is owed through the packages resolving its offering that are
+    #: owed it). The set can change inside one regime without changing what
+    #: it resolves, as when a withdrawn package re-resolves to an offering
+    #: another package already resolves.
+    packages: list[tuple[datetime, _PackageMap]] = field(default_factory=list)
+
+    def resolving_packages(self, offering_id: str, at: datetime) -> frozenset[str]:
+        """The packages resolving ``offering_id`` in effect at ``at``."""
+        current: _PackageMap = self.packages[0][1] if self.packages else {}
+        for since, by_offering in self.packages:
+            if since > at:
+                break
+            current = by_offering
+        return current.get(offering_id, frozenset())
+
+    def owing_packages(
+        self,
+        offering_id: str,
+        start: datetime,
+        end: datetime,
+        joined: Mapping[str, datetime | None],
+    ) -> frozenset[str]:
+        """The packages resolving ``offering_id`` that are owed ``[start, end)``.
+
+        A package is owed the periods that end after it joined the buy's
+        coverage (``joined``: the buy's ``confirmed_at``, or the package's
+        later ``added_at``), so the period containing that instant is owed in
+        full and adding a package is never a cutover (3.3.0-beta.4).
+        """
+        return frozenset(
+            package_id
+            for package_id in self.resolving_packages(offering_id, start)
+            if (since := joined.get(package_id)) is not None and end > since
+        )
 
 
 @dataclass
@@ -929,7 +1023,9 @@ class _CoverageContext:
     changes: list[AccountTimezoneChange]
     removals: tuple[SubscriptionException, ...]
     package_removals: tuple[SubscriptionException, ...]
-    membership_intervals: bool
+    #: subscription_version -> whether an ``excluded_by_buyer`` entry overlaps
+    #: its span, so membership edits apply in place for it (adcp#8681).
+    membership_edited: dict[int, bool]
     ordered: list[datetime]
     selectors: dict[int, SubscriptionSelector]
     in_scope: dict[int, bool]
@@ -952,7 +1048,6 @@ class _CoverageContext:
             self.changes,
             account_id=self.account_id,
             account_operator=self.account_operator,
-            package_removals=self.package_removals,
         )
 
 
@@ -1004,7 +1099,17 @@ def _coverage_context(
     every_removal = subscription_exceptions(excluded, gap_entries)
     removals = tuple(item for item in every_removal if not item.package_ids)
     package_removals = tuple(item for item in every_removal if item.package_ids)
-    membership_intervals = any(item.reason == "excluded_by_buyer" for item in every_removal)
+    # adcp#8681: only a version whose span an excluded_by_buyer entry overlaps
+    # is under in-place membership; another version keeps its own lists.
+    buyer_exclusions = [item for item in every_removal if item.reason == "excluded_by_buyer"]
+    membership_edited = {
+        window.subscription_version: any(
+            (window.ends_at is None or item.from_ < window.ends_at)
+            and (item.until is None or item.until > window.accepted_at)
+            for item in buyer_exclusions
+        )
+        for window in windows
+    }
     ids = [item.offering_id for item in offerings]
     if len(set(ids)) != len(ids):
         raise CoverageInputError("invalid_input", "offering_id values must be unique")
@@ -1027,10 +1132,9 @@ def _coverage_context(
         if item.withdrawn_at is not None:
             points.add(item.withdrawn_at)
     points.update(change.changed_at for change in changes)
-    for removal in package_removals:
-        points.add(removal.from_)
-        if removal.until is not None:
-            points.add(removal.until)
+    # Package-level exceptions are not resolution changes: they remove periods
+    # only when they name every package owed them, so they never start a
+    # regime or hand periods over (the reference model, 3.3.0-beta.4).
     ordered = sorted(points)
     selectors = {
         window.subscription_version: SubscriptionSelector.from_subscription(window.configuration)
@@ -1041,7 +1145,7 @@ def _coverage_context(
             window.configuration,
             account_id=account_id,
             account_operator=account_operator,
-            membership_intervals=membership_intervals,
+            membership_intervals=membership_edited[window.subscription_version],
         )
         for window in windows
     }
@@ -1053,7 +1157,7 @@ def _coverage_context(
         changes=changes,
         removals=removals,
         package_removals=package_removals,
-        membership_intervals=membership_intervals,
+        membership_edited=membership_edited,
         ordered=ordered,
         selectors=selectors,
         in_scope=in_scope,
@@ -1149,12 +1253,16 @@ def owed_subscription_periods(
     subscription_id = context.subscription_id
     chains = context.chains
     removals = context.removals
+    package_removals = context.package_removals
 
     owed: dict[tuple[int, str, str, datetime], _Owed] = {}
     for buy in buys:
         if buy.confirmed_at is None:
             continue
-        confirmed_at = buy.confirmed_at
+        joined = {
+            package_id: buy.package_confirmed_at(package_id)
+            for package_id, _ids in buy.product_offering_ids()
+        }
         regimes = context.regimes(buy)
         flights_start = buy._earliest_start()
         latest_stop = buy._latest_stop()
@@ -1191,10 +1299,19 @@ def owed_subscription_periods(
                         )
                     if not include_unresolved and end > now:
                         break
-                    if is_stub and (
-                        end <= confirmed_at or (regime.until is not None and start >= regime.until)
+                    if is_stub and regime.until is not None and start >= regime.until:
+                        continue  # the stub's own side check
+                    # confirmation, per package (3.3.0-beta.4): the period ends
+                    # after the confirmed_at, or the later added_at, of a
+                    # package resolving the offering.
+                    owing = regime.owing_packages(resolved.offering.offering_id, start, end, joined)
+                    if not owing or any(
+                        item.removes_packages(
+                            start, buy.media_buy_id, resolved.offering.offering_id, owing
+                        )
+                        for item in package_removals
                     ):
-                        continue  # the stub's own side and confirmation checks
+                        continue
                     flight_start, flight_stop = buy.flight_at(end)
                     # An empty flight (stopped at or before it started)
                     # overlaps no period.
@@ -1279,7 +1396,6 @@ def _regimes(
     *,
     account_id: str = "",
     account_operator: str | None = None,
-    package_removals: Sequence[SubscriptionException] = (),
 ) -> list[_Regime | None]:
     """Maximal stretches with one active, in-scope version and one resolution."""
     regimes: list[_Regime | None] = []
@@ -1305,16 +1421,17 @@ def _regimes(
             destination = destinations[destination_id]
         # adcp#8619: each package resolves when its (buy, version) pair first
         # does and keeps that result; a buy owes the union of its packages'.
-        first_resolved = window.accepted_at
-        if buy.confirmed_at is not None:
-            first_resolved = max(first_resolved, buy.confirmed_at)
+        # 3.3.0-beta.4: at the later of the version's accepted_at and the
+        # package's own confirmed_at (the buy's, or its later added_at).
+        # A package_ids exception never changes resolution; the owed rule
+        # applies it to each period (SubscriptionException.removes_packages).
         found: dict[str, SubscriptionOffering] = {}
+        by_offering: dict[str, set[str]] = {}
         for package_id, offering_ids in buy.product_offering_ids():
-            if any(
-                item.removes_package(start, buy.media_buy_id, package_id)
-                for item in package_removals
-            ):
-                continue
+            joined = buy.package_confirmed_at(package_id)
+            first_resolved = (
+                window.accepted_at if joined is None else max(window.accepted_at, joined)
+            )
             for item in resolve_reporting_subscription_package(
                 selector,
                 offerings,
@@ -1324,6 +1441,8 @@ def _regimes(
                 at=start,
             ):
                 found[item.offering_id] = item
+                by_offering.setdefault(item.offering_id, set()).add(package_id)
+        packages = {key: frozenset(value) for key, value in by_offering.items()}
         resolved = tuple(
             _Resolved(
                 item,
@@ -1343,8 +1462,12 @@ def _regimes(
             and [item.key for item in previous.resolved] == [item.key for item in resolved]
         ):
             previous.until = until
+            if previous.packages[-1][1] != packages:
+                previous.packages.append((start, packages))
             continue
-        regime = _Regime(start, until, window.subscription_version, resolved)
+        regime = _Regime(
+            start, until, window.subscription_version, resolved, packages=[(start, packages)]
+        )
         predecessor = regimes[-1] if regimes else None
         before_deactivation = (
             _regime_before_deactivation(regimes, window, start) if predecessor is None else None

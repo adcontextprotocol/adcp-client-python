@@ -807,6 +807,9 @@ class ADCPAgentExecutor(AgentExecutor):
         ``comply_test_controller`` skill. See #227.
         """
 
+        from adcp.server.test_controller import check_test_controller_store
+
+        check_test_controller_store(store)
         resolver = self._test_controller_account_resolver
         response_enhancer = self._response_enhancer
 

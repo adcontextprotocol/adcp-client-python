@@ -860,7 +860,10 @@ def test_controller_scenarios_match_packaged_schema():
         if "if" in condition and "scenario" in condition["if"].get("properties", {})
     }
 
-    assert set(SCENARIOS) == documented
+    # reset_state takes no params, so the request schema describes it in the
+    # scenario description rather than an if/then branch (AdCP 3.3.0-beta.4).
+    assert "reset_state" in schema["properties"]["scenario"]["description"]
+    assert set(SCENARIOS) - {"reset_state"} == documented
 
 
 class TestTestControllerError:

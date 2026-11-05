@@ -32,7 +32,7 @@ from adcp.server import PrincipalChange, PrincipalIdentity, PrincipalService
 
 IDENTITY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
 #: A handler context served 3.3.0-beta.3, the pinned release.
-BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.3")
+BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.4")
 NY = "America/New_York"
 
 
@@ -867,7 +867,7 @@ async def test_gaps_are_per_offering_and_validate_against_the_pinned_schema() ->
     from adcp.validation import schema_loader
 
     validator = schema_loader.get_named_validator(
-        "core/reporting-subscription-coverage.json", version="3.3.0-beta.3"
+        "core/reporting-subscription-coverage.json", version="3.3.0-beta.4"
     )
     payload = entry.model_dump(mode="json", exclude_none=True, by_alias=True)
     assert [error.message for error in validator.iter_errors(payload)] == []

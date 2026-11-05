@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
         RecordedCalls,
         RecordedCalls1,
         RecordedCalls2,
+        SetAccountTimezoneResult,
     )
     from adcp.types.domains.compliance.get_creative_features_completion import (
         GetCreativeFeaturesComplianceCompletion,
@@ -113,6 +114,7 @@ __all__ = [
     "RecordedCalls1",
     "RecordedCalls2",
     "ReportedSpend",
+    "SetAccountTimezoneResult",
     "TargetHealth",
 ]
 
@@ -158,6 +160,7 @@ _DECLARED_IN = {
     "RecordedCalls1": "adcp.types.domains.compliance.comply_test_controller_response",
     "RecordedCalls2": "adcp.types.domains.compliance.comply_test_controller_response",
     "ReportedSpend": "adcp.types.domains.compliance.comply_test_controller_request",
+    "SetAccountTimezoneResult": "adcp.types.domains.compliance.comply_test_controller_response",
     "TargetHealth": "adcp.types.domains.compliance.comply_test_controller_request",
 }
 

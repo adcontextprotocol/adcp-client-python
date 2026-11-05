@@ -56,8 +56,8 @@ SCHEMAS = (
     "protocol/get-adcp-capabilities-response.json",
     "bundled/protocol/get-adcp-capabilities-response.json",
 )
-# The pinned bundle key: a prerelease keeps its full identifier (3.3.0-beta.3).
-RETAINED_SCHEMA_VERSIONS = ("3.3.0-beta.3",)
+# The pinned bundle key: a prerelease keeps its full identifier (3.3.0-beta.4).
+RETAINED_SCHEMA_VERSIONS = ("3.3.0-beta.4",)
 
 
 def production_schema_hashes():
