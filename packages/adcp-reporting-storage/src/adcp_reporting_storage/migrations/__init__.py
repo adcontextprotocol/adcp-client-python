@@ -145,12 +145,26 @@ def migrations() -> tuple[Migration, ...]:
 
 
 async def applied_migrations(connection: Any) -> dict[str, datetime]:
-    """``version`` -> ``applied_at`` for every recorded migration (empty when none)."""
-    cursor = await connection.execute("SELECT to_regclass('adcp_schema_migrations') IS NOT NULL")
+    """``version`` -> ``applied_at`` for every recorded migration (empty when none).
+
+    Reads the ``current_schema()`` table only: an unqualified name resolves
+    through the whole ``search_path``, so another schema's record would
+    otherwise report this one as migrated.
+    """
+    from psycopg import sql
+
+    cursor = await connection.execute(
+        "SELECT current_schema(),"
+        " to_regclass(quote_ident(current_schema()) || '.adcp_schema_migrations') IS NOT NULL"
+    )
     row = await cursor.fetchone()
-    if not row or not row[0]:
+    if not row or not row[1]:
         return {}
-    cursor = await connection.execute("SELECT version, applied_at FROM adcp_schema_migrations")
+    cursor = await connection.execute(
+        sql.SQL("SELECT version, applied_at FROM {}").format(
+            sql.Identifier(row[0], "adcp_schema_migrations")
+        )
+    )
     return {str(version): applied_at for version, applied_at in await cursor.fetchall()}
 
 

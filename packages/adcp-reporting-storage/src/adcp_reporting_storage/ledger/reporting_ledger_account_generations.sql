@@ -95,7 +95,7 @@ BEGIN
     -- (reconciliation records, materializer discovery and status checkpoints).
     -- Production generations serve account-level generations only; a
     -- subscription generation is refused by their CHECK.
-    IF to_regclass('reporting_reconciliation_records') IS NOT NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_reconciliation_records') IS NOT NULL THEN
         ALTER TABLE reporting_reconciliation_records
             ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_reconciliation_records_generation_fkey
@@ -104,7 +104,7 @@ BEGIN
                 REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
                                                     delivery_config_version, offering_id);
     END IF;
-    IF to_regclass('reporting_materializer_discovery') IS NOT NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_materializer_discovery') IS NOT NULL THEN
         ALTER TABLE reporting_materializer_discovery
             ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_materializer_discovery_generation_fkey
@@ -113,7 +113,7 @@ BEGIN
                 REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
                                                     delivery_config_version, offering_id);
     END IF;
-    IF to_regclass('reporting_status_scope_checkpoints') IS NOT NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_status_scope_checkpoints') IS NOT NULL THEN
         ALTER TABLE reporting_status_scope_checkpoints
             ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
             ADD CONSTRAINT reporting_status_scope_checkpoints_generation_fkey
@@ -122,7 +122,7 @@ BEGIN
                 REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
                                                     delivery_config_version, offering_id);
     END IF;
-    IF to_regclass('reporting_production_generations') IS NOT NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_production_generations') IS NOT NULL THEN
         ALTER TABLE reporting_production_generations
             ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT ''
                 CONSTRAINT reporting_production_generations_account_generation

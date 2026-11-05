@@ -32,7 +32,7 @@ DECLARE
     events TEXT;
 BEGIN
     PERFORM pg_advisory_xact_lock(hashtext('adcp.reporting.schema'), hashtext(current_schema()));
-    IF to_regclass('reporting_status_scope_checkpoints') IS NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_status_scope_checkpoints') IS NULL THEN
         RETURN;
     END IF;
     SELECT ARRAY(
@@ -224,14 +224,14 @@ BEGIN
         RETURN NEW;
     END
     $event_guard$;
-    IF to_regclass('reporting_status_notification_events') IS NOT NULL AND NOT EXISTS (
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_status_notification_events') IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgrelid='reporting_status_notification_events'::regclass
         AND tgname='reporting_status_event_guard' AND NOT tgisinternal) THEN
         CREATE TRIGGER reporting_status_event_guard BEFORE INSERT
             ON reporting_status_notification_events FOR EACH ROW EXECUTE FUNCTION reporting_status_event_guard();
     END IF;
 
-    IF to_regclass('reporting_projection_accounts') IS NULL THEN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_projection_accounts') IS NULL THEN
         RETURN;
     END IF;
     -- The projection's status events: the same checkpoint check, after
