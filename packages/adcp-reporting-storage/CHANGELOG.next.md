@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.1...adcp-reporting-storage-v0.2.0-beta.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **reporting-storage:** check for reporting tables in the current schema only ([#1843](https://github.com/adcontextprotocol/adcp-client-python/issues/1843)) ([65d0c54](https://github.com/adcontextprotocol/adcp-client-python/commit/65d0c54e140aedfe6449d59f9a59a414b63268ac)), closes [#1838](https://github.com/adcontextprotocol/adcp-client-python/issues/1838)
+
 ## [0.2.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.0...adcp-reporting-storage-v0.2.0-beta.1) (2026-11-02)
 
 
