@@ -85,7 +85,7 @@ It passes the TypeScript `reporting_subscriptions` storyboard (15 steps, strict 
 
 ```
 npx adcp storyboard run http://127.0.0.1:3000/mcp --file reporting-subscriptions.yaml \
-    --auth storyboard-buyer --allow-http --compliance-version 3.3.0-beta.3
+    --auth storyboard-buyer --allow-http --compliance-version 3.3.0-beta.4
 ```
 
 The SDK's own suite runs the same storyboard in process on every change (`tests/test_reporting_reference_seller.py`). A negative control there drops `prior_versions` from the readback and fails exactly the steps that read it.

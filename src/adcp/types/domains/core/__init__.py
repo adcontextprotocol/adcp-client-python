@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -1056,7 +1056,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.core.negative_keyword import NegativeKeyword
     from adcp.types.domains.core.notification_config import NotificationConfig
     from adcp.types.domains.core.offering import GeoTargets, Offering
-    from adcp.types.domains.core.offering_asset_group import Items, OfferingAssetGroup
+    from adcp.types.domains.core.offering_asset_group import OfferingAssetGroup
     from adcp.types.domains.core.operator_identity import OperatorIdentity
     from adcp.types.domains.core.operator_unit import OperatorUnit
     from adcp.types.domains.core.opportunity_context import (
@@ -2688,7 +2688,6 @@ __all__ = [
     "Issuer8",
     "Issuer9",
     "ItemStatusReporting",
-    "Items",
     "JavascriptAssetRequirements",
     "JavascriptModuleType",
     "JobItem",
@@ -4265,7 +4264,6 @@ _DECLARED_IN = {
     "Issuer8": "adcp.types.domains.core.rights_constraint",
     "Issuer9": "adcp.types.domains.core.rights_constraint",
     "ItemStatusReporting": "adcp.types.domains.core.catalog_ingestion_capability",
-    "Items": "adcp.types.domains.core.offering_asset_group",
     "JavascriptAssetRequirements": "adcp.types.domains.core.requirements.javascript_asset_requirements",
     "JavascriptModuleType": "adcp.types.domains.core.assets.asset_union",
     "JobItem": "adcp.types.domains.core.job_item",

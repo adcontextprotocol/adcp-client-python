@@ -143,12 +143,23 @@ def _merge(left: Any, right: Any) -> Any:
 
 
 def _inherit_properties(branch: Any, base: Any) -> Any:
-    """Give a ``required``-only composition branch the base's property schemas."""
-    if not isinstance(branch, dict) or "$ref" in branch or "properties" in branch:
+    """Give a composition branch the base's property schemas.
+
+    A branch that also declares a property is read with both (AdCP 3.3.0-beta.4
+    ``create_media_buy`` branches constrain ``opportunity`` and ``packages``
+    beside the root's declarations).
+    """
+    if not isinstance(branch, dict) or "$ref" in branch:
         return branch
     if not isinstance(base, dict) or not base.get("properties"):
         return branch
-    return {**branch, "properties": base["properties"]}
+    own = branch.get("properties")
+    if not isinstance(own, dict):
+        return {**branch, "properties": base["properties"]}
+    properties = dict(base["properties"])
+    for name, schema in own.items():
+        properties[name] = {"allOf": [properties[name], schema]} if name in properties else schema
+    return {**branch, "properties": properties}
 
 
 def instances(node: Any, resolver: Any, depth: int = 0, budget: int = 6) -> list[Any]:

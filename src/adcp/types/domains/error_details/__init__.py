@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-05 09:51:36 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         BillingNotPermittedForAgentDetails,
     )
     from adcp.types.domains.error_details.billing_not_supported import BillingNotSupportedDetails
-    from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
+    from adcp.types.domains.error_details.budget_too_low import Basis, BudgetTooLowDetails
     from adcp.types.domains.error_details.conflict import ConflictDetails
     from adcp.types.domains.error_details.creative_live_update_unsupported import (
         CreativeLiveUpdateUnsupportedDetails,
@@ -125,6 +125,7 @@ __all__ = [
     "AgentPermissionDeniedDetails",
     "AudienceTooSmallDetails",
     "AuthorizationRequiredDetails",
+    "Basis",
     "BillingNotPermittedForAgentDetails",
     "BillingNotSupportedDetails",
     "BudgetTooLowDetails",
@@ -184,6 +185,7 @@ _DECLARED_IN = {
     "AgentPermissionDeniedDetails": "adcp.types.domains.error_details.agent_permission_denied",
     "AudienceTooSmallDetails": "adcp.types.domains.error_details.audience_too_small",
     "AuthorizationRequiredDetails": "adcp.types.domains.error_details.authorization_required",
+    "Basis": "adcp.types.domains.error_details.budget_too_low",
     "BillingNotPermittedForAgentDetails": "adcp.types.domains.error_details.billing_not_permitted_for_agent",
     "BillingNotSupportedDetails": "adcp.types.domains.error_details.billing_not_supported",
     "BudgetTooLowDetails": "adcp.types.domains.error_details.budget_too_low",

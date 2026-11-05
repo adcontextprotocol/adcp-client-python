@@ -228,7 +228,7 @@ def test_a_billing_cutover_stub_is_owed_written_and_served() -> None:
     assert wire["period"]["start"] == "2026-11-05T00:00:00Z"
     assert wire["period"]["end"] == "2026-11-05T05:00:00Z"
     validator = schema_loader.get_named_validator(
-        "core/reporting-obligation.json", version="3.3.0-beta.3"
+        "core/reporting-obligation.json", version="3.3.0-beta.4"
     )
     stub_schema = validator.evolve(schema={"$ref": "#/properties/stub"})
     assert stub_schema.is_valid(wire["stub"])

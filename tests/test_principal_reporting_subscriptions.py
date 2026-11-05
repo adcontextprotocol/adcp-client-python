@@ -16,7 +16,7 @@ from adcp.server import (
 )
 
 IDENTITY = PrincipalIdentity("https://buyer.example/agent", "buyer_agent")
-BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.3")
+BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-beta.4")
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 DESTINATION = {
     "pattern": "file_transfer",
@@ -203,7 +203,7 @@ async def test_new_version_records_prior_versions() -> None:
     from adcp.validation import schema_loader
 
     validator = schema_loader.get_named_validator(
-        "core/reporting-subscription-state.json", version="3.3.0-beta.3"
+        "core/reporting-subscription-state.json", version="3.3.0-beta.4"
     )
     assert [error.message for error in validator.iter_errors(state)] == []
 

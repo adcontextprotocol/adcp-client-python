@@ -27,7 +27,7 @@ STORYBOARD_PATH = (
 #: adcontextprotocol/adcp-client commit the vendored storyboard comes from (PR #3534 and #3560).
 STORYBOARD_COMMIT = "eeeb370dec63002ddf599823f63b9c1115df3436"
 STORYBOARD_SHA256 = "5eac5cb2468d408d5fa08a4fb7735eab3b508b68e970f6c985aad9fdf191db7a"
-VERSION = "3.3-beta.3"
+VERSION = "3.3-beta.4"
 
 
 def test_the_vendored_storyboard_is_the_pinned_typescript_file() -> None:

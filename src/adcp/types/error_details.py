@@ -17,7 +17,7 @@ A nested name that two error-details schemas both define carries the
 defining file in its name (``ScopeFromRateLimited``) instead of a bare one.
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-10-31 11:06:16 UTC
+Generation date: 2026-11-05 09:51:46 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -95,7 +95,7 @@ from adcp.types.domains.error_details.billing_not_supported import (
     BillingNotSupportedDetails,
     Scope as ScopeFromBillingNotSupported,
 )
-from adcp.types.domains.error_details.budget_too_low import BudgetTooLowDetails
+from adcp.types.domains.error_details.budget_too_low import Basis, BudgetTooLowDetails
 from adcp.types.domains.error_details.conflict import ConflictDetails
 from adcp.types.domains.error_details.creative_live_update_unsupported import (
     CreativeLiveUpdateUnsupportedDetails,
@@ -195,6 +195,7 @@ __all__ = [
     "AnyOf2",
     "AudienceTooSmallDetails",
     "AuthorizationRequiredDetails",
+    "Basis",
     "BillingNotPermittedForAgentDetails",
     "BillingNotSupportedDetails",
     "BillingParty",

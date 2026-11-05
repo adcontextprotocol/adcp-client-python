@@ -263,7 +263,7 @@ def _wire_errors(validator, value) -> list[str]:
 
 
 def test_every_vector_wire_object_is_schema_valid() -> None:
-    """Each input's wire objects validate against the 3.3.0-beta.3 schemas.
+    """Each input's wire objects validate against the 3.3.0-beta.4 schemas.
 
     Subscriptions against ``core/reporting-subscription.json``, offerings
     (with ``available_from`` / ``withdrawn_at``) against
@@ -273,7 +273,7 @@ def test_every_vector_wire_object_is_schema_valid() -> None:
     """
     from adcp.validation import schema_loader
 
-    version = "3.3.0-beta.3"
+    version = "3.3.0-beta.4"
     subscription = schema_loader.get_named_validator(
         "core/reporting-subscription.json", version=version
     )
