@@ -159,6 +159,7 @@ from adcp_reporting_storage.ledger.row_storage import (
     ReportingRowStorageV1,
     ReportingRowStoreError,
 )
+from adcp_reporting_storage.migration import schema_ahead_error
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -1028,40 +1029,46 @@ class PgReportingLedgerStore:
         digest = _fingerprint(payload)
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
-            inserted_cursor = await connection.execute(
-                "INSERT INTO reporting_configurations"
-                " (delivery_config_id, delivery_config_version, account_id,"
-                "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                "  automated_recovery_seconds, status_retention_days, definition,"
-                "  authoritative_party, content_sha256, consumer_id, quarantined)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
-                "         %s::jsonb, %s, %s, %s, %s)"
-                " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
-                "ry_config_version) DO NOTHING"
-                " RETURNING delivery_config_id",
-                (
-                    key.delivery_config_id,
-                    key.delivery_config_version,
-                    key.account_id,
-                    configuration.report_definition_id,
-                    configuration.reporting_profile,
-                    configuration.feed_purpose,
-                    configuration.required_finality,
-                    configuration.account_timezone,
-                    _json(payload["schedule"]),
-                    _json(sorted(configuration.media_buy_ids)),
-                    configuration.activated_at,
-                    configuration.deactivated_at,
-                    configuration.automated_recovery_window.total_seconds(),
-                    configuration.status_retention_days,
-                    _json(payload["definition"]) if payload["definition"] else None,
-                    configuration.authoritative_party,
-                    digest,
-                    configuration.consumer_id,
-                    configuration.quarantined,
-                ),
-            )
+            try:
+                inserted_cursor = await connection.execute(
+                    "INSERT INTO reporting_configurations"
+                    " (delivery_config_id, delivery_config_version, account_id,"
+                    "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                    "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
+                    "  automated_recovery_seconds, status_retention_days, definition,"
+                    "  authoritative_party, content_sha256, consumer_id, quarantined)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
+                    "         %s::jsonb, %s, %s, %s, %s)"
+                    " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
+                    "ry_config_version) DO NOTHING"
+                    " RETURNING delivery_config_id",
+                    (
+                        key.delivery_config_id,
+                        key.delivery_config_version,
+                        key.account_id,
+                        configuration.report_definition_id,
+                        configuration.reporting_profile,
+                        configuration.feed_purpose,
+                        configuration.required_finality,
+                        configuration.account_timezone,
+                        _json(payload["schedule"]),
+                        _json(sorted(configuration.media_buy_ids)),
+                        configuration.activated_at,
+                        configuration.deactivated_at,
+                        configuration.automated_recovery_window.total_seconds(),
+                        configuration.status_retention_days,
+                        _json(payload["definition"]) if payload["definition"] else None,
+                        configuration.authoritative_party,
+                        digest,
+                        configuration.consumer_id,
+                        configuration.quarantined,
+                    ),
+                )
+            except Exception as error:
+                ahead = schema_ahead_error(error)
+                if ahead is not None:
+                    raise ahead from error
+                raise
             inserted = await inserted_cursor.fetchone()
             # Check *after* the insert. ON CONFLICT waits for a concurrent
             # winner; a fresh READ COMMITTED statement sees its retained
@@ -3493,6 +3500,9 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
     Matching the index name rather than the driver's prose: the message text
     varies by Postgres version and locale, the index name does not.
     """
+    ahead = schema_ahead_error(error)
+    if ahead is not None:
+        return LedgerConflictError("REPORTING_SCHEMA_AHEAD", str(ahead))
     text = str(error)
     if "reporting_revisions_one_official" in text:
         return LedgerConflictError(

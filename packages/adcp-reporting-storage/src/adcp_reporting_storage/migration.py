@@ -26,6 +26,7 @@ except ImportError:  # adcp 9.0.0 predates it; startup then wraps the error.
 __all__ = [
     "ReportingOwnershipBackfill",
     "ReportingOwnershipMigrationError",
+    "ReportingSchemaAheadError",
     "backfill_legacy_reporting",
     "legacy_generation_digest",
     "migrate_legacy_reporting",
@@ -41,6 +42,41 @@ class ReportingOwnershipMigrationError(ReportingOperatorActionError):
 
     Service startup re-raises it unwrapped, so the operator sees the remedy.
     """
+
+
+_CONTRACT_2_REMEDY = (
+    "Run adcp>=10.0.0b7 with adcp-reporting-storage>=0.2.0b1 on every reporting process."
+    " Downgrading is unsupported: to go back, restore the backup taken before the upgrade."
+    " This is not a caller-ownership migration; do not run migrate_legacy_reporting."
+)
+# PostgreSQL: no unique index or constraint matches an ON CONFLICT target.
+_NO_MATCHING_CONFLICT_KEY = "42P10"
+
+
+class ReportingSchemaAheadError(ReportingOperatorActionError):
+    """adcp-reporting-storage 0.2 or later upgraded this ledger (storage contract 2).
+
+    This release implements storage contract 1: its generation, obligation
+    and status keys name the columns before ``offering_id`` was added, so it
+    can neither start on the upgraded ledger nor write to it. Service startup
+    re-raises it unwrapped, so the operator sees the remedy.
+    """
+
+
+def schema_ahead_error(error: BaseException) -> ReportingSchemaAheadError | None:
+    """The contract-2 refusal for a write whose conflict key the upgrade widened.
+
+    A running process of this release meets an upgraded ledger as PostgreSQL
+    42P10 on its ``ON CONFLICT`` writes, since the unique keys they name now
+    include ``offering_id``. ``None`` for any other error.
+    """
+    if getattr(error, "sqlstate", None) != _NO_MATCHING_CONFLICT_KEY:
+        return None
+    return ReportingSchemaAheadError(
+        "this reporting write names a key that a newer adcp-reporting-storage (storage contract"
+        " 2, with offering_id) has widened, so the ledger was upgraded while this process ran. "
+        + _CONTRACT_2_REMEDY
+    )
 
 
 @dataclass(frozen=True)
@@ -83,9 +119,17 @@ async def require_owned_schema_or_empty(connection: Any) -> None:
             "SELECT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace"
             " WHERE n.nspname=current_schema() AND c.relname='reporting_configurations'),"
             " EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema()"
-            " AND table_name='reporting_configurations' AND column_name='consumer_id')"
+            " AND table_name='reporting_configurations' AND column_name='consumer_id'),"
+            " EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema()"
+            " AND table_name='reporting_configurations' AND column_name='offering_id')"
         )
     ).fetchone()
+    if row[2]:
+        raise ReportingSchemaAheadError(
+            "adcp-reporting-storage 0.2 or later has upgraded this reporting ledger to storage"
+            " contract 2 (reporting_configurations has offering_id). This release implements"
+            " storage contract 1 and cannot run against it. " + _CONTRACT_2_REMEDY
+        )
     if row[0] and not row[1]:
         raise ReportingOwnershipMigrationError(
             "If all legacy tables are empty, call replace_empty_legacy_reporting. "

@@ -29,6 +29,13 @@ BEGIN
     ] THEN
         RETURN;
     END IF;
+    -- adcp-reporting-storage 0.2+ widens the key with offering_id (storage
+    -- contract 2). This release cannot run on it, and the caller-ownership
+    -- remedy below would be wrong advice.
+    IF 'offering_id' = ANY(primary_key_columns) THEN
+        RAISE EXCEPTION 'adcp-reporting-storage 0.2 or later has upgraded this reporting ledger to storage contract 2; this release implements storage contract 1'
+            USING HINT = 'Run adcp>=10.0.0b7 with adcp-reporting-storage>=0.2.0b1 on every reporting process. Downgrading is unsupported: restore the backup taken before the upgrade. Do not run migrate_legacy_reporting.';
+    END IF;
     RAISE EXCEPTION 'Reporting caller ownership requires a stopped-worker maintenance migration'
         USING HINT = 'Use migrate_legacy_reporting; retain legacy state in quarantine and backfill authoritative ownership.';
 
