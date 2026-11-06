@@ -314,6 +314,55 @@ one transaction. It is a stopped-worker upgrade: stop every worker of the
 earlier release first, because their configuration writes name the
 four-column key.
 
+### Deploying the upgrade
+
+This applies whenever more than one process runs Reliable Reporting against
+the ledger. That includes several replicas that each start
+`ReliableReportingService`, and a separate worker deployment. A default
+rolling update does **not** stop the earlier release first. The first new
+process upgrades the ledger when it starts, while the old processes keep
+running against it. From then on, an old process:
+
+- still reads configurations, obligations, revisions and rows;
+- cannot record a new generation (`put_configuration` fails with
+  `InvalidColumnReference: there is no unique or exclusion constraint matching
+  the ON CONFLICT specification`);
+- cannot close the next period of an existing generation (`commit_obligation`
+  fails with `LedgerConflictError: the ledger write violated an integrity rule`,
+  because the period key it names was widened);
+- with status notifications, cannot record status checkpoints, whose key
+  migration `0006` widens;
+- cannot start Reliable Reporting again if it restarts. `create_schema()`
+  raises `Reporting caller ownership requires a stopped-worker maintenance
+  migration`, with a hint to use `migrate_legacy_reporting`. **Ignore that
+  hint.** `migrate_legacy_reporting` is the SDK 8 → 9 caller-ownership
+  migration. It does not apply to this upgrade and would move reporting state
+  into quarantine.
+
+Nothing is corrupted: the new release reads every record the old one wrote.
+But the old processes' reporting stops for the rest of the rollout.
+
+**There is no rollback.** Once the ledger is upgraded, no earlier release can
+start Reliable Reporting against it. To go back, restore the backup taken
+before the upgrade; evidence written after the backup is lost.
+
+To deploy:
+
+1. Back up the database.
+2. Stop every reporting worker of the earlier release. Two ways:
+   - **Recreate.** Roll this one deployment out with every old pod stopped
+     before any new pod starts (Kubernetes `strategy: {type: Recreate}`).
+     Reporting, and the pods, are down for the length of the swap.
+   - **Two phases.** First redeploy the *earlier* release with Reliable
+     Reporting turned off (don't start `ReliableReportingService`), or scale
+     a separate worker deployment to zero. Then roll out the new release
+     normally. Only reporting pauses, not the rest of the service.
+3. Upgrade the schema: run `python -m adcp migrate` once, or let the first new
+   process do it at startup. Run `python -m adcp migrate` (or
+   `ReportingStatusService.migrate()`) if you use `postgres_storage(...)` or
+   status notifications. `create_schema()` alone applies only `0001`–`0003`.
+4. Start the new release everywhere.
+
 `tests/conformance/reporting/test_reporting_storage_published_upgrade_pg.py`
 seeds ledgers with the actual published wheel pairs (`adcp==9.3.1` with
 `adcp-reporting-storage==0.1.0b4`, `adcp==10.0.0b2` with `0.2.0b0`) and proves
