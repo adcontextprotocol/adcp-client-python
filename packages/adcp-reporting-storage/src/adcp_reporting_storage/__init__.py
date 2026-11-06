@@ -169,6 +169,9 @@ if TYPE_CHECKING:
         ReportingOwnershipMigrationError as ReportingOwnershipMigrationError,
     )
     from adcp_reporting_storage.migration import (
+        ReportingSchemaAheadError as ReportingSchemaAheadError,
+    )
+    from adcp_reporting_storage.migration import (
         backfill_legacy_reporting as backfill_legacy_reporting,
     )
     from adcp_reporting_storage.migration import (
@@ -252,6 +255,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Caller-ownership migration
     "ReportingOwnershipBackfill": ("migration", "ReportingOwnershipBackfill"),
     "ReportingOwnershipMigrationError": ("migration", "ReportingOwnershipMigrationError"),
+    "ReportingSchemaAheadError": ("migration", "ReportingSchemaAheadError"),
     "backfill_legacy_reporting": ("migration", "backfill_legacy_reporting"),
     "legacy_generation_digest": ("migration", "legacy_generation_digest"),
     "migrate_legacy_reporting": ("migration", "migrate_legacy_reporting"),

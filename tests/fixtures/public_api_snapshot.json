@@ -8225,6 +8225,7 @@
       "ReportingRowQuarantineReason": "union[value:'BINDING_MISMATCH',value:'ROWS_NOT_PORTABLE',value:'ROW_SEQUENCE_INVALID']",
       "ReportingRowStorageOptionsV1": "adcp_reporting_storage.ledger.row_storage",
       "ReportingRowStorageV1": "adcp_reporting_storage.ledger.row_storage",
+      "ReportingSchemaAheadError": "adcp_reporting_storage.migration",
       "assert_gcs_reporting_row_bucket_policy_v1": "adcp_reporting_storage.ledger.row_storage_gcs",
       "backfill_legacy_reporting": "adcp_reporting_storage.migration",
       "create_azure_blob_reporting_row_object_provider_v1": "adcp_reporting_storage.ledger.row_storage_azure",

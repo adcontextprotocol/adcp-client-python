@@ -49,6 +49,7 @@ from adcp_reporting_storage.ledger.status_snapshot import (
     persist_replay_lifecycles_on,
     settle_snapshot_on,
 )
+from adcp_reporting_storage.migration import schema_ahead_error
 from adcp_reporting_storage.outbox.pg import PgReportingOutbox, database_now
 
 _KEY = (
@@ -288,13 +289,20 @@ class PgStatusNotificationStore:
         # Insert placeholders before allocating random IDs. New and existing
         # typed scopes have exactly the same row-lock/notification boundary.
         for scope in projection_scopes(snapshot):
-            await connection.execute(
-                f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, scope, fingerprint,"  # nosec B608
-                " snapshot, source_sequence, baseline, publishable, selector_writer_floor)"
-                ' VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,\'{"health":"waiting"}\',0,FALSE,FALSE,2)'
-                f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
-                (*scope.checkpoint_key, json.dumps(asdict(scope)), "0" * 64),
-            )
+            try:
+                await connection.execute(
+                    f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, scope, fingerprint,"  # nosec B608
+                    " snapshot, source_sequence, baseline, publishable, selector_writer_floor)"
+                    " VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,"
+                    ' \'{"health":"waiting"}\',0,FALSE,FALSE,2)'
+                    f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
+                    (*scope.checkpoint_key, json.dumps(asdict(scope)), "0" * 64),
+                )
+            except Exception as error:
+                ahead = schema_ahead_error(error)
+                if ahead is not None:
+                    raise ahead from error
+                raise
         await (
             await connection.execute(
                 "SELECT 1 FROM reporting_status_scope_checkpoints WHERE account_id=%s"
