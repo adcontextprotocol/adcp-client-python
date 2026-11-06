@@ -98,14 +98,14 @@ async def test_the_ddl_alone_names_contract_2_not_the_ownership_migration() -> N
     """For operators who apply the packaged SQL themselves."""
     from importlib.resources import files
 
-    from psycopg import errors
-
     ddl = (
         files("adcp_reporting_storage.ledger")
         .joinpath("reporting_ledger_account_generations.sql")
         .read_text()
     )
-    async with isolated_reporting_pool(autocommit=True) as pool:
+    async with isolated_reporting_pool(autocommit=True) as pool:  # skips without psycopg
+        from psycopg import errors
+
         await _upgraded_store(pool)
         async with pool.connection() as connection:
             with pytest.raises(errors.RaiseException) as raised:
