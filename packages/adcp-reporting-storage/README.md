@@ -94,6 +94,12 @@ rewritten or dropped. The upgrade is transactional, serialized under the reporti
 advisory lock, and a no-op when re-run. It is a **stopped-worker** upgrade:
 stop every reporting worker of the earlier release first (its configuration
 writes name the four-column key), run the upgrade, then start the new release.
+A default rolling update does not stop them. Old pods' reporting writes fail
+once the first new pod has upgraded the ledger, and an old pod cannot start
+reporting again. Downgrading is unsupported: restore the backup taken before
+the upgrade. See
+[Deploying the upgrade](https://github.com/adcontextprotocol/adcp-client-python/blob/next/docs/reporting-ledger-migration.md#deploying-the-upgrade)
+for a Recreate or two-phase rollout.
 
 ## Versioning
 

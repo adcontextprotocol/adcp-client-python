@@ -76,5 +76,9 @@ adcp 10.0.0b0–b3 are 1):
 - An existing SDK 9 ledger is upgraded in place by `create_schema()` or
   `python -m adcp migrate`: `offering_id` is added with `''` for every
   existing account-level generation, obligation and status, and the applied
-  schema versions are recorded. Stop every SDK 9 reporting worker first; see
-  [docs/reporting-ledger-migration.md](docs/reporting-ledger-migration.md).
+  schema versions are recorded. Stop every SDK 9 reporting worker first. A
+  default rolling update does not: once the first new pod upgrades the ledger,
+  old pods can no longer record generations or close periods, and cannot start
+  reporting if they restart. There is no rollback short of restoring a backup.
+  See [Deploying the upgrade](docs/reporting-ledger-migration.md#deploying-the-upgrade)
+  for a Recreate or two-phase rollout.
