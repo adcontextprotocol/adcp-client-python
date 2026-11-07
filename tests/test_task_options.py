@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import time
 import warnings
@@ -14,11 +15,10 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from adcp import ADCPClient, TaskOptions, TaskRecoveryMetadata, _idempotency
-from adcp._null_clear import nullable_request_paths
 from adcp.exceptions import ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
-from adcp.task_options import mark_task_dispatched
+from adcp.task_options import _TaskDeadlineExpiredError, mark_task_dispatched
 from adcp.types import GetProductsRequest
 from adcp.types.core import ActivityType, AgentConfig, Protocol, TaskResult, TaskStatus
 
@@ -138,11 +138,48 @@ async def test_external_cancellation_is_not_relabelled() -> None:
             await task
 
 
+# Generous enough that pre-dispatch work (cold schema loads, validation) can
+# never exhaust it, however loaded the machine is.
+_PAST_ANY_PREFLIGHT = 60.0
+
+
+@contextlib.contextmanager
+def _deadline_expires_on(dispatched: asyncio.Event):
+    """Expire the task deadline exactly when ``dispatched`` is set.
+
+    A real 10-100 ms deadline also covers the work before dispatch, which is
+    slow when cold or under ``pytest -n auto``: the deadline then expires
+    before dispatch and there is nothing to recover. Replacing the timer seam
+    (``run_with_timeout``) makes the expiry land after dispatch every time.
+    The client's deadline state, dispatch marking and recovery are all real,
+    and the expiry raises what the real timer raises; other tests here
+    exercise the real timer.
+    """
+
+    async def expire_on_dispatch(factory: Any, _timeout: float) -> Any:
+        work = asyncio.ensure_future(factory())
+        signal = asyncio.ensure_future(dispatched.wait())
+        try:
+            await asyncio.wait({work, signal}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            signal.cancel()
+        if work.done():
+            return work.result()
+        work.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await work
+        raise _TaskDeadlineExpiredError
+
+    with patch("adcp.client.run_with_timeout", new=expire_on_dispatch):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_mutation_timeout_carries_secret_safe_recovery() -> None:
     activities = []
     client = _client(on_activity=activities.append)
     key = "0123456789abcdef-recovery-key"
+    dispatched_event = asyncio.Event()
 
     async def dispatched(_params: dict[str, Any]) -> TaskResult[Any]:
         mark_task_dispatched(
@@ -151,18 +188,20 @@ async def test_mutation_timeout_carries_secret_safe_recovery() -> None:
             mutating=True,
             idempotency_key=key,
         )
-        await asyncio.sleep(1)
+        dispatched_event.set()
+        await asyncio.Event().wait()
         return _completed()
 
     with (
         warnings.catch_warnings(),
         patch.object(client.adapter, "build_creative", new=dispatched),
+        _deadline_expires_on(dispatched_event),
     ):
         warnings.simplefilter("ignore", DeprecationWarning)
         with pytest.raises(ADCPTimeoutError) as caught:
             await client.build_creative_legacy(
                 _Request(idempotency_key=key),
-                options=TaskOptions(timeout=0.01),  # type: ignore[arg-type]
+                options=TaskOptions(timeout=_PAST_ANY_PREFLIGHT),  # type: ignore[arg-type]
             )
 
     error = caught.value
@@ -182,10 +221,8 @@ async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> N
     client = _client()
     key = f"0123456789abcdef-{task_name}"
     dispatched_event = asyncio.Event()
-    # This case exercises a timeout AFTER dispatch. Cold nullable-schema loading
-    # can itself exhaust the budget before dispatch, correctly leaving recovery
-    # unset; the pre-dispatch deadline case below covers that separate contract.
-    nullable_request_paths(task_name, client.get_adcp_version())
+    # This case exercises a timeout AFTER dispatch; the pre-dispatch deadline
+    # case below covers that separate contract.
 
     async def dispatched(params: dict[str, Any]) -> TaskResult[Any]:
         mark_task_dispatched(
@@ -198,11 +235,14 @@ async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> N
         await asyncio.Event().wait()
         return _completed()
 
-    with patch.object(client.adapter, task_name, new=dispatched):
+    with (
+        patch.object(client.adapter, task_name, new=dispatched),
+        _deadline_expires_on(dispatched_event),
+    ):
         with pytest.raises(ADCPTimeoutError) as caught:
             await getattr(client, task_name)(
                 _Request(idempotency_key=key),
-                options=TaskOptions(timeout=0.1),
+                options=TaskOptions(timeout=_PAST_ANY_PREFLIGHT),
             )
 
     assert dispatched_event.is_set()
@@ -215,6 +255,8 @@ async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> N
 async def test_real_mcp_dispatch_reports_the_exact_pinned_wire_key() -> None:
     from adcp.server.responses import capabilities_response
 
+    on_the_wire = asyncio.Event()
+
     class BlockingSession:
         sent: dict[str, Any] | None = None
 
@@ -224,7 +266,8 @@ async def test_real_mcp_dispatch_reports_the_exact_pinned_wire_key() -> None:
                 caps["adcp"]["idempotency"] = {"supported": False}
                 return SimpleNamespace(isError=False, structuredContent=caps, content=[])
             self.sent = params
-            await asyncio.sleep(1)
+            on_the_wire.set()
+            await asyncio.Event().wait()
 
     session = BlockingSession()
     client = ADCPClient.from_mcp_client(session, agent_id="in-process")  # type: ignore[arg-type]
@@ -232,11 +275,15 @@ async def test_real_mcp_dispatch_reports_the_exact_pinned_wire_key() -> None:
     await client.fetch_capabilities()
     key = "0123456789abcdef-pinned-wire-key"
 
-    with warnings.catch_warnings(), client.use_idempotency_key(key):
+    with (
+        warnings.catch_warnings(),
+        client.use_idempotency_key(key),
+        _deadline_expires_on(on_the_wire),
+    ):
         warnings.simplefilter("ignore", DeprecationWarning)
         with pytest.raises(ADCPTimeoutError) as caught:
             await client.build_creative_legacy(  # type: ignore[arg-type]
-                _NoKeyRequest(), options=TaskOptions(timeout=0.05)
+                _NoKeyRequest(), options=TaskOptions(timeout=_PAST_ANY_PREFLIGHT)
             )
 
     assert session.sent is not None
