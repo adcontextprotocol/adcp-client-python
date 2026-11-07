@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,6 +29,7 @@ from adcp.decisioning import (
     BuyerAgentRegistry,
     HttpSigCredential,
 )
+from adcp.decisioning import _permission_denied_budget as budget_module
 from adcp.decisioning._permission_denied_budget import (
     BUDGET_ENV_VAR,
     DEFAULT_BUDGET_MS,
@@ -91,6 +93,39 @@ def test_env_var_invalid_still_falls_back(monkeypatch, caplog):
 # ---------------------------------------------------------------------------
 
 
+class _VirtualClock:
+    """Deterministic time for the budget module.
+
+    Upper bounds and differences between real elapsed times depend on how
+    busy the machine is (``pytest -n auto`` saturates it), so the tests that
+    assert them run the budget on this clock instead: ``perf_counter`` reads
+    it, and ``sleep`` and the fake registry advance it, exactly.
+    """
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def perf_counter(self) -> float:
+        return self.now
+
+    async def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += max(seconds, 0.0)
+        await asyncio.sleep(0)
+
+    def elapsed_ms_since(self, start: float) -> float:
+        return (self.now - start) * 1000.0
+
+
+@pytest.fixture
+def virtual_clock(monkeypatch) -> _VirtualClock:
+    clock = _VirtualClock()
+    monkeypatch.setattr(budget_module, "time", SimpleNamespace(perf_counter=clock.perf_counter))
+    monkeypatch.setattr(budget_module, "asyncio", SimpleNamespace(sleep=clock.sleep))
+    return clock
+
+
 @pytest.mark.asyncio
 async def test_enforce_sleeps_to_budget_when_branch_is_fast(monkeypatch):
     """A branch that does no work waits the full budget."""
@@ -105,16 +140,14 @@ async def test_enforce_sleeps_to_budget_when_branch_is_fast(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_enforce_does_not_sleep_when_already_overrun(monkeypatch):
+async def test_enforce_does_not_sleep_when_already_overrun(monkeypatch, virtual_clock):
     """A branch that already exceeded the budget passes through immediately."""
     monkeypatch.setenv(BUDGET_ENV_VAR, "5")
     budget = PermissionDeniedBudget()
     # Burn more than the budget before enforce().
-    await asyncio.sleep(0.020)
-    start = time.perf_counter()
+    virtual_clock.now += 0.020
     await budget.enforce()
-    elapsed_ms = (time.perf_counter() - start) * 1000.0
-    assert elapsed_ms < 5.0, f"enforce() should be a no-op once overrun, got {elapsed_ms:.1f} ms"
+    assert virtual_clock.sleeps == []
 
 
 @pytest.mark.asyncio
@@ -146,18 +179,30 @@ async def test_inf_does_not_hang(monkeypatch):
 
 
 class _SlowRegistry(BuyerAgentRegistry):
-    """A registry whose resolve methods take a configurable amount of time."""
+    """A registry whose resolve methods take a configurable amount of time.
 
-    def __init__(self, delay_ms: float, agent: BuyerAgent | None) -> None:
+    With ``clock``, the delay advances that virtual clock instead of sleeping.
+    """
+
+    def __init__(
+        self, delay_ms: float, agent: BuyerAgent | None, *, clock: _VirtualClock | None = None
+    ) -> None:
         self._delay_seconds = delay_ms / 1000.0
         self._agent = agent
+        self._clock = clock
+
+    async def _delay(self) -> None:
+        if self._clock is not None:
+            await self._clock.sleep(self._delay_seconds)
+        else:
+            await asyncio.sleep(self._delay_seconds)
 
     async def resolve_by_agent_url(self, agent_url: str) -> BuyerAgent | None:
-        await asyncio.sleep(self._delay_seconds)
+        await self._delay()
         return self._agent
 
     async def resolve_by_credential(self, credential):  # pragma: no cover - not used here
-        await asyncio.sleep(self._delay_seconds)
+        await self._delay()
         return self._agent
 
 
@@ -245,42 +290,32 @@ async def test_active_branch_skips_budget(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_branch_parity_absorbs_registry_variance(monkeypatch):
+async def test_branch_parity_absorbs_registry_variance(monkeypatch, virtual_clock):
     """The whole point: fast registry-miss + slow real-row read should
-    both come out at ≈ budget, not (0 ms, registry_delay)."""
+    both come out at the budget, not (0 ms, registry_delay)."""
     monkeypatch.setenv(BUDGET_ENV_VAR, "50")
 
-    # Branch 1: registry-miss path with a fast cache-miss-returning-None.
-    fast_miss = _SlowRegistry(delay_ms=1.0, agent=None)
-    miss_samples: list[float] = []
-    for _ in range(5):
-        start = time.perf_counter()
-        with pytest.raises(AdcpError):
-            await _resolve_buyer_agent(fast_miss, _http_sig_auth("https://buyer.example"))
-        miss_samples.append((time.perf_counter() - start) * 1000.0)
+    async def elapsed_ms(registry: _SlowRegistry) -> float:
+        start = virtual_clock.now
+        with pytest.raises(AdcpError) as exc:
+            await _resolve_buyer_agent(registry, _http_sig_auth("https://buyer.example"))
+        assert exc.value.code == "PERMISSION_DENIED"
+        return virtual_clock.elapsed_ms_since(start)
 
+    # Branch 1: registry-miss path with a fast cache-miss-returning-None.
+    fast_miss = _SlowRegistry(delay_ms=1.0, agent=None, clock=virtual_clock)
     # Branch 2: unknown-status path with a slower registry read for a real row.
     unknown_agent = BuyerAgent(
         agent_url="https://buyer.example",
         display_name="Test Buyer",
         status="pending_review",
     )
-    slow_hit = _SlowRegistry(delay_ms=10.0, agent=unknown_agent)
-    hit_samples: list[float] = []
-    for _ in range(5):
-        start = time.perf_counter()
-        with pytest.raises(AdcpError):
-            await _resolve_buyer_agent(slow_hit, _http_sig_auth("https://buyer.example"))
-        hit_samples.append((time.perf_counter() - start) * 1000.0)
+    slow_hit = _SlowRegistry(delay_ms=10.0, agent=unknown_agent, clock=virtual_clock)
 
-    miss_max = max(miss_samples)
-    hit_max = max(hit_samples)
-    # Both should be dominated by the 50 ms budget. The branch difference
-    # must be much smaller than the registry-delay difference (9 ms) that
-    # would leak without the budget.
-    branch_delta = abs(hit_max - miss_max)
-    assert (
-        branch_delta < 15.0
-    ), f"branch parity broken: hit={hit_max:.1f} ms vs miss={miss_max:.1f} ms"
-    # Both should be at or above the budget.
-    assert min(miss_samples + hit_samples) >= 45.0
+    # Both branches end exactly at the 50 ms budget: the 9 ms registry-delay
+    # difference that would leak without the budget is absorbed into it.
+    assert await elapsed_ms(fast_miss) == pytest.approx(50.0)
+    assert await elapsed_ms(slow_hit) == pytest.approx(50.0)
+    # A registry read slower than the budget is not padded further.
+    slower_than_budget = _SlowRegistry(delay_ms=80.0, agent=unknown_agent, clock=virtual_clock)
+    assert await elapsed_ms(slower_than_budget) == pytest.approx(80.0)
