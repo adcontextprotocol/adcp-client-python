@@ -45,6 +45,7 @@ from adcp.reporting.outbox.routing import (
     ReportingSigningMaterial,
     ReportingSigningResolver,
     ReportingSubscriptionResolver,
+    ReportingWebBotAuthKey,
 )
 from adcp.reporting.outbox.status import (
     ReportingStatusProjector,
@@ -75,6 +76,7 @@ __all__ = [
     "ReportingDurableNotificationLedger",
     "ReportingDurableStatusStore",
     "ReportingStatusSupport",
+    "ReportingWebBotAuthKey",
     "StatusChanged",
     "StatusBoundary",
     "StatusCheckpoint",

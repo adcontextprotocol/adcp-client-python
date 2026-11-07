@@ -454,3 +454,58 @@ async def test_challenge_webhook_destination_sender_uses_sender_timeout(
         )
 
     assert async_client.call_args.kwargs["timeout"] == 42.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "profile,tag",
+    [
+        (None, "adcp/webhook-signing/v1"),
+        ("adcp/webhook-signing/v1", "adcp/webhook-signing/v1"),
+        ("web-bot-auth", "web-bot-auth"),
+    ],
+)
+async def test_challenge_is_signed_under_the_configs_signing_profile(
+    monkeypatch: pytest.MonkeyPatch, profile: str | None, tag: str
+) -> None:
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    _public_dns(monkeypatch)
+    captured: list[httpx.Request] = []
+    sender = _rfc9421_sender().with_web_bot_auth(
+        ed25519.Ed25519PrivateKey.generate(), agent_origin="https://seller.example"
+    )
+
+    with patch(
+        "adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport",
+        return_value=_challenge_transport(captured),
+    ):
+        result = await challenge_webhook_destination(
+            url="https://buyer.example/webhooks/catalog",
+            account_id="acct_1",
+            subscriber_id="buyer-primary",
+            sender=sender,
+            signing_profile=profile,
+        )
+
+    assert result.ok
+    assert f';tag="{tag}"' in captured[0].headers["signature-input"]
+    assert ("signature-agent" in captured[0].headers) is (tag == "web-bot-auth")
+
+
+@pytest.mark.asyncio
+async def test_challenge_refuses_a_profile_the_sender_cannot_sign() -> None:
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    sender = WebhookSender.from_wba(
+        ed25519.Ed25519PrivateKey.generate(), agent_origin="https://seller.example"
+    )
+    # An omitted signing_profile means adcp/webhook-signing/v1.
+    with pytest.raises(WebhookChallengeError) as exc:
+        await challenge_webhook_destination(
+            url="https://buyer.example/webhooks/catalog",
+            account_id="acct_1",
+            subscriber_id="buyer-primary",
+            sender=sender,
+        )
+    assert exc.value.reason == "signing_profile_unavailable"

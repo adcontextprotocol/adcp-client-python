@@ -41,6 +41,7 @@ from adcp.webhook_sender import (
     WebhookSenderResolver,
 )
 from adcp.webhook_supervisor import RetryPolicy
+from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILES
 
 if TYPE_CHECKING:
     from psycopg import AsyncConnection, Connection
@@ -415,6 +416,7 @@ class PgNotificationOutbox:
                     "signature",
                     "signature-input",
                     "content-digest",
+                    "signature-agent",
                 }
             ),
         )
@@ -423,14 +425,25 @@ class PgNotificationOutbox:
                 c in value for c in ("\r", "\n", "\x00")
             ):
                 raise ValueError("invalid notification HTTP headers")
+        profile = prepared.required_signing_profile
+        if profile is not None and profile not in WEBHOOK_SIGNING_PROFILES:
+            raise ValueError(f"unknown webhook signing profile {profile!r}")
         # Credentials/headers are authenticated and encrypted along with the body.
-        return _canonical(
-            {
-                "version": 1,
-                "body": base64.b64encode(prepared.body).decode("ascii"),
-                "extra_headers": headers,
-            }
-        )
+        envelope: dict[str, Any] = {
+            "version": 1,
+            "body": base64.b64encode(prepared.body).decode("ascii"),
+            "extra_headers": headers,
+        }
+        if profile is not None:
+            # The registration's profile binds every attempt; it is part of
+            # the immutable delivery, so a replayed enqueue must match it.
+            envelope["required_signing_profile"] = profile
+            if profile != WEBHOOK_SIGNING_PROFILE_ADCP:
+                # Version 2: an earlier SDK, whose only profile is the default,
+                # refuses (quarantines) the row rather than ignore the profile.
+                # An adcp/webhook-signing/v1 row stays readable to it.
+                envelope["version"] = 2
+        return _canonical(envelope)
 
     def _prepare_insert(
         self,
@@ -613,7 +626,7 @@ class PgNotificationOutbox:
         if cipher is None:
             raise ValueError("notification encryption key is unavailable")
         value = json.loads(cipher.decrypt(bytes(nonce), bytes(ciphertext), aad))
-        if not isinstance(value, dict) or value.get("version") != 1:
+        if not isinstance(value, dict) or value.get("version") not in (1, 2):
             raise ValueError("invalid encrypted notification envelope")
         body = base64.b64decode(value["body"], validate=True)
         headers = value.get("extra_headers")
@@ -621,6 +634,11 @@ class PgNotificationOutbox:
             not isinstance(k, str) or not isinstance(v, str) for k, v in headers.items()
         ):
             raise ValueError("invalid stored notification headers")
+        profile = value.get("required_signing_profile")
+        if (value["version"] == 2) != (
+            profile is not None and profile != WEBHOOK_SIGNING_PROFILE_ADCP
+        ) or (profile is not None and profile not in WEBHOOK_SIGNING_PROFILES):
+            raise ValueError("invalid stored notification signing profile")
         validate_notification_body(
             body,
             idempotency_key=key,
@@ -628,7 +646,13 @@ class PgNotificationOutbox:
             account_id=account,
             experimental_agent_identity=self._experimental_agent_identity,
         )
-        return PreparedWebhook(url=url, idempotency_key=key, body=body, extra_headers=headers)
+        return PreparedWebhook(
+            url=url,
+            idempotency_key=key,
+            body=body,
+            extra_headers=headers,
+            required_signing_profile=profile,
+        )
 
     def _validate_sender(self, sender: WebhookSender) -> None:
         if (
@@ -661,10 +685,8 @@ class PgNotificationOutbox:
             if not isinstance(resolution, WebhookSenderResolution):
                 raise ValueError("invalid sender resolution")
             self._validate_sender(resolution.sender)
-            if (
-                getattr(getattr(resolution.sender, "_auth", None), "alg", None)
-                not in resolution.advertised_algorithms
-            ):
+            algorithms = resolution.sender.signing_algorithms
+            if not algorithms or not algorithms <= resolution.advertised_algorithms:
                 raise ValueError("resolved signing algorithm is not advertised")
         except Exception:
             raise ScopePermanentlyUnknown from None

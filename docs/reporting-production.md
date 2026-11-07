@@ -140,7 +140,14 @@ contract. Private key material stays in the resolver and sender. The operator
 must publish its brand document and corresponding signing keys at the declared
 identity; the SDK does not assert that a supplied URL proves external ownership.
 The declaration is RFC 9421 `adcp/webhook-signing/v1`, the exact supplied
-algorithm set, no legacy fallback, and an 86,400-second retry horizon. Each
+algorithm set, no legacy fallback, and an 86,400-second retry horizon. Pass
+`web_bot_auth=True` to also sign subscriptions selecting `web-bot-auth` (AdCP
+3.3): the declaration then lists both `profiles`, `ed25519` must be among the
+algorithms, and every resolved `ReportingSigningMaterial` must carry
+`web_bot_auth=ReportingWebBotAuthKey(key, agent_origin)`. Without it, a
+`web-bot-auth` subscription is skipped with a warning, and the account's other
+subscribers are still notified. See
+[Web Bot Auth webhooks](webhooks/web-bot-auth.md#reporting-notifications). Each
 queue reserves the first HTTP attempt and its key/body binding before peer I/O,
 using database time in PostgreSQL. Window insertion, HTTP attempt and ordinal
 reservation share one transaction; a failed reservation leaves none of them.

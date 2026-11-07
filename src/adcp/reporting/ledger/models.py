@@ -354,6 +354,10 @@ def _ledger_dict(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         # A subscription binding's path_template; account bindings never set
         # it, so their fingerprints and stored payloads are unchanged.
         del value["path_template"]
+    if "proof_of_control_ref" in value and value.get("signing_profile", "") is None:
+        # A notification subscription that selected no signing profile: left
+        # out so subscriptions stored before the field keep their fingerprint.
+        del value["signing_profile"]
     return value
 
 

@@ -44,6 +44,7 @@ from adcp.webhook_sender import (
     ScopeTransientlyUnavailable,
     WebhookSender,
 )
+from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.delivery_models import ReportingDeliveryScope
@@ -434,6 +435,18 @@ class ReportingNotificationWorker:
             raise ScopePermanentlyUnknown from None
         try:
             ReportingSigningMaterial.__post_init__(material)
+            if subscription.signing_profile == WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH:
+                # Signed afresh per attempt (new nonce); a missing key is a
+                # configuration error retries cannot repair.
+                web_bot_auth = material.web_bot_auth
+                if web_bot_auth is None:
+                    raise ValueError("no web-bot-auth key for this signing scope")
+                return WebhookSender.from_wba(
+                    web_bot_auth.private_key,
+                    agent_origin=web_bot_auth.agent_origin,
+                    timeout_seconds=timeout,
+                    allowed_destination_ports=frozenset({443}),
+                )
             return WebhookSender(
                 private_key=material.private_key,
                 key_id=material.key_id,

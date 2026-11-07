@@ -151,10 +151,11 @@ raises `WebhookSigningProfileUnavailableError` before any network I/O unless the
 sender signs under that profile. A bearer or HMAC sender
 (`from_bearer_token`, `from_adcp_legacy_hmac`, `from_standard_webhooks_secret`)
 would otherwise send a credential the buyer never registered. Use
-`WebhookSender.from_jwk` / `from_pem` for these registrations. The SDK does not
-yet sign webhooks under `web-bot-auth`, so a registration selecting it also
-raises; do not list `web-bot-auth` in `webhook_signing.profiles` and reject such
-registrations with `INVALID_REQUEST`. For artifact webhooks pass the stored
+`WebhookSender.from_jwk` / `from_pem` for `adcp/webhook-signing/v1`, and
+`WebhookSender.from_wba` (or `with_web_bot_auth` for both profiles) for
+`web-bot-auth`; see [Web Bot Auth webhooks](web-bot-auth.md). Reject a
+registration selecting a profile you do not list in `webhook_signing.profiles`
+with `INVALID_REQUEST`. For artifact webhooks pass the stored
 `artifact_webhook` as `registration=` to `prepare_artifact_webhook` /
 `send_artifact_webhook`, or call `sender.check_registration(registration)`.
 
