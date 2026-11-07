@@ -115,6 +115,8 @@ def sender_mock() -> MagicMock:
     sender._timeout = 10
     sender.signs_with_rfc9421 = True
     sender._auth.alg = "ed25519"
+    sender.signing_algorithms = frozenset({"ed25519"})
+    sender.signing_profiles = frozenset({"adcp/webhook-signing/v1"})
 
     async def send(
         value: PreparedWebhook,

@@ -686,3 +686,22 @@ async def test_resolver_outbox_registrations_are_checked_against_advertised_prof
         assert caught.value.field == "push_notification_config.signing_profile"
     else:
         await call
+
+
+def test_sender_like_objects_without_the_new_properties_keep_working() -> None:
+    """Test doubles predating signing_algorithms / signing_profiles fall back."""
+    from adcp.webhook_sender import _sender_signing_algorithms, _sender_signing_profiles
+
+    legacy_double = MagicMock()
+    legacy_double.signs_with_rfc9421 = True
+    legacy_double._auth.alg = "ed25519"
+    assert _sender_signing_algorithms(legacy_double) == frozenset({"ed25519"})
+    assert _sender_signing_profiles(legacy_double) == frozenset({ADCP})
+
+    unsigned = SimpleNamespace(signs_with_rfc9421=False)
+    assert _sender_signing_algorithms(unsigned) == frozenset()
+    assert _sender_signing_profiles(unsigned) == frozenset()
+
+    dual = WebhookSender.from_jwk(_WEBHOOK_JWK).with_web_bot_auth(_key(), agent_origin=ORIGIN)
+    assert _sender_signing_profiles(dual) == frozenset({ADCP, WBA})
+    assert _sender_signing_algorithms(dual) == frozenset({"ed25519"})

@@ -39,6 +39,7 @@ from adcp.webhook_sender import (
     WebhookSender,
     WebhookSenderResolution,
     WebhookSenderResolver,
+    _sender_signing_algorithms,
 )
 from adcp.webhook_supervisor import RetryPolicy
 from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILES
@@ -685,7 +686,7 @@ class PgNotificationOutbox:
             if not isinstance(resolution, WebhookSenderResolution):
                 raise ValueError("invalid sender resolution")
             self._validate_sender(resolution.sender)
-            algorithms = resolution.sender.signing_algorithms
+            algorithms = _sender_signing_algorithms(resolution.sender)
             if not algorithms or not algorithms <= resolution.advertised_algorithms:
                 raise ValueError("resolved signing algorithm is not advertised")
         except Exception:

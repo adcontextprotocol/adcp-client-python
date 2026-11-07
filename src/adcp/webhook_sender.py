@@ -165,6 +165,35 @@ def _profile_strategies_for(auth: WebhookAuthStrategy) -> dict[str, WebhookAuthS
     return {}
 
 
+def _sender_signing_algorithms(sender: Any) -> frozenset[str]:
+    """Every ``alg`` a sender's signatures may carry.
+
+    Reads :attr:`WebhookSender.signing_algorithms`, falling back to the
+    single ``_auth.alg`` for a sender-like object without it (a test double,
+    or a supervisor's sender built before the property existed).
+    """
+    algorithms = getattr(sender, "signing_algorithms", None)
+    if isinstance(algorithms, frozenset):
+        return algorithms
+    alg = getattr(getattr(sender, "_auth", None), "alg", None)
+    return frozenset({alg}) if isinstance(alg, str) else frozenset()
+
+
+def _sender_signing_profiles(sender: Any) -> frozenset[str]:
+    """Every webhook-signing profile a sender can sign under.
+
+    Reads :attr:`WebhookSender.signing_profiles`, falling back for a
+    sender-like object without it to ``adcp/webhook-signing/v1`` when it
+    signs with RFC 9421 (the only profile before ``web-bot-auth``), else none.
+    """
+    profiles = getattr(sender, "signing_profiles", None)
+    if isinstance(profiles, frozenset):
+        return profiles
+    if getattr(sender, "signs_with_rfc9421", False) is True:
+        return frozenset({WEBHOOK_SIGNING_PROFILE_ADCP})
+    return frozenset()
+
+
 def _wba_strategy(private_key: Any, agent_origin: str) -> WbaSignerStrategy:
     """Validate a Web Bot Auth key and origin up front, at construction."""
     from adcp.signing.wba import _https_origin, public_directory_key

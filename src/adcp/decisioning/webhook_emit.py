@@ -721,7 +721,9 @@ def validate_webhook_signing_for_capabilities(
     # skip the cross-check when omitted (no advertisement to violate).
     advertised_algorithms = getattr(webhook_signing, "algorithms", None)
     if advertised_algorithms and sender_introspectable:
-        sender_algs = _sender_algorithms(resolved_sender)
+        from adcp.webhook_sender import _sender_signing_algorithms
+
+        sender_algs = _sender_signing_algorithms(resolved_sender)
         advertised_alg_values = [getattr(a, "value", a) for a in advertised_algorithms]
         unadvertised = sorted(alg for alg in sender_algs if alg not in advertised_alg_values)
         if not sender_algs or unadvertised:
@@ -808,15 +810,6 @@ def advertised_webhook_signing_profiles(capabilities: Any) -> frozenset[str] | N
         return None
     profiles = getattr(webhook_signing, "profiles", None) or [WEBHOOK_SIGNING_PROFILE_ADCP]
     return frozenset(str(getattr(profile, "value", profile)) for profile in profiles)
-
-
-def _sender_algorithms(sender: Any) -> frozenset[str]:
-    """Every ``alg`` a sender's signatures may carry; duck-typed for supervisors."""
-    algorithms = getattr(sender, "signing_algorithms", None)
-    if isinstance(algorithms, frozenset):
-        return algorithms
-    alg = getattr(getattr(sender, "_auth", None), "alg", None)
-    return frozenset({alg}) if isinstance(alg, str) else frozenset()
 
 
 def external_task_webhook_owner_ready(

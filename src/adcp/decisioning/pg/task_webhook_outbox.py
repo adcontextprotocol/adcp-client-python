@@ -37,6 +37,8 @@ from adcp.webhook_sender import (
     WebhookSender,
     WebhookSenderResolution,
     WebhookSenderResolver,
+    _sender_signing_algorithms,
+    _sender_signing_profiles,
 )
 from adcp.webhook_supervisor import RetryPolicy
 from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILES
@@ -373,7 +375,7 @@ class PgTaskWebhookOutbox:
         """
         if self._sender is None:
             return None
-        return profile in self._sender.signing_profiles
+        return profile in _sender_signing_profiles(self._sender)
 
     def protect_registration(
         self,
@@ -839,7 +841,7 @@ class PgTaskWebhookOutbox:
                 raise ValueError("resolver returned an invalid sender resolution")
             sender = resolution.sender
             self._validate_delivery_sender(sender)
-            sender_algorithms = sender.signing_algorithms
+            sender_algorithms = _sender_signing_algorithms(sender)
             if not sender_algorithms or not sender_algorithms <= resolution.advertised_algorithms:
                 raise ValueError("resolved sender algorithm was not advertised for its scope")
             sender_timeout = float(getattr(sender, "_timeout", 0.0))
