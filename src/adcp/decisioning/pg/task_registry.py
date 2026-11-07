@@ -270,9 +270,15 @@ class PgTaskRegistry(_TaskLifecycleObservers):
         webhook_token: str | None = None,
         webhook_authentication: TaskWebhookAuthentication | None = None,
         webhook_signing_scope_id: str | None = None,
+        webhook_signing_profile: str | None = None,
         **_extra: Any,
     ) -> str:
         """Allocate a task_id, persist a ``submitted`` row, return the id.
+
+        ``webhook_signing_profile`` is the registration's ``signing_profile``
+        (AdCP 3.3); the terminal webhook is signed under it, or under
+        ``adcp/webhook-signing/v1`` when it is ``None`` and no legacy
+        ``webhook_authentication`` was registered.
 
         Mirrors :meth:`~adcp.decisioning.InMemoryTaskRegistry.issue` including
         the account_id validation guard — empty or sentinel account_ids would
@@ -300,11 +306,15 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             raise ValueError(
                 "legacy webhook_authentication must not carry an RFC 9421 signing scope"
             )
+        if webhook_url is None and webhook_signing_profile is not None:
+            raise ValueError("webhook_signing_profile requires webhook_url")
         outbox = self.task_webhook_outbox
         if webhook_url is not None:
             if outbox is None:
                 raise ValueError("webhook registration requires the registry's task_webhook_outbox")
-            outbox.validate_registration(webhook_url, webhook_authentication)
+            outbox.validate_registration(
+                webhook_url, webhook_authentication, signing_profile=webhook_signing_profile
+            )
         task_id = f"task_{uuid.uuid4().hex[:16]}"
         encrypted_registration: bytes | None = None
         registration_nonce: bytes | None = None
@@ -320,6 +330,7 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                 token=webhook_token,
                 authentication=webhook_authentication,
                 signing_scope_id=webhook_signing_scope_id,
+                signing_profile=webhook_signing_profile,
             )
         now = time.time()
         async with self._pool.connection() as conn:
@@ -616,7 +627,7 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             )
         if registration_nonce is None:
             raise RuntimeError(f"Task {task_id!r} has incomplete webhook registration")
-        url, operation_id, token, authentication, signing_scope_id = (
+        url, operation_id, token, authentication, signing_scope_id, signing_profile = (
             self.task_webhook_outbox._open_registration_with_scope(
                 account_id=account_id,
                 task_id=task_id,
@@ -637,6 +648,7 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             token=token,
             authentication=authentication,
             signing_scope_id=signing_scope_id,
+            signing_profile=signing_profile,
         )
         # The encrypted outbox envelope now owns the callback registration.
         # Clear the task-row copy in this same transaction.

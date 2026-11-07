@@ -1,7 +1,7 @@
 """Auth-mode strategies for :class:`adcp.webhook_sender.WebhookSender`.
 
-Each strategy owns one authentication mode (RFC 9421 JWK signing,
-Standard-Webhooks HMAC, AdCP-legacy HMAC, bearer token) and produces
+Each strategy owns one authentication mode (RFC 9421 JWK signing, Web Bot
+Auth, Standard-Webhooks HMAC, AdCP-legacy HMAC, bearer token) and produces
 the auth-bearing headers for one outgoing webhook delivery. The sender
 calls :meth:`WebhookAuthStrategy.build_auth_headers` per request and
 merges the returned headers into the wire request.
@@ -14,7 +14,7 @@ splits ``_send_bytes`` into a chain of mode-conditionals. A strategy
 collapses that into one method call.
 
 Strategies are constructed by the public :class:`WebhookSender`
-classmethods (:meth:`from_jwk`, :meth:`from_pem`,
+classmethods (:meth:`from_jwk`, :meth:`from_pem`, :meth:`from_wba`,
 :meth:`from_bearer_token`, :meth:`from_adcp_legacy_hmac`,
 :meth:`from_standard_webhooks_secret`). They are not part of the
 public API directly — call the matching ``WebhookSender.from_*``.
@@ -29,6 +29,8 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
+
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from adcp.signing.crypto import PrivateKey
 from adcp.signing.standard_webhooks import (
@@ -50,6 +52,11 @@ from adcp.signing.webhook_signer import sign_webhook
 # nor can Content-Type (changing it would break body framing on the
 # receiver).
 _BASE_RESERVED: frozenset[str] = frozenset({"content-length", "content-type", "host"})
+# Both RFC 9421 profiles reserve the same fields, so a sender holding both
+# refuses the same extra_headers whichever profile a delivery uses.
+_RFC9421_RESERVED: frozenset[str] = frozenset(
+    {"signature", "signature-input", "content-digest", "signature-agent"}
+)
 
 
 class WebhookAuthStrategy(Protocol):
@@ -94,7 +101,42 @@ class JwkSignerStrategy:
         return signed.as_dict()
 
     def reserved_headers(self) -> frozenset[str]:
-        return _BASE_RESERVED | {"signature", "signature-input", "content-digest"}
+        return _BASE_RESERVED | _RFC9421_RESERVED
+
+
+@dataclass(frozen=True)
+class WbaSignerStrategy:
+    """Web Bot Auth webhook-signing profile (``web-bot-auth``, AdCP 3.3).
+
+    A webhook under this profile is an ordinary Web Bot Auth request from the
+    seller's origin: :func:`adcp.signing.wba.sign_wba_request` covers
+    ``@method``, ``@target-uri``, ``@authority``, ``content-type``,
+    ``content-digest`` and ``signature-agent``, with a fresh 64-byte nonce and
+    ``created`` on every call. Receivers record nonces, so every attempt,
+    retries included, must be signed afresh — which the sender does by
+    re-entering :meth:`build_auth_headers`.
+    """
+
+    private_key: ed25519.Ed25519PrivateKey = field(repr=False)
+    agent_origin: str
+    #: RFC 7638 thumbprint of the public key, the ``keyid`` every signature names.
+    key_id: str
+    alg: str = "ed25519"
+
+    def build_auth_headers(self, *, method: str, url: str, body: bytes) -> dict[str, str]:
+        from adcp.signing.wba import sign_wba_request
+
+        return sign_wba_request(
+            method=method,
+            url=url,
+            headers={"Content-Type": "application/json"},
+            body=body,
+            private_key=self.private_key,
+            agent_origin=self.agent_origin,
+        )
+
+    def reserved_headers(self) -> frozenset[str]:
+        return _BASE_RESERVED | _RFC9421_RESERVED
 
 
 @dataclass(frozen=True)
@@ -218,6 +260,7 @@ __all__ = [
     "BearerTokenStrategy",
     "JwkSignerStrategy",
     "StandardWebhooksHmacStrategy",
+    "WbaSignerStrategy",
     "WebhookAuthStrategy",
     "merge_extra_headers",
 ]

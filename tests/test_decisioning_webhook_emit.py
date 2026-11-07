@@ -1043,3 +1043,97 @@ async def test_gate_swallows_unexpected_exceptions(caplog) -> None:
             result={"media_buy_id": "mb_1"},
         )
     assert caplog.records == []
+
+
+def _signed_request(profile: str | None, *, idem_suffix: str) -> CreateMediaBuyRequest:
+    request = _make_request(with_url=True, idem_suffix=idem_suffix)
+    if profile is None:
+        return request
+    payload = request.model_dump(mode="json", exclude_none=True)
+    payload["push_notification_config"]["signing_profile"] = profile
+    return CreateMediaBuyRequest(**payload)
+
+
+class _TenantProfilesPlatform(_HandoffPlatform):
+    """Static capabilities sign adcp/webhook-signing/v1 only; one tenant adds web-bot-auth."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400),
+        webhook_signing_managed_externally=True,
+    )
+
+    def get_adcp_capabilities_for_request(self, params=None, context=None):
+        if context is None or context.tenant_id != "wba-tenant":
+            return None
+        return DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+                profiles=["adcp/webhook-signing/v1", "web-bot-auth"],
+            ),
+            webhook_signing_managed_externally=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_scoped_capabilities_admit_a_push_profile_the_static_set_lacks(executor) -> None:
+    """The tenant's advertised profiles decide, not the static capabilities."""
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _TenantProfilesPlatform(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+
+    result = await handler.create_media_buy(
+        _signed_request("web-bot-auth", idem_suffix="wba"),
+        ToolContext(tenant_id="wba-tenant"),
+    )
+
+    assert result["status"] == "submitted"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tenant", [None, "other-tenant"])
+async def test_unadvertised_push_profile_is_refused_before_the_task_is_issued(
+    executor, tenant: str | None
+) -> None:
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _TenantProfilesPlatform(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(
+            _signed_request("web-bot-auth", idem_suffix="no_wba"),
+            ToolContext(tenant_id=tenant),
+        )
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config.signing_profile"
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("profile", [None, "adcp/webhook-signing/v1"])
+async def test_default_push_profile_stays_admitted(executor, profile: str | None) -> None:
+    """Omitted webhook_signing.profiles advertises adcp/webhook-signing/v1."""
+    handler = PlatformHandler(
+        _TenantProfilesPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        auto_emit_task_webhooks=False,
+    )
+
+    result = await handler.create_media_buy(
+        _signed_request(profile, idem_suffix="adcp"),
+        ToolContext(tenant_id="other-tenant"),
+    )
+
+    assert result["status"] == "submitted"

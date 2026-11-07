@@ -58,6 +58,8 @@ def _sender() -> MagicMock:
     sender._transport_hooks = ()
     sender._timeout = 10.0
     sender._auth.alg = "ed25519"
+    sender.signing_algorithms = frozenset({"ed25519"})
+    sender.signing_profiles = frozenset({"adcp/webhook-signing/v1"})
     body = json.dumps(
         {
             "idempotency_key": "whk_1234567890123456",
@@ -277,7 +279,7 @@ def test_scoped_registration_is_encrypted_and_mode_bound() -> None:
         task_type="create_media_buy",
         encrypted_registration=encrypted,
         nonce=nonce,
-    ) == ("https://buyer.example/webhook", "op_1", None, None, "tenant-key-scope-a")
+    ) == ("https://buyer.example/webhook", "op_1", None, None, "tenant-key-scope-a", None)
     assert outbox.open_registration(
         account_id="acct_1",
         task_id="task_1",
@@ -394,6 +396,7 @@ def test_registration_round_trips_every_authentication_mode(authentication) -> N
         "buyer-token",
         authentication,
         None,
+        None,
     )
 
 
@@ -435,6 +438,7 @@ def test_pre_authentication_registration_remains_readable() -> None:
         "https://buyer.example/webhook",
         "op_legacy",
         "buyer-token",
+        None,
         None,
         None,
     )
@@ -567,8 +571,9 @@ async def test_enqueue_encrypts_legacy_credentials_for_success_and_failure(
             idempotency_key="whk_1234567890123456",
         ),
     )
-    body, opened_authentication = outbox._open_delivery_body(protected)
+    body, opened_authentication, opened_profile = outbox._open_delivery_body(protected)
     assert opened_authentication == authentication
+    assert opened_profile is None
     assert body == outbox._sender.prepare_mcp.return_value.body
 
 
@@ -1093,6 +1098,7 @@ async def test_registry_completion_enqueues_on_same_transaction_connection() -> 
             "buyer-token",
             None,
             None,
+            None,
         )
     )
     pool = _pool(conn)
@@ -1117,6 +1123,7 @@ async def test_registry_completion_enqueues_on_same_transaction_connection() -> 
         token="buyer-token",
         authentication=None,
         signing_scope_id=None,
+        signing_profile=None,
     )
     outbox._open_registration_with_scope.assert_called_once_with(
         account_id="acct_1",
@@ -1152,6 +1159,7 @@ async def test_registry_failure_enqueues_on_same_explicit_transaction() -> None:
             None,
             None,
             None,
+            None,
         )
     )
     pool = _pool(conn)
@@ -1174,6 +1182,7 @@ async def test_registry_failure_enqueues_on_same_explicit_transaction() -> None:
         token=None,
         authentication=None,
         signing_scope_id=None,
+        signing_profile=None,
     )
     conn.transaction.assert_called_once_with()
     assert "webhook_registration = NULL" in conn.execute.await_args_list[-1].args[0]

@@ -343,7 +343,8 @@ class ReportingWebhookOperationIdMissingError(ValueError):
 WEBHOOK_SIGNING_PROFILE_ADCP = "adcp/webhook-signing/v1"
 #: The Web Bot Auth webhook-signing profile (experimental, AdCP 3.3).
 WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH = "web-bot-auth"
-_WEBHOOK_SIGNING_PROFILES = frozenset(
+#: Every webhook-signing profile a registration may select.
+WEBHOOK_SIGNING_PROFILES: frozenset[str] = frozenset(
     {WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH}
 )
 
@@ -432,10 +433,10 @@ def webhook_signing_profile_for(
         )
     if profile is None:
         return WEBHOOK_SIGNING_PROFILE_ADCP
-    if profile not in _WEBHOOK_SIGNING_PROFILES:
+    if profile not in WEBHOOK_SIGNING_PROFILES:
         raise WebhookRegistrationError(
             f"unknown signing_profile {profile!r}; expected one of "
-            f"{sorted(_WEBHOOK_SIGNING_PROFILES)}",
+            f"{sorted(WEBHOOK_SIGNING_PROFILES)}",
             field="signing_profile",
         )
     return cast(str, profile)
@@ -1547,6 +1548,7 @@ async def _send_sender_webhook_challenge(
     timeout_seconds: float | None,
     policy: WebhookDestinationPolicy,
     extra_headers: Mapping[str, str] | None,
+    signing_profile: str = WEBHOOK_SIGNING_PROFILE_ADCP,
 ) -> httpx.Response:
     body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     if len(body_bytes) > _MAX_BODY_BYTES:
@@ -1555,7 +1557,8 @@ async def _send_sender_webhook_challenge(
             f"over the {_MAX_BODY_BYTES:,}-byte cap."
         )
 
-    auth = getattr(cast(Any, sender), "_auth")
+    # Sign under the profile the config selected, never the sender's default.
+    auth = sender._strategy_for(signing_profile)
     auth_headers = auth.build_auth_headers(method="POST", url=url, body=body_bytes)
     from adcp.webhook_auth import merge_extra_headers
 
@@ -1610,6 +1613,7 @@ async def challenge_webhook_destination(
     policy: WebhookDestinationPolicy | None = None,
     field: str | None = None,
     extra_headers: Mapping[str, str] | None = None,
+    signing_profile: str | None = None,
 ) -> WebhookChallengeResult:
     """Validate and prove control of a durable webhook destination.
 
@@ -1621,6 +1625,8 @@ async def challenge_webhook_destination(
     when present, the challenge is sent with Bearer or HMAC-SHA256. When
     omitted, pass an RFC 9421 :class:`WebhookSender`; the helper uses that
     sender's webhook-signing key and the SDK-managed pinned transport.
+    ``signing_profile`` is the config's ``signing_profile`` (AdCP 3.3); the
+    challenge is signed under it, ``adcp/webhook-signing/v1`` when omitted.
     """
 
     error_url = str(url) if isinstance(url, (str, AnyUrl)) else None
@@ -1657,6 +1663,25 @@ async def challenge_webhook_destination(
                 "Use WebhookSender.from_jwk(...) for default durable configs, "
                 "or pass config.authentication for legacy Bearer/HMAC configs."
             ),
+        )
+    required_profile = signing_profile or WEBHOOK_SIGNING_PROFILE_ADCP
+    if sender is not None and required_profile not in sender.signing_profiles:
+        raise WebhookChallengeError(
+            f"this WebhookSender cannot sign under the config's {required_profile!r} profile",
+            reason="signing_profile_unavailable",
+            field=field,
+            url=error_url,
+            suggestion=(
+                "Use WebhookSender.from_wba(...) or with_web_bot_auth(...) for web-bot-auth "
+                "configs, and from_jwk(...) / from_pem(...) for adcp/webhook-signing/v1."
+            ),
+        )
+    if authentication is not None and signing_profile is not None:
+        raise WebhookChallengeError(
+            "a config with authentication cannot also select a signing_profile",
+            reason="ambiguous_auth_mode",
+            field=field,
+            url=error_url,
         )
     if sender is None and authentication is None:
         raise WebhookChallengeError(
@@ -1706,6 +1731,7 @@ async def challenge_webhook_destination(
                 timeout_seconds=effective_timeout,
                 policy=destination.policy,
                 extra_headers=extra_headers,
+                signing_profile=required_profile,
             )
             status_code = response.status_code
             response_headers = dict(response.headers)
@@ -2282,6 +2308,7 @@ __all__ = [
     "REPORTING_WEBHOOK_OPERATION_ID_MISSING",
     "ReportingWebhookOperationIdMissingError",
     "WEBHOOK_SIGNING_PROFILE_ADCP",
+    "WEBHOOK_SIGNING_PROFILES",
     "WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH",
     "WebhookRegistrationError",
     "WebhookSigningProfileUnavailableError",
