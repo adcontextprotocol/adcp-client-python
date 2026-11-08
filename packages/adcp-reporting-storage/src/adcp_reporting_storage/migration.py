@@ -120,14 +120,19 @@ async def require_owned_schema_or_empty(connection: Any) -> None:
             " WHERE n.nspname=current_schema() AND c.relname='reporting_configurations'),"
             " EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema()"
             " AND table_name='reporting_configurations' AND column_name='consumer_id'),"
-            " EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema()"
-            " AND table_name='reporting_configurations' AND column_name='offering_id')"
+            # The generation key, not the column: a ledger a newer release has expanded but
+            # not yet contracted carries offering_id beside the four-column key this release
+            # writes, and this release runs on it unchanged during a rolling upgrade (#1856).
+            " EXISTS (SELECT 1 FROM pg_constraint pk JOIN pg_attribute a"
+            " ON a.attrelid=pk.conrelid AND a.attnum=ANY(pk.conkey)"
+            " WHERE pk.conrelid=to_regclass(quote_ident(current_schema())"
+            " || '.reporting_configurations') AND pk.contype='p' AND a.attname='offering_id')"
         )
     ).fetchone()
     if row[2]:
         raise ReportingSchemaAheadError(
             "adcp-reporting-storage 0.2 or later has upgraded this reporting ledger to storage"
-            " contract 2 (reporting_configurations has offering_id). This release implements"
+            " contract 2 (its generation key includes offering_id). This release implements"
             " storage contract 1 and cannot run against it. " + _CONTRACT_2_REMEDY
         )
     if row[0] and not row[1]:

@@ -33,6 +33,26 @@ CREATE UNIQUE INDEX reporting_obligations_period_key
 ALTER TABLE reporting_consumer_statuses ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '';
 """
 
+# The ledger-core part of the expand state 0002 leaves on ``next`` (#1856): offering_id beside
+# the four-column keys this release writes, until the operator contracts.
+_EXPAND = """
+ALTER TABLE reporting_configurations
+    ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
+    ADD CONSTRAINT reporting_configurations_generation_key
+        UNIQUE (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id),
+    ADD CONSTRAINT reporting_configurations_uncontracted CHECK (offering_id = '');
+ALTER TABLE reporting_obligations
+    ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
+    ADD CONSTRAINT reporting_obligations_uncontracted CHECK (offering_id = '');
+CREATE UNIQUE INDEX reporting_obligations_offering_period_key
+    ON reporting_obligations
+       (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id,
+        period_start, period_end);
+ALTER TABLE reporting_consumer_statuses
+    ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '',
+    ADD CONSTRAINT reporting_consumer_statuses_uncontracted CHECK (offering_id = '');
+"""
+
 
 async def _upgraded_store(pool):
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
@@ -128,3 +148,20 @@ async def test_a_running_process_names_the_upgrade_on_every_widened_write() -> N
             await store.commit_obligation(obligation_for(configuration("acct_a")))
         assert conflict.value.code == "REPORTING_SCHEMA_AHEAD"
         _assert_remedy(str(conflict.value))
+
+
+@pytest.mark.asyncio
+async def test_an_expanded_ledger_that_is_not_yet_contracted_still_runs_this_release() -> None:
+    """During a rolling upgrade (#1856) this release keeps booting and writing."""
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingLedgerStore(pool=pool)
+        await store.create_schema()
+        await store.put_configuration(configuration("acct_a"))
+        async with pool.connection() as connection:
+            await connection.execute(_EXPAND)
+        await store.create_schema()  # a restart
+        await store.put_configuration(configuration("acct_b"))
+        committed = await store.commit_obligation(obligation_for(configuration("acct_a")))
+        assert committed.account_id == "acct_a"
