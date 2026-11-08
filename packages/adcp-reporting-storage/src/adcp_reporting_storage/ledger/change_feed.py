@@ -2,13 +2,17 @@
 
 ``PgReportingLedgerStore(change_feed=True)`` appends one row to ``adcp_reporting_changes``
 per committed obligation, revision, adjustment and retirement, in the transaction that
-writes the record and after the account lock, so per-account sequence order is commit
-order. The JavaScript SDK writes the same table, so a host reads one feed.
+writes the record. The JavaScript SDK writes the same table, so a host reads one feed.
 
-* **Account feeds** order by ``seq``.
-* **The deployment-wide feed** orders by ``(xid, seq)`` and returns only changes whose
-  transaction precedes every transaction still in flight, so a slow commit is never
-  skipped. A long-running transaction delays this feed; it never makes it lose a record.
+* **Every feed**, account-scoped or deployment-wide, orders by ``(xid, seq)`` and returns
+  only changes whose transaction precedes every transaction still in flight
+  (``xid < pg_snapshot_xmin(pg_current_snapshot())``), so a slow commit is never skipped.
+  The order does not depend on the account lock, on the order a writer drew ``seq`` in, or
+  on which lock key a writer took: a change with a lower ``seq`` and a higher ``xid`` that
+  commits late is returned on a later page, after the cursor. A long-running transaction
+  delays every feed; it never makes one lose a record.
+* **Account cursors carry ``xid``.** A cursor from before that, which carries only ``seq``,
+  is accepted and mapped to a position that skips nothing (see :func:`changes_after`).
 * Cursors are opaque, versioned and stable across restarts, processes and SDKs. A cursor
   older than the retained history raises :class:`ReportingChangeCursorExpiredError`; the
   consumer then resynchronizes from ``list_current_revisions`` and resumes from the
@@ -16,7 +20,8 @@ order. The JavaScript SDK writes the same table, so a host reads one feed.
   commits mid-read raises the same error (for a cursorless read too) instead of returning
   a page that skipped the pruned changes.
 * A named consumer registered with ``save_feed_consumer_cursor`` holds back change pruning
-  (and period retirement) until it has passed those changes, up to ``max_feed_hold_days``
+  (and period retirement) until it has passed those changes in ``(xid, seq)`` order, up to
+  ``max_feed_hold_days``
   after its last update, so a dead consumer cannot block retention indefinitely. Its
   checkpoint is forward-only within a feed scope; ``rewind=True`` replays deliberately and
   ``remove_feed_consumer`` unregisters it.
@@ -35,7 +40,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 if TYPE_CHECKING:
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
@@ -49,6 +54,7 @@ __all__ = [
     "changes_after",
     "decode_reporting_change_cursor_v1",
     "encode_reporting_change_cursor_v1",
+    "is_legacy_account_change_cursor",
     "prune_changes",
     "remove_feed_consumer",
     "save_feed_consumer_cursor",
@@ -93,11 +99,34 @@ class ReportingChangeCursorExpiredError(RuntimeError):
         )
 
 
+_INT64_MAX = 2**63 - 1
+_UINT64_MAX = 2**64 - 1
+
+
+def _fits_unsigned(value: object, maximum: int) -> bool:
+    """A decimal string PostgreSQL's ``bigint`` / ``xid8`` cast would accept.
+
+    A value it would reject must fail as ``ValueError`` here, not as a raw database error
+    mid-query. ASCII digits only: ``\\d`` also matches other scripts' digits, which ``int``
+    accepts and the database cast does not.
+    """
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"[0-9]{1,20}", value) is not None
+        and int(value) <= maximum
+    )
+
+
 def encode_reporting_change_cursor_v1(
     *, account: str | None, seq: str, xid: str | None = None
 ) -> str:
+    """Encode a cursor. Every cursor carries ``xid``; only a seq-only account cursor omits it.
+
+    Omitting ``xid`` for an account is how a cursor from before the account feed ordered by
+    ``(xid, seq)`` is spelled; :func:`changes_after` maps one to a position that skips nothing.
+    """
     cursor: dict[str, Any] = {"v": 1, "account": account, "seq": seq}
-    if account is None:
+    if account is None or xid is not None:
         cursor["xid"] = xid
     raw = json.dumps(cursor, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
@@ -114,16 +143,24 @@ def decode_reporting_change_cursor_v1(value: str, account: str | None) -> dict[s
         not isinstance(parsed, dict)
         or parsed.get("v") != 1
         or parsed.get("account") != account
-        or not isinstance(parsed.get("seq"), str)
-        or not re.fullmatch(r"\d{1,19}", parsed["seq"])
+        or not _fits_unsigned(parsed.get("seq"), _INT64_MAX)
         or (
-            not isinstance(parsed.get("xid"), str) or not re.fullmatch(r"\d{1,20}", parsed["xid"])
-            if account is None
-            else "xid" in parsed
+            account is None
+            if "xid" not in parsed
+            else not _fits_unsigned(parsed["xid"], _UINT64_MAX)
         )
     ):
         raise ValueError("change cursor does not belong to this feed")
     return parsed
+
+
+def is_legacy_account_change_cursor(cursor: dict[str, Any]) -> bool:
+    """True for an account cursor issued before account feeds ordered by ``(xid, seq)``.
+
+    It carries a ``seq`` and no ``xid``. :func:`changes_after` accepts it and maps it to a
+    position that cannot skip a change.
+    """
+    return cursor.get("account") is not None and "xid" not in cursor
 
 
 def _positive(value: int, name: str, maximum: int) -> None:
@@ -136,8 +173,31 @@ def _require_feed(store: PgReportingLedgerStore) -> None:
         raise ValueError("this operation requires the store change_feed option")
 
 
+def feed_consumer_behind_change(consumer: str, change: str) -> str:
+    """SQL condition: the registered consumer row has not yet passed the change row.
+
+    In the consumer's own feed order: every consumer reads ``(xid, seq)`` order, an account
+    consumer only within its account. A row saved before account feeds carried an ``xid`` has
+    a NULL ``cursor_xid`` and holds by ``seq`` until the consumer saves its next cursor.
+    Shared by change pruning, period retirement and anything else that honours consumer holds.
+    """
+    return (
+        f"(({consumer}.account_id IS NULL OR {consumer}.account_id = {change}.account_id)"
+        f" AND CASE WHEN {consumer}.cursor_xid IS NULL"
+        f" THEN {change}.seq > {consumer}.cursor_seq"
+        f" ELSE ({change}.xid, {change}.seq) > ({consumer}.cursor_xid, {consumer}.cursor_seq)"
+        " END)"
+    )
+
+
 def _page_query(*, account: bool) -> str:
-    """The change page query for an account feed (``seq`` order) or the deployment feed.
+    """The change page query for an account feed or the deployment feed.
+
+    Both feeds order by ``(xid, seq)`` and stop below the reading snapshot's ``xmin``. Every
+    change with a higher ``xid`` than a returned one either committed before it or is not
+    returned yet, so a cursor never passes a change that commits late, with no assumption about
+    the lock a writer took or the order it drew ``seq`` in. The account scan is served by the
+    ``(account_id, xid, seq)`` index, in order.
 
     Every column is qualified with the table alias, in the projection and in ORDER BY.
     ``seq::text`` is *named* ``seq``, and PostgreSQL resolves a bare ORDER BY name to the output
@@ -150,55 +210,82 @@ def _page_query(*, account: bool) -> str:
         " to_char(change.recorded_at AT TIME ZONE 'UTC',"
         ' \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')'
     )
-    if account:
-        return (
-            f"SELECT {columns},"  # noqa: S608  # nosec B608
-            " change.xid >= pg_snapshot_xmin(pg_current_snapshot()) AS in_flight"
-            " FROM adcp_reporting_changes change"
-            " WHERE change.account_id = %s AND change.seq > %s::bigint"
-            " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
-            " ORDER BY change.seq LIMIT %s"
-        )
+    scope = " change.account_id = %s AND" if account else ""
     return (
         f"SELECT {columns} FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
-        " WHERE (change.xid, change.seq) > (%s::text::xid8, %s::bigint)"
+        f" WHERE{scope} (change.xid, change.seq) > (%s::text::xid8, %s::bigint)"
         " AND change.xid < pg_snapshot_xmin(pg_current_snapshot())"
         " AND (%s::text[] IS NULL OR change.record_kind = ANY(%s::text[]))"
         " ORDER BY change.xid, change.seq LIMIT %s"
     )
 
 
-async def _read_horizon(connection: Any, account_id: str | None) -> tuple[str, str]:
-    """The pruned horizon ``(xid, seq)`` in this feed's order; ``xid`` is ``"0"`` for accounts."""
+class _Horizon(NamedTuple):
+    xid: str
+    #: The ``seq`` of the highest ``(xid, seq)`` pruned.
+    seq: str
+    #: The highest ``seq`` pruned whatever its ``xid``: the exact check for a seq-only cursor.
+    max_seq: str
+
+
+async def _read_horizon(connection: Any, account_id: str | None) -> _Horizon:
+    """The pruned horizon in this feed's own order."""
     if account_id is not None:
         row = await (
             await connection.execute(
-                "SELECT pruned_through_seq::text FROM adcp_reporting_change_account_horizon"
+                "SELECT pruned_through_xid::text, pruned_through_xid_seq::text,"
+                " pruned_through_seq::text FROM adcp_reporting_change_account_horizon"
                 " WHERE account_id = %s",
                 (account_id,),
             )
         ).fetchone()
-        return "0", (row[0] if row else "0")
-    row = await (
-        await connection.execute(
-            "SELECT pruned_through_xid::text, pruned_through_seq::text"
-            " FROM adcp_reporting_change_horizon WHERE singleton"
-        )
-    ).fetchone()
-    return (row[0], row[1]) if row else ("0", "0")
+    else:
+        row = await (
+            await connection.execute(
+                "SELECT pruned_through_xid::text, pruned_through_seq::text,"
+                " pruned_through_seq::text FROM adcp_reporting_change_horizon WHERE singleton"
+            )
+        ).fetchone()
+    return _Horizon(*row) if row else _Horizon("0", "0", "0")
 
 
-def _assert_retained(
-    account_id: str | None, position: tuple[str, str], horizon: tuple[str, str]
-) -> None:
-    """Raise unless ``position`` ``(xid, seq)`` is at or past the pruned ``horizon``."""
+def _assert_retained(position: tuple[str | None, str], horizon: _Horizon) -> None:
+    """Raise unless ``position`` ``(xid, seq)`` is at or past the pruned ``horizon``.
+
+    A position without an ``xid`` is a seq-only account cursor, checked against the highest
+    ``seq`` ever pruned: a tuple compare would miss a pruned change with a higher ``seq`` and
+    a lower ``xid``.
+    """
+    xid, seq = position
     behind = (
-        int(horizon[1]) > int(position[1])
-        if account_id is not None
-        else (int(horizon[0]), int(horizon[1])) > (int(position[0]), int(position[1]))
+        int(horizon.max_seq) > int(seq)
+        if xid is None
+        else (int(horizon.xid), int(horizon.seq)) > (int(xid), int(seq))
     )
     if behind:
         raise ReportingChangeCursorExpiredError()
+
+
+async def _legacy_account_cursor_xid(connection: Any, account_id: str, seq: str) -> str:
+    """Map a seq-only account cursor to a transaction id that cannot skip a change.
+
+    Every change after the cursor's ``seq`` has an ``xid`` at or above both the oldest such
+    change that is visible now and the reading snapshot's ``xmin`` (a change that is not
+    visible yet belongs to a transaction that was in flight, or started after the snapshot,
+    whose id is at or above ``xmin``), so the position ``(xid, seq)`` below the smaller of the
+    two hands them all out.
+    """
+    row = await (
+        await connection.execute(
+            "SELECT LEAST("
+            " pg_snapshot_xmin(pg_current_snapshot()),"
+            " COALESCE((SELECT change.xid FROM adcp_reporting_changes change"
+            "   WHERE change.account_id = %s AND change.seq > %s::bigint"
+            "   ORDER BY change.xid LIMIT 1), pg_snapshot_xmin(pg_current_snapshot())))::text",
+            (account_id, seq),
+        )
+    ).fetchone()
+    return str(row[0])
 
 
 async def changes_after(
@@ -211,6 +298,19 @@ async def changes_after(
 ) -> ReportingChangesPageV1:
     """Read the host change feed. Omit ``cursor`` to start at the oldest retained change.
 
+    Every feed, account-scoped or deployment-wide, orders by ``(xid, seq)`` and returns only
+    changes whose transaction precedes every transaction still in flight, so no commit is ever
+    skipped and the order does not depend on the account lock. An empty page can therefore
+    mean caught up or held back by an older open transaction (``xmin`` is cluster-wide).
+
+    An account cursor issued before account feeds carried an ``xid`` holds only a ``seq``. It
+    is accepted and mapped to a position that cannot skip a change: the lowest transaction id
+    any change after its ``seq`` could have (the smaller of the oldest such change's ``xid``
+    and the reading snapshot's ``xmin``). That can hand out a few changes the consumer already
+    read, those with a lower ``seq`` and a higher ``xid``, so consumers must treat redelivery
+    as normal. The page returns a cursor in the new format, even when it is empty. A seq-only
+    cursor raises ``CURSOR_EXPIRED`` when any change with a higher ``seq`` was pruned.
+
     Raises :class:`ReportingChangeCursorExpiredError` (``code == "CURSOR_EXPIRED"``) when the
     starting position is older than the retained history. A read **without** a ``cursor`` can
     raise it too: the pruned horizon is read again after the page, so a prune that commits
@@ -222,23 +322,31 @@ async def changes_after(
     if kinds is not None and any(kind not in _KINDS for kind in kinds):
         raise ValueError("unknown change kind")
     decoded = decode_reporting_change_cursor_v1(cursor, account_id) if cursor is not None else None
+    legacy = decoded is not None and is_legacy_account_change_cursor(decoded)
     selected = list(kinds) if kinds else None
     async with store._pool.connection() as connection:
         # The pruned horizon in this feed's own order. A supplied cursor below it may have
         # missed a pruned change and fails closed; a consumer with no cursor begins at it.
-        horizon_xid, horizon_seq = await _read_horizon(connection, account_id)
+        horizon = await _read_horizon(connection, account_id)
+        checked: tuple[str | None, str] | None = None
         if decoded is not None:
-            _assert_retained(
-                account_id, (decoded.get("xid", "0"), decoded["seq"]), (horizon_xid, horizon_seq)
+            checked = (decoded.get("xid"), decoded["seq"])
+            _assert_retained(checked, horizon)
+            position_seq = decoded["seq"]
+            position_xid = (
+                await _legacy_account_cursor_xid(connection, account_id, position_seq)
+                if legacy and account_id is not None
+                else decoded["xid"]
             )
-        position_seq = decoded["seq"] if decoded else horizon_seq
-        position_xid = decoded.get("xid", "0") if decoded else horizon_xid
-        query = _page_query(account=account_id is not None)
-        if account_id is not None:
-            params: tuple[Any, ...] = (account_id, position_seq, selected, selected, limit)
         else:
-            params = (position_xid, position_seq, selected, selected, limit)
-        rows = await (await connection.execute(query, params)).fetchall()
+            position_xid, position_seq = horizon.xid, horizon.seq
+        query = _page_query(account=account_id is not None)
+        scope: tuple[Any, ...] = (account_id,) if account_id is not None else ()
+        rows = await (
+            await connection.execute(
+                query, (*scope, position_xid, position_seq, selected, selected, limit)
+            )
+        ).fetchall()
         # Pruning can commit between the horizon read and the page read, and a prune deletes rows
         # and advances the horizon in one transaction. Read the horizon again, as a new statement
         # after the page, and compare it with the position this page started from: a page read
@@ -246,31 +354,21 @@ async def changes_after(
         # skip them silently. This covers a read with no cursor too. Retrying starts from the
         # new, later horizon. A prune that commits after this read cannot have affected the page.
         _assert_retained(
-            account_id, (position_xid, position_seq), await _read_horizon(connection, account_id)
+            checked or (position_xid, position_seq), await _read_horizon(connection, account_id)
         )
-    if account_id is not None:
-        # The account feed orders by ``seq``, which equals commit order only while every writer
-        # takes the account lock before ``nextval``. Defense in depth for a writer that does not:
-        # stop the page at the first change whose transaction is not below every in-flight
-        # transaction (``xid >= xmin``). A plain ``xid < xmin`` filter would not do, because seq
-        # order and xid order can differ, and it would hand out a later change while skipping an
-        # earlier one it excluded. Truncating keeps the page a prefix of seq order. This narrows
-        # the window for a second writer but does not close it for every interleaving: one
-        # writer SDK per database remains the contract. ``xmin`` is cluster-wide, so any older
-        # open transaction holds account pages back until it ends; an empty page can mean
-        # "caught up" or "held back". The row scan is still served by the (account_id, seq) index.
-        blocked = next((index for index, row in enumerate(rows) if row[7]), None)
-        if blocked is not None:
-            rows = rows[:blocked]
     records = tuple(ReportingChangeRecordV1(row[3], row[4], row[5], row[2], row[6]) for row in rows)
     if rows:
         last = rows[-1]
         next_cursor = encode_reporting_change_cursor_v1(
-            account=account_id, seq=last[0], xid=last[1] if account_id is None else None
+            account=account_id, seq=last[0], xid=last[1]
         )
+    elif cursor is not None and not legacy:
+        next_cursor = cursor
     else:
-        next_cursor = cursor or encode_reporting_change_cursor_v1(
-            account=account_id, seq=position_seq, xid=position_xid if account_id is None else None
+        # A seq-only cursor is replaced by its mapped position even on an empty page, so the
+        # consumer saves a cursor in the new format.
+        next_cursor = encode_reporting_change_cursor_v1(
+            account=account_id, seq=position_seq, xid=position_xid
         )
     return ReportingChangesPageV1(records, next_cursor)
 
@@ -290,8 +388,8 @@ async def save_feed_consumer_cursor(
 
     Checkpoints are forward-only within a feed scope: a cursor behind the saved one is
     ignored, so a delayed or repeated acknowledgment cannot pull the retention hold back or
-    make the consumer reprocess changes. Account consumers compare ``seq``; deployment
-    consumers compare ``(xid, seq)``. Returns ``True`` when the checkpoint was written and
+    make the consumer reprocess changes. Every consumer compares ``(xid, seq)``. Returns
+    ``True`` when the checkpoint was written and
     ``False`` when it was ignored (behind the saved position, or equal with
     ``refresh_unchanged=False``).
 
@@ -306,6 +404,12 @@ async def save_feed_consumer_cursor(
 
     ``refresh_unchanged=False`` recovers an acknowledgment without renewing the retention
     hold when its position has not advanced.
+
+    A seq-only account cursor (from before account feeds carried an ``xid``) is mapped to the
+    position :func:`changes_after` would read it from, so the hold sits below every unread
+    change. A consumer row saved before that upgrade has a NULL ``cursor_xid`` and holds by
+    ``seq`` until its next save; a cursor in the new format replaces it unless its ``seq`` is
+    behind.
     """
     _require_feed(store)
     if not isinstance(name, str) or not _CONSUMER_NAME.match(name):
@@ -320,8 +424,16 @@ async def save_feed_consumer_cursor(
     decoded = decode_reporting_change_cursor_v1(cursor, account)
     # One atomic upsert: the WHERE of DO UPDATE is re-evaluated against the latest committed
     # row version under the row lock, so concurrent writers cannot interleave a stale position
-    # over a newer one. No row is returned when the update is skipped.
+    # over a newer one. No row is returned when the update is skipped. Forward-only in
+    # (xid, seq) order for every scope. A row saved before account feeds carried an xid (NULL
+    # cursor_xid) has only a seq to compare: a cursor in the new format replaces it unless its
+    # seq is behind.
     async with store._pool.connection() as connection:
+        xid = (
+            await _legacy_account_cursor_xid(connection, account, decoded["seq"])
+            if account is not None and is_legacy_account_change_cursor(decoded)
+            else decoded["xid"]
+        )
         result = await connection.execute(
             "INSERT INTO adcp_reporting_feed_consumers"
             " (consumer_name, account_id, cursor_xid, cursor_seq)"
@@ -331,22 +443,20 @@ async def save_feed_consumer_cursor(
             "       cursor_seq = EXCLUDED.cursor_seq, updated_at = clock_timestamp()"
             " WHERE %(rewind)s::boolean"
             "    OR adcp_reporting_feed_consumers.account_id IS DISTINCT FROM EXCLUDED.account_id"
-            "    OR CASE WHEN EXCLUDED.account_id IS NULL"
-            "       THEN (adcp_reporting_feed_consumers.cursor_xid,"
-            "             adcp_reporting_feed_consumers.cursor_seq)"
-            "            < (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq)"
-            "         OR (%(refresh)s::boolean AND"
-            "             (adcp_reporting_feed_consumers.cursor_xid,"
-            "              adcp_reporting_feed_consumers.cursor_seq)"
-            "            = (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq))"
-            "       ELSE adcp_reporting_feed_consumers.cursor_seq < EXCLUDED.cursor_seq"
-            "         OR (%(refresh)s::boolean"
-            "             AND adcp_reporting_feed_consumers.cursor_seq = EXCLUDED.cursor_seq) END"
+            "    OR (adcp_reporting_feed_consumers.cursor_xid IS NULL"
+            "        AND adcp_reporting_feed_consumers.cursor_seq <= EXCLUDED.cursor_seq)"
+            "    OR (adcp_reporting_feed_consumers.cursor_xid,"
+            "        adcp_reporting_feed_consumers.cursor_seq)"
+            "       < (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq)"
+            "    OR (%(refresh)s::boolean AND"
+            "        (adcp_reporting_feed_consumers.cursor_xid,"
+            "         adcp_reporting_feed_consumers.cursor_seq)"
+            "        = (EXCLUDED.cursor_xid, EXCLUDED.cursor_seq))"
             " RETURNING consumer_name",
             {
                 "name": name,
                 "account": account,
-                "xid": decoded.get("xid") if account is None else None,
+                "xid": xid,
                 "seq": decoded["seq"],
                 "refresh": refresh_unchanged,
                 "rewind": rewind,
@@ -393,18 +503,16 @@ async def prune_changes(
     async with store._pool.connection() as connection, connection.transaction():
         victims = await (
             await connection.execute(
-                "WITH victims AS ("
+                "WITH victims AS ("  # noqa: S608  # nosec B608
                 " SELECT change.seq FROM adcp_reporting_changes change"
                 "  WHERE change.recorded_at < clock_timestamp() - (%s::integer * INTERVAL '1 day')"
                 "    AND NOT EXISTS (SELECT 1 FROM adcp_reporting_feed_consumers consumer"
                 "      WHERE consumer.updated_at >"
                 "            clock_timestamp() - (%s::integer * INTERVAL '1 day')"
-                "        AND ((consumer.account_id IS NULL"
-                "              AND (change.xid, change.seq) >"
-                "                  (consumer.cursor_xid, consumer.cursor_seq))"
-                "          OR (consumer.account_id = change.account_id"
-                "              AND change.seq > consumer.cursor_seq)))"
-                "  ORDER BY change.seq LIMIT %s)"
+                f"        AND {feed_consumer_behind_change('consumer', 'change')})"
+                # Victims in (xid, seq) order, so a batch cut by the limit leaves nothing
+                # retained below the per-account (xid, seq) horizon recorded below.
+                "  ORDER BY change.xid, change.seq LIMIT %s)"
                 " DELETE FROM adcp_reporting_changes change USING victims"
                 "  WHERE change.seq = victims.seq"
                 " RETURNING change.seq::text, change.xid::text, change.account_id",
@@ -421,16 +529,38 @@ async def prune_changes(
             "       (pruned_through_xid, pruned_through_seq)",
             (highest[1], highest[0], highest[1], highest[0]),
         )
-        per_account: dict[str, int] = {}
-        for seq, _, account in victims:
-            per_account[account] = max(per_account.get(account, 0), int(seq))
-        for account, seq in per_account.items():
+        # Per account: the highest (xid, seq) pruned, which a cursor is compared with, and the
+        # highest seq pruned whatever its xid, which is the exact check for a seq-only cursor.
+        per_account: dict[str, tuple[int, int, int]] = {}
+        for seq_text, xid_text, account in victims:
+            seq, xid = int(seq_text), int(xid_text)
+            top_xid, top_seq, max_seq = per_account.get(account, (xid, seq, seq))
+            if (xid, seq) > (top_xid, top_seq):
+                top_xid, top_seq = xid, seq
+            per_account[account] = (top_xid, top_seq, max(max_seq, seq))
+        for account, (top_xid, top_seq, max_seq) in per_account.items():
             await connection.execute(
-                "INSERT INTO adcp_reporting_change_account_horizon (account_id, pruned_through_seq)"
-                " VALUES (%s, %s::bigint) ON CONFLICT (account_id) DO UPDATE"
-                "   SET pruned_through_seq = GREATEST("
-                "       adcp_reporting_change_account_horizon.pruned_through_seq,"
-                "       EXCLUDED.pruned_through_seq)",
-                (account, seq),
+                "INSERT INTO adcp_reporting_change_account_horizon AS horizon"
+                " (account_id, pruned_through_seq, pruned_through_xid, pruned_through_xid_seq)"
+                " VALUES (%(account)s, %(max_seq)s::bigint, %(xid)s::text::xid8,"
+                " %(xid_seq)s::bigint)"
+                " ON CONFLICT (account_id) DO UPDATE"
+                "   SET pruned_through_seq = GREATEST(horizon.pruned_through_seq,"
+                "                                     EXCLUDED.pruned_through_seq),"
+                "       pruned_through_xid = CASE"
+                "         WHEN (EXCLUDED.pruned_through_xid, EXCLUDED.pruned_through_xid_seq)"
+                "              > (horizon.pruned_through_xid, horizon.pruned_through_xid_seq)"
+                "         THEN EXCLUDED.pruned_through_xid ELSE horizon.pruned_through_xid END,"
+                "       pruned_through_xid_seq = CASE"
+                "         WHEN (EXCLUDED.pruned_through_xid, EXCLUDED.pruned_through_xid_seq)"
+                "              > (horizon.pruned_through_xid, horizon.pruned_through_xid_seq)"
+                "         THEN EXCLUDED.pruned_through_xid_seq"
+                "         ELSE horizon.pruned_through_xid_seq END",
+                {
+                    "account": account,
+                    "max_seq": str(max_seq),
+                    "xid": str(top_xid),
+                    "xid_seq": str(top_seq),
+                },
             )
         return len(victims)

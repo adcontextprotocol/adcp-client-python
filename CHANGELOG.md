@@ -236,6 +236,75 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.0...v9.6.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **reporting:** isolate handler registrations for each installation ([#1847](https://github.com/adcontextprotocol/adcp-client-python/issues/1847)) ([86302d0](https://github.com/adcontextprotocol/adcp-client-python/commit/86302d09404067410a60d3f9d0f850790038a36f))
+
+## [9.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.5.1...v9.6.0) (2026-11-03)
+
+
+### Features
+
+* **reporting-storage:** accept 255 character row binding IDs and credential refs ([#1828](https://github.com/adcontextprotocol/adcp-client-python/issues/1828)) ([6bb34df](https://github.com/adcontextprotocol/adcp-client-python/commit/6bb34df00821e11f03aed2a018a0c5a6ccab3cdf))
+* **reporting-storage:** collect orphaned row objects by listing with a clone fence ([#1835](https://github.com/adcontextprotocol/adcp-client-python/issues/1835)) ([e004f1b](https://github.com/adcontextprotocol/adcp-client-python/commit/e004f1bc55eff3bc32065a9c785f451af3813f79))
+* **reporting-storage:** order the account change feed by xid and seq ([#1827](https://github.com/adcontextprotocol/adcp-client-python/issues/1827)) ([4449bc9](https://github.com/adcontextprotocol/adcp-client-python/commit/4449bc94cdd47900f39e15f5e99a35a9699d0c30))
+
+
+### Bug Fixes
+
+* **server:** preserve valid creatives in lenient legacy batches ([#1841](https://github.com/adcontextprotocol/adcp-client-python/issues/1841)) ([2bd7751](https://github.com/adcontextprotocol/adcp-client-python/commit/2bd7751cb1312efda5aefc4a11fecdfab0933c9e))
+
+
+### Performance Improvements
+
+* **reporting-storage:** drop the per-object advisory lock where nothing pairs on it ([#1836](https://github.com/adcontextprotocol/adcp-client-python/issues/1836)) ([536b8f8](https://github.com/adcontextprotocol/adcp-client-python/commit/536b8f870f518e7ceab3c7a1d64aa0b229b75e8e))
+
+## [9.5.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.5.0...v9.5.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ci:** check PR titles without stripping a trailing issue reference ([#1819](https://github.com/adcontextprotocol/adcp-client-python/issues/1819)) ([495593e](https://github.com/adcontextprotocol/adcp-client-python/commit/495593ec319bca75b22174c582fa5417f9730860))
+
+## [9.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.4.0...v9.5.0) (2026-11-02)
+
+
+### Features
+
+* **decisioning:** let a raised AdcpError reject a request with every error ([#1780](https://github.com/adcontextprotocol/adcp-client-python/issues/1780)) ([#1810](https://github.com/adcontextprotocol/adcp-client-python/issues/1810)) ([272fced](https://github.com/adcontextprotocol/adcp-client-python/commit/272fced52d57632dedf32f2c175cf294100bff63))
+
+
+### Bug Fixes
+
+* **canonical-formats:** check narrowing on seller-asserted references ([#1758](https://github.com/adcontextprotocol/adcp-client-python/issues/1758)) ([617762e](https://github.com/adcontextprotocol/adcp-client-python/commit/617762e94371b5817f400481bbbc866c760a6a1a))
+* **canonical-formats:** read versions from typed legacy formats ([#1757](https://github.com/adcontextprotocol/adcp-client-python/issues/1757)) ([6714203](https://github.com/adcontextprotocol/adcp-client-python/commit/67142036f40e6a68fd9ca3d5c51acaa7bfe402fb))
+* **server:** return task and workflow handoffs uncached from IdempotencyStore.wrap ([#1795](https://github.com/adcontextprotocol/adcp-client-python/issues/1795)) ([126f905](https://github.com/adcontextprotocol/adcp-client-python/commit/126f9052ab79399f1e7bab8a53f34e24999ef95e)), closes [#1781](https://github.com/adcontextprotocol/adcp-client-python/issues/1781)
+* **types:** make the domain package roots lazy so a types package imports first in any order ([#1798](https://github.com/adcontextprotocol/adcp-client-python/issues/1798)) ([7447d00](https://github.com/adcontextprotocol/adcp-client-python/commit/7447d00ceba97490109c46f0cf2f0ca9d6f8e5f3))
+
+## [9.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.1...v9.4.0) (2026-10-31)
+
+
+### Features
+
+* **adagents:** attribute and verify publisher property claims ([#1719](https://github.com/adcontextprotocol/adcp-client-python/issues/1719)) ([0c0ef92](https://github.com/adcontextprotocol/adcp-client-python/commit/0c0ef92515ec5dfe9d1f045b976194d3d245d4e5))
+* **server:** seller helper for wholesale feed versions ([#1718](https://github.com/adcontextprotocol/adcp-client-python/issues/1718)) ([7088ebf](https://github.com/adcontextprotocol/adcp-client-python/commit/7088ebf909852134521ba0ed4796b6f2896a4ad7)), closes [#1676](https://github.com/adcontextprotocol/adcp-client-python/issues/1676)
+* **signing:** accept any well-formed adcp_use purpose in keygen ([#1710](https://github.com/adcontextprotocol/adcp-client-python/issues/1710)) ([787cfb2](https://github.com/adcontextprotocol/adcp-client-python/commit/787cfb215cf9207bfef8c28cc34ff0b737cea39b))
+
+
+### Bug Fixes
+
+* **types:** defer the import-time model rebuilds that cost adcp.client 560 MiB RSS ([#1704](https://github.com/adcontextprotocol/adcp-client-python/issues/1704)) ([aac52ca](https://github.com/adcontextprotocol/adcp-client-python/commit/aac52cac66ecae2d1c2c4e11be23294335a3edd8)), closes [#1694](https://github.com/adcontextprotocol/adcp-client-python/issues/1694)
+
+## [9.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.3.0...v9.3.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **server:** compact a pinned seller's tools/list so an SDK 10 buyer can call it ([#1702](https://github.com/adcontextprotocol/adcp-client-python/issues/1702)) ([cc11643](https://github.com/adcontextprotocol/adcp-client-python/commit/cc11643352a078b977449f44dcd2d5687ad29bf6)), closes [#1692](https://github.com/adcontextprotocol/adcp-client-python/issues/1692)
+
 ## [9.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.2.0...v9.3.0) (2026-10-27)
 
 

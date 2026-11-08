@@ -106,6 +106,18 @@ HISTORICAL_BREAKING_SUBJECTS = {
     ),
 }
 
+# #1810's PR title ended in an issue reference, "(#1780)". The PR check
+# stripped it as if it were the PR number, and the squash subject then carried
+# a second reference, so the integrated description keeps "(#1780)". PR titles
+# are now checked without that stripping; only this exact commit and subject
+# keep the reference.
+HISTORICAL_DESCRIPTION_SUBJECTS = {
+    "272fced52d57632dedf32f2c175cf294100bff63": (
+        "feat(decisioning): let a raised AdcpError reject a request with every error"
+        " (#1780) (#1810)"
+    ),
+}
+
 # Rebase-merged PRs record only their last commit as merge_commit_sha, so the
 # earlier commits they put on main match no PR by merge commit. These two were
 # rebase-merged so a storage-only commit would not release adcp; each maps to
@@ -131,15 +143,28 @@ def main_commits(target: str) -> list[str]:
     return commits
 
 
-def validate_message(message: str, *, commit_sha: str | None = None) -> None:
+def validate_message(
+    message: str, *, commit_sha: str | None = None, integrated: bool = True
+) -> None:
     subject, _, body = message.partition("\n")
     match = CONVENTIONAL.fullmatch(subject)
     require(match is not None, "commit subject is not a conventional commit")
     assert match is not None
-    # GitHub integration subjects may include the PR number. Parentheses/quotes in
-    # the actual description remain forbidden by the repository's parser rule.
-    description = re.sub(r" \(#[1-9][0-9]*\)$", "", match["description"])
-    require(description and not any(c in description for c in '()"'), "unsafe release description")
+    # A squash integration appends the PR number to the subject. A PR title has
+    # none yet, so a trailing "(#N)" there is part of the description.
+    # Parentheses/quotes in the actual description remain forbidden by the
+    # repository's parser rule.
+    description = match["description"]
+    if integrated:
+        description = re.sub(r" \(#[1-9][0-9]*\)$", "", description)
+    historical_description_exception = (
+        commit_sha is not None and HISTORICAL_DESCRIPTION_SUBJECTS.get(commit_sha) == subject
+    )
+    require(
+        description
+        and (historical_description_exception or not any(c in description for c in '()"')),
+        "unsafe release description",
+    )
     historical_footer_exception = (
         commit_sha is not None and HISTORICAL_BREAKING_SUBJECTS.get(commit_sha) == subject
     )
@@ -204,7 +229,7 @@ def conventional(
             api = GitHub(os.environ["GH_TOKEN"])
         current = api.repo(f"pulls/{pr['number']}")
         require(current["head"]["sha"] == pr["head"]["sha"], "PR head changed; run current CI")
-        validate_message(current["title"] + "\n\n" + (current["body"] or ""))
+        validate_message(current["title"] + "\n\n" + (current["body"] or ""), integrated=False)
         head, base = pr["head"]["sha"], pr["base"]["sha"]
         require(SHA.fullmatch(head) and SHA.fullmatch(base), "invalid PR source identities")
         fork = git("merge-base", base, head)

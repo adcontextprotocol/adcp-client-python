@@ -72,7 +72,7 @@ Install `adcp>=10.0.0b7` with this release.
 
 | adcp-reporting-storage | storage contract | adcp |
 |---|---|---|
-| 0.1.0b4 (SDK 9 line) | 1 | `>=9.0.0,<10` |
+| 0.1.0b4+ (SDK 9 line) | 1 | `>=9.0.0,<10` |
 | 0.2.0b0 | 1 | `>=9.0.0,<11` (**do not pair with 10.0.0b4+**: 10.0.0b4 and b5 install beside it and fail, b7+ refuse it, [#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) |
 | 0.2.0b1+ | 2 | `>=10.0.0b4,<11` |
 
@@ -100,6 +100,13 @@ reporting again. Downgrading is unsupported: restore the backup taken before
 the upgrade. See
 [Deploying the upgrade](https://github.com/adcontextprotocol/adcp-client-python/blob/next/docs/reporting-ledger-migration.md#deploying-the-upgrade)
 for a Recreate or two-phase rollout.
+
+A ledger written by 0.1.0b5 (the `(xid, seq)` account change feed, 255-character
+row binding IDs, the orphan collector fence) upgrades the same way, with no
+further migration: `create_schema()` re-applies the change-feed and row-storage
+DDL when those options are on. See
+[Upgrading a ledger that 0.1.0b5 wrote](https://github.com/adcontextprotocol/adcp-client-python/blob/next/docs/reporting-ledger-migration.md#upgrading-a-ledger-that-adcp-reporting-storage-010b5-wrote)
+for the account horizon a 0.2.0b0–b2 interlude leaves behind.
 
 ## Versioning
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 
@@ -18,6 +19,7 @@ from adcp_reporting_storage.ledger.row_storage_object import (  # noqa: E402
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListInputV1,
     ReportingRowObjectPutInputV1,
     run_reporting_row_object_provider_conformance_v1,
 )
@@ -35,6 +37,7 @@ class _Version:
     metadata: dict[str, str]
     content_type: str
     cache_control: str | None
+    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -81,6 +84,39 @@ class FakeStorage:
 
             def blob(self, key: str, generation: int | None = None) -> Any:
                 return Blob(name, key, generation)
+
+            def list_blobs(
+                self,
+                prefix: str | None = None,
+                versions: bool | None = None,
+                max_results: int | None = None,
+                page_token: str | None = None,
+                timeout: Any = None,
+            ) -> Any:
+                storage.calls.append(("list", {"prefix": prefix, "versions": versions}))
+                entries = [
+                    (key, version)
+                    for (bucket, key), history in sorted(storage.objects.items())
+                    if bucket == name and key.startswith(prefix or "")
+                    for version in (history if versions else history[-1:])
+                ]
+                start = int(page_token) if page_token else 0
+                chunk = entries[start : start + (max_results or len(entries))]
+                following = start + len(chunk)
+                blobs = [
+                    SimpleNamespace(
+                        name=key,
+                        generation=version.generation,
+                        size=len(version.data),
+                        time_created=version.created,
+                        updated=version.created,
+                    )
+                    for key, version in chunk
+                ]
+                return SimpleNamespace(
+                    pages=iter([blobs]),
+                    next_page_token=str(following) if following < len(entries) else None,
+                )
 
             def get_blob(self, key: str, timeout: Any = None) -> Any:
                 live = storage.objects.get((name, key))
@@ -175,6 +211,7 @@ async def test_passes_the_shared_provider_conformance_suite() -> None:
         "version-pinned-stat",
         "exact-version-delete",
         "write-unique-version",
+        "list",
     ]
 
 
@@ -454,3 +491,113 @@ async def test_probe_and_delete_carry_the_call_budget() -> None:
         ReportingRowObjectDeleteInputV1(LOCATION, "adcp-rows/ns/x", "123"), context
     )
     assert seen == [("reload", 4.5), ("delete", 4.5)]
+
+
+# -- list ---------------------------------------------------------------------------------------
+
+
+async def test_list_lists_every_generation_in_pages_and_leaves_out_what_it_cannot_address() -> None:
+    storage = FakeStorage().add_bucket()
+    provider = create_gcs_reporting_row_object_provider_v1(storage=storage)
+    keys = [f"adcp-rows/ns/o{index}.jsonl" for index in range(5)]
+    versions = {}
+    for key in keys:
+        versions[key] = (await provider.put_if_absent(put(key, b"abc"), CONTEXT)).native_version_ref
+    # A noncurrent generation of the first key is listed too: it is what a delete could name.
+    storage.objects[("rows-bucket", keys[0])].append(
+        type(storage.objects[("rows-bucket", keys[0])][0])(
+            storage.next_generation, b"later", {}, "application/gzip", None
+        )
+    )
+    found = []
+    token = None
+    for _ in range(20):
+        page = await provider.list(
+            ReportingRowObjectListInputV1(LOCATION, "adcp-rows/ns/", 2, token), CONTEXT
+        )
+        assert len(page.objects) <= 2
+        found.extend(page.objects)
+        token = page.next_page_token
+        if token is None:
+            break
+    assert [(e.object_ref, e.size_bytes) for e in found].count((keys[0], 3)) == 1
+    assert len(found) == 6 and {e.object_ref for e in found} == set(keys)
+    call = next(options for name, options in storage.calls if name == "list")
+    assert call["versions"] is True and call["prefix"] == "adcp-rows/ns/"
+
+
+async def test_list_skips_an_entry_without_a_usable_generation_size_or_time_and_counts_it() -> None:
+    from types import SimpleNamespace
+
+    storage = FakeStorage().add_bucket()
+    await create_gcs_reporting_row_object_provider_v1(storage=storage).put_if_absent(
+        put("adcp-rows/ns/good.jsonl"), CONTEXT
+    )
+
+    class Wrapped:
+        def bucket(self, name: str) -> Any:
+            real = storage.bucket(name)
+
+            class Bucket:
+                def __getattr__(self, attribute: str) -> Any:
+                    return getattr(real, attribute)
+
+                def list_blobs(self, **options: Any) -> Any:
+                    iterator = real.list_blobs(**options)
+                    blobs = list(next(iter(iterator.pages)))
+                    now = datetime.now(timezone.utc)
+                    prefix = options["prefix"]
+                    blobs += [
+                        SimpleNamespace(
+                            name=f"{prefix}no-generation.jsonl",
+                            generation=None,
+                            size=1,
+                            time_created=now,
+                            updated=now,
+                        ),
+                        SimpleNamespace(
+                            name=f"{prefix}bad-size.jsonl",
+                            generation=5,
+                            size=-1,
+                            time_created=now,
+                            updated=now,
+                        ),
+                        SimpleNamespace(
+                            name=f"{prefix}no-time.jsonl",
+                            generation=6,
+                            size=1,
+                            time_created=None,
+                            updated=None,
+                        ),
+                        SimpleNamespace(
+                            name="elsewhere/x.jsonl",
+                            generation=7,
+                            size=1,
+                            time_created=now,
+                            updated=now,
+                        ),
+                    ]
+                    return SimpleNamespace(
+                        pages=iter([blobs]), next_page_token=iterator.next_page_token
+                    )
+
+            return Bucket()
+
+    provider = create_gcs_reporting_row_object_provider_v1(storage=Wrapped())
+    page = await provider.list(
+        ReportingRowObjectListInputV1(LOCATION, "adcp-rows/ns/", 50), CONTEXT
+    )
+    assert [e.object_ref for e in page.objects] == ["adcp-rows/ns/good.jsonl"]
+    assert page.skipped == 4
+
+
+async def test_list_refuses_a_bad_page_size_and_an_oversized_prefix() -> None:
+    provider = create_gcs_reporting_row_object_provider_v1(storage=FakeStorage().add_bucket())
+    for size in (0, -1, 1.5):
+        with pytest.raises(ReportingRowStoreError) as failure:
+            await provider.list(
+                ReportingRowObjectListInputV1(LOCATION, "adcp-rows/", size), CONTEXT  # type: ignore[arg-type]
+            )
+        assert failure.value.code == "INVALID_INPUT"
+    with pytest.raises(ReportingRowStoreError):
+        await provider.list(ReportingRowObjectListInputV1(LOCATION, "p" * 1025, 5), CONTEXT)

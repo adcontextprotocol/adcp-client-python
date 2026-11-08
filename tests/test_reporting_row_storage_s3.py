@@ -14,6 +14,7 @@ from adcp_reporting_storage.ledger.row_storage_object import (  # noqa: E402
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListInputV1,
     ReportingRowObjectPutInputV1,
     run_reporting_row_object_provider_conformance_v1,
 )
@@ -51,7 +52,7 @@ async def test_passes_the_shared_provider_conformance_suite(s3: Any) -> None:
     passed = await run_reporting_row_object_provider_conformance_v1(
         provider, location=LOCATION, prefix="adcp-rows"
     )
-    assert passed[-1] == "write-unique-version" and "ranged-read" in passed
+    assert "write-unique-version" in passed and "ranged-read" in passed and passed[-1] == "list"
 
 
 async def test_create_only_writes_record_the_version_id_and_adopt_on_conflict(s3: Any) -> None:
@@ -278,3 +279,91 @@ async def test_a_client_without_finite_socket_timeouts_is_refused_at_the_probe()
     with pytest.raises(ReportingRowStoreError) as refused:
         await provider.probe(LOCATION, "adcp-rows", CONTEXT)
     assert refused.value.code == "UNSAFE_BINDING" and "read_timeout" in str(refused.value)
+
+
+# -- list ---------------------------------------------------------------------------------------
+
+
+async def _list_pages(provider: Any, prefix: str, page_size: int) -> tuple[list[Any], int]:
+    found: list[Any] = []
+    skipped = 0
+    token = None
+    for _ in range(100):
+        page = await provider.list(
+            ReportingRowObjectListInputV1(LOCATION, prefix, page_size, token), CONTEXT
+        )
+        found.extend(page.objects)
+        skipped += page.skipped
+        token = page.next_page_token
+        if token is None:
+            return found, skipped
+    raise AssertionError("listing did not finish")
+
+
+async def test_list_returns_noncurrent_versions_and_never_a_delete_marker(s3: Any) -> None:
+    provider = create_s3_reporting_row_object_provider_v1(client=s3)
+    key = "adcp-rows/ns/versions.jsonl"
+    first = s3.put_object(Bucket="rows-bucket", Key=key, Body=b"one\n")["VersionId"]
+    second = s3.put_object(Bucket="rows-bucket", Key=key, Body=b"three\n")["VersionId"]
+    s3.delete_object(Bucket="rows-bucket", Key=key)  # a delete marker, not an object
+    other = (
+        await provider.put_if_absent(put("adcp-rows/ns/other.jsonl"), CONTEXT)
+    ).native_version_ref
+    for page_size in (1, 2, 10):
+        found, skipped = await _list_pages(provider, "adcp-rows/ns/", page_size)
+        assert skipped == 0
+        assert sorted((e.object_ref, e.native_version_ref) for e in found) == sorted(
+            [(key, first), (key, second), ("adcp-rows/ns/other.jsonl", other)]
+        ), page_size
+    sizes = {
+        e.native_version_ref: e.size_bytes
+        for e in (await _list_pages(provider, "adcp-rows/", 5))[0]
+    }
+    assert sizes[first] == 4 and sizes[second] == 6
+
+
+async def test_list_leaves_out_a_version_written_before_versioning_and_counts_it(s3: Any) -> None:
+    provider = create_s3_reporting_row_object_provider_v1(client=s3)
+    s3.create_bucket(Bucket="young-bucket")
+    s3.put_object(Bucket="young-bucket", Key="adcp-rows/ns/before.jsonl", Body=b"x\n")
+    s3.put_bucket_versioning(Bucket="young-bucket", VersioningConfiguration={"Status": "Enabled"})
+    s3.put_object(Bucket="young-bucket", Key="adcp-rows/ns/after.jsonl", Body=b"y\n")
+    found, skipped = await _list_in(provider, "young-bucket")
+    assert [e.object_ref for e in found] == ["adcp-rows/ns/after.jsonl"]
+    assert skipped == 1, "a null-version object is never addressable by a recorded version"
+
+
+async def _list_in(provider: Any, bucket: str) -> tuple[list[Any], int]:
+    page = await provider.list(
+        ReportingRowObjectListInputV1({"bucket": bucket}, "adcp-rows/ns/", 10), CONTEXT
+    )
+    return list(page.objects), page.skipped
+
+
+async def test_list_refuses_a_bad_token_a_bad_page_size_and_a_truncation_without_markers(
+    s3: Any,
+) -> None:
+    from types import SimpleNamespace
+
+    provider = create_s3_reporting_row_object_provider_v1(client=s3)
+    for token in ("not base64!", "e30", "bm90LWpzb24"):
+        with pytest.raises(ReportingRowStoreError) as failure:
+            await provider.list(
+                ReportingRowObjectListInputV1(LOCATION, "adcp-rows/", 5, token), CONTEXT
+            )
+        assert failure.value.code == "INVALID_INPUT", token
+    for size in (0, -3, 1.5):
+        with pytest.raises(ReportingRowStoreError):
+            await provider.list(
+                ReportingRowObjectListInputV1(LOCATION, "adcp-rows/", size), CONTEXT  # type: ignore[arg-type]
+            )
+    truncated = SimpleNamespace(
+        put_object=lambda **_: {},
+        list_object_versions=lambda **_: {"Versions": [], "IsTruncated": True},
+    )
+    broken = create_s3_reporting_row_object_provider_v1(client=truncated)
+    with pytest.raises(ReportingRowStoreError) as partial:
+        await broken.list(ReportingRowObjectListInputV1(LOCATION, "adcp-rows/", 5), CONTEXT)
+    assert (
+        partial.value.code == "PROVIDER_UNAVAILABLE"
+    ), "a partial listing is never reported complete"

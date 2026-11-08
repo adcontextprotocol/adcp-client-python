@@ -378,8 +378,9 @@ async def delete_period_objects(
 
     An object that a live chunk of another obligation still references is kept: the default
     key template cannot collide across obligations, but a custom template can, and a
-    delete must never take bytes another revision still needs. See
-    ``ReportingRowStorageV1.delete_unreferenced`` for the locking contract.
+    delete must never take bytes another revision still needs. No object lock is taken: see the
+    contract in ``ReportingRowStorageV1`` (``# -- object lifetime``) and
+    ``ReportingRowStorageV1.delete_unreferenced``.
     """
     storage = store._row_storage
     assert storage is not None
@@ -397,8 +398,10 @@ async def delete_period_objects(
     for binding_id, object_ref, native_version_ref in objects:
         by_binding.setdefault(binding_id, []).append((object_ref, native_version_ref))
     for binding_id, pairs in by_binding.items():
-        # Objects a chunk of any other row set still references are kept, checked
-        # atomically with the delete so a concurrent commit cannot adopt a doomed object.
+        # Objects a chunk of any other row set still references are kept. The check needs no lock
+        # against a committing writer: the period's row sets are already ``pruning`` (committed
+        # under the account lock in phase 1), which orders this delete against every other
+        # deleter.
         await storage.delete_unreferenced(
             store._pool, binding_id, pairs, obligation_id=obligation_id
         )
