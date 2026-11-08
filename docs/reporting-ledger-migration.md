@@ -366,8 +366,11 @@ straight to this release.
 
 This applies whenever more than one process runs Reliable Reporting against
 the ledger: several replicas that each start `ReliableReportingService`, or a
-separate worker deployment. **A default rolling update works.** While old and
-new processes share the expanded ledger:
+separate worker deployment. **A default rolling update works for the ledger,
+the notification outbox and status notifications; the materializer, production
+and status projection extensions still need their earlier-release workers
+stopped first** (below). While old and new processes share the expanded
+ledger:
 
 - old processes (adcp 9.3.1 with adcp-reporting-storage 0.1.0b4, adcp
   10.0.0b2 with 0.2.0b0) keep starting, reading and writing account-level
@@ -393,6 +396,20 @@ To deploy:
    `python -m adcp migrate --status` ends with `up to date except the contract
    step: run "python -m adcp migrate --contract" once every earlier-release
    reporting process has stopped`, and `postgres_storage(...)` starts normally.
+
+   The contract step locks `reporting_configurations` first, then the tables
+   that reference it. New-release pods that keep writing during it can make
+   it wait out a lock or statement timeout, or lose a deadlock. It is atomic:
+   nothing changes, so run it again (at a quieter moment if needed). It first
+   completes the expand of any status tables an earlier-release pod created
+   while the ledger was expanded.
+
+   Stop every earlier-release process **before** contracting, not just
+   because it cannot restart afterwards: one still running past the contract
+   step can still update the lease columns (`lease_worker_id`,
+   `lease_expires_at`) of a subscription generation through its four-column
+   lease `UPDATE`. That never touches evidence, but it can delay that
+   generation's period close until the lease expires.
 
 After the contract step, an earlier-release process can no longer run against
 the ledger: its `create_schema()` raises `Reporting caller ownership requires

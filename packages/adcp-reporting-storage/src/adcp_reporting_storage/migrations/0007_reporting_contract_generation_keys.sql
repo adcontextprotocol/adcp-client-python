@@ -14,6 +14,11 @@
 -- and create_schema() never apply it to an expanded ledger. On a ledger that
 -- was never expanded (a new one, or one that 0.2.0b1/b2 widened in place) it
 -- changes nothing, and "python -m adcp migrate" records it without --contract.
+--
+-- It first completes the expand of status tables an earlier-release process
+-- created while the ledger was expanded (re-running the checkpoint-offerings
+-- DDL), so the contract never meets a half-expanded table.
+-- include: ledger/reporting_status_checkpoint_offerings.sql
 -- include: ledger/reporting_ledger_contract.sql
 -- include: ledger/reporting_ledger_reconciliation.sql
 -- include: ledger/reporting_status_checkpoint_offerings.sql

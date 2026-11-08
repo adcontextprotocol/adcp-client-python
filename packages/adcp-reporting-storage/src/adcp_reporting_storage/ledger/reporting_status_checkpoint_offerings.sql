@@ -77,6 +77,29 @@ BEGIN
         WHERE conrelid = 'reporting_configurations'::regclass
           AND conname = 'reporting_configurations_generation_key');
 
+    -- Every checkpoint carries its generation's offering and references the
+    -- five-column configuration key. reporting_ledger_account_generations.sql
+    -- adds both to a checkpoint table that exists when it expands a ledger, but
+    -- a process of the earlier release can still create its own (six-column,
+    -- without offering_id) while the ledger is expanded: add them here too.
+    IF NOT EXISTS (SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'reporting_status_scope_checkpoints'::regclass
+          AND attname = 'offering_id' AND NOT attisdropped) THEN
+        LOCK TABLE reporting_status_scope_checkpoints IN ACCESS EXCLUSIVE MODE;
+        ALTER TABLE reporting_status_scope_checkpoints
+            ADD COLUMN offering_id TEXT COLLATE "C" NOT NULL DEFAULT '';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'reporting_status_scope_checkpoints'::regclass
+          AND conname = 'reporting_status_scope_checkpoints_generation_fkey') THEN
+        ALTER TABLE reporting_status_scope_checkpoints
+            ADD CONSTRAINT reporting_status_scope_checkpoints_generation_fkey
+                FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version,
+                             offering_id)
+                REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id,
+                                                    delivery_config_version, offering_id);
+    END IF;
+
     IF expand THEN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint
             WHERE conrelid = 'reporting_status_scope_checkpoints'::regclass

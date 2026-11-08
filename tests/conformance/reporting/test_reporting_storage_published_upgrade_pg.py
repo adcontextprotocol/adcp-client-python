@@ -781,6 +781,56 @@ async def test_a_rolling_deploy_runs_published_and_new_pods_side_by_side_until_c
         assert late["steps"]["readback"] == "ok"  # reads still work
 
 
+@pytest.mark.parametrize("new_pod_first", [True, False], ids=["new-pod", "contract-directly"])
+async def test_status_tables_a_published_pod_creates_while_expanded_are_expanded_and_contracted(
+    published: tuple[str, Path], workspace: Path, new_pod_first: bool
+) -> None:
+    """A published pod turns status notifications on only after the new release expanded.
+
+    Its boot creates the status tables on its own six-column key, without
+    ``offering_id``. A later new pod with notifications, and the contract step
+    even without one, expand those tables first, so neither fails.
+    """
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate
+
+    from tests.conformance.reporting import _published_ledger_seed as seed
+
+    _, python = published
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        await _seed(python, pool, workspace, notifications=False)
+        await seed.create_schema(pool, PgReportingLedgerStore(pool=pool), notifications=False)
+        assert [item.version for item in await migrate(pool)] == _rest(contract=False)
+        assert _expand_only(await _catalog(pool)) == EXPANDED_LEDGER
+        old = await _old_pod(python, pool, workspace, notifications=True, ordinal=2, now=TURNS[0])
+        _all_ok(old)
+        assert old["checkpoints"] > 0
+        if new_pod_first:
+            await _new_pod(
+                pool,
+                notifications=True,
+                ordinal=3,
+                now=TURNS[1],
+                account="account-new-pod",
+                reconciliation_account="acct_new_pod",
+            )
+            assert _expand_only(await _catalog(pool)) == EXPANDED_LEDGER | EXPANDED_STATUS
+            again = await _old_pod(
+                python, pool, workspace, notifications=True, ordinal=4, now=TURNS[2]
+            )
+            _all_ok(again)
+        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        assert await _full_catalog(pool) == await _fresh_catalog(notifications=True)
+        await _new_pod(
+            pool,
+            notifications=True,
+            ordinal=5,
+            now=TURNS[3],
+            account="account-after-contract",
+            reconciliation_account="acct_after_contract",
+        )
+
+
 async def test_a_rollback_before_contract_keeps_the_published_pair_working(
     published: tuple[str, Path], workspace: Path
 ) -> None:

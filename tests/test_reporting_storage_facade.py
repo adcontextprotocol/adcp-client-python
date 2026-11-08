@@ -137,6 +137,8 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     # ... and the contract step runs only on request, once earlier releases stopped.
     assert contract.name == "reporting_contract_generation_keys" and contract.contract
     assert contract.includes == (
+        # Completes the expand of status tables an earlier release created late.
+        "ledger/reporting_status_checkpoint_offerings.sql",
         "ledger/reporting_ledger_contract.sql",
         "ledger/reporting_ledger_reconciliation.sql",
         "ledger/reporting_status_checkpoint_offerings.sql",

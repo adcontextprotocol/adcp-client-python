@@ -82,7 +82,10 @@ Install `adcp>=10.0.0b7` with this release.
 
 Both `PgReportingLedgerStore.create_schema()` (what `ReliableReportingService`
 runs at startup when given `store=`) and `python -m adcp migrate` upgrade an
-existing ledger, and **a default rolling update works**. The upgrade is an
+existing ledger, and **a default rolling update works for the ledger, the
+notification outbox and status notifications** (the materializer, production
+and status projection extensions still need their earlier-release workers
+stopped first, below). The upgrade is an
 expand/contract pair:
 
 - **Expand** (migrations `0002` and `0006`, online-safe): `offering_id` is
