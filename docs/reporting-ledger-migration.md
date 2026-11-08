@@ -55,36 +55,68 @@ subscription version, so the generation key gains `offering_id`:
 account-level generation, and their digests, work keys and persisted scopes are
 unchanged.
 
-In PostgreSQL this is a **stopped-worker maintenance upgrade**:
+A new ledger is created on the widened key. A ledger created by an earlier
+release (adcp-reporting-storage 0.1.x or 0.2.0b0, storage contract 1) is
+upgraded in two halves, **expand** and **contract**, so a rolling deploy works
+(see [Deploying the upgrade](#deploying-the-upgrade)).
 
-1. Stop every reporting worker. Workers of earlier releases refuse the widened
-   schema; mixed-version workers are unsupported.
-2. Run `create_schema()` (or your usual migration entry point) once with the new
-   release. Under the schema lock it widens the key in place and losslessly:
-   - `reporting_configurations` gains `offering_id` (`''` for existing rows),
-     and its primary key includes it;
-   - `reporting_obligations` gains `offering_id`, and its period unique index
-     includes it;
-   - `reporting_consumer_statuses` gains `offering_id`;
-   - the SDK's own references (reconciliation records, materializer discovery,
-     status scope checkpoints, production generations) are re-pointed at the
-     widened key. Reconciliation records, materializer discovery and status
-     scope checkpoints also hold subscription generations, for managed
-     delivery. Production generations hold account-level generations only,
-     enforced by a `CHECK`.
-3. Restart the workers on the new release.
+**Expand** (migration `0002`, which `create_schema()` and `python -m adcp
+migrate` both apply) is online-safe: processes of the earlier release keep
+booting, reading and writing account-level generations beside the new one.
+Under the schema lock, losslessly:
+
+- `reporting_configurations`, `reporting_obligations` and
+  `reporting_consumer_statuses` gain `offering_id` (`''` for existing rows),
+  with `CHECK (offering_id = '')` until contract;
+- everything the earlier release needs keeps its name and definition: the
+  four-column `reporting_configurations_pkey`, the six-column
+  `reporting_obligations_period_key`, and the four-column references from
+  reconciliation records, materializer discovery, status scope checkpoints and
+  production generations;
+- the widened keys are added beside them under new names:
+  `reporting_configurations_generation_key` (`UNIQUE` on the five columns, the
+  target of the new release's writes and of the offering-aware references,
+  `…_generation_fkey`) and `reporting_obligations_offering_period_key`.
+
+While the ledger is expanded, the three reconciliation functions (and, with
+status notifications, the two status guards) keep the earlier release's bodies:
+each earlier-release boot re-creates them, and both releases' schema validators
+compare function bodies, so the new release installs those bodies too. They are
+correct for its writes while every generation is account-level, which the
+`CHECK` guarantees. The new release's validators accept the expanded catalog
+(`outbox/required_expand_schema.json`).
+
+A **subscription generation needs the contract step.** Before it, recording
+one (a second offering of a configuration version) raises
+`ReportingUpgradeNotContractedError` (a `LedgerConflictError`, code
+`REPORTING_UPGRADE_NOT_CONTRACTED`) naming `python -m adcp migrate --contract`.
+
+**Contract** (migration `0007`, header `-- adcp-upgrade: contract`) is a
+stopped-worker step that runs only on request: `python -m adcp migrate
+--contract` (or `migrate(pool, contract=True)`), once every earlier-release
+reporting process has stopped. Plain `python -m adcp migrate`,
+`create_schema()` and `apply_pending()` stop before it. It drops the
+four-column key and references, the six-column period key and the `CHECK`s,
+renames the widened keys to their final names (`reporting_configurations_pkey`,
+`reporting_obligations_period_key`), re-creates the offering-aware references
+onto the new primary key and restores the new release's function bodies. The
+ledger is then exactly a new ledger's catalog. On a ledger that was never
+expanded (a new one, or one that 0.2.0b1/b2 already widened in place) it
+changes nothing, and `python -m adcp migrate` records it without `--contract`.
+`postgres_storage(...)` starts on a ledger whose only pending migration is the
+contract step.
 
 A schema created by a release that widened the key but did not yet serve
 managed subscription delivery still carries an account-only `CHECK` on
 reconciliation records, materializer discovery and status scope checkpoints,
 and a four-column materializer discovery key. `create_schema()` drops those
 checks and widens the discovery key in place, losslessly and idempotently.
-Earlier workers refuse the upgraded schema, so stop them first here too.
+Earlier workers refuse the upgraded schema, so stop them first here.
 
 A foreign key outside the SDK that references `reporting_configurations`
-refuses the upgrade with a maintenance error, rather than being dropped.
-Re-point it at the widened key, then run the upgrade. The upgrade is
-idempotent; a fresh schema is created in the widened layout directly.
+refuses the expand (and the contract) with a maintenance error, rather than
+being dropped. Re-point it at the widened key, then run the upgrade. Both
+halves are idempotent.
 
 ### Status checkpoints keyed by offering (migration `0006`)
 
@@ -97,18 +129,28 @@ obligation_namespace, offering_id)`. Account-level checkpoints keep
 `offering_id` `''`, so their keys, status `cause_id` values and projection
 history keys are unchanged.
 
-This is also a **stopped-worker upgrade**: stop every reporting worker, run
 `python -m adcp migrate` (migration `0006 reporting_status_checkpoint_offerings`)
-or the status, projection or production store's `create_schema()` once with the
-new release, then restart the workers. Under the schema lock it widens the
-checkpoint primary key; the status event tables (`reporting_status_notification_events`,
-and `reporting_projection_notification_events` where the projection is
-installed) gain `offering_id`, filled from their checkpoint, and their
-checkpoint reference and per-generation unique key include it. Constraints
-keep their names. It changes nothing on a schema without status
-notifications. A foreign key outside the SDK that references
-`reporting_status_scope_checkpoints` refuses the upgrade instead of being
-dropped.
+or the status, projection or production store's `create_schema()` applies it.
+It follows the configuration key:
+
+- **Expanded ledger** (online-safe): the six-column
+  `reporting_status_scope_checkpoints_pkey`, the status events' six-column
+  checkpoint reference and seven-column per-generation key keep their names;
+  `reporting_status_scope_checkpoints_offering_key`,
+  `reporting_status_notification_events_offering_fkey` and
+  `reporting_status_notification_events_offering_key` are added beside them,
+  and the contract step (`0007`) renames them back. Earlier-release status
+  workers keep writing checkpoints and events.
+- **Contracted ledger**: the key is widened in place under the schema lock and
+  constraints keep their names.
+
+The status event tables gain `offering_id`, filled from their checkpoint. The
+status projection's event table (`reporting_projection_notification_events`,
+an extension) is widened in place in both cases, so projection workers of an
+earlier release stop with the first new boot; stop them first. It changes
+nothing on a schema without status notifications. A foreign key outside the
+SDK that references `reporting_status_scope_checkpoints` refuses the upgrade
+instead of being dropped.
 
 ## Historical account-generation upgrade
 
@@ -293,81 +335,109 @@ refuse that pair at startup instead (storage contract 1 versus 2; see
 `packages/adcp-reporting-storage/README.md`). adcp 10.0.0b4 and 10.0.0b5
 predate the check and still install beside 0.2.0b0, so that pair fails every
 turn: install `adcp>=10.0.0b7` with `adcp-reporting-storage>=0.2.0b1`
-(10.0.0b6 was not published). From 0.2.0b1, both schema entry points
-upgrade an existing ledger in place:
+(10.0.0b6 was not published). Both schema entry points upgrade an existing
+ledger:
 
 - `PgReportingLedgerStore.create_schema()`, which `ReliableReportingService`
   runs at startup when built with `store=`;
 - `python -m adcp migrate`, which `postgres_storage(...)` requires to have run.
 
-The upgrade (migration `0002`) adds `offering_id TEXT NOT NULL DEFAULT ''` to
-the widened tables, so every existing account-level generation, obligation and
-status keeps its identity with `offering_id = ''`; rebuilds the generation
-primary key and the obligation period index with the new column; and re-points
-the managed-delivery foreign keys. No evidence row is rewritten or dropped. The
-applied versions are recorded in `adcp_schema_migrations` (`create_schema()`
-applies the ledger's own `0001`–`0003`; `python -m adcp migrate` also applies
-the later ones, which only `postgres_storage` and the notification stores
-need), re-running is a no-op,
-and concurrent boots serialize on the reporting schema advisory lock inside
-one transaction. It is a stopped-worker upgrade: stop every worker of the
-earlier release first, because their configuration writes name the
-four-column key.
+From this release the upgrade is an expand/contract pair (see [the widened
+key](#reporting-subscription-generations-the-widened-key-adcp-33)). Expanding
+(migrations `0002` and, with status notifications, `0006`) adds `offering_id
+TEXT NOT NULL DEFAULT ''` to the widened tables, so every existing
+account-level generation, obligation and status keeps its identity with
+`offering_id = ''`, and adds the widened keys beside the ones the earlier
+release uses. No evidence row is rewritten or dropped. The applied versions are
+recorded in `adcp_schema_migrations` (`create_schema()` applies the ledger's
+own `0001`–`0003`; `python -m adcp migrate` also applies the later ones, which
+only `postgres_storage` and the notification stores need), re-running is a
+no-op, and concurrent boots serialize on the reporting schema advisory lock
+inside one transaction. Contracting (`0007`) waits for `python -m adcp migrate
+--contract`.
+
+adcp-reporting-storage 0.2.0b1 and 0.2.0b2 widened the key in place instead,
+as a stopped-worker upgrade. A ledger they already upgraded has no expand
+state: this release treats it as contracted and records `0007` without
+`--contract`. If you are still on 0.1.x/0.2.0b0, skip 0.2.0b1/b2 and upgrade
+straight to this release.
 
 ### Deploying the upgrade
 
 This applies whenever more than one process runs Reliable Reporting against
-the ledger. That includes several replicas that each start
-`ReliableReportingService`, and a separate worker deployment. A default
-rolling update does **not** stop the earlier release first. The first new
-process upgrades the ledger when it starts, while the old processes keep
-running against it. From then on, an old process:
+the ledger: several replicas that each start `ReliableReportingService`, or a
+separate worker deployment. **A default rolling update works for the ledger,
+the notification outbox and status notifications; the materializer, production
+and status projection extensions still need their earlier-release workers
+stopped first** (below). While old and new processes share the expanded
+ledger:
 
-- still reads configurations, obligations, revisions and rows;
-- cannot record a new generation (`put_configuration` fails with
-  `InvalidColumnReference: there is no unique or exclusion constraint matching
-  the ON CONFLICT specification`);
-- cannot close the next period of an existing generation (`commit_obligation`
-  fails with `LedgerConflictError: the ledger write violated an integrity rule`,
-  because the period key it names was widened);
-- with status notifications, cannot record status checkpoints, whose key
-  migration `0006` widens;
-- cannot start Reliable Reporting again if it restarts. `create_schema()`
-  raises `Reporting caller ownership requires a stopped-worker maintenance
-  migration`, with a hint to use `migrate_legacy_reporting`. **Ignore that
-  hint.** `migrate_legacy_reporting` is the SDK 8 → 9 caller-ownership
-  migration. It does not apply to this upgrade and would move reporting state
-  into quarantine.
-
-Nothing is corrupted: the new release reads every record the old one wrote.
-But the old processes' reporting stops for the rest of the rollout.
-
-**There is no rollback.** Once the ledger is upgraded, no earlier release can
-start Reliable Reporting against it. To go back, restore the backup taken
-before the upgrade; evidence written after the backup is lost.
+- old processes (adcp 9.3.1 with adcp-reporting-storage 0.1.0b4, adcp
+  10.0.0b2 with 0.2.0b0) keep starting, reading and writing account-level
+  generations: configurations, obligations, revisions, worker turns and, with
+  status notifications, status checkpoints and events;
+- new processes work fully, except that they cannot record a reporting
+  subscription's generation until contract (`REPORTING_UPGRADE_NOT_CONTRACTED`);
+- a rollback to the earlier release works until you contract.
 
 To deploy:
 
 1. Back up the database.
-2. Stop every reporting worker of the earlier release. Two ways:
-   - **Recreate.** Roll this one deployment out with every old pod stopped
-     before any new pod starts (Kubernetes `strategy: {type: Recreate}`).
-     Reporting, and the pods, are down for the length of the swap.
-   - **Two phases.** First redeploy the *earlier* release with Reliable
-     Reporting turned off (don't start `ReliableReportingService`), or scale
-     a separate worker deployment to zero. Then roll out the new release
-     normally. Only reporting pauses, not the rest of the service.
-3. Upgrade the schema: run `python -m adcp migrate` once, or let the first new
-   process do it at startup. Run `python -m adcp migrate` (or
-   `ReportingStatusService.migrate()`) if you use `postgres_storage(...)` or
-   status notifications. `create_schema()` alone applies only `0001`–`0003`.
-4. Start the new release everywhere.
+2. If you use `postgres_storage(...)` or status notifications, run `python -m
+   adcp migrate` (for example as a pre-deploy job). It is safe while earlier
+   pods still run: it expands and stops before the contract step, printing
+   `not applied 0007 … (contract)`. Otherwise the first new process expands
+   the ledger when it starts.
+3. Roll out the new release normally.
+4. **Once every earlier-release reporting process has stopped** (the rollout
+   is complete and you no longer intend to roll back), run `python -m adcp
+   migrate --contract`. It takes exclusive locks on the generation, obligation
+   and status checkpoint tables for the length of one transaction. Until then
+   `python -m adcp migrate --status` ends with `up to date except the contract
+   step: run "python -m adcp migrate --contract" once every earlier-release
+   reporting process has stopped`, and `postgres_storage(...)` starts normally.
+
+   The contract step locks `reporting_configurations` first, then the tables
+   that reference it. New-release pods that keep writing during it can make
+   it wait out a lock or statement timeout, or lose a deadlock. It is atomic:
+   nothing changes, so run it again (at a quieter moment if needed). It first
+   completes the expand of any status tables an earlier-release pod created
+   while the ledger was expanded.
+
+   Stop every earlier-release process **before** contracting, not just
+   because it cannot restart afterwards: one still running past the contract
+   step can still update the lease columns (`lease_worker_id`,
+   `lease_expires_at`) of a subscription generation through its four-column
+   lease `UPDATE`. That never touches evidence, but it can delay that
+   generation's period close until the lease expires.
+
+After the contract step, an earlier-release process can no longer run against
+the ledger: its `create_schema()` raises `Reporting caller ownership requires
+a stopped-worker maintenance migration` (**ignore its hint**:
+`migrate_legacy_reporting` is the SDK 8 → 9 caller-ownership migration, does
+not apply here and would move reporting state into quarantine), and its
+writes fail (`put_configuration` with `InvalidColumnReference`,
+`commit_obligation` with `LedgerConflictError`). Reads still work. To roll back
+after contract, restore the backup.
+
+**Extensions stay stopped-worker.** The materializer, production and status
+projection stores widen their own tables and re-create their own functions
+when the new release starts, as before. If an earlier release runs any of them,
+stop those workers before the first new process starts (Recreate, or redeploy
+the earlier release with those workers turned off first), then contract as
+above.
 
 `tests/conformance/reporting/test_reporting_storage_published_upgrade_pg.py`
 seeds ledgers with the actual published wheel pairs (`adcp==9.3.1` with
-`adcp-reporting-storage==0.1.0b4`, `adcp==10.0.0b2` with `0.2.0b0`) and proves
-the retained evidence reads back unchanged, a restart rebinds the stored
-generations, and the upgraded catalog is identical to a fresh migration.
+`adcp-reporting-storage==0.1.0b4`, `adcp==10.0.0b2` with `0.2.0b0`) and drives
+the rolling sequence, with and without status notifications: the new release
+expands; old pods restart, read, write and run worker turns; new pods read the
+old pods' rows and write reconciliation and status records, also after an old
+pod restarts again; a subscription generation is refused until contract; the
+contracted catalog (columns, constraints, indexes, triggers and function
+definitions) is identical to a fresh migration; and the old pair then refuses.
+It also covers a rollback before contract, concurrent old and new boots, and a
+ledger 0.2.0b1 widened in place.
 
 ## Upgrading a ledger that adcp-reporting-storage 0.1.0b5 wrote
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from contextlib import asynccontextmanager
 
 import pytest
@@ -32,7 +33,10 @@ async def test_migrate_applies_every_version_once_and_status_reads_it() -> None:
         assert await migrate(pool) == []  # idempotent
         lines = describe(await migration_status(pool))
         assert all(": applied " in line for line in lines)
-        assert lines[1].endswith("[stopped-worker upgrade]")
+        # A new ledger was never expanded: its contract step applied without --contract.
+        assert lines[-1].startswith("0007 reporting_contract_generation_keys: applied ")
+        assert lines[-1].endswith("[contract]")
+        assert not any("stopped-worker" in line for line in lines)
 
 
 @pytest.mark.asyncio
@@ -49,9 +53,10 @@ async def test_storage_refuses_a_schema_that_is_behind_and_starts_once_migrated(
             await storage.check_schema()
         error = refused.value
         assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
-        assert "pending: 0001, 0002, 0003, 0004, 0005, 0006" in str(error)
+        # The contract step alone never makes a schema "behind" (0007 is not listed).
+        assert "pending: 0001, 0002, 0003, 0004, 0005, 0006)" in str(error)
         assert "python -m adcp migrate" in str(error)
-        assert "0002, 0006 are stopped-worker upgrades" in str(error)
+        assert "stopped-worker" not in str(error)  # every upgrade is rolling-deploy safe
         await migrate(pool)
         await storage.check_schema()
 
@@ -87,12 +92,17 @@ async def test_the_cli_migrates_and_reports_status(capsys) -> None:
         dsn = f"{base}{'&' if '?' in base else '?'}options=-csearch_path%3D{schema}"
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out
-        assert "0002 reporting_subscription_generations: pending  [stopped-worker upgrade" in status
-        assert "6 pending" in status
+        assert "0002 reporting_subscription_generations: pending\n" in status
+        assert (
+            "0007 reporting_contract_generation_keys: pending  [contract: run once every"
+            " earlier-release reporting process has stopped: python -m adcp migrate --contract]"
+        ) in status
+        assert "7 pending" in status
         assert await _run(dsn, status=False, dry_run=False) == 0
-        assert "applied 0002 reporting_subscription_generations (stopped-worker upgrade)" in (
-            capsys.readouterr().out
-        )
+        applied = capsys.readouterr().out
+        assert "applied 0002 reporting_subscription_generations\n" in applied
+        # A new ledger has nothing to contract: the step is recorded without --contract.
+        assert "applied 0007 reporting_contract_generation_keys (contract)" in applied
         assert await _run(dsn, status=True, dry_run=False) == 0
         assert capsys.readouterr().out.strip().endswith("up to date")
 
@@ -256,5 +266,66 @@ async def test_create_schema_builds_its_own_schema_beside_a_migrated_one() -> No
         async with _search_path(own_schema, other_schema) as shared:
             await PgReportingLedgerStore(pool=shared).create_schema()
         # create_schema() records its own 0001-0003; the rest stay for ``migrate``.
-        assert [item.version for item in await pending_migrations(own)] == ["0004", "0005", "0006"]
+        assert [item.version for item in await pending_migrations(own)] == [
+            "0004",
+            "0005",
+            "0006",
+            "0007",
+        ]
         assert await _catalog(other, other_schema) == before
+
+
+#: Objects that exist only while a ledger is expanded (#1856).
+_EXPAND_ONLY = re.compile(
+    r"_(generation_key|offering_period_key|uncontracted|offering_key|offering_fkey)$"
+)
+
+
+async def _expand_objects(pool) -> list[str]:
+    async with pool.connection() as connection:
+        rows = await (
+            await connection.execute(
+                "SELECT conname FROM pg_constraint"
+                " WHERE connamespace = current_schema()::regnamespace"
+                " UNION ALL SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()"
+            )
+        ).fetchall()
+    return sorted(name for (name,) in rows if _EXPAND_ONLY.search(name))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("entry", ["migrate", "create_schema"])
+async def test_a_new_ledger_is_created_contracted(entry: str, capsys) -> None:
+    """A new ledger has no earlier-release processes: it is never expanded (#1856)."""
+    import os
+
+    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate, needs_contract, pending_migrations
+    from adcp_reporting_storage.migrations.cli import _run
+    from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
+
+    from adcp.storage.postgres import postgres_storage
+
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingLedgerStore(pool=pool, notifications=True)
+        if entry == "migrate":
+            await migrate(pool)
+            await PgStatusNotificationStore(store).create_schema()
+        else:
+            await PgStatusNotificationStore(store).create_schema()
+            # The migrations the boot path leaves pending change nothing here, and
+            # the contract step is recorded without --contract.
+            assert [item.version for item in await migrate(pool)] == [
+                "0004",
+                "0005",
+                "0006",
+                "0007",
+            ]
+        assert await _expand_objects(pool) == []
+        assert not await needs_contract(pool)
+        assert await pending_migrations(pool) == []
+        await postgres_storage(pool=pool).check_schema()
+        base = os.environ["ADCP_PG_TEST_URL"]
+        dsn = f"{base}{'&' if '?' in base else '?'}options=-csearch_path%3D{await _schema(pool)}"
+        assert await _run(dsn, status=True, dry_run=False) == 0
+        assert capsys.readouterr().out.strip().endswith("up to date")

@@ -51,7 +51,12 @@ CREATE TABLE IF NOT EXISTS reporting_configurations (
     -- expiry instead of wedging the period forever.
     lease_worker_id         TEXT COLLATE "C",
     lease_expires_at        TIMESTAMPTZ,
-    PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
+    -- '' for an account-level generation; a reporting subscription keeps one
+    -- generation per resolved offering of a version. A new ledger is created
+    -- on the widened key; reporting_ledger_account_generations.sql upgrades
+    -- one created by an earlier release.
+    offering_id             TEXT COLLATE "C" NOT NULL DEFAULT '',
+    PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id)
 );
 
 CREATE INDEX IF NOT EXISTS reporting_configurations_account_idx
@@ -129,15 +134,28 @@ CREATE TABLE IF NOT EXISTS reporting_obligations (
     created_at              TIMESTAMPTZ      NOT NULL,
     -- NULL is unknown legacy currency, never an implicit USD default. The
     -- currency migration installs validation and immutability on all schemas.
-    currency                TEXT COLLATE "C"
+    currency                TEXT COLLATE "C",
+    offering_id             TEXT COLLATE "C" NOT NULL DEFAULT ''
 );
 
 -- One obligation per logical period. Without this, two workers racing a period
 -- close could commit two obligations and a seller could quietly publish twice
 -- and pick a winner.
-CREATE UNIQUE INDEX IF NOT EXISTS reporting_obligations_period_key
-    ON reporting_obligations
-       (account_id, consumer_id, delivery_config_id, delivery_config_version, period_start, period_end);
+--
+-- A new ledger keys it by offering_id too. An earlier release's ledger keeps
+-- its six-column key here (PostgreSQL resolves the columns of CREATE INDEX IF
+-- NOT EXISTS before the name): reporting_ledger_account_generations.sql
+-- upgrades it.
+DO $obligation_period_key$
+BEGIN
+    IF to_regclass(quote_ident(current_schema()) || '.reporting_obligations_period_key') IS NULL THEN
+        CREATE UNIQUE INDEX reporting_obligations_period_key
+            ON reporting_obligations
+               (account_id, consumer_id, delivery_config_id, delivery_config_version, offering_id,
+                period_start, period_end);
+    END IF;
+END
+$obligation_period_key$;
 
 CREATE INDEX IF NOT EXISTS reporting_obligations_account_idx
     ON reporting_obligations (account_id, period_end DESC);
@@ -274,6 +292,7 @@ CREATE TABLE IF NOT EXISTS reporting_consumer_statuses (
     seller_ledger_as_of     TIMESTAMPTZ,
     superseded              BOOLEAN          NOT NULL DEFAULT FALSE,
     content_sha256          TEXT COLLATE "C" NOT NULL,
+    offering_id             TEXT COLLATE "C" NOT NULL DEFAULT '',
     PRIMARY KEY (account_id, consumer_id, reporting_status_id)
 );
 

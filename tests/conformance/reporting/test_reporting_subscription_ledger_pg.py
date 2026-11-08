@@ -3,7 +3,8 @@
 The generation key is (account, consumer, delivery_config_id,
 delivery_config_version, offering_id), with offering_id '' for account-level
 generations. These run the in-memory owed-set scenarios against PostgreSQL and
-cover the in-place widening of a schema still on the four-column key.
+cover the upgrade of a schema still on the four-column key: expanded beside
+the earlier release's key, then contracted (#1856).
 """
 
 from __future__ import annotations
@@ -26,6 +27,22 @@ from tests.test_reporting_subscription_engine import at, buy
 from tests.test_reporting_subscription_ledger import AGENCY, OTHER, _plan, _world_with
 
 NOW = at("2026-10-08T00:00:00Z")
+
+
+#: The published (storage contract 1) layout of the base ledger: a new ledger
+#: is created on the widened key, so the four-column one is rebuilt from it.
+FOUR_COLUMN_LAYOUT = """
+ALTER TABLE reporting_configurations DROP CONSTRAINT reporting_configurations_pkey;
+ALTER TABLE reporting_configurations DROP COLUMN offering_id;
+ALTER TABLE reporting_configurations ADD PRIMARY KEY
+    (account_id, consumer_id, delivery_config_id, delivery_config_version);
+DROP INDEX reporting_obligations_period_key;
+ALTER TABLE reporting_obligations DROP COLUMN offering_id;
+CREATE UNIQUE INDEX reporting_obligations_period_key ON reporting_obligations
+    (account_id, consumer_id, delivery_config_id, delivery_config_version,
+     period_start, period_end);
+ALTER TABLE reporting_consumer_statuses DROP COLUMN offering_id;
+"""
 
 
 async def _store(pool) -> PgReportingLedgerStore:
@@ -135,12 +152,31 @@ async def test_two_principals_scope_and_status_ingest_over_postgres() -> None:
         assert status.offering_id == "pkg"
 
 
-async def test_a_four_column_schema_is_widened_losslessly() -> None:
+async def test_a_four_column_schema_is_expanded_then_contracted_losslessly() -> None:
+    from adcp_reporting_storage.migrations import migrate, needs_contract
+
+    async def keys(pool) -> tuple[str, list[str]]:
+        async with pool.connection() as connection:
+            primary = await (
+                await connection.execute(
+                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
+                    " WHERE conrelid = 'reporting_configurations'::regclass AND contype = 'p'"
+                )
+            ).fetchone()
+            unique = await (
+                await connection.execute(
+                    "SELECT conname FROM pg_constraint"
+                    " WHERE conrelid = 'reporting_configurations'::regclass AND contype = 'u'"
+                )
+            ).fetchall()
+        return primary[0], [name for (name,) in unique]
+
     async with isolated_reporting_pool(autocommit=True) as pool:
         ledger = files("adcp_reporting_storage.ledger")
         async with pool.connection() as connection:
             # The published layout: the base ledger DDL on the four-column key.
             await connection.execute(ledger.joinpath("reporting_ledger.sql").read_text())
+            await connection.execute(FOUR_COLUMN_LAYOUT)
             await connection.execute(
                 "INSERT INTO reporting_configurations (delivery_config_id,"
                 " delivery_config_version, account_id, consumer_id, report_definition_id,"
@@ -151,19 +187,22 @@ async def test_a_four_column_schema_is_widened_losslessly() -> None:
             )
         for _ in range(2):  # idempotent
             await PgReportingLedgerStore(pool=pool).create_schema()
+        # Expanded: the earlier release's key stays, the widened one is beside it.
+        primary, unique = await keys(pool)
+        assert primary.endswith("delivery_config_id, delivery_config_version)")
+        assert unique == ["reporting_configurations_generation_key"]
+        assert await needs_contract(pool)
+        assert "0007" not in [item.version for item in await migrate(pool)]
+        assert [item.version for item in await migrate(pool, contract=True)] == ["0007"]
+        primary, unique = await keys(pool)
+        assert primary.endswith("delivery_config_version, offering_id)")
+        assert unique == [] and not await needs_contract(pool)
         async with pool.connection() as connection:
-            primary = await (
-                await connection.execute(
-                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
-                    " WHERE conrelid = 'reporting_configurations'::regclass AND contype = 'p'"
-                )
-            ).fetchone()
             rows = await (
                 await connection.execute(
                     "SELECT delivery_config_id, offering_id FROM reporting_configurations"
                 )
             ).fetchall()
-        assert primary[0].endswith("delivery_config_version, offering_id)")
         assert rows == [("daily", "")]
 
 
@@ -174,6 +213,7 @@ async def test_a_foreign_reference_to_the_key_refuses_the_widening() -> None:
         ledger = files("adcp_reporting_storage.ledger")
         async with pool.connection() as connection:
             await connection.execute(ledger.joinpath("reporting_ledger.sql").read_text())
+            await connection.execute(FOUR_COLUMN_LAYOUT)
             await connection.execute(
                 'CREATE TABLE adopter_reference (account_id TEXT COLLATE "C",'
                 ' consumer_id TEXT COLLATE "C", delivery_config_id TEXT COLLATE "C",'
@@ -273,7 +313,7 @@ async def test_a_six_column_status_checkpoint_schema_is_keyed_by_offering() -> N
         return ReportingStatusScope("acct_a", config.generation_key, feed_purpose="analytics")
 
     (widening,) = [item for item in migrations() if item.version == "0006"]
-    assert widening.stopped_worker
+    assert not widening.stopped_worker  # rolling-deploy safe while expanded (#1856)
     assert widening.includes == ("ledger/reporting_status_checkpoint_offerings.sql",)
     async with isolated_reporting_pool(autocommit=True) as pool:
         await migrate(pool)  # 0006 changes nothing without status notifications
