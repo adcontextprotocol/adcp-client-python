@@ -9,6 +9,9 @@ its metadata:
   releases cannot run beside: stop every reporting worker first;
 * ``-- adcp-upgrade: contract`` marks the contract half of an expand/contract
   upgrade (below);
+* ``-- adcp-upgrade: additive`` marks a migration that only creates new
+  objects and depends on nothing a contract step changes, so it is applied
+  even while a contract step waits (below);
 * ``-- include: <path>`` applies one of the package's idempotent DDL files, in
   order, so each statement lives in exactly one place. Any other SQL in the
   file runs after its includes.
@@ -40,6 +43,11 @@ and :func:`apply_pending` stop before it. On a ledger that was never expanded
 (a new one, or one that 0.2.0b1/b2 widened in place) the contract step changes
 nothing and is applied and recorded without the request. ``postgres_storage``
 starts on a ledger whose only pending migration is a contract step.
+
+A migration after a waiting contract step is applied only when it is
+``additive`` (``0008``, the issue-event outbox); the walk stops at the first
+one that is not, since it may depend on the contract. An additive migration
+is therefore applied, and recorded, before the contract step it follows.
 """
 
 from __future__ import annotations
@@ -154,6 +162,9 @@ class Migration:
     #: The contract half of an expand/contract upgrade: applied to an expanded
     #: ledger only on request (:data:`CONTRACT_COMMAND`).
     contract: bool = False
+    #: Creates only new objects and depends on no contract step: applied even
+    #: while an earlier contract step waits for :data:`CONTRACT_COMMAND`.
+    additive: bool = False
 
     def statements(self) -> list[str]:
         """The SQL this migration runs, in order."""
@@ -200,7 +211,7 @@ def _parse(filename: str, text: str) -> Migration:
             body.append(line)
     if declared != f"{version} {name}":
         raise ValueError(f"migration file {filename!r} must declare '{version} {name}'")
-    if upgrade not in ("", "stopped-worker", "contract"):
+    if upgrade not in ("", "stopped-worker", "contract", "additive"):
         raise ValueError(f"migration file {filename!r} declares an unknown upgrade {upgrade!r}")
     return Migration(
         version=version,
@@ -210,6 +221,7 @@ def _parse(filename: str, text: str) -> Migration:
         body="\n".join(body),
         description=" ".join(item for item in description if item),
         contract=upgrade == "contract",
+        additive=upgrade == "additive",
     )
 
 
@@ -291,9 +303,11 @@ async def migrate(pool: Any, *, dry_run: bool = False, contract: bool = False) -
     ``search_path`` selects the schema. Each migration commits on its own, so a
     failure leaves the earlier ones applied and the failed one pending.
 
-    The walk stops before a contract step whose ledger is expanded (or is an
-    earlier release's, which this run expands) unless ``contract`` is set: pass
-    it only once every earlier-release reporting process has stopped.
+    The walk holds a contract step whose ledger is expanded (or is an earlier
+    release's, which this run expands) unless ``contract`` is set: pass it only
+    once every earlier-release reporting process has stopped. Past a held
+    contract step it applies only ``additive`` migrations, and stops at the
+    first one that is not.
     """
     if hasattr(pool, "getconn"):  # a pool
         async with pool.connection() as connection:
@@ -308,18 +322,42 @@ async def _migrate(connection: Any, *, dry_run: bool, contract: bool) -> list[Mi
             async with connection.transaction():
                 expanded = await needs_contract(connection)
             if expanded:
-                first = next(index for index, item in enumerate(pending) if item.contract)
-                return pending[:first]
+                return _past_held_contract(pending)
         return pending
     applied: list[Migration] = []
+    held = False
     for migration in pending:
         async with connection.transaction():
             await connection.execute(_LOCK)
+            if held and not migration.additive:
+                break  # it may depend on the contract step still waiting
             if migration.contract and not contract and await needs_contract(connection):
-                break  # stopped-worker: the operator asks for it explicitly
+                # The operator asks for the contract step explicitly; what
+                # follows it is applied only when it is additive.
+                held = True
+                continue
             if await _apply(connection, migration):
                 applied.append(migration)
     return applied
+
+
+def _past_held_contract(pending: Sequence[Migration]) -> list[Migration]:
+    """The plan when every pending contract step is held: up to the first, then additive only.
+
+    Mirrors :func:`_migrate` step for step: past the held contract step the
+    walk stops at the first migration that is not additive, another contract
+    step included.
+    """
+    plan: list[Migration] = []
+    held = False
+    for migration in pending:
+        if held and not migration.additive:
+            break
+        if migration.contract:
+            held = True
+            continue
+        plan.append(migration)
+    return plan
 
 
 async def apply_pending(

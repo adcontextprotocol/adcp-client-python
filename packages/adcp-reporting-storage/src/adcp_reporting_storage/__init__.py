@@ -61,6 +61,9 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.ledger.delivery_pg import (
         PgReportingReconciliationStore as PgReportingReconciliationStore,
     )
+    from adcp_reporting_storage.ledger.issue_events import (
+        ReportingIssueEventLease as ReportingIssueEventLease,
+    )
     from adcp_reporting_storage.ledger.orphan_collector import (
         ReportingOrphanBindingResultV1 as ReportingOrphanBindingResultV1,
     )
@@ -283,6 +286,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "replace_empty_owned_reporting": ("migration", "replace_empty_owned_reporting"),
     "replace_empty_owned_reporting_sync": ("migration", "replace_empty_owned_reporting_sync"),
     "require_owned_schema_or_empty": ("migration", "require_owned_schema_or_empty"),
+    # The issue-lifecycle event outbox the issue observer reads (#1258)
+    "ReportingIssueEventLease": ("ledger.issue_events", "ReportingIssueEventLease"),
     # Host change feed
     "ReportingChangeCursorExpiredError": (
         "ledger.change_feed",

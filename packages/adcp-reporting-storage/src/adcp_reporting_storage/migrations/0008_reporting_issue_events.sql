@@ -1,0 +1,10 @@
+-- adcp-migration: 0008 reporting_issue_events
+-- adcp-upgrade: additive
+-- The issue-lifecycle event outbox the issue observer reads
+-- (adcp-client-python#1258): one new table and its indexes, nothing else.
+--
+-- Rolling-deploy safe, and applied even while the contract step (0007) waits:
+-- it creates only new objects and depends on nothing 0007 changes, so
+-- processes of adcp-reporting-storage 0.1.x/0.2.0b0 keep booting, reading,
+-- writing and running worker turns beside it. They record no issue events.
+-- include: ledger/reporting_issue_events.sql

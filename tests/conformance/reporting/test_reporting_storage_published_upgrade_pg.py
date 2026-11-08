@@ -244,6 +244,8 @@ def _rest(*, contract: bool = True) -> list[str]:
 
 #: The contract steps: applied to an expanded ledger only with ``contract=True``.
 CONTRACT_VERSIONS = ["0007"]
+#: Additive migrations after the contract step: applied even while it is held.
+ADDITIVE_AFTER_CONTRACT = ["0008"]
 #: The objects that exist only while a ledger is expanded (catalog lines).
 EXPANDED_LEDGER = {
     "constraint reporting_configurations reporting_configurations_generation_key",
@@ -695,6 +697,9 @@ async def test_a_rolling_deploy_runs_published_and_new_pods_side_by_side_until_c
         expanded = EXPANDED_LEDGER | (EXPANDED_STATUS if notifications else set())
         assert _expand_only(await _catalog(pool)) == expanded
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
+        # The additive issue-event outbox (0008, #1258) is installed before the
+        # contract step, so every published-pod step below runs beside it.
+        assert await PgReportingLedgerStore(pool=pool).issue_events_ready()
         # 3. A published pod restarts, reads, records a generation, closes a
         #    period and runs a full worker turn.
         old = await _old_pod(
@@ -993,7 +998,7 @@ async def test_a_ledger_the_published_0_2_0b1_widened_counts_as_contracted(
         assert await _catalog(pool) == before
         # The contract step is recorded without --contract: it changes nothing here.
         applied = [item.version for item in await migrate(pool)]
-        assert applied[-1:] == CONTRACT_VERSIONS
+        assert applied[-2:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
         await postgres_storage(pool=pool).check_schema()
         after = await _catalog(pool)  # 0004 and 0005 add their own tables
         assert set(before) <= set(after) and _expand_only(after) == set()
@@ -1025,6 +1030,7 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         planned = capsys.readouterr().out
         assert "would apply 0006 reporting_status_checkpoint_offerings\n" in planned
         assert "would apply 0007" not in planned  # held
+        assert "would apply 0008 reporting_issue_events\n" in planned  # additive: not held
         assert (
             "not applied 0007 reporting_contract_generation_keys (contract): run"
             f' "python -m adcp migrate --contract" {when}'
@@ -1034,19 +1040,21 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         applied = capsys.readouterr().out
         assert "applied 0002 reporting_subscription_generations\n" in applied
         assert "\napplied 0007" not in applied
+        assert "applied 0008 reporting_issue_events\n" in applied
         assert "not applied 0007 reporting_contract_generation_keys (contract)" in applied
         await postgres_storage(pool=pool).check_schema()  # starts: only the contract pends
 
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out.strip().splitlines()
-        assert status[-2] == (
+        assert status[-3] == (
             "0007 reporting_contract_generation_keys: pending  [contract: run"
             f" {when}: python -m adcp migrate --contract]"
         )
+        assert status[-2].startswith("0008 reporting_issue_events: applied ")
         assert status[-1] == (
             f'up to date except the contract step: run "python -m adcp migrate --contract" {when}'
         )
-        assert describe(await migration_status(pool))[-1] == status[-2]
+        assert describe(await migration_status(pool))[-2] == status[-3]
         _all_ok(await _old_pod(python, pool, workspace, notifications=False, ordinal=2))
 
         assert await _run(dsn, status=False, dry_run=False, contract=True) == 0

@@ -123,43 +123,65 @@ async def persist_replay_lifecycles_on(
     rows used by polling, including repairs for an old writer's interrupted
     status/issue pair. The enclosing account lock fences concurrent ingestion.
     """
+    from adcp_reporting_storage.ledger.issue_events import record_issue_transition_on
     from adcp_reporting_storage.ledger.pg import _save_waiver_binding
 
     scopes = dict(snapshot.issue_scopes)
     for issue in sorted(snapshot.lifecycles, key=lambda i: (i.issue_key, i.generation)):
-        await connection.execute(
-            "INSERT INTO reporting_issue_lifecycle"
-            " (account_id, issue_key, generation, issue_id, consumer_id, opened_at,"
-            " issue_state, external_ref, retired_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-            " ON CONFLICT (account_id, issue_key, generation) DO NOTHING",
-            (
-                issue.account_id,
-                issue.issue_key,
-                issue.generation,
-                issue.issue_id,
-                issue.consumer_id,
-                issue.opened_at,
-                issue.issue_state,
-                issue.external_ref,
-                issue.retired_at,
-            ),
-        )
-        await _save_waiver_binding(connection, issue)
-        if issue.issue_state != "open":
+        inserted = await (
             await connection.execute(
-                "UPDATE reporting_issue_lifecycle SET issue_state=%s, external_ref=%s,"
-                " retired_at=%s"
-                " WHERE account_id=%s AND issue_key=%s AND generation=%s"
-                " AND issue_state IN ('open','acknowledged')",
+                "INSERT INTO reporting_issue_lifecycle"
+                " (account_id, issue_key, generation, issue_id, consumer_id, opened_at,"
+                " issue_state, external_ref, retired_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                " ON CONFLICT (account_id, issue_key, generation) DO NOTHING RETURNING 1",
                 (
-                    issue.issue_state,
-                    issue.external_ref,
-                    issue.retired_at,
                     issue.account_id,
                     issue.issue_key,
                     issue.generation,
+                    issue.issue_id,
+                    issue.consumer_id,
+                    issue.opened_at,
+                    issue.issue_state,
+                    issue.external_ref,
+                    issue.retired_at,
                 ),
             )
+        ).fetchone()
+        if inserted is not None:
+            await record_issue_transition_on(
+                connection, before_state=None, after=issue, clock=store._clock
+            )
+        await _save_waiver_binding(connection, issue)
+        if issue.issue_state != "open":
+            # The account lock is held, so the state read here is the one the
+            # update below replaces.
+            before = await (
+                await connection.execute(
+                    "SELECT issue_state FROM reporting_issue_lifecycle"
+                    " WHERE account_id=%s AND issue_key=%s AND generation=%s",
+                    (issue.account_id, issue.issue_key, issue.generation),
+                )
+            ).fetchone()
+            moved = await (
+                await connection.execute(
+                    "UPDATE reporting_issue_lifecycle SET issue_state=%s, external_ref=%s,"
+                    " retired_at=%s"
+                    " WHERE account_id=%s AND issue_key=%s AND generation=%s"
+                    " AND issue_state IN ('open','acknowledged') RETURNING 1",
+                    (
+                        issue.issue_state,
+                        issue.external_ref,
+                        issue.retired_at,
+                        issue.account_id,
+                        issue.issue_key,
+                        issue.generation,
+                    ),
+                )
+            ).fetchone()
+            if moved is not None and before is not None:
+                await record_issue_transition_on(
+                    connection, before_state=before[0], after=issue, clock=store._clock
+                )
         scope = scopes.get(issue.issue_id)
         if scope is not None:
             # Existing scope may already be more precise because a later source

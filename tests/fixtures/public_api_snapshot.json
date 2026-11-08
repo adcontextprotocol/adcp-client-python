@@ -9034,6 +9034,7 @@
       "ReportingChangeKindV1": "union[value:'adjustment',value:'obligation',value:'retirement',value:'revision']",
       "ReportingChangeRecordV1": "adcp_reporting_storage.ledger.change_feed",
       "ReportingChangesPageV1": "adcp_reporting_storage.ledger.change_feed",
+      "ReportingIssueEventLease": "adcp_reporting_storage.ledger.issue_events",
       "ReportingObjectRowBindingV1": "adcp_reporting_storage.ledger.row_storage",
       "ReportingOrphanBindingResultV1": "adcp_reporting_storage.ledger.orphan_collector",
       "ReportingOrphanCandidateV1": "adcp_reporting_storage.ledger.orphan_collector",
