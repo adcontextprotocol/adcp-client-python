@@ -116,22 +116,77 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     from adcp_reporting_storage.migrations import MigrationStatus, describe, migrations
 
     shipped = migrations()
-    assert [item.version for item in shipped] == ["0001", "0002", "0003", "0004", "0005", "0006"]
-    widened, offerings = shipped[1], shipped[5]
-    assert widened.name == "reporting_subscription_generations" and widened.stopped_worker
+    assert [item.version for item in shipped] == [
+        "0001",
+        "0002",
+        "0003",
+        "0004",
+        "0005",
+        "0006",
+        "0007",
+    ]
+    widened, offerings, contract = shipped[1], shipped[5], shipped[6]
+    assert widened.name == "reporting_subscription_generations"
     assert widened.includes == ("ledger/reporting_ledger_account_generations.sql",)
-    assert offerings.name == "reporting_status_checkpoint_offerings" and offerings.stopped_worker
+    assert offerings.name == "reporting_status_checkpoint_offerings"
     assert offerings.includes == ("ledger/reporting_status_checkpoint_offerings.sql",)
+    # Expand (#1856): rolling-deploy safe, so no upgrade needs stopped workers ...
     for item in (widened, offerings):
-        assert "stop every reporting worker" in item.description
-    assert not any(item.stopped_worker for item in shipped if item not in (widened, offerings))
+        assert "Rolling-deploy safe" in item.description
+    assert not any(item.stopped_worker for item in shipped)
+    # ... and the contract step runs only on request, once earlier releases stopped.
+    assert contract.name == "reporting_contract_generation_keys" and contract.contract
+    assert contract.includes == (
+        "ledger/reporting_ledger_contract.sql",
+        "ledger/reporting_ledger_reconciliation.sql",
+        "ledger/reporting_status_checkpoint_offerings.sql",
+    )
+    assert "python -m adcp migrate --contract" in contract.description
+    assert [item.version for item in shipped if item.contract] == ["0007"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves
     lines = describe([MigrationStatus(item, None) for item in shipped])
-    assert lines[1] == (
-        "0002 reporting_subscription_generations: pending  [stopped-worker upgrade: stop every "
-        "reporting worker before migrating]"
+    assert lines[1] == "0002 reporting_subscription_generations: pending"
+    assert lines[6] == (
+        "0007 reporting_contract_generation_keys: pending  [contract: run once every "
+        "earlier-release reporting process has stopped: python -m adcp migrate --contract]"
     )
+
+
+def test_an_unknown_upgrade_header_is_refused() -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    from adcp_reporting_storage.migrations import _parse
+
+    with pytest.raises(ValueError, match="unknown upgrade"):
+        _parse("0009_x.sql", "-- adcp-migration: 0009 x\n-- adcp-upgrade: contracted\n")
+    assert _parse("0009_x.sql", "-- adcp-migration: 0009 x\n-- adcp-upgrade: contract\n").contract
+
+
+def test_only_the_uncontracted_check_is_the_contract_refusal() -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    from types import SimpleNamespace
+
+    from adcp_reporting_storage.migrations import (
+        ReportingUpgradeNotContractedError,
+        upgrade_not_contracted_error,
+    )
+
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    class _Error(Exception):
+        def __init__(self, sqlstate: str, constraint: str | None) -> None:
+            super().__init__(sqlstate)
+            self.sqlstate = sqlstate
+            self.diag = SimpleNamespace(constraint_name=constraint)
+
+    refused = upgrade_not_contracted_error(_Error("23514", "reporting_configurations_uncontracted"))
+    assert isinstance(refused, ReportingUpgradeNotContractedError)
+    assert isinstance(refused, LedgerConflictError)  # handled like every ledger conflict
+    assert refused.code == "REPORTING_UPGRADE_NOT_CONTRACTED"
+    assert "python -m adcp migrate --contract" in str(refused)
+    assert upgrade_not_contracted_error(_Error("23514", "reporting_obligations_check")) is None
+    assert upgrade_not_contracted_error(_Error("23505", "x_uncontracted")) is None
+    assert upgrade_not_contracted_error(ValueError("no sqlstate")) is None
 
 
 def test_migrate_cli_requires_a_database(capsys) -> None:

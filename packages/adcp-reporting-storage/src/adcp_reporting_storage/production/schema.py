@@ -7,7 +7,7 @@ from importlib.resources import files
 from typing import Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
-from adcp_reporting_storage.outbox._schema import schema_objects
+from adcp_reporting_storage.outbox._schema import satisfies, schema_objects
 from adcp_reporting_storage.projection.schema import validate_projection_schema
 
 
@@ -27,7 +27,7 @@ async def validate_production_schema(
                 )
             )
         actual = await schema_objects(connection)
-        if not required or any(actual.get(k) != v for k, v in required.items()):
+        if not required or any(not satisfies(actual, k, v) for k, v in required.items()):
             raise ValueError
         await validate_projection_schema(connection, notifications=notifications)
     except Exception:

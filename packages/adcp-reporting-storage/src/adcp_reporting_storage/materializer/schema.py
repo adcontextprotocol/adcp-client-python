@@ -11,6 +11,7 @@ from adcp_reporting_storage.outbox._schema import (
     REQUIRED_OBJECTS,
     is_legacy_row_object,
     legacy_rows_retired,
+    satisfies,
     schema_objects,
     validate_schema,
 )
@@ -31,7 +32,7 @@ async def validate_materializer_schema(connection: Any, *, notifications: bool =
         raise LedgerConflictError(
             "MATERIALIZER_SCHEMA_UNREADY", "materializer schema catalog is unavailable"
         )
-    if any(installed.get(key) != expected for key, expected in required.items()):
+    if any(not satisfies(installed, key, expected) for key, expected in required.items()):
         raise LedgerConflictError("MATERIALIZER_SCHEMA_UNREADY", "install the materializer schema")
     # Inherit the reviewed foundation prerequisites without appending B2 objects
     # to A's manifest or requiring optional notification delivery infrastructure.
@@ -49,7 +50,7 @@ async def validate_materializer_schema(connection: Any, *, notifications: bool =
             continue
         if retired and is_legacy_row_object(key):
             continue
-        if installed.get(key) != expected:
+        if not satisfies(installed, key, expected):
             raise LedgerConflictError(
                 "MATERIALIZER_SCHEMA_UNREADY", "install the retained evidence schema"
             )

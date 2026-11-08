@@ -18,8 +18,9 @@ snapshots)::
 The schema is managed by versioned migrations (:mod:`adcp_reporting_storage.migrations`):
 run ``python -m adcp migrate`` before starting. Startup never changes the
 schema; it refuses one that is behind with ``REPORTING_SCHEMA_BEHIND``, naming
-the command and the pending versions. Durability is a property of the
-storage, never a flag.
+the command and the pending versions. A ledger whose only pending migration is
+the contract step (``python -m adcp migrate --contract``) is not behind: it
+starts. Durability is a property of the storage, never a flag.
 """
 
 from __future__ import annotations
@@ -74,7 +75,10 @@ def postgres_storage(
 
     async def check_schema() -> None:
         await open_pool()
-        pending = await pending_migrations(pool)
+        # A pending contract step is not "behind": an expanded ledger serves
+        # this release fully, except reporting subscriptions' second offerings,
+        # until the operator contracts it once earlier-release processes stop.
+        pending = [item for item in await pending_migrations(pool) if not item.contract]
         if pending:
             versions = ", ".join(item.version for item in pending)
             stopped = [item.version for item in pending if item.stopped_worker]

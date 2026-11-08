@@ -964,3 +964,388 @@ BEGIN
     END IF;
 END
 $reconciliation$;
+
+-- While a ledger upgraded from adcp-reporting-storage 0.1.x/0.2.0b0 is
+-- uncontracted (reporting_ledger_account_generations.sql expanded it and the
+-- contract step, migration 0007, has not run), processes of that release may
+-- still be running and restarting beside this one. Each of their boots
+-- re-creates the three reconciliation functions above with their own bodies,
+-- and both releases' schema validators compare function bodies. So while
+-- uncontracted, this release installs exactly the earlier release's bodies
+-- too, and neither release's boot changes what the other validates.
+--
+-- The earlier bodies are correct for this release's writes while
+-- uncontracted: every generation is account-level (CHECK (offering_id = '')
+-- on the configuration key), so offering_id is '' wherever they omit it, and
+-- an account-level record's payload carries neither offering_id nor
+-- path_template. The text below is the earlier release's, byte for byte;
+-- the contract step re-runs this file, which then keeps the bodies above.
+DO $uncontracted_reconciliation$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'reporting_configurations'::regclass
+          AND conname = 'reporting_configurations_generation_key') THEN
+        RETURN;
+    END IF;
+    CREATE OR REPLACE FUNCTION reporting_reconciliation_evidence(r reporting_reconciliation_records)
+    RETURNS VOID LANGUAGE plpgsql AS $function$
+    DECLARE
+        binding JSONB;
+        delivery JSONB;
+        outcome JSONB;
+        expected_rows BIGINT;
+        expected_totals JSONB;
+        expected_digest JSONB;
+        observed_digest JSONB;
+        adjustment reporting_adjustments;
+    BEGIN
+        IF r.record_kind NOT IN ('materialization', 'revision_receipt', 'adjustment_receipt')
+           OR (r.record_kind = 'materialization'
+               AND r.payload->>'status' NOT IN ('available', 'delivered'))
+           OR (r.receipt_status IS NOT NULL AND r.receipt_status <> 'accepted') THEN
+            RETURN;
+        END IF;
+        SELECT v.row_count, v.managed_control_totals, v.canonical_content_digest
+        INTO expected_rows, expected_totals, expected_digest
+        FROM reporting_revisions v
+        WHERE (v.account_id, v.reporting_obligation_id, v.reporting_revision_id)
+            = (r.account_id, r.reporting_obligation_id, r.reporting_revision_id);
+        IF r.record_kind = 'adjustment_receipt' THEN
+            SELECT a.* INTO adjustment FROM reporting_adjustments a
+            WHERE (a.account_id, a.adjusts_reporting_revision_id, a.reporting_adjustment_id)
+                = (r.account_id, r.reporting_revision_id, r.reporting_adjustment_id);
+            IF adjustment.reporting_adjustment_id IS NULL
+               OR adjustment.managed_control_total_deltas IS NULL
+               OR jsonb_array_length(adjustment.managed_control_total_deltas) = 0
+               OR r.payload->>'observed_adjustment_sha256' IS DISTINCT FROM reporting_payload_sha256(
+                    jsonb_build_object(
+                        'reporting_adjustment_id', adjustment.reporting_adjustment_id,
+                        'adjusts_reporting_revision_id', adjustment.adjusts_reporting_revision_id,
+                        'reason_code', adjustment.reason_code,
+                        'accounting_period', jsonb_build_object(
+                            'start', reporting_iso_utc(adjustment.accounting_period_start),
+                            'end', reporting_iso_utc(adjustment.accounting_period_end)),
+                        'control_total_deltas', adjustment.managed_control_total_deltas,
+                        'correction_observed_at', reporting_iso_utc(adjustment.correction_observed_at),
+                        'created_at', reporting_iso_utc(adjustment.created_at))
+                    || CASE WHEN adjustment.reason_detail IS NOT NULL
+                            THEN jsonb_build_object('reason_detail', adjustment.reason_detail)
+                            ELSE '{}'::jsonb END) THEN
+                RAISE EXCEPTION 'reporting adjustment acceptance is inconsistent' USING ERRCODE = '23514';
+            END IF;
+            RETURN;
+        END IF;
+        IF expected_totals IS NULL OR expected_rows IS NULL THEN
+            RAISE EXCEPTION 'reporting revision evidence is unavailable' USING ERRCODE = '23514';
+        END IF;
+        IF r.record_kind = 'revision_receipt' THEN
+            SELECT m.payload INTO outcome FROM reporting_reconciliation_records m
+            WHERE (m.account_id, m.consumer_id, m.delivery_config_id, m.delivery_config_version,
+                   m.reporting_obligation_id, m.reporting_materialization_id, m.reporting_revision_id)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+                   r.reporting_obligation_id, r.reporting_materialization_id, r.reporting_revision_id)
+              AND m.record_kind = 'materialization'
+              AND m.payload->>'status' IN ('available', 'delivered');
+            observed_digest := reporting_wire_digest(r.payload->'observed_canonical_content_digest');
+            expected_digest := reporting_wire_digest(expected_digest);
+            IF outcome IS NULL
+               OR r.payload->>'verification_profile'
+                    IS DISTINCT FROM outcome#>>'{verification,verification_profile}'
+               OR (r.payload->>'observed_row_count')::bigint IS DISTINCT FROM expected_rows
+               OR reporting_sorted_totals(r.payload->'observed_control_totals')
+                    IS DISTINCT FROM reporting_sorted_totals(outcome#>'{verification,control_totals}')
+               OR (observed_digest IS NOT NULL AND observed_digest IS DISTINCT FROM expected_digest)
+               OR (nullif(r.payload->>'observed_manifest_sha256', '') IS NOT NULL
+                   AND r.payload->>'observed_manifest_sha256'
+                       IS DISTINCT FROM outcome#>>'{resource,manifest_sha256}')
+               OR (nullif(r.payload->>'observed_native_version_ref', '') IS NOT NULL
+                   AND r.payload->>'observed_native_version_ref'
+                       IS DISTINCT FROM outcome#>>'{resource,native_version_ref}')
+               OR (r.payload->>'verification_profile' = 'canonical_digest'
+                   AND (observed_digest IS NULL OR observed_digest IS DISTINCT FROM expected_digest))
+               OR (r.payload->>'verification_profile' = 'manifest_checksums'
+                   AND r.payload->>'observed_manifest_sha256'
+                       IS DISTINCT FROM outcome#>>'{resource,manifest_sha256}')
+               OR (r.payload->>'verification_profile' = 'native_commit'
+                   AND r.payload->>'observed_native_version_ref'
+                       IS DISTINCT FROM outcome#>>'{resource,native_version_ref}')
+               OR (r.payload->>'observed_at')::timestamptz < (outcome->>'completed_at')::timestamptz
+               OR (r.payload->>'observed_at')::timestamptz
+                    >= (outcome#>>'{resource,expires_at}')::timestamptz THEN
+                RAISE EXCEPTION 'reporting receipt acceptance is inconsistent' USING ERRCODE = '23514';
+            END IF;
+            RETURN;
+        END IF;
+        SELECT b.payload INTO binding FROM reporting_reconciliation_records b
+        WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
+            = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+          AND b.record_kind = 'destination_binding';
+        SELECT d.payload INTO delivery FROM reporting_reconciliation_records d
+        WHERE (d.account_id, d.consumer_id, d.delivery_config_id, d.delivery_config_version,
+               d.reporting_obligation_id)
+            = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+               r.reporting_obligation_id)
+          AND d.record_kind = 'obligation_delivery';
+        observed_digest := reporting_wire_digest(r.payload#>'{verification,canonical_content_digest}');
+        expected_digest := reporting_wire_digest(expected_digest);
+        IF binding IS NULL OR delivery IS NULL
+           OR (r.payload#>>'{verification,row_count}')::bigint IS DISTINCT FROM expected_rows
+           OR reporting_sorted_totals(r.payload#>'{verification,control_totals}')
+                IS DISTINCT FROM reporting_sorted_totals(expected_totals)
+           OR (observed_digest IS NOT NULL AND observed_digest IS DISTINCT FROM expected_digest)
+           OR (r.payload#>>'{verification,verification_profile}' = 'canonical_digest'
+               AND (observed_digest IS NULL OR observed_digest IS DISTINCT FROM expected_digest))
+           OR r.payload#>>'{verification,verified_at}' IS DISTINCT FROM r.payload->>'completed_at'
+           OR nullif(r.payload#>'{verification,verified_format}', 'null'::jsonb)
+                IS DISTINCT FROM nullif(binding->'format', 'null'::jsonb)
+           OR r.payload#>'{resource,reader_compatibility}'
+                IS DISTINCT FROM coalesce(binding->'reader_compatibility', '[]'::jsonb)
+           OR r.payload#>>'{resource,kind}' IS DISTINCT FROM (CASE binding->>'method'
+                WHEN 'file_transfer' THEN 'manifest' WHEN 'dataset_share' THEN 'dataset'
+                ELSE 'warehouse_relation' END)
+           OR (binding->>'method' = 'dataset_share'
+               AND r.payload#>>'{verification,verification_path}' <> 'representative_consumer')
+           OR (binding->>'method' = 'warehouse_materialization'
+               AND (r.payload#>>'{verification,verification_path}' <> 'destination'
+                    OR r.payload->>'status' <> 'delivered'))
+           OR (r.payload->>'status' = 'delivered'
+               AND r.payload#>>'{verification,verification_path}' <> 'destination')
+           OR (binding->>'method' = 'file_transfer' AND (
+                jsonb_array_length(coalesce(r.payload#>'{resource,object_refs}', '[]'::jsonb)) = 0
+                OR jsonb_array_length(
+                    coalesce(r.payload#>'{verification,physical_checksums}', '[]'::jsonb)) = 0))
+           OR (r.payload#>>'{resource,expires_at}')::timestamptz < greatest(
+                (delivery->>'resource_retained_until')::timestamptz,
+                (r.payload->>'completed_at')::timestamptz
+                    + ((binding->>'resource_retention_days') || ' days')::interval) THEN
+            RAISE EXCEPTION 'reporting materialization evidence is inconsistent' USING ERRCODE = '23514';
+        END IF;
+        -- Every checksum names a retained object, whatever the method; file
+        -- transfer must additionally cover all of them.
+        IF EXISTS (
+            SELECT 1 FROM jsonb_array_elements(
+                coalesce(r.payload#>'{verification,physical_checksums}', '[]'::jsonb)) AS c
+            WHERE NOT coalesce(r.payload#>'{resource,object_refs}', '[]'::jsonb)
+                @> jsonb_build_array(c->'object_ref'))
+           OR (binding->>'method' = 'file_transfer' AND reporting_sorted_strings(
+                (SELECT jsonb_agg(c->'object_ref')
+                 FROM jsonb_array_elements(r.payload#>'{verification,physical_checksums}') AS c))
+               IS DISTINCT FROM reporting_sorted_strings(r.payload#>'{resource,object_refs}')) THEN
+            RAISE EXCEPTION 'reporting physical checksum binding is inconsistent' USING ERRCODE = '23514';
+        END IF;
+    END
+    $function$;
+    CREATE OR REPLACE FUNCTION reporting_reconciliation_validate(r reporting_reconciliation_records)
+    RETURNS VOID LANGUAGE plpgsql AS $function$
+    DECLARE
+        generation JSONB;
+        identity TEXT;
+        chain TEXT;
+        expected_namespace TEXT;
+        parent_kind TEXT;
+    BEGIN
+        -- The retained fingerprint must be a fact about the stored bytes, and the
+        -- payload must be closed. Without both, ordinary direct SQL can persist a
+        -- provider blob or credential under an attacker-chosen digest and leave the
+        -- principal's whole feed unreadable. Never echo the offending value.
+        IF r.content_sha256 IS DISTINCT FROM reporting_payload_sha256(r.payload)
+           OR EXISTS (SELECT 1 FROM reporting_payload_keys(r.payload) AS field
+                      WHERE field <> ALL (ARRAY[
+            'account_id', 'adjusts_reporting_revision_id', 'algorithm', 'attempt',
+            'canonical_content_digest', 'canonicalization_id', 'canonicalization_sha256',
+            'canonicalization_uri', 'check_id', 'checked_at', 'completed_at',
+            'consumer_commit_ref', 'consumer_id', 'control_totals', 'created_at', 'currency',
+            'delivery_config_id', 'delivery_config_version', 'destination_ref', 'expires_at',
+            'failure_code', 'feed_purpose', 'format', 'generation_key', 'immutability', 'kind',
+            'location', 'manifest_sha256', 'method', 'name', 'native_observed_through',
+            'native_version_ref', 'object_ref', 'object_refs', 'observed_adjustment_sha256',
+            'observed_at', 'observed_canonical_content_digest', 'observed_control_totals',
+            'observed_manifest_sha256', 'observed_native_version_ref', 'observed_row_count',
+            'physical_checksums', 'reader_compatibility', 'received_at', 'reconciliation_mode',
+            'rejection_codes', 'reporting_adjustment_id', 'reporting_materialization_id',
+            'reporting_obligation_id', 'reporting_receipt_id', 'reporting_revision_id', 'resource',
+            'resource_ref', 'resource_retained_until', 'resource_retention_days', 'row_count',
+            'scope', 'state', 'status', 'success_status', 'supersedes_reporting_receipt_id',
+            'transport', 'trusted_binding_ref', 'unit', 'value', 'value_type', 'verification',
+            'verification_path', 'verification_profile', 'verified_at', 'verified_format'])) THEN
+            RAISE EXCEPTION 'reporting payload is not closed retained evidence' USING ERRCODE = '23514';
+        END IF;
+        generation := jsonb_build_object('account_id', r.account_id, 'consumer_id', r.consumer_id,
+            'delivery_config_id', r.delivery_config_id,
+            'delivery_config_version', r.delivery_config_version);
+        IF NOT EXISTS (SELECT 1 FROM reporting_configurations c
+            WHERE (c.account_id, c.consumer_id, c.delivery_config_id, c.delivery_config_version)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version))
+           OR (r.reporting_obligation_id IS NOT NULL AND NOT EXISTS (
+               SELECT 1 FROM reporting_obligations o
+               WHERE (o.account_id, o.consumer_id, o.delivery_config_id, o.delivery_config_version, o.reporting_obligation_id)
+                   = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version, r.reporting_obligation_id)))
+           OR (r.reporting_revision_id IS NOT NULL AND NOT EXISTS (
+               SELECT 1 FROM reporting_revisions v
+               WHERE (v.account_id, v.reporting_obligation_id, v.reporting_revision_id)
+                   = (r.account_id, r.reporting_obligation_id, r.reporting_revision_id)))
+           OR (r.reporting_adjustment_id IS NOT NULL AND NOT EXISTS (
+               SELECT 1 FROM reporting_adjustments a
+               WHERE (a.account_id, a.adjusts_reporting_revision_id, a.reporting_adjustment_id)
+                   = (r.account_id, r.reporting_revision_id, r.reporting_adjustment_id))) THEN
+            RAISE EXCEPTION 'reporting exact publication graph is unavailable' USING ERRCODE = '23514';
+        END IF;
+        expected_namespace := CASE WHEN r.receipt_status IS NOT NULL THEN 'receipt' ELSE r.record_kind END;
+        identity := CASE r.record_kind
+            WHEN 'destination_binding' THEN reporting_identity_sha256(
+                '{"account_id":' || to_json(r.account_id)::text || ',"consumer_id":' || to_json(r.consumer_id)::text || ',"delivery_config_id":' ||
+                to_json(r.delivery_config_id)::text || ',"delivery_config_version":' ||
+                r.delivery_config_version::text || '}')
+            WHEN 'obligation_delivery' THEN r.reporting_obligation_id
+            WHEN 'materialization_check' THEN r.payload->>'check_id'
+            WHEN 'revision_receipt' THEN r.payload->>'reporting_receipt_id'
+            WHEN 'adjustment_receipt' THEN r.payload->>'reporting_receipt_id'
+            ELSE r.reporting_materialization_id END;
+        chain := CASE r.record_kind
+            WHEN 'revision_receipt' THEN reporting_identity_sha256(
+                '["revision",' || to_json(r.reporting_obligation_id)::text || ',' ||
+                to_json(r.reporting_revision_id)::text || ']')
+            WHEN 'adjustment_receipt' THEN reporting_identity_sha256(
+                '["adjustment",' || to_json(r.reporting_adjustment_id)::text || ']') END;
+        IF r.payload->>'kind' IS DISTINCT FROM r.record_kind
+           OR r.namespace IS DISTINCT FROM expected_namespace
+           OR r.record_id IS DISTINCT FROM identity
+           OR r.receipt_chain_key IS DISTINCT FROM chain
+           OR r.change_id IS DISTINCT FROM reporting_identity_sha256(
+                '[' || to_json(r.account_id)::text || ',' || to_json(r.consumer_id)::text || ',' ||
+                to_json(expected_namespace)::text || ',' || to_json(identity)::text || ']')
+           OR r.reporting_revision_id IS DISTINCT FROM (CASE WHEN r.record_kind = 'adjustment_receipt'
+                THEN r.payload->>'adjusts_reporting_revision_id' ELSE r.payload->>'reporting_revision_id' END)
+           OR r.reporting_materialization_id IS DISTINCT FROM r.payload->>'reporting_materialization_id'
+           OR r.reporting_adjustment_id IS DISTINCT FROM r.payload->>'reporting_adjustment_id'
+           OR coalesce(to_jsonb(r.attempt_number), 'null'::jsonb) IS DISTINCT FROM coalesce(r.payload->'attempt', 'null'::jsonb)
+           OR r.receipt_status IS DISTINCT FROM (CASE WHEN r.record_kind IN ('revision_receipt', 'adjustment_receipt')
+                THEN r.payload->>'status' END)
+           OR r.supersedes_receipt_id IS DISTINCT FROM r.payload->>'supersedes_reporting_receipt_id' THEN
+            RAISE EXCEPTION 'reporting payload identity is inconsistent' USING ERRCODE = '23514';
+        END IF;
+        IF r.record_kind = 'destination_binding' THEN
+            IF r.payload->'generation_key' IS DISTINCT FROM generation
+               OR r.payload->>'consumer_id' IS DISTINCT FROM r.consumer_id
+               OR (r.payload->>'verification_profile' = 'manifest_checksums'
+                   AND r.payload->>'method' <> 'file_transfer') THEN
+                RAISE EXCEPTION 'reporting destination binding is inconsistent' USING ERRCODE = '23514';
+            END IF;
+            RETURN;
+        END IF;
+        IF r.payload->'scope' IS DISTINCT FROM jsonb_build_object('generation_key', generation,
+                'consumer_id', r.consumer_id, 'reporting_obligation_id', r.reporting_obligation_id)
+           OR NOT EXISTS (
+                SELECT 1 FROM reporting_reconciliation_records b
+                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
+                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+                  AND b.record_kind = 'destination_binding') THEN
+            RAISE EXCEPTION 'reporting frozen binding is unavailable' USING ERRCODE = '23514';
+        END IF;
+        IF r.record_kind = 'obligation_delivery' THEN RETURN; END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM reporting_reconciliation_records d
+            WHERE (d.account_id, d.consumer_id, d.delivery_config_id, d.delivery_config_version, d.reporting_obligation_id)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version, r.reporting_obligation_id)
+              AND d.record_kind = 'obligation_delivery') THEN
+            RAISE EXCEPTION 'reporting obligation delivery is unavailable' USING ERRCODE = '23514';
+        END IF;
+        parent_kind := CASE r.record_kind WHEN 'materialization' THEN 'materialization_attempt'
+            WHEN 'materialization_check' THEN 'materialization' WHEN 'revision_receipt' THEN 'materialization' END;
+        IF parent_kind IS NOT NULL AND NOT EXISTS (
+            SELECT 1 FROM reporting_reconciliation_records p
+            WHERE (p.account_id, p.consumer_id, p.delivery_config_id, p.delivery_config_version,
+                   p.reporting_obligation_id, p.reporting_materialization_id)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version,
+                   r.reporting_obligation_id, r.reporting_materialization_id)
+              AND p.record_kind = parent_kind
+              AND (r.record_kind = 'materialization_check' OR p.reporting_revision_id = r.reporting_revision_id)
+              AND (parent_kind = 'materialization_attempt' OR p.payload->>'status' IN ('available', 'delivered'))) THEN
+            RAISE EXCEPTION 'reporting exact materialization graph is unavailable' USING ERRCODE = '23514';
+        END IF;
+        IF r.record_kind = 'materialization' AND r.payload->>'status' IN ('available', 'delivered') THEN
+            IF EXISTS (SELECT 1 FROM reporting_reconciliation_records b
+                WHERE (b.account_id, b.consumer_id, b.delivery_config_id, b.delivery_config_version)
+                    = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version)
+                  AND b.record_kind = 'destination_binding'
+                  AND (r.payload->>'status' IS DISTINCT FROM b.payload->>'success_status'
+                    OR r.payload#>>'{verification,verification_profile}' IS DISTINCT FROM b.payload->>'verification_profile')) THEN
+                RAISE EXCEPTION 'reporting materialization binding is inconsistent' USING ERRCODE = '23514';
+            END IF;
+            IF r.payload#>>'{verification,verification_profile}' = 'native_commit' AND (
+                r.payload#>>'{resource,immutability}' IS DISTINCT FROM 'native_version'
+                OR r.payload#>>'{resource,native_version_ref}' IS NULL
+                OR r.payload#>>'{verification,native_version_ref}' IS DISTINCT FROM r.payload#>>'{resource,native_version_ref}'
+                OR r.payload#>>'{verification,native_observed_through}' IS DISTINCT FROM r.payload#>>'{verification,verification_path}'
+                OR coalesce(r.payload#>>'{verification,verification_path}', '') NOT IN ('representative_consumer', 'destination')) THEN
+                RAISE EXCEPTION 'reporting native commit is inconsistent' USING ERRCODE = '23514';
+            END IF;
+        END IF;
+        IF r.record_kind = 'adjustment_receipt' AND NOT EXISTS (
+            SELECT 1 FROM reporting_revisions v WHERE v.account_id = r.account_id
+              AND v.reporting_obligation_id = r.reporting_obligation_id
+              AND v.reporting_revision_id = r.reporting_revision_id
+              AND v.finality = 'official' AND v.finalized_at IS NOT NULL) THEN
+            RAISE EXCEPTION 'reporting adjustment requires its official revision' USING ERRCODE = '23514';
+        END IF;
+        IF r.supersedes_receipt_id IS NOT NULL AND NOT EXISTS (
+            SELECT 1 FROM reporting_reconciliation_records p
+            WHERE (p.account_id, p.consumer_id, p.record_kind, p.delivery_config_id,
+                   p.delivery_config_version, p.reporting_obligation_id, p.reporting_revision_id, p.receipt_chain_key)
+                = (r.account_id, r.consumer_id, r.record_kind, r.delivery_config_id,
+                   r.delivery_config_version, r.reporting_obligation_id, r.reporting_revision_id, r.receipt_chain_key)
+              AND p.record_id = r.supersedes_receipt_id AND p.receipt_status = 'rejected') THEN
+            RAISE EXCEPTION 'reporting receipt predecessor is unavailable' USING ERRCODE = '23514';
+        END IF;
+        PERFORM reporting_reconciliation_evidence(r);
+    END
+    $function$;
+    CREATE OR REPLACE FUNCTION reporting_reconciliation_reference_immutable()
+    RETURNS TRIGGER LANGUAGE plpgsql AS $function$
+    DECLARE
+        previous JSONB := to_jsonb(OLD);
+        proposed JSONB := to_jsonb(NEW);
+        referenced BOOLEAN;
+        -- Period-close leasing plus the rc.3 lifecycle state that evolves over
+        -- one immutable generation: reporting-delivery-config-state.json moves
+        -- the same generation through ready -> inactive, requiring
+        -- deactivated_at, and its operational recovery/retention windows are
+        -- likewise state rather than published content. Reconciliation records
+        -- bind the generation key and its content, none of which these carry.
+        mutable TEXT[] := ARRAY['lease_worker_id', 'lease_expires_at', 'activated_at',
+                                'deactivated_at', 'automated_recovery_seconds',
+                                'status_retention_days'];
+    BEGIN
+        IF proposed = previous
+           OR (TG_TABLE_NAME = 'reporting_configurations' AND
+               proposed - mutable = previous - mutable)
+           OR (TG_TABLE_NAME = 'reporting_revisions' AND proposed - 'readable' = previous - 'readable') THEN
+            RETURN NEW;
+        END IF;
+        PERFORM pg_advisory_xact_lock(hashtext('adcp.reporting:' || OLD.account_id));
+        IF TG_TABLE_NAME = 'reporting_configurations' THEN
+            previous := previous - mutable;
+            proposed := proposed - mutable;
+            SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
+                WHERE r.account_id=OLD.account_id AND r.consumer_id=OLD.consumer_id AND r.delivery_config_id = OLD.delivery_config_id
+                    AND r.delivery_config_version = OLD.delivery_config_version) INTO referenced;
+        ELSIF TG_TABLE_NAME = 'reporting_obligations' THEN
+            SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
+                WHERE r.account_id = OLD.account_id AND r.reporting_obligation_id = OLD.reporting_obligation_id) INTO referenced;
+        ELSIF TG_TABLE_NAME = 'reporting_revisions' THEN
+            previous := previous - 'readable';
+            proposed := proposed - 'readable';
+            SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
+                WHERE r.account_id = OLD.account_id AND r.reporting_revision_id = OLD.reporting_revision_id) INTO referenced;
+        ELSE
+            SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
+                WHERE r.account_id = OLD.account_id AND r.reporting_adjustment_id = OLD.reporting_adjustment_id) INTO referenced;
+        END IF;
+        IF referenced AND proposed IS DISTINCT FROM previous THEN
+            RAISE EXCEPTION 'reporting referenced publication is immutable' USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END
+    $function$;
+END
+$uncontracted_reconciliation$;

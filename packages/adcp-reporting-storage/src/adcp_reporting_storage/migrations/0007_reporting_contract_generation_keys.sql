@@ -1,0 +1,19 @@
+-- adcp-migration: 0007 reporting_contract_generation_keys
+-- adcp-upgrade: contract
+-- Contracts a ledger that 0002 and 0006 expanded: drops what processes of
+-- adcp-reporting-storage 0.1.x/0.2.0b0 (storage contract 1) needed to keep
+-- running beside this release (the four-column configuration key, the
+-- six-column obligation-period and status checkpoint keys, the references onto
+-- them and CHECK (offering_id = '')), gives the widened keys their final names
+-- and restores this release's function bodies. The ledger is then exactly a
+-- new ledger's catalog, and reporting subscriptions can record a second
+-- offering of a configuration version.
+--
+-- A contract step: run it with "python -m adcp migrate --contract" once every
+-- earlier-release reporting process has stopped. Plain "python -m adcp migrate"
+-- and create_schema() never apply it to an expanded ledger. On a ledger that
+-- was never expanded (a new one, or one that 0.2.0b1/b2 widened in place) it
+-- changes nothing, and "python -m adcp migrate" records it without --contract.
+-- include: ledger/reporting_ledger_contract.sql
+-- include: ledger/reporting_ledger_reconciliation.sql
+-- include: ledger/reporting_status_checkpoint_offerings.sql

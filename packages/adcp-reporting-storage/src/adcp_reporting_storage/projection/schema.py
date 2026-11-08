@@ -8,7 +8,7 @@ from typing import Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp_reporting_storage.feed.schema import validate_feed_schema
-from adcp_reporting_storage.outbox._schema import schema_objects
+from adcp_reporting_storage.outbox._schema import satisfies, schema_objects
 from adcp_reporting_storage.outbox.status_schema import validate_status_schema
 
 
@@ -18,7 +18,7 @@ async def validate_projection_schema(connection: Any, *, notifications: bool = F
             files("adcp_reporting_storage.projection").joinpath("required_schema.json").read_text()
         )
         actual = await schema_objects(connection)
-        if not required or any(actual.get(k) != v for k, v in required.items()):
+        if not required or any(not satisfies(actual, k, v) for k, v in required.items()):
             raise ValueError
         await validate_feed_schema(connection, notifications=notifications)
         await validate_status_schema(connection)

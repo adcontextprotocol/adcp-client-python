@@ -196,6 +196,9 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.migration import (
         require_owned_schema_or_empty as require_owned_schema_or_empty,
     )
+    from adcp_reporting_storage.migrations import (
+        ReportingUpgradeNotContractedError as ReportingUpgradeNotContractedError,
+    )
     from adcp_reporting_storage.outbox.pg import PgReportingOutbox as PgReportingOutbox
     from adcp_reporting_storage.outbox.status_activity_pg import (
         PgReportingActivityUnionStore as PgReportingActivityUnionStore,
@@ -270,6 +273,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Caller-ownership migration
     "ReportingOwnershipBackfill": ("migration", "ReportingOwnershipBackfill"),
     "ReportingOwnershipMigrationError": ("migration", "ReportingOwnershipMigrationError"),
+    # Expand/contract upgrade of an earlier release's ledger (#1856)
+    "ReportingUpgradeNotContractedError": ("migrations", "ReportingUpgradeNotContractedError"),
     "backfill_legacy_reporting": ("migration", "backfill_legacy_reporting"),
     "legacy_generation_digest": ("migration", "legacy_generation_digest"),
     "migrate_legacy_reporting": ("migration", "migrate_legacy_reporting"),

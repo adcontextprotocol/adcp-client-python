@@ -161,6 +161,7 @@ from adcp_reporting_storage.ledger.row_storage import (
     ReportingRowStorageV1,
     ReportingRowStoreError,
 )
+from adcp_reporting_storage.migrations import upgrade_not_contracted_error
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -511,12 +512,15 @@ class PgReportingLedgerStore:
         yet recorded in ``adcp_schema_migrations``, then this store's optional
         DDL (change feed, row storage), all in one transaction under the
         reporting schema lock. A ledger created by adcp-reporting-storage
-        0.1.0b4 or 0.2.0b0 is upgraded in place: ``offering_id`` is added with
-        ``''`` for every existing account-level generation, and the applied
-        versions are recorded, so ``python -m adcp migrate --status`` reads
-        them. Re-running is a no-op. The later migrations (``0004`` onward: subscription
-        state, inline storage, status checkpoint offerings) are applied and
-        recorded by ``python -m adcp migrate``, or by the stores that own them.
+        0.1.0b4 or 0.2.0b0 is expanded: ``offering_id`` is added with ``''``
+        for every existing account-level generation, beside the keys that
+        release uses, so its processes keep running through a rolling deploy.
+        The applied versions are recorded, so ``python -m adcp migrate
+        --status`` reads them. Re-running is a no-op. A boot never applies the
+        contract step (``python -m adcp migrate --contract``). The later
+        migrations (``0004`` onward: subscription state, inline storage, status
+        checkpoint offerings, the contract step) are applied and recorded by
+        ``python -m adcp migrate``, or by the stores that own them.
 
         The bootstrap takes a transaction-scoped schema lock before any DDL.
         Keep the migration in that transaction, including with an autocommit
@@ -1057,6 +1061,17 @@ class PgReportingLedgerStore:
 
     # -- configurations ---------------------------------------------------
 
+    @staticmethod
+    async def _insert_configuration(connection: Any, query: str, params: tuple[Any, ...]) -> Any:
+        try:
+            return await connection.execute(query, params)
+        except Exception as error:
+            # An expanded ledger refuses a subscription generation until contract.
+            not_contracted = upgrade_not_contracted_error(error)
+            if not_contracted is not None:
+                raise not_contracted from error
+            raise
+
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
         key = configuration.generation_key
@@ -1064,7 +1079,8 @@ class PgReportingLedgerStore:
         digest = _fingerprint(payload)
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
-            inserted_cursor = await connection.execute(
+            inserted_cursor = await self._insert_configuration(
+                connection,
                 "INSERT INTO reporting_configurations"
                 " (delivery_config_id, delivery_config_version, account_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
@@ -3627,6 +3643,9 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
     Matching the index name rather than the driver's prose: the message text
     varies by Postgres version and locale, the index name does not.
     """
+    not_contracted = upgrade_not_contracted_error(error)
+    if not_contracted is not None:
+        return not_contracted
     text = str(error)
     if "reporting_revisions_one_official" in text:
         return LedgerConflictError(
