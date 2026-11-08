@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-08 02:41:59 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -64,11 +64,14 @@ if TYPE_CHECKING:
     )
     from adcp.types.domains.trusted_match.provider_registration import (
         Country,
+        MatchKey,
+        MatchKey3,
         Status,
         TmpProviderRegistration,
         TmpProviderRegistration1,
         TmpProviderRegistration2,
         TmpxSlot,
+        Use,
     )
     from adcp.types.domains.trusted_match.publisher_targeting_kv_config import (
         PublisherTargetingKvMapping,
@@ -95,6 +98,8 @@ __all__ = [
     "IdentityMatchResponseProviderRouter",
     "IdentityMatchResponseRouterPublisher",
     "Keyword",
+    "MatchKey",
+    "MatchKey3",
     "Metro",
     "Model",
     "Offer",
@@ -113,6 +118,7 @@ __all__ = [
     "TmpxProviders",
     "TmpxSlot",
     "Type",
+    "Use",
     "VerificationLevel",
 ]
 
@@ -136,6 +142,8 @@ _DECLARED_IN = {
     "IdentityMatchResponseProviderRouter": "adcp.types.domains.trusted_match.provider_identity_match_response",
     "IdentityMatchResponseRouterPublisher": "adcp.types.domains.trusted_match.identity_match_response",
     "Keyword": "adcp.types.domains.trusted_match.context_match_request",
+    "MatchKey": "adcp.types.domains.trusted_match.provider_registration",
+    "MatchKey3": "adcp.types.domains.trusted_match.provider_registration",
     "Metro": "adcp.types.domains.trusted_match.context_match_request",
     "Model": "adcp.types.domains.trusted_match.offer_price",
     "Offer": "adcp.types.domains.trusted_match.offer",
@@ -154,6 +162,7 @@ _DECLARED_IN = {
     "TmpxProviders": "adcp.types.domains.trusted_match.identity_match_response",
     "TmpxSlot": "adcp.types.domains.trusted_match.provider_registration",
     "Type": "adcp.types.domains.trusted_match.context_match_request",
+    "Use": "adcp.types.domains.trusted_match.provider_registration",
     "VerificationLevel": "adcp.types.domains.trusted_match.identity_match_request",
 }
 

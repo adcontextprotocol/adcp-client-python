@@ -42,7 +42,7 @@ from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.webhooks import WebhookSender
 
 SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache"
-PIN = "3.3-beta.4"
+PIN = "3.3-beta.5"
 AT = "2026-10-23T09:14:05Z"
 
 PROPOSALS: dict[str, Any] = {"outcome": "listed", "proposals": [], "opportunities": []}
@@ -320,7 +320,9 @@ def test_status_envelope_follows_each_prerelease_schema(tool: str) -> None:
     assert uses_task_status_envelope(tool, None) is True
 
 
-@pytest.mark.parametrize("bundle", ["3.3.0-beta.1", "3.3.0-beta.2", "3.3.0-beta.3", "3.3.0-beta.4"])
+@pytest.mark.parametrize(
+    "bundle", ["3.3.0-beta.1", "3.3.0-beta.2", "3.3.0-beta.3", "3.3.0-beta.4", "3.3.0-beta.5"]
+)
 def test_bundled_list_collections_examples_validate(bundle: str) -> None:
     schema = json.loads(
         (SCHEMAS / bundle / "media-buy" / "list-collections-response.json").read_text()
@@ -361,7 +363,7 @@ def test_proposal_created_preparation_binds_notification_id_to_proposal_id() -> 
 
 def test_every_account_anchored_notification_type_requires_the_acknowledgment() -> None:
     """Drift guard: the agent-level surface classifies every enum value."""
-    enum = json.loads((SCHEMAS / "3.3.0-beta.4" / "enums" / "notification-type.json").read_text())
+    enum = json.loads((SCHEMAS / "3.3.0-beta.5" / "enums" / "notification-type.json").read_text())
     caller_anchored = {"capabilities.changed", "principal.changed", "account_request.changed"}
     assert set(enum["enum"]) - caller_anchored - _MEDIA_BUY_NOTIFICATION_TYPES == set(
         _ACCOUNT_NOTIFICATION_TYPES

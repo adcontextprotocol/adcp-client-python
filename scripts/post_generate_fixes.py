@@ -4522,13 +4522,17 @@ def fix_trusted_match_runtime_validators() -> None:
                 validators_2 = validators_1.replace(
                     "TmpProviderRegistration1", "TmpProviderRegistration2"
                 )
-                source = source.replace(
-                    "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
-                    validators_1 + "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
-                    1,
-                )
-                # Arm 2 is the last class in the module, so anchor on the end
-                # of its own body rather than on whatever follows it.
+                # Anchor on the end of each arm's own body. A helper class can
+                # sit between the arms (3.3.0-beta.5 emits arm 2's MatchKey3
+                # there), and validators placed before arm 2 would then bind
+                # to that helper instead of arm 1.
+                arm_1_end = _class_end_offset(source, "TmpProviderRegistration1")
+                if arm_1_end is None:
+                    raise RuntimeError(
+                        "generated provider_registration.py has no TmpProviderRegistration1"
+                    )
+                arm_1_body = source[:arm_1_end].rstrip("\n")
+                source = arm_1_body + validators_1.rstrip("\n") + source[len(arm_1_body) :]
                 arm_2_end = _class_end_offset(source, "TmpProviderRegistration2")
                 if arm_2_end is None:
                     raise RuntimeError(

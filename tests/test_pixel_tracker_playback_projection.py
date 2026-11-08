@@ -35,7 +35,7 @@ from adcp.types import PixelTrackerAsset, SyncCreativesRequest
 from adcp.types.core import AgentConfig, Protocol
 from adcp.validation import ValidationHookConfig, validate_request, validate_response
 
-SOURCE = "3.3-beta.4"
+SOURCE = "3.3-beta.5"
 PLAYBACK = ["start", "first_quartile", "midpoint", "third_quartile", "complete"]
 _SCHEMAS = Path(__file__).parent.parent / "schemas" / "cache"
 
