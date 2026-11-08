@@ -444,8 +444,10 @@ class DecisioningPlatform:
         valid capability block depends on request context, such as tenant
         publisher domains or whether the tenant has an active webhook-signing
         credential. The framework also calls this hook for push-configured
-        operations so admission uses the exact capability set advertised to
-        that tenant.
+        operations, and for a ``control_media_buy`` that sets a package's
+        ``start_requires_all_creatives_approved`` to ``true`` (refused unless
+        ``media_buy.features.creative_start_policy`` is ``true``), so admission
+        uses the exact capability set advertised to that tenant.
 
         Return ``None`` to use :attr:`capabilities` unchanged, or return a
         complete :class:`DecisioningCapabilities` instance for this request.

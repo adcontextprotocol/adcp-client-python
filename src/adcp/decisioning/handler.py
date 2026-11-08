@@ -2062,6 +2062,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
         return caps, has_scoped_caps
 
+    async def _declared_capabilities_for_request(
+        self, params: Any, context: ToolContext | None = None
+    ) -> DecisioningCapabilities:
+        """Admission reads the same scoped capabilities discovery projects."""
+        capabilities, _ = await self._effective_capabilities_for_request(params, context)
+        return capabilities
+
     async def _handoff_webhook_kwargs(
         self,
         params: Any,

@@ -751,6 +751,19 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("get_adcp_capabilities")
 
+    async def _declared_capabilities_for_request(
+        self, params: Any, context: TContext | None = None
+    ) -> Any:
+        """The capabilities this agent declares, for a dispatcher admission check.
+
+        The dispatcher reads them before running a request that a declared
+        feature gates (``control_media_buy`` with
+        ``start_requires_all_creatives_approved: true``). The default is this
+        agent's own ``get_adcp_capabilities`` response, so an agent that does
+        not implement discovery declares nothing.
+        """
+        return await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest(), context)
+
     async def sync_agent_notification_configs(
         self,
         params: SyncAgentNotificationConfigsRequest | dict[str, Any],

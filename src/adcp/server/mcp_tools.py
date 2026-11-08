@@ -3345,8 +3345,12 @@ def _apply_unknown_field_policy(
     )
 
 
-def _requires_changed_paths(application_version: str | None) -> bool:
-    """Whether the handler's release requires ``changed_paths`` (AdCP 3.3 and later)."""
+def _handler_runs_adcp_33(application_version: str | None) -> bool:
+    """Whether the handler runs on AdCP 3.3 or later, where 3.3 seller rules apply.
+
+    Gates ``changed_paths`` on ``list_account_changes`` and the
+    ``creative_start_policy`` check on ``control_media_buy``.
+    """
     from adcp._version import normalize_to_release_precision
 
     if application_version is None:
@@ -3377,7 +3381,7 @@ def _project_account_change_feed(
         return project_list_account_changes_response(
             result,
             reader=ctx,
-            require_changed_paths=_requires_changed_paths(application_version),
+            require_changed_paths=_handler_runs_adcp_33(application_version),
         )
     except AccountChangeRecordError as exc:
         from adcp.exceptions import ADCPTaskError
@@ -3588,6 +3592,7 @@ def create_tool_caller(
         normalize_lenient_creative_batch,
         partial_creative_batch,
     )
+    from adcp.server._creative_start_policy import refuse_undeclared_creative_start_policy
     from adcp.server.helpers import inject_context
     from adcp.server.idempotency.store import _CREATIVE_BATCH_HASH_SOURCE
     from adcp.server.version_policy import project_supported_versions, resolve_supported_versions
@@ -4251,6 +4256,10 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
+        if method_name == "control_media_buy" and _handler_runs_adcp_33(application_version):
+            # A seller without media_buy.features.creative_start_policy must
+            # refuse an opted-in package before mutation (#1869).
+            await refuse_undeclared_creative_start_policy(handler, call_params, ctx)
         result: Any
         token = partial_creative_batch.set(creative_batch)
         hash_token = _CREATIVE_BATCH_HASH_SOURCE.set(

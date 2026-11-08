@@ -29,7 +29,7 @@ from adcp.account_change_feed import (
 )
 from adcp.exceptions import ADCPTaskError
 from adcp.server.base import ADCPHandler, ToolContext
-from adcp.server.mcp_tools import _requires_changed_paths, create_tool_caller
+from adcp.server.mcp_tools import _handler_runs_adcp_33, create_tool_caller
 from adcp.types import ListAccountChangesResponse, ListCreativesResponse
 from adcp.types.domains.core.account_change import AccountChange
 from adcp.validation.client_hooks import ValidationHookConfig
@@ -268,10 +268,10 @@ async def test_dispatch_refuses_record_without_changed_paths(
 
 
 def test_changed_paths_enforced_from_3_3() -> None:
-    assert _requires_changed_paths("3.3-beta.5")
-    assert _requires_changed_paths("3.3")
-    assert _requires_changed_paths(None)
-    assert not _requires_changed_paths("3.2")
+    assert _handler_runs_adcp_33("3.3-beta.5")
+    assert _handler_runs_adcp_33("3.3")
+    assert _handler_runs_adcp_33(None)
+    assert not _handler_runs_adcp_33("3.2")
 
 
 @pytest.mark.asyncio
