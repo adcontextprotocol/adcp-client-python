@@ -57,6 +57,28 @@ assessment plus the generated request model for that task. A
 `seller_managed` action uses the ordinary asynchronous task lifecycle; it does
 not introduce a seller-review MediaBuy status.
 
+### Creative start policy
+
+`packages[].start_requires_all_creatives_approved: true` on `control_media_buy`
+holds a package's first enablement for serving until every assigned creative is
+approved. AdCP 3.3 forbids sending `true` to a seller whose capabilities do not
+declare `media_buy.features.creative_start_policy: true`. When the client has
+already discovered the seller (its cached `get_adcp_capabilities` response, the
+same one version negotiation uses), a call that sets `true` without that
+declaration returns a failed `TaskResult` before anything is sent:
+`dispatched=False`, `adcp_error.code="UNSUPPORTED_FEATURE"`, `adcp_error.field`
+naming the first opted-in package
+(`packages[0].start_requires_all_creatives_approved`), and `adcp_error.details`
+carrying `feature` (`media_buy.features.creative_start_policy`) and every
+opted-in `fields` entry. The vocabulary matches the seller's own refusal.
+`client.supports("creative_start_policy")` answers the question up front.
+
+When the client has not discovered the seller (a pinned `server_version` skips
+discovery), it sends the request and the seller decides; a conforming seller
+refuses with the same `UNSUPPORTED_FEATURE`. `false` and omission are always
+sent, and a session negotiated below 3.3 is unaffected: the field does not
+exist there, and version conversion refuses `true` as before.
+
 Always send the latest MediaBuy `revision` and an idempotency key. If an
 `ACTION_NOT_ALLOWED` race returns `currently_available_actions`, pass that echo
 to `reassess_media_buy_action()` for an immediate explanation, then refresh the

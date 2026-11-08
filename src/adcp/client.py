@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from adcp.reporting.subscriptions.facade import FleetReportingClient, ReportingClient
 
+from adcp._creative_start_policy import refuse_undeclared_creative_start_policy_request
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._response_limit import (
     DEFAULT_MAX_RESPONSE_BYTES,
@@ -35,6 +36,7 @@ from adcp._response_limit import (
     set_call_max_response_bytes,
 )
 from adcp._version import (
+    is_adcp_version_at_least,
     normalize_to_release_precision,
     resolve_adcp_version,
     resolve_adcp_version_alias,
@@ -1090,15 +1092,19 @@ class ADCPClient:
             # the task's request is sent.
             exc.dispatched = False
             message = str(exc)
-            details: dict[str, Any] = {"wire_response_received": False}
+            details: dict[str, Any] = {**(exc.details or {}), "wire_response_received": False}
             for name in ("pointer", "source_version", "target_version", "reason"):
                 if getattr(exc, name, None) is not None:
                     details[name] = getattr(exc, name)
+            adcp_error: dict[str, Any] = {"code": "UNSUPPORTED_FEATURE", "message": message}
+            if exc.field is not None:
+                adcp_error["field"] = exc.field
+            adcp_error["details"] = details
             result = TaskResult[Any](
                 status=TaskStatus.FAILED,
                 success=False,
                 error=message,
-                adcp_error={"code": "UNSUPPORTED_FEATURE", "message": message, "details": details},
+                adcp_error=adcp_error,
                 idempotency_key=params.get("idempotency_key"),
                 dispatched=False,
                 metadata={
@@ -1142,6 +1148,10 @@ class ADCPClient:
                 # Major-only advertisements predate minor negotiation.
                 supported = ["3.0"] if 3 in declared.get("major_versions", []) else []
             target = negotiate_version(supported, maximum=maximum)
+        if tool == "control_media_buy" and is_adcp_version_at_least(target, "3.3-beta.0"):
+            # Buyers MUST NOT opt a package in to a seller known not to declare
+            # media_buy.features.creative_start_policy (#1876).
+            refuse_undeclared_creative_start_policy_request(params, self._capabilities)
         prepared = deepcopy(params)
         prepared["adcp_version"] = target
         try:
