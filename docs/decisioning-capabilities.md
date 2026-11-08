@@ -91,6 +91,15 @@ alongside the spec; they line up.
 - **`media_buy.features`** — `inline_creative_management`,
   `property_list_filtering`, `catalog_management` flags that gate
   buyer-side flow.
+- **`media_buy.features.creative_start_policy`** — declare it only when you
+  honor `packages[].start_requires_all_creatives_approved: true` on
+  `control_media_buy`: hold the package's first enablement for serving until
+  every current creative assignment is approved, and echo the policy on
+  `get_media_buys`. Without it the framework refuses `true` with
+  `UNSUPPORTED_FEATURE` (`field` `packages[N].start_requires_all_creatives_approved`)
+  before your platform runs, as AdCP 3.3 requires; `false` always reaches you.
+  The check reads the request-scoped capabilities, so a tenant-specific
+  declaration from `get_adcp_capabilities_for_request` counts.
 - **`media_buy.portfolio.publisher_domains`** — the publishers you actually
   represent, not every domain whose `adagents.json` names you. AdCP 3.3 bounds
   this counterparty-asserted list (and `signals.data_provider_domains`): at most
