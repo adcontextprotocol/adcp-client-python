@@ -1,5 +1,22 @@
 # Changelog
 
+## [10.0.0-beta.13](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.12...v10.0.0-beta.13) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.4. get_supported_adcp_versions is 3.0, 3.1, 3.2, 3.3-beta.5 and 3.2-rc.7; an adcp_version pin of 3.3-beta.4 or 3.3.0-beta.4 raises ConfigurationError, and a peer that advertises only 3.3-beta.4 for the 3.3 line negotiates down to 3.2. Re-pin to 3.3-beta.5 or omit the pin.
+
+### Features
+
+* **protocol:** adopt the signed AdCP 3.3.0-beta.5 bundle ([#1866](https://github.com/adcontextprotocol/adcp-client-python/issues/1866)) ([f45385d](https://github.com/adcontextprotocol/adcp-client-python/commit/f45385d841dc92a5aa2736d88e812379bf15221b))
+* **reporting-storage:** make the contract-2 ledger upgrade rolling-deploy safe with expand and contract ([#1868](https://github.com/adcontextprotocol/adcp-client-python/issues/1868)) ([32fee89](https://github.com/adcontextprotocol/adcp-client-python/commit/32fee8983a3abfa221e6ad4c884d9355414ff6aa))
+
+
+### Bug Fixes
+
+* **reporting-storage:** refuse a ledger upgraded to storage contract 2 with the real remedy ([#1857](https://github.com/adcontextprotocol/adcp-client-python/issues/1857)) ([5eebb53](https://github.com/adcontextprotocol/adcp-client-python/commit/5eebb5386fd09ac23e9727587cc9413ef24fa0af))
+
 ## [10.0.0-beta.12](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.11...v10.0.0-beta.12) (2026-11-05)
 
 
