@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.3...adcp-reporting-storage-v0.2.0-beta.4) (2026-11-08)
+
+
+### Features
+
+* **reporting-storage:** record issue-lifecycle transitions in a transactional outbox ([#1874](https://github.com/adcontextprotocol/adcp-client-python/issues/1874)) ([502a66f](https://github.com/adcontextprotocol/adcp-client-python/commit/502a66f103b17786606a817c1bea304ecf6f1e29))
+
 ## [0.2.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.2...adcp-reporting-storage-v0.2.0-beta.3) (2026-11-08)
 
 
