@@ -205,6 +205,39 @@ def _extract_push_authentication(params: Any) -> TaskWebhookAuthentication | Non
     return TaskWebhookAuthentication(scheme=raw_scheme, credentials=credentials)
 
 
+def _extract_push_signing_profile(params: Any) -> str | None:
+    """Extract the webhook-signing profile a task push registration names (AdCP 3.3).
+
+    ``None`` when ``push_notification_config`` names no ``signing_profile``;
+    a registration that also omits legacy ``authentication`` then requires
+    ``adcp/webhook-signing/v1``. Raises :class:`ValueError` for an unknown
+    profile, or one combined with ``authentication``.
+    """
+    from adcp.webhooks import WEBHOOK_SIGNING_PROFILES
+
+    config = getattr(params, "push_notification_config", None)
+    if config is None and isinstance(params, dict):
+        config = params.get("push_notification_config")
+    if config is None:
+        return None
+    if isinstance(config, dict):
+        profile = config.get("signing_profile")
+        authentication = config.get("authentication")
+    else:
+        profile = getattr(config, "signing_profile", None)
+        authentication = getattr(config, "authentication", None)
+    if profile is None:
+        return None
+    profile = getattr(profile, "value", profile)
+    if authentication is not None:
+        raise ValueError(
+            "push_notification_config must not combine authentication with signing_profile"
+        )
+    if profile not in WEBHOOK_SIGNING_PROFILES:
+        raise ValueError(f"unknown push_notification_config.signing_profile {profile!r}")
+    return str(profile)
+
+
 def maybe_emit_sync_completion(
     *,
     sender: WebhookSender | None,
@@ -688,9 +721,13 @@ def validate_webhook_signing_for_capabilities(
     # skip the cross-check when omitted (no advertisement to violate).
     advertised_algorithms = getattr(webhook_signing, "algorithms", None)
     if advertised_algorithms and sender_introspectable:
-        sender_alg = getattr(getattr(resolved_sender, "_auth", None), "alg", None)
+        from adcp.webhook_sender import _sender_signing_algorithms
+
+        sender_algs = _sender_signing_algorithms(resolved_sender)
         advertised_alg_values = [getattr(a, "value", a) for a in advertised_algorithms]
-        if sender_alg not in advertised_alg_values:
+        unadvertised = sorted(alg for alg in sender_algs if alg not in advertised_alg_values)
+        if not sender_algs or unadvertised:
+            sender_alg = unadvertised[0] if unadvertised else None
             raise AdcpError(
                 "INVALID_REQUEST",
                 message=(
@@ -711,6 +748,37 @@ def validate_webhook_signing_for_capabilities(
                 },
             )
 
+    # Every advertised profile is one a registration may select, and the
+    # sender must hold a key for each. Omission means adcp/webhook-signing/v1,
+    # so a web-bot-auth-only sender must advertise its profile.
+    from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP
+
+    advertised_profiles = getattr(webhook_signing, "profiles", None) or [
+        WEBHOOK_SIGNING_PROFILE_ADCP
+    ]
+    sender_profiles = getattr(resolved_sender, "signing_profiles", None)
+    if sender_introspectable and isinstance(sender_profiles, frozenset):
+        advertised_profile_values = [getattr(p, "value", p) for p in advertised_profiles]
+        missing_profiles = sorted(p for p in advertised_profile_values if p not in sender_profiles)
+        if missing_profiles:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "capabilities.webhook_signing.profiles advertises "
+                    f"{advertised_profile_values!r} but the wired WebhookSender "
+                    f"holds no key for {missing_profiles!r}. A registration "
+                    "selecting that profile could never be delivered. Add the "
+                    "key (WebhookSender.from_wba, or with_web_bot_auth on a "
+                    "from_jwk / from_pem sender), or stop advertising the profile."
+                ),
+                recovery="terminal",
+                details={
+                    "missing": "webhook_signing_profile_key",
+                    "advertised_profiles": advertised_profile_values,
+                    "sender_profiles": sorted(sender_profiles),
+                },
+            )
+
     if internal_outbox_ready:
         return
 
@@ -726,6 +794,22 @@ def validate_webhook_signing_for_capabilities(
         recovery="terminal",
         details={"missing": "external_durable_webhook_outbox"},
     )
+
+
+def advertised_webhook_signing_profiles(capabilities: Any) -> frozenset[str] | None:
+    """The webhook-signing profiles a seller's capabilities advertise.
+
+    ``webhook_signing.profiles``, or ``adcp/webhook-signing/v1`` when it is
+    omitted. ``None`` when the capabilities declare no webhook signing, so
+    there is no advertisement to check a registration against.
+    """
+    from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP
+
+    webhook_signing = getattr(capabilities, "webhook_signing", None)
+    if webhook_signing is None or getattr(webhook_signing, "supported", False) is not True:
+        return None
+    profiles = getattr(webhook_signing, "profiles", None) or [WEBHOOK_SIGNING_PROFILE_ADCP]
+    return frozenset(str(getattr(profile, "value", profile)) for profile in profiles)
 
 
 def external_task_webhook_owner_ready(

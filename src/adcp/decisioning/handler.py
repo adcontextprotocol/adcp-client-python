@@ -120,6 +120,7 @@ from adcp.decisioning.types import (
 )
 from adcp.decisioning.webhook_emit import (
     _extract_push_notification_url_and_token,
+    advertised_webhook_signing_profiles,
     maybe_emit_sync_completion,
     task_webhook_owner_ready,
 )
@@ -2072,6 +2073,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         A registry-backed atomic outbox owns SDK-managed publication. The
         low-level target remains available for manual compatibility paths;
         an externally managed publisher instead leaves it unwired.
+
+        ``webhook_signing_profiles`` comes from this request's effective
+        capabilities (a tenant-scoped override included): dispatch refuses a
+        push registration selecting a profile outside it.
         """
         capabilities = self._platform.capabilities
         if _extract_push_notification_url_and_token(params) is not None:
@@ -2108,6 +2113,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             # remain off or it would create a second notification.
             "webhook_auto_emit": self._auto_emit_task_webhooks and not registry_owns_delivery,
             "webhook_external_owner_ready": owner_ready,
+            "webhook_signing_profiles": advertised_webhook_signing_profiles(capabilities),
         }
 
     def _build_ctx(

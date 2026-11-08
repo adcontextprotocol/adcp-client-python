@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -25,7 +26,10 @@ from adcp.reporting.production.store import (
     ReportingProductionProjection,
     ReportingProductionStore,
 )
-from adcp.signing.crypto import ALLOWED_ALGS
+from adcp.signing.crypto import ALG_ED25519, ALLOWED_ALGS
+from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from adcp.reporting.production.service import ReportingProductionSupport
@@ -43,6 +47,10 @@ class ReportingProductionSigning:
     resolver: ReportingSigningResolver = field(repr=False)
     algorithms: tuple[str, ...]
     brand_json_url: str = field(kw_only=True)
+    #: Also sign subscriptions that select ``web-bot-auth`` (AdCP 3.3). Every
+    #: resolved material must then carry ``web_bot_auth``, ``ed25519`` must be
+    #: advertised, and the capability lists both profiles.
+    web_bot_auth: bool = field(default=False, kw_only=True)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "algorithms", tuple(self.algorithms))
@@ -51,6 +59,8 @@ class ReportingProductionSigning:
             or len(set(self.algorithms)) != len(self.algorithms)
             or not set(self.algorithms) <= ALLOWED_ALGS
             or not callable(getattr(self.resolver, "resolve", None))
+            or type(self.web_bot_auth) is not bool
+            or (self.web_bot_auth and ALG_ED25519 not in self.algorithms)
         ):
             raise ReportingNotificationError("notification_signing_unready")
         try:
@@ -82,22 +92,28 @@ class ReportingProductionSigning:
             self.algorithms
         ):
             raise ReportingNotificationError("notification_signing_unready")
+        if self.web_bot_auth and material.web_bot_auth is None:
+            raise ReportingNotificationError("notification_signing_unready")
         ReportingSigningMaterial.__post_init__(material)
         return material
 
     def wire(self) -> dict[str, Any]:
-        return {
+        wire: dict[str, Any] = {
             "supported": True,
-            "profile": "adcp/webhook-signing/v1",
+            "profile": WEBHOOK_SIGNING_PROFILE_ADCP,
             "algorithms": list(self.algorithms),
             "legacy_hmac_fallback": False,
             "delivery_retry_horizon_seconds": RETRY_HORIZON_SECONDS,
         }
+        if self.web_bot_auth:
+            wire["profiles"] = [WEBHOOK_SIGNING_PROFILE_ADCP, WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH]
+        return wire
 
 
 @dataclass(frozen=True)
 class _SignedSubscriptions:
     resolver: ReportingSubscriptionResolver = field(repr=False)
+    web_bot_auth: bool = False
 
     @staticmethod
     def _check(value: ReportingNotificationSubscription) -> ReportingNotificationSubscription:
@@ -105,13 +121,35 @@ class _SignedSubscriptions:
             raise ReportingNotificationError("notification_signing_unready")
         return value
 
+    def _signable(self, value: ReportingNotificationSubscription) -> bool:
+        """Whether this seller signs the profile the subscription selected.
+
+        A ``web-bot-auth`` subscription without ``web_bot_auth`` signing is
+        skipped, not raised: one such subscriber must not stop deliveries to
+        every other subscriber of the account. That subscriber then receives
+        no notifications, so the skip is logged as an error, the level the
+        outboxes use for a quarantined delivery, for operators to alert on.
+        The registration service should refuse such a subscription, since
+        the capability does not list the profile.
+        """
+        if value.signing_profile == WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH and not self.web_bot_auth:
+            logger.error(
+                "[adcp.reporting] skipping web-bot-auth subscription %s for account %s: "
+                "production signing is not configured with web_bot_auth=True, so this "
+                "subscriber receives no notifications",
+                value.subscriber_id,
+                value.account_id,
+            )
+            return False
+        return True
+
     async def list_active(
         self, *, account_id: str, notification_type: str
     ) -> tuple[ReportingNotificationSubscription, ...]:
         values = await self.resolver.list_active(
             account_id=account_id, notification_type=notification_type
         )
-        return tuple(self._check(v) for v in values)
+        return tuple(v for v in map(self._check, values) if self._signable(v))
 
     async def get_active(
         self, *, account_id: str, subscriber_id: str, notification_type: str
@@ -119,7 +157,10 @@ class _SignedSubscriptions:
         value = await self.resolver.get_active(
             account_id=account_id, subscriber_id=subscriber_id, notification_type=notification_type
         )
-        return self._check(value) if value is not None else None
+        if value is None:
+            return None
+        checked = self._check(value)
+        return checked if self._signable(checked) else None
 
 
 def production_notification_workers(
@@ -144,7 +185,7 @@ def production_notification_workers(
     ):
         raise ReportingNotificationError("notification_chain_unready")
     ReportingProductionSigning.__post_init__(signing)
-    signed_subscriptions = _SignedSubscriptions(subscriptions)
+    signed_subscriptions = _SignedSubscriptions(subscriptions, web_bot_auth=signing.web_bot_auth)
     # The store builds its own exact queue classes; a subclass is refused there.
     outboxes = store.production_outboxes(projection)
     return tuple(
@@ -219,7 +260,7 @@ def check_workers(support: ReportingProductionSupport) -> None:
     ReportingProductionSigning.__post_init__(signing)
     subscriptions = workers[0].subscriptions
     assert isinstance(subscriptions, _SignedSubscriptions)
-    if not all(
+    if subscriptions.web_bot_auth is not signing.web_bot_auth or not all(
         callable(getattr(subscriptions.resolver, method, None))
         for method in ("list_active", "get_active")
     ):

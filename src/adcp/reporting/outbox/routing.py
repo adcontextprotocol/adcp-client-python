@@ -29,6 +29,7 @@ from adcp.reporting.outbox.identity import canonical_consumer
 from adcp.reporting.outbox.models import DeliveryBinding, StoredDelivery
 from adcp.signing.crypto import ALG_ED25519, ALG_ES256, ALLOWED_ALGS, PrivateKey
 from adcp.webhook_sender import PreparedWebhook
+from adcp.webhooks import WEBHOOK_SIGNING_PROFILES
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,11 @@ class ReportingNotificationSubscription:
     proof_of_control_ref: str
     signing_scope_id: str | None = None
     authentication: ReportingLegacyAuthentication | None = field(default=None, repr=False)
+    #: The registration's ``signing_profile`` (AdCP 3.3), for a subscription
+    #: without legacy ``authentication``. ``None`` means
+    #: ``adcp/webhook-signing/v1``; it is left out of the fingerprint, so
+    #: subscriptions and deliveries stored before this field are unchanged.
+    signing_profile: str | None = None
     active: bool = field(kw_only=True)
     authorized: bool = field(kw_only=True)
     proof_valid: bool = field(kw_only=True)
@@ -100,6 +106,11 @@ class ReportingNotificationSubscription:
             if (
                 self.authentication is not None
                 and type(self.authentication) is not ReportingLegacyAuthentication
+            ):
+                raise ValueError
+            if self.signing_profile is not None and (
+                self.signing_profile not in WEBHOOK_SIGNING_PROFILES
+                or self.authentication is not None
             ):
                 raise ValueError
             if type(self.url) is not str or not self.url.isprintable() or len(self.url) > 8192:
@@ -164,16 +175,54 @@ class ReportingSubscriptionResolver(Protocol):
 
 
 @dataclass(frozen=True)
+class ReportingWebBotAuthKey:
+    """The seller origin's Web Bot Auth key, for ``web-bot-auth`` subscriptions.
+
+    Receivers verify it against the key directory at
+    ``{agent_origin}/.well-known/http-message-signatures-directory``; see
+    ``docs/webhooks/web-bot-auth.md``.
+    """
+
+    private_key: ed25519.Ed25519PrivateKey = field(repr=False)
+    agent_origin: str
+
+    def __post_init__(self) -> None:
+        from adcp.signing.wba import _https_origin
+
+        try:
+            if not isinstance(self.private_key, ed25519.Ed25519PrivateKey):
+                raise ValueError
+            object.__setattr__(self, "agent_origin", _https_origin(self.agent_origin))
+        except (ValueError, TypeError, AttributeError):
+            pass
+        else:
+            return
+        raise ReportingNotificationError("permanent_scope")
+
+
+@dataclass(frozen=True)
 class ReportingSigningMaterial:
-    """Trusted current key material, not an adopter-supplied HTTP sender."""
+    """Trusted current key material, not an adopter-supplied HTTP sender.
+
+    ``private_key`` signs under ``adcp/webhook-signing/v1``, which every 3.3
+    seller signing webhooks supports. ``web_bot_auth`` adds the origin's Web
+    Bot Auth key for subscriptions selecting ``web-bot-auth``; it signs with
+    ``ed25519``, so that algorithm must be advertised too.
+    """
 
     private_key: PrivateKey = field(repr=False)
     key_id: str
     algorithm: str
     advertised_algorithms: frozenset[str]
+    web_bot_auth: ReportingWebBotAuthKey | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "advertised_algorithms", frozenset(self.advertised_algorithms))
+        if self.web_bot_auth is not None and (
+            type(self.web_bot_auth) is not ReportingWebBotAuthKey
+            or ALG_ED25519 not in self.advertised_algorithms
+        ):
+            raise ReportingNotificationError("permanent_scope")
         key_matches = (
             self.algorithm == ALG_ED25519
             and isinstance(self.private_key, ed25519.Ed25519PrivateKey)

@@ -396,6 +396,7 @@ class LazyTaskWebhookOutbox(_LazyStore[PgTaskWebhookOutbox]):
         token: str | None,
         authentication: TaskWebhookAuthentication | None = None,
         signing_scope_id: str | None = None,
+        signing_profile: str | None = None,
     ) -> int:
         return await (await self.resolve()).enqueue_terminal(
             conn,
@@ -409,12 +410,23 @@ class LazyTaskWebhookOutbox(_LazyStore[PgTaskWebhookOutbox]):
             token=token,
             authentication=authentication,
             signing_scope_id=signing_scope_id,
+            signing_profile=signing_profile,
         )
 
     def validate_registration(
-        self, url: str, authentication: TaskWebhookAuthentication | None = None
+        self,
+        url: str,
+        authentication: TaskWebhookAuthentication | None = None,
+        *,
+        signing_profile: str | None = None,
     ) -> None:
-        (self._require_resolved()).validate_registration(url, authentication)
+        (self._require_resolved()).validate_registration(
+            url, authentication, signing_profile=signing_profile
+        )
+
+    def supports_signing_profile(self, profile: str) -> bool | None:
+        store = self.resolved
+        return store.supports_signing_profile(profile) if store is not None else None
 
     def protect_registration(
         self,
@@ -427,6 +439,7 @@ class LazyTaskWebhookOutbox(_LazyStore[PgTaskWebhookOutbox]):
         token: str | None,
         authentication: TaskWebhookAuthentication | None = None,
         signing_scope_id: str | None = None,
+        signing_profile: str | None = None,
     ) -> tuple[bytes, bytes]:
         return (self._require_resolved()).protect_registration(
             account_id=account_id,
@@ -437,6 +450,7 @@ class LazyTaskWebhookOutbox(_LazyStore[PgTaskWebhookOutbox]):
             token=token,
             authentication=authentication,
             signing_scope_id=signing_scope_id,
+            signing_profile=signing_profile,
         )
 
     def open_registration(

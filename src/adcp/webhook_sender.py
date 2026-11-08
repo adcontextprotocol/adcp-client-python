@@ -28,13 +28,14 @@ and remember to reuse ``idempotency_key`` on retry. Each step is a footgun.
 
 from __future__ import annotations
 
+import copy
 import json
 import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import httpx
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
@@ -70,6 +71,7 @@ from adcp.webhook_auth import (
     BearerTokenStrategy,
     JwkSignerStrategy,
     StandardWebhooksHmacStrategy,
+    WbaSignerStrategy,
     WebhookAuthStrategy,
     merge_extra_headers,
 )
@@ -78,6 +80,9 @@ from adcp.webhook_transport_hooks import (
     TransportHook,
     apply_hooks,
 )
+
+if TYPE_CHECKING:
+    from adcp.signing.wba import DirectoryResponse
 
 # WholesaleFeedEvent is a union, so validation goes through an adapter.
 
@@ -145,6 +150,68 @@ def _validate_hooks(hooks: tuple[TransportHook, ...], allow_private_destinations
         validate = getattr(hook, "validate_for_sender", None)
         if callable(validate):
             validate(allow_private_destinations=allow_private_destinations)
+
+
+def _profile_strategies_for(auth: WebhookAuthStrategy) -> dict[str, WebhookAuthStrategy]:
+    """The webhook-signing profiles ``auth`` produces, keyed by profile name.
+
+    Bearer and HMAC strategies produce none: they serve only registrations
+    carrying legacy ``authentication``.
+    """
+    if isinstance(auth, JwkSignerStrategy):
+        return {WEBHOOK_SIGNING_PROFILE_ADCP: auth}
+    if isinstance(auth, WbaSignerStrategy):
+        return {WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH: auth}
+    return {}
+
+
+def _sender_signing_algorithms(sender: Any) -> frozenset[str]:
+    """Every ``alg`` a sender's signatures may carry.
+
+    Reads :attr:`WebhookSender.signing_algorithms`, falling back to the
+    single ``_auth.alg`` for a sender-like object without it (a test double,
+    or a supervisor's sender built before the property existed).
+    """
+    algorithms = getattr(sender, "signing_algorithms", None)
+    if isinstance(algorithms, frozenset):
+        return algorithms
+    alg = getattr(getattr(sender, "_auth", None), "alg", None)
+    return frozenset({alg}) if isinstance(alg, str) else frozenset()
+
+
+def _sender_signing_profiles(sender: Any) -> frozenset[str]:
+    """Every webhook-signing profile a sender can sign under.
+
+    Reads :attr:`WebhookSender.signing_profiles`, falling back for a
+    sender-like object without it to ``adcp/webhook-signing/v1`` when it
+    signs with RFC 9421 (the only profile before ``web-bot-auth``), else none.
+    """
+    profiles = getattr(sender, "signing_profiles", None)
+    if isinstance(profiles, frozenset):
+        return profiles
+    if getattr(sender, "signs_with_rfc9421", False) is True:
+        return frozenset({WEBHOOK_SIGNING_PROFILE_ADCP})
+    return frozenset()
+
+
+def _wba_strategy(private_key: Any, agent_origin: str) -> WbaSignerStrategy:
+    """Validate a Web Bot Auth key and origin up front, at construction."""
+    from adcp.signing.wba import _https_origin, public_directory_key
+
+    if not isinstance(private_key, ed25519.Ed25519PrivateKey):
+        raise ValueError(
+            f"Web Bot Auth signs with Ed25519 keys only (got {type(private_key).__name__}); "
+            "an ES256 key stays on adcp/webhook-signing/v1 via WebhookSender.from_jwk"
+        )
+    if not isinstance(agent_origin, str):
+        raise ValueError("agent_origin must be the seller's https origin")
+    return WbaSignerStrategy(
+        private_key=private_key,
+        # sign_wba_request sends the canonical form; store it so the
+        # directory helper publishes for the same origin the signatures name.
+        agent_origin=_https_origin(agent_origin),
+        key_id=public_directory_key(private_key)["kid"],
+    )
 
 
 def _entity_type_for_wholesale_notification(notification_type: str) -> str:
@@ -217,6 +284,10 @@ class WebhookDeliveryResult:
     response_body: bytes
     sent_body: bytes = b""
     sent_extra_headers: Mapping[str, str] = field(default_factory=dict)
+    #: The registration's required signing profile the delivery was signed
+    #: under, or ``None`` when it imposed none (the sender's default mode).
+    #: :meth:`WebhookSender.resend` signs the replay under the same profile.
+    signing_profile: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -248,21 +319,35 @@ class PreparedWebhook:
 class WebhookSigningProfileUnavailableError(ValueError):
     """The sender cannot sign under the profile a webhook registration requires.
 
-    A ``reporting_webhook`` / ``artifact_webhook`` registration without
-    ``authentication`` (AdCP 3.3) must be signed under its ``signing_profile``
-    (``adcp/webhook-signing/v1`` when omitted). Raised before any network I/O
-    when the sender would instead send a bearer token or legacy HMAC the buyer
-    never registered, or when it cannot produce the selected profile (this SDK
-    does not yet sign webhooks under ``web-bot-auth``). Configure an RFC 9421
-    sender (:meth:`WebhookSender.from_jwk` / :meth:`WebhookSender.from_pem`),
-    or reject registrations naming a profile the seller does not list in
+    A ``reporting_webhook`` / ``artifact_webhook`` / ``push_notification_config``
+    registration without ``authentication`` (AdCP 3.3) must be signed under its
+    ``signing_profile`` (``adcp/webhook-signing/v1`` when omitted). Raised
+    before any network I/O when the sender would instead send a bearer token or
+    legacy HMAC the buyer never registered, or when it holds no key for the
+    selected profile. Configure a sender for that profile
+    (:meth:`WebhookSender.from_jwk` / :meth:`WebhookSender.from_pem` for
+    ``adcp/webhook-signing/v1``, :meth:`WebhookSender.from_wba` for
+    ``web-bot-auth``, :meth:`WebhookSender.with_web_bot_auth` for both), or
+    reject registrations naming a profile the seller does not list in
     ``webhook_signing.profiles`` with ``INVALID_REQUEST``.
     """
 
-    def __init__(self, *, required_profile: str, sender_profile: str | None) -> None:
+    def __init__(
+        self,
+        *,
+        required_profile: str,
+        sender_profile: str | None,
+        sender_profiles: frozenset[str] = frozenset(),
+    ) -> None:
         self.required_profile = required_profile
         self.sender_profile = sender_profile
-        mode = sender_profile if sender_profile is not None else "legacy bearer/HMAC auth"
+        self.sender_profiles = sender_profiles
+        if sender_profiles:
+            mode = " and ".join(sorted(sender_profiles))
+        elif sender_profile is not None:
+            mode = sender_profile
+        else:
+            mode = "legacy bearer/HMAC auth"
         super().__init__(
             f"webhook registration has no authentication and requires signing under "
             f"{required_profile!r}, but this WebhookSender signs with {mode}; "
@@ -366,6 +451,7 @@ class WebhookSender:
         self._auth: WebhookAuthStrategy = JwkSignerStrategy(
             private_key=private_key, key_id=key_id, alg=alg
         )
+        self._profile_strategies = _profile_strategies_for(self._auth)
         self._key_id = key_id
         self._timeout = timeout_seconds
         self._client = client
@@ -395,6 +481,7 @@ class WebhookSender:
         """
         sender = cls.__new__(cls)
         sender._auth = auth
+        sender._profile_strategies = _profile_strategies_for(auth)
         sender._key_id = key_id
         sender._timeout = timeout_seconds
         sender._client = client
@@ -544,6 +631,135 @@ class WebhookSender:
         )
 
     @classmethod
+    def from_wba(
+        cls,
+        private_key: ed25519.Ed25519PrivateKey,
+        *,
+        agent_origin: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookSender:
+        """Build a sender that signs under the ``web-bot-auth`` profile (AdCP 3.3).
+
+        Every attempt, retries and outbox redeliveries included, is signed
+        afresh by :func:`adcp.signing.wba.sign_wba_request`: a new 64-byte
+        nonce and ``created``, ``Signature-Agent`` naming ``agent_origin``,
+        the key's RFC 7638 thumbprint as ``keyid``, and ``@method``,
+        ``@target-uri``, ``@authority``, ``content-type``, ``content-digest``
+        and ``signature-agent`` covered. Receivers record nonces, including on
+        an attempt they answered 503, so a stored signature is never resent.
+
+        Receivers verify against the key directory at
+        ``{agent_origin}/.well-known/http-message-signatures-directory``;
+        serve :meth:`sign_web_bot_auth_directory` there before sending.
+
+        A seller with buyers on both profiles during 3.3 chains
+        :meth:`with_web_bot_auth` onto its ``from_jwk`` / ``from_pem`` sender
+        instead.
+
+        :param private_key: The origin's Ed25519 key (the profile's one
+            algorithm). Load a PEM with
+            :func:`adcp.signing.load_private_key_pem`.
+        :param agent_origin: The seller's https origin, e.g.
+            ``https://seller.example``; sent in canonical form.
+        :raises ValueError: the key is not Ed25519, or ``agent_origin`` is not
+            an https origin without userinfo.
+        """
+        strategy = _wba_strategy(private_key, agent_origin)
+        return cls._from_strategy(
+            strategy,
+            key_id=strategy.key_id,
+            client=client,
+            timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+        )
+
+    def with_web_bot_auth(
+        self,
+        private_key: ed25519.Ed25519PrivateKey,
+        *,
+        agent_origin: str,
+    ) -> WebhookSender:
+        """Return a sender that also signs under ``web-bot-auth``.
+
+        For AdCP 3.3, when a seller has buyers registered on both profiles.
+        The returned sender signs each delivery under the profile its
+        registration selected (``required_signing_profile``); a delivery that
+        selects none (a registration carrying legacy ``authentication`` is
+        handled by a separate sender, so this means a direct ``send_*`` call)
+        keeps this sender's ``adcp/webhook-signing/v1`` key. Transport
+        settings are shared; this sender is left unchanged.
+
+        ::
+
+            sender = WebhookSender.from_jwk(webhook_jwk).with_web_bot_auth(
+                wba_private_key, agent_origin="https://seller.example"
+            )
+
+        :raises ValueError: this sender does not sign under
+            ``adcp/webhook-signing/v1``, or already signs under
+            ``web-bot-auth``, or the key or origin is invalid (see
+            :meth:`from_wba`).
+        """
+        if WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH in self._profile_strategies:
+            raise ValueError("this WebhookSender already signs under web-bot-auth")
+        if self.signing_profile != WEBHOOK_SIGNING_PROFILE_ADCP:
+            raise ValueError(
+                "with_web_bot_auth extends an adcp/webhook-signing/v1 sender "
+                "(from_jwk / from_pem); use WebhookSender.from_wba for a "
+                "web-bot-auth-only sender"
+            )
+        strategy = _wba_strategy(private_key, agent_origin)
+        combined = copy.copy(self)
+        combined._profile_strategies = {
+            **self._profile_strategies,
+            WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH: strategy,
+        }
+        return combined
+
+    def sign_web_bot_auth_directory(
+        self,
+        *,
+        other_keys: Sequence[ed25519.Ed25519PrivateKey] = (),
+        expires_in_seconds: int = 86400,
+    ) -> DirectoryResponse:
+        """Sign the key directory that makes this sender's signatures verifiable.
+
+        Serve the returned body and headers, unchanged, at
+        ``{agent_origin}/.well-known/http-message-signatures-directory``
+        (:data:`adcp.signing.wba.DIRECTORY_PATH`) with status 200, and
+        republish before ``expires_in_seconds`` elapses. Receivers resolve the
+        ``web-bot-auth`` key there, so publish the directory before the first
+        delivery, and keep the outgoing key in it while redeliveries may still
+        carry it.
+
+        The directory is the origin's, not the sender's: list every Ed25519
+        key the origin signs with under Web Bot Auth, including request
+        signing keys and keys mid-rotation, in ``other_keys``. A key left out
+        stops verifying once receivers refresh their cached copy.
+
+        :raises ValueError: this sender holds no ``web-bot-auth`` key.
+        """
+        from adcp.signing.wba import sign_key_directory
+
+        strategy = self._profile_strategies.get(WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH)
+        if not isinstance(strategy, WbaSignerStrategy):
+            raise ValueError(
+                "this WebhookSender holds no web-bot-auth key; build it with "
+                "from_wba or with_web_bot_auth"
+            )
+        return sign_key_directory(
+            agent_origin=strategy.agent_origin,
+            private_keys=[strategy.private_key, *other_keys],
+            expires_in_seconds=expires_in_seconds,
+        )
+
+    @classmethod
     def from_bearer_token(
         cls,
         token: str,
@@ -672,17 +888,50 @@ class WebhookSender:
         # Explicit repr so no future debug helper or error traceback auto-
         # renders self.__dict__ and pulls the private key (or HMAC secret /
         # bearer token) into logs.
-        return f"WebhookSender(auth={type(self._auth).__name__}, key_id={self._key_id!r})"
+        profiles = sorted(self._profile_strategies)
+        return (
+            f"WebhookSender(auth={type(self._auth).__name__}, key_id={self._key_id!r}, "
+            f"profiles={profiles!r})"
+        )
 
     @property
     def signing_profile(self) -> str | None:
-        """The webhook-signing profile this sender produces, or ``None``.
+        """The webhook-signing profile this sender signs under by default, or ``None``.
 
-        ``adcp/webhook-signing/v1`` for an RFC 9421 sender (:meth:`from_jwk`,
-        :meth:`from_pem`); ``None`` for the bearer and HMAC senders, which
-        serve only registrations carrying legacy ``authentication``.
+        ``adcp/webhook-signing/v1`` for :meth:`from_jwk` / :meth:`from_pem`
+        (with or without :meth:`with_web_bot_auth`); ``web-bot-auth`` for
+        :meth:`from_wba`; ``None`` for the bearer and HMAC senders, which
+        serve only registrations carrying legacy ``authentication``. A
+        delivery whose registration selects a profile is signed under that
+        one instead; see :attr:`signing_profiles`.
         """
-        return WEBHOOK_SIGNING_PROFILE_ADCP if self.signs_with_rfc9421 else None
+        for profile, strategy in self._profile_strategies.items():
+            if strategy is self._auth:
+                return profile
+        return None
+
+    @property
+    def signing_profiles(self) -> frozenset[str]:
+        """Every webhook-signing profile this sender can sign a delivery under.
+
+        Compare with ``webhook_signing.profiles`` in the seller's
+        capabilities: a registration naming a profile outside this set is
+        refused with :class:`WebhookSigningProfileUnavailableError`.
+        """
+        return frozenset(self._profile_strategies)
+
+    @property
+    def signing_algorithms(self) -> frozenset[str]:
+        """The RFC 9421 ``alg`` values this sender's signatures may carry.
+
+        Empty for the bearer and HMAC senders. Compare with
+        ``webhook_signing.algorithms`` in the seller's capabilities.
+        """
+        return frozenset(
+            alg
+            for strategy in self._profile_strategies.values()
+            if isinstance(alg := getattr(strategy, "alg", None), str)
+        )
 
     def check_registration(self, registration: BaseModel | Mapping[str, Any]) -> str | None:
         """Check this sender can deliver to a webhook registration; no network I/O.
@@ -703,23 +952,32 @@ class WebhookSender:
         return required
 
     def _require_profile(self, required: str | None) -> None:
-        if required is not None and required != self.signing_profile:
+        if required is not None and required not in self._profile_strategies:
             raise WebhookSigningProfileUnavailableError(
-                required_profile=required, sender_profile=self.signing_profile
+                required_profile=required,
+                sender_profile=self.signing_profile,
+                sender_profiles=self.signing_profiles,
             )
+
+    def _strategy_for(self, required: str | None) -> WebhookAuthStrategy:
+        """The strategy for a delivery's required profile; the default when none."""
+        self._require_profile(required)
+        return self._auth if required is None else self._profile_strategies[required]
 
     @property
     def signs_with_rfc9421(self) -> bool:
-        """``True`` iff this sender uses the RFC 9421 webhook-signing profile.
+        """``True`` iff this sender signs with an RFC 9421 webhook-signing profile.
 
         Boot-time validators read this to enforce the
         ``webhook_signing.supported=true`` capability invariant:
         capabilities advertise RFC 9421 → wired sender must produce
-        ``Signature`` / ``Signature-Input`` headers. ``from_bearer_token``,
-        ``from_adcp_legacy_hmac``, and ``from_standard_webhooks_secret``
-        senders return ``False``.
+        ``Signature`` / ``Signature-Input`` headers. ``from_jwk``,
+        ``from_pem`` and ``from_wba`` senders (``adcp/webhook-signing/v1``
+        and ``web-bot-auth`` are both RFC 9421 profiles) return ``True``;
+        ``from_bearer_token``, ``from_adcp_legacy_hmac``, and
+        ``from_standard_webhooks_secret`` senders return ``False``.
         """
-        return isinstance(self._auth, JwkSignerStrategy)
+        return isinstance(self._auth, (JwkSignerStrategy, WbaSignerStrategy))
 
     async def aclose(self) -> None:
         """Close the internal httpx client if we own it."""
@@ -983,6 +1241,7 @@ class WebhookSender:
             idempotency_key=prepared.idempotency_key,
             extra_headers=prepared.extra_headers or None,
             before_attempt=before_attempt,
+            signing_profile=prepared.required_signing_profile,
         )
 
     @staticmethod
@@ -1962,9 +2221,13 @@ class WebhookSender:
 
         The bytes are identical (same ``idempotency_key``, same payload
         fields, same serialization) — only the Signature / Signature-Input /
-        Content-Digest headers are regenerated. The receiver dedupes via
-        ``idempotency_key``, so the replayed event is a spec-correct retry
-        that won't cause double-processing.
+        Content-Digest headers are regenerated, under the same signing
+        profile as the original (``result.signing_profile``). The receiver
+        dedupes via ``idempotency_key``, so the replayed event is a
+        spec-correct retry that won't cause double-processing.
+
+        :raises WebhookSigningProfileUnavailableError: ``result`` was signed
+            under a registration's profile this sender does not hold.
         """
         if not result.sent_body:
             raise ValueError(
@@ -1985,6 +2248,7 @@ class WebhookSender:
             body=result.sent_body,
             idempotency_key=result.idempotency_key,
             extra_headers=result.sent_extra_headers or None,
+            signing_profile=result.signing_profile,
         )
 
     async def _send_bytes(
@@ -1995,8 +2259,12 @@ class WebhookSender:
         idempotency_key: str,
         extra_headers: Mapping[str, str] | None,
         before_attempt: Callable[[], Awaitable[bool]] | None = None,
+        signing_profile: str | None = None,
     ) -> WebhookDeliveryResult:
         """Sign + POST a pre-serialized body through an SSRF-validated transport.
+
+        ``signing_profile`` is the delivery's required profile; ``None`` signs
+        with the sender's default mode. It is checked before any network I/O.
 
         When the sender owns its httpx client (the default — ``client=None``
         was passed to ``__init__``), every delivery builds a per-request
@@ -2028,6 +2296,7 @@ class WebhookSender:
         fail. The hook output is bounded (hostname-only rewrite, scheme
         and port preserved), so this can't widen the destination space.
         """
+        auth = self._strategy_for(signing_profile)
         effective_url = apply_hooks(url, self._transport_hooks)
 
         # Build the pinned transport up-front for the owned-client path.
@@ -2045,12 +2314,17 @@ class WebhookSender:
             )
 
         base_headers = {"Content-Type": "application/json", "Accept-Encoding": "identity"}
-        auth_headers = self._auth.build_auth_headers(method="POST", url=effective_url, body=body)
-        headers = merge_extra_headers(
-            base={**base_headers, **auth_headers},
-            extra=extra_headers,
-            reserved=self._auth.reserved_headers(),
-        )
+        try:
+            auth_headers = auth.build_auth_headers(method="POST", url=effective_url, body=body)
+            headers = merge_extra_headers(
+                base={**base_headers, **auth_headers},
+                extra=extra_headers,
+                reserved=auth.reserved_headers(),
+            )
+        except BaseException:
+            if transport is not None:
+                await transport.aclose()
+            raise
 
         if before_attempt is not None:
             try:
@@ -2106,6 +2380,7 @@ class WebhookSender:
             response_body=response_body,
             sent_body=body,
             sent_extra_headers=dict(extra_headers) if extra_headers else {},
+            signing_profile=signing_profile,
         )
 
 
@@ -2114,6 +2389,7 @@ class WebhookSender:
 # cycle — see the note next to the removed top-level import.
 from adcp.webhooks import (  # noqa: E402
     WEBHOOK_SIGNING_PROFILE_ADCP,
+    WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH,
     create_mcp_webhook_payload,
     create_media_buy_delivery_webhook_payload,
     create_webhook_challenge_payload,

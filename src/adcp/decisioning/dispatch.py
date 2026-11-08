@@ -78,6 +78,7 @@ from adcp.decisioning.webhook_emit import (
     _extract_push_authentication,
     _extract_push_notification_url_and_token,
     _extract_push_operation_id,
+    _extract_push_signing_profile,
     emit_terminal_completion_webhook,
 )
 from adcp.exceptions import ADCPTaskError
@@ -1542,6 +1543,7 @@ async def _invoke_platform_method(
     webhook_target: WebhookDeliveryTarget | None = None,
     webhook_auto_emit: bool = True,
     webhook_external_owner_ready: bool = False,
+    webhook_signing_profiles: frozenset[str] | None = None,
     task_type: str | None = None,
     pre_handoff_reject: Callable[[], None] | None = None,
     sync_admission: SyncExecutorAdmission | None = None,
@@ -1611,6 +1613,11 @@ async def _invoke_platform_method(
         trusted wiring prove that a conformant registry-backed or external
         outbox owns terminal task publication. The compatibility name is
         retained for callers compiled against the earlier beta.
+    :param webhook_signing_profiles: The ``webhook_signing.profiles`` this
+        request's effective capabilities advertise (``adcp/webhook-signing/v1``
+        when omitted). A push registration requiring another profile is
+        refused with ``INVALID_REQUEST`` before the task is issued. ``None``
+        skips the check.
     :param task_type: Optional canonical AdCP task type when the Python
         platform method uses an internal compatibility name. Handoff
         admission, registry rows, and callbacks use this wire identity;
@@ -1869,6 +1876,7 @@ async def _invoke_platform_method(
         webhook_target=webhook_target,
         webhook_auto_emit=webhook_auto_emit,
         webhook_external_owner_ready=webhook_external_owner_ready,
+        webhook_signing_profiles=webhook_signing_profiles,
         allow_workflow_handoff=allow_workflow_handoff,
     )
 
@@ -1888,6 +1896,7 @@ async def _project_invocation_result(
     webhook_auto_emit: bool,
     webhook_external_owner_ready: bool,
     allow_workflow_handoff: bool,
+    webhook_signing_profiles: frozenset[str] | None = None,
 ) -> Any:
     """Project a raw adopter result and settle its framework lifecycle hooks."""
     if is_task_handoff(result) or is_workflow_handoff(result):
@@ -1923,6 +1932,7 @@ async def _project_invocation_result(
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
             webhook_external_owner_ready=webhook_external_owner_ready,
+            webhook_signing_profiles=webhook_signing_profiles,
         )
     if is_workflow_handoff(result):
         return await _project_workflow_handoff(
@@ -1934,6 +1944,7 @@ async def _project_invocation_result(
             request_params=request_params,
             webhook_auto_emit=webhook_auto_emit,
             webhook_external_owner_ready=webhook_external_owner_ready,
+            webhook_signing_profiles=webhook_signing_profiles,
             on_failure=on_failure,
         )
 
@@ -2111,6 +2122,70 @@ async def _safe_on_failure_call(
         )
 
 
+async def _push_signing_profile(
+    request_params: BaseModel | Any | None,
+    registry: Any,
+    *,
+    method_name: str,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None,
+    advertised_profiles: frozenset[str] | None = None,
+) -> str | None:
+    """The task push registration's ``signing_profile``, checked before issue.
+
+    The profile it requires is the one it names, or ``adcp/webhook-signing/v1``
+    when it names none and carries no legacy ``authentication``. Refuses with
+    ``INVALID_REQUEST`` before the task is issued when the registration is
+    malformed, when that profile is outside ``advertised_profiles`` (this
+    request's effective ``webhook_signing.profiles``, for every outbox), or
+    when a fixed-sender outbox holds no key for it. A ``sender_resolver``
+    outbox's key is checked again at each delivery attempt.
+    """
+    from adcp.webhooks import WEBHOOK_SIGNING_PROFILE_ADCP
+
+    rejection: AdcpError | None = None
+    profile: str | None = None
+    try:
+        profile = _extract_push_signing_profile(request_params)
+    except ValueError as exc:
+        rejection = AdcpError(
+            "INVALID_REQUEST",
+            message=str(exc),
+            recovery="correctable",
+            field="push_notification_config.signing_profile",
+        )
+    else:
+        outbox = getattr(registry, "task_webhook_outbox", None)
+        supports = getattr(outbox, "supports_signing_profile", None)
+        required = (
+            profile
+            if profile is not None
+            else (
+                WEBHOOK_SIGNING_PROFILE_ADCP
+                if _extract_push_authentication(request_params) is None
+                else None
+            )
+        )
+        unadvertised = advertised_profiles is not None and required not in advertised_profiles
+        if required is not None and (
+            unadvertised or (callable(supports) and supports(required) is False)
+        ):
+            rejection = AdcpError(
+                "INVALID_REQUEST",
+                message=(f"This seller does not sign task webhooks under {required!r}"),
+                recovery="correctable",
+                field="push_notification_config.signing_profile",
+                suggestion=(
+                    "Select a signing_profile listed in the seller's "
+                    "webhook_signing.profiles capability"
+                ),
+            )
+    if rejection is None:
+        return profile
+    if on_failure is not None:
+        await _safe_on_failure_call(on_failure, rejection, method_name)
+    raise rejection
+
+
 async def _validate_handoff_push_ownership(
     *,
     method_name: str,
@@ -2178,6 +2253,7 @@ async def _project_handoff(
     webhook_target: WebhookDeliveryTarget | None = None,
     webhook_auto_emit: bool = True,
     webhook_external_owner_ready: bool = False,
+    webhook_signing_profiles: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Promote a TaskHandoff to a background task.
 
@@ -2252,6 +2328,8 @@ async def _project_handoff(
         or external outbox owns terminal task delivery.
     :param webhook_external_owner_ready: Trusted configuration proof that the
         configured durable outbox owns this publication.
+    :param webhook_signing_profiles: Advertised webhook-signing profiles; see
+        :func:`_invoke_platform_method`.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
@@ -2281,6 +2359,17 @@ async def _project_handoff(
         "request_context": _extract_request_context(request_params),
     }
     push_target = _extract_push_notification_url_and_token(request_params)
+    push_signing_profile: str | None = None
+    if method_name in SPEC_WEBHOOK_TASK_TYPES and push_target is not None:
+        # Every publisher, SDK outbox or external, signs under the profile the
+        # registration selects, so an unadvertised one is refused here.
+        push_signing_profile = await _push_signing_profile(
+            request_params,
+            registry,
+            method_name=method_name,
+            on_failure=on_failure,
+            advertised_profiles=webhook_signing_profiles,
+        )
     if (
         method_name in SPEC_WEBHOOK_TASK_TYPES
         and push_target is not None
@@ -2299,6 +2388,8 @@ async def _project_handoff(
             webhook_authentication=push_authentication,
             webhook_signing_scope_id=signing_scope_id,
         )
+        if push_signing_profile is not None:
+            issue_kwargs["webhook_signing_profile"] = push_signing_profile
     task_id = await registry.issue(**issue_kwargs)
 
     # Hand off to background. The wire envelope returns immediately;
@@ -2505,6 +2596,7 @@ async def _project_workflow_handoff(
     request_params: BaseModel | Any | None = None,
     webhook_auto_emit: bool = True,
     webhook_external_owner_ready: bool = False,
+    webhook_signing_profiles: frozenset[str] | None = None,
     on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
     """Project a :class:`WorkflowHandoff` to the wire Submitted envelope.
@@ -2556,6 +2648,17 @@ async def _project_workflow_handoff(
         "request_context": _extract_request_context(request_params),
     }
     push_target = _extract_push_notification_url_and_token(request_params)
+    push_signing_profile: str | None = None
+    if method_name in SPEC_WEBHOOK_TASK_TYPES and push_target is not None:
+        # Every publisher, SDK outbox or external, signs under the profile the
+        # registration selects, so an unadvertised one is refused here.
+        push_signing_profile = await _push_signing_profile(
+            request_params,
+            registry,
+            method_name=method_name,
+            on_failure=on_failure,
+            advertised_profiles=webhook_signing_profiles,
+        )
     if (
         method_name in SPEC_WEBHOOK_TASK_TYPES
         and push_target is not None
@@ -2574,6 +2677,8 @@ async def _project_workflow_handoff(
             webhook_authentication=push_authentication,
             webhook_signing_scope_id=signing_scope_id,
         )
+        if push_signing_profile is not None:
+            issue_kwargs["webhook_signing_profile"] = push_signing_profile
     task_id = await registry.issue(**issue_kwargs)
     handoff_ctx = TaskHandoffContext(id=task_id, _registry=registry)
 
