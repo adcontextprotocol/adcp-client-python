@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.2...adcp-reporting-storage-v0.2.0-beta.3) (2026-11-08)
+
+
+### Features
+
+* **reporting-storage:** make the contract-2 ledger upgrade rolling-deploy safe with expand and contract ([#1868](https://github.com/adcontextprotocol/adcp-client-python/issues/1868)) ([32fee89](https://github.com/adcontextprotocol/adcp-client-python/commit/32fee8983a3abfa221e6ad4c884d9355414ff6aa))
+
+
+### Bug Fixes
+
+* **reporting-storage:** refuse a ledger upgraded to storage contract 2 with the real remedy ([#1857](https://github.com/adcontextprotocol/adcp-client-python/issues/1857)) ([5eebb53](https://github.com/adcontextprotocol/adcp-client-python/commit/5eebb5386fd09ac23e9727587cc9413ef24fa0af))
+
 ## [0.2.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.1...adcp-reporting-storage-v0.2.0-beta.2) (2026-11-05)
 
 
