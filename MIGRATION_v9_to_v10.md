@@ -73,12 +73,16 @@ adcp 10.0.0b0–b3 are 1):
   such check and still install beside 0.2.0b0, which then fails every reporting
   turn, so install `adcp>=10.0.0b7`
   ([#1837](https://github.com/adcontextprotocol/adcp-client-python/issues/1837)).
-- An existing SDK 9 ledger is upgraded in place by `create_schema()` or
-  `python -m adcp migrate`: `offering_id` is added with `''` for every
-  existing account-level generation, obligation and status, and the applied
-  schema versions are recorded. Stop every SDK 9 reporting worker first. A
-  default rolling update does not: once the first new pod upgrades the ledger,
-  old pods can no longer record generations or close periods, and cannot start
-  reporting if they restart. There is no rollback short of restoring a backup.
-  See [Deploying the upgrade](docs/reporting-ledger-migration.md#deploying-the-upgrade)
-  for a Recreate or two-phase rollout.
+- An existing SDK 9 ledger is upgraded by `create_schema()` or `python -m adcp
+  migrate`, and a default rolling update works. The upgrade first *expands*
+  the ledger: `offering_id` is added with `''` for every existing
+  account-level generation, obligation and status, the keys SDK 9 uses keep
+  their names beside the widened ones, and the applied schema versions are
+  recorded. SDK 9 pods keep starting, reading and writing through the rollout,
+  and a rollback works. Once every SDK 9 reporting process has stopped, run
+  `python -m adcp migrate --contract`: reporting subscriptions need it (before
+  it they raise `REPORTING_UPGRADE_NOT_CONTRACTED`), and after it SDK 9 can no
+  longer run against the ledger. Plain `python -m adcp migrate` never
+  contracts. The materializer, production and status projection extensions
+  still need their SDK 9 workers stopped first. See
+  [Deploying the upgrade](docs/reporting-ledger-migration.md#deploying-the-upgrade).

@@ -82,24 +82,38 @@ Install `adcp>=10.0.0b7` with this release.
 
 Both `PgReportingLedgerStore.create_schema()` (what `ReliableReportingService`
 runs at startup when given `store=`) and `python -m adcp migrate` upgrade an
-existing ledger in place: `offering_id` is added to `reporting_configurations`,
-`reporting_obligations`, `reporting_consumer_statuses` and the managed-delivery
-tables, backfilled with `''` for every existing account-level generation, the
-generation keys and unique indexes are widened, and the applied schema
-versions are recorded in `adcp_schema_migrations` (`create_schema()` applies
-and records the ledger's own `0001`–`0003`; `python -m adcp migrate` also
-applies the later ones, which only `postgres_storage` and the notification
-stores need). No evidence row is
-rewritten or dropped. The upgrade is transactional, serialized under the reporting schema
-advisory lock, and a no-op when re-run. It is a **stopped-worker** upgrade:
-stop every reporting worker of the earlier release first (its configuration
-writes name the four-column key), run the upgrade, then start the new release.
-A default rolling update does not stop them. Old pods' reporting writes fail
-once the first new pod has upgraded the ledger, and an old pod cannot start
-reporting again. Downgrading is unsupported: restore the backup taken before
-the upgrade. See
-[Deploying the upgrade](https://github.com/adcontextprotocol/adcp-client-python/blob/next/docs/reporting-ledger-migration.md#deploying-the-upgrade)
-for a Recreate or two-phase rollout.
+existing ledger, and **a default rolling update works**. The upgrade is an
+expand/contract pair:
+
+- **Expand** (migrations `0002` and `0006`, online-safe): `offering_id` is
+  added to `reporting_configurations`, `reporting_obligations`,
+  `reporting_consumer_statuses` and the managed-delivery tables, with `''` for
+  every existing account-level generation and `CHECK (offering_id = '')`. The
+  keys and references the earlier release uses keep their names, and the
+  widened ones are added beside them. Processes of the earlier release keep
+  starting, reading and writing account-level generations (with status
+  notifications too) while the new release rolls out, and a rollback works.
+  No evidence row is rewritten or dropped. The applied schema versions are
+  recorded in `adcp_schema_migrations` (`create_schema()` applies and records
+  the ledger's own `0001`–`0003`; `python -m adcp migrate` also applies the
+  later ones, which only `postgres_storage` and the notification stores need).
+  Each step is transactional, serialized under the reporting schema advisory
+  lock, and a no-op when re-run.
+- **Contract** (migration `0007`, stopped-worker): run `python -m adcp migrate
+  --contract` once every earlier-release reporting process has stopped. Plain
+  `python -m adcp migrate` and `create_schema()` never contract, so the former
+  is safe as a pre-deploy job. The contracted ledger is exactly a new ledger's
+  catalog. Reporting subscriptions need it: before it, recording a
+  subscription's generation raises `ReportingUpgradeNotContractedError` (code
+  `REPORTING_UPGRADE_NOT_CONTRACTED`). After it, the earlier release cannot
+  start against the ledger, so rolling back means restoring the backup.
+
+`postgres_storage(...)` starts on a ledger whose only pending migration is the
+contract step. A new ledger is created contracted. A ledger that 0.2.0b1 or
+0.2.0b2 already widened in place counts as contracted. The materializer,
+production and status projection extensions still widen their own tables when
+the new release starts: stop their earlier-release workers first. See
+[Deploying the upgrade](https://github.com/adcontextprotocol/adcp-client-python/blob/next/docs/reporting-ledger-migration.md#deploying-the-upgrade).
 
 A ledger written by 0.1.0b5 (the `(xid, seq)` account change feed, 255-character
 row binding IDs, the orphan collector fence) upgrades the same way, with no
