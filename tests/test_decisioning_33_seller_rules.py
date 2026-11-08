@@ -67,7 +67,7 @@ from adcp.types import (
 )
 from adcp.validation.schema_validator import validate_request, validate_response
 
-SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache" / "3.3.0-beta.4"
+SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache" / "3.3.0-beta.5"
 
 
 @pytest.fixture

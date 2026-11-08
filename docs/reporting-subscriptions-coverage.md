@@ -157,7 +157,7 @@ A timezone change takes effect at its `effective_at`, and each zone owes only it
 
 When a cutover hands a billing feed to a schedule with no boundary at E, the stretch from E to the first incoming boundary is owed as one stub period. Its obligation carries `stub: true` (`OwedSubscriptionPeriod.stub`, `ReportingObligationRecord.stub`). Pacing and analytics feeds leave that stretch unowed.
 
-This applies at every cutover, an account-timezone change included, as the `cutover` text says. The reference model at adcontextprotocol/adcp 8ee1bfa2 emits no stub at a timezone cutover; the spec fixes that for beta.5, and both SDKs follow the text.
+This applies at every cutover, an account-timezone change included, as the `cutover` text says. The reference model at adcontextprotocol/adcp 8ee1bfa2 emits no stub at a timezone cutover, and 3.3.0-beta.5 ships it unchanged; both SDKs follow the text.
 
 ### Sticky resolution
 

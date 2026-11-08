@@ -9,6 +9,8 @@ from adcp.types.domains.trusted_match.provider_identity_match_response import (
 )
 from adcp.types.domains.trusted_match.provider_registration import (
     TmpProviderRegistration,
+    TmpProviderRegistration1,
+    TmpProviderRegistration2,
 )
 from adcp.types.domains.trusted_match.publisher_tmpx_config import (
     PublisherTmpxMacroMapping,
@@ -35,6 +37,15 @@ def test_provider_registration_rejects_non_https_endpoint():
                 "context_match": True,
             }
         )
+
+
+@pytest.mark.parametrize("arm", [TmpProviderRegistration1, TmpProviderRegistration2])
+def test_each_provider_registration_arm_carries_its_own_validators(arm):
+    # 3.3.0-beta.5 generates a helper class (MatchKey3) between the two arms;
+    # the post-generate fixer must still attach arm 1's validators to arm 1.
+    decorators = arm.__pydantic_decorators__
+    assert "_require_https_endpoint" in decorators.field_validators
+    assert "_require_identity_match_dimensions" in decorators.model_validators
 
 
 def test_provider_registration_accepts_valid_identity_registration():

@@ -58,7 +58,7 @@ from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION, ValidationHo
 
 # A served set without the 2.5 legacy adapter, whose translated responses are
 # not re-validated (so the default set never earns ``schema_validation``).
-MODERN = ("3.2", "3.3-beta.4")
+MODERN = ("3.2", "3.3-beta.5")
 serve_module = importlib.import_module("adcp.server.serve")
 INSTALLED = importlib.metadata.version("adcp")
 _NO_IDEMPOTENCY = {"supported": False}
@@ -414,7 +414,7 @@ def test_no_reporter_means_no_block() -> None:
 @pytest.mark.parametrize("claimed", ["3.2", "3.1"])
 def test_pre_3_3_callers_never_see_the_block(claimed: str) -> None:
     handler = _PlainAgent()
-    versions = ("3.0", "3.1", "3.2", "3.3-beta.4")
+    versions = ("3.0", "3.1", "3.2", "3.3-beta.5")
     response = _capabilities(
         handler,
         _reporter(handler, supported_versions=versions),
@@ -427,7 +427,7 @@ def test_pre_3_3_callers_never_see_the_block(claimed: str) -> None:
 
 def test_3_3_caller_sees_the_block() -> None:
     handler = _PlainAgent()
-    response = _capabilities(handler, _reporter(handler), {"adcp_version": "3.3-beta.4"})
+    response = _capabilities(handler, _reporter(handler), {"adcp_version": "3.3-beta.5"})
 
     assert _sdks(response)[0]["name"] == "adcp"
 
@@ -476,7 +476,7 @@ def test_reporter_failure_still_runs_adopter_enhancer() -> None:
 def test_reporter_ignores_other_tools_and_error_envelopes() -> None:
     handler = _PlainAgent()
     reporter = _reporter(handler)
-    context = ToolContext(application_adcp_version="3.3-beta.4")
+    context = ToolContext(application_adcp_version="3.3-beta.5")
     other = {"adcp": {"major_versions": [3]}}
     reporter("get_products", other, context)
     error = {"adcp_error": {"code": "X"}, "adcp": {"major_versions": [3]}}

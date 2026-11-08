@@ -1,6 +1,6 @@
 """Capability fields for AdCP 3.3 reporting subscriptions.
 
-Each projected block is validated against the pinned 3.3.0-beta.4
+Each projected block is validated against the pinned 3.3.0-beta.5
 ``core/reporting-delivery-capabilities.json``, whose ``allOf`` couples
 ``configuration_task``, ``configuration_tasks`` and ``subscriptions``.
 """
@@ -21,7 +21,7 @@ from adcp.reporting.subscriptions import (
 )
 from adcp.validation import schema_loader
 
-VERSION = "3.3.0-beta.4"
+VERSION = "3.3.0-beta.5"
 
 BASE = {
     "supported": True,

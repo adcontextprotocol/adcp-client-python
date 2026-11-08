@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-08 02:41:59 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -168,6 +168,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.enums.makegood_remedy import MakegoodRemedy
     from adcp.types.domains.enums.markdown_flavor import MarkdownFlavor
     from adcp.types.domains.enums.match_id_type import MatchIdType
+    from adcp.types.domains.enums.match_key_use import MatchKeyUse
     from adcp.types.domains.enums.match_type import MatchType
     from adcp.types.domains.enums.media_buy_action_mode import MediaBuyActionMode
     from adcp.types.domains.enums.media_buy_frequency_cap_control_mode import (
@@ -419,6 +420,7 @@ __all__ = [
     "MakegoodRemedy",
     "MarkdownFlavor",
     "MatchIdType",
+    "MatchKeyUse",
     "MatchType",
     "MediaBuyActionMode",
     "MediaBuyFrequencyCapControlMode",
@@ -663,6 +665,7 @@ _DECLARED_IN = {
     "MakegoodRemedy": "adcp.types.domains.enums.makegood_remedy",
     "MarkdownFlavor": "adcp.types.domains.enums.markdown_flavor",
     "MatchIdType": "adcp.types.domains.enums.match_id_type",
+    "MatchKeyUse": "adcp.types.domains.enums.match_key_use",
     "MatchType": "adcp.types.domains.enums.match_type",
     "MediaBuyActionMode": "adcp.types.domains.enums.media_buy_action_mode",
     "MediaBuyFrequencyCapControlMode": "adcp.types.domains.enums.media_buy_frequency_cap_control_mode",
