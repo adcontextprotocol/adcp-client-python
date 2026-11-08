@@ -216,6 +216,13 @@ class VerifyOptions:
     #: single-value ``expected_adcp_use`` behavior.
     accepted_adcp_uses: frozenset[str] = frozenset()
     allowed_algs: frozenset[str] = ALLOWED_ALGS
+    #: Attribution only: copied onto :attr:`VerifiedSigner.agent_url` and never
+    #: compared with anything, so leaving it ``None`` skips no check. Which agent
+    #: signed follows from ``jwks_resolver``, which returns keys only for the
+    #: agents it maps. To accept any of a counterparty's agents in one
+    #: verification, resolve across them with a :class:`~adcp.signing.SignerKeyResolver`
+    #: and take the agent from the key it resolves; see "Verify against a
+    #: counterparty's several agents" in ``docs/request-signing-migration.md``.
     agent_url: str | None = None
     operator_brand_json: dict[str, Any] | None = None
     #: Trusted, negotiated AdCP signing profile. 3.0/3.1 accept the historical
