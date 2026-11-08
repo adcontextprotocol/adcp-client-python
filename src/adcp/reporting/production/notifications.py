@@ -126,13 +126,19 @@ class _SignedSubscriptions:
 
         A ``web-bot-auth`` subscription without ``web_bot_auth`` signing is
         skipped, not raised: one such subscriber must not stop deliveries to
-        every other subscriber of the account. The registration service
-        should refuse it, since the capability does not list the profile.
+        every other subscriber of the account. That subscriber then receives
+        no notifications, so the skip is logged as an error, the level the
+        outboxes use for a quarantined delivery, for operators to alert on.
+        The registration service should refuse such a subscription, since
+        the capability does not list the profile.
         """
         if value.signing_profile == WEBHOOK_SIGNING_PROFILE_WEB_BOT_AUTH and not self.web_bot_auth:
-            logger.warning(
-                "[adcp.reporting] skipping a web-bot-auth subscription: production "
-                "signing is not configured with web_bot_auth=True"
+            logger.error(
+                "[adcp.reporting] skipping web-bot-auth subscription %s for account %s: "
+                "production signing is not configured with web_bot_auth=True, so this "
+                "subscriber receives no notifications",
+                value.subscriber_id,
+                value.account_id,
             )
             return False
         return True

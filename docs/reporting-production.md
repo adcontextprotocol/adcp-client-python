@@ -145,8 +145,9 @@ algorithm set, no legacy fallback, and an 86,400-second retry horizon. Pass
 3.3): the declaration then lists both `profiles`, `ed25519` must be among the
 algorithms, and every resolved `ReportingSigningMaterial` must carry
 `web_bot_auth=ReportingWebBotAuthKey(key, agent_origin)`. Without it, a
-`web-bot-auth` subscription is skipped with a warning, and the account's other
-subscribers are still notified. See
+`web-bot-auth` subscription is skipped and logged as an error (alert on it:
+that subscriber receives nothing), and the account's other subscribers are
+still notified. See
 [Web Bot Auth webhooks](webhooks/web-bot-auth.md#reporting-notifications). Each
 queue reserves the first HTTP attempt and its key/body binding before peer I/O,
 using database time in PostgreSQL. Window insertion, HTTP attempt and ordinal

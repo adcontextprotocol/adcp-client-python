@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import asdict
 from types import SimpleNamespace
 from typing import Any
@@ -229,7 +230,9 @@ async def test_production_web_bot_auth_requires_the_key_in_every_material() -> N
 
 
 @pytest.mark.asyncio
-async def test_production_skips_only_the_web_bot_auth_subscriptions_it_cannot_sign() -> None:
+async def test_production_skips_only_the_web_bot_auth_subscriptions_it_cannot_sign(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     wba = _subscription(subscriber_id="wba_buyer", signing_profile=WBA)
     adcp = _subscription(subscriber_id="adcp_buyer")
 
@@ -242,8 +245,13 @@ async def test_production_skips_only_the_web_bot_auth_subscriptions_it_cannot_si
 
     query = {"account_id": "acct_a", "notification_type": "reporting.ledger_changed"}
     without = _SignedSubscriptions(Subscriptions())
-    # One unsignable subscriber does not block the account's other subscribers.
-    assert await without.list_active(**query) == (adcp,)
+    # One unsignable subscriber does not block the account's other subscribers,
+    # and the skip is an error-level log naming it, for operators to alert on.
+    with caplog.at_level(logging.ERROR, logger="adcp.reporting.production.notifications"):
+        assert await without.list_active(**query) == (adcp,)
+    (record,) = caplog.records
+    assert record.levelno == logging.ERROR
+    assert "wba_buyer" in record.getMessage() and "acct_a" in record.getMessage()
     assert await without.get_active(subscriber_id="wba_buyer", **query) is None
 
     enabled = _SignedSubscriptions(Subscriptions(), web_bot_auth=True)
