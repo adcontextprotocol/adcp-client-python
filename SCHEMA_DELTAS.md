@@ -1,26 +1,21 @@
 # Generated-types delta
 
+## Files added
+
+- `core/match_key.py` — MatchKey
+- `enums/match_key_use.py` — MatchKeyUse
+
 ## Field changes
 
-- `account/list_account_changes_response.py`
-  - **classes added**: Status53
-  - **classes removed**: Status54
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - `Creative`: `+supports_provenance`
-- `compliance/comply_test_controller_response.py`
-  - **classes added**: SetAccountTimezoneResult
-- `error_details/budget_too_low.py`
-  - **classes added**: Basis
-  - `BudgetTooLowDetails`: `+basis`, `+budget_field`, `+constraint`, `+related_field`
-- `governance/sync_plans_response.py`
-  - **classes added**: Status96
-  - **classes removed**: Status97
-- `media_buy/create_media_buy_request.py`
-  - **classes removed**: Opportunity, Status
-- `media_buy/get_media_buys_response.py`
-  - `Package`: `+added_at`
+  - **classes added**: BrandKitOverride11, PropertyType, SupportedMatchKey, Use, Vendor9
+  - **classes removed**: Surface
+  - `MediaBuy`: `+supported_match_keys`
+- `core/product_identity.py`
+  - `ProductIdentity`: `+match_keys`
 - `protocol/get_adcp_capabilities_response.py`
-  - `Creative`: `+supports_provenance`
-- `sponsored_intelligence/si_sponsored_context_receipt.py`
-  - **classes added**: Status76
-  - **classes removed**: Status77
+  - `MediaBuy`: `+supported_match_keys`
+- `trusted_match/provider_registration.py`
+  - **classes added**: MatchKey, Use
+  - `TmpProviderRegistration1`: `+match_keys`
+  - `TmpProviderRegistration2`: `+match_keys`

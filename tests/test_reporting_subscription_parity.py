@@ -38,7 +38,8 @@ from adcp.reporting.subscriptions import (
 )
 
 SPEC = Path(__file__).parent / "fixtures" / "reporting_subscriptions" / "spec"
-#: adcontextprotocol/adcp commit the vendored files come from (3.3.0-beta.4).
+#: adcontextprotocol/adcp commit the vendored files come from (3.3.0-beta.4; the
+#: 3.3.0-beta.5 bundle carries the same bytes).
 SPEC_COMMIT = "8ee1bfa2e9e722449ae836d7aab2f5ba5c037365"
 PINNED = {
     "vectors.json": "dc45a2131d57b255cc03ca1844c81fb3cec66a834dc0841e93bf8b9fef77d580",
@@ -68,9 +69,9 @@ def pinned_tzdata():
         installed = version("tzdata")
     except PackageNotFoundError:
         installed = None
-    assert installed == TZDATA, (
-        f"the coverage vectors need tzdata {TZDATA} (IANA 2026f); install the dev extra"
-    )
+    assert (
+        installed == TZDATA
+    ), f"the coverage vectors need tzdata {TZDATA} (IANA 2026f); install the dev extra"
     zoneinfo.reset_tzpath(to=[])
     zoneinfo.ZoneInfo.clear_cache()
     _clock._iana_zones.cache_clear()
@@ -263,7 +264,7 @@ def _wire_errors(validator, value) -> list[str]:
 
 
 def test_every_vector_wire_object_is_schema_valid() -> None:
-    """Each input's wire objects validate against the 3.3.0-beta.4 schemas.
+    """Each input's wire objects validate against the 3.3.0-beta.5 schemas.
 
     Subscriptions against ``core/reporting-subscription.json``, offerings
     (with ``available_from`` / ``withdrawn_at``) against
@@ -273,7 +274,7 @@ def test_every_vector_wire_object_is_schema_valid() -> None:
     """
     from adcp.validation import schema_loader
 
-    version = "3.3.0-beta.4"
+    version = "3.3.0-beta.5"
     subscription = schema_loader.get_named_validator(
         "core/reporting-subscription.json", version=version
     )

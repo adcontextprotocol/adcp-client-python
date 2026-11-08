@@ -1,0 +1,154 @@
+{
+  "alternates": {
+    "constraint:reporting_configurations.reporting_configurations_pkey": {
+      "enabled": true,
+      "fingerprint": "cb0658b07aa5249a6934cca6248293967db4ab1a848d706c3d5310fa98f08785",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key",
+        "constraint:reporting_configurations.reporting_configurations_uncontracted",
+        "index:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_fkey": {
+      "enabled": true,
+      "fingerprint": "ee26a73f446c794ba69fc056f5fb1b8e094b25ae48743fe5e23045749e84f1c2",
+      "requires": [
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_fkey",
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_key",
+        "index:reporting_status_notification_events.reporting_status_notification_events_offering_key"
+      ]
+    },
+    "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
+      "enabled": true,
+      "fingerprint": "a21acc6c4e405fcbf7711fe5a82c55206c994c6c969b498f9afe35af859ed206",
+      "requires": [
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_fkey",
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_key",
+        "index:reporting_status_notification_events.reporting_status_notification_events_offering_key"
+      ]
+    },
+    "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
+      "enabled": true,
+      "fingerprint": "9248b24cf88bd9d81f5c44079431cbd72714f7922600c4dd6a99f9a7a190436b",
+      "requires": [
+        "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key",
+        "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key"
+      ]
+    },
+    "function:reporting_reconciliation_evidence(r reporting_reconciliation_records)": {
+      "enabled": true,
+      "fingerprint": "cfa4e3f5b4c6505d2fe72d9828d95d3760555b1957b6d0754e3bac86c925bfdf",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "function:reporting_reconciliation_reference_immutable()": {
+      "enabled": true,
+      "fingerprint": "56fa1c28e2461a3ca5d7a68f8356f6ffb7652c0418dfaa6fad87963c849a92c1",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "function:reporting_reconciliation_validate(r reporting_reconciliation_records)": {
+      "enabled": true,
+      "fingerprint": "c4790a050f91451c7b7d5974c4513a8f9d2c5703c520604c4b87ba7aea443e8a",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "function:reporting_status_event_guard()": {
+      "enabled": true,
+      "fingerprint": "e56d1d9017667282bc1a046656fc2833a97252af37dd2c632a8e0e686b5fb175",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "function:reporting_status_scope_guard()": {
+      "enabled": true,
+      "fingerprint": "e52efa691de16f3f72df213ca103d8290807fb127ff790b15d7e68c9133757b7",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "index:reporting_configurations.reporting_configurations_pkey": {
+      "enabled": true,
+      "fingerprint": "477da25b66a532603d65020ecb7cf334aacf0c68906c04d1c842036ea3c8db74",
+      "requires": [
+        "constraint:reporting_configurations.reporting_configurations_generation_key",
+        "constraint:reporting_configurations.reporting_configurations_uncontracted",
+        "index:reporting_configurations.reporting_configurations_generation_key"
+      ]
+    },
+    "index:reporting_obligations.reporting_obligations_period_key": {
+      "enabled": true,
+      "fingerprint": "d21697e53fd171d1c462124684fe855a85d978e99ee015389600fddcb724f1df",
+      "requires": [
+        "constraint:reporting_obligations.reporting_obligations_uncontracted",
+        "index:reporting_obligations.reporting_obligations_offering_period_key"
+      ]
+    },
+    "index:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
+      "enabled": true,
+      "fingerprint": "1c8d9302d57b13d6ffed87ad1ed7ed3199119151ef68a5c28b6a075b01157e3a",
+      "requires": [
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_fkey",
+        "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_key",
+        "index:reporting_status_notification_events.reporting_status_notification_events_offering_key"
+      ]
+    },
+    "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
+      "enabled": true,
+      "fingerprint": "83b2cc13fef08e3cb5751d0182ff7b6b3b0aab04f7396a233d8a8f85cccd4a99",
+      "requires": [
+        "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key",
+        "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key"
+      ]
+    }
+  },
+  "objects": {
+    "constraint:reporting_configurations.reporting_configurations_generation_key": {
+      "enabled": true,
+      "fingerprint": "a2e5fcb8a81ecb287a401c51166eb767c1a3e44e938f339637477bbef69e78d1"
+    },
+    "constraint:reporting_configurations.reporting_configurations_uncontracted": {
+      "enabled": true,
+      "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
+    },
+    "constraint:reporting_consumer_statuses.reporting_consumer_statuses_uncontracted": {
+      "enabled": true,
+      "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
+    },
+    "constraint:reporting_obligations.reporting_obligations_uncontracted": {
+      "enabled": true,
+      "fingerprint": "8acc83717805dad2b34cd3943ff8ceea21b1a876685f4e3bca5a44e99f38a768"
+    },
+    "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_fkey": {
+      "enabled": true,
+      "fingerprint": "a88d869a73abf6c88d6af29502b32e61e5f9657a03f80959629cb89086522dad"
+    },
+    "constraint:reporting_status_notification_events.reporting_status_notification_events_offering_key": {
+      "enabled": true,
+      "fingerprint": "eea1d95be27f57f078192704cd006232ad6cdb37030fb397e2eccb3a3d430616"
+    },
+    "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key": {
+      "enabled": true,
+      "fingerprint": "672918b7e185f9a8a83e94c5a9cee1b41209ee6f3bf24dcf54f8b73417e38530"
+    },
+    "index:reporting_configurations.reporting_configurations_generation_key": {
+      "enabled": true,
+      "fingerprint": "35fc04ffd953b81c8e5cd056197a6fc13a59f342380e02eaba6718352e3ad61b"
+    },
+    "index:reporting_obligations.reporting_obligations_offering_period_key": {
+      "enabled": true,
+      "fingerprint": "f79c76eaf5e8d69f915b9db57e666f144abdf71435642c15257390da34d26e2f"
+    },
+    "index:reporting_status_notification_events.reporting_status_notification_events_offering_key": {
+      "enabled": true,
+      "fingerprint": "b567363d11ed0acbd0e10aa0d8d13bb90d0cd6da8e90814715e1841e517e2032"
+    },
+    "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_offering_key": {
+      "enabled": true,
+      "fingerprint": "33133b321ba67e1df8da93dfb98182c06d26cd8d30c515aa37451b460d5dbfe2"
+    }
+  }
+}

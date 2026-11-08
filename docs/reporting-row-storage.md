@@ -164,6 +164,13 @@ await store.create_schema()
   fails with `UNSAFE_BINDING`, never `INVALID_INPUT`, which would read as bad rows), is not part of the binding
   identity, and is still used for reads and retirement. Rows already written stay readable at their recorded
   `object_ref`; reads never re-render a key. Keep a retired binding configured while revisions still reference it.
+- **Identifiers you choose are AdCP-bounded.** A binding ID and a binding's `credential_ref` (and the keys of a
+  provider's `clients` map) are 1 to 255 characters of `A-Za-z0-9_.:-`, the bound `reporting_revision_id`,
+  `resource_ref` and `destination_ref` use (`REPORTING_ROW_BINDING_ID_MAX_LENGTH` and
+  `REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH` in `adcp_reporting_storage.ledger.row_storage_object`). They were capped at
+  128, so an ID derived from an AdCP destination reference could be refused for no protocol reason. A longer or
+  malformed value fails `INVALID_INPUT` at configuration with the bound named (a long ID is truncated in the message,
+  never echoed whole). The `adcp_reporting_row_bindings` `CHECK` is the same bound.
 - **`{period_date}` is AdCP's `YYYY-MM-DD`**: the calendar date of the period start in the period's
   `source_timezone`, as one path segment (a period starting `2026-10-01T00:00:00Z` in `America/Los_Angeles` is
   `2026-09-30`). It fails closed (`INVALID_INPUT`) on a missing, unknown or non-IANA timezone and never assumes UTC;
@@ -320,6 +327,141 @@ stays as a small marker that makes reads answer as expired; the records are alre
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
 
+## The object lock contract
+
+The per-object advisory lock is kept only where nothing else orders the two sides, in the contract the JavaScript SDK
+shares ([adcp-client#3606](https://github.com/adcontextprotocol/adcp-client/pull/3606)). The lock text is
+`adcp-reporting-object:` + binding ID + `:` + object ref, passed to `pg_advisory_xact_lock(hashtextextended(text, 0))`,
+so a Python deleter and a JavaScript adopter agree in one database.
+
+1. **No lock:** retirement, the intent sweep and a commit that adopts an object its own intent recorded. Per object, one
+   statement checks that no `live` or `unavailable` row set outside the operation names the same binding, `object_ref`
+   and `native_version_ref`, and no `open` intent in the binding lists it in `created_objects` (both the current and the
+   pre-alignment `objectKey` / `nativeVersion` spellings are read); then the exact version is deleted. No transaction or
+   pooled connection is held across the provider delete.
+2. **A commit** takes the account lock and closes its intent with `DELETE ... WHERE owner_token = ... AND state =
+   'open' RETURNING created_objects` (no row fails `STATE_UNAVAILABLE`). For each adopted object whose
+   `(object_ref, native_version_ref)` is **not** in the returned list it takes its binding's object lock, in object-ref
+   order. It then proves every adopted object with a version-pinned `stat` (a full read when the provider has none)
+   before inserting the chunk rows.
+3. **The orphan collector** locks every binding's key for the object (configured plus registered, sorted by binding
+   ID), repeats the reference check across all bindings under those locks, then deletes. It is the only locked delete.
+4. Lock order: the account lock, then object locks. Native versions must be write-unique (the conformance suite's
+   `write-unique-version`).
+
+Why this is safe without the lock: the account lock orders commits, retirement phase 1, intent takeover and the sweep
+claim; `pruning` is committed under it before any delete, and `pruning` row sets neither count as references nor can be
+shared; an intent moves `open -> sweeping` against the commit's `DELETE ... WHERE state = 'open'`, in the same transaction
+as the chunk insert, so a reader sees the open intent or the chunk rows, never neither; deletes name an exact native
+version; and every writable key includes `{revision_key}`, so one row set alone can name it. **Precondition (documented,
+not enforced):** two writable bindings must not share one bucket and prefix, because the reference check is per binding
+outside the collector.
+
+## Orphaned objects: the opt-in listing collector
+
+The intent sweep deletes only what an intent lists, so it cannot see three cases: an upload whose `PUT` succeeded before
+the intent recorded it, intents for a binding no running host configures, and intents lost to a database restore.
+`collect_orphaned_row_objects` covers them by listing, and it is **off unless you ask for it**. It mirrors the
+JavaScript SDK's collector and fence ([adcp-client#3291](https://github.com/adcontextprotocol/adcp-client/pull/3291),
+[#3593](https://github.com/adcontextprotocol/adcp-client/pull/3593)); the design record is
+`specs/shared-sdk-persistence-proposal.md` section 4.2.
+
+```python
+from adcp_reporting_storage import ReportingOrphanCollectionOptionsV1
+
+store = PgReportingLedgerStore(
+    pool=pool,
+    row_storage=options,
+    # Start with dry_run=True and read the candidates in the task result. A real pass needs the
+    # acknowledgement below.
+    orphan_collection=ReportingOrphanCollectionOptionsV1(acknowledge_exclusive_namespace=True),
+)
+# or, from your own scheduler:
+result = await store.collect_orphaned_row_objects(dry_run=True)
+```
+
+It lists each configured object binding under `{prefix}/{namespace_key}/` and deletes an object only when **all** of
+these hold:
+
+1. Its key is a well-formed row object (`.jsonl` or `.jsonl.gz`, the grammar `render_reporting_row_object_key_v1`
+   produces, no `.` or `..` segment) under that prefix. Anything else, or anything a provider returns outside the
+   prefix, is dropped and counted as `foreign`; `delete_objects` independently refuses keys outside the owned prefix.
+2. It was written more than `min_age_seconds` ago (default 7 days, **minimum 1 day**, against a write deadline of at
+   most 10 minutes). An unreadable or non-RFC 3339 write time counts as young. Providers report the later of creation
+   and modification time.
+3. A version- and binding-blind pre-check finds no chunk of a not-yet-`pruned` row set and no write intent (any state,
+   old or new JSON keys) naming the key. Two bindings can share a bucket and prefix (a retired `read_only` binding kept
+   next to its successor), so the check is not scoped to the collecting binding.
+4. Under the per-object advisory lock of **every** binding, taken in a fixed order so the delete is serialized with an
+   adoption through any of them (see [the object lock contract](#the-object-lock-contract)), no `live` or `unavailable` row set references that exact version and no open intent
+   created it. The provider then deletes that exact version.
+
+`read_only` bindings are skipped unless `include_read_only`. `dry_run` deletes nothing and reports up to 1000
+`candidates`. Deleting requires `acknowledge_exclusive_namespace=True` (a dry run does not). `deleted` counts delete
+requests that found nothing referenced; an object another host removed first still counts. A delete that fails is
+counted and the pass moves on, and is retried on the next full listing; a listing failure retries the same page.
+
+**Providers.** A provider gains an optional `list` (`ReportingRowObjectListInputV1` in, a page of
+`ReportingRowObjectListEntryV1` out: `object_ref`, `native_version_ref`, `size_bytes`, `created_at`), implemented by the
+filesystem, GCS, S3 and Azure Blob providers (on versioned stores it lists noncurrent versions too and never delete
+markers). `run_reporting_row_object_provider_conformance_v1` checks it when present and then returns a `list` entry, so
+code that compares the whole list must expect it. A provider without `list` keeps working; its binding is reported
+`unsupported`. `list` must be read-after-write consistent for keys `put_if_absent` returned: the fence below reads the
+newest claim by listing. The filesystem provider's `list` reads and sorts each directory in full and neither lists nor follows symlinks, so it is
+for tests and single hosts.
+
+**Budget and resumability.** `limit` bounds the objects examined per binding per pass; a page cap bounds empty pages; a
+repeated page token or an oversized page fails the binding instead of looping; a failure on the first page of a resumed
+cursor drops the cursor so it cannot wedge. Pass `result.cursors` back as `cursors` and `result.completed` as
+`skip_bindings`. As a store option, `interval_seconds` (default one day) spaces full listings, a listing that does not
+finish within `limit` continues on every pass, and the position lives in the process, so a restart begins a new
+listing.
+
+### The clone fence
+
+A clone or point-in-time restore of the ledger database shares the live database's installation identity, namespace
+key and configuration, **including `acknowledge_exclusive_namespace`**, but sees an older set of references, so its
+collector would delete the live database's newer objects once they pass the age threshold. A real pass is therefore
+fenced:
+
+- **Fence.** `{prefix}/{namespace_key}/_collector-fence/{epoch:016d}.json`: one create-only object per epoch,
+  `{v, namespace_key, epoch, token, previous_token, claimed_at}`, the bytes the JavaScript SDK writes. The highest epoch
+  is the current claim. The database records its last `(epoch, token, previous_token)` in
+  `adcp_reporting_orphan_collector_fences`, keyed by a hash of provider, location, prefix and namespace key, so
+  bindings that reach the same bucket and prefix share one fence.
+- **Claim.** A real pass takes a session advisory lock, proceeds only if the bucket's highest epoch is exactly the
+  recorded claim, commits the intent for `epoch + 1` under a fresh token, writes that object create-only, verifies the
+  token at the key and prunes all but the predecessor. It holds the lock through the write, so a sibling host of the
+  same database cannot interleave, and it does this before the first delete. A claim holds one pool connection across
+  the object-store reads and write.
+- **Check.** The fence is read again before the first delete of every page and every 25 deletes within one. Any
+  mismatch stops the pass; `deleted` keeps what went before.
+- **Refusal.** A refused binding has `status == "fenced"` and `fence` (`cause`, `detail`, `fence_epoch`,
+  `recorded_epoch`); the result lists it in `fenced`. Causes: `claimed_elsewhere`, `fence_advanced`, `token_mismatch`,
+  `fence_missing`, `fence_regressed`, `fence_unreadable`, `claim_lost`, `migration_required`. Everything unexpected
+  fails closed, including a fence-directory listing in which the provider left out an entry it could not address (it could be
+  the newest claim). A provider or database error is `failed`, not `fenced`. `dry_run` reads the fence without claiming it
+  and reports fenced bindings too.
+- **Crash safety.** The intent commits before the object is written. A crash between the two leaves the database one
+  epoch ahead of the bucket with the matching previous token; the next pass finishes the claim under a **fresh** token,
+  so a copy taken in that window cannot adopt the same token as the original.
+- **Takeover.** After a restore, or when the previous owner is gone, `await store.take_over_orphan_collector_fence(
+  acknowledge_previous_owner_gone=True)` claims `max(epoch) + 1` and supersedes every older object and version,
+  including a damaged chain. It refuses without the acknowledgement. Stop the previous owner's collector first: a pass
+  already running notices the new epoch at its next check, at most 25 deletes later.
+
+Known limits. **First claim wins:** nothing in a database distinguishes a copy from the original until one of them
+claims, so a clone that collects before the original has run a pass since the copy claims first and the original is
+fenced (and reported). The clone still cannot delete an object the original wrote after the copy until it is
+`min_age_seconds` old. **Claim from the live database first** when you roll this out: one real pass, or a takeover.
+The fence needs write access to each collected binding (a `read_only` binding collected with `include_read_only`
+included), and a lifecycle rule must not expire `_collector-fence/`.
+
+**Rollout.** The fence table is created by `reporting_row_storage.sql` (`create_schema`), outside the required-schema
+manifest, so a deployment that never enables the collector needs nothing from it. Until it exists a pass reports every
+binding `fenced` with `migration_required`, a dry run included, and deletes nothing. Python supports one writer SDK per
+ledger database; if a JavaScript deployment shares the database, claim from one SDK only.
+
 ## Stored names follow AdCP
 
 Stored values use the names and bounds AdCP already defines (`reporting-file-manifest.json`,
@@ -334,6 +476,7 @@ by an earlier release in place, idempotently, under both SDKs' migration advisor
 | `adcp_reporting_row_chunks.byte_count` | `canonical_size_bytes` | uncompressed canonical bytes; the digest-pinned manifest value |
 | `adcp_reporting_row_sets.canonical_byte_count` | `content_size_bytes` | size of the content `content_sha256` covers (a revision's includes the envelope, so it is not the sum of its chunks) |
 | `adcp_reporting_row_sets.encoding` | `format` = `jsonl`, `algorithm` = `adcp_jcs_rows_v1` | `adcp_jcs_rows_v1` names the per-row RFC 8785 canonicalization |
+| `adcp_reporting_row_bindings.row_binding_id` `CHECK` `{1,128}` (unnamed) | `{1,255}`, named `adcp_reporting_row_bindings_row_binding_id_bounds` | AdCP's identifier bound; `credential_ref` is bounded the same in code (it lives in `operational_config`) |
 
 In Python: `ReportingRowChunkLocatorV1` has `object_ref`, `native_version_ref` and `size_bytes`; provider inputs take
 `object_ref` and `native_version_ref`; `ReportingRowBindingSelectionInputV1.content_size_bytes` replaces
@@ -342,6 +485,15 @@ In Python: `ReportingRowChunkLocatorV1` has `object_ref`, `native_version_ref` a
 change, and no digest changed: the format and algorithm tokens feed none. Open write intents record
 `{"object_ref", "native_version_ref"}`; the sweep and the reference check also read the earlier `objectKey` /
 `nativeVersion` spelling, for a writer still running during a rolling upgrade.
+
+Widening `row_binding_id` drops the original unnamed `{1,128}` `CHECK` (found through `pg_get_constraintdef`) and adds
+the named `{1,255}` one, only when the database still has the old one, so a current schema changes nothing and no data
+migrates; the two tables that reference the ID hold it by foreign key only. A host-customised constraint of another
+shape is left alone. The startup catalog check requires the new constraint, so an application upgraded before
+`create_schema` runs fails closed with `STATE_UNAVAILABLE` naming `adcp_reporting_row_bindings_row_binding_id_bounds`,
+and an older binary fails closed against an upgraded database (it requires the original constraint name): stop older
+writers first. The JavaScript SDK makes the same change with the same constraint name
+([adcp-client#3595](https://github.com/adcontextprotocol/adcp-client/pull/3595)).
 
 The migration does not rewrite recorded object keys. Objects written before the upgrade keep their recorded
 `object_ref` (rendered under the old UTC `yyyy/MM/dd` layout), so reads, retention and deletes keep working; new writes
@@ -386,7 +538,7 @@ missing. The JavaScript SDK has no replay of `python-written.json`; the live tes
 
 `PgReportingLedgerStore(pool=pool, change_feed=True)` also appends one row to the shared `adcp_reporting_changes`
 table (PostgreSQL 13 or later, `xid8`) for every obligation, revision and adjustment, in the transaction that writes
-the record and after the account lock. The JavaScript SDK writes the same table. It is separate from
+the record. The JavaScript SDK writes the same table. It is separate from
 `reporting_ledger_changes`, the buyer-facing feed behind `changes_checkpoint` and `changes_after`, until the shared
 Core layout.
 
@@ -398,18 +550,44 @@ await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds ba
 await store.changes_after(account_id="acct_a", cursor=page.cursor)
 ```
 
-- **Account feeds** order by `seq` and truncate each page before the first change whose transaction is not below
-  every transaction still in flight (`xid >= pg_snapshot_xmin(pg_current_snapshot())`): a page is the committed prefix
-  in `seq` order and stops there, and its cursor never moves past a held-back change. `seq` is taken under the account
-  lock, but ordering does not rely on that lock. Truncation is deliberate: a plain `xid < xmin` *filter* would be
-  wrong, because `seq` order and `xid` order can differ, and it would hand out a later change while skipping an earlier
-  one it excluded. `xmin` is cluster-wide, so **any older open transaction anywhere in the database holds account pages
-  back until it ends, and an empty page can mean "caught up" or "held back"**; poll again rather than concluding
-  nothing is new. The row scan is still served by the `(account_id, seq)` index. This narrows the window for a second
-  writer but does not close it for every interleaving: one writer SDK per database remains the contract.
-- **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
-  older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
-  this feed; it never makes it lose a record.
+- **Every feed orders by `(xid, seq)`**, account-scoped or deployment-wide (no `account_id`), and returns only changes
+  whose transaction is older than every transaction still in flight (`xid < pg_snapshot_xmin(pg_current_snapshot())`),
+  so a slow commit is never skipped. The order does not depend on the account lock, on the order a writer drew `seq`
+  in, or on which lock key a writer took: a change with a lower `seq` and a higher `xid` that commits late is returned
+  on a later page, after the cursor. The cost is that `xmin` is cluster-wide, so **any older open transaction anywhere
+  in the database holds every feed back until it ends, and an empty page can mean "caught up" or "held back"**; poll
+  again rather than concluding nothing is new, and keep transactions short. The account scan is served by the
+  `(account_id, xid, seq)` index that `create_schema` creates. One writer SDK per database remains the contract: a
+  second SDK can write rows the first SDK's lifecycle, retention and idempotency logic does not know about.
+- **Account cursors carry `xid`** (`{"v":1,"account":...,"seq":...,"xid":...}`), the same bytes the JavaScript SDK
+  writes. Store the cursor string opaquely. Cursor `seq` and `xid` are range-checked, so a value the database would
+  reject raises `ValueError`, never a driver error.
+- **Upgrading from account cursors that carry only `seq`.** Account feeds used to order by `seq` and truncate each
+  page before the first in-flight change. A cursor saved then has no `xid`. `changes_after` accepts it and maps it to
+  the position `(X, S)`, where `X` is the smaller of the oldest `xid` among the account's changes after `S` and the
+  reading snapshot's `xmin`. Every change after `S` has an `xid` at or above both (a change that has not committed yet
+  belongs to a transaction at or above `xmin`), so nothing is skipped. The cost is redelivery: changes the consumer
+  already read can come back (those with a lower `seq` and a higher `xid`, and, if a long transaction was open at that
+  moment, every change committed since it began), so treat redelivery as normal, as for any at-least-once consumer.
+  The returned cursor is in the new format even on an empty page, so a sink saves it with its next batch. A seq-only
+  cursor raises `CURSOR_EXPIRED` when **any** change with a higher `seq` was pruned: `pruned_through_seq` still records
+  the highest `seq` pruned, whatever its `xid`, for exactly this check, because a tuple compare alone would miss a
+  pruned change with a higher `seq` and a lower `xid`. A consumer registered before the upgrade has a NULL `cursor_xid`
+  and holds retention by `seq` until its next `save_feed_consumer_cursor`; saving a seq-only cursor registers the
+  mapped position.
+- **Rolling out the `(xid, seq)` account feed.** `create_schema` applies `reporting_changes.sql`, which is idempotent:
+  it adds `pruned_through_xid` and `pruned_through_xid_seq` to `adcp_reporting_change_account_horizon`, replaces the
+  `adcp_reporting_feed_consumers` check constraint with `adcp_reporting_feed_consumers_cursor_scope` (an account
+  consumer may now carry an `xid`; a pre-upgrade account row keeps a NULL one), and creates
+  `adcp_reporting_changes_account_xid`. On a large `adcp_reporting_changes` table create the index first with
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS adcp_reporting_changes_account_xid ON adcp_reporting_changes
+  (account_id, xid, seq)`, because a plain `CREATE INDEX` blocks appends while it builds; the migration then skips it.
+  The old `(account_id, seq)` index stays, because it serves the seq-only mapping; drop it once no older host runs.
+  **Do not run an older host's change maintenance (`prune_changes`, `retire_expired_periods`) alongside the new
+  reader.** The older code holds an account consumer's changes by `seq` alone and records only `pruned_through_seq`,
+  so against a consumer holding new-format cursors it can prune a change the consumer has not read without advancing
+  the horizon the new reader checks. Stop the older hosts' maintenance, or the hosts, first. Rolling back after a
+  consumer saved a new-format account cursor is not supported (the older SDK rejects it): reset those consumers.
 - A cursor older than the retained history raises `ReportingChangeCursorExpiredError` (`code == "CURSOR_EXPIRED"`).
   Resynchronize from `list_current_revisions` and resume from the cursor returned with that read.
 - **A read with no cursor can raise `CURSOR_EXPIRED` too.** `changes_after` reads the prune horizon, reads the page,
@@ -418,12 +596,15 @@ await store.changes_after(account_id="acct_a", cursor=page.cursor)
   The page is rejected instead. Retrying the read starts from the new, later horizon, which is the oldest retained
   change; a consumer that had been reading from a cursor resynchronizes from `list_current_revisions` as usual. Handle
   `CURSOR_EXPIRED` on every `changes_after` call, including a first read, by matching `error.code`.
-- A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
-  `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
-  `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
+- A registered consumer holds back `prune_changes` and `retire_expired_periods` until it has passed those changes in
+  `(xid, seq)` order (an account consumer only within its account), up to `max_feed_hold_days` (default 7) after its
+  last update, so a dead consumer cannot block retention. `prune_changes` takes its victims in `(xid, seq)` order and
+  records a per-account `(xid, seq)` horizon, so a batch cut by its limit never leaves a retained change below the
+  horizon. Schedule `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes
+  in both SDKs.
 - **Checkpoints are forward-only within a feed scope.** `save_feed_consumer_cursor` ignores a cursor behind the saved
   one, so a delayed or repeated acknowledgment cannot pull the consumer, or its retention hold, backward and make it
-  reprocess changes. Account consumers compare `seq`; deployment consumers compare `(xid, seq)`. The call returns
+  reprocess changes. Every consumer compares `(xid, seq)`. The call returns
   `True` when it wrote the checkpoint and `False` when it ignored it (behind the saved position, or equal with
   `refresh_unchanged=False`). An equal cursor by default rewrites the checkpoint and renews the hold, which is the
   heartbeat for an idle consumer. A change of scope (account to deployment, deployment to account, or between
@@ -510,6 +691,7 @@ Tombstones live in `adcp_reporting_period_tombstones`, created with row storage 
 | `row_storage` | `prune_expired_row_sets` | 20 periods |
 | `row_storage` or `change_feed` | `retire_expired_periods` | 20 periods |
 | `change_feed` | `prune_changes` | 10,000 rows |
+| `orphan_collection` | `collect_orphaned_row_objects` | `limit` objects per binding per pass (default 1000), full listings spaced by `interval_seconds` |
 
 Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it.
 Only the closed operation name and integer counters are logged, never an exception, provider message or identifier:
@@ -517,11 +699,13 @@ Only the closed operation name and integer counters are logged, never an excepti
 - `REPORTING_MAINTENANCE_FAILED` (warning): the operation raised or reported failed items (a binding that cannot
   delete, for example). Read `causes` from the result for the stable per-item code.
 - `REPORTING_MAINTENANCE_PENDING` (info): work was left in place on purpose, with the counters `protected`, `held`,
-  `deferred` and `skipped_unconfigured`. A retirement that does nothing because every period is held shows up here
+  `deferred`, `skipped_unconfigured` and `unsupported` (object bindings whose provider cannot list). A retirement that does nothing because every period is held shows up here
   instead of looking like a healthy idle worker.
 - `REPORTING_MAINTENANCE_STALLED` (warning): work nobody is reaching, with `overdue` (intents expired for more than
   `overdue_after_seconds`, default 24 hours, and still unswept: a binding no host configures any more, or one that
-  keeps failing, so objects leak) and `stuck` (periods with five or more failed retirement attempts).
+  keeps failing, so objects leak), `stuck` (periods with five or more failed retirement attempts) and `fenced`
+  (object bindings the orphan collector refused to delete from because another database holds the namespace's claim;
+  see [the clone fence](#the-clone-fence)).
 
 The last pass's counters are also on `ReportingProductionSupport.maintenance_report`, per operation.
 `prune_expired_row_sets` is scheduled so row bytes are reclaimed even while a period's records stay; its only hold is

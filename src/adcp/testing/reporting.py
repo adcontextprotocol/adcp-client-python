@@ -215,7 +215,7 @@ class ReferenceReportingSeller(ADCPHandler[ToolContext]):
                 "major_versions": [3],
                 # Reporting subscriptions need the 3.3 line; advertise it so a
                 # runner negotiates it rather than falling back to 3.0.
-                "supported_versions": ["3.3-beta.4"],
+                "supported_versions": ["3.3-beta.5"],
                 "idempotency": {"supported": True, "replay_ttl_seconds": 86_400},
             },
             "supported_protocols": ["media_buy"],

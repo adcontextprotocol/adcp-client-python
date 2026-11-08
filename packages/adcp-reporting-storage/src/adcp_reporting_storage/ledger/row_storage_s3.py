@@ -20,9 +20,13 @@ This module never imports ``boto3``; the host passes the clients.
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import json
 import re
 import uuid
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, Literal
 
 from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
@@ -30,11 +34,15 @@ from adcp_reporting_storage.ledger.row_storage_object import (
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListEntryV1,
+    ReportingRowObjectListInputV1,
+    ReportingRowObjectListPageV1,
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectPutResultV1,
     ReportingRowObjectStatInputV1,
     ReportingRowObjectStatResultV1,
+    format_row_instant,
 )
 from adcp_reporting_storage.ledger.row_storage_provider_io import (
     assert_key,
@@ -457,6 +465,92 @@ class _S3Provider:
         if type(size) is not int or size < 0:
             raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "object metadata is malformed")
         return ReportingRowObjectStatResultV1(version, size)
+
+    async def list(
+        self, request: ReportingRowObjectListInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectListPageV1:
+        client, bucket = self._target(request.location, request.credential_ref)
+        if not isinstance(request.prefix, str) or len(request.prefix.encode()) > 1024:
+            raise ReportingRowStoreError("INVALID_INPUT", "list prefix is invalid")
+        if type(request.page_size) is not int or request.page_size < 1:
+            raise ReportingRowStoreError("INVALID_INPUT", "page_size must be a positive integer")
+        markers: tuple[str, str] | None = None
+        if request.page_token is not None:
+            try:
+                decoded = json.loads(
+                    base64.urlsafe_b64decode(
+                        request.page_token + "=" * (-len(request.page_token) % 4)
+                    )
+                )
+                if not isinstance(decoded.get("k"), str) or not isinstance(decoded.get("v"), str):
+                    raise ValueError("invalid")
+                markers = (decoded["k"], decoded["v"])
+            except (ValueError, binascii.Error, UnicodeError, AttributeError):
+                raise ReportingRowStoreError(
+                    "INVALID_INPUT", "list page token is invalid"
+                ) from None
+        return await asyncio.to_thread(self._list, client, bucket, request, markers)
+
+    @staticmethod
+    def _list(
+        client: Any,
+        bucket: str,
+        request: ReportingRowObjectListInputV1,
+        markers: tuple[str, str] | None,
+    ) -> ReportingRowObjectListPageV1:
+        # Row buckets are versioned and the native version is the VersionId, so list versions:
+        # each (Key, VersionId) is what a delete would name. Delete markers are not objects.
+        parameters: dict[str, Any] = {
+            "Bucket": bucket,
+            "Prefix": request.prefix,
+            "MaxKeys": min(request.page_size, 1000),
+        }
+        if markers is not None:
+            parameters["KeyMarker"], parameters["VersionIdMarker"] = markers
+        output = client.list_object_versions(**parameters)
+        objects: list[ReportingRowObjectListEntryV1] = []
+        skipped = 0
+        for version in output.get("Versions") or []:
+            key = version.get("Key")
+            version_id = version.get("VersionId")
+            size = version.get("Size")
+            modified = version.get("LastModified")
+            # An entry that cannot be addressed or aged is left out: it is never collected, and
+            # one bad entry must not stop the listing of the rest. A version written before
+            # versioning was enabled is ``null`` and is never addressable by a recorded version.
+            if (
+                not isinstance(key, str)
+                or not key.startswith(request.prefix)
+                or not isinstance(version_id, str)
+                or version_id == "null"
+                or not _VERSION_ID.fullmatch(version_id)
+                or type(size) is not int
+                or size < 0
+                or not isinstance(modified, datetime)
+                or modified.tzinfo is None
+            ):
+                skipped += 1
+                continue
+            objects.append(
+                ReportingRowObjectListEntryV1(key, version_id, size, format_row_instant(modified))
+            )
+        next_key = output.get("NextKeyMarker")
+        next_version = output.get("NextVersionIdMarker")
+        token: str | None = None
+        if output.get("IsTruncated"):
+            if not isinstance(next_key, str) or not isinstance(next_version, str):
+                # Ending here would report a partial listing as complete.
+                raise ReportingRowStoreError(
+                    "PROVIDER_UNAVAILABLE", "object listing is truncated without a marker"
+                )
+            token = (
+                base64.urlsafe_b64encode(
+                    json.dumps({"k": next_key, "v": next_version}, separators=(",", ":")).encode()
+                )
+                .rstrip(b"=")
+                .decode("ascii")
+            )
+        return ReportingRowObjectListPageV1(tuple(objects), token, skipped)
 
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1

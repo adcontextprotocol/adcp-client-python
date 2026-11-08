@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, Literal
 
 from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
@@ -24,11 +25,15 @@ from adcp_reporting_storage.ledger.row_storage_object import (
     ReportingRowObjectContextV1,
     ReportingRowObjectDeleteInputV1,
     ReportingRowObjectGetInputV1,
+    ReportingRowObjectListEntryV1,
+    ReportingRowObjectListInputV1,
+    ReportingRowObjectListPageV1,
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectPutResultV1,
     ReportingRowObjectStatInputV1,
     ReportingRowObjectStatResultV1,
+    format_row_instant,
 )
 from adcp_reporting_storage.ledger.row_storage_provider_io import (
     assert_key,
@@ -293,6 +298,68 @@ class _GcsProvider:
         if size < 0:
             raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "object metadata is malformed")
         return ReportingRowObjectStatResultV1(str(generation), size)
+
+    async def list(
+        self, request: ReportingRowObjectListInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectListPageV1:
+        bucket = self._bucket(request.location, request.credential_ref)
+        if not isinstance(request.prefix, str) or len(request.prefix.encode()) > 1024:
+            raise ReportingRowStoreError("INVALID_INPUT", "list prefix is invalid")
+        if type(request.page_size) is not int or request.page_size < 1:
+            raise ReportingRowStoreError("INVALID_INPUT", "page_size must be a positive integer")
+        return await asyncio.to_thread(self._list, bucket, request, context.timeout_seconds)
+
+    @staticmethod
+    def _list(
+        bucket: Any, request: ReportingRowObjectListInputV1, timeout: float
+    ) -> ReportingRowObjectListPageV1:
+        # ``versions=True`` lists every generation, noncurrent ones included, so each
+        # (key, generation) a delete could name is visible. On a bucket without versioning it
+        # lists the live objects.
+        iterator = bucket.list_blobs(
+            prefix=request.prefix,
+            versions=True,
+            max_results=min(request.page_size, 1000),
+            page_token=request.page_token,
+            timeout=timeout,
+        )
+        page = next(iter(iterator.pages), None)
+        objects: list[ReportingRowObjectListEntryV1] = []
+        skipped = 0
+        for blob in list(page) if page is not None else []:
+            name = getattr(blob, "name", None)
+            size = getattr(blob, "size", None)
+            generation = str(getattr(blob, "generation", "") or "")
+            created = getattr(blob, "time_created", None)
+            updated = getattr(blob, "updated", None)
+            # The later of the generation's creation and last metadata update: an object is
+            # never reported older than it is.
+            times = [
+                moment
+                for moment in (created, updated)
+                if isinstance(moment, datetime) and moment.tzinfo is not None
+            ]
+            # An entry that cannot be addressed or aged is left out: it is never collected, and
+            # one bad entry must not stop the listing of the rest.
+            if (
+                not isinstance(name, str)
+                or not name.startswith(request.prefix)
+                or type(size) is not int
+                or size < 0
+                or not times
+                or not _GENERATION.fullmatch(generation)
+            ):
+                skipped += 1
+                continue
+            objects.append(
+                ReportingRowObjectListEntryV1(
+                    name, generation, size, format_row_instant(max(times))
+                )
+            )
+        token = getattr(iterator, "next_page_token", None)
+        return ReportingRowObjectListPageV1(
+            tuple(objects), token if isinstance(token, str) and token else None, skipped
+        )
 
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1

@@ -76,7 +76,7 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -161,6 +161,7 @@ from adcp_reporting_storage.ledger.row_storage import (
     ReportingRowStorageV1,
     ReportingRowStoreError,
 )
+from adcp_reporting_storage.migrations import upgrade_not_contracted_error
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -171,6 +172,11 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.ledger.change_feed import (
         ReportingChangeKindV1,
         ReportingChangesPageV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanCollectionOptionsV1,
+        ReportingOrphanCollectionResultV1,
+        ReportingOrphanFenceTakeoverV1,
     )
     from adcp_reporting_storage.ledger.period_retirement import ReportingPeriodRetirementV1
     from adcp_reporting_storage.ledger.row_migration import ReportingRowMigrationBatchV1
@@ -256,6 +262,7 @@ class PgReportingLedgerStore:
         notifications: bool = False,
         row_storage: bool | ReportingRowStorageOptionsV1 | None = None,
         change_feed: bool = False,
+        orphan_collection: ReportingOrphanCollectionOptionsV1 | None = None,
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
@@ -271,6 +278,20 @@ class PgReportingLedgerStore:
                 row_storage if isinstance(row_storage, ReportingRowStorageOptionsV1) else None
             )
         )
+        # Opt-in listing collector for row objects the write-intent sweep cannot see, scheduled by
+        # the production worker. It needs row storage; its position lives in this process.
+        if orphan_collection is not None:
+            from adcp_reporting_storage.ledger.orphan_collector import (
+                ReportingOrphanCollectionOptionsV1,
+                ReportingOrphanCollectionStateV1,
+            )
+
+            if not isinstance(orphan_collection, ReportingOrphanCollectionOptionsV1):
+                raise TypeError("orphan_collection must be ReportingOrphanCollectionOptionsV1")
+            if self._row_storage is None:
+                raise ValueError("orphan_collection requires row_storage")
+            self._orphan_state = ReportingOrphanCollectionStateV1()
+        self._orphan_collection = orphan_collection
         self._row_sets_known = False
         self._tombstones_known = False
         # Opt-in shared host change feed (adcp_reporting_changes), PostgreSQL 13+.
@@ -432,7 +453,15 @@ class PgReportingLedgerStore:
             operations.append(("period_retirement", lambda: self.retire_expired_periods(limit=20)))
         if self._change_feed:
             operations.append(("change_pruning", lambda: self.prune_changes()))
+        if self._orphan_collection is not None:
+            operations.append(("orphan_collection", self._run_orphan_collection))
         return tuple(operations)
+
+    async def _run_orphan_collection(self) -> ReportingOrphanCollectionResultV1:
+        from adcp_reporting_storage.ledger.orphan_collector import run_orphan_collection_pass
+
+        assert self._orphan_collection is not None
+        return await run_orphan_collection_pass(self, self._orphan_collection, self._orphan_state)
 
     @asynccontextmanager
     async def source_publication(
@@ -483,12 +512,15 @@ class PgReportingLedgerStore:
         yet recorded in ``adcp_schema_migrations``, then this store's optional
         DDL (change feed, row storage), all in one transaction under the
         reporting schema lock. A ledger created by adcp-reporting-storage
-        0.1.0b4 or 0.2.0b0 is upgraded in place: ``offering_id`` is added with
-        ``''`` for every existing account-level generation, and the applied
-        versions are recorded, so ``python -m adcp migrate --status`` reads
-        them. Re-running is a no-op. The later migrations (``0004`` onward: subscription
-        state, inline storage, status checkpoint offerings) are applied and
-        recorded by ``python -m adcp migrate``, or by the stores that own them.
+        0.1.0b4 or 0.2.0b0 is expanded: ``offering_id`` is added with ``''``
+        for every existing account-level generation, beside the keys that
+        release uses, so its processes keep running through a rolling deploy.
+        The applied versions are recorded, so ``python -m adcp migrate
+        --status`` reads them. Re-running is a no-op. A boot never applies the
+        contract step (``python -m adcp migrate --contract``). The later
+        migrations (``0004`` onward: subscription state, inline storage, status
+        checkpoint offerings, the contract step) are applied and recorded by
+        ``python -m adcp migrate``, or by the stores that own them.
 
         The bootstrap takes a transaction-scoped schema lock before any DDL.
         Keep the migration in that transaction, including with an autocommit
@@ -558,6 +590,72 @@ class PgReportingLedgerStore:
             self, limit=limit, account_id=account_id, overdue_after_seconds=overdue_after_seconds
         )
 
+    async def collect_orphaned_row_objects(
+        self,
+        *,
+        min_age_seconds: int | None = None,
+        limit: int = 1_000,
+        page_size: int | None = None,
+        dry_run: bool = False,
+        include_read_only: bool = False,
+        bindings: Sequence[str] | None = None,
+        cursors: Mapping[str, str] | None = None,
+        skip_bindings: Sequence[str] | None = None,
+        acknowledge_exclusive_namespace: bool = False,
+        now: datetime | None = None,
+    ) -> ReportingOrphanCollectionResultV1:
+        """Delete row objects that no ledger record or open upload names.
+
+        Opt-in and listing-based: it covers what the write-intent sweep cannot see (an upload
+        whose ``PUT`` succeeded before its intent recorded it, intents for a binding no running
+        host configures, intents lost to a database restore). It lists each configured object
+        binding under ``{prefix}/{namespace_key}/`` and deletes an object only when it is a
+        well-formed row object, older than ``min_age_seconds`` (default 7 days, at least 1 day),
+        and no ledger record or open upload names it, under the per-object lock of every binding.
+        Deleting needs ``acknowledge_exclusive_namespace=True`` and is fenced against a clone or
+        restore of this database; ``dry_run`` deletes nothing. See
+        :func:`adcp_reporting_storage.ledger.orphan_collector.collect_orphaned_row_objects`.
+        """
+        from adcp_reporting_storage.ledger.orphan_collector import collect_orphaned_row_objects
+
+        return await collect_orphaned_row_objects(
+            self,
+            min_age_seconds=min_age_seconds,
+            limit=limit,
+            page_size=page_size,
+            dry_run=dry_run,
+            include_read_only=include_read_only,
+            bindings=bindings,
+            cursors=cursors,
+            skip_bindings=skip_bindings,
+            acknowledge_exclusive_namespace=acknowledge_exclusive_namespace,
+            now=now,
+        )
+
+    async def take_over_orphan_collector_fence(
+        self,
+        *,
+        acknowledge_previous_owner_gone: bool,
+        bindings: Sequence[str] | None = None,
+        include_read_only: bool = False,
+    ) -> list[ReportingOrphanFenceTakeoverV1]:
+        """Claim the orphan collector's namespace for this database, fencing every other copy out.
+
+        The deliberate step after a restore, or when the database that held the fence is gone for
+        good. Stop the previous owner's collector first. See
+        :func:`adcp_reporting_storage.ledger.orphan_collector.take_over_orphan_collector_fence`.
+        """
+        from adcp_reporting_storage.ledger.orphan_collector import (
+            take_over_orphan_collector_fence,
+        )
+
+        return await take_over_orphan_collector_fence(
+            self,
+            acknowledge_previous_owner_gone=acknowledge_previous_owner_gone,
+            bindings=bindings,
+            include_read_only=include_read_only,
+        )
+
     async def prune_expired_row_sets(
         self,
         *,
@@ -591,8 +689,9 @@ class PgReportingLedgerStore:
     ) -> ReportingChangesPageV1:
         """Read the shared host change feed; see :mod:`adcp_reporting_storage.ledger.change_feed`.
 
-        Account feeds order by ``seq``; the deployment-wide feed orders by ``(xid, seq)``
-        below the reading snapshot's ``xmin``. A cursor older than the retained history
+        Every feed, account-scoped or deployment-wide, orders by ``(xid, seq)`` below the
+        reading snapshot's ``xmin``; an account cursor from before that carries only ``seq``
+        and is mapped to a position that skips nothing. A cursor older than the retained history
         raises ``ReportingChangeCursorExpiredError``, and so does a read with no cursor when a
         prune commits while the page is being read (the horizon is read again after the page).
         Requires ``change_feed=True``.
@@ -962,6 +1061,17 @@ class PgReportingLedgerStore:
 
     # -- configurations ---------------------------------------------------
 
+    @staticmethod
+    async def _insert_configuration(connection: Any, query: str, params: tuple[Any, ...]) -> Any:
+        try:
+            return await connection.execute(query, params)
+        except Exception as error:
+            # An expanded ledger refuses a subscription generation until contract.
+            not_contracted = upgrade_not_contracted_error(error)
+            if not_contracted is not None:
+                raise not_contracted from error
+            raise
+
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
         key = configuration.generation_key
@@ -969,7 +1079,8 @@ class PgReportingLedgerStore:
         digest = _fingerprint(payload)
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
-            inserted_cursor = await connection.execute(
+            inserted_cursor = await self._insert_configuration(
+                connection,
                 "INSERT INTO reporting_configurations"
                 " (delivery_config_id, delivery_config_version, account_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
@@ -3532,6 +3643,9 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
     Matching the index name rather than the driver's prose: the message text
     varies by Postgres version and locale, the index name does not.
     """
+    not_contracted = upgrade_not_contracted_error(error)
+    if not_contracted is not None:
+        return not_contracted
     text = str(error)
     if "reporting_revisions_one_official" in text:
         return LedgerConflictError(

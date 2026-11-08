@@ -7,7 +7,7 @@ from importlib.resources import files
 from typing import Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
-from adcp_reporting_storage.outbox._schema import schema_objects, validate_schema
+from adcp_reporting_storage.outbox._schema import object_state, schema_objects, validate_schema
 
 REQUIRED_STATUS_OBJECTS: dict[str, dict[str, Any]] = json.loads(
     files("adcp_reporting_storage.outbox").joinpath("required_status_schema.json").read_text()
@@ -48,14 +48,8 @@ def _validate_status_objects(
             )
         ):
             continue
-        actual = installed.get(key)
-        if actual is None:
-            reason = "missing"
-        elif not actual["enabled"]:
-            reason = "disabled"
-        elif actual["fingerprint"] != expected["fingerprint"]:
-            reason = "changed"
-        else:
+        reason = object_state(installed, key, expected)
+        if reason is None:
             continue
         raise ReportingNotificationError(f"status_schema_unready:{reason}:{key}")
     if status:

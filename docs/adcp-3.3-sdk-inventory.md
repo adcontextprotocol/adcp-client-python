@@ -22,8 +22,8 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.4` (was `3.3.0-beta.0`, then `3.3.0-beta.1`, `3.3.0-beta.2` and `3.3.0-beta.3`; see sections 11 to 14); bundle key `3.3.0-beta.4` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
-| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.4`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.3, 3.2-rc.7`. | done (1) |
+| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.5` (was `3.3.0-beta.0`, then `3.3.0-beta.1`, `3.3.0-beta.2`, `3.3.0-beta.3` and `3.3.0-beta.4`; see sections 11 to 15); bundle key `3.3.0-beta.5` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
+| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.5`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.5, 3.2-rc.7`. | done (1) |
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
@@ -213,7 +213,7 @@ Tracking issue: #1648 (label `sdk-10`). Items not covered by the tables above:
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Pinned PSL snapshot | `security.mdx` R3a requires eTLD+1 under a pinned, dated snapshot. The SDK vendors `signing/_psl/public_suffix_list.dat` (publicsuffix.org `2025-04-07_15-51-09_UTC`, commit `5fc8d12c`, the list `tldextract` 5.4.0 bundles) and exposes `adcp.signing.PSL_SNAPSHOT`. | mechanism done, #1652; the reference snapshot is blocked on adcontextprotocol/adcp#8409, #1562 |
+| Pinned PSL snapshot | `security.mdx` R3a requires eTLD+1 under a pinned, dated snapshot. The SDK vendors `signing/_psl/public_suffix_list.dat` (publicsuffix.org `2025-04-07_15-51-09_UTC`, commit `5fc8d12c`, the list `tldextract` 5.4.0 bundles) and exposes `adcp.signing.PSL_SNAPSHOT`. | done, #1652. DR-0037 (3.3.0-beta.5, adcontextprotocol/adcp#8409) names no reference snapshot: each verifier uses a list bundled with it, refreshed through dependency updates, which is what the vendored list is |
 | Web Bot Auth library migration | RFC 9421 on `http-message-signatures`, `http-sf`; deprecation warnings; resolver type check; PSL PRIVATE quota grouping | done; #1511 closed |
 | Agent identity remainder | `account.agent_onboarding` declaration, `security_profiles` declaration (after the preview types are retired by #1662) | (3), #1500 |
 | A2A hardening follow-ups | strip `adcp_task_binding` from client-visible task metadata; unsigned-server parser; `input` member; discovery bypass parser | (3), #1637 |
@@ -305,3 +305,21 @@ adcontextprotocol/adcp#8718, #8717 and #8724.
 | Full tzdata 2026f (#8718) | The reference model carries every zone; new vectors in Pacific/Auckland, Pacific/Chatham, Asia/Kolkata and America/Mexico_City. | the parity test runs all 138 vectors under `tzdata==2026.6` |
 | Controller (#8717) | `reset_state` (required alongside `reporting_subscription_probe`), `SetAccountTimezoneResult`, the `owed_periods_match` retention window. | `TestControllerStore.reset_state`, checked at registration; probe results nested under `simulated`; the reference seller serves both. No SDK runner implements `owed_periods_match` |
 | Generated renames | Numbered names renumber (`Status54` → `Status53`, `Status97` → `Status96`, `Status77` → `Status76`); `create_media_buy_request` drops `Opportunity` / `Status` (#8709). | generated |
+
+## 15. 3.3.0-beta.5 delta
+
+Adopted from the signed `3.3.0-beta.5` bundle (pinned in
+`schemas/releases/3.3.0-beta.5.json`, source commit
+`5ae065826eaeda7a3d7bc72e228833d9ceea1e32`, bundle sha256
+`6c716e67b127cde3c85421e0fe798259187937677ea078ce2b27613d929957e2`). Sources:
+the bundle's `CHANGELOG.md` and adcontextprotocol/adcp#8375, #8409.
+
+| Item | Detail | SDK status |
+| --- | --- | --- |
+| Wire pin | `3.3.0-beta.5` / `3.3-beta.5`. `3.3-beta.4` is no longer advertised or accepted as a pin; its cache and compliance trees stay in the source tree and leave the wheel. | done |
+| Match keys (#8375, experimental `media_buy.match_keys`) | `core/match-key.json` and `enums/match-key-use.json`; `media_buy.supported_match_keys` on `get_adcp_capabilities` (at most 64), `Product.identity.match_keys`, `match_keys` on TMP provider registration. Compatibility, `persistent_identifier` and `vendor` rules are normative prose. | generated (`core.match_key.MatchKey`, `enums.MatchKeyUse`, `ProductIdentity.match_keys`); the SDK enforces none of the prose rules |
+| `sales-fixed-rate` promoted to stable (DR-0028) | The specialism leaves `preview`; the storyboard is unchanged. | no change: the SDK already lists it with the other `sales-*` specialisms |
+| Public Suffix List (DR-0037, #8409) | Verifiers compute eTLD+1 with a bundled list, ICANN and PRIVATE sections, never fetched at runtime; AdCP names no reference snapshot. | no change: the SDK vendors its list (`adcp.signing.PSL_SNAPSHOT`); the trust.json `grantee` description regenerates |
+| Compliance fixtures | `deterministic_testing` storyboard account scoping, the legacy creative asset test-kit catalog. | the packaged `_compliance/3.3.0-beta.5` files are byte-identical to beta.4's; only the manifest and provenance change (4712 manifest files) |
+| Reporting subscriptions | No change. The six vendored coverage-vector files are byte-identical to the bundle's. | the parity test passes unchanged; no `REPORTING_STORAGE_CONTRACT` bump |
+| Generated names | No renumbering. `adcp.types._generated.MatchKey` now resolves to `core.match_key` (a stem match); the signals `MatchKey` stays under `adcp.types.domains.signals`. The bundled capabilities module's TMP `Surface` enum is now `PropertyType`. | generated |

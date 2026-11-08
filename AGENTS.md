@@ -272,6 +272,19 @@ from adcp.testing import build_asgi_app, build_test_client, make_request_context
 
 ## Property Lists and Identifier Resolution
 
+For publisher manifest sync, resolve the agent's selectors with
+`get_properties_by_agent` or `resolve_properties_for_agent`, then call
+`properties_for_publisher_domain(properties, publisher_domain)` to attribute
+inventory. It keeps publisher subdomains and wildcard domain inventory, and
+excludes domainless inventory (bundle-only apps, venues) unless
+`include_domainless=True`. Permissive resolution requires `publisher_domain=`
+from the trusted fetch origin (`allow_any_domain=True` skips the gate for
+diagnostics). Use `await verify_cross_domain_properties(properties,
+source_domain=..., agent_url=...)` before trusting claims about another
+publisher's domain; its `CrossDomainVerification` result separates
+`verified`, `unverified` and `domainless` properties. All three helpers are
+exported from `adcp`. See `docs/adagents-discovery.md`.
+
 Import `MCPPropertyListFetcher`, `ProductPropertyPolicy`, and
 `check_property_list_reference` from `adcp`. The default seller fetcher resolves
 lists with MCP `get_property_list`, follows pagination, and caches complete

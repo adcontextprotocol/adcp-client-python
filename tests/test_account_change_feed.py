@@ -268,7 +268,7 @@ async def test_dispatch_refuses_record_without_changed_paths(
 
 
 def test_changed_paths_enforced_from_3_3() -> None:
-    assert _requires_changed_paths("3.3-beta.4")
+    assert _requires_changed_paths("3.3-beta.5")
     assert _requires_changed_paths("3.3")
     assert _requires_changed_paths(None)
     assert not _requires_changed_paths("3.2")

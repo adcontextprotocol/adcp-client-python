@@ -25,6 +25,48 @@ PROVISIONAL_REQUIRED_OBJECTS: dict[str, dict[str, Any]] = json.loads(
 SCHEMA_CONTRACT: dict[str, str] = {
     key: value["fingerprint"] for key, value in REQUIRED_OBJECTS.items()
 }
+#: An EXPANDED ledger (one created by adcp-reporting-storage 0.1.x/0.2.0b0 and
+#: upgraded while processes of that release may still run, until the contract
+#: step) keeps what that release needs under its original names. Each
+#: ``alternates`` entry is the expanded fingerprint a required object may have
+#: instead, accepted only with every object it ``requires`` (the widened key
+#: that replaces it, from ``objects``) in place. See
+#: ``ledger/reporting_ledger_account_generations.sql``.
+_EXPAND_SCHEMA: dict[str, dict[str, dict[str, Any]]] = json.loads(
+    files("adcp_reporting_storage.outbox").joinpath("required_expand_schema.json").read_text()
+)
+EXPAND_ALTERNATES: dict[str, dict[str, Any]] = _EXPAND_SCHEMA["alternates"]
+EXPAND_OBJECTS: dict[str, dict[str, Any]] = _EXPAND_SCHEMA["objects"]
+
+
+def object_state(
+    installed: dict[str, dict[str, Any]], key: str, expected: dict[str, Any]
+) -> str | None:
+    """``None`` when ``key`` satisfies ``expected``, else ``missing``/``disabled``/``changed``.
+
+    An expanded ledger's fingerprint for the object satisfies it too, while
+    the widened objects that replace it are installed exactly.
+    """
+    actual = installed.get(key)
+    if actual is None:
+        return "missing"
+    if not actual["enabled"]:
+        return "disabled"
+    if actual["fingerprint"] == expected["fingerprint"]:
+        return None
+    alternate = EXPAND_ALTERNATES.get(key)
+    if (
+        alternate is not None
+        and actual["fingerprint"] == alternate["fingerprint"]
+        and all(installed.get(item) == EXPAND_OBJECTS[item] for item in alternate["requires"])
+    ):
+        return None
+    return "changed"
+
+
+def satisfies(installed: dict[str, dict[str, Any]], key: str, expected: dict[str, Any]) -> bool:
+    """Whether the installed ``key`` meets ``expected`` (contracted or expanded)."""
+    return installed.get(key) == expected or object_state(installed, key, expected) is None
 
 
 def _digest(value: object) -> str:
@@ -227,14 +269,8 @@ def _validate_schema_objects(
             continue
         if legacy_rows_retired and is_legacy_row_object(key):
             continue
-        actual = installed.get(key)
-        if actual is None:
-            classification = "missing"
-        elif not actual["enabled"]:
-            classification = "disabled"
-        elif actual["fingerprint"] != expected["fingerprint"]:
-            classification = "changed"
-        else:
+        classification = object_state(installed, key, expected)
+        if classification is None:
             continue
         raise ReportingNotificationError(f"notification_schema_unready:{classification}:{key}")
 

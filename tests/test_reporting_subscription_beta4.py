@@ -356,7 +356,7 @@ def test_a_billing_feed_owes_a_stub_at_an_account_timezone_cutover() -> None:
     ``core/reporting-subscription.json`` ``cutover`` applies the billing stub
     to every cutover, account-timezone changes included; the 8ee1bfa2 reference
     model emits none at a timezone cutover (three differential disagreements,
-    billing offerings only), which the spec fixes for beta.5.
+    billing offerings only), and 3.3.0-beta.5 ships that model unchanged.
     """
     from tests.test_reporting_subscription_parity import periods, rows
 

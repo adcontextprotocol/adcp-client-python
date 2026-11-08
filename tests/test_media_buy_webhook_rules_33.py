@@ -58,7 +58,7 @@ from adcp.webhooks import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGED = resolve_adcp_version(None)
-SCHEMAS = ROOT / "schemas" / "cache" / "3.3.0-beta.4"
+SCHEMAS = ROOT / "schemas" / "cache" / "3.3.0-beta.5"
 
 _KEYS = json.loads(
     (
@@ -300,7 +300,7 @@ def test_authentication_stays_required_below_3_3(version: str) -> None:
     assert webhook_signing_profile_for(legacy, adcp_version=version) is None
 
 
-@pytest.mark.parametrize("version", ["3.3", "3.3-beta.4", "3.3.0-beta.1", "4.0"])
+@pytest.mark.parametrize("version", ["3.3", "3.3-beta.5", "3.3.0-beta.1", "4.0"])
 def test_authentication_is_optional_at_3_3(version: str) -> None:
     registration = {"url": URL, "reporting_frequency": "daily"}
     assert webhook_signing_profile_for(registration, adcp_version=version) == (
