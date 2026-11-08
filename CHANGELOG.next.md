@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.0.0-beta.14](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.13...v10.0.0-beta.14) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** control_media_buy refuses packages[].start_requires_all_creatives_approved: true with UNSUPPORTED_FEATURE before the handler runs when the seller's capabilities do not declare media_buy.features.creative_start_policy: true. A seller that honors the gate declares the feature.
+
+### Features
+
+* **server:** refuse an undeclared creative start policy on control_media_buy ([#1872](https://github.com/adcontextprotocol/adcp-client-python/issues/1872)) ([7baf947](https://github.com/adcontextprotocol/adcp-client-python/commit/7baf947ee3f7a02ff7601c9f91c6589b052870ab)), closes [#1869](https://github.com/adcontextprotocol/adcp-client-python/issues/1869)
+* **webhooks:** sign deliveries under web-bot-auth when a registration asks ([#1860](https://github.com/adcontextprotocol/adcp-client-python/issues/1860)) ([6ec940d](https://github.com/adcontextprotocol/adcp-client-python/commit/6ec940d08cae91c979d1180e2146c682ff488b76)), closes [#1859](https://github.com/adcontextprotocol/adcp-client-python/issues/1859)
+
 ## [10.0.0-beta.13](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.12...v10.0.0-beta.13) (2026-11-08)
 
 
