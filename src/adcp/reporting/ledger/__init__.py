@@ -132,6 +132,12 @@ from adcp.reporting.ledger.health import (
     project_obligation_health,
 )
 from adcp.reporting.ledger.host_reads import ReportingCurrentRevisionsPageV1
+from adcp.reporting.ledger.issue_events import (
+    ReportingIssueEventLease,
+    ReportingIssueEventStore,
+    issue_event_id,
+    supports_issue_events,
+)
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
@@ -221,6 +227,10 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ReportingCaller",
+    "ReportingIssueEventLease",
+    "ReportingIssueEventStore",
+    "issue_event_id",
+    "supports_issue_events",
     "REPORTING_SELECTOR_VERSION",
     "ReportingRevisionCorrupt",
     "ReportingRevisionNotReady",

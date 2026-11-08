@@ -17,7 +17,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -69,6 +69,11 @@ from adcp.reporting.source import (
 from adcp.types import ReportingDeliveryOffering
 
 if TYPE_CHECKING:
+    from adcp.reporting.issue_events import (
+        ReportingIssueDelivery,
+        ReportingIssueEventDispatcher,
+        ReportingIssueObserver,
+    )
     from adcp.reporting.production.contracts import ReportingProductionSourceBinding
     from adcp.reporting.production.service import ReportingProductionSupport
     from adcp.reporting.service_production import ReportingProductionOptions
@@ -469,6 +474,8 @@ class ReliableReportingTurn:
     subscription_errors: dict[tuple[str, str | None, str | None], BaseException] = field(
         default_factory=dict
     )
+    #: What the issue observer's delivery did this turn, when one is configured.
+    issue_events: ReportingIssueDelivery | None = None
 
     @property
     def did_work(self) -> bool:
@@ -479,6 +486,7 @@ class ReliableReportingTurn:
             or bool(self.extension_errors)
             or bool(self.subscription_obligations_written)
             or bool(self.subscription_errors)
+            or (self.issue_events is not None and self.issue_events.did_work)
         )
 
 
@@ -509,6 +517,7 @@ class ReliableReportingService:
         receipt_handler: ReportingReceiptHandler | None = None,
         reconciled_billing: bool = False,
         worker_error_handler: ReportingWorkerErrorHandler | None = None,
+        issue_observer: ReportingIssueObserver | None = None,
         owned_resources: Sequence[ReportingServiceResource] = (),
         production: ReportingProductionOptions | None = None,
         automated_recovery_window: timedelta = timedelta(hours=6),
@@ -537,7 +546,18 @@ class ReliableReportingService:
         ledger ``store``, the default ``staging``/``seals``, and the principal
         and subscription-state stores of the managed subscription path. Durable
         storage checks its schema version at startup instead of changing it.
-        Pass ``storage`` or ``store``, not both."""
+        Pass ``storage`` or ``store``, not both.
+
+        ``issue_observer`` is called once per lifecycle transition of a
+        reporting issue (``opened``, ``escalated``, ``acknowledged``,
+        ``waived``, ``resolved``) with a
+        :class:`~adcp.reporting.issue_events.ReportingIssueEvent`, from the
+        worker turn, after the transition commits. Delivery is at least once:
+        deduplicate on ``event.event_id``. An observer that raises is reported
+        to ``worker_error_handler`` and retried; it never fails a buyer's call.
+        It needs a store that records issue events (the in-memory store, or
+        adcp-reporting-storage 0.2.0b4+ with migration ``0008``) and a
+        scheduled worker turn somewhere. See :mod:`adcp.reporting.issue_events`."""
         if storage is not None:
             from adcp.storage import ReportingStorage
 
@@ -571,6 +591,12 @@ class ReliableReportingService:
         ):
             raise ReliableReportingConfigurationError(
                 "production options compose their own workers, admission and receipt handlers"
+            )
+        if production is not None and issue_observer is not None:
+            raise ReliableReportingConfigurationError(
+                "issue_observer is not supported with production= yet "
+                "(adcp-client-python#1873); compose the service without production= to "
+                "observe reporting issues"
             )
         if subscriptions is not None and reporting_subscriptions is not None:
             raise ReliableReportingConfigurationError(
@@ -629,6 +655,9 @@ class ReliableReportingService:
         self._receipt_handler = receipt_handler
         self._reconciled_billing = reconciled_billing
         self._worker_error_handler = worker_error_handler
+        self._issue_events: ReportingIssueEventDispatcher | None = None
+        if issue_observer is not None:
+            self._issue_events = self._issue_event_dispatcher(store, issue_observer)
         self._bindings: dict[ReportingConfigurationGenerationKey, _Binding] = {}
         self._pending_configurations: dict[
             ReportingConfigurationGenerationKey, ReportingConfiguration
@@ -671,6 +700,31 @@ class ReliableReportingService:
                 else owned_resources
             ),
             configuration_error=ReliableReportingConfigurationError,
+        )
+
+    def _issue_event_dispatcher(
+        self, store: ReportingLedgerStore, observer: ReportingIssueObserver
+    ) -> ReportingIssueEventDispatcher:
+        from adcp.reporting.issue_events import ReportingIssueEventDispatcher
+        from adcp.reporting.ledger.issue_events import (
+            ReportingIssueEventStore,
+            supports_issue_events,
+        )
+
+        if not callable(observer):
+            raise ReliableReportingConfigurationError("issue_observer must be callable")
+        if not supports_issue_events(store):
+            raise ReliableReportingConfigurationError(
+                f"issue_observer needs a ledger store that records issue events, and "
+                f"{type(store).__name__} does not: use memory_storage(), or "
+                "postgres_storage(...) with adcp-reporting-storage 0.2.0b4 or later "
+                "(pip install -U adcp-reporting-storage), then run python -m adcp migrate"
+            )
+        return ReportingIssueEventDispatcher(
+            cast(ReportingIssueEventStore, store),
+            observer,
+            escalation=self._escalation,
+            on_error=self._report_worker_error,
         )
 
     @classmethod
@@ -1440,6 +1494,12 @@ class ReliableReportingService:
                 await self.store.create_schema()
             if self._initialize_source_storage is not None:
                 await self._initialize_source_storage()
+            issue_events = self._issue_events
+            if issue_events is not None and not await issue_events.store.issue_events_ready():
+                raise ReliableReportingConfigurationError(
+                    "issue_observer needs the issue-event table (adcp-reporting-storage "
+                    "migration 0008): run python -m adcp migrate"
+                )
             for configuration in self._pending_configurations.values():
                 await self.store.put_configuration(configuration)
             self._pending_configurations.clear()
@@ -1611,6 +1671,14 @@ class ReliableReportingService:
                         continue
                     if result is not None:
                         turn.extension_results.append(result)
+            if self._issue_events is not None and not self._lifecycle.stopping:
+                try:
+                    turn.issue_events = await self._issue_events.run_once()
+                except Exception as error:
+                    # The observer's own failures are reported per event and
+                    # retried; this is the store (claim, sweep) failing.
+                    turn.extension_errors["issue_events"] = error
+                    await self._report_worker_error("issue_events", error)
             return turn
 
     async def caller_for(self, request: Any, context: Any | None) -> ReportingStatusCaller:

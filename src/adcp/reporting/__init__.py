@@ -76,6 +76,7 @@ if TYPE_CHECKING:
     from adcp.reporting import currency as currency
     from adcp.reporting import fixtures as fixtures
     from adcp.reporting import inline_source as inline_source
+    from adcp.reporting import issue_events as issue_events
     from adcp.reporting import ledger as ledger
     from adcp.reporting import materializer as materializer
     from adcp.reporting import revision_selection as revision_selection
@@ -83,6 +84,18 @@ if TYPE_CHECKING:
     from adcp.reporting import service_production as service_production
     from adcp.reporting import source as source
     from adcp.reporting import testing as testing
+    from adcp.reporting.issue_events import (
+        ReportingIssueEvent as ReportingIssueEvent,
+    )
+    from adcp.reporting.issue_events import (
+        ReportingIssueEventDispatcher as ReportingIssueEventDispatcher,
+    )
+    from adcp.reporting.issue_events import (
+        ReportingIssueEventKind as ReportingIssueEventKind,
+    )
+    from adcp.reporting.issue_events import (
+        ReportingIssueObserver as ReportingIssueObserver,
+    )
     from adcp.reporting.service import (
         ReliableReportingConfigurationError as ReliableReportingConfigurationError,
     )
@@ -161,6 +174,7 @@ _LAZY_SUBMODULES = frozenset(
         "currency",
         "fixtures",
         "inline_source",
+        "issue_events",
         "ledger",
         "materializer",
         "revision_selection",
@@ -186,6 +200,10 @@ _LAZY_EXPORTS = {
     "ReportingServiceResource": ("service_lifecycle", "ReportingServiceResource"),
     "ReportingAccountContext": ("service", "ReportingAccountContext"),
     "ReportingAdapter": ("service", "ReportingAdapter"),
+    "ReportingIssueEvent": ("issue_events", "ReportingIssueEvent"),
+    "ReportingIssueEventDispatcher": ("issue_events", "ReportingIssueEventDispatcher"),
+    "ReportingIssueEventKind": ("issue_events", "ReportingIssueEventKind"),
+    "ReportingIssueObserver": ("issue_events", "ReportingIssueObserver"),
     "ReportingProductionOptions": ("service_production", "ReportingProductionOptions"),
     "ReportingServiceOffering": ("service_production", "ReportingServiceOffering"),
     "SubscriptionOptions": ("service_subscriptions", "SubscriptionOptions"),
@@ -242,6 +260,10 @@ __all__ = [
     "ReportingServiceResource",
     "ReportingAccountContext",
     "ReportingAdapter",
+    "ReportingIssueEvent",
+    "ReportingIssueEventDispatcher",
+    "ReportingIssueEventKind",
+    "ReportingIssueObserver",
     "ReportingProductionOptions",
     "ReportingServiceOffering",
     "PrincipalRef",

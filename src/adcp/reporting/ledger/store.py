@@ -40,8 +40,8 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, runtime_checkable
 from uuid import uuid4
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
@@ -53,6 +53,14 @@ from adcp.reporting.currency import (
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord
 from adcp.reporting.ledger.health import issue_id_for_occurrence
+from adcp.reporting.ledger.issue_events import (
+    KIND_FOR_STATE,
+    MemoryIssueEvent,
+    MemoryIssueEventLease,
+    ReportingIssueEventKind,
+    ReportingIssueEventLease,
+    issue_event_id,
+)
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     LedgerRecordKind,
@@ -808,6 +816,10 @@ class InMemoryReportingLedgerStore:
     place a test's ledger boundary at a deliberate instant.
     """
 
+    #: Records issue-lifecycle events for the issue observer (see
+    #: :mod:`adcp.reporting.ledger.issue_events`).
+    issue_events_supported: ClassVar[bool] = True
+
     def __init__(
         self, *, clock: Callable[[], datetime] | None = None, notifications: bool = False
     ) -> None:
@@ -845,6 +857,9 @@ class InMemoryReportingLedgerStore:
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
         self._issue_generations: dict[tuple[str, str], int] = {}
         self._issue_status_scopes: dict[tuple[str, str], ReportingStatusScope] = {}
+        # The issue-event outbox, by event id in recording order.
+        self._issue_events: dict[str, MemoryIssueEvent] = {}
+        self._issue_event_seq = 0
         self._notification_state: NotificationState | None = None
         self._status_notification_state: Any = None
         if notifications:
@@ -1790,6 +1805,7 @@ class InMemoryReportingLedgerStore:
             self._issue_generations[key] = generation
             self._issues[key] = record
             self._dirty_issue(record, status_scope)
+            self._record_issue_transition(None, record)
             return record
 
     async def set_issue_state(
@@ -1854,6 +1870,11 @@ class InMemoryReportingLedgerStore:
             # nothing, while anything that does move retained evidence stays
             # reconstructable for the projector.
             self._dirty_issue(updated, status_scope, live)
+            self._record_issue_transition(
+                live.issue_state,
+                updated,
+                occurred_at=_utc(at) if state == "acknowledged" else None,
+            )
             return updated
 
     async def retire_issue(
@@ -1884,6 +1905,7 @@ class InMemoryReportingLedgerStore:
             )
             self._issues[key] = retired
             self._dirty_issue(retired, status_scope, live)
+            self._record_issue_transition(live.issue_state, retired)
             return retired
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
@@ -1893,6 +1915,192 @@ class InMemoryReportingLedgerStore:
             # projection re-emit a resolved issue's opened_at.
             live = self._issues.get((account_id, issue_key))
             return live if live is not None and live.live else None
+
+    # -- issue events (adcp-client-python#1258) ---------------------------
+
+    def _record_issue_transition(
+        self,
+        before_state: str | None,
+        after: ReportingIssueLifecycle,
+        *,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        """Record the events one lifecycle write produced. Caller holds the mutation.
+
+        ``before_state`` is ``None`` when the write created the occurrence. A
+        write that leaves the state unchanged records nothing.
+        """
+        kinds: list[tuple[ReportingIssueEventKind, datetime]] = []
+        if before_state is None:
+            kinds.append(("opened", _utc(after.opened_at)))
+            before_state = "open"
+        if after.issue_state != before_state:
+            at = occurred_at or after.retired_at or self._clock()
+            kinds.append((KIND_FOR_STATE[after.issue_state], _utc(at)))
+        for kind, at in kinds:
+            self._insert_issue_event(after, kind, occurred_at=at)
+
+    def _insert_issue_event(
+        self,
+        issue: ReportingIssueLifecycle,
+        kind: ReportingIssueEventKind,
+        *,
+        occurred_at: datetime,
+    ) -> bool:
+        event_id = issue_event_id(issue.issue_id, kind)
+        if event_id in self._issue_events:
+            return False  # exactly once per (issue_id, kind)
+        now = _utc(self._clock())
+        self._issue_event_seq += 1
+        self._issue_events[event_id] = MemoryIssueEvent(
+            seq=self._issue_event_seq,
+            event_id=event_id,
+            account_id=issue.account_id,
+            consumer_id=issue.consumer_id,
+            issue_key=issue.issue_key,
+            issue_id=issue.issue_id,
+            generation=issue.generation,
+            kind=kind,
+            occurred_at=occurred_at,
+            recorded_at=now,
+            due_at=now,
+        )
+        return True
+
+    async def issue_events_ready(self) -> bool:
+        return True
+
+    async def sweep_issue_escalations(self, *, after: timedelta, limit: int = 100) -> int:
+        from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
+
+        if after < timedelta(0):
+            raise ValueError("after must be nonnegative")
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        async with self._mutation():
+            now = _utc(self._clock())
+            escalated = {e.issue_id for e in self._issue_events.values() if e.kind == "escalated"}
+            accounts = sorted(
+                {
+                    issue.account_id
+                    for issue in self._issues.values()
+                    if issue.issue_state in {"open", "acknowledged"}
+                    and _utc(issue.opened_at) + after <= now
+                    and issue.issue_id not in escalated
+                }
+            )[:limit]
+            recorded = 0
+            for account_id in accounts:
+                # Settle first, as a status read would: a condition that
+                # cleared resolves instead of escalating.
+                settle_memory_snapshot(self, account_id)
+                for issue in sorted(
+                    (i for i in self._issues.values() if i.account_id == account_id),
+                    key=lambda i: (i.opened_at, i.issue_id),
+                ):
+                    if (
+                        issue.issue_state in {"open", "acknowledged"}
+                        and _utc(issue.opened_at) + after <= now
+                        and self._insert_issue_event(
+                            issue, "escalated", occurred_at=_utc(issue.opened_at) + after
+                        )
+                    ):
+                        recorded += 1
+            return recorded
+
+    async def claim_issue_events(
+        self, *, lease_seconds: float = 60.0, limit: int = 20
+    ) -> tuple[MemoryIssueEventLease, ...]:
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        async with self._mutation():
+            now = _utc(self._clock())
+            pending = sorted(
+                (e for e in self._issue_events.values() if e.delivered_at is None),
+                key=lambda e: e.seq,
+            )
+            first_pending: dict[str, int] = {}
+            for event in pending:
+                first_pending.setdefault(event.issue_id, event.seq)
+            due = sorted(
+                (
+                    e
+                    for e in pending
+                    if first_pending[e.issue_id] == e.seq
+                    and e.due_at <= now
+                    and (e.lease_expires_at is None or e.lease_expires_at <= now)
+                ),
+                key=lambda e: (e.due_at, e.seq),
+            )[:limit]
+            token = uuid4().hex
+            expires = now + timedelta(seconds=lease_seconds)
+            claimed: list[MemoryIssueEventLease] = []
+            for event in due:
+                event.lease_token, event.lease_expires_at = token, expires
+                event.attempts += 1
+                claimed.append(
+                    MemoryIssueEventLease(
+                        event_id=event.event_id,
+                        account_id=event.account_id,
+                        consumer_id=event.consumer_id,
+                        issue_key=event.issue_key,
+                        issue_id=event.issue_id,
+                        generation=event.generation,
+                        kind=event.kind,
+                        occurred_at=event.occurred_at,
+                        recorded_at=event.recorded_at,
+                        attempts=event.attempts,
+                        lease_token=token,
+                        lease_expires_at=expires,
+                    )
+                )
+            return tuple(claimed)
+
+    def _leased(self, lease: ReportingIssueEventLease) -> MemoryIssueEvent | None:
+        event = self._issue_events.get(lease.event_id)
+        token = getattr(lease, "lease_token", None)
+        if event is None or event.delivered_at is not None or event.lease_token != token:
+            return None
+        return event
+
+    async def complete_issue_event(self, lease: ReportingIssueEventLease) -> bool:
+        async with self._mutation():
+            event = self._leased(lease)
+            if event is None:
+                return False
+            event.delivered_at = _utc(self._clock())
+            event.lease_token = event.lease_expires_at = None
+            return True
+
+    async def release_issue_event(
+        self, lease: ReportingIssueEventLease, *, retry_after: timedelta
+    ) -> bool:
+        async with self._mutation():
+            event = self._leased(lease)
+            if event is None:
+                return False
+            event.due_at = _utc(self._clock()) + max(retry_after, timedelta(0))
+            event.lease_token = event.lease_expires_at = None
+            return True
+
+    async def prune_issue_events(self, *, older_than: timedelta, limit: int = 1000) -> int:
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        async with self._mutation():
+            horizon = _utc(self._clock()) - older_than
+            expired = sorted(
+                (
+                    e
+                    for e in self._issue_events.values()
+                    if e.delivered_at is not None and e.delivered_at < horizon
+                ),
+                key=lambda e: e.delivered_at or horizon,
+            )[:limit]
+            for event in expired:
+                del self._issue_events[event.event_id]
+            return len(expired)
 
     # -- snapshots -------------------------------------------------------
 
