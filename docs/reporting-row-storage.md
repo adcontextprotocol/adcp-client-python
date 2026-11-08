@@ -57,16 +57,15 @@ To install everything this guide uses while developing: `pip install -e '.[dev,p
 ## Layout notes
 
 `adcp_reporting_row_sets` is the side table that records where a revision's rows live.
-It matches the JavaScript table column for column except that `obligation_id` has no
-foreign key: Python obligations live in `reporting_obligations`, not in the JavaScript
-`adcp_reporting_obligations` table. If the JavaScript migration created the table first, `ready_row_storage`
-refuses with the constraint name and a schema-qualified, quoted statement to remove it.
-Apply the Python migration first, or, for an existing database with Python as its writer,
-remove the JavaScript foreign key before running readiness again. The default constraint name is:
+Neither Python nor fixed releases of JavaScript `@adcp/reporting-storage` create a foreign key from
+`obligation_id` to the JavaScript core ledger. Python obligations live in `reporting_obligations`, not
+`adcp_reporting_obligations`. If an older JavaScript migration created the table first, `ready_row_storage`
+refuses with the constraint name and a schema-qualified, quoted statement to remove it. Apply JavaScript
+migration 0011, or remove the foreign key before running readiness again. For the default constraint name:
 
 ```sql
 ALTER TABLE adcp_reporting_row_sets
-    DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;
+    DROP CONSTRAINT "adcp_reporting_row_sets_obligation_id_fkey";
 ```
 
 Run this in the ledger schema. Use the exact statement from the refusal if the schema or
@@ -511,8 +510,10 @@ either verify in the other. Three things must match between the two deployments:
 - **The same binding definitions.** A binding's identity digest is `sha256(JCS([kind, provider, identity_config]))`
   over the names the JavaScript SDK uses (`location`, `prefix`, `keyTemplate`), so an object binding that differs in
   location, prefix or key template is a different binding and is refused rather than silently redirected.
-- **The row-storage migration applied by this SDK first**, or the JavaScript foreign key removed with
-  `ALTER TABLE adcp_reporting_row_sets DROP CONSTRAINT adcp_reporting_row_sets_obligation_id_fkey;`
+- **No foreign key from shared row sets to the JavaScript core ledger.** Fixed JavaScript `@adcp/reporting-storage`
+  releases do not create it, regardless of migration order. On an existing database created by an older release,
+  apply JavaScript migration 0011 or run
+  `ALTER TABLE adcp_reporting_row_sets DROP CONSTRAINT "adcp_reporting_row_sets_obligation_id_fkey";`
   in the ledger schema. Python obligations cannot satisfy that foreign key. See "Layout notes" for renamed constraints.
 
 Each SDK keeps its own revision headers, so what is shared today
