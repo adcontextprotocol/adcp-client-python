@@ -3568,6 +3568,7 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp._creative_start_policy import refuse_undeclared_creative_start_policy
     from adcp._version import normalize_to_release_precision
     from adcp.canonical_formats import (
         CanonicalFormatLegacyResolutionError,
@@ -3592,7 +3593,6 @@ def create_tool_caller(
         normalize_lenient_creative_batch,
         partial_creative_batch,
     )
-    from adcp.server._creative_start_policy import refuse_undeclared_creative_start_policy
     from adcp.server.helpers import inject_context
     from adcp.server.idempotency.store import _CREATIVE_BATCH_HASH_SOURCE
     from adcp.server.version_policy import project_supported_versions, resolve_supported_versions

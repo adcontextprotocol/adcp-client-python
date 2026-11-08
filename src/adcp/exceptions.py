@@ -571,6 +571,8 @@ class ADCPFeatureUnsupportedError(ADCPError):
         agent_uri: str | None = None,
         *,
         dispatched: Literal[False] | None = None,
+        field: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize feature unsupported error.
 
@@ -581,11 +583,16 @@ class ADCPFeatureUnsupportedError(ADCPError):
             agent_uri: Optional agent URI for context.
             dispatched: Pass ``False`` only where no bytes of the task's
                 request left the process. See :func:`is_pre_dispatch_error`.
+            field: The request path the refusal names, in the AdCP
+                ``error.field`` form (``packages[0].start_requires_all_creatives_approved``).
+            details: Extra AdCP ``error.details`` for the failed task result.
         """
         if dispatched is False:
             self.dispatched = False
         self.unsupported_features = unsupported_features
         self.declared_features = declared_features or []
+        self.field = field
+        self.details = details
 
         missing = ", ".join(unsupported_features)
         message = f"Seller does not support: {missing}"
