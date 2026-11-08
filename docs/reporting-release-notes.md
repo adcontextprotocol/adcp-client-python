@@ -76,6 +76,23 @@ restart across the upgrade does not turn a replay into a conflict. This is part 
 the shared layout in adcontextprotocol/adcp#7996 (Stage 2, tracked in
 [#1457](https://github.com/adcontextprotocol/adcp-client-python/issues/1457)).
 
+## Account change feed orders by `(xid, seq)`
+
+The account change feed (`changes_after(account_id=...)`) now orders by `(xid, seq)` behind
+`xid < pg_snapshot_xmin(pg_current_snapshot())`, as the deployment-wide feed already did, matching the JavaScript SDK
+([adcp-client#3289](https://github.com/adcontextprotocol/adcp-client/pull/3289)). It replaces the page truncation at
+the first in-flight change from #1483, and no longer depends on the account lock for its order: a lower `seq` that
+commits late is returned on a later page, never skipped. Account cursors now carry `xid`. A seq-only account cursor
+saved by an earlier release is still accepted and mapped to a position that skips nothing, at the cost of redelivering
+a few changes, and it still expires exactly (`pruned_through_seq` is kept). `reporting_changes.sql` is re-applied by
+`create_schema` and is idempotent: it adds the account horizon's xid columns, replaces the consumer check constraint,
+and creates `adcp_reporting_changes_account_xid`. Create that index with `CREATE INDEX CONCURRENTLY` first on a large
+changes table, stop older hosts' change maintenance before the new reader runs, and do not roll back after a consumer
+saved a new-format account cursor. Not affected: deployment-wide cursors, the buyer-facing `changes_after` projection and
+anyone who never enabled `change_feed`. See
+[host change feed and consumers](reporting-row-storage.md#host-change-feed-and-consumers)
+([#1825](https://github.com/adcontextprotocol/adcp-client-python/issues/1825)).
+
 ## Feed consumer checkpoints are forward-only
 
 `save_feed_consumer_cursor` used to replace the saved position unconditionally. It now ignores a cursor behind the
@@ -93,6 +110,56 @@ pass `rewind=True`. Callers that only save the cursor of the page they just proc
 Reads handle both forms. `migrate_inline_rows` moves legacy rows with verification, quarantining any revision whose
 rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
 closed. See [row storage](reporting-row-storage.md).
+
+## The per-object lock is kept only where it pairs
+
+Retirement, the intent sweep and a commit that adopts an object its own intent recorded no longer take the per-object
+advisory lock, and no longer hold a transaction or pooled connection across the provider delete. The lock stays in the
+two places that pair with each other: the orphan collector's delete, which locks every binding's key for the object, and
+a commit that adopts an object its intent did not record. The lock text is unchanged, so a Python deleter and a
+JavaScript adopter still agree, and rolling upgrades between a version that locks everywhere and this one are safe (every
+pair that needs exclusion keeps the lock on both sides). A commit now closes its intent with `RETURNING created_objects`
+to know which adopted objects it recorded. No schema or wire change. See
+[the object lock contract](reporting-row-storage.md#the-object-lock-contract)
+([#1492](https://github.com/adcontextprotocol/adcp-client-python/issues/1492), adcp-client#3606).
+
+## Opt-in orphaned-object collector, fenced against clones
+
+`PgReportingLedgerStore(orphan_collection=ReportingOrphanCollectionOptionsV1(...))` and
+`collect_orphaned_row_objects` list each object binding under its owned prefix and delete the objects no ledger record
+or open upload names, which the write-intent sweep cannot see (an upload that succeeded before its intent recorded it,
+intents for a binding no host configures, intents lost to a restore). It mirrors the JavaScript SDK
+([adcp-client#3291](https://github.com/adcontextprotocol/adcp-client/pull/3291) and the clone fence in
+[#3593](https://github.com/adcontextprotocol/adcp-client/pull/3593)). Nothing changes unless you opt in. An object is
+deleted only when it is a well-formed row key under `{prefix}/{namespace_key}/`, older than `min_age_seconds` (default
+7 days, minimum 1 day), named by no record or upload at any version under any binding, and unreferenced under the
+per-object lock of every binding. A real pass first claims the namespace in a create-only fence in the bucket and
+refuses to delete while another database holds a newer claim, so a clone or restore of the ledger database that shares
+its namespace key and its opt-in cannot delete the live database's newer objects; `take_over_orphan_collector_fence`
+is the deliberate step after a restore.
+
+Providers gain an optional `list`. The provider conformance suite checks it when present, so its result now ends with a
+`list` entry for providers that implement it; compare accordingly. A provider without `list` keeps working and is
+reported `unsupported`. `create_schema` adds the shared `adcp_reporting_orphan_collector_fences` table, additively and
+outside the required-schema manifest. The production worker reports `fenced` bindings as stalled work and `unsupported`
+bindings as pending work. **Roll out:** start with `dry_run=True`, claim from the live database first, and never enable
+the collector on a copy of the deployment. See [the listing collector](reporting-row-storage.md#orphaned-objects-the-opt-in-listing-collector)
+([#1829](https://github.com/adcontextprotocol/adcp-client-python/issues/1829)).
+
+## Row binding IDs and credential references accept 255 characters
+
+`row_binding_id` and a binding's `credential_ref` were capped at 128 characters. Every comparable AdCP identifier
+(`reporting_revision_id`, `resource_ref`, `destination_ref`) allows 255, so an ID derived from an AdCP destination
+reference could be refused for no protocol reason. Both now accept 1 to 255 characters of `A-Za-z0-9_.:-`, matching the
+JavaScript SDK ([adcp-client#3595](https://github.com/adcontextprotocol/adcp-client/pull/3595)). The configuration
+check, the `adcp_reporting_row_bindings` `CHECK` and the provider `clients` map share the bound, which is exported as
+`REPORTING_ROW_BINDING_ID_MAX_LENGTH` and `REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH`. A malformed value that the old
+check let through (a trailing newline) is now refused too. `create_schema` replaces the original unnamed 128-character
+`CHECK` with `adcp_reporting_row_bindings_row_binding_id_bounds` in place, idempotently, with no data migration; stop
+older writers first, because an older binary requires the original constraint and fails closed against an upgraded
+database. Nothing that was valid before is refused. See
+[stored names follow AdCP](reporting-row-storage.md#stored-names-follow-adcp)
+([#1498](https://github.com/adcontextprotocol/adcp-client-python/issues/1498)).
 
 ## Row storage field alignment (breaking for row storage adopters)
 

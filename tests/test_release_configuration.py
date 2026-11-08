@@ -122,9 +122,22 @@ def test_release_please_keeps_next_on_the_beta_channel() -> None:
     assert "release-publish.yml --ref next -f package=adcp-reporting-storage" in workflow
     manifest = json.loads((ROOT / ".release-please-manifest.next.json").read_text())
     assert set(manifest) == {".", "packages/adcp-reporting-storage"}
-    # The companion gate (#1605, #1763) runs for every publish of either
-    # package, on next too, after the build: the wheel just built is installed
-    # beside the published companion and smoked, with PostgreSQL available.
+    # next's publish gate also accepts the storage component's tags.
+    publisher = yaml.load(
+        (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    gate = publisher["jobs"]["build"]["steps"][1]["run"]
+    assert 'adcp-reporting-storage) [[ "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]]' in gate
+
+
+def test_release_publish_gates_both_packages_on_a_working_companion() -> None:
+    """The companion gate (#1605, #1763) runs for every publish of either package.
+
+    It runs after the build, so the wheel just built is installed beside the
+    published companion and smoked, with a PostgreSQL service available: a
+    pair whose version ranges admit each other but whose storage contracts
+    differ never reaches PyPI.
+    """
     publisher = yaml.load(
         (ROOT / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
     )
@@ -145,8 +158,6 @@ def test_release_please_keeps_next_on_the_beta_channel() -> None:
     ]
     assert build_steps and build_steps[0] < companion_steps[0], "gate the built wheel"
     assert publisher["jobs"]["build"]["services"]["postgres"]["image"].startswith("postgres:")
-    gate = steps[1]["run"]
-    assert 'adcp-reporting-storage) [[ "$RELEASE_TAG" =~ ^adcp-reporting-storage-v[0-9] ]]' in gate
 
 
 def test_storage_distribution_pins_one_adcp_major() -> None:

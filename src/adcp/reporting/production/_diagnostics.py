@@ -78,7 +78,7 @@ def _owed_sets_failed(*, failed: int, total: int) -> None:
 
 
 _MAINTENANCE_OPERATIONS = frozenset(
-    {"intent_sweep", "row_pruning", "period_retirement", "change_pruning"}
+    {"intent_sweep", "row_pruning", "period_retirement", "change_pruning", "orphan_collection"}
 )
 #: The only counters a maintenance event may carry: integers, never identifiers.
 _MAINTENANCE_COUNTERS = frozenset(
@@ -92,6 +92,8 @@ _MAINTENANCE_COUNTERS = frozenset(
         "stuck",
         "skipped_unconfigured",
         "overdue",
+        "unsupported",
+        "fenced",
     }
 )
 

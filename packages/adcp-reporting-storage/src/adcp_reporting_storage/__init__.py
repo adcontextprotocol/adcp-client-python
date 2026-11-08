@@ -61,6 +61,27 @@ if TYPE_CHECKING:
     from adcp_reporting_storage.ledger.delivery_pg import (
         PgReportingReconciliationStore as PgReportingReconciliationStore,
     )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanBindingResultV1 as ReportingOrphanBindingResultV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanCandidateV1 as ReportingOrphanCandidateV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanCollectionOptionsV1 as ReportingOrphanCollectionOptionsV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanCollectionResultV1 as ReportingOrphanCollectionResultV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanCollectionStateV1 as ReportingOrphanCollectionStateV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_collector import (
+        ReportingOrphanFenceTakeoverV1 as ReportingOrphanFenceTakeoverV1,
+    )
+    from adcp_reporting_storage.ledger.orphan_fence import (
+        ReportingOrphanFenceRefusalV1 as ReportingOrphanFenceRefusalV1,
+    )
     from adcp_reporting_storage.ledger.period_retirement import (
         ReportingPeriodRetirementV1 as ReportingPeriodRetirementV1,
     )
@@ -275,6 +296,22 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
         "ReportingRowBindingSelectionInputV1",
     ),
     "ReportingRowIntentSweepV1": ("ledger.row_retention", "ReportingRowIntentSweepV1"),
+    "ReportingOrphanBindingResultV1": ("ledger.orphan_collector", "ReportingOrphanBindingResultV1"),
+    "ReportingOrphanCandidateV1": ("ledger.orphan_collector", "ReportingOrphanCandidateV1"),
+    "ReportingOrphanCollectionOptionsV1": (
+        "ledger.orphan_collector",
+        "ReportingOrphanCollectionOptionsV1",
+    ),
+    "ReportingOrphanCollectionResultV1": (
+        "ledger.orphan_collector",
+        "ReportingOrphanCollectionResultV1",
+    ),
+    "ReportingOrphanCollectionStateV1": (
+        "ledger.orphan_collector",
+        "ReportingOrphanCollectionStateV1",
+    ),
+    "ReportingOrphanFenceTakeoverV1": ("ledger.orphan_collector", "ReportingOrphanFenceTakeoverV1"),
+    "ReportingOrphanFenceRefusalV1": ("ledger.orphan_fence", "ReportingOrphanFenceRefusalV1"),
     "ReportingRowPruneV1": ("ledger.row_retention", "ReportingRowPruneV1"),
     "ReportingPeriodRetirementV1": ("ledger.period_retirement", "ReportingPeriodRetirementV1"),
     "ReportingRowMigrationBatchV1": ("ledger.row_migration", "ReportingRowMigrationBatchV1"),

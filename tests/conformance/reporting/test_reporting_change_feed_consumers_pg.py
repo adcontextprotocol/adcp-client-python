@@ -1,7 +1,8 @@
 """Feed consumer checkpoints are forward-only within a scope (adcp-client-python #1509).
 
 Ported from the JavaScript SDK (adcp-client #3197): a delayed or repeated acknowledgment
-must not move a consumer, or its retention hold, backward.
+must not move a consumer, or its retention hold, backward. Account consumers compare
+``(xid, seq)`` like deployment consumers (adcp-client #3289, adcp-client-python #1825).
 """
 
 from __future__ import annotations
@@ -24,7 +25,15 @@ async def feed_store(pool: Any) -> PgReportingLedgerStore:
     return store
 
 
-def account_cursor(seq: int, account: str = "acct_a") -> str:
+def account_cursor(seq: int, account: str = "acct_a", xid: int | None = None) -> str:
+    """A new-format account cursor; ``xid`` defaults to ``seq`` so the two orders agree."""
+    return encode_reporting_change_cursor_v1(
+        account=account, seq=str(seq), xid=str(seq if xid is None else xid)
+    )
+
+
+def legacy_account_cursor(seq: int, account: str = "acct_a") -> str:
+    """The cursor an older SDK saved: a ``seq`` and no ``xid``."""
     return encode_reporting_change_cursor_v1(account=account, seq=str(seq))
 
 
@@ -66,29 +75,29 @@ async def test_an_account_consumer_never_moves_backward_unless_asked_to() -> Non
         store = await feed_store(pool)
         assert await store.save_feed_consumer_cursor("sink", account_cursor(10)) is True
         assert await store.save_feed_consumer_cursor("sink", account_cursor(20)) is True
-        assert await saved(pool, "sink") == ("acct_a", None, 20)
+        assert await saved(pool, "sink") == ("acct_a", "20", 20)
 
         # A delayed acknowledgment is ignored and says so.
         applied = await store.save_feed_consumer_cursor("sink", account_cursor(15))
-        assert await saved(pool, "sink") == ("acct_a", None, 20)
+        assert await saved(pool, "sink") == ("acct_a", "20", 20)
         assert applied is False
 
         # A deliberate replay rewinds, with or without the refresh option.
         assert await store.save_feed_consumer_cursor("sink", account_cursor(5), rewind=True) is True
-        assert await saved(pool, "sink") == ("acct_a", None, 5)
+        assert await saved(pool, "sink") == ("acct_a", "5", 5)
         assert (
             await store.save_feed_consumer_cursor(
                 "sink", account_cursor(3), rewind=True, refresh_unchanged=False
             )
             is True
         )
-        assert await saved(pool, "sink") == ("acct_a", None, 3)
+        assert await saved(pool, "sink") == ("acct_a", "3", 3)
 
         # Compared numerically, not as text: 100 is ahead of 95.
         await store.save_feed_consumer_cursor("sink", account_cursor(95))
         assert await store.save_feed_consumer_cursor("sink", account_cursor(100)) is True
         assert await store.save_feed_consumer_cursor("sink", account_cursor(95)) is False
-        assert await saved(pool, "sink") == ("acct_a", None, 100)
+        assert await saved(pool, "sink") == ("acct_a", "100", 100)
 
 
 async def test_a_repeated_acknowledgment_renews_the_hold_unless_told_not_to() -> None:
@@ -151,11 +160,11 @@ async def test_a_change_of_feed_scope_replaces_the_position() -> None:
         await store.save_feed_consumer_cursor("sink", account_cursor(500, "acct_a"))
         # Positions in different feeds are not comparable, so a scope change always applies.
         assert await store.save_feed_consumer_cursor("sink", account_cursor(1, "acct_b")) is True
-        assert await saved(pool, "sink") == ("acct_b", None, 1)
+        assert await saved(pool, "sink") == ("acct_b", "1", 1)
         assert await store.save_feed_consumer_cursor("sink", deployment_cursor(5, 1)) is True
         assert await saved(pool, "sink") == (None, "5", 1)
         assert await store.save_feed_consumer_cursor("sink", account_cursor(900, "acct_a")) is True
-        assert await saved(pool, "sink") == ("acct_a", None, 900)
+        assert await saved(pool, "sink") == ("acct_a", "900", 900)
 
 
 async def test_concurrent_writers_cannot_interleave_a_stale_position_over_a_newer_one(
@@ -216,7 +225,7 @@ async def test_concurrent_writers_cannot_interleave_a_stale_position_over_a_newe
                         task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-        assert await saved(pool, "sink") == ("acct_a", None, 9), "a stale write landed last"
+        assert await saved(pool, "sink") == ("acct_a", "9", 9), "a stale write landed last"
         assert results == (True, False)
 
 
@@ -243,6 +252,77 @@ async def test_remove_feed_consumer_releases_the_hold() -> None:
         assert await store.remove_feed_consumer("sink") is False
         # Saving under the same name registers it again, at the position given.
         assert await store.save_feed_consumer_cursor("sink", account_cursor(2)) is True
-        assert await saved(pool, "sink") == ("acct_a", None, 2)
+        assert await saved(pool, "sink") == ("acct_a", "2", 2)
         with pytest.raises(ValueError):
             await store.remove_feed_consumer("bad name")
+
+
+async def test_an_account_consumer_compares_xid_then_seq() -> None:
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        assert await store.save_feed_consumer_cursor("sink", account_cursor(9, xid=50)) is True
+        # A later transaction with a lower seq is ahead in (xid, seq) order; an earlier
+        # transaction with a higher seq is behind.
+        assert await store.save_feed_consumer_cursor("sink", account_cursor(2, xid=60)) is True
+        assert await saved(pool, "sink") == ("acct_a", "60", 2)
+        assert await store.save_feed_consumer_cursor("sink", account_cursor(99, xid=55)) is False
+        assert await saved(pool, "sink") == ("acct_a", "60", 2)
+        # Same transaction: seq decides.
+        assert await store.save_feed_consumer_cursor("sink", account_cursor(3, xid=60)) is True
+        assert await store.save_feed_consumer_cursor("sink", account_cursor(1, xid=60)) is False
+        assert await saved(pool, "sink") == ("acct_a", "60", 3)
+
+
+async def test_a_null_xid_consumer_row_is_replaced_by_a_new_format_cursor_unless_its_seq_is_behind() -> (
+    None
+):
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_feed_consumers"
+                " (consumer_name, account_id, cursor_xid, cursor_seq)"
+                " VALUES ('old', 'acct_a', NULL, 9000)"
+            )
+        # A consumer row saved before the upgrade holds by seq; a cursor behind it is ignored.
+        assert await store.save_feed_consumer_cursor("old", account_cursor(5, xid=7)) is False
+        assert await saved(pool, "old") == ("acct_a", None, 9000)
+        assert await store.save_feed_consumer_cursor("old", account_cursor(9000, xid=7)) is True
+        assert await saved(pool, "old") == ("acct_a", "7", 9000)
+        assert await store.save_feed_consumer_cursor("old", account_cursor(5, xid=7)) is False
+        assert (
+            await store.save_feed_consumer_cursor("old", account_cursor(5, xid=7), rewind=True)
+            is True
+        )
+
+
+async def test_saving_a_seq_only_account_cursor_registers_the_position_changes_after_reads() -> (
+    None
+):
+    async with isolated_reporting_pool() as pool:
+        store = await feed_store(pool)
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_changes (xid, account_id, record_kind, record_id,"
+                " obligation_id) VALUES ('10'::xid8, 'acct_a', 'revision', 'r1', 'o'),"
+                " ('20'::xid8, 'acct_a', 'revision', 'r2', 'o'),"
+                " ('30'::xid8, 'acct_a', 'revision', 'r3', 'o')"
+            )
+        first_seq = (await fetch_all(pool, "SELECT seq FROM adcp_reporting_changes ORDER BY seq"))[
+            0
+        ][0]
+        # The hold sits below every unread change: the oldest one after the cursor, xid 20.
+        assert await store.save_feed_consumer_cursor("sink", legacy_account_cursor(first_seq))
+        assert await saved(pool, "sink") == ("acct_a", "20", first_seq)
+        page = await store.changes_after(
+            account_id="acct_a", cursor=legacy_account_cursor(first_seq)
+        )
+        assert [r.record_id for r in page.records] == ["r2", "r3"]
+        # A new-format cursor replaces it, forward only.
+        assert await store.save_feed_consumer_cursor("sink", page.cursor) is True
+        row = await saved(pool, "sink")
+        assert row is not None and row[1] == "30"
+        # A mapped seq-only cursor is forward-only against a new-format registration.
+        assert (
+            await store.save_feed_consumer_cursor("sink", legacy_account_cursor(first_seq)) is False
+        )

@@ -13,16 +13,33 @@ from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 from adcp_reporting_storage.ledger.row_storage_object import ReportingRowObjectGetInputV1
 
 __all__ = [
+    "ROW_IDENTIFIER_MAX_LENGTH",
     "assert_key",
     "assert_location_keys",
     "assert_read_bounds",
     "client_map",
+    "is_row_identifier",
     "prefix_filter_overlaps",
     "select_client",
 ]
 
 _T = TypeVar("_T")
-_CREDENTIAL_REF = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+
+#: Bound for the row-storage identifiers a host chooses, ``row_binding_id`` and the binding's
+#: credential reference: 1 to 255 characters of ``A-Za-z0-9_.:-``, the AdCP identifier bound
+#: (``reporting_revision_id``, ``resource_ref`` and ``destination_ref`` use
+#: ``^[A-Za-z0-9_.:-]{1,255}$``). The ``adcp_reporting_row_bindings`` ``CHECK`` enforces the same.
+ROW_IDENTIFIER_MAX_LENGTH = 255
+_ROW_IDENTIFIER = re.compile(rf"[A-Za-z0-9_.:-]{{1,{ROW_IDENTIFIER_MAX_LENGTH}}}")
+
+
+def is_row_identifier(value: object) -> bool:
+    """Whether ``value`` is a well-formed host-chosen row-storage identifier.
+
+    ``fullmatch``, not ``match`` with ``$``: ``$`` also matches before a trailing newline,
+    which the database ``CHECK`` refuses.
+    """
+    return isinstance(value, str) and _ROW_IDENTIFIER.fullmatch(value) is not None
 
 
 def assert_location_keys(
@@ -66,7 +83,7 @@ def client_map(clients: Mapping[str, _T] | None) -> dict[str, _T]:
         return {}
     result: dict[str, _T] = {}
     for reference, client in clients.items():
-        if not _CREDENTIAL_REF.match(reference) or client is None:
+        if not is_row_identifier(reference) or client is None:
             raise ReportingRowStoreError(
                 "INVALID_INPUT", "clients must map credential references to clients"
             )

@@ -44,6 +44,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from adcp_reporting_storage.ledger.change_feed import feed_consumer_behind_change
 from adcp_reporting_storage.ledger.row_retention import NoLongerEligibleError
 from adcp_reporting_storage.ledger.row_storage import ReportingRowStoreError
 
@@ -122,15 +123,12 @@ async def retire_expired_periods(
             connection, "adcp_reporting_feed_consumers"
         ):
             holds.append(
-                " AND NOT EXISTS (SELECT 1 FROM adcp_reporting_changes change"
+                " AND NOT EXISTS (SELECT 1 FROM adcp_reporting_changes change"  # noqa: S608  # nosec B608
                 " JOIN adcp_reporting_feed_consumers consumer"
                 "   ON consumer.updated_at > clock_timestamp()"
                 "      - (%(hold_days)s::integer * INTERVAL '1 day')"
                 " WHERE change.obligation_id = o.reporting_obligation_id"
-                " AND ((consumer.account_id IS NULL AND (change.xid, change.seq) >"
-                "        (consumer.cursor_xid, consumer.cursor_seq))"
-                "   OR (consumer.account_id = change.account_id"
-                "       AND change.seq > consumer.cursor_seq)))"
+                f" AND {feed_consumer_behind_change('consumer', 'change')})"
             )
         parameters = {
             "account": account_id,

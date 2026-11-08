@@ -22,14 +22,20 @@ import time
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import rfc8785
 
 from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 
 __all__ = [
+    "ReportingRowObjectListEntryV1",
+    "ReportingRowObjectListInputV1",
+    "ReportingRowObjectListPageV1",
+    "REPORTING_ROW_BINDING_ID_MAX_LENGTH",
+    "REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH",
     "REPORTING_ROW_DEFAULT_KEY_TEMPLATE",
     "REPORTING_ROW_KEY_PLACEHOLDERS",
     "REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH",
@@ -65,6 +71,13 @@ class ReportingRowObjectContextV1:
 #: characters. The row-storage ``CHECK`` constraints enforce the same.
 REPORTING_ROW_OBJECT_REF_MAX_LENGTH = 1024
 REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH = 1024
+#: Bound on a row binding ID, 1 to 255 characters of ``A-Za-z0-9_.:-``: the AdCP identifier
+#: bound that ``reporting_revision_id``, ``resource_ref`` and ``destination_ref`` use
+#: (``^[A-Za-z0-9_.:-]{1,255}$``). The ``adcp_reporting_row_bindings`` ``CHECK`` enforces the same.
+REPORTING_ROW_BINDING_ID_MAX_LENGTH = 255
+#: Bound on a binding's ``credential_ref`` (and on the keys of a provider's ``clients`` map): the
+#: same 1 to 255 characters of ``A-Za-z0-9_.:-`` as a row binding ID.
+REPORTING_ROW_CREDENTIAL_REF_MAX_LENGTH = 255
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +135,43 @@ class ReportingRowObjectStatResultV1:
     native_version_ref: str
     #: AdCP ``size_bytes``: the stored object's size.
     size_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectListInputV1:
+    location: Mapping[str, str]
+    #: Key prefix to list under. The SDK passes the binding's owned prefix,
+    #: ``{prefix}/{namespace_key}/``.
+    prefix: str
+    #: Upper bound on objects in the page. A provider may return fewer and still return a token.
+    page_size: int
+    #: Opaque continuation from the previous page; ``None`` for the first page.
+    page_token: str | None = None
+    credential_ref: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectListEntryV1:
+    """One stored object version found by a listing."""
+
+    #: AdCP ``object_ref``: the key, as it would be passed to ``get`` and ``delete``.
+    object_ref: str
+    #: AdCP ``native_version_ref``: the exact version, as ``put_if_absent`` would have recorded it.
+    native_version_ref: str
+    size_bytes: int
+    #: When this version was written, as an RFC 3339 UTC instant (``...Z``). Never earlier than
+    #: the write.
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectListPageV1:
+    objects: tuple[ReportingRowObjectListEntryV1, ...]
+    #: Absent on the last page.
+    next_page_token: str | None = None
+    #: Entries the provider left out because they cannot be addressed or aged (no usable version,
+    #: size or write time). They are never collected; one bad entry must not stop the listing.
+    skipped: int = 0
 
 
 @runtime_checkable
@@ -183,6 +233,21 @@ class ReportingRowObjectProviderV1(Protocol):
     # versions are write-unique, so the same version at the recorded size is the same bytes)
     # without downloading it under the account lock. A provider without ``stat`` falls back to
     # a full read there. Never return a size for a different version.
+    #
+    #   async def list(self, request: ReportingRowObjectListInputV1, context)
+    #       -> ReportingRowObjectListPageV1
+    #
+    # Every stored version whose key starts with ``prefix``, in a stable order, one page at a
+    # time. The orphan collector (``collect_orphaned_row_objects``) and its ownership fence use
+    # it; a binding whose provider has no ``list`` is reported ``unsupported`` there. Return each
+    # version once as ``(object_ref, native_version_ref)`` exactly as ``put_if_absent`` recorded
+    # it (on a versioned store, noncurrent versions too, never delete markers), the stored size
+    # and the time the version was written. Return only keys under ``prefix``. A page may be
+    # short; ``next_page_token`` is absent on the last page. A token is only valid for the same
+    # prefix and location. Leave out an entry that cannot be addressed or aged and count it in
+    # ``skipped`` rather than failing the page. The listing must be strongly consistent for keys
+    # ``put_if_absent`` has already returned (read-after-write): the collector's fence reads the
+    # newest claim by listing.
 
 
 #: Placeholders allowed in object key templates.
@@ -204,6 +269,54 @@ REPORTING_ROW_DEFAULT_KEY_TEMPLATE = (
 
 _KEY = re.compile(r"^[A-Za-z0-9_.=-]+(?:/[A-Za-z0-9_.=-]+)*$")
 _PLACEHOLDER = re.compile(r"\{([a-z0-9_]+)\}")
+_INSTANT = re.compile(
+    r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]{1,9}))?Z"
+)
+
+
+def is_row_object_key_shape(
+    key: object, max_length: int = REPORTING_ROW_OBJECT_REF_MAX_LENGTH
+) -> bool:
+    """Whether a key has the shape ``render_reporting_row_object_key_v1`` gives every row object.
+
+    The same character set, no empty, ``.`` or ``..`` segment, and within AdCP's ``object_ref``
+    bound. ``fullmatch``: ``$`` would also accept a trailing newline.
+    """
+    return (
+        isinstance(key, str)
+        and len(key) <= max_length
+        and _KEY.fullmatch(key) is not None
+        and not any(segment in (".", "..") for segment in key.split("/"))
+    )
+
+
+def parse_row_instant(value: object) -> datetime | None:
+    """A strict RFC 3339 UTC instant (``2026-10-01T00:00:00.123Z``) as an aware datetime.
+
+    Anything else, including an offset other than ``Z``, a date-only value or an impossible
+    date, is ``None``: an object whose write time cannot be read is treated as young, never
+    deleted on a guess.
+    """
+    if not isinstance(value, str):
+        return None
+    match = _INSTANT.fullmatch(value)
+    if match is None:
+        return None
+    fraction = (match.group(2) or "").ljust(6, "0")[:6]
+    try:
+        return datetime.fromisoformat(f"{match.group(1)}.{fraction}+00:00")
+    except ValueError:
+        return None
+
+
+def is_row_instant(value: object) -> bool:
+    return parse_row_instant(value) is not None
+
+
+def format_row_instant(moment: datetime) -> str:
+    """An aware datetime as the millisecond RFC 3339 UTC instant providers report."""
+    utc = moment.astimezone(timezone.utc)
+    return utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc.microsecond // 1000:03d}Z"
 
 
 _REVISION_KEY_REQUIRED = (
@@ -620,6 +733,101 @@ class _FilesystemProvider:
             return None
         return ReportingRowObjectStatResultV1(version, int(version.rsplit(":", 1)[1]))
 
+    async def list(
+        self, request: ReportingRowObjectListInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectListPageV1:
+        """List objects under ``prefix`` in key order, one page at a time.
+
+        Reads and sorts each directory it walks in full, so keep directories small: it is for
+        tests and single hosts, not millions of objects per prefix.
+        """
+        if type(request.page_size) is not int or request.page_size < 1:
+            raise ReportingRowStoreError("INVALID_INPUT", "page_size must be a positive integer")
+        root = self.roots.get(request.location.get("root", ""))
+        if root is None:
+            raise ReportingRowStoreError("UNSAFE_BINDING", "filesystem root is not configured")
+        if not isinstance(request.prefix, str) or ".." in request.prefix.split("/"):
+            raise ReportingRowStoreError("INVALID_INPUT", "list prefix is invalid")
+        return await asyncio.to_thread(self._list, root, request)
+
+    @staticmethod
+    def _list(root: str, request: ReportingRowObjectListInputV1) -> ReportingRowObjectListPageV1:
+        after = None if request.page_token is None else tuple(request.page_token.split("/"))
+        objects: list[ReportingRowObjectListEntryV1] = []
+        more = False
+
+        def walk(directory: tuple[str, ...]) -> bool:
+            nonlocal more
+            try:
+                with os.scandir(os.path.join(root, *directory)) as scanner:
+                    # A symlink is neither listed nor followed: a link inside the root must not
+                    # make a key resolve outside it.
+                    entries = sorted(
+                        (entry for entry in scanner if not entry.is_symlink()),
+                        key=lambda entry: entry.name,
+                    )
+            except (FileNotFoundError, NotADirectoryError):
+                return True
+            except OSError:
+                raise ReportingRowStoreError(
+                    "PROVIDER_UNAVAILABLE", "filesystem list failed"
+                ) from None
+            for entry in entries:
+                name = entry.name
+                segments = (*directory, name)
+                path = entry.path
+                is_directory = entry.is_dir(follow_symlinks=False)
+                if after is not None:
+                    head = after[: len(segments)]
+                    if segments < head:
+                        continue
+                    if segments == head and not is_directory and len(segments) == len(after):
+                        continue
+                if is_directory:
+                    # Keep only subtrees that can hold a key under the prefix.
+                    rendered = "/".join(segments) + "/"
+                    if not rendered.startswith(request.prefix) and not request.prefix.startswith(
+                        rendered
+                    ):
+                        continue
+                    if not walk(segments):
+                        return False
+                    continue
+                if name.endswith(".tmp") or not entry.is_file(follow_symlinks=False):
+                    continue
+                key = "/".join(segments)
+                if not key.startswith(request.prefix):
+                    continue
+                if len(objects) >= request.page_size:
+                    more = True
+                    return False
+                try:
+                    stat = os.stat(path)
+                    version = _filesystem_version(path)
+                    birth = _birth_time_ns(path, stat)
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    raise ReportingRowStoreError(
+                        "PROVIDER_UNAVAILABLE", "filesystem list failed"
+                    ) from None
+                written_ns = max(birth, stat.st_mtime_ns)
+                objects.append(
+                    ReportingRowObjectListEntryV1(
+                        key,
+                        version,
+                        stat.st_size,
+                        format_row_instant(
+                            datetime.fromtimestamp(written_ns / 1_000_000_000, tz=timezone.utc)
+                        ),
+                    )
+                )
+            return True
+
+        walk(())
+        token = objects[-1].object_ref if more and objects else None
+        return ReportingRowObjectListPageV1(tuple(objects), token)
+
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
@@ -776,4 +984,111 @@ async def run_reporting_row_object_provider_conformance_v1(
     outcome = await provider.delete(delete(recreated.native_version_ref), context)
     assert outcome == "deleted", "delete did not remove the re-created version"
     passed.append("write-unique-version")
+    lister = getattr(provider, "list", None)
+    if lister is not None:
+        await _check_listing(lister, location, prefix, credential_ref, provider, context)
+        passed.append("list")
     return passed
+
+
+async def _check_listing(
+    lister: Any,
+    location: Mapping[str, str],
+    prefix: str,
+    credential_ref: str | None,
+    provider: ReportingRowObjectProviderV1,
+    context: ReportingRowObjectContextV1,
+) -> None:
+    """The listing contract the orphan collector depends on.
+
+    Every object under the prefix exactly once across pages, each with the version, size and
+    write time ``put_if_absent`` reports, nothing outside the prefix, and deleted objects gone.
+    """
+    folder = f"{prefix}/conformance/{uuid.uuid4()}/"
+    bodies = {
+        f"{folder}a.jsonl": b'{"a":1}\n',
+        f"{folder}b.jsonl.gz": b'{"b":2}\n{"b":3}\n',
+        f"{folder}nested/c.jsonl": b'{"c":4}\n',
+    }
+    metadata = {"adcp-installation": "conformance", "adcp-intent": "conformance"}
+    created: dict[str, str] = {}
+    started = datetime.now(timezone.utc)
+
+    async def list_all(under: str, page_size: int) -> list[ReportingRowObjectListEntryV1]:
+        found: list[ReportingRowObjectListEntryV1] = []
+        token: str | None = None
+        for _ in range(100):
+            page = await lister(
+                ReportingRowObjectListInputV1(location, under, page_size, token, credential_ref),
+                context,
+            )
+            assert (
+                isinstance(page.objects, tuple) and len(page.objects) <= page_size
+            ), "list returned more objects than page_size"
+            found.extend(page.objects)
+            previous, token = token, page.next_page_token
+            if token is None:
+                return found
+            assert (
+                isinstance(token, str) and token and token != previous
+            ), "list returned an invalid or repeated token"
+        raise AssertionError("list did not finish within 100 pages")
+
+    try:
+        for key, data in bodies.items():
+            put = await provider.put_if_absent(
+                ReportingRowObjectPutInputV1(
+                    location,
+                    key,
+                    data,
+                    "application/gzip" if key.endswith(".gz") else "application/x-ndjson",
+                    metadata,
+                    credential_ref,
+                ),
+                context,
+            )
+            assert put.created, "list: put_if_absent did not create a fresh object"
+            created[key] = put.native_version_ref
+        for page_size in (1, 2, 100):
+            found = await list_all(folder, page_size)
+            keys = [entry.object_ref for entry in found]
+            assert len(set(keys)) == len(
+                keys
+            ), f"list returned an object twice (page_size {page_size})"
+            assert set(keys) == set(
+                bodies
+            ), f"list did not return exactly the objects under the prefix (page_size {page_size})"
+            for entry in found:
+                assert (
+                    entry.native_version_ref == created[entry.object_ref]
+                ), "list reported a native version that put_if_absent did not"
+                assert entry.size_bytes == len(
+                    bodies[entry.object_ref]
+                ), "list reported a wrong size"
+                written = parse_row_instant(entry.created_at)
+                # Object-store clocks differ from this host's; a wide margin still catches a
+                # missing or zero time.
+                assert (
+                    written is not None and abs((written - started).total_seconds()) <= 600
+                ), "list did not report when the version was written"
+        assert len(await list_all(f"{folder}nested/", 10)) == 1, "list ignored the prefix"
+        assert (
+            len(await list_all(f"{folder}zz", 10)) == 0
+        ), "list returned objects for an unused prefix"
+        first = next(iter(created))
+        outcome = await provider.delete(
+            ReportingRowObjectDeleteInputV1(location, first, created[first], credential_ref),
+            context,
+        )
+        assert outcome == "deleted", "list: delete did not remove the object"
+        del created[first]
+        remaining = sorted(entry.object_ref for entry in await list_all(folder, 2))
+        assert remaining == sorted(created), "list returned a deleted object, or lost a live one"
+    finally:
+        for key, version in created.items():
+            try:
+                await provider.delete(
+                    ReportingRowObjectDeleteInputV1(location, key, version, credential_ref), context
+                )
+            except Exception:  # noqa: S110  # nosec B110
+                pass

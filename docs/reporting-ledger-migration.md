@@ -368,3 +368,35 @@ seeds ledgers with the actual published wheel pairs (`adcp==9.3.1` with
 `adcp-reporting-storage==0.1.0b4`, `adcp==10.0.0b2` with `0.2.0b0`) and proves
 the retained evidence reads back unchanged, a restart rebinds the stored
 generations, and the upgraded catalog is identical to a fresh migration.
+
+## Upgrading a ledger that adcp-reporting-storage 0.1.0b5 wrote
+
+0.1.0b5 is the SDK 9 storage release that orders the account change feed by
+`(xid, seq)`, accepts 255-character row binding IDs and credential refs, and
+adds the opt-in orphaned-object collector. Its ledger upgrades to this release
+through the same two entry points and the same numbered migrations as a
+0.1.0b4 ledger (above): this release adds no migration for them. Their DDL is
+in the files `create_schema()` re-applies on every start when the option is
+on (`reporting_changes.sql` with `change_feed=True`,
+`reporting_row_storage.sql` with `row_storage`), as on the SDK 9 line, and
+`python -m adcp migrate` never creates those tables. A ledger created before
+0.1.0b5 gains the account horizon's xid columns, the named feed-consumer and
+row-binding constraints, the `(account_id, xid, seq)` index and the orphan
+collector fence table the first time this release starts with those options;
+see [host change feed and consumers](reporting-row-storage.md#host-change-feed-and-consumers)
+for creating that index concurrently on a large changes table.
+
+adcp-reporting-storage 0.2.0b0 to 0.2.0b2 predate the `(xid, seq)` account
+feed. On a 0.1.0b5 ledger they refuse an account cursor that carries an
+`xid`, refuse a row binding ID over 128 characters, and prune the change feed
+without advancing the account horizon's xid columns. A cursor 0.1.0b5 handed
+out could then pass the account horizon check and skip what 0.2.x pruned. So
+the first time this release starts with `change_feed=True` on a 0.1.0b5 ledger
+that a 0.2 release has already upgraded, it raises each account horizon to the
+deployment horizon, or to just below the account's oldest retained change when
+that is lower. Those cursors then fail closed with `CURSOR_EXPIRED`; a
+consumer starting over still reads every retained change. It runs once (a
+comment on `adcp_reporting_change_account_horizon` records it) and changes
+nothing on a ledger upgraded straight from 0.1.0b5. As for the `(xid, seq)`
+upgrade on SDK 9, stop every older host's change maintenance before this
+release starts.
