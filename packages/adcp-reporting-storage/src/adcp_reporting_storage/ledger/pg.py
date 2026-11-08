@@ -173,6 +173,7 @@ if TYPE_CHECKING:
         ReportingChangeKindV1,
         ReportingChangesPageV1,
     )
+    from adcp_reporting_storage.ledger.issue_events import ReportingIssueEventLease
     from adcp_reporting_storage.ledger.orphan_collector import (
         ReportingOrphanCollectionOptionsV1,
         ReportingOrphanCollectionResultV1,
@@ -253,6 +254,10 @@ class PgReportingLedgerStore:
     #: The reporting storage contract this store's DDL implements; adcp refuses a
     #: store whose contract differs from its own (``adcp_reporting_storage.contract``).
     storage_contract: ClassVar[int] = STORAGE_CONTRACT
+    #: This store records issue-lifecycle events and serves them to the issue
+    #: observer (adcp-client-python#1258); ``issue_events_ready()`` says whether
+    #: migration 0008 installed their table.
+    issue_events_supported: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -3069,6 +3074,7 @@ class PgReportingLedgerStore:
             generation=generation,
         )
         await self._dirty_issue(connection, record, status_scope, enqueue=enqueue)
+        await self._record_issue_transition(connection, before_state=None, after=record)
         return record
 
     async def set_issue_state(
@@ -3140,6 +3146,12 @@ class PgReportingLedgerStore:
             # nothing, while anything that does move retained evidence stays
             # reconstructable for the projector.
             await self._dirty_issue(connection, refreshed, status_scope, live)
+            await self._record_issue_transition(
+                connection,
+                before_state=live.issue_state,
+                after=refreshed,
+                occurred_at=_utc(at) if state == "acknowledged" else None,
+            )
             return refreshed
 
     async def retire_issue(
@@ -3183,11 +3195,94 @@ class PgReportingLedgerStore:
         retired = await self._issue_row(connection, issue_key, account_id, live.generation)
         assert retired is not None
         await self._dirty_issue(connection, retired, status_scope, live, enqueue=enqueue)
+        await self._record_issue_transition(
+            connection, before_state=live.issue_state, after=retired
+        )
         return retired
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
         async with self._connection() as connection:
             return await self._live_issue(connection, issue_key, account_id)
+
+    async def _record_issue_transition(
+        self,
+        connection: Any,
+        *,
+        before_state: str | None,
+        after: ReportingIssueLifecycle,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        from adcp_reporting_storage.ledger.issue_events import record_issue_transition_on
+
+        await record_issue_transition_on(
+            connection,
+            before_state=before_state,
+            after=after,
+            clock=self._clock,
+            occurred_at=occurred_at,
+        )
+
+    # -- issue events (adcp-client-python#1258) ----------------------------
+    #
+    # A transactional outbox of issue-lifecycle transitions for the adopter's
+    # issue observer: see :mod:`adcp_reporting_storage.ledger.issue_events`.
+
+    async def issue_events_ready(self) -> bool:
+        """Whether migration ``0008`` installed the issue-event outbox.
+
+        Until it has, lifecycle writes record no events. Install it with
+        ``python -m adcp migrate``.
+        """
+        from adcp_reporting_storage.ledger.issue_events import issue_event_storage_on
+
+        async with self._connection() as connection, connection.transaction():
+            return await issue_event_storage_on(connection)
+
+    async def sweep_issue_escalations(self, *, after: timedelta, limit: int = 100) -> int:
+        """Record ``escalated`` for occurrences still open or acknowledged past
+        ``opened_at + after`` (the seller's ``consumer_mismatch_escalation``).
+
+        Settles each candidate account first, so a cleared condition resolves
+        instead of escalating. Exactly once per occurrence across replicas.
+        Sweeps at most ``limit`` accounts; returns the events recorded.
+        """
+        from adcp_reporting_storage.ledger.issue_events import sweep_escalations
+
+        return await sweep_escalations(self, after=after, limit=limit)
+
+    async def claim_issue_events(
+        self, *, lease_seconds: float = 60.0, limit: int = 20
+    ) -> tuple[ReportingIssueEventLease, ...]:
+        """Lease up to ``limit`` due events, at most one per occurrence.
+
+        An occurrence's events are claimable in recording order, each once
+        the one before it is delivered. Settle each lease with
+        :meth:`complete_issue_event` or :meth:`release_issue_event`; an
+        unsettled lease expires after ``lease_seconds`` and is claimed again.
+        """
+        from adcp_reporting_storage.ledger.issue_events import claim
+
+        return await claim(self, lease_seconds=lease_seconds, limit=limit)
+
+    async def complete_issue_event(self, lease: ReportingIssueEventLease) -> bool:
+        """Stamp a delivered event; ``False`` when its lease was lost."""
+        from adcp_reporting_storage.ledger.issue_events import complete
+
+        return await complete(self, lease)
+
+    async def release_issue_event(
+        self, lease: ReportingIssueEventLease, *, retry_after: timedelta
+    ) -> bool:
+        """Give back a failed delivery, due again ``retry_after`` from now."""
+        from adcp_reporting_storage.ledger.issue_events import release
+
+        return await release(self, lease, retry_after=retry_after)
+
+    async def prune_issue_events(self, *, older_than: timedelta, limit: int = 1000) -> int:
+        """Delete up to ``limit`` events delivered more than ``older_than`` ago."""
+        from adcp_reporting_storage.ledger.issue_events import prune
+
+        return await prune(self, older_than=older_than, limit=limit)
 
     @staticmethod
     async def _live_issue(

@@ -110,6 +110,11 @@ expand/contract pair:
   subscription's generation raises `ReportingUpgradeNotContractedError` (code
   `REPORTING_UPGRADE_NOT_CONTRACTED`). After it, the earlier release cannot
   start against the ledger, so rolling back means restoring the backup.
+- **Issue events** (migration `0008`, additive): `python -m adcp migrate` adds
+  `reporting_issue_events`, the outbox the issue observer reads (#1258), even
+  while the contract step waits. It is one new table and its indexes, so
+  earlier-release processes keep running beside it; they record no issue
+  events for their own transitions.
 
 `postgres_storage(...)` starts on a ledger whose only pending migration is the
 contract step. A new ledger is created contracted. A ledger that 0.2.0b1 or

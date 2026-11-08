@@ -152,6 +152,36 @@ nothing on a schema without status notifications. A foreign key outside the
 SDK that references `reporting_status_scope_checkpoints` refuses the upgrade
 instead of being dropped.
 
+### Issue-lifecycle events (migration `0008`)
+
+`python -m adcp migrate` (migration `0008 reporting_issue_events`, header
+`-- adcp-upgrade: additive`) creates `reporting_issue_events`, the outbox the
+issue observer reads ([#1258](https://github.com/adcontextprotocol/adcp-client-python/issues/1258)),
+and its indexes. Nothing else changes: no existing table, key, function or
+trigger is touched, and the storage contract stays `2`.
+
+- **Rolling-deploy safe, including before contract.** `migrate` applies an
+  additive migration even while the contract step (`0007`) waits, so `0008`
+  lands on an expanded ledger beside processes of
+  adcp-reporting-storage 0.1.x/0.2.0b0. Those processes neither read nor write
+  the table and keep starting, reading, writing and running worker turns; the
+  published-wheel rolling test runs them beside it. They record no events for
+  the issue transitions they make.
+- **Applied by `migrate` only.** `PgReportingLedgerStore.create_schema()` does
+  not install it. Until it exists, issue-lifecycle writes record nothing and
+  `PgReportingLedgerStore.issue_events_ready()` is `False`; nothing else
+  changes. `postgres_storage(...)` refuses to start while `0008` is pending,
+  like any other non-contract migration.
+- **What it records.** Every write that moves a `reporting_issue_lifecycle`
+  row (an occurrence opening, being acknowledged or waived, or resolving)
+  records one row in the same transaction. The escalation sweep
+  (`sweep_issue_escalations`) records `escalated` once an open or acknowledged
+  occurrence passes `opened_at + consumer_mismatch_escalation_seconds`.
+  `UNIQUE (issue_id, kind)` keeps each record exactly once across replicas.
+  Delivered rows can be pruned with `prune_issue_events`. Nothing reads the
+  table until an issue observer is configured, and rows accumulate only for
+  consumer-mismatch transitions.
+
 ## Historical account-generation upgrade
 
 The following notes describe the pre-ownership SDK release and are retained for
@@ -385,7 +415,8 @@ To deploy:
 1. Back up the database.
 2. If you use `postgres_storage(...)` or status notifications, run `python -m
    adcp migrate` (for example as a pre-deploy job). It is safe while earlier
-   pods still run: it expands and stops before the contract step, printing
+   pods still run: it expands, holds the contract step and applies only the
+   additive migrations after it (`0008`, the issue-event outbox), printing
    `not applied 0007 … (contract)`. Otherwise the first new process expands
    the ledger when it starts.
 3. Roll out the new release normally.

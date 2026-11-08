@@ -124,8 +124,9 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
         "0005",
         "0006",
         "0007",
+        "0008",
     ]
-    widened, offerings, contract = shipped[1], shipped[5], shipped[6]
+    widened, offerings, contract, events = shipped[1], shipped[5], shipped[6], shipped[7]
     assert widened.name == "reporting_subscription_generations"
     assert widened.includes == ("ledger/reporting_ledger_account_generations.sql",)
     assert offerings.name == "reporting_status_checkpoint_offerings"
@@ -145,6 +146,10 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     )
     assert "python -m adcp migrate --contract" in contract.description
     assert [item.version for item in shipped if item.contract] == ["0007"]
+    # The issue-event outbox (#1258) is additive: applied even while 0007 waits.
+    assert events.name == "reporting_issue_events" and events.additive and not events.contract
+    assert events.includes == ("ledger/reporting_issue_events.sql",)
+    assert [item.version for item in shipped if item.additive] == ["0008"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves
     lines = describe([MigrationStatus(item, None) for item in shipped])
@@ -162,6 +167,30 @@ def test_an_unknown_upgrade_header_is_refused() -> None:
     with pytest.raises(ValueError, match="unknown upgrade"):
         _parse("0009_x.sql", "-- adcp-migration: 0009 x\n-- adcp-upgrade: contracted\n")
     assert _parse("0009_x.sql", "-- adcp-migration: 0009 x\n-- adcp-upgrade: contract\n").contract
+    assert _parse("0009_x.sql", "-- adcp-migration: 0009 x\n-- adcp-upgrade: additive\n").additive
+
+
+def test_a_held_contract_step_lets_only_the_additive_migrations_after_it_through() -> None:
+    pytest.importorskip("adcp_reporting_storage")
+    from adcp_reporting_storage.migrations import Migration, _past_held_contract
+
+    def step(version: str, *, contract: bool = False, additive: bool = False) -> Migration:
+        return Migration(version, f"m{version}", False, (), "", "", contract, additive)
+
+    pending = [
+        step("0006"),
+        step("0007", contract=True),
+        step("0008", additive=True),
+        step("0009"),
+        step("0010", additive=True),
+    ]
+    # 0009 may depend on the contract, so the walk stops there; 0010 waits behind it.
+    assert [item.version for item in _past_held_contract(pending)] == ["0006", "0008"]
+    assert [item.version for item in _past_held_contract(pending[:2])] == ["0006"]
+    # A second contract step is not additive either: nothing after it is planned,
+    # exactly as migrate() stops there.
+    second = [*pending[:3], step("0009", contract=True), step("0010", additive=True)]
+    assert [item.version for item in _past_held_contract(second)] == ["0006", "0008"]
 
 
 def test_only_the_uncontracted_check_is_the_contract_refusal() -> None:
