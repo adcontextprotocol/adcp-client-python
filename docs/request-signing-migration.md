@@ -159,6 +159,121 @@ What the framework does:
 
 The staged rollout below applies unchanged — each step is a change to the `request_signing` block you advertise, and the framework enforces it. The hand-wired snippets are for servers that don't use `serve()`.
 
+### Verify against a counterparty's several agents
+
+> **Deprecated profile.** The recipe in this section uses the RFC 9421
+> profile, which AdCP 3.3 deprecates. It works through 3.x and is removed in
+> 4.0, together with brand.json `agents[]` and `jwks_uri`
+> ([adcontextprotocol/adcp#8664](https://github.com/adcontextprotocol/adcp/issues/8664)).
+> For new integrations, use the 3.3 path at the end of this section.
+
+One counterparty often runs several agents: staging and production, two
+regional stacks, an old and a new endpoint during a migration. One
+verification can accept any of them, with one key resolution and one nonce
+claim. You don't need to call the verifier once per candidate URL.
+
+`VerifyOptions.agent_url` is attribution only. The verifier copies it onto
+`VerifiedSigner.agent_url` and never compares it with anything, so leaving it
+`None` skips no check. Which agent signed follows from the key: the resolver
+returns keys only for the agents it maps, and each resolved key names its
+agent.
+
+**With framework verification**, map every agent you onboarded in one
+`SignerKeyResolver`, such as `StaticSignerKeys` or `JwksUriSignerKeys`. Then map
+each agent URL to the same principal in your `BuyerAgentRegistry`. The
+framework takes `caller_identity` from the key that verified, so a signature
+from any of the counterparty's agents resolves to that one principal.
+
+**When you call `verify_request_signature` yourself**, for example to check a
+signature against a principal you already identified from a bearer token,
+adapt the resolver the way the framework does, and narrow it to that
+principal's agents:
+
+```python
+import time
+from dataclasses import replace
+
+import anyio.from_thread
+import anyio.to_thread
+
+from adcp.signing import (
+    ResolvedSignerKey,
+    SignerKeyResolver,
+    VerifiedSigner,
+    VerifierCapability,
+    VerifyOptions,
+    canonicalize_target_uri,
+    verify_request_signature,
+)
+
+
+async def verify_counterparty_request(
+    request,  # a Starlette request
+    *,
+    signer_keys: SignerKeyResolver,  # every onboarded agent, built once
+    counterparty_agents: frozenset[str],  # this principal's agents, canonicalized
+    capability: VerifierCapability,
+    operation: str,
+    replay_store,  # shared, built once
+) -> VerifiedSigner:
+    body = await request.body()
+    resolved: dict[str, ResolvedSignerKey] = {}  # this call's state only
+
+    def jwks_resolver(keyid: str) -> dict | None:
+        # The verifier calls this at checklist step 7, on the worker thread.
+        key = anyio.from_thread.run(signer_keys, keyid)
+        if key is None or canonicalize_target_uri(key.agent_url) not in counterparty_agents:
+            return None  # request_signature_key_unknown; no nonce is claimed
+        resolved[keyid] = key
+        return dict(key.jwk)
+
+    options = VerifyOptions(
+        now=time.time(),
+        capability=capability,
+        operation=operation,
+        jwks_resolver=jwks_resolver,
+        replay_store=replay_store,
+    )
+    signer = await anyio.to_thread.run_sync(
+        lambda: verify_request_signature(
+            method=request.method,
+            url=str(request.url),
+            headers=dict(request.headers),
+            body=body,
+            options=options,
+            raw_headers=request.headers.raw,
+        )
+    )
+    return replace(signer, agent_url=resolved[signer.key_id].agent_url)
+```
+
+Build `counterparty_agents` with `canonicalize_target_uri` too, so spelling
+differences such as a default port or letter case can't cause a mismatch. A key
+from an agent outside the set is unknown at step 7: it reaches neither
+signature verification nor the replay store.
+
+Keep the agent per call, as `resolved` does here. Never keep a "last matched
+agent" on a resolver that requests share: under concurrency one request would
+be attributed to another request's agent. `SignerKeyResolver` returns the agent
+with the key for this reason.
+
+A `kid` must name one agent. `StaticSignerKeys` refuses a `kid` that two agents
+publish when you construct it. `JwksUriSignerKeys` treats such a `kid` as
+unknown and logs it.
+
+Once you know the agent, check what it may do with that agent URL. For example,
+call `BrandJsonAuthorizationResolver.check(agent_url=signer.agent_url, ...)`. It
+takes one URL because the signature named exactly one agent, and it reports
+that agent as `matched_agent_url`.
+
+**On the 3.3 path**, identity is an origin, with one agent per origin
+(DR-0023). `DiscoveredSignerKeys` resolves any signer from the origin its
+covered `Signature-Agent` names, and `OriginBindings` lets one principal own
+several origins, while each origin maps to only one principal. To accept a
+counterparty's staging and production agents, bind each verified origin to the
+same `principal_id`. See [Identity-established callers and
+binding](agent-identity-3-3-migration.md#identity-established-callers-and-binding).
+
 ## 2. Staged enforcement (per operation)
 
 Never flip an operation straight from unsigned to required. Stage it through three stops.

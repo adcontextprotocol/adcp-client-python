@@ -149,6 +149,8 @@ await records.bind(verified_signer, principal_id="principal_123", bindings=bindi
 
 The signer must carry a current revocation state (`verified_signer.revocation == "current"`; the framework's verification sets it), and the record must currently list exactly one agent at the verified origin with `adcp:buying`. Migrating an existing RFC 9421 principal requires `existing_rfc9421_principal=True, migration_approved=True` and a seller-side approval decision. The same origin cannot be rebound to another principal. Once bound, legacy signatures for that origin are rejected (no downgrade). Persist bindings and the origin's commercial identity in the seller's registry; the registry still governs suspension, billing and account access.
 
+A principal may own several origins. When one counterparty runs several agents (staging and production, regional stacks, an endpoint migration), each agent is its own origin. Bind each one, as it first signs, to the same `principal_id`. You don't need a second principal. The RFC 9421 equivalent is in [Verify against a counterparty's several agents](request-signing-migration.md#verify-against-a-counterpartys-several-agents).
+
 The framework preserves the verified origin as caller identity and exposes the binding's principal ID in `context.metadata["adcp.auth_info"].extra["principal_id"]`. The verified signer is read per request from the request scope, so a stateful MCP session never attributes one request's signer to another.
 
 ### Delisting and trust-record outages
