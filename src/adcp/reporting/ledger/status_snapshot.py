@@ -153,9 +153,18 @@ def apply_memory_intents(
     for intent in intents:
         issue = intent.lifecycle
         key = (issue.account_id, issue.issue_key)
+        previous = store._issues.get(key)
         store._issues[key] = issue
         store._issue_generations[key] = max(store._issue_generations.get(key, 0), issue.generation)
         store._dirty_issue(issue, intent.scope, enqueue=False)
+        store._record_issue_transition(
+            (
+                previous.issue_state
+                if previous is not None and previous.issue_id == issue.issue_id
+                else None
+            ),
+            issue,
+        )
 
 
 def settle_memory_snapshot(

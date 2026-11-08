@@ -649,6 +649,104 @@ Supply `bind_managed_generation(configuration, version)`.
 
 Keep the engine's `status_retention_days` equal to the service's.
 
+## Observe reporting issues
+
+A `CONSUMER_STATUS_MISMATCH` is caller-scoped: only the buyer whose
+`sync_reporting_status` statement caused it sees it in `get_reporting_status`.
+To hear about one without waiting for the buyer to call, pass an
+`issue_observer` ([#1258](https://github.com/adcontextprotocol/adcp-client-python/issues/1258)):
+
+```python
+from adcp.reporting import ReliableReportingService, ReportingIssueEvent
+
+async def on_issue(event: ReportingIssueEvent) -> None:
+    if event.kind == "resolved":
+        await alerts.close(event.issue_id, dedupe_key=event.event_id)
+    elif event.issue is not None and event.issue.responsible_party != "buyer":
+        await alerts.open(
+            event.issue_id,
+            dedupe_key=event.event_id,  # delivery is at least once
+            escalated=event.kind == "escalated",
+            action=event.issue.recommended_action,
+        )
+
+reporting = ReliableReportingService(
+    storage=postgres_storage(pool=pool),
+    account_context=resolve_account_context,
+    consumer_status_enabled=True,
+    escalation=ReportingDeliveryEscalation(
+        consumer_mismatch_escalation=timedelta(hours=4),
+        operations_contact_email="reporting-ops@seller.example",
+    ),
+    issue_observer=on_issue,
+    worker_error_handler=report_to_sentry,
+)
+```
+
+**When it is called.** Once per lifecycle transition of an issue occurrence,
+after the transaction that made the transition commits:
+
+| `event.kind` | The transition |
+|---|---|
+| `opened` | An occurrence opened: a `sync_reporting_status` statement landed, or a status read first observed it. |
+| `escalated` | An open or acknowledged occurrence passed `opened_at` plus `consumer_mismatch_escalation`. |
+| `acknowledged` | An operator called `store.set_issue_state(..., state="acknowledged")`. |
+| `waived` | An operator recorded a bilateral waiver (`state="waived"`). |
+| `resolved` | The condition cleared: the buyer filed an agreeing statement, or the seller's record no longer conflicts. |
+
+`opened`, `acknowledged`, `waived` and `resolved` are the spec's
+`issue_state` values. `escalated` is not a state: it is the
+`consumer_mismatch_escalation` boundary, where the issue must turn
+`action_required` with a `contact_*` action.
+
+The ledger records each event in the same transaction as its transition, and
+the worker turn delivers it. Schedule a worker turn somewhere: set
+`worker_interval`, or call `run_worker()` yourself. Every process that writes
+the ledger records events, whether or not it runs a worker. The worker turn
+also records `escalated` once the boundary passes. It settles the account
+first, so a condition that cleared unobserved resolves instead of escalating,
+and an unattended mismatch escalates on time without anyone reading its
+status. Each occurrence's events arrive in the order they were recorded.
+
+**At least once: deduplicate on `event_id`.** Each transition is recorded
+exactly once, even when several replicas make it at the same moment.
+Delivery is at least once: a worker that stops after your observer returns,
+but before the event is marked delivered, delivers it again. `event_id` is
+derived from the occurrence and the kind, so every delivery of one transition
+carries the same value. An exact retry of `sync_reporting_status` (`unchanged`)
+and repeated status reads record nothing.
+
+**Failures never reach the buyer.** The observer runs on the worker turn, not
+in the buyer's call. When it raises, or an async observer runs past 10
+seconds, the error goes to `worker_error_handler` as
+`issue_observer:{event_id}`. The event is retried on a later turn, after a
+backoff that starts at 30 seconds and doubles to one hour, with no limit.
+`event.attempt` counts deliveries. A synchronous observer runs on the event
+loop and cannot be timed out, so keep it short.
+
+**The event.** `ReportingIssueEvent` carries `event_id`, `kind`,
+`occurred_at`, `account_id`, `consumer_id`, `issue_id`, `attempt`, and `issue`,
+a `ReportingIssue` rendered as `get_reporting_status` showed it to
+`consumer_id` at `occurred_at`. That gives you `responsible_party`,
+`recommended_action`, `severity`, `opened_at` and the causing
+`reporting_status_id` (also `event.reporting_status_id`). `issue` is `None` for
+`resolved`, since the condition no longer projects, and when the evidence is
+no longer retained.
+
+**Storage.** The in-memory store records issue events. On PostgreSQL you need
+adcp-reporting-storage 0.2.0b4 or later, with migration `0008` applied
+(`python -m adcp migrate`, which is safe while earlier-release pods still
+run; see the
+[ledger migration notes](reporting-ledger-migration.md#issue-lifecycle-events-migration-0008)).
+The service refuses `issue_observer` at construction against a store that
+does not record events, and at startup before the table exists. Delivered
+events are pruned after seven days. `production=` does not support an issue
+observer yet ([#1873](https://github.com/adcontextprotocol/adcp-client-python/issues/1873)).
+
+Composing the ledger without the service? Schedule
+`ReportingIssueEventDispatcher(store, observer, escalation=...).run_once()`
+yourself.
+
 ## Advanced composition
 
 `postgres_reliable_reporting_service()` (from `adcp_reporting_storage`) without
@@ -672,7 +770,10 @@ Other configurations and extensions still run, and the background scheduler
 retries on its next turn. These failures do not change service readiness.
 `worker_error_handler(component, error)` receives the original exception and
 the component name: `configuration:{account_id}:{delivery_config_id}@{version}`,
-`materialization`, or `notification`. SDK logs contain only the component kind;
+`materialization`, `notification`, `issue_observer:{event_id}` (the issue
+observer raised), `issue_events` (claiming or sweeping issue events failed) or
+`issue_events:snapshot` (an event could not be rendered yet and is retried).
+SDK logs contain only the component kind;
 adopter callbacks control any further diagnostics. A callback failure is logged
 without interrupting the remaining work.
 
