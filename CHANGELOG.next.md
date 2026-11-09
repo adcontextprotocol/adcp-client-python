@@ -1,5 +1,19 @@
 # Changelog
 
+## [10.0.0-beta.15](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.14...v10.0.0-beta.15) (2026-11-09)
+
+
+### Features
+
+* **client:** refuse start_requires_all_creatives_approved: true to a seller known not to declare it ([#1878](https://github.com/adcontextprotocol/adcp-client-python/issues/1878)) ([8a163c9](https://github.com/adcontextprotocol/adcp-client-python/commit/8a163c9bc772aaee4a728bb6e90d728726a81ef7)), closes [#1876](https://github.com/adcontextprotocol/adcp-client-python/issues/1876)
+* **reporting-storage:** record issue-lifecycle transitions in a transactional outbox ([#1874](https://github.com/adcontextprotocol/adcp-client-python/issues/1874)) ([502a66f](https://github.com/adcontextprotocol/adcp-client-python/commit/502a66f103b17786606a817c1bea304ecf6f1e29))
+* **reporting:** notify the adopter when a reporting issue opens, escalates or resolves ([#1875](https://github.com/adcontextprotocol/adcp-client-python/issues/1875)) ([74bbe6f](https://github.com/adcontextprotocol/adcp-client-python/commit/74bbe6facd8c4108e803babc23e979e7b2b5c3a9))
+
+
+### Bug Fixes
+
+* **server:** read the A2A profile's input member, and refuse parameters when the profile is activated ([#1888](https://github.com/adcontextprotocol/adcp-client-python/issues/1888)) ([b78f5a3](https://github.com/adcontextprotocol/adcp-client-python/commit/b78f5a30e0d015cf30bfbd6c78268afaec6cd315))
+
 ## [10.0.0-beta.14](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.13...v10.0.0-beta.14) (2026-11-08)
 
 
