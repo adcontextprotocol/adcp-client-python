@@ -3,8 +3,13 @@
 The AdCP A2A profile sends ``{"skill": ..., "input": {...}}``; the legacy
 shape sends ``parameters``. The default parser reads ``parameters`` when
 present, otherwise ``input``, and never merges them. A request that activates
-the profile (``A2A-Extensions`` header or ``message.extensions``) must carry
+the profile (``A2A-Extensions`` header or ``message.extensions``) should carry
 exactly one DataPart with an object ``input`` and no ``parameters``.
+
+9.x (this line) is non-breaking: it refuses only the both-members case, and
+dispatches the other non-conforming activated shapes (``parameters`` only,
+``input`` missing or not an object, a DataPart count other than one) with a
+deprecation warning. 10.x refuses all of them.
 
 Everything is driven over HTTP through the real app, not mocked parsers.
 """
@@ -13,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -31,6 +37,7 @@ ARGS: dict[str, Any] = {"brief": "ctv", "adcp_version": "3.2", "context": {"trac
 V1 = {"content-type": "application/json", "A2A-Version": "1.0"}
 V1_ACTIVE = {**V1, "A2A-Extensions": PROFILE}
 V03 = {"content-type": "application/json"}
+PROFILE_REFUSAL = "must carry exactly one DataPart with an `input` object"
 
 
 class _InputMemberSeller(ADCPHandler[Any]):
@@ -179,25 +186,93 @@ async def test_activated_by_message_extensions_reads_input() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+async def test_activated_both_members_is_refused() -> None:
+    handler = _InputMemberSeller()
+    data = {
+        "skill": "get_products",
+        "input": ARGS,
+        # Echoable context rides along so a leak would be visible.
+        "parameters": {"brief": "x", "context": {"trace": "t-1"}},
+    }
+    task = await _post(handler, _v1(data), V1_ACTIVE)
+    _assert_refused(handler, task)
+
+
+# ---------------------------------------------------------------------------
+# Profile activated: 9.x dispatches the other non-conforming shapes, with a warning
+# ---------------------------------------------------------------------------
+
+
+def _deprecation_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [
+        r
+        for r in caplog.records
+        if r.name == "adcp.server.a2a_server"
+        and r.levelno == logging.WARNING
+        and r.getMessage().startswith("Deprecated A2A invocation (")
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+async def test_activated_parameters_only_is_dispatched_with_a_deprecation_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="adcp.server.a2a_server")
+    handler = _InputMemberSeller()
+    body = _v1({"skill": "get_products", "parameters": ARGS})
+    _assert_completed_with_args(handler, await _post(handler, body, V1_ACTIVE))
+    records = _deprecation_records(caplog)
+    assert len(records) == 1
+    message = records[0].getMessage()
+    assert "parameters_member" in message
+    assert "`parameters` is not an alias for `input`" in message
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 @pytest.mark.parametrize(
     "data",
     [
-        pytest.param(
-            {"skill": "get_products", "input": ARGS, "parameters": {"brief": "x"}}, id="both"
-        ),
-        pytest.param({"skill": "get_products", "parameters": ARGS}, id="parameters-only"),
         pytest.param({"skill": "get_products"}, id="input-missing"),
         pytest.param({"skill": "get_products", "input": "x"}, id="input-not-object"),
         pytest.param({"skill": "get_products", "input": [ARGS]}, id="input-list"),
     ],
 )
-async def test_activated_refuses_non_profile_shapes(data: dict[str, Any]) -> None:
+async def test_activated_missing_or_non_object_input_warns_and_is_not_refused(
+    data: dict[str, Any], caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="adcp.server.a2a_server")
     handler = _InputMemberSeller()
-    # Echoable context rides along so a leak would be visible.
-    if "parameters" in data:
-        data["parameters"] = {**data["parameters"], "context": {"trace": "t-1"}}
-    task = await _post(handler, _v1(data), V1_ACTIVE)
-    _assert_refused(handler, task)
+    async with _client(_app(handler)) as client:
+        response = await client.post("/", content=json.dumps(_v1(data)).encode(), headers=V1_ACTIVE)
+    assert response.status_code == 200, response.text
+    # Whether the handler runs with `{}` is not stable (a version check can
+    # fail); what is stable is the warning and that this is not the refusal.
+    assert PROFILE_REFUSAL not in response.text
+    records = _deprecation_records(caplog)
+    assert len(records) == 1
+    assert "input_missing" in records[0].getMessage()
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+async def test_activated_extra_data_part_warns_and_is_dispatched(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="adcp.server.a2a_server")
+    handler = _InputMemberSeller()
+    body = _v1(
+        {},
+        parts=[
+            {"data": {"skill": "get_products", "input": ARGS}},
+            {"data": {"note": "x"}},
+        ],
+    )
+    _assert_completed_with_args(handler, await _post(handler, body, V1_ACTIVE))
+    records = _deprecation_records(caplog)
+    assert len(records) == 1
+    assert "data_part_count" in records[0].getMessage()
 
 
 # ---------------------------------------------------------------------------
