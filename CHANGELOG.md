@@ -192,6 +192,15 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.6.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.1...v9.6.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **reporting-storage:** let 0.1.x run on an expanded ledger until it is contracted ([#1867](https://github.com/adcontextprotocol/adcp-client-python/issues/1867)) ([915a836](https://github.com/adcontextprotocol/adcp-client-python/commit/915a8369de443aa8d0a0965753a240d843995f18)), closes [#1856](https://github.com/adcontextprotocol/adcp-client-python/issues/1856)
+* **reporting-storage:** refuse a ledger upgraded to storage contract 2 with the real remedy ([#1857](https://github.com/adcontextprotocol/adcp-client-python/issues/1857)) ([5eebb53](https://github.com/adcontextprotocol/adcp-client-python/commit/5eebb5386fd09ac23e9727587cc9413ef24fa0af))
+* **server:** read the A2A profile's input member, and refuse an activated invocation that carries both members ([#1889](https://github.com/adcontextprotocol/adcp-client-python/issues/1889)) ([e1acde8](https://github.com/adcontextprotocol/adcp-client-python/commit/e1acde847bc82c3404bf443ab84209e12fca8462))
+
 ## [9.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.0...v9.6.1) (2026-11-03)
 
 
