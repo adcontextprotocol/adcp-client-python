@@ -158,7 +158,9 @@ def a2a_receipt_parameters(body: bytes | None, *, task: str = TASK) -> dict[str,
     if invocation is None:
         return None
     try:
-        params = invocation.get("parameters")
+        # The same member the A2A dispatcher reads: legacy ``parameters`` when
+        # present, else the AdCP A2A profile's ``input``; never a merge.
+        params = invocation.get("parameters" if "parameters" in invocation else "input")
         if type(params) is dict:
             return _parameters(params, task)
     except (ValueError, TypeError, RecursionError):
