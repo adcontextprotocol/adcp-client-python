@@ -5135,15 +5135,6 @@ def fix_mcp_webhook_operation_id_optional() -> None:
     print("  core/mcp_webhook_payload.py: made operation_id optional")
 
 
-#: Generated modules whose signal redeclares ``range`` with its own copy of
-#: ``SignalListing.Range``, keyed by path under ``OUTPUT_DIR``, with the module
-#: each imports the shared class from.
-_SIGNAL_LISTING_RANGE_REUSERS = {
-    ("signals", "get_signals_response.py"): "..core.signal_listing",
-    ("core", "wholesale_feed_event.py"): ".signal_listing",
-}
-
-
 class _DropDescriptions(ast.NodeTransformer):
     """Strip ``description=`` from ``Field(...)`` and unwrap a bare ``Annotated[T]``."""
 
@@ -5199,22 +5190,36 @@ def _top_level_class(tree: ast.Module, name: str) -> ast.ClassDef | None:
     )
 
 
+def _extends_signal_listing(node: ast.ClassDef) -> bool:
+    return any(
+        (isinstance(base, ast.Name) and base.id == "SignalListing")
+        or (isinstance(base, ast.Attribute) and base.attr == "SignalListing")
+        for base in node.bases
+    )
+
+
 def fix_signal_listing_range_subclasses() -> None:
-    """Reuse SignalListing.Range where a generated signal redeclares ``range``.
+    """Reuse SignalListing.Range in every module that subclasses SignalListing.
 
-    A signal that extends ``core/signal-listing.json`` gets its own ``Range``
-    class from the generator, identical to ``SignalListing.Range`` but a
-    different type, so a ``SignalListing.Range`` does not validate as the
-    subclass's ``range``. Each copy is found by name and compared with
-    ``SignalListing.Range`` by what it validates, so the pass keeps working when
-    the generator changes descriptions, scalar types or the schema's
-    ``additionalProperties``. It used to match the generated text, ``extra='forbid'``
-    and all, and printed "not needed" once that text drifted.
+    A class that extends ``core/signal-listing.json`` redeclares ``range``, and
+    the generator gives that redeclaration its own ``Range`` class: identical to
+    ``SignalListing.Range`` but a different type, so the subclass's ``range`` no
+    longer has its parent's type and a ``SignalListing.Range`` does not validate
+    there. Every generated module with a ``SignalListing`` subclass is checked.
+    Its ``Range`` is compared with ``SignalListing.Range`` by what it validates,
+    deleted, and imported from ``signal_listing`` instead, so the pass keeps
+    working when the generator changes descriptions, scalar types or the schema's
+    ``additionalProperties``. It used to match the generated text of two named
+    files, ``extra='forbid'`` and all, and reported success once that text drifted.
 
-    Raises when a copy no longer matches ``SignalListing.Range``, or when a
-    ``Range`` class would survive the pass: deleting a class that validates
-    differently changes the wire contract, and keeping a duplicate is the
-    silent miss this guards against.
+    A module that declares ``Range`` without subclassing ``SignalListing`` keeps
+    it, as every schema keeps its own classes: ``signals/get_signals_response.py``
+    has inlined its signal since 3.3 and has no parent type to match.
+
+    Raises when such a ``Range`` no longer validates like ``SignalListing.Range``
+    (deleting it would change the wire contract), when the module imports
+    ``SignalListing`` in a form the shared ``Range`` cannot be added to, or when
+    a duplicate survives: a silent miss is a regeneration failure.
     """
     listing_path = OUTPUT_DIR / "core" / "signal_listing.py"
     if not listing_path.exists():
@@ -5223,19 +5228,23 @@ def fix_signal_listing_range_subclasses() -> None:
     listing = _top_level_class(ast.parse(listing_path.read_text()), "Range")
 
     fixed = 0
-    for parts, module in _SIGNAL_LISTING_RANGE_REUSERS.items():
-        path = OUTPUT_DIR.joinpath(*parts)
-        relative = "/".join(parts)
-        if not path.exists():
-            print(f"  {relative} not found (skipping SignalListing.Range reuse)")
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        if path == listing_path:
             continue
         source = path.read_text()
-        local = _top_level_class(ast.parse(source), "Range")
-        if local is None:
+        if "SignalListing" not in source:
             continue
+        tree = ast.parse(source)
+        local = _top_level_class(tree, "Range")
+        if local is None or not any(
+            isinstance(node, ast.ClassDef) and _extends_signal_listing(node) for node in tree.body
+        ):
+            continue
+        relative = path.relative_to(OUTPUT_DIR).as_posix()
         if listing is None:
             raise RuntimeError(
-                f"{relative}: declares Range but core/signal_listing.py no longer does"
+                f"{relative}: subclasses SignalListing and declares Range, but "
+                "core/signal_listing.py no longer declares Range"
             )
         if _range_shape(local) != _range_shape(listing):
             raise RuntimeError(
@@ -5244,21 +5253,30 @@ def fix_signal_listing_range_subclasses() -> None:
                 f"  local:   {_range_shape(local)!r}\n"
                 f"  listing: {_range_shape(listing)!r}"
             )
+        imported = next(
+            (
+                node
+                for node in tree.body
+                if isinstance(node, ast.ImportFrom)
+                and (node.module or "").split(".")[-1] == "signal_listing"
+                and any(a.name == "SignalListing" and a.asname is None for a in node.names)
+            ),
+            None,
+        )
+        if imported is None:
+            raise RuntimeError(
+                f"{relative}: subclasses SignalListing without a "
+                "'from ...signal_listing import SignalListing' to add Range to"
+            )
 
-        # Bind the shared class by assignment rather than import, so the module
-        # still declares ``Range``: ``scripts/consolidate_exports.py`` re-exports
-        # only declared names, and ``adcp.types.domains.signals.Range`` stays.
         lines = source.splitlines(keepends=True)
         assert local.end_lineno is not None
         start = sum(map(len, lines[: local.lineno - 1]))
         end = sum(map(len, lines[: local.end_lineno]))
-        source = source[:start] + "Range = _SignalListingRange\n" + source[end:]
-        imports = [n for n in ast.parse(source).body if isinstance(n, (ast.Import, ast.ImportFrom))]
-        if not imports or imports[-1].end_lineno is None:
-            raise RuntimeError(f"{relative}: no import block to add the Range import to")
-        lines = source.splitlines(keepends=True)
-        at = sum(map(len, lines[: imports[-1].end_lineno]))
-        source = source[:at] + f"from {module} import Range as _SignalListingRange\n" + source[at:]
+        if source[start - 2 : start] == "\n\n":
+            start -= 2
+        source = source[:start] + source[end:]
+        source = add_to_import(source, "." * imported.level + (imported.module or ""), "Range")
 
         if _top_level_class(ast.parse(source), "Range") is not None:
             raise RuntimeError(f"{relative}: a duplicate Range class survived the reuse pass")
