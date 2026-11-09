@@ -280,9 +280,9 @@ def _invocation_arguments(data: dict[str, Any]) -> dict[str, Any]:
     key is present, so a caller that does not activate the AdCP A2A profile
     (A2A 0.x clients, earlier SDKs) is dispatched exactly as before; otherwise
     the profile's ``input`` member is read. The executor refuses a
-    profile-activated request that carries ``parameters`` at all
-    (:func:`_profile_invocation_violation`), so every request it accepts under
-    the profile is dispatched from ``input``. The choice depends only on the
+    profile-activated request that carries both members, and logs a
+    deprecation warning for one that carries only ``parameters``
+    (:func:`_profile_invocation_violation`). The choice depends only on the
     invocation object, so the auth and signing middleware, which parse without
     the request headers, see the same arguments as dispatch.
     """
@@ -296,9 +296,11 @@ def _profile_invocation_violation(context: RequestContext) -> str | None:
     Under the AdCP A2A profile a Message carries exactly one DataPart whose
     object has an object ``input``. ``parameters`` "is not an alias for
     ``input``", and the agent "MUST reject the invocation rather than choose
-    among ambiguous inputs" — so ``parameters``, alone or beside ``input``,
-    is refused. A request that does not activate the profile returns ``None``
-    and keeps the legacy shapes.
+    among ambiguous inputs". On 9.x only ``both_members`` is refused, since
+    no compliant client sends it; every other reason is a shape 9.x has
+    always dispatched, so it is logged as deprecated and still dispatched.
+    10.x refuses them all. A request that does not activate the profile
+    returns ``None`` and keeps the legacy shapes.
 
     The profile is activated by the ``A2A-Extensions`` service parameter; the
     Message's own ``extensions`` list naming the URI counts too. Member names
@@ -322,7 +324,7 @@ def _profile_invocation_violation(context: RequestContext) -> str | None:
         return "data_not_object"
     fields = data[0].struct_value.fields
     if "parameters" in fields:
-        return "parameters_member"
+        return "both_members" if "input" in fields else "parameters_member"
     if "input" not in fields or fields["input"].WhichOneof("kind") != "struct_value":
         return "input_missing"
     return None
@@ -436,8 +438,10 @@ class ADCPAgentExecutor(AgentExecutor):
         Part(data={"skill": "get_products", "parameters": {...}})
 
     A request that activates the profile (``A2A-Extensions`` names
-    ``https://adcontextprotocol.org/extensions/adcp/v3``) must use ``input``;
-    one carrying ``parameters`` is refused before handler entry.
+    ``https://adcontextprotocol.org/extensions/adcp/v3``) should use ``input``.
+    One carrying both members is refused before handler entry; one carrying
+    only ``parameters`` is dispatched with a deprecation warning (adcp 10
+    refuses it).
     """
 
     def __init__(
@@ -568,10 +572,10 @@ class ADCPAgentExecutor(AgentExecutor):
         skill_name, params = self._parse_request(context)
 
         violation = _profile_invocation_violation(context) if self._message_parser is None else None
-        if violation is not None:
-            # The AdCP A2A profile refuses an ambiguous or legacy-shaped
-            # activated invocation before handler entry. Nothing is echoed:
-            # echoing ``context`` from either member would choose between them.
+        if violation == "both_members":
+            # Activated with both members is ambiguous: refuse before handler
+            # entry. Nothing is echoed: echoing ``context`` from either member
+            # would choose between them.
             from adcp.decisioning.types import AdcpError
 
             logger.info("a2a dispatch rejected", extra={"reason": violation})
@@ -589,6 +593,16 @@ class ADCPAgentExecutor(AgentExecutor):
                 skill_name=skill_name or "",
             )
             return
+        if violation is not None:
+            # 9.x has always dispatched these shapes; keep doing so in a patch
+            # release. 10.x refuses them as the profile requires.
+            logger.warning(
+                "Deprecated A2A invocation (%s): a request that activates the AdCP A2A "
+                "profile must carry exactly one DataPart with an `input` object and no "
+                "`parameters` (`parameters` is not an alias for `input`). Dispatched for "
+                "compatibility; adcp 10 refuses it.",
+                violation,
+            )
 
         if skill_name is None:
             await self._send_error(event_queue, context, "No skill specified in message")
@@ -1429,7 +1443,7 @@ def create_a2a_server(
             wire shapes. The default parser handles a DataPart carrying
             ``{"skill": ..., "input": ...}`` or the legacy
             ``{"skill": ..., "parameters": ...}`` plus a TextPart JSON
-            fallback, and the executor enforces the AdCP A2A profile's
+            fallback, and the executor checks the AdCP A2A profile's
             invocation shape on requests that activate it. A custom parser
             owns its wire shapes, so that check is skipped. Supply this to
             accept JSON-RPC 2.0 message bodies,
