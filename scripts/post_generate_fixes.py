@@ -5135,56 +5135,135 @@ def fix_mcp_webhook_operation_id_optional() -> None:
     print("  core/mcp_webhook_payload.py: made operation_id optional")
 
 
+#: Generated modules whose signal redeclares ``range`` with its own copy of
+#: ``SignalListing.Range``, keyed by path under ``OUTPUT_DIR``, with the module
+#: each imports the shared class from.
+_SIGNAL_LISTING_RANGE_REUSERS = {
+    ("signals", "get_signals_response.py"): "..core.signal_listing",
+    ("core", "wholesale_feed_event.py"): ".signal_listing",
+}
+
+
+class _DropDescriptions(ast.NodeTransformer):
+    """Strip ``description=`` from ``Field(...)`` and unwrap a bare ``Annotated[T]``."""
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Name) and node.func.id == "Field":
+            node.keywords = [k for k in node.keywords if k.arg != "description"]
+        return node
+
+    def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
+        self.generic_visit(node)
+        if not (isinstance(node.value, ast.Name) and node.value.id == "Annotated"):
+            return node
+        elts = list(node.slice.elts) if isinstance(node.slice, ast.Tuple) else [node.slice]
+        kept = [
+            e
+            for e in elts[1:]
+            if not (
+                isinstance(e, ast.Call)
+                and isinstance(e.func, ast.Name)
+                and e.func.id == "Field"
+                and not e.args
+                and not e.keywords
+            )
+        ]
+        if not kept:
+            return elts[0]
+        node.slice = ast.Tuple(elts=[elts[0], *kept], ctx=ast.Load())
+        return node
+
+
+def _range_shape(node: ast.ClassDef) -> str:
+    """What a generated ``Range`` class validates, with descriptions removed.
+
+    The copies datamodel-code-generator emits differ from ``SignalListing.Range``
+    only in field descriptions. Bases, ``model_config`` (so an open schema
+    differs from a closed one), field types, constraints and defaults all count.
+    """
+    stripped = _DropDescriptions().visit(ast.parse(ast.unparse(node)).body[0])
+    assert isinstance(stripped, ast.ClassDef)
+    stripped.body = [
+        stmt
+        for stmt in stripped.body
+        if not (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant))
+    ]
+    return ast.unparse(stripped)
+
+
+def _top_level_class(tree: ast.Module, name: str) -> ast.ClassDef | None:
+    return next(
+        (node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == name),
+        None,
+    )
+
+
 def fix_signal_listing_range_subclasses() -> None:
-    """Reuse SignalListing.Range for generated subclasses that redeclare range."""
-    replacements = {
-        OUTPUT_DIR
-        / "signals"
-        / "get_signals_response.py": [
-            (
-                "from ..core.signal_listing import SignalListing\n",
-                "from ..core.signal_listing import Range, SignalListing\n",
-            ),
-            (
-                "\n\nclass Range(AdCPBaseModel):\n"
-                "    model_config = ConfigDict(\n"
-                "        extra='forbid',\n"
-                "    )\n"
-                "    min: Annotated[float, Field(description='Minimum value (inclusive)')]\n"
-                "    max: Annotated[float, Field(description='Maximum value (inclusive)')]\n",
-                "",
-            ),
-        ],
-        OUTPUT_DIR
-        / "core"
-        / "wholesale_feed_event.py": [
-            (
-                "from .signal_listing import SignalListing\n",
-                "from .signal_listing import Range, SignalListing\n",
-            ),
-            (
-                "\n\nclass Range(AdCPBaseModel):\n"
-                "    model_config = ConfigDict(\n"
-                "        extra='forbid',\n"
-                "    )\n"
-                "    min: float\n"
-                "    max: float\n",
-                "",
-            ),
-        ],
-    }
+    """Reuse SignalListing.Range where a generated signal redeclares ``range``.
+
+    A signal that extends ``core/signal-listing.json`` gets its own ``Range``
+    class from the generator, identical to ``SignalListing.Range`` but a
+    different type, so a ``SignalListing.Range`` does not validate as the
+    subclass's ``range``. Each copy is found by name and compared with
+    ``SignalListing.Range`` by what it validates, so the pass keeps working when
+    the generator changes descriptions, scalar types or the schema's
+    ``additionalProperties``. It used to match the generated text, ``extra='forbid'``
+    and all, and printed "not needed" once that text drifted.
+
+    Raises when a copy no longer matches ``SignalListing.Range``, or when a
+    ``Range`` class would survive the pass: deleting a class that validates
+    differently changes the wire contract, and keeping a duplicate is the
+    silent miss this guards against.
+    """
+    listing_path = OUTPUT_DIR / "core" / "signal_listing.py"
+    if not listing_path.exists():
+        print("  signal_listing.py not found (skipping SignalListing.Range reuse)")
+        return
+    listing = _top_level_class(ast.parse(listing_path.read_text()), "Range")
 
     fixed = 0
-    for path, path_replacements in replacements.items():
+    for parts, module in _SIGNAL_LISTING_RANGE_REUSERS.items():
+        path = OUTPUT_DIR.joinpath(*parts)
+        relative = "/".join(parts)
         if not path.exists():
+            print(f"  {relative} not found (skipping SignalListing.Range reuse)")
             continue
         source = path.read_text()
-        updated = source
-        for old, new in path_replacements:
-            updated = updated.replace(old, new, 1)
-        if updated != source:
-            path.write_text(updated)
-            fixed += 1
+        local = _top_level_class(ast.parse(source), "Range")
+        if local is None:
+            continue
+        if listing is None:
+            raise RuntimeError(
+                f"{relative}: declares Range but core/signal_listing.py no longer does"
+            )
+        if _range_shape(local) != _range_shape(listing):
+            raise RuntimeError(
+                f"{relative}: Range no longer matches SignalListing.Range, so it cannot be "
+                f"reused; revisit fix_signal_listing_range_subclasses.\n"
+                f"  local:   {_range_shape(local)!r}\n"
+                f"  listing: {_range_shape(listing)!r}"
+            )
+
+        # Bind the shared class by assignment rather than import, so the module
+        # still declares ``Range``: ``scripts/consolidate_exports.py`` re-exports
+        # only declared names, and ``adcp.types.domains.signals.Range`` stays.
+        lines = source.splitlines(keepends=True)
+        assert local.end_lineno is not None
+        start = sum(map(len, lines[: local.lineno - 1]))
+        end = sum(map(len, lines[: local.end_lineno]))
+        source = source[:start] + "Range = _SignalListingRange\n" + source[end:]
+        imports = [n for n in ast.parse(source).body if isinstance(n, (ast.Import, ast.ImportFrom))]
+        if not imports or imports[-1].end_lineno is None:
+            raise RuntimeError(f"{relative}: no import block to add the Range import to")
+        lines = source.splitlines(keepends=True)
+        at = sum(map(len, lines[: imports[-1].end_lineno]))
+        source = source[:at] + f"from {module} import Range as _SignalListingRange\n" + source[at:]
+
+        if _top_level_class(ast.parse(source), "Range") is not None:
+            raise RuntimeError(f"{relative}: a duplicate Range class survived the reuse pass")
+        path.write_text(source)
+        fixed += 1
 
     if fixed:
         print(f"  Reused SignalListing.Range in {fixed} subclass file(s)")

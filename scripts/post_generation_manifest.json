@@ -75,7 +75,7 @@
     "preserve_wire_text_on_normalizing_fields": true,
     "insert_task_message_markers": true,
     "point_integer_fields_at_the_schema_integer_type": true,
-    "remove_imports_shadowed_by_a_local_class": true,
+    "remove_imports_shadowed_by_a_local_class": "Its only target was core/wholesale_feed_event.py, where fix_signal_listing_range_subclasses added a Range import but missed the duplicate Range class it should have deleted. That pass now deletes the class, so no import is shadowed. Kept as a guard for the generator's import-and-redeclare pattern.",
     "remove_unused_pydantic_field_imports": true,
     "emit_open_asset_unions": true,
     "declare_root_schema_module_exports": true,
