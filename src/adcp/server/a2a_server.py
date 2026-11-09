@@ -643,8 +643,11 @@ def _profile_invocation_violation(context: RequestContext) -> str | None:
     printer refuses cannot fail this check.
     """
     message = context.message
-    activated = _ADCP_A2A_PROFILE_URI in context.requested_extensions or (
-        message is not None and _ADCP_A2A_PROFILE_URI in message.extensions
+    # ``execute`` is public: a hand-built context (an adopter's executor test)
+    # may lack the a2a-sdk attributes, and then has not activated the profile.
+    requested = getattr(context, "requested_extensions", None) or ()
+    activated = _ADCP_A2A_PROFILE_URI in requested or (
+        message is not None and _ADCP_A2A_PROFILE_URI in getattr(message, "extensions", ())
     )
     if not activated:
         return None
