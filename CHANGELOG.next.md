@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.0.0-beta.16](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.15...v10.0.0-beta.16) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **webhooks:** Webhook challenge helpers now require seller_agent_url and event_types, and proof challenges require an RFC 9421 WebhookSender; pass legacy delivery authentication alongside that sender.
+
+### Bug Fixes
+
+* **codegen:** reuse SignalListing.Range in SignalListing subclasses by shape, and fail loudly on a miss ([#1891](https://github.com/adcontextprotocol/adcp-client-python/issues/1891)) ([c8434e2](https://github.com/adcontextprotocol/adcp-client-python/commit/c8434e2761d8d9684f2fcfcb39b739d29926eb47))
+* **webhooks:** comply with challenge schema ([98d6b09](https://github.com/adcontextprotocol/adcp-client-python/commit/98d6b098fa33e40852acb7bc03afbd1088d07fb7))
+
 ## [10.0.0-beta.15](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.14...v10.0.0-beta.15) (2026-11-09)
 
 
