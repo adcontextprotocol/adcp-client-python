@@ -201,7 +201,6 @@ def test_decoded_mapping_cannot_recover_duplicate_keys() -> None:
     "changes",
     [
         {"reason_detail": None},
-        {"extra": SECRET},
         {"reason_code": SECRET},
         {"control_total_deltas": [{"name": "spend", "value": 1}]},
         {
@@ -221,6 +220,17 @@ def test_schema_and_cross_field_admission(changes: dict[str, Any]) -> None:
         "INVALID_EVIDENCE",
         lambda: ReportingAdjustmentEvidence(SCOPE, json.dumps(raw).encode(), "bytes"),
     )
+
+
+def test_an_unknown_adjustment_key_is_retained_evidence() -> None:
+    """``core/reporting-adjustment.json`` is open from AdCP 3.3.0-beta.6 (DR-0036).
+
+    A key this release does not define is admitted and kept in the evidence,
+    which is bound to the bytes received and covered by the advertised digest.
+    """
+    raw = adjustment(added_in_a_later_release={"nested": [1]})
+    evidence = ReportingAdjustmentEvidence(SCOPE, json.dumps(raw).encode(), "bytes")
+    assert json.loads(evidence.canonical_json)["added_in_a_later_release"] == {"nested": [1]}
 
 
 def test_missing_advertised_digest_cannot_be_accepted_as_reconciled_evidence() -> None:

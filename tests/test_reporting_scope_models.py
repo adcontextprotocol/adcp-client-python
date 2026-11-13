@@ -111,7 +111,8 @@ def test_scope_modes_round_trip_without_mutating_inputs_or_field_presence(scope)
         {"all_media_buys": True, "media_buy_ids": ["shared-media-buy"]},
         {"all_media_buys": True, "media_buy_ids": None},
         {"all_media_buys": None, "media_buy_ids": ["shared-media-buy"]},
-        {"unexpected_selector": True},
+        {"all_media_buys": True, "unexpected_selector": True},
+        {"media_buy_ids": ["shared-media-buy"], "unexpected_selector": True},
     ],
 )
 def test_malformed_or_conflicting_explicit_scopes_fail_closed(scope):
@@ -120,6 +121,19 @@ def test_malformed_or_conflicting_explicit_scopes_fail_closed(scope):
     with pytest.raises(ValidationError):
         SyncAccountsRequest.model_validate(raw)
     assert raw == before
+
+
+def test_an_unknown_selector_is_kept_and_never_widened_to_all_media_buys():
+    """The scope is open from AdCP 3.3.0-beta.6 (DR-0036) and still holds one key.
+
+    A selector this release does not define is kept as received. It is never
+    read as ``all_media_buys``: a narrower future selector must not widen.
+    """
+    raw = onboarding_request({"unexpected_selector": True})
+    request = SyncAccountsRequest.model_validate(raw)
+    for encoded in (request.model_dump(), request.model_dump(mode="json")):
+        scope = encoded["accounts"][0]["reporting_delivery_configs"][0]["scope"]
+        assert scope == {"unexpected_selector": True}
 
 
 @pytest.mark.parametrize(

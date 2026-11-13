@@ -45,7 +45,7 @@ from adcp.validation import ValidationHookConfig
 FIELD = "start_requires_all_creatives_approved"
 
 
-def _request(*policies: bool | None, adcp_version: str = "3.3-beta.5") -> dict[str, Any]:
+def _request(*policies: bool | None, adcp_version: str = "3.3-beta.6") -> dict[str, Any]:
     packages = []
     for index, policy in enumerate(policies):
         # A package control needs at least one control; pause stands in for
@@ -192,7 +192,7 @@ async def test_create_and_update_media_buy_are_not_gated() -> None:
 
     await create_tool_caller(_LegacySeller(), "update_media_buy")(
         {
-            "adcp_version": "3.3-beta.5",
+            "adcp_version": "3.3-beta.6",
             "idempotency_key": "a" * 16,
             "account": {"account_id": "acct_1"},
             "media_buy_id": "mb_1",
@@ -375,7 +375,7 @@ async def test_request_scoped_capabilities_decide(executor) -> None:
 def _buyer(
     protocol: Protocol,
     *,
-    server_version: str = "3.3-beta.5",
+    server_version: str = "3.3-beta.6",
     capabilities: dict[str, Any] | None = None,
 ) -> tuple[ADCPClient, AsyncMock]:
     client = ADCPClient(

@@ -31,16 +31,12 @@ PACKAGED = resolve_adcp_version(None)
 STRICT = ValidationHookConfig(requests="strict", responses="strict")
 BUYERS = ["3.2", "3.1", PACKAGED]
 
-# ``include_collections`` exists only from 3.3; a 3.3-beta.3 buyer sending it
-# proves the request is converted *down* to a 3.2 application.
-NEWEST_ONLY_REQUEST_FIELD = "include_collections"
-
-
+# AdCP 3.3.0-beta.6 withdraws the 3.3 additions to get_products (adcp#8501), so a
+# 3.3 buyer's request has the 3.2 shape. ``adcp_version`` reaching the handler as
+# "3.2" is what proves the request was converted *down*; dropping a newer field
+# on the way is covered by tests/test_version_conversion_sweep.py.
 def _wire_request(version: str) -> dict[str, Any]:
-    request: dict[str, Any] = {"adcp_version": version, "buying_mode": "brief", "brief": "shoes"}
-    if version == PACKAGED:
-        request[NEWEST_ONLY_REQUEST_FIELD] = True
-    return request
+    return {"adcp_version": version, "buying_mode": "brief", "brief": "shoes"}
 
 
 class _Seen:
@@ -90,7 +86,6 @@ def _assert_handler_ran_on(seller: DictSeller, application: str, buyer: str) -> 
     )
     assert payload["adcp_version"] == application
     assert resolve_requested_adcp_version(payload) == application
-    assert NEWEST_ONLY_REQUEST_FIELD not in payload or application == PACKAGED
     assert validate_request("get_products", payload, version=application).valid
     assert context.application_adcp_version == application
     assert context.resolved_adcp_version == buyer
@@ -157,9 +152,6 @@ async def test_typed_params_carry_exactly_the_application_payload(buyer: str) ->
     (params,) = seller.seen.params
     assert isinstance(params, GetProductsRequest)
     assert params.adcp_version == "3.2"
-    # The packaged class is a superset of 3.2: the 3.3-only field reads as
-    # unset and is not written back, even when the 3.3 buyer sent it.
-    assert NEWEST_ONLY_REQUEST_FIELD not in params.model_fields_set
     assert params.model_dump(mode="json", by_alias=True, exclude_unset=True) == {
         "adcp_version": "3.2",
         "buying_mode": "brief",
@@ -202,13 +194,21 @@ async def test_explicit_factory_pin_overrides_the_handler_pin() -> None:
 
 async def test_response_outside_the_application_contract_fails_before_conversion() -> None:
     class Seller(DictSeller):
-        async def get_products(self, params, context=None):  # type: ignore[override]
-            # ``collections`` is a 3.3 response field; a 3.2 handler may not emit it.
-            return {"products": [], "cache_scope": "public", "collections": []}
+        async def list_products(self, params, context=None):  # type: ignore[override]
+            # ``collections`` is a 3.3 list_products response field, and the 3.2
+            # response is closed, so a 3.2 handler may not emit it. (get_products
+            # cannot show this: 3.3.0-beta.6 keeps it at its 3.2 shape, adcp#8501.)
+            return {
+                "outcome": "listed",
+                "products": [],
+                "feed_version": "v1",
+                "cache_scope": "public",
+                "collections": [],
+            }
 
-    caller = create_tool_caller(Seller(), "get_products", validation=STRICT)
+    caller = create_tool_caller(Seller(), "list_products", validation=STRICT)
     with pytest.raises(ADCPTaskError) as caught:
-        await caller(_wire_request(PACKAGED), ToolContext())
+        await caller({"adcp_version": PACKAGED}, ToolContext())
     assert caught.value.errors[0].code == "VALIDATION_ERROR"
 
 
@@ -286,7 +286,6 @@ async def test_decisioning_platform_runs_on_the_server_pin(pinning: str, buyer: 
             (ctx,) = platform.seen.contexts
             assert isinstance(request, GetProductsRequest)
             assert request.adcp_version == "3.2"
-            assert NEWEST_ONLY_REQUEST_FIELD not in request.model_fields_set
             assert ctx.application_adcp_version == "3.2"
             assert ctx.resolved_adcp_version == buyer
             if isinstance(response, dict):

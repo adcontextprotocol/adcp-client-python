@@ -223,18 +223,14 @@ def test_error_order_controls_primary_field_and_message(
             model.model_validate(params)
     error = _validation_error_to_invalid_request(task, raised.value)
     prefix = f"{collection}.0.targeting_overlay.keyword_targets.0"
-    if mode == "json":
-        assert error.field == f"{prefix}.unexpected"
-        assert "Extra inputs are not permitted" in error.args[0]
-        first_code = "extra_forbidden"
-    else:
-        assert error.field == f"{prefix}.keyword"
-        assert "Field required" in error.args[0]
-        first_code = "missing"
+    # AdCP 3.3.0-beta.6 opens the keyword target (DR-0036): the unknown key is
+    # kept, and in both modes the first error is the first missing field.
+    assert error.field == f"{prefix}.keyword"
+    assert "Field required" in error.args[0]
     assert error.code == "INVALID_REQUEST"
     details = error.details["validation_errors"]
-    assert len(details) == 3
-    assert details[0]["type"] == first_code
+    assert len(details) == 2
+    assert details[0]["type"] == "missing"
     assert all(set(detail) == {"type", "loc", "msg"} for detail in details)
     assert _SECRET not in error.args[0] + json.dumps(error.details)
     assert "TargetingOverlay" not in error.args[0] + json.dumps(error.details)
@@ -245,9 +241,15 @@ def test_native_json_requests_preserve_repeated_key_diagnostics(
     task: str, collection: str, model: type[BaseModel]
 ) -> None:
     # These parents retain raw JSON, unlike the canonical create/update before
-    # validators. A Python callback or round trip would collapse repeated keys
-    # and silently lose one error. Compare the complete raw Input diagnostics.
-    overlay_json = '{"keyword_targets": [{"unexpected": "first", "unexpected": "last"}]}'
+    # validators. A Python callback or round trip could resolve a repeated key
+    # differently from the overlay on its own. Compare the complete raw Input
+    # diagnostics: the last ``match_type`` wins in both, and both report it.
+    # (Before AdCP 3.3.0-beta.6 opened the keyword target, DR-0036, a repeated
+    # unknown key gave one extra_forbidden error per occurrence.)
+    overlay_json = (
+        '{"keyword_targets": [{"match_type": "first", "match_type": "last"}],'
+        ' "geo_countries": ["x"]}'
+    )
     params = _payload(task, collection)
     params[collection][0]["targeting_overlay"] = "__raw_targeting_json__"
     encoded = json.dumps(params).replace('"__raw_targeting_json__"', overlay_json)
@@ -255,7 +257,8 @@ def test_native_json_requests_preserve_repeated_key_diagnostics(
         TypeAdapter(TargetingOverlayInput | None).validate_json(overlay_json)
     with pytest.raises(ValidationError) as actual:
         model.model_validate_json(encoded)
-    assert len(expected.value.errors()) == 4
+    assert len(expected.value.errors()) == 3
+    assert [e["input"] for e in expected.value.errors() if e["type"] == "enum"] == ["last"]
     prefix = (collection, 0, "targeting_overlay")
     assert actual.value.errors() == [
         {**error, "loc": (*prefix, *error["loc"])} for error in expected.value.errors()

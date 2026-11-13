@@ -110,3 +110,54 @@ def test_normalization_strips_surrounding_whitespace_on_either_side() -> None:
     assert normalize_url(" https://interchange.io ") == "interchange.io"
     assert normalize_url(" https://interchange.io ") == normalize_url("https://interchange.io")
     assert find_authorized_agent_entries(document(), f"  {AGENT}  ")
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://sales.example.com", "https://SALES.example.com/", "http://sales.example.com:80"],
+)
+def test_an_origin_only_entry_lists_every_agent_at_its_origin(url: str) -> None:
+    """AdCP 3.3.0-beta.6 (adcontextprotocol/adcp#8862): matching only widens."""
+    doc = document(url)
+    assert find_authorized_agent_entries(doc, AGENT) == doc["authorized_agents"]
+    assert get_properties_by_agent(doc, AGENT) == doc["properties"]
+    assert verify_agent_authorization(doc, AGENT)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://sales.example.com/?q=x",
+        "https://sales.example.com:8443",
+        "https://example.com",
+        "https://sales.example.com.evil.test",
+    ],
+)
+def test_only_a_bare_origin_widens(url: str) -> None:
+    assert find_authorized_agent_entries(document(url), AGENT) == []
+
+
+def _pinned(*entries: dict[str, Any]) -> dict[str, Any]:
+    return {"authorized_agents": list(entries)}
+
+
+@pytest.mark.asyncio
+async def test_signing_pins_take_an_origin_only_entry_and_prefer_the_exact_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from adcp import adagents
+
+    origin = {"url": "https://sales.example.com", "signing_keys": [{"kid": "origin"}]}
+    exact = {"url": AGENT, "signing_keys": [{"kid": "exact"}]}
+    records = {"a.example": _pinned(origin), "b.example": _pinned(origin, exact)}
+
+    async def fetch(domain: str) -> dict[str, Any]:
+        return records[domain]
+
+    monkeypatch.setattr(adagents, "fetch_adagents", fetch)
+    pins = await adagents.fetch_publisher_signing_pins(["a.example", "b.example"], AGENT)
+    assert pins == {"a.example": [{"kid": "origin"}], "b.example": [{"kid": "exact"}]}
+
+    records["c.example"] = _pinned(origin, {**origin, "signing_keys": []})
+    with pytest.raises(ValueError, match="exactly one"):
+        await adagents.fetch_publisher_signing_pins(["c.example"], AGENT)

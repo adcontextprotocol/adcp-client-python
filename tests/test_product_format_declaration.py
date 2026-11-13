@@ -391,8 +391,12 @@ def test_macro_resolution_capabilities_round_trip(model: type[Format]) -> None:
     assert dumped["macro_resolution_capabilities"] == _MACRO_CAPABILITIES
 
 
-def test_macro_resolution_capabilities_accept_only_the_capability_shape() -> None:
+def test_macro_resolution_capabilities_keep_an_unknown_key() -> None:
+    # ``core/macro-resolution-capability.json`` is open from AdCP 3.3.0-beta.6
+    # (DR-0036): a key this release does not define survives parse and dump.
     unknown_key = [{**_MACRO_CAPABILITIES[1], "vendor_note": "x"}]
-    with pytest.raises(ValidationError) as exc:
-        Format.model_validate({**_payload(), "macro_resolution_capabilities": unknown_key})
-    assert exc.value.errors()[0]["loc"] == ("macro_resolution_capabilities", 0, "vendor_note")
+    declaration = Format.model_validate(
+        {**_payload(), "macro_resolution_capabilities": unknown_key}
+    )
+    dumped = declaration.model_dump(mode="json", exclude_none=True)
+    assert dumped["macro_resolution_capabilities"] == unknown_key

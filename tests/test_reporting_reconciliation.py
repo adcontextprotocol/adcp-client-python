@@ -435,7 +435,7 @@ class _ResourceReader:
         return body
 
 
-def _manifest_inspection_fixture():
+def _manifest_inspection_fixture(definition_changes: dict | None = None):
     rows = [
         {"media_buy_id": "buy-2", "date": "2026-08-01", "impressions": 4, "spend": 5},
         {"media_buy_id": "buy-1", "date": "2026-08-01", "impressions": 3, "spend": 7},
@@ -485,6 +485,7 @@ def _manifest_inspection_fixture():
             }
         ],
     }
+    definition.update(definition_changes or {})
     definition_body = json.dumps(definition, separators=(",", ":")).encode()
     canonical_contract = {
         "contract_version": "1.0",
@@ -615,6 +616,53 @@ async def test_builtin_manifest_inspector_verifies_complete_resource() -> None:
     assert observation.row_count == 2
     assert observation.manifest_sha256 == context.materialization.resource.manifest_sha256
     assert observation.canonical_content_digest == context.revision.canonical_content_digest
+
+
+_ADJUSTMENTS_ONLY = {
+    "restatement_policy": {
+        "source_requery_duration": "P30D",
+        "emit_only_on_content_change": True,
+        "official_correction_mode": "adjustments_only",
+    }
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("changes", "valid"),
+    [
+        ({"contract_version": "1.1"}, False),
+        ({"contract_version": "1.1", **_ADJUSTMENTS_ONLY}, True),
+        ({"contract_version": "1.2", **_ADJUSTMENTS_ONLY}, False),
+        (
+            {
+                "contract_version": "1.2",
+                **_ADJUSTMENTS_ONLY,
+                "dimensions": ["media_buy_id", "package_id", "date"],
+            },
+            True,
+        ),
+    ],
+    ids=["1.1-no-correction-mode", "1.1", "1.2-no-package-id", "1.2"],
+)
+async def test_builtin_manifest_inspector_applies_each_definition_version(
+    changes: dict, valid: bool
+) -> None:
+    """The pinned schema's per-version rules, which the generated model lacks.
+
+    From ``contract_version`` 1.1 a definition declares
+    ``official_correction_mode: adjustments_only``; at 1.2 (AdCP 3.3.0-beta.6,
+    adcontextprotocol/adcp#8983) one with ``media_buy_id`` also lists ``package_id``.
+    """
+    context, resources = _manifest_inspection_fixture(changes)
+    inspector = ManifestReportingInspector(_ResourceReader(resources))
+
+    if valid:
+        assert (await inspector(context)).row_count == 2
+        return
+    with pytest.raises(ReportingInspectionError) as error:
+        await inspector(context)
+    assert error.value.code == ReportingInspectionCode.INVALID_CONTRACT
 
 
 @pytest.mark.asyncio

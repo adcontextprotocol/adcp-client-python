@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-08 02:41:59 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from adcp.types.domains.enums.attribution_methodology import AttributionMethodology
     from adcp.types.domains.enums.attribution_model import AttributionModel
     from adcp.types.domains.enums.audience_evidence_methodology import AudienceEvidenceMethodology
-    from adcp.types.domains.enums.audience_evidence_relationship import AudienceEvidenceRelationship
     from adcp.types.domains.enums.audience_match_rate_basis import AudienceMatchRateBasis
     from adcp.types.domains.enums.audience_resolution_method import AudienceResolutionMethod
     from adcp.types.domains.enums.audience_size_precision import AudienceSizePrecision
@@ -302,7 +301,6 @@ __all__ = [
     "AttributionMethodology",
     "AttributionModel",
     "AudienceEvidenceMethodology",
-    "AudienceEvidenceRelationship",
     "AudienceMatchRateBasis",
     "AudienceResolutionMethod",
     "AudienceSizePrecision",
@@ -547,7 +545,6 @@ _DECLARED_IN = {
     "AttributionMethodology": "adcp.types.domains.enums.attribution_methodology",
     "AttributionModel": "adcp.types.domains.enums.attribution_model",
     "AudienceEvidenceMethodology": "adcp.types.domains.enums.audience_evidence_methodology",
-    "AudienceEvidenceRelationship": "adcp.types.domains.enums.audience_evidence_relationship",
     "AudienceMatchRateBasis": "adcp.types.domains.enums.audience_match_rate_basis",
     "AudienceResolutionMethod": "adcp.types.domains.enums.audience_resolution_method",
     "AudienceSizePrecision": "adcp.types.domains.enums.audience_size_precision",

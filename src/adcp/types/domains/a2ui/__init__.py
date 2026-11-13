@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     )
     from adcp.types.domains.a2ui.component import A2UiComponent
     from adcp.types.domains.a2ui.si_catalog import (
-        Action25,
+        Action27,
         Align,
         AppHandoff,
         Apps,
@@ -72,7 +72,7 @@ __all__ = [
     "A2UiComponent",
     "A2UiSurface",
     "A2UiUserAction",
-    "Action25",
+    "Action27",
     "Align",
     "AppHandoff",
     "Apps",
@@ -108,7 +108,7 @@ _DECLARED_IN = {
     "A2UiComponent": "adcp.types.domains.a2ui.component",
     "A2UiSurface": "adcp.types.domains.a2ui.surface",
     "A2UiUserAction": "adcp.types.domains.a2ui.user_action",
-    "Action25": "adcp.types.domains.a2ui.si_catalog",
+    "Action27": "adcp.types.domains.a2ui.si_catalog",
     "Align": "adcp.types.domains.a2ui.si_catalog",
     "AppHandoff": "adcp.types.domains.a2ui.si_catalog",
     "Apps": "adcp.types.domains.a2ui.si_catalog",

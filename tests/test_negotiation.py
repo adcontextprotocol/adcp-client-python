@@ -978,3 +978,80 @@ def test_invalid_refinement_webhook_preserves_evidence_without_bypassing_validat
     assert "Schema validation failed" in result.error
     assert result.metadata[WIRE_RESPONSE_METADATA_KEY] is wire
     assert wire == original
+
+
+_INSTALLMENT_CHANGE = {
+    "product_id": "p1",
+    "installment_ref": {
+        "collection_ref": {"publisher_domain": "pub.example", "collection_id": "show"},
+        "installment_id": "ep-3",
+    },
+    "action": "omit",
+}
+
+
+def _installment_request() -> dict:
+    return {
+        "idempotency_key": "refine-request-0002",
+        "refinements": [
+            {
+                "proposal_id": "source-1",
+                "action": "revise",
+                "installment_changes": [deepcopy(_INSTALLMENT_CHANGE)],
+            }
+        ],
+    }
+
+
+def test_installment_changes_alone_are_a_typed_revision_gated_by_its_dimension() -> None:
+    """AdCP 3.3.0-beta.6, experimental ``media_buy.installment_refinement``."""
+    assert preflight_refine_proposals(_installment_request(), None).valid
+    assert preflight_refine_proposals(
+        _installment_request(), {"supported_dimensions": ["installment_changes"]}
+    ).valid
+    unsupported = preflight_refine_proposals(
+        _installment_request(), {"supported_dimensions": ["product_changes"]}
+    )
+    assert [(issue.code, issue.pointer) for issue in unsupported.issues] == [
+        ("unsupported_dimension", "/refinements/0/installment_changes")
+    ]
+
+
+def test_finalize_carries_no_installment_changes() -> None:
+    request = _installment_request()
+    request["refinements"][0]["action"] = "finalize"
+    codes = {
+        (issue.code, issue.pointer) for issue in preflight_refine_proposals(request, None).issues
+    }
+    assert ("invalid_request_schema", "/refinements/0/installment_changes") in codes
+
+
+def test_unsatisfied_installment_changes_satisfy_constraint_precedence() -> None:
+    response = _response()
+    response["results"][0] = {
+        "source_proposal_id": "source-1",
+        "outcome": "unable",
+        "reason_code": "constraint_unsatisfiable",
+        "reason": "No satisfying proposal",
+        "unsatisfied_installment_changes": [{**_INSTALLMENT_CHANGE, "reason": "sold"}],
+    }
+
+    result = verify_refine_proposals_response(_installment_request(), response)
+
+    assert result.valid, result.issues
+
+
+def test_unsatisfied_installment_changes_must_repeat_requested_entries() -> None:
+    response = _response()
+    altered = {**_INSTALLMENT_CHANGE, "action": "include", "reason": "sold"}
+    response["results"][0] = {
+        "source_proposal_id": "source-1",
+        "outcome": "unable",
+        "reason_code": "constraint_unsatisfiable",
+        "reason": "No satisfying proposal",
+        "unsatisfied_installment_changes": [altered],
+    }
+
+    result = verify_refine_proposals_response(_installment_request(), response)
+
+    assert "installment_change_mismatch" in {issue.code for issue in result.issues}

@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -227,7 +227,7 @@ if TYPE_CHECKING:
         SyncPrincipalRequest,
     )
     from adcp.types.domains.protocol.sync_principal_response import (
-        Action35,
+        Action37,
         PrincipalAppliedResult,
         PrincipalSyncFailedResult,
         PrincipalValidatedResult,
@@ -242,7 +242,7 @@ __all__ = [
     "AccessMode",
     "Account",
     "Accreditation",
-    "Action35",
+    "Action37",
     "Adcp",
     "AgeRestriction",
     "Algorithm",
@@ -437,7 +437,7 @@ _DECLARED_IN = {
     "AccessMode": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "Account": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "Accreditation": "adcp.types.domains.protocol.get_adcp_capabilities_response",
-    "Action35": "adcp.types.domains.protocol.sync_principal_response",
+    "Action37": "adcp.types.domains.protocol.sync_principal_response",
     "Adcp": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "AgeRestriction": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "Algorithm": "adcp.types.domains.protocol.get_adcp_capabilities_response",

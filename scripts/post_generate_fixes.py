@@ -4228,7 +4228,9 @@ def fix_reporting_request_selectors() -> None:
     def _select_reporting_scope(cls, value: Any) -> Any:
         if not isinstance(value, Mapping):
             return value
-        if 'all_media_buys' in value and 'media_buy_ids' in value:
+        # maxProperties: 1 counts every key, a selector this release does not
+        # define included.
+        if len(value) > 1:
             raise ValueError('reporting scope requires exactly one selector')
         if 'all_media_buys' in value and value['all_media_buys'] is not True:
             raise ValueError('all_media_buys must be true')
@@ -4236,8 +4238,12 @@ def fix_reporting_request_selectors() -> None:
             if value['media_buy_ids'] is None:
                 raise ValueError('media_buy_ids must be a nonempty unique list')
             return value
+        if value:
+            # The scope is open from 3.3.0-beta.6 (DR-0036): keep a selector this
+            # release does not define as received, never widened to all buys.
+            return value
         # Preserve the typed empty-scope convenience without mutating its input.
-        return {{**value, 'all_media_buys': True}}
+        return {{'all_media_buys': True}}
 
     @model_validator(mode='after')
     def _unique_reporting_scope(self) -> {node.name}:

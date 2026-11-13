@@ -41,7 +41,6 @@ UNREACHABLE = frozenset(
         "refine_proposals",
         "report_plan_adjustment",
         "report_plan_outcome",
-        "sync_principal",
     }
 )
 

@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-05 09:51:36 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -74,9 +74,6 @@ if TYPE_CHECKING:
         MacroResolutionFailedDetails,
     )
     from adcp.types.domains.error_details.policy_violation import Origin, PolicyViolationDetails
-    from adcp.types.domains.error_details.price_adjustments_mismatch import (
-        PriceAdjustmentsMismatchDetails,
-    )
     from adcp.types.domains.error_details.rate_limited import RateLimitedDetails
     from adcp.types.domains.error_details.requote_required import (
         EnvelopeField,
@@ -152,7 +149,6 @@ __all__ = [
     "Origin",
     "OriginalError",
     "PolicyViolationDetails",
-    "PriceAdjustmentsMismatchDetails",
     "RateLimitedDetails",
     "Recovery",
     "Rejection",
@@ -212,7 +208,6 @@ _DECLARED_IN = {
     "Origin": "adcp.types.domains.error_details.policy_violation",
     "OriginalError": "adcp.types.domains.error_details.stale_response",
     "PolicyViolationDetails": "adcp.types.domains.error_details.policy_violation",
-    "PriceAdjustmentsMismatchDetails": "adcp.types.domains.error_details.price_adjustments_mismatch",
     "RateLimitedDetails": "adcp.types.domains.error_details.rate_limited",
     "Recovery": "adcp.types.domains.error_details.vendor_error_codes",
     "Rejection": "adcp.types.domains.error_details.creative_merge_rejected",
