@@ -34,10 +34,8 @@ VECTORS_DIR = Path(__file__).parent / "conformance" / "vectors" / "request-signi
 _KEYS = json.loads((VECTORS_DIR / "keys.json").read_text())["keys"]
 _REQUEST_ED25519 = next(k for k in _KEYS if k["kid"] == "test-ed25519-2026")
 
-# Clone the request-signing fixture into a webhook-signing JWK. The
-# from_jwk constructor rejects keys whose adcp_use is not exactly
-# "webhook-signing" — separation of webhook-signing and request-signing
-# key material is part of the AdCP security posture.
+# Clone the request-signing fixture into a webhook-signing JWK to exercise
+# compatibility with that accepted key purpose.
 _WEBHOOK_JWK = {
     **copy.deepcopy(_REQUEST_ED25519),
     "kid": "test-webhook-ed25519-2026",
