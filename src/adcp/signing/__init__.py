@@ -32,9 +32,9 @@ The core names you'll reach for (everything else is for advanced use):
       from adcp.signing import generate_signing_keypair
 
       # CLI equivalence:
-      #   adcp-keygen --alg ed25519 --purpose webhook-signing
+      #   adcp-keygen --alg ed25519 --purpose request-signing
       pem, public_jwk = generate_signing_keypair(
-          alg="ed25519", purpose="webhook-signing"
+          alg="ed25519", purpose="request-signing"
       )
 
       # Mode 0600, O_EXCL so an existing file is never overwritten.

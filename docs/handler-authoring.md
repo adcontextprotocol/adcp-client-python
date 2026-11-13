@@ -1704,16 +1704,14 @@ try:
     if config.active is not False:
         # Challenge new or changed active durable subscriptions before
         # activation. Inactive configs are stored without a network challenge.
-        auth_kwargs = (
-            {"authentication": config.authentication}
-            if config.authentication
-            else {"sender": sender}
-        )
         await challenge_webhook_destination(
             url=str(config.url),
             account_id=account_id,
             subscriber_id=config.subscriber_id,
-            **auth_kwargs,
+            seller_agent_url=seller_agent_url,
+            event_types=config.event_types,
+            sender=sender,
+            authentication=config.authentication,
             policy=WebhookDestinationPolicy.production(),
             field="accounts[0].notification_configs[0].url",
         )
