@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -191,3 +193,151 @@ def test_artifact_install_rolls_back_partial_replacement(
     assert target_file.read_text() == "old file"
     assert (candidate_tree / "value").read_text() == "new tree"
     assert candidate_file.read_text() == "new file"
+
+
+def _write_schema_tree(root: Path, schemas: dict[str, dict]) -> None:
+    for rel_path, schema in schemas.items():
+        path = root / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(schema))
+
+
+def _envelope_composition_tree() -> dict[str, dict]:
+    """The adcp#8547 response layout, reduced to the shapes codegen has to handle."""
+    url = "https://adcontextprotocol.org/schemas/3.3.0-beta.2/"
+    envelope = {"$ref": f"{url}core/protocol-envelope.json"}
+    submitted = {"$ref": f"{url}core/task-submitted.json"}
+    return {
+        "core/version-envelope.json": {
+            "title": "AdCP Version Envelope",
+            "type": "object",
+            "properties": {"adcp_version": {"type": "string"}},
+        },
+        "enums/task-status.json": {
+            "title": "Task Status",
+            "type": "string",
+            "enum": ["completed", "submitted"],
+        },
+        "core/context.json": {"title": "Context Object", "type": "object"},
+        "core/protocol-envelope.json": {
+            "title": "Protocol Envelope",
+            "type": "object",
+            "allOf": [{"$ref": f"{url}core/version-envelope.json"}],
+            "properties": {
+                "status": {"$ref": f"{url}enums/task-status.json"},
+                "context": {"$ref": f"{url}core/context.json"},
+                "task_id": {"type": "string"},
+            },
+            "required": ["status"],
+        },
+        "core/task-submitted.json": {
+            "title": "Task Submitted",
+            "type": "object",
+            "properties": {
+                "status": {"const": "submitted"},
+                "task_id": {"type": "string", "minLength": 1},
+            },
+            "required": ["status", "task_id"],
+        },
+        # One directory deep, with the submitted arm as a oneOf branch.
+        "media-buy/thing-response.json": {
+            "title": "Thing Response",
+            "type": "object",
+            "allOf": [envelope],
+            "oneOf": [
+                {"type": "object", "properties": {"thing_id": {"type": "string"}}},
+                {"type": "object", "allOf": [submitted], "properties": {"eta": {"type": "string"}}},
+            ],
+        },
+        # Arms that disagree but compose nothing of their own: the generator's
+        # flat merge loses nothing, and the class keeps that shape.
+        "core/listing.json": {
+            "title": "Listing",
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "Listing name."}},
+        },
+        "core/enrichment.json": {
+            "title": "Enrichment",
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Enriched name."},
+                "score": {"type": "number"},
+            },
+        },
+        "media-buy/enriched-listing.json": {
+            "title": "Enriched Listing",
+            "type": "object",
+            "allOf": [
+                {"$ref": f"{url}core/listing.json"},
+                {"$ref": f"{url}core/enrichment.json"},
+            ],
+        },
+        # Three directories deep, composing both at the root.
+        "core/async-response-refs/media-buy/thing-async-response-submitted.json": {
+            "title": "Thing Submitted",
+            "type": "object",
+            "allOf": [envelope, submitted],
+            "properties": {"eta": {"type": "string"}},
+        },
+    }
+
+
+def test_envelope_composition_generates_from_every_depth_with_inheritance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """adcp#8547's composed responses generate, and keep the envelope ancestry.
+
+    Two generator behaviours meet here. Refs inside an ``allOf`` target are
+    resolved against the caller's directory, so the envelope's own refs must
+    name their files absolutely: from ``core/async-response-refs/<domain>/``
+    the relative spelling failed with ``$ref file not found``. And an
+    ``allOf`` whose arms disagree on a property (``task-submitted``'s
+    ``status`` const against the envelope's enum) was merged into a flat
+    class that inherited neither schema and dropped the version fields the
+    envelope composes. An ``allOf`` whose arms disagree but compose nothing of
+    their own keeps the flat merge it always had.
+    """
+    cache = tmp_path / "cache"
+    _write_schema_tree(cache, _envelope_composition_tree())
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", cache)
+    monkeypatch.setattr(generate_types, "TEMP_DIR", generate_types.TEMP_DIR)
+    monkeypatch.setattr(generate_types, "GENERATED_SCHEMA_EXCLUDE_FILES", frozenset())
+    monkeypatch.setattr(generate_types, "GENERATED_SCHEMA_EXCLUDE_DIRS", frozenset())
+
+    prepared = generate_types.flatten_schemas(tmp_path / "prepared")
+    package = tmp_path / "generated_envelope_tree"
+    assert generate_types.generate_types(prepared, package)
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    envelope = importlib.import_module(f"{package.name}.core.protocol_envelope").ProtocolEnvelope
+    task_submitted = importlib.import_module(f"{package.name}.core.task_submitted").TaskSubmitted
+    deep = importlib.import_module(
+        f"{package.name}.core.async_response_refs.media_buy.thing_async_response_submitted"
+    ).ThingSubmitted
+    response = importlib.import_module(f"{package.name}.media_buy.thing_response")
+    branch = next(
+        cls
+        for cls in vars(response).values()
+        if isinstance(cls, type)
+        and cls.__module__ == response.__name__
+        and "eta" in getattr(cls, "model_fields", {})
+    )
+    for cls in (deep, branch):
+        assert issubclass(cls, envelope) and issubclass(cls, task_submitted), cls.__mro__
+        fields = cls.model_fields
+        assert fields["status"].annotation == Literal["submitted"]
+        assert fields["status"].is_required()
+        assert fields["task_id"].is_required()
+        assert "adcp_version" in fields and "context" in fields
+
+    # The merge names the class after the last arm's title, as the generator's does.
+    flat_module = importlib.import_module(f"{package.name}.media_buy.enriched_listing")
+    (flat,) = (
+        cls
+        for cls in vars(flat_module).values()
+        if isinstance(cls, type) and cls.__module__ == flat_module.__name__
+    )
+    listing = importlib.import_module(f"{package.name}.core.listing").Listing
+    enrichment = importlib.import_module(f"{package.name}.core.enrichment").Enrichment
+    assert not issubclass(flat, (listing, enrichment)), flat.__mro__
+    assert {"name", "score"} <= set(flat.model_fields)
