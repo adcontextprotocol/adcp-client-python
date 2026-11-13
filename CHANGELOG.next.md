@@ -1,5 +1,16 @@
 # Changelog
 
+## [10.0.0-beta.17](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.16...v10.0.0-beta.17) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.5. get_supported_adcp_versions is 3.0, 3.1, 3.2, 3.3-beta.6 and 3.2-rc.7; an adcp_version pin of 3.3-beta.5 or 3.3.0-beta.5 raises ConfigurationError, and a peer that advertises only 3.3-beta.5 for the 3.3 line negotiates down to 3.2. Re-pin to 3.3-beta.6 or omit the pin. Generated types withdrawn by adcp#8501 are gone (PriceAdjustments, PriceAdjustmentsMismatchDetails, PackageForecastInput, AudienceEvidenceTarget and the fields above), most generated models now keep unknown keys instead of refusing them, and a 1.1 or 1.2 report definition that breaks its schema conditionals now fails manifest inspection with INVALID_CONTRACT.
+
+### Features
+
+* **protocol:** adopt the signed AdCP 3.3.0-beta.6 bundle ([#1901](https://github.com/adcontextprotocol/adcp-client-python/issues/1901)) ([ce9b30c](https://github.com/adcontextprotocol/adcp-client-python/commit/ce9b30c8f471925219043e76a9553d9d9ce05625))
+
 ## [10.0.0-beta.16](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.15...v10.0.0-beta.16) (2026-11-13)
 
 
