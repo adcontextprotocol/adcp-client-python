@@ -68,6 +68,7 @@ from adcp.types import (
 )
 from adcp.types.base import AdCPBaseModel
 from adcp.types.domains.core.async_response_data import AdcpAsyncResponseData
+from adcp.types.domains.core.proposal_created_webhook import ProposalCreatedWebhook
 from adcp.webhook_auth import (
     AdcpLegacyHmacStrategy,
     BearerTokenStrategy,
@@ -81,6 +82,11 @@ from adcp.webhook_transport_hooks import (
     DockerLocalhostRewrite,
     TransportHook,
     apply_hooks,
+)
+
+#: The keys a ``proposal.created`` notification may carry.
+_PROPOSAL_CREATED_FIELDS = frozenset(
+    field.alias or name for name, field in ProposalCreatedWebhook.model_fields.items()
 )
 
 if TYPE_CHECKING:
@@ -1505,6 +1511,15 @@ class WebhookSender:
             if isinstance(payload, BaseModel)
             else dict(payload)
         )
+        # The webhook is open from AdCP 3.3.0-beta.6 (DR-0036), yet it still
+        # carries identifiers only, so it cannot inject terms or instructions
+        # into a buyer agent: refuse every key its schema does not declare.
+        undeclared = sorted(set(value) - _PROPOSAL_CREATED_FIELDS)
+        if undeclared:
+            raise ValueError(
+                "proposal.created carries identifiers only; undeclared field(s): "
+                + ", ".join(undeclared)
+            )
         if "proposal_id" in value:
             value.setdefault("notification_id", value["proposal_id"])
         return WebhookSender._prepare_notification(

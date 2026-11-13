@@ -623,13 +623,13 @@ async def test_issue_1771_managed_capabilities_pass_the_sdk_response_validation(
 
     monkeypatch.setattr(Seller, "get_adcp_capabilities", capabilities)
     world = _World()
-    served = await world.platform.get_adcp_capabilities({"adcp_version": "3.3-beta.5"}, _ctx())
+    served = await world.platform.get_adcp_capabilities({"adcp_version": "3.3-beta.6"}, _ctx())
     validator = get_named_validator("protocol/get-adcp-capabilities-response.json")
     payload = {"status": "completed", **served}
     errors = [f"{list(e.absolute_path)} {e.message}" for e in validator.iter_errors(payload)]
     assert errors == []
     # A buyer negotiates the 3.3 line instead of falling back to 3.0.
-    assert "3.3-beta.5" in served["adcp"]["supported_versions"]
+    assert "3.3-beta.6" in served["adcp"]["supported_versions"]
 
 
 @pytest.mark.asyncio

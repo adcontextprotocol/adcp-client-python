@@ -1,6 +1,146 @@
 # Generated-types delta
 
+## Files added
+
+- `core/installment_change.py` — Action, InstallmentChange
+- `core/installment_change_set.py` — InstallmentChangeSet
+
+## Files removed
+
+- `core/audience_evidence_target.py` — AudienceEvidenceTarget
+- `enums/audience_evidence_relationship.py` — AudienceEvidenceRelationship
+- `error_details/price_adjustments_mismatch.py` — PriceAdjustmentsMismatchDetails
+- `media_buy/package_forecast_input.py` — CommittedMetrics, CommittedMetrics1, CommittedMetrics2, PackageForecastInput, Qualifier
+- `pricing_options/price_adjustments.py` — Kind, PriceAdjustments, PriceAdjustments1, PriceAdjustments2, PriceAdjustments3
+
 ## Field changes
 
+- `a2ui/si_catalog.py`
+  - **classes added**: Action27
+  - **classes removed**: Action25
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - **classes added**: SupportedDeliveryType
+  - `Creative`: `+supports_registry_policy_enforcement`
+  - `MediaBuy`: `+supported_delivery_types`
+  - `SupportedDimension`: `+installment_changes`
+- `core/canonical_reporting_capabilities.py`
+  - `CanonicalReportingCapabilities`: `+available_installment_statuses`
+- `core/creative_assignment.py`
+  - `CreativeAssignment`: `-landing_page_url`, `-trackers`
+- `core/creative_review_sla.py`
+  - **classes added**: Clock
+  - `CreativeReviewSla`: `+business_calendar_id`, `+clock`, `+response_max`
+- `core/escalation_sla.py`
+  - `EscalationSla`: `-clock`
+- `core/geo_metro.py`
+  - `GeoMetro`: `+value_labels`
+- `core/measurement_terms.py`
+  - `BillingMeasurement`: `-counting_mechanisms`
+- `core/package.py`
+  - `Package`: `-start_requires_all_creatives_approved`
+- `core/product_filters.py`
+  - `ProductFilters`: `-target_audiences`
+- `core/reporting_capabilities.py`
+  - `ReportingCapabilities`: `-available_installment_statuses`
+- `core/reporting_report_definition.py`
+  - `ContractVersion`: `+field_1_2`
+- `core/requirements/video_asset_requirements.py`
+  - `Container`: `+field_3gp`, `+m4v`, `+mpeg`
+- `core/sla_window.py`
+  - **classes removed**: Clock
+  - `SlaWindow`: `-business_calendar_id`, `-clock`
+- `core/targeting.py`
+  - **classes added**: GeoValueLabels
+  - `GeoMetrosExcludeItem`: `+value_labels`
+  - `TargetingOverlay`: `+geo_value_labels`
+- `core/targeting_input.py`
+  - `GeoMetrosExcludeItem`: `+value_labels`
+  - `TargetingOverlayInput`: `+geo_value_labels`
 - `core/wholesale_feed_event.py`
-  - **classes removed**: Range
+  - **classes added**: Payload20
+  - **classes removed**: Payload19
+  - `Payload`: `+canonical_pricing_options`, `+effective_at`, `+previous_pricing_option_ids`, `+pricing_options`, `+retracts_event_id` `-removal_reason`
+- `creative/list_creatives_response.py`
+  - `AssignedPackage`: `+installment_refs`
+- `creative/sync_creatives_request.py`
+  - `Assignment`: `-landing_page_url`, `-trackers`
+  - `AssignmentOperations1`: `+installment_refs`
+  - `AssignmentOperations3`: `+installment_refs`
+- `enums/error_code.py`
+  - `ErrorCode`: `+UNRECOGNIZED_TERMS`
+- `enums/proposal_decline_reason.py`
+  - `ProposalDeclineReason`: `+unrecognized_terms`
+- `formats/canonical/coordinated_placements.py`
+  - **classes added**: CardImageSize
+  - `Params4`: `+card_image_sizes`
+- `formats/canonical/image_carousel.py`
+  - **classes added**: CardImageSize
+  - `CanonicalFormatImageCarousel`: `+card_image_sizes`
+- `media_buy/create_media_buy_request.py`
+  - `ArtifactWebhook`: `-signing_profile`
+  - `CreateMediaBuyRequest`: `-lineage_reason`, `-predecessor_media_buy_id`
+- `media_buy/get_media_buys_response.py`
+  - `CreativeApproval`: `+installment_refs`
+- `media_buy/get_products_request.py`
+  - `GetProductsRequest`: `-include_collections`, `-include_execution_readiness`
+  - `Refine2`: `-package`
+- `media_buy/get_products_response.py`
+  - **classes removed**: ExecutionReadiness
+  - `GetProductsResponse`: `-collections`, `-execution_readiness`
+  - `RefinementApplied2`: `-resolved_end_time`, `-resolved_start_time`, `-result_product_id`
+- `media_buy/list_products_request.py`
+  - `ListProductsRequest`: `+include_execution_readiness`
+- `media_buy/list_products_response.py`
+  - **classes added**: ExecutionReadiness
+  - `ListProductsResponse1`: `+execution_readiness`
+  - `ListProductsResponse2`: `+execution_readiness`
+- `media_buy/package_request.py`
+  - **classes added**: CommittedMetrics1, CommittedMetrics2
+  - **classes removed**: CommittedMetrics, CommittedMetrics5
+  - `PackageRequest`: `-start_requires_all_creatives_approved`, `-target_audiences`
+- `media_buy/package_update.py`
+  - `PackageUpdate`: `-start_requires_all_creatives_approved`
+- `media_buy/product_refinement.py`
+  - **classes added**: Action13
+  - **classes removed**: Action12
+- `media_buy/proposal_refinement.py`
+  - **classes added**: ProposalRefinement11
+  - `ProposalRefinement10`: `+installment_changes`
+  - `ProposalRefinement2`: `+installment_changes`
+  - `ProposalRefinement3`: `+installment_changes`
+  - `ProposalRefinement4`: `+installment_changes`
+  - `ProposalRefinement5`: `+installment_changes`
+  - `ProposalRefinement6`: `+installment_changes`
+  - `ProposalRefinement7`: `+installment_changes`
+  - `ProposalRefinement8`: `+installment_changes`
+  - `ProposalRefinement9`: `+installment_changes`
+- `media_buy/refine_proposals_response.py`
+  - **classes added**: UnsatisfiedInstallmentChange
+  - `Results10`: `+unsatisfied_installment_changes`
+  - `Results11`: `+unsatisfied_installment_changes`
+  - `Results12`: `+unsatisfied_installment_changes`
+  - `Results15`: `+unsatisfied_installment_changes`
+  - `Results16`: `+unsatisfied_installment_changes`
+  - `Results17`: `+unsatisfied_installment_changes`
+  - `Results9`: `+unsatisfied_installment_changes`
+- `pricing_options/cpc_option.py`
+  - `CpcPricingOption`: `-price_adjustments`
+- `pricing_options/cpcv_option.py`
+  - `CpcvPricingOption`: `-price_adjustments`
+- `pricing_options/cpm_option.py`
+  - `CpmPricingOption`: `-price_adjustments`
+- `pricing_options/cpp_option.py`
+  - `CppPricingOption`: `-price_adjustments`
+- `pricing_options/cpv_option.py`
+  - `CpvPricingOption`: `-price_adjustments`
+- `pricing_options/flat_rate_option.py`
+  - `FlatRatePricingOption`: `-price_adjustments`
+- `pricing_options/vcpm_option.py`
+  - `VcpmPricingOption`: `-price_adjustments`
+- `protocol/get_adcp_capabilities_response.py`
+  - `Creative`: `+supports_registry_policy_enforcement`
+  - `MediaBuy`: `+supported_delivery_types`
+  - `SupportedDimension`: `+installment_changes`
+- `protocol/sync_principal_response.py`
+  - **classes added**: Action37
+  - **classes removed**: Action35

@@ -39,7 +39,7 @@ from adcp.types import BuyProductsRequest, CreateMediaBuySubmittedResponse, Refi
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
 from adcp.validation import validate_response
 
-PIN = "3.3-beta.5"
+PIN = "3.3-beta.6"
 ESTIMATE = "2030-01-15T09:00:00Z"
 SUBMITTED = {"status": "submitted", "task_id": "task_1", "expected_confirmation_at": ESTIMATE}
 GATED = ["buy_products", "accept_proposal", "refine_proposals"]

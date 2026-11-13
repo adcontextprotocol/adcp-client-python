@@ -23,7 +23,7 @@ from adcp.validation import validate_response
 from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.validation.schema_loader import _is_protocol_envelope_arm, get_validator
 
-COMPOSED = "3.3-beta.5"
+COMPOSED = "3.3-beta.6"
 CLOSED = "3.2"
 
 LISTED: dict[str, Any] = {
@@ -40,7 +40,7 @@ COMPACT = [("list_products", LISTED), ("decline_proposals", DECLINED)]
 def test_release_schema_decides_whether_status_belongs(tool: str) -> None:
     assert uses_task_status_envelope(tool, COMPOSED) is True
     assert uses_task_status_envelope(tool, "3.3.0-beta.3") is True
-    assert uses_task_status_envelope(tool, None) is True  # the SDK pin is 3.3.0-beta.5
+    assert uses_task_status_envelope(tool, None) is True  # the SDK pin is 3.3.0-beta.6
     assert uses_task_status_envelope(tool, CLOSED) is False
     assert uses_task_status_envelope(tool, "3.2.7") is False
     # A release that predates the composition keeps its own contract even when

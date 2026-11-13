@@ -56,22 +56,14 @@ def test_a_stray_keyword_argument_goes_to_the_wire() -> None:
 
 
 def test_a_generated_closed_object_refuses_an_unknown_key() -> None:
-    from adcp.types.domains.media_buy.request_proposals_response import PurchaseContinuation1
+    # AdCP 3.3.0-beta.6 opens every schema without a structural reason to stay
+    # closed (DR-0036); the bidding policy's mutually exclusive modes keep it closed.
+    from adcp.types.domains.core.bidding_policy import BiddingPolicy
 
-    assert PurchaseContinuation1.model_config["extra"] == "forbid"
+    assert BiddingPolicy.model_config["extra"] == "forbid"
+    BiddingPolicy.model_validate({"automatic": True})
     with pytest.raises(ValidationError):
-        PurchaseContinuation1.model_validate(
-            {
-                "kind": "legacy_create",
-                "continuation_token": "0123456789abcdef",
-                "continuation_expires_at": "2026-10-01T00:00:00Z",
-                "source_adcp_version": "3.1",
-                "product_ids": ["prod_1"],
-                "losses": ["feed_version_not_atomic", "pricing_version_not_atomic"],
-                "requires_explicit_acceptance": True,
-                "unknown": 1,
-            }
-        )
+        BiddingPolicy.model_validate({"automatic": True, "unknown": 1})
 
 
 def test_a_generated_open_object_keeps_an_unknown_key() -> None:
@@ -107,4 +99,6 @@ def test_the_generated_tree_follows_its_schemas() -> None:
                 policies[policy] = policies.get(policy, 0) + 1
     assert set(policies) <= {"allow", "forbid"}, policies
     assert policies.get("ignore", 0) == 0
-    assert policies["allow"] > 1000 and policies["forbid"] > 500, policies
+    # Since 3.3.0-beta.6 (DR-0036) a schema is closed only for a structural
+    # reason, so closed objects are a small minority.
+    assert policies["allow"] > 1000 and policies["forbid"] > 50, policies

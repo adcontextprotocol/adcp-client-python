@@ -315,7 +315,7 @@ def _capabilities() -> dict[str, Any]:
 async def test_capabilities_follow_the_served_release() -> None:
     seller = _Seller()
     await seller.service.configure(_configuration())
-    beta_3 = seller.service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.5")
+    beta_3 = seller.service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.6")
     block = beta_3["media_buy"]["reporting_delivery"]
     assert block["configuration_tasks"] == ["sync_principal", "sync_accounts"]
     assert block["configuration_task"] == "sync_accounts"
@@ -342,7 +342,7 @@ async def test_coverage_is_served_from_3_3_only() -> None:
     )
     await seller.service.run_worker(now=NOW)
     served = await seller.status(
-        AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.3-beta.5")
+        AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.3-beta.6")
     )
     assert served["subscription_coverage"][0]["status"] == "active"
     older = await seller.status(AGENCY, "summary", SimpleNamespace(resolved_adcp_version="3.2"))
@@ -403,7 +403,7 @@ async def test_without_the_option_nothing_changes() -> None:
     await service.configure(_configuration())
     turn = await service.run_worker(now=NOW)
     assert turn.subscription_obligations_written == 0 and turn.subscription_errors == {}
-    capabilities = service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.5")
+    capabilities = service.inject_capabilities(_capabilities(), adcp_version="3.3-beta.6")
     block = capabilities["media_buy"]["reporting_delivery"]
     assert "configuration_tasks" not in block and "subscriptions" not in block
     assert "standard_dimensions" not in block["offerings"][0]

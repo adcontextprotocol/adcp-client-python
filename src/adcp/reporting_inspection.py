@@ -36,6 +36,7 @@ from adcp.types import (
     ReportingFileManifest,
     ReportingReportDefinition,
 )
+from adcp.validation.schema_loader import get_named_validator
 
 # ReportingControlTotal is a union, so validation goes through an adapter.
 
@@ -771,6 +772,15 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.INVALID_CONTRACT,
                 "report definition is invalid",
             ) from error
+        # The model does not carry the schema's per-version conditionals: from
+        # contract_version 1.1 an official_correction_mode, and at 1.2 a
+        # package_id dimension beside media_buy_id (AdCP 3.3.0-beta.6).
+        definition_schema = get_named_validator("core/reporting-report-definition.json")
+        if definition_schema is None or not definition_schema.is_valid(definition_json):
+            raise ReportingInspectionError(
+                ReportingInspectionCode.INVALID_CONTRACT,
+                "report definition is invalid",
+            )
         if (
             definition.report_definition_id != revision.report_definition_id
             or definition.reporting_profile != revision.reporting_profile

@@ -100,7 +100,7 @@ def test_advertised_targeting_fields_carry_the_description_the_schema_declares()
     definition and left the field node bare, so the advertised input schema
     documented 5 of the 37 targeting fields.
 
-    The nine still bare are the fields whose schema is a whole-file ``$ref`` (``age_restriction`` is a pointer to an object the generator shares).
+    The ten still bare are the fields whose schema is a whole-file ``$ref`` (``age_restriction`` is a pointer to an object the generator shares), and ``geo_value_labels`` (AdCP 3.3.0-beta.6), an inline object the generator emits as its own class.
     Pydantic places the description on the referenced definition, and inlining the
     reference replaces the node that carried it. That is a different behaviour and
     it applies to ``core/targeting.json`` identically.
@@ -121,6 +121,7 @@ def test_advertised_targeting_fields_carry_the_description_the_schema_declares()
         "collection_list_exclude",
         "collection_selection",
         "frequency_cap",
+        "geo_value_labels",
         "placement_selection",
         "property_list",
         "property_list_exclude",

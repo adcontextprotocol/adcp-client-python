@@ -31,6 +31,22 @@ from adcp.types.core import TaskResult, TaskStatus
 WIRE_RESPONSE_METADATA_KEY = "adcp_negotiation_wire_response"
 """TaskResult metadata key containing the unnormalized refinement response."""
 
+#: The members that make a ``revise`` a typed change (``change_kind`` aside).
+#: ``installment_changes`` is experimental ``media_buy.installment_refinement``
+#: (AdCP 3.3.0-beta.6).
+_REVISION_FIELDS = (
+    "constraints",
+    "product_changes",
+    "installment_changes",
+    "alternatives",
+    "ask",
+    "criteria",
+    "remove_media_buy_frequency_cap",
+)
+#: Typed dimensions gated by ``proposal_refinement.supported_dimensions``
+#: besides the ``constraints`` keys, which name their own dimensions.
+_TYPED_DIMENSIONS = ("product_changes", "installment_changes", "alternatives", "criteria")
+
 
 @deferred_adapter
 def _refine_request_adapter() -> TypeAdapter[RefineProposalsRequest]:
@@ -339,11 +355,7 @@ def preflight_refine_proposals(
                 )
             )
 
-        change_fields = {
-            key
-            for key in ("constraints", "product_changes", "alternatives", "ask", "criteria")
-            if key in refinement
-        }
+        change_fields = {key for key in _REVISION_FIELDS if key in refinement}
         cancellation = refinement.get("change_kind") == "cancellation"
         if action == "revise" and not change_fields and not cancellation:
             issues.append(
@@ -372,7 +384,7 @@ def preflight_refine_proposals(
                 for dimension, value in constraints.items()
                 if value is not None
             )
-        for dimension in ("product_changes", "alternatives", "criteria"):
+        for dimension in _TYPED_DIMENSIONS:
             if refinement.get(dimension) is not None:
                 requested_dimensions.append((dimension, f"{pointer}/{dimension}"))
 
@@ -730,9 +742,7 @@ def verify_refine_proposals_response(
                     key for key, value in constraints.items() if value is not None
                 )
             requested_dimensions.update(
-                key
-                for key in ("product_changes", "alternatives", "criteria")
-                if refinement.get(key) is not None
+                key for key in _TYPED_DIMENSIONS if refinement.get(key) is not None
             )
             invalid_unsupported_reason = action != "revise" or not requested_dimensions
             if supported_dimensions is not None:
@@ -1045,8 +1055,39 @@ def verify_refine_proposals_response(
                     )
                 )
 
+        declared_installments = result.get("unsatisfied_installment_changes")
+        if declared_installments is not None:
+            requested_installments = refinement.get("installment_changes")
+            requested_entries = (
+                requested_installments if isinstance(requested_installments, list) else []
+            )
+            # Each entry repeats a requested installment change exactly and adds
+            # its reason (media_buy.installment_refinement, AdCP 3.3.0-beta.6).
+            if not isinstance(declared_installments, list) or not declared_installments:
+                issues.append(
+                    NegotiationVerificationIssue(
+                        "installment_change_mismatch",
+                        "unsatisfied_installment_changes must be non-empty when present",
+                        f"{pointer}/unsatisfied_installment_changes",
+                    )
+                )
+            elif any(
+                not isinstance(entry, dict)
+                or {key: value for key, value in entry.items() if key != "reason"}
+                not in requested_entries
+                for entry in declared_installments
+            ):
+                issues.append(
+                    NegotiationVerificationIssue(
+                        "installment_change_mismatch",
+                        "unsatisfied_installment_changes must repeat requested "
+                        "installment_changes entries exactly",
+                        f"{pointer}/unsatisfied_installment_changes",
+                    )
+                )
+
         unsatisfied = result.get("unsatisfied_constraints")
-        unsatisfied_changes = result.get("unsatisfied_product_changes")
+        unsatisfied_changes = result.get("unsatisfied_product_changes") or declared_installments
         if (unsatisfied or unsatisfied_changes) and result.get("outcome") not in {
             "partial",
             "unable",
@@ -1054,7 +1095,8 @@ def verify_refine_proposals_response(
             issues.append(
                 NegotiationVerificationIssue(
                     "unsatisfied_outcome",
-                    "unsatisfied constraints or product changes require partial or unable",
+                    "unsatisfied constraints, product changes or installment changes require "
+                    "partial or unable",
                     f"{pointer}/outcome",
                 )
             )
@@ -1073,7 +1115,7 @@ def verify_refine_proposals_response(
                 NegotiationVerificationIssue(
                     "constraint_precedence",
                     "reason_code constraint_unsatisfiable requires at least one "
-                    "unsatisfied constraint or product change",
+                    "unsatisfied constraint, product change or installment change",
                     f"{pointer}/reason_code",
                 )
             )

@@ -38,6 +38,8 @@ _IDENTITY_FIELDS = frozenset(
         "agent_url",
     }
 )
+#: The keys :func:`adcp.reporting.receipts.records.failed_result` writes.
+_FAILED_RESULT_KEYS = frozenset({"result", "reporting_receipt_id", "errors"})
 
 
 def receipt_schema(
@@ -139,10 +141,15 @@ def validate_receipt_results(
             ]
             expected = [item["reporting_receipt_id"] for _, item in batch.items]
             valid = valid and ids == (expected if complete else expected[: len(results)])
+            # The result arms are open from AdCP 3.3.0-beta.6 (DR-0036), but this
+            # store writes exactly the arm's own keys, so any other key in
+            # retained evidence is corruption, not an extension.
             for (kind, _), result in zip(batch.items, results):
-                if result["result"] != "failed":
+                if result["result"] == "failed":
+                    valid = valid and set(result) == _FAILED_RESULT_KEYS
+                else:
                     key = "receipt" if kind == "revision_receipt" else "adjustment_receipt"
-                    valid = valid and key in result
+                    valid = valid and set(result) == {"result", key}
     except (ValueError, TypeError, KeyError):
         valid = False
     if not valid:

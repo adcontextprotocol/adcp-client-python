@@ -268,7 +268,7 @@ async def test_dispatch_refuses_record_without_changed_paths(
 
 
 def test_changed_paths_enforced_from_3_3() -> None:
-    assert _handler_runs_adcp_33("3.3-beta.5")
+    assert _handler_runs_adcp_33("3.3-beta.6")
     assert _handler_runs_adcp_33("3.3")
     assert _handler_runs_adcp_33(None)
     assert not _handler_runs_adcp_33("3.2")

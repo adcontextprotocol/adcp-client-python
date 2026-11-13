@@ -29,7 +29,7 @@ from adcp.server.mcp_tools import create_tool_caller
 from adcp.types.core import AgentConfig, Protocol
 from adcp.validation import ValidationHookConfig, validate_request, validate_response
 
-SOURCE = "3.3-beta.5"
+SOURCE = "3.3-beta.6"
 _CASES = {
     case["id"]: case
     for case in json.loads(

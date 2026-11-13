@@ -19,7 +19,7 @@ from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, TypeAlias
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse, urlsplit
 
 import httpx
 import idna
@@ -54,16 +54,26 @@ async def fetch_publisher_signing_pins(
     from adcp.signing.canonical import canonicalize_target_uri
 
     canonical = canonicalize_target_uri(agent_url)
+    agent = urlsplit(canonical)
     pins: dict[str, list[dict[str, Any]] | None] = {}
     for domain in publisher_domains:
         record = await fetch_adagents(domain)
-        matches = [
-            entry
+        listed = [
+            (entry, canonicalize_target_uri(entry["url"]))
             for entry in record.get("authorized_agents", [])
-            if isinstance(entry, dict)
-            and isinstance(entry.get("url"), str)
-            and canonicalize_target_uri(entry["url"]) == canonical
+            if isinstance(entry, dict) and isinstance(entry.get("url"), str)
         ]
+        matches = [entry for entry, url in listed if url == canonical]
+        if not matches:
+            # An origin-only entry authorizes the agent at that origin,
+            # whatever its path (AdCP 3.3.0-beta.6, adcontextprotocol/adcp#8862).
+            matches = [
+                entry
+                for entry, url in listed
+                if (parts := urlsplit(url)).path == "/"
+                and not parts.query
+                and (parts.scheme, parts.netloc) == (agent.scheme, agent.netloc)
+            ]
         if len(matches) != 1:
             raise ValueError("publisher must authorize exactly one matching agent")
         entry = matches[0]
@@ -500,7 +510,9 @@ def find_authorized_agent_entries(
     A non-empty result distinguishes a listed agent whose selectors resolve to
     no properties from an unlisted agent. Entries are returned in document order
     without copying or modifying them. Malformed sibling entries and URL values
-    are skipped. Matching preserves HTTP/HTTPS equivalence and path semantics.
+    are skipped. Matching preserves HTTP/HTTPS equivalence and path semantics,
+    except that an origin-only entry (root path, no query) lists every agent at
+    that origin, whatever its path (AdCP 3.3.0-beta.6, adcontextprotocol/adcp#8862).
 
     Raises AdagentsValidationError if the document is not an object with an
     ``authorized_agents`` array.
@@ -522,9 +534,18 @@ def find_authorized_agent_entries(
             normalized_entry_url = normalize_url(entry_url)
         except ValueError:
             continue
-        if normalized_entry_url == normalized_agent_url:
+        if normalized_entry_url == normalized_agent_url or (
+            _is_origin_only(entry_url)
+            and normalized_agent_url.startswith(normalized_entry_url + "/")
+        ):
             matches.append(agent)
     return matches
+
+
+def _is_origin_only(url: str) -> bool:
+    """Whether an ``authorized_agents[].url`` names an origin: root path, no query."""
+    parsed = urlparse(url.strip())
+    return parsed.path in ("", "/") and not parsed.query
 
 
 def domain_matches(property_domain: str, agent_domain_pattern: str) -> bool:

@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-05 09:51:36 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -400,7 +400,6 @@ if TYPE_CHECKING:
     from adcp.types.domains.core.audience_evidence_pin import AudienceEvidencePin
     from adcp.types.domains.core.audience_evidence_requirements import AudienceEvidenceRequirements
     from adcp.types.domains.core.audience_evidence_selection import AudienceEvidenceSelection
-    from adcp.types.domains.core.audience_evidence_target import AudienceEvidenceTarget
     from adcp.types.domains.core.audience_member import AudienceMember
     from adcp.types.domains.core.audience_selector import (
         AudienceSelector,
@@ -638,7 +637,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.core.creative_policy import CreativePolicy, ProvenanceRequirements
     from adcp.types.domains.core.creative_representation import CreativeRepresentation
     from adcp.types.domains.core.creative_representation_set import CreativeRepresentationSet
-    from adcp.types.domains.core.creative_review_sla import CreativeReviewSla
+    from adcp.types.domains.core.creative_review_sla import Clock, CreativeReviewSla
     from adcp.types.domains.core.creative_revision_id import CreativeRevisionId
     from adcp.types.domains.core.creative_staged_update import CreativeStagedUpdate
     from adcp.types.domains.core.creative_variable import CreativeVariable, VariableType
@@ -966,6 +965,8 @@ if TYPE_CHECKING:
         TotalBudget,
     )
     from adcp.types.domains.core.installment import Installment
+    from adcp.types.domains.core.installment_change import InstallmentChange
+    from adcp.types.domains.core.installment_change_set import InstallmentChangeSet
     from adcp.types.domains.core.installment_deadlines import InstallmentDeadlines
     from adcp.types.domains.core.installment_delivery_metrics import InstallmentDeliveryMetrics
     from adcp.types.domains.core.installment_property_delivery_metrics import (
@@ -1762,13 +1763,13 @@ if TYPE_CHECKING:
         SignalTargetingExpression3,
     )
     from adcp.types.domains.core.signal_targeting_rules import ResolutionModel, SignalTargetingRules
-    from adcp.types.domains.core.sla_window import Clock, SlaWindow
+    from adcp.types.domains.core.sla_window import SlaWindow
     from adcp.types.domains.core.special import Special
     from adcp.types.domains.core.spot_reporting_capability import SpotReportingCapability
     from adcp.types.domains.core.start_timing import StartTiming
     from adcp.types.domains.core.store_item import StoreItem
     from adcp.types.domains.core.talent import Talent
-    from adcp.types.domains.core.targeting import AgeRestriction, TargetingOverlay
+    from adcp.types.domains.core.targeting import AgeRestriction, GeoValueLabels, TargetingOverlay
     from adcp.types.domains.core.targeting_input import TargetingOverlayInput
     from adcp.types.domains.core.targeting_modification import (
         Path,
@@ -1942,7 +1943,7 @@ if TYPE_CHECKING:
         AppliesTo2,
         Payload17,
         Payload18,
-        Payload19,
+        Payload20,
         Payload21,
         Payload22,
         Payload23,
@@ -2143,7 +2144,6 @@ __all__ = [
     "AudienceEvidencePin",
     "AudienceEvidenceRequirements",
     "AudienceEvidenceSelection",
-    "AudienceEvidenceTarget",
     "AudienceForecastDimension",
     "AudienceMember",
     "AudienceScope",
@@ -2579,6 +2579,7 @@ __all__ = [
     "GeoForecastDimension",
     "GeoMetro",
     "GeoTargets",
+    "GeoValueLabels",
     "GeographicBreakdownSupport",
     "GeographicPlaceArea",
     "GeographicPlaceCatalogCapability",
@@ -2669,6 +2670,8 @@ __all__ = [
     "InputFormat9",
     "InsertionOrder",
     "Installment",
+    "InstallmentChange",
+    "InstallmentChangeSet",
     "InstallmentDeadlines",
     "InstallmentDeliveryMetrics",
     "InstallmentPropertyDeliveryMetrics",
@@ -2915,8 +2918,8 @@ __all__ = [
     "Payload14",
     "Payload17",
     "Payload18",
-    "Payload19",
     "Payload2",
+    "Payload20",
     "Payload21",
     "Payload22",
     "Payload23",
@@ -3719,7 +3722,6 @@ _DECLARED_IN = {
     "AudienceEvidencePin": "adcp.types.domains.core.audience_evidence_pin",
     "AudienceEvidenceRequirements": "adcp.types.domains.core.audience_evidence_requirements",
     "AudienceEvidenceSelection": "adcp.types.domains.core.audience_evidence_selection",
-    "AudienceEvidenceTarget": "adcp.types.domains.core.audience_evidence_target",
     "AudienceForecastDimension": "adcp.types.domains.core.forecast_dimension_audience",
     "AudienceMember": "adcp.types.domains.core.audience_member",
     "AudienceScope": "adcp.types.domains.core.signal_definition",
@@ -3895,7 +3897,7 @@ _DECLARED_IN = {
     "ChangedFields": "adcp.types.domains.core.registry_event",
     "CirculationBasis": "adcp.types.domains.core.delivery_metrics",
     "Classification": "adcp.types.domains.core.registry_event",
-    "Clock": "adcp.types.domains.core.sla_window",
+    "Clock": "adcp.types.domains.core.creative_review_sla",
     "CloseReason": "adcp.types.domains.core.opportunity_context",
     "Cloud": "adcp.types.domains.core.audience_activation_method",
     "Collection": "adcp.types.domains.core.collection",
@@ -4155,6 +4157,7 @@ _DECLARED_IN = {
     "GeoForecastDimension": "adcp.types.domains.core.forecast_dimension_geo",
     "GeoMetro": "adcp.types.domains.core.geo_metro",
     "GeoTargets": "adcp.types.domains.core.offering",
+    "GeoValueLabels": "adcp.types.domains.core.targeting",
     "GeographicBreakdownSupport": "adcp.types.domains.core.geo_breakdown_support",
     "GeographicPlaceArea": "adcp.types.domains.core.geo_place_area",
     "GeographicPlaceCatalogCapability": "adcp.types.domains.core.geo_place_catalog_capability",
@@ -4245,6 +4248,8 @@ _DECLARED_IN = {
     "InputFormat9": "adcp.types.domains.core.transformer",
     "InsertionOrder": "adcp.types.domains.core.insertion_order",
     "Installment": "adcp.types.domains.core.installment",
+    "InstallmentChange": "adcp.types.domains.core.installment_change",
+    "InstallmentChangeSet": "adcp.types.domains.core.installment_change_set",
     "InstallmentDeadlines": "adcp.types.domains.core.installment_deadlines",
     "InstallmentDeliveryMetrics": "adcp.types.domains.core.installment_delivery_metrics",
     "InstallmentPropertyDeliveryMetrics": "adcp.types.domains.core.installment_property_delivery_metrics",
@@ -4491,8 +4496,8 @@ _DECLARED_IN = {
     "Payload14": "adcp.types.domains.core.registry_event",
     "Payload17": "adcp.types.domains.core.wholesale_feed_event",
     "Payload18": "adcp.types.domains.core.wholesale_feed_event",
-    "Payload19": "adcp.types.domains.core.wholesale_feed_event",
     "Payload2": "adcp.types.domains.core.registry_event",
+    "Payload20": "adcp.types.domains.core.wholesale_feed_event",
     "Payload21": "adcp.types.domains.core.wholesale_feed_event",
     "Payload22": "adcp.types.domains.core.wholesale_feed_event",
     "Payload23": "adcp.types.domains.core.wholesale_feed_event",

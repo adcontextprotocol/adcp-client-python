@@ -38,7 +38,6 @@ import json
 from collections.abc import Callable
 from copy import copy, deepcopy
 from functools import partial
-from importlib import import_module
 from types import GenericAlias
 from typing import Annotated, Any, cast, get_args
 
@@ -61,7 +60,6 @@ from pydantic_core.core_schema import ErrorType
 
 from adcp.types.base import AdCPBaseModel, defer_model_rebuild
 from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
-from adcp.types.canonical_creative import GetProductsRequest as _PublicGetProductsRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.canonical_creative import UpdateMediaBuyRequest as _PublicUpdateMediaBuyRequest
@@ -419,42 +417,6 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
     defer_model_rebuild(model)
 
 
-def _patch_package_forecast_targeting() -> None:
-    """Bridge the optional 3.3 package input without changing older generated trees."""
-    module_name = "adcp.types.domains.media_buy.package_forecast_input"
-    try:
-        forecast_module = import_module(module_name)
-    except ModuleNotFoundError as exc:
-        # Only the optional model itself may be absent. A broken dependency
-        # inside a present generated module must still fail the import.
-        if exc.name != module_name:
-            raise
-        return
-
-    forecast_model = forecast_module.PackageForecastInput
-    _patch_targeting_overlay(forecast_model)
-    request_module = import_module("adcp.types.domains.media_buy.get_products_request")
-    # Invalidate every parent that nests the forecast input -- its
-    # product-scoped union arm, then both public request parents -- so none
-    # keeps a schema built before this patch (#1694 defers the builds to first
-    # use, so at import nothing is built yet; invalidating is what keeps that
-    # true whatever ran first). Names of generated anonymous union arms change
-    # during code generation.
-    for model in vars(request_module).values():
-        if (
-            isinstance(model, type)
-            and issubclass(model, BaseModel)
-            and model.__module__ == request_module.__name__
-            and any(
-                _annotation_contains(field.annotation, forecast_model)
-                for field in model.model_fields.values()
-            )
-        ):
-            defer_model_rebuild(model)
-    defer_model_rebuild(request_module.GetProductsRequest)
-    defer_model_rebuild(_PublicGetProductsRequest)
-
-
 #: One value of the extensible ``enums/reporting-dimension.json`` vocabulary.
 #: The schema marks it ``x-extensible``: receivers MUST accept unknown values,
 #: and a selector naming a value no offering maps matches nothing. The
@@ -506,7 +468,6 @@ def _apply_forward_compat() -> None:
         PublicPackageUpdate,
     ):
         _patch_targeting_overlay(model)
-    _patch_package_forecast_targeting()
 
     # _ergonomic touched this legacy parent before the targeting patch.
     # Invalidate it too, so its first build nests the patched package input.

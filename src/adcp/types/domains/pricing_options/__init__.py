@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -36,13 +36,6 @@ if TYPE_CHECKING:
         ViewThreshold1,
     )
     from adcp.types.domains.pricing_options.flat_rate_option import FlatRatePricingOption
-    from adcp.types.domains.pricing_options.price_adjustments import (
-        Kind,
-        PriceAdjustments,
-        PriceAdjustments1,
-        PriceAdjustments2,
-        PriceAdjustments3,
-    )
     from adcp.types.domains.pricing_options.price_breakdown import Adjustment, PriceBreakdown
     from adcp.types.domains.pricing_options.price_guidance import PriceGuidance
     from adcp.types.domains.pricing_options.revenue_share_option import RevenueSharePricingOption
@@ -59,11 +52,6 @@ __all__ = [
     "CppPricingOption",
     "CpvPricingOption",
     "FlatRatePricingOption",
-    "Kind",
-    "PriceAdjustments",
-    "PriceAdjustments1",
-    "PriceAdjustments2",
-    "PriceAdjustments3",
     "PriceBreakdown",
     "PriceGuidance",
     "RevenueSharePricingOption",
@@ -85,11 +73,6 @@ _DECLARED_IN = {
     "CppPricingOption": "adcp.types.domains.pricing_options.cpp_option",
     "CpvPricingOption": "adcp.types.domains.pricing_options.cpv_option",
     "FlatRatePricingOption": "adcp.types.domains.pricing_options.flat_rate_option",
-    "Kind": "adcp.types.domains.pricing_options.price_adjustments",
-    "PriceAdjustments": "adcp.types.domains.pricing_options.price_adjustments",
-    "PriceAdjustments1": "adcp.types.domains.pricing_options.price_adjustments",
-    "PriceAdjustments2": "adcp.types.domains.pricing_options.price_adjustments",
-    "PriceAdjustments3": "adcp.types.domains.pricing_options.price_adjustments",
     "PriceBreakdown": "adcp.types.domains.pricing_options.price_breakdown",
     "PriceGuidance": "adcp.types.domains.pricing_options.price_guidance",
     "RevenueSharePricingOption": "adcp.types.domains.pricing_options.revenue_share_option",

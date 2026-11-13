@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-01 23:44:03 UTC
+Generation date: 2026-11-13 21:42:00 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -306,7 +306,6 @@ if TYPE_CHECKING:
     )
     from adcp.types.domains.media_buy.get_products_response import (
         ExcludedBy,
-        ExecutionReadiness,
         Extensions,
         FilterDiagnostics,
         GetProductsResponse,
@@ -357,6 +356,7 @@ if TYPE_CHECKING:
     )
     from adcp.types.domains.media_buy.list_products_request import ListProductsRequest
     from adcp.types.domains.media_buy.list_products_response import (
+        ExecutionReadiness,
         IncompleteItem3,
         ListProductsResponse,
         ListProductsResponse1,
@@ -391,17 +391,12 @@ if TYPE_CHECKING:
     )
     from adcp.types.domains.media_buy.outcome_target import Goal, Goal1, Goal2, OutcomeTarget
     from adcp.types.domains.media_buy.package_control import PackageControl
-    from adcp.types.domains.media_buy.package_forecast_input import (
+    from adcp.types.domains.media_buy.package_request import (
+        CommittedMetrics,
         CommittedMetrics1,
         CommittedMetrics2,
-        PackageForecastInput,
-    )
-    from adcp.types.domains.media_buy.package_request import (
-        Bidding,
-        CommittedMetrics3,
-        CommittedMetrics5,
         PackageRequest,
-        Params,
+        Qualifier,
     )
     from adcp.types.domains.media_buy.package_update import (
         KeywordTargetsAddItem,
@@ -418,7 +413,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.media_buy.product_purchase import ProductPurchase
     from adcp.types.domains.media_buy.product_purchase_input import ProductPurchaseInput
     from adcp.types.domains.media_buy.product_refinement import (
-        Action12,
+        Action13,
         ProductRefinementRequests,
         ProductRefinementRequests1,
         ProductRefinementRequests2,
@@ -439,11 +434,13 @@ if TYPE_CHECKING:
         Constraints6,
         Constraints7,
         Constraints8,
+        Constraints9,
         Cpm,
         Flight,
         Impressions,
         ProposalRefinement,
         ProposalRefinement10,
+        ProposalRefinement11,
         ProposalRefinement2,
         ProposalRefinement3,
         ProposalRefinement4,
@@ -497,6 +494,7 @@ if TYPE_CHECKING:
         Results9,
         TotalBudgetGuidance,
         UnsatisfiedConstraint,
+        UnsatisfiedInstallmentChange,
     )
     from adcp.types.domains.media_buy.report_media_buy_issue_request import (
         Category,
@@ -652,7 +650,7 @@ __all__ = [
     "AcceptancePolicyRule",
     "AcceptedLoss",
     "Action10",
-    "Action12",
+    "Action13",
     "AdvertiserJurisdiction",
     "AffectedPackageId",
     "AggregatedTotals",
@@ -663,7 +661,6 @@ __all__ = [
     "AudienceType",
     "Authentication",
     "BatchFrequency",
-    "Bidding",
     "BreakPosition",
     "BuildCreativeInputRequired",
     "BuildCreativeRequest",
@@ -706,10 +703,9 @@ __all__ = [
     "ChangeKind",
     "CloseReason",
     "CommercialTerms",
+    "CommittedMetrics",
     "CommittedMetrics1",
     "CommittedMetrics2",
-    "CommittedMetrics3",
-    "CommittedMetrics5",
     "CompatibilityPurchaseCoordinatorInput",
     "Condition",
     "Constraints",
@@ -721,6 +717,7 @@ __all__ = [
     "Constraints6",
     "Constraints7",
     "Constraints8",
+    "Constraints9",
     "ControlMediaBuyInputRequired",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
@@ -859,10 +856,8 @@ __all__ = [
     "OutcomeTarget",
     "Package",
     "PackageControl",
-    "PackageForecastInput",
     "PackageRequest",
     "PackageUpdate",
-    "Params",
     "PartialFailure",
     "PerLeaf",
     "Period",
@@ -896,6 +891,7 @@ __all__ = [
     "ProposalKind",
     "ProposalRefinement",
     "ProposalRefinement10",
+    "ProposalRefinement11",
     "ProposalRefinement2",
     "ProposalRefinement3",
     "ProposalRefinement4",
@@ -916,6 +912,7 @@ __all__ = [
     "PurchaseContinuation5",
     "PurchaseContinuation6",
     "PurchaseContinuation7",
+    "Qualifier",
     "Refine",
     "Refine1",
     "Refine2",
@@ -1015,6 +1012,7 @@ __all__ = [
     "TargetCapabilityId",
     "TotalBudgetGuidance",
     "UnsatisfiedConstraint",
+    "UnsatisfiedInstallmentChange",
     "UpdateMediaBuyInputRequired",
     "UpdateMediaBuyRequest",
     "UpdateMediaBuyResponse",
@@ -1068,7 +1066,7 @@ _DECLARED_IN = {
     "AcceptancePolicyRule": "adcp.types.domains.media_buy.acceptance_policy_rule",
     "AcceptedLoss": "adcp.types.domains.media_buy.legacy_purchase_continuation_input",
     "Action10": "adcp.types.domains.media_buy.get_products_request",
-    "Action12": "adcp.types.domains.media_buy.product_refinement",
+    "Action13": "adcp.types.domains.media_buy.product_refinement",
     "AdvertiserJurisdiction": "adcp.types.domains.media_buy.acceptance_context",
     "AffectedPackageId": "adcp.types.domains.media_buy.control_media_buy_response",
     "AggregatedTotals": "adcp.types.domains.media_buy.get_media_buy_delivery_response",
@@ -1079,7 +1077,6 @@ _DECLARED_IN = {
     "AudienceType": "adcp.types.domains.media_buy.sync_audiences_request",
     "Authentication": "adcp.types.domains.media_buy.create_media_buy_request",
     "BatchFrequency": "adcp.types.domains.media_buy.create_media_buy_request",
-    "Bidding": "adcp.types.domains.media_buy.package_request",
     "BreakPosition": "adcp.types.domains.media_buy.get_media_buy_delivery_response",
     "BuildCreativeInputRequired": "adcp.types.domains.media_buy.build_creative_async_response_input_required",
     "BuildCreativeRequest": "adcp.types.domains.media_buy.build_creative_request",
@@ -1122,10 +1119,9 @@ _DECLARED_IN = {
     "ChangeKind": "adcp.types.domains.media_buy.proposal_refinement",
     "CloseReason": "adcp.types.domains.media_buy.list_proposals_response",
     "CommercialTerms": "adcp.types.domains.media_buy.commercial_terms",
-    "CommittedMetrics1": "adcp.types.domains.media_buy.package_forecast_input",
-    "CommittedMetrics2": "adcp.types.domains.media_buy.package_forecast_input",
-    "CommittedMetrics3": "adcp.types.domains.media_buy.package_request",
-    "CommittedMetrics5": "adcp.types.domains.media_buy.package_request",
+    "CommittedMetrics": "adcp.types.domains.media_buy.package_request",
+    "CommittedMetrics1": "adcp.types.domains.media_buy.package_request",
+    "CommittedMetrics2": "adcp.types.domains.media_buy.package_request",
     "CompatibilityPurchaseCoordinatorInput": "adcp.types.domains.media_buy.legacy_purchase_continuation_input",
     "Condition": "adcp.types.domains.media_buy.change_term",
     "Constraints": "adcp.types.domains.media_buy.proposal_refinement",
@@ -1137,6 +1133,7 @@ _DECLARED_IN = {
     "Constraints6": "adcp.types.domains.media_buy.proposal_refinement",
     "Constraints7": "adcp.types.domains.media_buy.proposal_refinement",
     "Constraints8": "adcp.types.domains.media_buy.proposal_refinement",
+    "Constraints9": "adcp.types.domains.media_buy.proposal_refinement",
     "ControlMediaBuyInputRequired": "adcp.types.domains.media_buy.control_media_buy_async_response_input_required",
     "ControlMediaBuyRequest": "adcp.types.domains.media_buy.control_media_buy_request",
     "ControlMediaBuyResponse": "adcp.types.domains.media_buy.control_media_buy_response",
@@ -1179,7 +1176,7 @@ _DECLARED_IN = {
     "Estimate": "adcp.types.domains.media_buy.build_creative_response",
     "Eval": "adcp.types.domains.media_buy.build_creative_response",
     "ExcludedBy": "adcp.types.domains.media_buy.get_products_response",
-    "ExecutionReadiness": "adcp.types.domains.media_buy.get_products_response",
+    "ExecutionReadiness": "adcp.types.domains.media_buy.list_products_response",
     "Extensions": "adcp.types.domains.media_buy.get_products_response",
     "Fee": "adcp.types.domains.media_buy.commercial_terms",
     "Field1": "adcp.types.domains.media_buy.get_products_request",
@@ -1275,10 +1272,8 @@ _DECLARED_IN = {
     "OutcomeTarget": "adcp.types.domains.media_buy.outcome_target",
     "Package": "adcp.types.domains.media_buy.get_media_buys_response",
     "PackageControl": "adcp.types.domains.media_buy.package_control",
-    "PackageForecastInput": "adcp.types.domains.media_buy.package_forecast_input",
     "PackageRequest": "adcp.types.domains.media_buy.package_request",
     "PackageUpdate": "adcp.types.domains.media_buy.package_update",
-    "Params": "adcp.types.domains.media_buy.package_request",
     "PartialFailure": "adcp.types.domains.media_buy.log_event_response",
     "PerLeaf": "adcp.types.domains.media_buy.build_creative_response",
     "Period": "adcp.types.domains.media_buy.get_reporting_status_request",
@@ -1312,6 +1307,7 @@ _DECLARED_IN = {
     "ProposalKind": "adcp.types.domains.media_buy.refine_proposals_response",
     "ProposalRefinement": "adcp.types.domains.media_buy.proposal_refinement",
     "ProposalRefinement10": "adcp.types.domains.media_buy.proposal_refinement",
+    "ProposalRefinement11": "adcp.types.domains.media_buy.proposal_refinement",
     "ProposalRefinement2": "adcp.types.domains.media_buy.proposal_refinement",
     "ProposalRefinement3": "adcp.types.domains.media_buy.proposal_refinement",
     "ProposalRefinement4": "adcp.types.domains.media_buy.proposal_refinement",
@@ -1332,6 +1328,7 @@ _DECLARED_IN = {
     "PurchaseContinuation5": "adcp.types.domains.media_buy.request_proposals_response",
     "PurchaseContinuation6": "adcp.types.domains.media_buy.request_proposals_response",
     "PurchaseContinuation7": "adcp.types.domains.media_buy.request_proposals_response",
+    "Qualifier": "adcp.types.domains.media_buy.package_request",
     "Refine": "adcp.types.domains.media_buy.get_products_request",
     "Refine1": "adcp.types.domains.media_buy.get_products_request",
     "Refine2": "adcp.types.domains.media_buy.get_products_request",
@@ -1431,6 +1428,7 @@ _DECLARED_IN = {
     "TargetCapabilityId": "adcp.types.domains.media_buy.build_creative_request",
     "TotalBudgetGuidance": "adcp.types.domains.media_buy.refine_proposals_response",
     "UnsatisfiedConstraint": "adcp.types.domains.media_buy.refine_proposals_response",
+    "UnsatisfiedInstallmentChange": "adcp.types.domains.media_buy.refine_proposals_response",
     "UpdateMediaBuyInputRequired": "adcp.types.domains.media_buy.update_media_buy_async_response_input_required",
     "UpdateMediaBuyRequest": "adcp.types.domains.media_buy.update_media_buy_request",
     "UpdateMediaBuyResponse": "adcp.types.domains.media_buy.update_media_buy_response",
