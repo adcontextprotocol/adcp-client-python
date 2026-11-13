@@ -156,12 +156,12 @@ cd examples/v3_reference_seller
 docker compose up -d postgres
 ```
 
-Generate distinct webhook-signing and outbox-encryption keys. Keep both in a
+Generate request-signing and outbox-encryption keys. Keep both in a
 secret manager in production; the environment variables below are for the
 local runnable path.
 
 ```bash
-adcp-keygen --alg ed25519 --purpose webhook-signing \
+adcp-keygen --alg ed25519 --purpose request-signing \
   --kid reference-webhook-key \
   --out /tmp/adcp-reference-webhook-signing.pem
 

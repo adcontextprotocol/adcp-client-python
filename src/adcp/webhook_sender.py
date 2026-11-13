@@ -42,6 +42,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from pydantic import BaseModel, TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
+from adcp.signing.constants import WEBHOOK_ACCEPTED_ADCP_USES
 from adcp.signing.crypto import (
     ALG_ED25519,
     ALG_ES256,
@@ -65,6 +66,7 @@ from adcp.types import (
     WholesaleFeedEvent,
     WholesaleFeedWebhook,
 )
+from adcp.types.base import AdCPBaseModel
 from adcp.types.domains.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_auth import (
     AdcpLegacyHmacStrategy,
@@ -506,10 +508,8 @@ class WebhookSender:
     ) -> WebhookSender:
         """Construct from a JWK that includes the private scalar.
 
-        The JWK MUST have ``adcp_use == "webhook-signing"`` — the sender
-        doesn't validate this (you're signing with your own key; validation
-        happens at the receiver), but a key whose adcp_use is wrong will be
-        rejected by every conformant verifier.
+        The JWK must identify a purpose accepted by the AdCP webhook profile:
+        ``request-signing`` or ``webhook-signing``.
 
         ``allow_private_destinations`` and ``allowed_destination_ports``
         forward to :meth:`__init__` — see that signature for semantics.
@@ -517,15 +517,12 @@ class WebhookSender:
         # Snapshot the mapping once — a live Mapping could otherwise return
         # different values across the adcp_use / kid / d / alg reads.
         jwk_snapshot = dict(jwk)
-        if jwk_snapshot.get("adcp_use") != "webhook-signing":
+        adcp_use = jwk_snapshot.get("adcp_use")
+        if adcp_use not in WEBHOOK_ACCEPTED_ADCP_USES:
+            accepted_uses = ", ".join(sorted(WEBHOOK_ACCEPTED_ADCP_USES))
             raise ValueError(
-                f"WebhookSender requires a JWK with adcp_use='webhook-signing' "
-                f"(got {jwk_snapshot.get('adcp_use')!r}). Webhook-signing and "
-                f"request-signing keys MUST be distinct so a signature from one "
-                f"surface cannot be replayed as the other. Generate a separate "
-                f"key with adcp_use='webhook-signing' and publish it in your "
-                f"adagents.json alongside your request-signing key. See "
-                f"https://adcontextprotocol.org/docs/building/implementation/security"
+                "WebhookSender requires a JWK with an AdCP webhook signing purpose "
+                f"({accepted_uses}); got {adcp_use!r}"
             )
         alg = jwk_snapshot.get("alg")
         if alg == "EdDSA":
@@ -562,7 +559,7 @@ class WebhookSender:
     ) -> WebhookSender:
         """Load a private key from a PEM file and bind it as a webhook sender.
 
-        Companion to ``adcp-keygen --purpose webhook-signing``, which writes
+        Companion to ``adcp-keygen --purpose request-signing``, which writes
         the PEM and prints the public JWK. The JWK is published at your
         ``jwks_uri``; the PEM holds the private key material. ``from_pem``
         reads the PEM, constructs the right ``PrivateKey`` type for ``alg``,
@@ -2124,13 +2121,17 @@ class WebhookSender:
         url: str,
         account_id: str,
         subscriber_id: str,
+        seller_agent_url: str,
+        event_types: Sequence[str],
+        authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
         challenge: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
         """POST a signed durable-subscription proof-of-control challenge.
 
         The body matches the durable ``notification_configs[]`` challenge
-        shape and intentionally does not inject ``idempotency_key``:
+        shape, binds the pending delivery authentication and event set, and
+        intentionally does not inject ``idempotency_key``:
 
         ``{"type":"webhook.challenge","challenge":"...", ...}``
 
@@ -2139,9 +2140,15 @@ class WebhookSender:
         want URL validation and response echo checking in one call.
         """
 
+        if not self.signs_with_rfc9421:
+            raise ValueError("webhook challenges require RFC 9421 signing")
+
         payload = create_webhook_challenge_payload(
             account_id=account_id,
             subscriber_id=subscriber_id,
+            seller_agent_url=seller_agent_url,
+            event_types=event_types,
+            authentication=authentication,
             challenge=challenge,
         )
         challenge_value = str(payload["challenge"])

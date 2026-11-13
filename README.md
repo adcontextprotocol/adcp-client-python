@@ -832,16 +832,15 @@ sender = WebhookSender.from_jwk(webhook_signing_jwk_with_private_d)
 try:
     # Call only for new or changed active durable subscriptions. Persist
     # active=False configs without challenging; challenge before activation.
-    auth_kwargs = (
-        {"authentication": config.authentication}
-        if config.authentication
-        else {"sender": sender}
-    )
     await challenge_webhook_destination(
         url=config.url,
         account_id=account_id,
         subscriber_id=config.subscriber_id,
-        **auth_kwargs,
+        seller_agent_url=seller_agent_url,
+        event_types=config.event_types,
+        sender=sender,
+        authentication=config.authentication,
+        signing_profile=config.signing_profile,
         field="accounts[0].notification_configs[0].url",
         policy=WebhookDestinationPolicy.production(),
     )
@@ -854,11 +853,14 @@ need `http://localhost` or private-network destinations. Production validation
 requires HTTPS and rejects loopback, private, link-local, reserved, and cloud
 metadata destinations. The challenge helper uses the SDK-managed pinned
 transport and fails unless the receiver echoes the challenge in a JSON
-`challenge` or `token` field. For omitted `authentication`, pass an RFC 9421
-`WebhookSender.from_jwk(...)` without `client=`. Bearer/HMAC durable configs
-must pass `authentication=config.authentication`; custom egress clients,
-proxies, and mTLS transports are for normal delivery paths, not registration
-challenges.
+`challenge` or `token` field. Pass an RFC 9421 sender that supports the config's
+selected signing profile without `client=`; use `WebhookSender.from_jwk(...)`
+for `adcp/webhook-signing/v1`, and `WebhookSender.from_wba(...)` or
+`with_web_bot_auth(...)` for `web-bot-auth`. For deprecated Bearer/HMAC durable
+configs, also pass `authentication=config.authentication`; the challenge binds
+the delivery mode and credential fingerprint into its signed body without
+sending the credential. Custom egress clients, proxies, and mTLS transports are
+for normal delivery paths, not registration challenges.
 
 Wholesale feed notifications use stable types from `adcp` / `adcp.types`:
 
@@ -877,11 +879,9 @@ if "product.updated" in subscription.event_types:
     )
 ```
 
-The webhook-signing JWK MUST be published in your `adagents.json` with
-`adcp_use: "webhook-signing"` — distinct from your `request-signing` key so
-neither signature can be replayed as the other. `WebhookSender.from_jwk`
-refuses to construct from a JWK with the wrong `adcp_use` to fail fast at
-setup rather than at receiver verification.
+Publish the signing JWK in `adagents.json` with `adcp_use: "request-signing"`.
+`WebhookSender.from_jwk` also accepts `webhook-signing` keys for compatibility
+and rejects JWKs whose purpose is outside the webhook signing profile.
 
 ### Debug Mode
 

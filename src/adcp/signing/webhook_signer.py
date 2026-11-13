@@ -7,7 +7,7 @@ pinned by the webhook profile:
 * ``cover_content_digest`` — always ``True`` (body IS the event)
 * ``Signature`` — unpadded Base64URL throughout 3.x, independently of the
   AdCP 3.2 request-signing migration to padded standard Base64.
-* the signing JWK MUST have ``adcp_use: "webhook-signing"`` in the sender's
+* the signing JWK has an AdCP webhook-compatible ``adcp_use`` in the sender's
   published ``adagents.json``; verifying this at publish time is out of scope
   for the signer, but callers should enforce it when registering their keyring.
 """

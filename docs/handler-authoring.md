@@ -1748,16 +1748,15 @@ try:
     if config.active is not False:
         # Challenge new or changed active durable subscriptions before
         # activation. Inactive configs are stored without a network challenge.
-        auth_kwargs = (
-            {"authentication": config.authentication}
-            if config.authentication
-            else {"sender": sender}
-        )
         await challenge_webhook_destination(
             url=str(config.url),
             account_id=account_id,
             subscriber_id=config.subscriber_id,
-            **auth_kwargs,
+            seller_agent_url=seller_agent_url,
+            event_types=config.event_types,
+            sender=sender,
+            authentication=config.authentication,
+            signing_profile=config.signing_profile,
             policy=WebhookDestinationPolicy.production(),
             field="accounts[0].notification_configs[0].url",
         )
@@ -1790,10 +1789,12 @@ need `http://localhost` or private-network endpoints. The helper returns both
 subscription state. The proof-of-control helper uses the SDK-managed pinned
 transport, posts a `webhook.challenge`, and requires the receiver to echo the
 challenge value in a JSON `challenge` or `token` field. For omitted
-`authentication`, pass an RFC 9421 `WebhookSender.from_jwk(...)` without
-`client=`. Bearer/HMAC durable configs must pass
-`authentication=config.authentication`; custom egress clients, proxies, and
-mTLS transports are reserved for normal delivery paths, not registration
+`authentication`, pass an RFC 9421 sender that supports the config's selected
+signing profile without `client=`; use `WebhookSender.from_jwk(...)` for
+`adcp/webhook-signing/v1`, and `WebhookSender.from_wba(...)` or
+`with_web_bot_auth(...)` for `web-bot-auth`. Bearer/HMAC durable configs must
+pass `authentication=config.authentication`; custom egress clients, proxies,
+and mTLS transports are reserved for normal delivery paths, not registration
 proof-of-control.
 
 ### Wholesale feed notifications
