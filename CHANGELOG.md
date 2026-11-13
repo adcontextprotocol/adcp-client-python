@@ -192,6 +192,17 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [10.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.2...v10.0.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **webhooks:** Webhook challenge helpers now require seller_agent_url and event_types, and proof challenges require an RFC 9421 WebhookSender; pass legacy delivery authentication alongside that sender.
+
+### Bug Fixes
+
+* **webhooks:** comply with challenge schema ([bedea16](https://github.com/adcontextprotocol/adcp-client-python/commit/bedea168d9c467cab5ca8fff13ea013d4df573cf))
+
 ## [9.6.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.1...v9.6.2) (2026-11-09)
 
 
