@@ -232,14 +232,13 @@ async def test_send_raw_enforces_body_size_cap() -> None:
 
 @pytest.mark.asyncio
 async def test_from_jwk_rejects_wrong_adcp_use() -> None:
-    """Guardrail at construction: a request-signing JWK silently produces
-    signatures no webhook receiver will accept. Fail fast."""
+    """Guardrail at construction rejects JWKs outside the webhook profile."""
     bad_jwk: dict[str, Any] = {
         **copy.deepcopy(REQUEST_ED25519),
-        "adcp_use": "request-signing",  # wrong purpose for a webhook sender
+        "adcp_use": "governance-signing",
         "d": REQUEST_ED25519["_private_d_for_test_only"],
     }
-    with pytest.raises(ValueError, match="webhook-signing"):
+    with pytest.raises(ValueError, match="request-signing"):
         WebhookSender.from_jwk(bad_jwk)
 
 

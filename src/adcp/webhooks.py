@@ -29,7 +29,7 @@ import secrets
 import time
 import uuid
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, NoReturn, cast
@@ -1100,8 +1100,11 @@ def create_webhook_challenge_payload(
     *,
     account_id: str,
     subscriber_id: str,
+    seller_agent_url: str,
+    event_types: Sequence[str],
+    authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
     challenge: str | None = None,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Build the durable ``notification_configs[]`` challenge payload."""
 
     if not isinstance(account_id, str) or not account_id:
@@ -1111,12 +1114,43 @@ def create_webhook_challenge_payload(
     challenge_value = generate_webhook_challenge_value() if challenge is None else challenge
     if not isinstance(challenge_value, str) or not challenge_value:
         raise ValueError("challenge must be a non-empty string")
-    return {
+    delivery_auth: dict[str, str] = {"mode": "rfc9421"}
+    if authentication is not None:
+        auth_config = _authentication_to_config(authentication)
+        schemes = auth_config.get("schemes")
+        if not isinstance(schemes, (list, tuple)) or len(schemes) != 1:
+            raise ValueError("authentication.schemes must contain exactly one scheme")
+        mode = str(getattr(schemes[0], "value", schemes[0]))
+        if mode not in ("Bearer", "HMAC-SHA256"):
+            raise ValueError(f"unsupported legacy authentication scheme {mode!r}")
+        credentials = auth_config.get("credentials")
+        if not isinstance(credentials, str) or len(credentials) < 32:
+            raise ValueError(
+                f"authentication.schemes={[mode]!r} requires credentials of at least 32 characters"
+            )
+        _warn_auth_deprecation_once()
+        delivery_auth = {
+            "mode": mode,
+            "credential_fingerprint": hashlib.sha256(credentials.encode("utf-8")).hexdigest(),
+        }
+    payload: dict[str, Any] = {
         "type": "webhook.challenge",
         "challenge": challenge_value,
         "account_id": account_id,
         "subscriber_id": subscriber_id,
+        "seller_agent_url": seller_agent_url,
+        "delivery_auth": delivery_auth,
+        "event_types": list(event_types),
     }
+    from adcp.validation.schema_loader import get_named_validator
+
+    validator = get_named_validator("core/webhook-challenge.json")
+    if validator is None:
+        raise RuntimeError("bundled webhook challenge schema is unavailable")
+    error = next(validator.iter_errors(payload), None)
+    if error is not None:
+        raise ValueError(f"webhook challenge payload failed schema validation ({error.validator})")
+    return payload
 
 
 def validate_webhook_challenge_response(
@@ -1343,80 +1377,11 @@ def _authentication_to_config(authentication: AdCPBaseModel | Mapping[str, Any])
     return dict(authentication)
 
 
-async def _send_legacy_webhook_challenge(
-    *,
-    url: str,
-    authentication: Mapping[str, Any],
-    payload: dict[str, str],
-    timeout_seconds: float | None,
-    policy: WebhookDestinationPolicy,
-    extra_headers: Mapping[str, str] | None,
-) -> httpx.Response:
-    schemes_raw = authentication.get("schemes")
-    if schemes_raw is not None and not isinstance(schemes_raw, (list, tuple)):
-        raise ValueError(f"authentication.schemes must be a list, got {type(schemes_raw).__name__}")
-    schemes = list(schemes_raw or [])
-    if len(schemes) != 1:
-        raise ValueError("authentication.schemes must contain exactly one scheme")
-    auth_scheme = str(getattr(schemes[0], "value", schemes[0]))
-    credentials = authentication.get("credentials")
-
-    if auth_scheme not in ("Bearer", "HMAC-SHA256"):
-        raise ValueError(
-            f"unknown authentication scheme {auth_scheme!r}; "
-            "supported legacy schemes are 'Bearer' and 'HMAC-SHA256'."
-        )
-    if not isinstance(credentials, str) or not credentials:
-        raise ValueError(f"authentication.schemes={[auth_scheme]!r} requires credentials")
-    _validate_header_value("authentication.credentials", credentials)
-    _warn_auth_deprecation_once()
-
-    body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    if len(body_bytes) > _MAX_BODY_BYTES:
-        raise ValueError(
-            f"serialized webhook challenge body is {len(body_bytes):,} bytes, "
-            f"over the {_MAX_BODY_BYTES:,}-byte cap."
-        )
-
-    headers: dict[str, str] = {"Content-Type": "application/json"}
-    if auth_scheme == "Bearer":
-        headers["Authorization"] = f"Bearer {credentials}"
-    else:
-        get_adcp_signed_headers_for_webhook(
-            headers,
-            secret=credentials,
-            timestamp=str(int(time.time())),
-            payload=payload,
-        )
-
-    if extra_headers:
-        if len(extra_headers) > _MAX_EXTRA_HEADERS:
-            raise ValueError(
-                f"extra_headers has {len(extra_headers)} entries; "
-                f"helper caps at {_MAX_EXTRA_HEADERS}."
-            )
-        for key in extra_headers:
-            normalized = str(key).lower()
-            if normalized in _RESERVED_HEADERS or normalized.startswith(":"):
-                raise ValueError(_reserved_header_message(normalized, key))
-        for key, value in extra_headers.items():
-            _validate_header_value(f"extra_headers[{key!r}]", value)
-            headers[key] = value
-
-    return await _post_managed_webhook_challenge(
-        url=url,
-        body=body_bytes,
-        headers=headers,
-        timeout_seconds=timeout_seconds,
-        policy=policy,
-    )
-
-
 async def _send_sender_webhook_challenge(
     *,
     url: str,
     sender: WebhookSender,
-    payload: dict[str, str],
+    payload: dict[str, Any],
     timeout_seconds: float | None,
     policy: WebhookDestinationPolicy,
     extra_headers: Mapping[str, str] | None,
@@ -1476,6 +1441,8 @@ async def challenge_webhook_destination(
     url: str | AnyUrl,
     account_id: str,
     subscriber_id: str,
+    seller_agent_url: str,
+    event_types: Sequence[str],
     sender: WebhookSender | None = None,
     authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
     challenge: str | None = None,
@@ -1490,20 +1457,12 @@ async def challenge_webhook_destination(
     ``sync_accounts.accounts[].notification_configs[]`` entry. Inactive
     configs can be persisted without calling this helper.
 
-    ``authentication`` follows the durable config's legacy auth selector:
-    when present, the challenge is sent with Bearer or HMAC-SHA256. When
-    omitted, pass an RFC 9421 :class:`WebhookSender`; the helper uses that
-    sender's webhook-signing key and the SDK-managed pinned transport.
+    ``authentication`` describes the durable config's deprecated Bearer or
+    HMAC-SHA256 delivery mode. The challenge itself is always signed by the
+    RFC 9421 ``sender`` and uses the SDK-managed pinned transport.
     """
 
     error_url = str(url) if isinstance(url, (str, AnyUrl)) else None
-    if sender is not None and authentication is not None:
-        raise WebhookChallengeError(
-            "pass either sender= for RFC 9421 or authentication= for legacy auth, not both",
-            reason="ambiguous_auth_mode",
-            field=field,
-            url=error_url,
-        )
     sender_owns_client = bool(getattr(cast(Any, sender), "_owns_client", False))
     sender_transport_hooks = tuple(getattr(cast(Any, sender), "_transport_hooks", ()))
     if sender is not None and not sender_owns_client:
@@ -1522,30 +1481,28 @@ async def challenge_webhook_destination(
         )
     if sender is not None and not sender.signs_with_rfc9421:
         raise WebhookChallengeError(
-            "proof-of-control requires an RFC 9421 WebhookSender when authentication is omitted",
+            "proof-of-control requires an RFC 9421 WebhookSender",
             reason="sender_auth_mode_mismatch",
             field=field,
             url=error_url,
-            suggestion=(
-                "Use WebhookSender.from_jwk(...) for default durable configs, "
-                "or pass config.authentication for legacy Bearer/HMAC configs."
-            ),
+            suggestion="Use WebhookSender.from_jwk(...) to sign the challenge.",
         )
-    if sender is None and authentication is None:
+    if sender is None:
         raise WebhookChallengeError(
-            "webhook challenge requires sender= when authentication is omitted",
+            "webhook challenge requires an RFC 9421 sender",
             reason="sender_required",
             field=field,
             url=error_url,
-            suggestion=(
-                "Pass the seller's WebhookSender, or pass config.authentication for legacy auth."
-            ),
+            suggestion="Pass the seller's RFC 9421 WebhookSender.",
         )
     try:
         destination = validate_webhook_destination_url(url, policy=policy, field=field)
         payload = create_webhook_challenge_payload(
             account_id=account_id,
             subscriber_id=subscriber_id,
+            seller_agent_url=seller_agent_url,
+            event_types=event_types,
+            authentication=authentication,
             challenge=challenge,
         )
     except WebhookDestinationValidationError as exc:
@@ -1566,36 +1523,22 @@ async def challenge_webhook_destination(
     challenge_value = payload["challenge"]
 
     try:
-        if sender is not None:
-            effective_timeout = (
-                timeout_seconds
-                if timeout_seconds is not None
-                else float(getattr(cast(Any, sender), "_timeout", _DEFAULT_TIMEOUT_SECONDS))
-            )
-            response = await _send_sender_webhook_challenge(
-                url=destination.effective_url,
-                sender=sender,
-                payload=payload,
-                timeout_seconds=effective_timeout,
-                policy=destination.policy,
-                extra_headers=extra_headers,
-            )
-            status_code = response.status_code
-            response_headers = dict(response.headers)
-            response_body = response.content
-        else:
-            auth_config = _authentication_to_config(cast(Any, authentication))
-            response = await _send_legacy_webhook_challenge(
-                url=destination.effective_url,
-                authentication=auth_config,
-                payload=payload,
-                extra_headers=extra_headers,
-                timeout_seconds=timeout_seconds,
-                policy=destination.policy,
-            )
-            status_code = response.status_code
-            response_headers = dict(response.headers)
-            response_body = response.content
+        effective_timeout = (
+            timeout_seconds
+            if timeout_seconds is not None
+            else float(getattr(cast(Any, sender), "_timeout", _DEFAULT_TIMEOUT_SECONDS))
+        )
+        response = await _send_sender_webhook_challenge(
+            url=destination.effective_url,
+            sender=sender,
+            payload=payload,
+            timeout_seconds=effective_timeout,
+            policy=destination.policy,
+            extra_headers=extra_headers,
+        )
+        status_code = response.status_code
+        response_headers = dict(response.headers)
+        response_body = response.content
     except httpx.TimeoutException as exc:
         raise WebhookChallengeError(
             "webhook challenge timed out",

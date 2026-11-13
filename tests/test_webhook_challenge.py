@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
-import hmac
 import json
 import socket
 from pathlib import Path
@@ -13,6 +11,7 @@ import httpx
 import pytest
 
 from adcp import NotificationConfig
+from adcp.validation.schema_loader import get_named_validator
 from adcp.webhooks import (
     WebhookChallengeError,
     WebhookDestinationPolicy,
@@ -32,6 +31,9 @@ _WEBHOOK_JWK = {
     "kid": "test-webhook-ed25519-2026",
     "adcp_use": "webhook-signing",
 }
+_SELLER_AGENT_URL = "https://seller.example/adcp"
+_EVENT_TYPES = ["creative.status_changed"]
+_VALID_CHALLENGE = "challenge_123_00000000000000000000"
 
 
 def _rfc9421_sender(*, timeout_seconds: float = 10.0) -> WebhookSender:
@@ -62,15 +64,121 @@ def test_create_webhook_challenge_payload_shape() -> None:
     payload = create_webhook_challenge_payload(
         account_id="acct_1",
         subscriber_id="buyer-primary",
-        challenge="opaque-random-value",
+        seller_agent_url="https://seller.example/adcp",
+        event_types=["creative.status_changed", "creative.purged"],
+        challenge="opaque-random-value-0000000000000",
     )
 
     assert payload == {
         "type": "webhook.challenge",
-        "challenge": "opaque-random-value",
+        "challenge": "opaque-random-value-0000000000000",
         "account_id": "acct_1",
         "subscriber_id": "buyer-primary",
+        "seller_agent_url": "https://seller.example/adcp",
+        "delivery_auth": {"mode": "rfc9421"},
+        "event_types": ["creative.status_changed", "creative.purged"],
     }
+
+
+@pytest.mark.parametrize(
+    ("scheme", "credentials", "fingerprint"),
+    [
+        (
+            "Bearer",
+            "b" * 40,
+            "e26d2da3ab585c9840b157a4a9b5639fda905c2ad33d04d2c598be8883b51236",
+        ),
+        (
+            "HMAC-SHA256",
+            "s" * 40,
+            "3923fb8348df77529b04f6f536b8204856d0501d031063de795c57ad693b288f",
+        ),
+    ],
+)
+def test_create_webhook_challenge_payload_binds_legacy_delivery_auth(
+    scheme: str,
+    credentials: str,
+    fingerprint: str,
+) -> None:
+    payload = create_webhook_challenge_payload(
+        account_id="acct_1",
+        subscriber_id="buyer-primary",
+        seller_agent_url="https://seller.example/adcp",
+        event_types=["creative.status_changed"],
+        authentication={"schemes": [scheme], "credentials": credentials},
+        challenge="opaque-random-value-0000000000000",
+    )
+
+    assert payload["delivery_auth"] == {
+        "mode": scheme,
+        "credential_fingerprint": fingerprint,
+    }
+    assert credentials not in json.dumps(payload)
+
+
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        {"schemes": [], "credentials": "b" * 40},
+        {"schemes": ["Basic"], "credentials": "b" * 40},
+        {"schemes": ["Bearer"]},
+        {"schemes": ["HMAC-SHA256"], "credentials": "too-short"},
+    ],
+)
+def test_create_webhook_challenge_payload_rejects_invalid_legacy_delivery_auth(
+    authentication: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError, match="authentication"):
+        create_webhook_challenge_payload(
+            account_id="acct_1",
+            subscriber_id="buyer-primary",
+            seller_agent_url="https://seller.example/adcp",
+            event_types=["creative.status_changed"],
+            authentication=authentication,
+            challenge="opaque-random-value-0000000000000",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("subscriber_id", "buyer primary"),
+        ("seller_agent_url", "not a uri"),
+        ("event_types", []),
+        ("event_types", ["not.a.notification"]),
+        ("event_types", ["creative.purged", "creative.purged"]),
+        ("challenge", "too-short"),
+    ],
+)
+def test_create_webhook_challenge_payload_rejects_schema_invalid_required_fields(
+    field: str,
+    value: object,
+) -> None:
+    arguments: dict[str, Any] = {
+        "account_id": "acct_1",
+        "subscriber_id": "buyer-primary",
+        "seller_agent_url": "https://seller.example/adcp",
+        "event_types": ["creative.status_changed"],
+        "challenge": "opaque-random-value-0000000000000",
+    }
+    arguments[field] = value
+
+    with pytest.raises(ValueError, match="webhook challenge payload"):
+        create_webhook_challenge_payload(**arguments)
+
+
+def test_create_webhook_challenge_payload_validates_against_cached_3_2_schema() -> None:
+    payload = create_webhook_challenge_payload(
+        account_id="acct_1",
+        subscriber_id="buyer-primary",
+        seller_agent_url="https://seller.example/adcp",
+        event_types=["creative.status_changed", "creative.purged"],
+        challenge="opaque-random-value-0000000000000",
+    )
+    validator = get_named_validator("core/webhook-challenge.json", version="3.2")
+
+    assert validator is not None
+    assert list(validator.iter_errors(payload)) == []
 
 
 def test_create_webhook_challenge_payload_rejects_empty_challenge() -> None:
@@ -78,8 +186,79 @@ def test_create_webhook_challenge_payload_rejects_empty_challenge() -> None:
         create_webhook_challenge_payload(
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url="https://seller.example/adcp",
+            event_types=["creative.status_changed"],
             challenge="",
         )
+
+
+@pytest.mark.asyncio
+async def test_webhook_sender_sends_complete_challenge_payload() -> None:
+    captured: list[httpx.Request] = []
+    async with httpx.AsyncClient(transport=_challenge_transport(captured)) as client:
+        sender = WebhookSender.from_jwk(
+            {**_WEBHOOK_JWK, "d": _WEBHOOK_JWK["_private_d_for_test_only"]},
+            client=client,
+        )
+        result = await sender.send_webhook_challenge(
+            url="https://buyer.example/webhooks/catalog",
+            account_id="acct_1",
+            subscriber_id="buyer-primary",
+            seller_agent_url="https://seller.example/adcp",
+            event_types=["creative.status_changed"],
+            challenge="challenge_123_00000000000000000000",
+        )
+
+    assert result.ok
+    assert json.loads(captured[0].content) == {
+        "type": "webhook.challenge",
+        "challenge": "challenge_123_00000000000000000000",
+        "account_id": "acct_1",
+        "subscriber_id": "buyer-primary",
+        "seller_agent_url": "https://seller.example/adcp",
+        "delivery_auth": {"mode": "rfc9421"},
+        "event_types": ["creative.status_changed"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_webhook_sender_accepts_current_request_signing_jwk() -> None:
+    captured: list[httpx.Request] = []
+    async with httpx.AsyncClient(transport=_challenge_transport(captured)) as client:
+        sender = WebhookSender.from_jwk(
+            {**_REQUEST_ED25519, "d": _REQUEST_ED25519["_private_d_for_test_only"]},
+            client=client,
+        )
+        result = await sender.send_webhook_challenge(
+            url="https://buyer.example/webhooks/catalog",
+            account_id="acct_1",
+            subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
+            challenge=_VALID_CHALLENGE,
+        )
+
+    assert result.ok
+    assert captured[0].headers["Signature-Input"]
+    assert captured[0].headers["Signature"]
+
+
+@pytest.mark.asyncio
+async def test_webhook_sender_rejects_unsigned_challenge_sender() -> None:
+    captured: list[httpx.Request] = []
+    async with httpx.AsyncClient(transport=_challenge_transport(captured)) as client:
+        sender = WebhookSender.from_bearer_token("sender-token", client=client)
+        with pytest.raises(ValueError, match="RFC 9421"):
+            await sender.send_webhook_challenge(
+                url="https://buyer.example/webhooks/catalog",
+                account_id="acct_1",
+                subscriber_id="buyer-primary",
+                seller_agent_url=_SELLER_AGENT_URL,
+                event_types=_EVENT_TYPES,
+                challenge=_VALID_CHALLENGE,
+            )
+
+    assert captured == []
 
 
 @pytest.mark.parametrize("body", [b'{"challenge":"abc"}', {"token": "abc"}])
@@ -112,14 +291,16 @@ async def test_challenge_webhook_destination_with_sender(
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url="https://seller.example/adcp",
+            event_types=["creative.status_changed", "creative.purged"],
             sender=sender,
-            challenge="challenge_123",
+            challenge="challenge_123_00000000000000000000",
             field="accounts[0].notification_configs[0].url",
         )
 
     assert result.ok
     assert result.echoed_field == "challenge"
-    assert result.challenge == "challenge_123"
+    assert result.challenge == "challenge_123_00000000000000000000"
     assert result.destination.effective_url == "https://buyer.example/webhooks/catalog"
     assert "signature" in captured[0].headers
     assert "signature-input" in captured[0].headers
@@ -128,9 +309,12 @@ async def test_challenge_webhook_destination_with_sender(
     sent = json.loads(captured[0].content)
     assert sent == {
         "type": "webhook.challenge",
-        "challenge": "challenge_123",
+        "challenge": "challenge_123_00000000000000000000",
         "account_id": "acct_1",
         "subscriber_id": "buyer-primary",
+        "seller_agent_url": "https://seller.example/adcp",
+        "delivery_auth": {"mode": "rfc9421"},
+        "event_types": ["creative.status_changed", "creative.purged"],
     }
 
 
@@ -140,6 +324,7 @@ async def test_challenge_webhook_destination_with_legacy_authentication(
 ) -> None:
     _public_dns(monkeypatch)
     captured: list[httpx.Request] = []
+    sender = _rfc9421_sender()
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured.append(request)
@@ -154,13 +339,22 @@ async def test_challenge_webhook_destination_with_legacy_authentication(
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="audit-bus",
+            seller_agent_url="https://seller.example/adcp",
+            event_types=["creative.purged"],
+            sender=sender,
             authentication={"schemes": ["Bearer"], "credentials": "b" * 40},
-            challenge="legacy_challenge_123",
+            challenge="legacy_challenge_123_000000000000",
         )
 
     assert result.echoed_field == "token"
-    assert captured[0].headers["authorization"] == f"Bearer {'b' * 40}"
-    assert json.loads(captured[0].content)["type"] == "webhook.challenge"
+    assert "authorization" not in captured[0].headers
+    assert "signature" in captured[0].headers
+    assert json.loads(captured[0].content)["delivery_auth"] == {
+        "mode": "Bearer",
+        "credential_fingerprint": (
+            "e26d2da3ab585c9840b157a4a9b5639fda905c2ad33d04d2c598be8883b51236"
+        ),
+    }
 
 
 @pytest.mark.asyncio
@@ -169,6 +363,7 @@ async def test_challenge_webhook_destination_accepts_notification_config_url(
 ) -> None:
     _public_dns(monkeypatch)
     captured: list[httpx.Request] = []
+    sender = _rfc9421_sender()
     config = NotificationConfig.model_validate(
         {
             "subscriber_id": "buyer-primary",
@@ -186,8 +381,11 @@ async def test_challenge_webhook_destination_accepts_notification_config_url(
             url=config.url,
             account_id="acct_1",
             subscriber_id=config.subscriber_id,
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=config.event_types,
+            sender=sender,
             authentication=config.authentication,
-            challenge="typed_url_challenge_123",
+            challenge=_VALID_CHALLENGE,
         )
 
     assert result.ok
@@ -201,6 +399,7 @@ async def test_challenge_webhook_destination_with_legacy_hmac(
     _public_dns(monkeypatch)
     captured: list[httpx.Request] = []
     secret = "s" * 40
+    sender = _rfc9421_sender()
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured.append(request)
@@ -215,18 +414,22 @@ async def test_challenge_webhook_destination_with_legacy_hmac(
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="audit-bus",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=["creative.purged"],
+            sender=sender,
             authentication={"schemes": ["HMAC-SHA256"], "credentials": secret},
-            challenge="hmac_challenge_123",
+            challenge=_VALID_CHALLENGE,
         )
 
     sent = captured[0]
-    timestamp = sent.headers["x-adcp-timestamp"]
-    expected = hmac.new(
-        secret.encode("utf-8"),
-        f"{timestamp}.".encode() + sent.content,
-        hashlib.sha256,
-    ).hexdigest()
-    assert sent.headers["x-adcp-signature"] == f"sha256={expected}"
+    assert "signature" in sent.headers
+    assert "x-adcp-signature" not in sent.headers
+    assert json.loads(sent.content)["delivery_auth"] == {
+        "mode": "HMAC-SHA256",
+        "credential_fingerprint": (
+            "3923fb8348df77529b04f6f536b8204856d0501d031063de795c57ad693b288f"
+        ),
+    }
 
 
 @pytest.mark.asyncio
@@ -249,8 +452,10 @@ async def test_challenge_webhook_destination_rejects_non_2xx(
                 url="https://buyer.example/webhooks/catalog",
                 account_id="acct_1",
                 subscriber_id="buyer-primary",
+                seller_agent_url=_SELLER_AGENT_URL,
+                event_types=_EVENT_TYPES,
                 sender=sender,
-                challenge="challenge_123",
+                challenge=_VALID_CHALLENGE,
             )
 
     assert exc.value.reason == "http_status"
@@ -260,6 +465,7 @@ async def test_challenge_webhook_destination_rejects_non_2xx(
 @pytest.mark.asyncio
 async def test_challenge_webhook_destination_local_development_policy() -> None:
     captured: dict[str, Any] = {}
+    sender = _rfc9421_sender()
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
@@ -274,8 +480,11 @@ async def test_challenge_webhook_destination_local_development_policy() -> None:
             url="http://localhost/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
+            sender=sender,
             authentication={"schemes": ["Bearer"], "credentials": "b" * 40},
-            challenge="local_challenge_123",
+            challenge=_VALID_CHALLENGE,
             policy=WebhookDestinationPolicy.local_development(),
         )
 
@@ -293,6 +502,8 @@ async def test_challenge_webhook_destination_rejects_sender_with_custom_client()
                 url="https://buyer.example/webhooks/catalog",
                 account_id="acct_1",
                 subscriber_id="buyer-primary",
+                seller_agent_url=_SELLER_AGENT_URL,
+                event_types=_EVENT_TYPES,
                 sender=sender,
             )
 
@@ -308,6 +519,8 @@ async def test_challenge_webhook_destination_rejects_non_rfc9421_sender() -> Non
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
             sender=sender,
         )
 
@@ -330,6 +543,8 @@ async def test_challenge_webhook_destination_rejects_sender_transport_hooks() ->
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
             sender=sender,
         )
 
@@ -352,6 +567,8 @@ async def test_challenge_webhook_destination_rejects_sender_host_override(
                 url="https://buyer.example/webhooks/catalog",
                 account_id="acct_1",
                 subscriber_id="buyer-primary",
+                seller_agent_url=_SELLER_AGENT_URL,
+                event_types=_EVENT_TYPES,
                 sender=sender,
                 extra_headers={"Host": "evil.internal"},
             )
@@ -363,11 +580,15 @@ async def test_challenge_webhook_destination_rejects_sender_host_override(
 async def test_challenge_webhook_destination_wraps_preflight_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    sender = _rfc9421_sender()
     with pytest.raises(WebhookChallengeError) as exc:
         await challenge_webhook_destination(
             url="http://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
+            sender=sender,
             authentication={"schemes": ["Bearer"], "credentials": "b" * 40},
         )
 
@@ -379,6 +600,9 @@ async def test_challenge_webhook_destination_wraps_preflight_errors(
             url="https://buyer.example/webhooks/catalog",
             account_id="",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
+            sender=sender,
             authentication={"schemes": ["Bearer"], "credentials": "b" * 40},
         )
 
@@ -389,6 +613,9 @@ async def test_challenge_webhook_destination_wraps_preflight_errors(
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
+            sender=sender,
             authentication={"schemes": ["Bearer"], "credentials": "b" * 40},
             challenge="",
         )
@@ -417,8 +644,10 @@ async def test_challenge_webhook_destination_sender_uses_policy(
             url="http://localhost/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
             sender=sender,
-            challenge="local_sender_challenge_123",
+            challenge=_VALID_CHALLENGE,
             policy=WebhookDestinationPolicy.local_development(),
         )
 
@@ -443,14 +672,16 @@ async def test_challenge_webhook_destination_sender_uses_sender_timeout(
     ):
         async_client.return_value.__aenter__.return_value.post.return_value = httpx.Response(
             200,
-            json={"challenge": "timeout_challenge_123"},
+            json={"challenge": _VALID_CHALLENGE},
         )
         await challenge_webhook_destination(
             url="https://buyer.example/webhooks/catalog",
             account_id="acct_1",
             subscriber_id="buyer-primary",
+            seller_agent_url=_SELLER_AGENT_URL,
+            event_types=_EVENT_TYPES,
             sender=sender,
-            challenge="timeout_challenge_123",
+            challenge=_VALID_CHALLENGE,
         )
 
     assert async_client.call_args.kwargs["timeout"] == 42.0
