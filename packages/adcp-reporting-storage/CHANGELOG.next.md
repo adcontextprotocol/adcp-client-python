@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.4...adcp-reporting-storage-v0.2.0-beta.5) (2026-11-14)
+
+
+### Features
+
+* **reporting:** notify the adopter when a reporting issue opens, escalates or resolves ([#1875](https://github.com/adcontextprotocol/adcp-client-python/issues/1875)) ([74bbe6f](https://github.com/adcontextprotocol/adcp-client-python/commit/74bbe6facd8c4108e803babc23e979e7b2b5c3a9))
+
 ## [0.2.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.3...adcp-reporting-storage-v0.2.0-beta.4) (2026-11-08)
 
 
