@@ -284,6 +284,27 @@ async def test_dynamic_surface_failure_omits_claim_and_refuses_explicit_claim(st
     assert isinstance(exc.value.__cause__, RuntimeError)
 
 
+# Catches resolver exception details escaping into the readiness diagnostic.
+async def test_dynamic_surface_failure_logging_omits_resolver_details(status_harness, caplog):
+    _, static = await support_for(status_harness)
+    failure = RuntimeError("account-private-sentinel subscription-private-sentinel")
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        raise failure
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    with pytest.raises(
+        ReportingNotificationError, match="^status_account_surface_unavailable$"
+    ) as exc:
+        await support.resolve_account_surface()
+
+    assert exc.value.__cause__ is failure
+    assert "status_account_surface_unavailable" in caplog.text
+    assert "account-private-sentinel" not in caplog.text
+    assert "subscription-private-sentinel" not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
+
+
 # Catches invalid resolver return values being accepted as readiness evidence.
 async def test_dynamic_surface_rejects_invalid_return_type(status_harness):
     _, static = await support_for(status_harness)
@@ -393,6 +414,89 @@ async def test_dynamic_surface_snapshot_is_immutable(status_harness):
     )
     with pytest.raises(FrozenInstanceError):
         surface.account_surface_complete = False
+
+
+# Catches a snapshot retaining the resolver's mutable account enumeration.
+def test_dynamic_surface_copies_mutable_account_ids():
+    account_ids = ["acct_a"]
+    surface = ReportingStatusAccountSurface(
+        account_ids=account_ids,
+        account_surface_complete=True,
+        readiness_subscriptions=(),
+    )
+
+    account_ids[:] = ["acct_b"]
+
+    assert surface.account_ids == ("acct_a",)
+
+
+# Catches a snapshot retaining the resolver's mutable signing evidence collection.
+def test_dynamic_surface_copies_mutable_readiness_subscriptions():
+    probe = replace(notification_subscription(), event_types=("reporting.status_changed",))
+    subscriptions = [probe]
+    surface = ReportingStatusAccountSurface(
+        account_ids=("acct_a",),
+        account_surface_complete=True,
+        readiness_subscriptions=subscriptions,
+    )
+
+    subscriptions.clear()
+
+    assert surface.readiness_subscriptions == (probe,)
+
+
+# Catches resolver-owned list mutation replacing evidence during an awaited account check.
+async def test_dynamic_surface_proof_retains_evidence_during_source_mutation(
+    status_harness, monkeypatch
+):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    await h.seed(readable=True)
+    await h.ledger.put_configuration(configuration("acct_b"))
+    _, static = await support_for(h, ("acct_a", "acct_b"))
+    for account_id in ("acct_a", "acct_b"):
+        await h.status.baseline(account_id=account_id)
+    account_ids = ["acct_a", "acct_b"]
+    subscriptions = list(static.readiness_subscriptions)
+    surface = ReportingStatusAccountSurface(
+        account_ids=account_ids,
+        account_surface_complete=True,
+        readiness_subscriptions=subscriptions,
+    )
+    calls = 0
+    checked_accounts = []
+    check_started = asyncio.Event()
+    check_continue = asyncio.Event()
+    baseline_ready = h.status.baseline_ready
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        nonlocal calls
+        calls += 1
+        return surface
+
+    async def check_baseline(*, account_id):
+        checked_accounts.append(account_id)
+        if account_id == "acct_a":
+            check_started.set()
+            await check_continue.wait()
+        return await baseline_ready(account_id=account_id)
+
+    monkeypatch.setattr(h.status, "baseline_ready", check_baseline)
+    support = replace(static, account_surface_resolver=resolve_surface)
+    proof = asyncio.create_task(support.durable())
+    try:
+        await asyncio.wait_for(check_started.wait(), timeout=10)
+        account_ids.clear()
+        subscriptions.clear()
+        check_continue.set()
+        assert await asyncio.wait_for(proof, timeout=10)
+    finally:
+        proof.cancel()
+        await asyncio.gather(proof, return_exceptions=True)
+
+    assert calls == 1
+    assert checked_accounts == ["acct_a", "acct_b"]
 
 
 # Catches single-account readiness using constructor probes instead of the current surface.

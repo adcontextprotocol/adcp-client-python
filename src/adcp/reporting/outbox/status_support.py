@@ -27,6 +27,10 @@ class ReportingStatusAccountSurface:
     account_surface_complete: bool
     readiness_subscriptions: tuple[ReportingNotificationSubscription, ...]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "account_ids", tuple(self.account_ids))
+        object.__setattr__(self, "readiness_subscriptions", tuple(self.readiness_subscriptions))
+
 
 class ReportingStatusAccountSurfaceResolver(Protocol):
     async def __call__(self) -> ReportingStatusAccountSurface: ...
@@ -71,7 +75,7 @@ class ReportingStatusSupport:
             if not isinstance(surface, ReportingStatusAccountSurface):
                 raise TypeError("status_account_surface_invalid")
         except Exception as exc:
-            logger.warning("status_account_surface_unavailable", exc_info=True)
+            logger.warning("status_account_surface_unavailable")
             raise ReportingNotificationError("status_account_surface_unavailable") from exc
         return surface
 
