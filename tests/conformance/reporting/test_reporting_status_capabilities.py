@@ -1,7 +1,8 @@
 """Structural readiness, complete account surfaces and explicitly mounted wire claims."""
 
+import asyncio
 import json
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 from itertools import product
 
 import pytest
@@ -15,6 +16,7 @@ from adcp.reporting.outbox import (
     ReportingActivityProjector,
     ReportingActivitySupport,
     ReportingNotificationError,
+    ReportingStatusAccountSurface,
     ReportingStatusProjector,
     ReportingStatusService,
     ReportingStatusSupport,
@@ -67,6 +69,230 @@ async def support_for(h, accounts=("acct_a",)):
         handler,
         probes,
     )
+
+
+# Catches a stale constructor surface after an account is enrolled.
+async def test_dynamic_surface_discovers_account_without_restart(status_harness):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    await h.seed(readable=True)
+    await h.ledger.put_configuration(configuration("acct_b"))
+    _, static = await support_for(h, ("acct_a", "acct_b"))
+    surfaces = [
+        ReportingStatusAccountSurface(
+            account_ids=("acct_a",),
+            account_surface_complete=True,
+            readiness_subscriptions=(static.readiness_subscriptions[0],),
+        )
+    ]
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        return surfaces[0]
+
+    support = replace(
+        static,
+        account_ids=(),
+        account_surface_complete=False,
+        readiness_subscriptions=(),
+        account_surface_resolver=resolve_surface,
+    )
+    await h.status.baseline(account_id="acct_a")
+    assert await support.durable()
+
+    surfaces[0] = ReportingStatusAccountSurface(
+        account_ids=("acct_a", "acct_b"),
+        account_surface_complete=True,
+        readiness_subscriptions=static.readiness_subscriptions,
+    )
+    assert not await support.durable()
+    await h.status.baseline(account_id="acct_b")
+    assert await support.durable()
+
+
+# Catches stale constructor evidence being merged into an incomplete resolver surface.
+@pytest.mark.parametrize("missing", ["complete", "accounts", "account_id", "probes"])
+async def test_dynamic_surface_requires_complete_nonempty_evidence(status_harness, missing):
+    h = status_harness
+    await h.seed(readable=True)
+    await h.status.baseline(account_id="acct_a")
+    _, static = await support_for(h)
+    surface = ReportingStatusAccountSurface(
+        account_ids=()
+        if missing == "accounts"
+        else (("",) if missing == "account_id" else ("acct_a",)),
+        account_surface_complete=missing != "complete",
+        readiness_subscriptions=() if missing == "probes" else static.readiness_subscriptions,
+    )
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        return surface
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    assert await support.advertised_notifications() == {}
+
+
+# Catches resolver exception propagation through capability advertisement and validation.
+async def test_dynamic_surface_failure_omits_claim_and_refuses_explicit_claim(status_harness):
+    _, static = await support_for(status_harness)
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        raise RuntimeError("registry unavailable")
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    assert await support.advertised_notifications() == {}
+    claim = {
+        "media_buy": {
+            "reporting_delivery": {
+                "status_task": "get_reporting_status",
+                "status_notification": "reporting.status_changed",
+            }
+        }
+    }
+    with pytest.raises(
+        ReportingNotificationError, match="^status_capability_requires_durable_reporting$"
+    ):
+        await validate_status_claims(claim, support=support)
+    with pytest.raises(
+        ReportingNotificationError, match="^status_account_surface_unavailable$"
+    ) as exc:
+        await support.resolve_account_surface()
+    assert isinstance(exc.value.__cause__, RuntimeError)
+
+
+# Catches invalid resolver return values being accepted as readiness evidence.
+async def test_dynamic_surface_rejects_invalid_return_type(status_harness):
+    _, static = await support_for(status_harness)
+
+    async def resolve_surface():
+        return {"account_ids": ("acct_a",), "account_surface_complete": True}
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    with pytest.raises(
+        ReportingNotificationError, match="^status_account_surface_unavailable$"
+    ) as exc:
+        await support.resolve_account_surface()
+    assert isinstance(exc.value.__cause__, TypeError)
+    assert await support.advertised_notifications() == {}
+
+
+# Catches resolver cancellation being swallowed as an unavailable capability.
+async def test_dynamic_surface_cancellation_propagates(status_harness):
+    _, static = await support_for(status_harness)
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        raise asyncio.CancelledError
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    with pytest.raises(asyncio.CancelledError):
+        await support.durable()
+
+
+# Catches partial signing evidence being combined with stale constructor probes.
+async def test_dynamic_surface_requires_a_probe_for_every_account(status_harness):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    await h.seed(readable=True)
+    await h.ledger.put_configuration(configuration("acct_b"))
+    _, static = await support_for(h, ("acct_a", "acct_b"))
+    for account_id in ("acct_a", "acct_b"):
+        await h.status.baseline(account_id=account_id)
+    surface = ReportingStatusAccountSurface(
+        account_ids=("acct_a", "acct_b"),
+        account_surface_complete=True,
+        readiness_subscriptions=static.readiness_subscriptions[:1],
+    )
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        return surface
+
+    support = replace(static, account_surface_resolver=resolve_surface)
+    assert await support.advertised_notifications() == {}
+
+
+# Catches repeated resolver calls combining accounts and probes from different snapshots.
+async def test_dynamic_surface_uses_one_snapshot_for_every_account(status_harness, monkeypatch):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    await h.seed(readable=True)
+    await h.ledger.put_configuration(configuration("acct_b"))
+    _, static = await support_for(h, ("acct_a", "acct_b"))
+    for account_id in ("acct_a", "acct_b"):
+        await h.status.baseline(account_id=account_id)
+    surfaces = [
+        ReportingStatusAccountSurface(
+            account_ids=("acct_a", "acct_b"),
+            account_surface_complete=True,
+            readiness_subscriptions=static.readiness_subscriptions,
+        )
+    ]
+    calls = 0
+    checked_accounts = []
+    baseline_ready = h.status.baseline_ready
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        nonlocal calls
+        calls += 1
+        return surfaces[0]
+
+    async def check_baseline(*, account_id):
+        checked_accounts.append(account_id)
+        surfaces[0] = replace(
+            surfaces[0],
+            account_ids=("acct_a",),
+            readiness_subscriptions=static.readiness_subscriptions[:1],
+        )
+        return await baseline_ready(account_id=account_id)
+
+    monkeypatch.setattr(h.status, "baseline_ready", check_baseline)
+    support = replace(
+        static,
+        account_ids=(),
+        account_surface_complete=False,
+        readiness_subscriptions=(),
+        account_surface_resolver=resolve_surface,
+    )
+    assert await support.durable()
+    assert calls == 1
+    assert checked_accounts == ["acct_a", "acct_b"]
+
+
+# Catches mutable account surfaces changing evidence within a readiness proof.
+async def test_dynamic_surface_snapshot_is_immutable(status_harness):
+    _, support = await support_for(status_harness)
+    surface = ReportingStatusAccountSurface(
+        account_ids=("acct_a",),
+        account_surface_complete=True,
+        readiness_subscriptions=support.readiness_subscriptions,
+    )
+    with pytest.raises(FrozenInstanceError):
+        surface.account_surface_complete = False
+
+
+# Catches single-account readiness using constructor probes instead of the current surface.
+async def test_account_ready_uses_dynamic_surface(status_harness):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    await h.seed(readable=True)
+    await h.status.baseline(account_id="acct_a")
+    _, static = await support_for(h)
+    calls = 0
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        nonlocal calls
+        calls += 1
+        return ReportingStatusAccountSurface(
+            account_ids=("acct_a",),
+            account_surface_complete=True,
+            readiness_subscriptions=static.readiness_subscriptions,
+        )
+
+    support = replace(static, readiness_subscriptions=(), account_surface_resolver=resolve_surface)
+    assert await support.account_ready(account_id="acct_a")
+    assert calls == 1
 
 
 async def test_all_visible_accounts_must_be_baselined_and_body_context_cannot_select_one(
