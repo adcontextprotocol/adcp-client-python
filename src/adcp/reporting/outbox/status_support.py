@@ -33,7 +33,8 @@ class ReportingStatusAccountSurface:
 
 
 class ReportingStatusAccountSurfaceResolver(Protocol):
-    async def __call__(self) -> ReportingStatusAccountSurface: ...
+    async def __call__(self) -> ReportingStatusAccountSurface:
+        pass
 
 
 @dataclass(frozen=True)
