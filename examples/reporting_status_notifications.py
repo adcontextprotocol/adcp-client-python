@@ -30,6 +30,8 @@ from adcp.reporting.outbox import (
     ReportingNotificationSubscription,
     ReportingNotificationWorker,
     ReportingSigningResolver,
+    ReportingStatusAccountSurface,
+    ReportingStatusAccountSurfaceResolver,
     ReportingStatusNotificationLifecycle,
     ReportingStatusProjector,
     ReportingStatusService,
@@ -167,14 +169,31 @@ async def run_status_service(
     cipher: ReportingEnvelopeCipher,
     serve: Callable[[ReportingSeller], Awaitable[None]],
     escalation: ReportingDeliveryEscalation | None = None,
+    account_surface_resolver: ReportingStatusAccountSurfaceResolver | None = None,
 ) -> None:
     """Migrate -> baseline ALL accounts -> ready -> dirty -> due -> expand -> HTTP.
 
-    account_ids must enumerate the complete deployment/authenticated capability
-    surface. A body account/context/ext is never a readiness selector. The HTTP
+    The zero-argument resolver supplies one complete deployment-wide snapshot.
+    Without it, account_ids and readiness_subscriptions define a constant
+    snapshot. A body account/context/ext is never a readiness selector. The HTTP
     callback mounts this ADCPHandler using the standard MCP/A2A server adapters.
     A supervision failure stops serving; pool closure follows drain/shutdown.
     """
+    static_surface = ReportingStatusAccountSurface(
+        account_ids=tuple(account_ids),
+        account_surface_complete=True,
+        readiness_subscriptions=tuple(readiness_subscriptions),
+    )
+
+    async def constant_account_surface() -> ReportingStatusAccountSurface:
+        return static_surface
+
+    resolve_surface = (
+        account_surface_resolver
+        if account_surface_resolver is not None
+        else constant_account_surface
+    )
+
     async with AsyncConnectionPool(conninfo, open=False) as pool:
         await pool.wait(timeout=10)
         ledger = PgReportingLedgerStore(pool=pool, notifications=True)
@@ -189,10 +208,8 @@ async def run_status_service(
             ReportingStatusProjector(store),
             ReportingStatusSweeper(store),
             scheduled=True,
-            account_ids=tuple(account_ids),
-            account_surface_complete=True,
             handler=handler,
-            readiness_subscriptions=tuple(readiness_subscriptions),
+            account_surface_resolver=resolve_surface,
         )
         handler.support = support
         service: ReportingStatusNotificationLifecycle = ReportingStatusService(support)
@@ -208,7 +225,10 @@ async def run_status_service(
         async def work() -> None:
             while not stop.is_set():
                 worked = False
-                for account_id in account_ids:
+                surface = await support.resolve_account_surface()
+                if not surface.account_surface_complete or any(not a for a in surface.account_ids):
+                    raise ReportingNotificationError("status_account_surface_unavailable")
+                for account_id in sorted(set(surface.account_ids)):
                     worked = await one_turn(service, account_id) or worked
                 if not worked:
                     try:

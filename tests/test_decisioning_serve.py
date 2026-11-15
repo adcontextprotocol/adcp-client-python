@@ -42,6 +42,8 @@ from adcp.decisioning.serve import (
     serve as serve_platform,
 )
 from adcp.exceptions import ConfigurationError
+from adcp.reporting.outbox import ReportingNotificationError, ReportingStatusSupport
+from adcp.server import ADCPHandler
 from adcp.server.mcp_tools import _resolve_handler_adcp_version
 
 
@@ -140,6 +142,36 @@ def test_create_returns_handler_executor_registry_tuple() -> None:
     assert isinstance(executor, ThreadPoolExecutor)
     assert isinstance(registry, InMemoryTaskRegistry)
     executor.shutdown(wait=True)
+
+
+@pytest.mark.parametrize("validate_at_init", [False, True])
+def test_create_binds_reporting_status_support(validate_at_init: bool) -> None:
+    support = ReportingStatusSupport(store=MagicMock(), worker=MagicMock())
+    handler, executor, _ = create_adcp_server_from_platform(
+        _BarePlatform(), reporting_status=support, validate_at_init=validate_at_init
+    )
+    try:
+        assert support.handler is handler
+        assert handler._reporting_status is support
+        support._bind_handler(handler)
+        assert support.handler is handler
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_create_refuses_reporting_status_support_bound_to_another_handler() -> None:
+    other = ADCPHandler()
+    support = ReportingStatusSupport(store=MagicMock(), worker=MagicMock(), handler=other)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with pytest.raises(ReportingNotificationError, match="^status_handler_mismatch$"):
+            create_adcp_server_from_platform(
+                _BarePlatform(),
+                executor=executor,
+                timed_sync_get_products_limit=1,
+                reporting_status=support,
+                validate_at_init=False,
+            )
+    assert support.handler is other
 
 
 def test_create_pins_handler_adcp_version() -> None:
@@ -368,7 +400,8 @@ def test_create_passes_in_production_with_custom_durable_registry() -> None:
     with patch.dict(os.environ, {"ADCP_ENV": "production"}):
         os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
         handler, executor, registry = create_adcp_server_from_platform(
-            platform, registry=custom_reg  # type: ignore[arg-type]
+            platform,
+            registry=custom_reg,  # type: ignore[arg-type]
         )
     assert registry is custom_reg
     executor.shutdown(wait=True)
@@ -426,7 +459,8 @@ def test_create_raises_when_registry_missing_is_durable_marker() -> None:
         os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
         with pytest.raises(AdcpError) as exc_info:
             create_adcp_server_from_platform(
-                platform, registry=_BareRegistry()  # type: ignore[arg-type]
+                platform,
+                registry=_BareRegistry(),  # type: ignore[arg-type]
             )
     assert exc_info.value.code == "INVALID_REQUEST"
     assert "is_durable" in str(exc_info.value)

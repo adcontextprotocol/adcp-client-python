@@ -1750,6 +1750,13 @@ class ReliableReportingService:
             return _wire(await self._production.handler.get_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
 
+    def _reporting_status_handler_for_support(self) -> ReportingStatusHandler:
+        return ReportingStatusHandler(
+            self.store,
+            consumer_status_enabled=self._consumer_status_enabled,
+            escalation=self._escalation,
+        )
+
     async def _require_grant(
         self, request: Any, context: Any | None, caller: ReportingStatusCaller, task: str
     ) -> None:
@@ -1770,11 +1777,9 @@ class ReliableReportingService:
     async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
         caller = await self.caller_for(request, context)
         await self._require_grant(request, context, caller, "get_reporting_status")
-        response = await ReportingStatusHandler(
-            self.store,
-            consumer_status_enabled=self._consumer_status_enabled,
-            escalation=self._escalation,
-        ).handle(_wire(request), caller=caller)
+        response = await self._reporting_status_handler_for_support().handle(
+            _wire(request), caller=caller
+        )
         if self._subscriptions is None:
             return response
         from adcp.reporting.service_subscriptions import with_subscription_coverage

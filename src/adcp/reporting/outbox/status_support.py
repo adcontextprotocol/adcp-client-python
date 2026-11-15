@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.status import ReportingStatusHandler
@@ -16,6 +17,24 @@ from adcp.reporting.outbox.status import (
 )
 from adcp.reporting.outbox.worker import ReportingNotificationWorker
 from adcp.server.base import ADCPHandler
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReportingStatusAccountSurface:
+    account_ids: tuple[str, ...]
+    account_surface_complete: bool
+    readiness_subscriptions: tuple[ReportingNotificationSubscription, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "account_ids", tuple(self.account_ids))
+        object.__setattr__(self, "readiness_subscriptions", tuple(self.readiness_subscriptions))
+
+
+class ReportingStatusAccountSurfaceResolver(Protocol):
+    async def __call__(self) -> ReportingStatusAccountSurface:
+        pass
 
 
 @dataclass(frozen=True)
@@ -38,6 +57,28 @@ class ReportingStatusSupport:
     account_surface_complete: bool = False
     handler: ADCPHandler[Any] | None = None
     readiness_subscriptions: tuple[ReportingNotificationSubscription, ...] = ()
+    account_surface_resolver: ReportingStatusAccountSurfaceResolver | None = None
+
+    def _bind_handler(self, handler: ADCPHandler[Any]) -> None:
+        if self.handler is not None and self.handler is not handler:
+            raise ReportingNotificationError("status_handler_mismatch")
+        object.__setattr__(self, "handler", handler)
+
+    async def resolve_account_surface(self) -> ReportingStatusAccountSurface:
+        if self.account_surface_resolver is None:
+            return ReportingStatusAccountSurface(
+                account_ids=self.account_ids,
+                account_surface_complete=self.account_surface_complete,
+                readiness_subscriptions=self.readiness_subscriptions,
+            )
+        try:
+            surface = await self.account_surface_resolver()
+            if not isinstance(surface, ReportingStatusAccountSurface):
+                raise TypeError("status_account_surface_invalid")
+        except Exception as exc:
+            logger.warning("status_account_surface_unavailable")
+            raise ReportingNotificationError("status_account_surface_unavailable") from exc
+        return surface
 
     async def queue_durable(self) -> bool:
         from adcp.reporting.outbox.status_memory import InMemoryStatusNotificationStore
@@ -62,6 +103,12 @@ class ReportingStatusSupport:
         return await self.store.status_queue_durable(self.worker)
 
     async def account_ready(self, *, account_id: str) -> bool:
+        surface = await self.resolve_account_surface()
+        return await self._account_ready(account_id=account_id, surface=surface)
+
+    async def _account_ready(
+        self, *, account_id: str, surface: ReportingStatusAccountSurface
+    ) -> bool:
         if not await self.queue_durable() or not await self.store.baseline_ready(
             account_id=account_id
         ):
@@ -72,7 +119,7 @@ class ReportingStatusSupport:
         subscriptions = await self.worker.subscriptions.list_active(
             account_id=account_id, notification_type="reporting.status_changed"
         )
-        probes = tuple(s for s in self.readiness_subscriptions if s.account_id == account_id)
+        probes = tuple(s for s in surface.readiness_subscriptions if s.account_id == account_id)
         if not probes:
             return False
         identities: set[str] = set()
@@ -108,7 +155,19 @@ class ReportingStatusSupport:
     async def durable(self) -> bool:
         from adcp.server.mcp_tools import get_tools_for_handler
 
-        if not self.account_surface_complete or not self.account_ids or self.handler is None:
+        try:
+            surface = await self.resolve_account_surface()
+        except ReportingNotificationError as exc:
+            if str(exc) != "status_account_surface_unavailable":
+                raise
+            return False
+        if (
+            not surface.account_surface_complete
+            or not surface.account_ids
+            or any(not account_id for account_id in surface.account_ids)
+            or not surface.readiness_subscriptions
+            or self.handler is None
+        ):
             return False
         projection = getattr(self.handler, "reporting_status_handler", None)
         if (
@@ -120,7 +179,12 @@ class ReportingStatusSupport:
             not in {t["name"] for t in get_tools_for_handler(self.handler, _include_schemas=False)}
         ):
             return False
-        return all([await self.account_ready(account_id=a) for a in sorted(set(self.account_ids))])
+        return all(
+            [
+                await self._account_ready(account_id=a, surface=surface)
+                for a in sorted(set(surface.account_ids))
+            ]
+        )
 
     async def advertised_notifications(self) -> dict[str, str]:
         """An explicit global claim, after checking the entire trusted surface."""
