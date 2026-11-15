@@ -11,6 +11,7 @@ from adcp_reporting_storage import PgReportingActivityUnionStore
 from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform, SingletonAccounts
 from adcp.decisioning.capabilities import Account, MediaBuy
 from adcp.decisioning.serve import create_adcp_server_from_platform
+from adcp.exceptions import ADCPTaskError
 from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingDeliveryEscalation
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
@@ -28,6 +29,7 @@ from adcp.reporting.outbox import (
 from adcp.reporting.outbox.status_support import validate_status_claims
 from adcp.reporting.service import ReliableReportingService
 from adcp.server.a2a_server import ADCPAgentExecutor
+from adcp.server.auth import current_principal
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
 from adcp.types import NotificationConfig, ReportingDeliveryCapabilities
@@ -84,6 +86,49 @@ async def support_for(h, accounts=("acct_a",)):
     )
 
 
+async def test_static_lifecycle_default_iterates_without_advertising_status(
+    status_harness, monkeypatch
+):
+    h = status_harness
+    _, revision, _ = await h.seed(readable=True)
+    notifications, static = await support_for(h)
+    notifications.receiver.install(monkeypatch)
+    support = ReportingStatusSupport(
+        store=static.store,
+        worker=static.worker,
+        projector=static.projector,
+        sweeper=static.sweeper,
+        scheduled=True,
+        account_ids=("acct_a",),
+        handler=static.handler,
+        readiness_subscriptions=static.readiness_subscriptions,
+    )
+    service = ReportingStatusService(support)
+    await service.baseline()
+    assert await h.status.baseline_ready(account_id="acct_a")
+    assert not await service.ready()
+    assert await support.advertised_notifications() == {}
+    claim = {
+        "media_buy": {
+            "reporting_delivery": {
+                "status_task": "get_reporting_status",
+                "status_notification": "reporting.status_changed",
+            }
+        }
+    }
+    with pytest.raises(
+        ReportingNotificationError, match="^status_capability_requires_durable_reporting$"
+    ):
+        await validate_status_claims(claim, support=support)
+    await h.ledger.set_revision_readable(
+        account_id="acct_a", reporting_revision_id=revision.reporting_revision_id, readable=False
+    )
+    await service.drain()
+    assert [event.cause.health for event in await h.events()] == ["action_required"]
+    assert len(notifications.receiver.received) == 2
+    assert not await service.ready()
+
+
 @pytest.mark.parametrize("mismatch", [None, "ledger", "escalation", "consumer_status"])
 async def test_generated_handler_proves_installed_reporting_configuration(status_harness, mismatch):
     h = status_harness
@@ -113,6 +158,63 @@ async def test_generated_handler_proves_installed_reporting_configuration(status
         assert type(handler.reporting_status_handler) is ReportingStatusHandler
         assert await support.durable() is (mismatch is None)
     finally:
+        executor.shutdown(wait=True)
+        await service.close()
+
+
+@pytest.mark.parametrize("status_support", [False, True])
+@pytest.mark.parametrize("mounted_version", ["3.1", "3.2"])
+async def test_generated_status_version_straddle_requires_explicit_support(
+    status_harness, status_support, mounted_version
+):
+    h = status_harness
+    escalation = ReportingDeliveryEscalation()
+    h.status = type(h.status)(h.ledger, escalation=escalation)
+    await h.seed(readable=True)
+    await h.status.baseline(account_id="acct_a")
+    _, static = await support_for(h)
+    support = replace(static, handler=None)
+    service = ReliableReportingService(
+        store=h.ledger,
+        account_context=_account_context,
+        consumer_status_enabled=True,
+        escalation=escalation,
+    )
+    platform = service.install(ReportingPlatform())
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform,
+        adcp_version=mounted_version,
+        reporting_status=support if status_support else None,
+        validate_at_init=False,
+    )
+    token = current_principal.set("buyer")
+    try:
+        await service.start()
+        caller = create_tool_caller(
+            handler,
+            "get_reporting_status",
+            validation=None,
+            default_unnegotiated_adcp_version=handler.get_adcp_version(),
+        )
+        request = {
+            "adcp_version": "3.2",
+            "account": {"account_id": "acct_a"},
+            "view": "summary",
+        }
+        if status_support:
+            assert await support.durable() is (
+                not isinstance(h.ledger, InMemoryReportingLedgerStore)
+            )
+        if status_support and mounted_version == "3.1":
+            with pytest.raises(ADCPTaskError) as exc:
+                await caller(request)
+            assert exc.value.errors[0].code == "VERSION_UNSUPPORTED"
+            assert exc.value.errors[0].details == {"mounted_version": "3.1"}
+        else:
+            result = await caller(request)
+            assert result["health"] == "complete"
+    finally:
+        current_principal.reset(token)
         executor.shutdown(wait=True)
         await service.close()
 

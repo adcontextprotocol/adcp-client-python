@@ -43,6 +43,13 @@ returns a `ReportingStatusAccountSurface` containing `account_ids`,
 is authoritative: the SDK never merges it with the support object's static
 fields and never falls back to static fields if resolution fails.
 
+For static lifecycle-only integrations, the default
+`account_surface_complete=False` still permits baseline, drain and explicit
+worker turns over the configured `account_ids`. The static completeness flag
+gates capability proof. Dynamic resolvers must always return a complete surface
+for lifecycle work as well as capability proof; incomplete results refuse work
+before any side effects.
+
 Resolve all three fields from one complete deployment-wide transaction or
 configuration revision, including the account enumeration and its signing
 readiness probes. Request body, `ext` and arbitrary request context are never
@@ -248,10 +255,10 @@ deadlines remain durable. HTTP is always outside checkpoint/source transactions.
 The example supervises worker and HTTP lifetimes together, stops serving on
 worker failure and waits for in-flight work before closing the pool.
 
-`service.baseline()` resolves a fresh complete account surface on every call,
-and `service.drain()` resolves it again for each drain turn. Both discover
-accounts added after startup. Baseline newly exposed accounts with another
-`service.baseline()` call before expecting the global capability claim to pass.
+With a dynamic resolver, `service.baseline()` resolves a fresh complete account
+surface on every call, and `service.drain()` resolves it again for each drain
+turn. Both discover accounts added after startup. Baseline newly exposed accounts
+with another `service.baseline()` call before expecting the global capability claim to pass.
 The example's supervised work loop also resolves a fresh snapshot each pass
 rather than retaining the startup account enumeration.
 

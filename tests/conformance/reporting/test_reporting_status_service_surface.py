@@ -104,6 +104,48 @@ def dynamic_service() -> tuple[ReportingStatusService, ServiceState]:
     return ReportingStatusService(support), state
 
 
+@pytest.mark.parametrize(
+    ("operation", "account_id", "expected"),
+    [
+        ("baseline", None, [("baseline", "acct_a"), ("baseline", "acct_b")]),
+        (
+            "drain",
+            None,
+            [
+                ("rebuild", None),
+                ("project", "acct_a"),
+                ("sweep", "acct_a"),
+                ("expand", "acct_a"),
+                ("deliver", "acct_a"),
+                ("project", "acct_b"),
+                ("sweep", "acct_b"),
+                ("expand", "acct_b"),
+                ("deliver", "acct_b"),
+            ],
+        ),
+        ("project_dirty_once", "acct_a", [("project", "acct_a")]),
+        ("sweep_due_once", "acct_a", [("sweep", "acct_a")]),
+        ("expand_once", "acct_a", [("expand", "acct_a")]),
+        ("deliver_once", "acct_a", [("deliver", "acct_a")]),
+    ],
+)
+async def test_static_lifecycle_runs_without_capability_completeness(
+    dynamic_service: tuple[ReportingStatusService, ServiceState],
+    operation: str,
+    account_id: str | None,
+    expected: list[tuple[str, str | None]],
+) -> None:
+    dynamic, state = dynamic_service
+    support = replace(
+        dynamic.support, account_surface_resolver=None, account_surface_complete=False
+    )
+    service = ReportingStatusService(support)
+    kwargs = {} if account_id is None else {"account_id": account_id}
+    await getattr(service, operation)(**kwargs)
+    assert state.history == expected
+    assert state.resolver_calls == 0
+
+
 # Catches baseline retaining constructor IDs after enrollment changes.
 async def test_service_baseline_resolves_new_accounts_each_call(
     dynamic_service: tuple[ReportingStatusService, ServiceState],

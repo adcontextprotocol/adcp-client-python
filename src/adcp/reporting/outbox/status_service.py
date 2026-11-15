@@ -54,7 +54,10 @@ class ReportingStatusService:
     async def _account_surface(self) -> ReportingStatusAccountSurface:
         self._open()
         surface = await self.support.resolve_account_surface()
-        if not surface.account_surface_complete or any(not a for a in surface.account_ids):
+        if (
+            not surface.account_surface_complete
+            and self.support.account_surface_resolver is not None
+        ) or any(not a for a in surface.account_ids):
             raise ReportingNotificationError("status_account_surface_unavailable")
         return surface
 
