@@ -1490,6 +1490,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._account_activity = account_activity
         self._reporting_activity = reporting_activity
         self._reporting_status = reporting_status
+        reporting = getattr(platform, "_reliable_reporting_service", None)
+        if reporting_status is not None and reporting is not None:
+            self.reporting_status_handler = reporting._reporting_status_handler_for_support()
         self._executor = executor
         self._registry = registry
         self._state_reader = state_reader

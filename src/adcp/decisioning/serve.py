@@ -426,6 +426,8 @@ def create_adcp_server_from_platform(
         reporting_activity=reporting_activity,
         reporting_status=reporting_status,
     )
+    if reporting_status is not None:
+        reporting_status._bind_handler(handler)
 
     # Validate ownership; SDK filtering supplies an MCP fetcher by default.
     from adcp.decisioning.property_list import (

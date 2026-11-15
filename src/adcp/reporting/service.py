@@ -1120,13 +1120,18 @@ class ReliableReportingService:
             return _wire(await self._production.handler.get_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
 
-    async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
-        caller = await self.caller_for(request, context)
-        return await ReportingStatusHandler(
+    def _reporting_status_handler_for_support(self) -> ReportingStatusHandler:
+        return ReportingStatusHandler(
             self.store,
             consumer_status_enabled=self._consumer_status_enabled,
             escalation=self._escalation,
-        ).handle(_wire(request), caller=caller)
+        )
+
+    async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
+        caller = await self.caller_for(request, context)
+        return await self._reporting_status_handler_for_support().handle(
+            _wire(request), caller=caller
+        )
 
     async def sync_reporting_status(
         self, request: Any, context: Any | None = None

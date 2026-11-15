@@ -64,7 +64,11 @@ from adcp.reporting.outbox.status_service import (
     ReportingStatusNotificationLifecycle,
     ReportingStatusService,
 )
-from adcp.reporting.outbox.status_support import ReportingStatusSupport
+from adcp.reporting.outbox.status_support import (
+    ReportingStatusAccountSurface,
+    ReportingStatusAccountSurfaceResolver,
+    ReportingStatusSupport,
+)
 from adcp.reporting.outbox.support import ReportingActivitySupport
 from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
@@ -74,6 +78,8 @@ __all__ = [
     "ReportingActivityReader",
     "ReportingDurableNotificationLedger",
     "ReportingDurableStatusStore",
+    "ReportingStatusAccountSurface",
+    "ReportingStatusAccountSurfaceResolver",
     "ReportingStatusSupport",
     "StatusChanged",
     "StatusBoundary",

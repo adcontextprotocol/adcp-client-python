@@ -6,7 +6,10 @@ from typing import Protocol
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.outbox.status import StatusSelectorRebuildStore, StatusTurn
-from adcp.reporting.outbox.status_support import ReportingStatusSupport
+from adcp.reporting.outbox.status_support import (
+    ReportingStatusAccountSurface,
+    ReportingStatusSupport,
+)
 
 
 class ReportingStatusNotificationLifecycle(Protocol):
@@ -44,10 +47,23 @@ class ReportingStatusService:
         self.support = support
         self._closed = False
 
-    def _open(self, account_id: str | None = None) -> None:
+    def _open(self) -> None:
         if self._closed:
             raise ReportingNotificationError("status_service_closed")
-        if account_id is not None and account_id not in self.support.account_ids:
+
+    async def _account_surface(self) -> ReportingStatusAccountSurface:
+        self._open()
+        surface = await self.support.resolve_account_surface()
+        if (
+            not surface.account_surface_complete
+            and self.support.account_surface_resolver is not None
+        ) or any(not a for a in surface.account_ids):
+            raise ReportingNotificationError("status_account_surface_unavailable")
+        return surface
+
+    def _require_account(self, *, account_id: str, surface: ReportingStatusAccountSurface) -> None:
+        self._open()
+        if account_id not in surface.account_ids:
             raise ReportingNotificationError("status_account_unavailable")
 
     async def migrate(self) -> None:
@@ -55,15 +71,21 @@ class ReportingStatusService:
         await self.support.store.create_schema()
 
     async def baseline(self) -> None:
-        self._open()
-        for account_id in sorted(set(self.support.account_ids)):
+        surface = await self._account_surface()
+        for account_id in sorted(set(surface.account_ids)):
             await self.support.store.baseline(account_id=account_id)
 
     async def ready(self) -> bool:
         return not self._closed and await self.support.durable()
 
     async def project_dirty_once(self, *, account_id: str) -> StatusTurn:
-        self._open(account_id)
+        surface = await self._account_surface()
+        return await self._project_dirty_once(account_id=account_id, surface=surface)
+
+    async def _project_dirty_once(
+        self, *, account_id: str, surface: ReportingStatusAccountSurface
+    ) -> StatusTurn:
+        self._require_account(account_id=account_id, surface=surface)
         if self.support.projector is None:
             raise ReportingNotificationError("status_projector_unavailable")
         return await self.support.projector.run_once(account_id=account_id)
@@ -77,17 +99,35 @@ class ReportingStatusService:
         return await store.rebuild_one()
 
     async def sweep_due_once(self, *, account_id: str) -> StatusTurn:
-        self._open(account_id)
+        surface = await self._account_surface()
+        return await self._sweep_due_once(account_id=account_id, surface=surface)
+
+    async def _sweep_due_once(
+        self, *, account_id: str, surface: ReportingStatusAccountSurface
+    ) -> StatusTurn:
+        self._require_account(account_id=account_id, surface=surface)
         if self.support.sweeper is None:
             raise ReportingNotificationError("status_sweeper_unavailable")
         return await self.support.sweeper.run_once(account_id=account_id)
 
     async def expand_once(self, *, account_id: str) -> bool:
-        self._open(account_id)
+        surface = await self._account_surface()
+        return await self._expand_once(account_id=account_id, surface=surface)
+
+    async def _expand_once(
+        self, *, account_id: str, surface: ReportingStatusAccountSurface
+    ) -> bool:
+        self._require_account(account_id=account_id, surface=surface)
         return await self.support.worker.expand_one(account_id=account_id)
 
     async def deliver_once(self, *, account_id: str) -> bool:
-        self._open(account_id)
+        surface = await self._account_surface()
+        return await self._deliver_once(account_id=account_id, surface=surface)
+
+    async def _deliver_once(
+        self, *, account_id: str, surface: ReportingStatusAccountSurface
+    ) -> bool:
+        self._require_account(account_id=account_id, surface=surface)
         return await self.support.worker.deliver_one(account_id=account_id)
 
     async def drain(self, *, max_turns: int = 100) -> int:
@@ -95,12 +135,17 @@ class ReportingStatusService:
         if max_turns < 1:
             raise ValueError("max_turns must be positive")
         for turn in range(max_turns):
+            surface = await self._account_surface()
             worked = (await self.rebuild_selector_once()).did_work
-            for account_id in sorted(set(self.support.account_ids)):
-                worked = (await self.project_dirty_once(account_id=account_id)).did_work or worked
-                worked = (await self.sweep_due_once(account_id=account_id)).did_work or worked
-                worked = await self.expand_once(account_id=account_id) or worked
-                worked = await self.deliver_once(account_id=account_id) or worked
+            for account_id in sorted(set(surface.account_ids)):
+                worked = (
+                    await self._project_dirty_once(account_id=account_id, surface=surface)
+                ).did_work or worked
+                worked = (
+                    await self._sweep_due_once(account_id=account_id, surface=surface)
+                ).did_work or worked
+                worked = await self._expand_once(account_id=account_id, surface=surface) or worked
+                worked = await self._deliver_once(account_id=account_id, surface=surface) or worked
             if not worked:
                 return turn
         raise ReportingNotificationError("status_drain_limit")
