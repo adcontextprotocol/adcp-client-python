@@ -33,12 +33,26 @@ and guards because it runs before HTTP. With `activity=None`, status delivery
 requires no activity storage. C logging never depends on B activity storage;
 the combined activity capability independently validates both histories.
 
-The capability request has **no account selector**. Declare `account_ids` as the
-complete deployment or authenticated-principal account surface and explicitly
-set `account_surface_complete=True`. Every listed account must be migrated and
-baselined. One unbaselined visible account suppresses the global claim. Request
-body, `context`, `ext` and a convenient single-account sample cannot select
-readiness. Update that complete surface before exposing a new account.
+The capability request has **no account selector**. Static `account_ids` and
+`readiness_subscriptions` tuples remain supported when
+`account_surface_complete=True` declares the complete deployment account surface.
+For accounts that change at runtime, pass an async, zero-argument
+`ReportingStatusAccountSurfaceResolver` as `account_surface_resolver`. Each call
+returns a `ReportingStatusAccountSurface` containing `account_ids`,
+`account_surface_complete` and `readiness_subscriptions`. This dynamic snapshot
+is authoritative: the SDK never merges it with the support object's static
+fields and never falls back to static fields if resolution fails.
+
+Resolve all three fields from one complete deployment-wide transaction or
+configuration revision, including the account enumeration and its signing
+readiness probes. Request body, `ext` and arbitrary request context are never
+resolver inputs. A request-scoped account or convenient single-account sample
+cannot prove deployment-wide readiness. An incomplete, empty or unavailable
+surface cannot advertise status notifications. Every listed account must be
+migrated, baselined and structurally ready; one unready account suppresses the
+global claim. An empty `readiness_subscriptions=()` is valid for strict type
+checking but fails readiness at runtime. Every account needs a validated signing
+probe, even when it has no active subscribers.
 
 Readiness is structural. A valid waiver, an outage, incomplete coverage and
 other current business health never disable a ready feature. Explicit claims
@@ -57,6 +71,53 @@ or leave status notification support unadvertised. The example delegates
 account configuration and immutable revision-content reads to actual adopter
 handlers and implements consumer-status ingest on the shared transaction
 participant. It checks types under `mypy --strict`.
+
+### ESA decisioning setup
+
+ESA upgrades to `adcp>=9.6.3`; no `adcp-reporting-storage` upgrade or wire-schema
+change is required for dynamic account resolution. Import the public surface
+and support types from `adcp.reporting.outbox` and pass the support to ordinary
+decisioning `serve()`. It binds its generated handler to the support
+automatically; the adopter does not construct or mutate that handler.
+
+The following composition assumes the real platform reporting handlers,
+PostgreSQL store, worker, projector and sweeper are configured. The adopter's
+`read_reporting_accounts_and_probes()` reads the complete deployment account IDs
+and validated readiness subscriptions together in one transaction/revision;
+it takes no request inputs and must fail if that complete read is unavailable.
+
+```python
+from adcp.decisioning import serve
+from adcp.reporting.outbox import ReportingStatusAccountSurface, ReportingStatusSupport
+
+
+async def account_surface() -> ReportingStatusAccountSurface:
+    account_ids, readiness_subscriptions = await read_reporting_accounts_and_probes()
+    return ReportingStatusAccountSurface(
+        account_ids=tuple(account_ids),
+        account_surface_complete=True,
+        readiness_subscriptions=tuple(readiness_subscriptions),
+    )
+
+
+support = ReportingStatusSupport(
+    store=store,
+    worker=worker,
+    projector=projector,
+    sweeper=sweeper,
+    scheduled=True,
+    account_surface_resolver=account_surface,
+)
+serve(platform, reporting_status=support)
+```
+
+This ordinary `serve()` call mounts the handler; `scheduled=True` still requires
+ESA to supervise lifecycle work. Capability checks resolve a fresh surface, so
+adding an account requires no server restart. The global claim stays suppressed
+until that account has been baselined and all readiness checks pass. The
+[custom-handler lifecycle example](../examples/reporting_status_notifications.py)
+also accepts this resolver; omitting it adapts the supplied static account and
+probe sequences to a constant async snapshot.
 
 ## Registration, authorization and activity
 
@@ -186,6 +247,13 @@ Run deterministic turns in this order:
 deadlines remain durable. HTTP is always outside checkpoint/source transactions.
 The example supervises worker and HTTP lifetimes together, stops serving on
 worker failure and waits for in-flight work before closing the pool.
+
+`service.baseline()` resolves a fresh complete account surface on every call,
+and `service.drain()` resolves it again for each drain turn. Both discover
+accounts added after startup. Baseline newly exposed accounts with another
+`service.baseline()` call before expecting the global capability claim to pass.
+The example's supervised work loop also resolves a fresh snapshot each pass
+rather than retaining the startup account enumeration.
 
 Baseline acquires the same account advisory lock as source mutations, records
 all seller and extant private configuration/obligation snapshots and deadlines,
