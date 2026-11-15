@@ -18,6 +18,7 @@ from adcp.reporting.outbox import (
     ReportingActivitySupport,
     ReportingNotificationError,
     ReportingNotificationWorker,
+    ReportingStatusAccountSurface,
     ReportingStatusProjector,
     ReportingStatusSupport,
     ReportingStatusSweeper,
@@ -51,6 +52,36 @@ async def drain_http(h, worker):
             return
         h.clock.advance(timedelta(seconds=6))
     pytest.fail("HTTP queue failed to become idle")
+
+
+# Catches positional API breakage or static fields being omitted from the snapshot.
+async def test_static_positional_support_resolves_account_surface(status_harness):
+    h = status_harness
+    n = NotificationHarness(h.reliable)
+
+    async def resolve(request, context):
+        return ReportingStatusCaller("acct_a", "buyer")
+
+    handler = ReportingStatusNotificationHandler(
+        ReportingStatusHandler(h.ledger, consumer_status_enabled=True), resolve_caller=resolve
+    )
+    probes = (replace(notification_subscription(), event_types=("reporting.status_changed",)),)
+    support = ReportingStatusSupport(
+        h.status,
+        status_worker(h, n),
+        ReportingStatusProjector(h.status),
+        ReportingStatusSweeper(h.status),
+        True,
+        ("acct_a",),
+        True,
+        handler,
+        probes,
+    )
+    assert await support.resolve_account_surface() == ReportingStatusAccountSurface(
+        account_ids=("acct_a",),
+        account_surface_complete=True,
+        readiness_subscriptions=probes,
+    )
 
 
 async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart_and_stale_ack(

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.4...adcp-reporting-storage-v0.1.0-beta.5) (2026-11-08)
+
+
+### Features
+
+* **reporting-storage:** accept 255 character row binding IDs and credential refs ([#1828](https://github.com/adcontextprotocol/adcp-client-python/issues/1828)) ([6bb34df](https://github.com/adcontextprotocol/adcp-client-python/commit/6bb34df00821e11f03aed2a018a0c5a6ccab3cdf))
+* **reporting-storage:** collect orphaned row objects by listing with a clone fence ([#1835](https://github.com/adcontextprotocol/adcp-client-python/issues/1835)) ([e004f1b](https://github.com/adcontextprotocol/adcp-client-python/commit/e004f1bc55eff3bc32065a9c785f451af3813f79))
+* **reporting-storage:** order the account change feed by xid and seq ([#1827](https://github.com/adcontextprotocol/adcp-client-python/issues/1827)) ([4449bc9](https://github.com/adcontextprotocol/adcp-client-python/commit/4449bc94cdd47900f39e15f5e99a35a9699d0c30))
+
+
+### Bug Fixes
+
+* **reporting-storage:** let 0.1.x run on an expanded ledger until it is contracted ([#1867](https://github.com/adcontextprotocol/adcp-client-python/issues/1867)) ([915a836](https://github.com/adcontextprotocol/adcp-client-python/commit/915a8369de443aa8d0a0965753a240d843995f18)), closes [#1856](https://github.com/adcontextprotocol/adcp-client-python/issues/1856)
+* **reporting-storage:** refuse a ledger upgraded to storage contract 2 with the real remedy ([#1857](https://github.com/adcontextprotocol/adcp-client-python/issues/1857)) ([5eebb53](https://github.com/adcontextprotocol/adcp-client-python/commit/5eebb5386fd09ac23e9727587cc9413ef24fa0af))
+
+
+### Performance Improvements
+
+* **reporting-storage:** drop the per-object advisory lock where nothing pairs on it ([#1836](https://github.com/adcontextprotocol/adcp-client-python/issues/1836)) ([536b8f8](https://github.com/adcontextprotocol/adcp-client-python/commit/536b8f870f518e7ceab3c7a1d64aa0b229b75e8e))
+
 ## [0.1.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.3...adcp-reporting-storage-v0.1.0-beta.4) (2026-10-25)
 
 

@@ -5,7 +5,6 @@ shape sends ``parameters``. The default parser reads ``parameters`` when
 present, otherwise ``input``, and never merges them. A request that activates
 the profile (``A2A-Extensions`` header or ``message.extensions``) must carry
 exactly one DataPart with an object ``input`` and no ``parameters``.
-
 Everything is driven over HTTP through the real app, not mocked parsers.
 """
 

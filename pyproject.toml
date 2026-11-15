@@ -169,7 +169,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.8,<4",
     # The spec's reporting-subscription coverage vectors are derived with IANA
-    # tzdata 2026f; the parity test pins zoneinfo to this release.
+    # tzdata 2026f. It also supplies legacy aliases when the OS omits them.
     "tzdata==2026.6",
     "freezegun==1.5.5",  # isolated deferred-schema compatibility regressions
     "mypy==1.20.2",

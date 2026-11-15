@@ -1,5 +1,6 @@
 """Optional C types preserve the existing custom ledger and outbox protocols."""
 
+from dataclasses import replace
 from datetime import datetime
 
 from adcp_reporting_storage import (
@@ -22,6 +23,7 @@ from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
     InMemoryStatusNotificationStore,
     ReportingNotificationOutbox,
+    ReportingStatusAccountSurface,
     ReportingStatusNotificationLifecycle,
     ReportingStatusProjector,
     ReportingStatusScope,
@@ -84,3 +86,15 @@ async def turns(store: StatusNotificationStore, account_id: str) -> tuple[Status
 
 def lifecycle(support: ReportingStatusSupport) -> ReportingStatusNotificationLifecycle:
     return ReportingStatusService(support)
+
+
+async def account_surface() -> ReportingStatusAccountSurface:
+    return ReportingStatusAccountSurface(
+        account_ids=("acct_a",),
+        account_surface_complete=True,
+        readiness_subscriptions=(),
+    )
+
+
+def dynamic_support(support: ReportingStatusSupport) -> ReportingStatusSupport:
+    return replace(support, account_surface_resolver=account_surface)
