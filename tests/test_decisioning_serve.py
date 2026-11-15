@@ -400,7 +400,8 @@ def test_create_passes_in_production_with_custom_durable_registry() -> None:
     with patch.dict(os.environ, {"ADCP_ENV": "production"}):
         os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
         handler, executor, registry = create_adcp_server_from_platform(
-            platform, registry=custom_reg  # type: ignore[arg-type]
+            platform,
+            registry=custom_reg,  # type: ignore[arg-type]
         )
     assert registry is custom_reg
     executor.shutdown(wait=True)
@@ -458,7 +459,8 @@ def test_create_raises_when_registry_missing_is_durable_marker() -> None:
         os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
         with pytest.raises(AdcpError) as exc_info:
             create_adcp_server_from_platform(
-                platform, registry=_BareRegistry()  # type: ignore[arg-type]
+                platform,
+                registry=_BareRegistry(),  # type: ignore[arg-type]
             )
     assert exc_info.value.code == "INVALID_REQUEST"
     assert "is_durable" in str(exc_info.value)
