@@ -8,7 +8,10 @@ from itertools import product
 import pytest
 from adcp_reporting_storage import PgReportingActivityUnionStore
 
-from adcp.reporting.ledger import InMemoryReportingLedgerStore
+from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform, SingletonAccounts
+from adcp.decisioning.capabilities import Account, MediaBuy
+from adcp.decisioning.serve import create_adcp_server_from_platform
+from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingDeliveryEscalation
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
 from adcp.reporting.ledger.status_server import ReportingStatusNotificationHandler
@@ -23,11 +26,14 @@ from adcp.reporting.outbox import (
     ReportingStatusSweeper,
 )
 from adcp.reporting.outbox.status_support import validate_status_claims
+from adcp.reporting.service import ReliableReportingService
 from adcp.server.a2a_server import ADCPAgentExecutor
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
 from adcp.types import NotificationConfig, ReportingDeliveryCapabilities
 from adcp.validation.schema_loader import get_named_validator
+from tests.test_reliable_reporting_service import _account_context
+from tests.test_reporting_ledger import _OFFERING
 
 from . import test_reporting_status_projection_contract as _contract
 from ._generation_support import configuration
@@ -37,6 +43,13 @@ from .test_reporting_status_delivery import drain_http, status_worker
 from .test_reporting_status_wire_contract import validate_read
 
 status_harness = _contract.status_harness
+
+
+class ReportingPlatform(DecisioningPlatform):
+    capabilities = DecisioningCapabilities(
+        supported_protocols=["media_buy"], account=Account(supported_billing=["agent"])
+    )
+    accounts = SingletonAccounts(account_id="acct_a")
 
 
 async def support_for(h, accounts=("acct_a",)):
@@ -69,6 +82,117 @@ async def support_for(h, accounts=("acct_a",)):
         handler,
         probes,
     )
+
+
+@pytest.mark.parametrize("mismatch", [None, "ledger", "escalation", "consumer_status"])
+async def test_generated_handler_proves_installed_reporting_configuration(status_harness, mismatch):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    escalation = ReportingDeliveryEscalation()
+    h.status = type(h.status)(h.ledger, escalation=escalation)
+    await h.seed(readable=True)
+    await h.status.baseline(account_id="acct_a")
+    _, static = await support_for(h)
+    support = replace(static, handler=None)
+    service = ReliableReportingService(
+        store=InMemoryReportingLedgerStore() if mismatch == "ledger" else h.ledger,
+        account_context=_account_context,
+        consumer_status_enabled=mismatch != "consumer_status",
+        escalation=(
+            ReportingDeliveryEscalation(operations_contact_email="ops@example.com")
+            if mismatch == "escalation"
+            else escalation
+        ),
+    )
+    platform = service.install(ReportingPlatform())
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, reporting_status=support, validate_at_init=False
+    )
+    try:
+        assert type(handler.reporting_status_handler) is ReportingStatusHandler
+        assert await support.durable() is (mismatch is None)
+    finally:
+        executor.shutdown(wait=True)
+        await service.close()
+
+
+@pytest.mark.parametrize("selector", ["body", "ext", "metadata", "combined"])
+async def test_generated_capabilities_cannot_narrow_dynamic_account_surface(
+    status_harness, selector
+):
+    h = status_harness
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        pytest.skip("durability advertisement requires PostgreSQL")
+    escalation = ReportingDeliveryEscalation()
+    h.status = type(h.status)(h.ledger, escalation=escalation)
+    await h.seed(readable=True)
+    await h.ledger.put_configuration(configuration("acct_b"))
+    await h.status.baseline(account_id="acct_a")
+    _, static = await support_for(h, ("acct_a", "acct_b"))
+    surface = ReportingStatusAccountSurface(
+        account_ids=("acct_a", "acct_b"),
+        account_surface_complete=True,
+        readiness_subscriptions=static.readiness_subscriptions,
+    )
+
+    async def resolve_surface() -> ReportingStatusAccountSurface:
+        return surface
+
+    support = replace(
+        static,
+        handler=None,
+        account_ids=("acct_a",),
+        readiness_subscriptions=static.readiness_subscriptions[:1],
+        account_surface_resolver=resolve_surface,
+    )
+    platform = ReportingPlatform()
+    platform.capabilities = replace(
+        platform.capabilities,
+        media_buy=MediaBuy(
+            reporting_delivery=ReportingDeliveryCapabilities.model_validate(
+                {
+                    "supported": True,
+                    "offerings": [_OFFERING],
+                    "automated_recovery_window_seconds": 0,
+                    "status_retention_days": 30,
+                    "status_task": "get_reporting_status",
+                    "status_notification": "reporting.status_changed",
+                }
+            )
+        ),
+    )
+    service = ReliableReportingService(
+        store=h.ledger,
+        account_context=_account_context,
+        consumer_status_enabled=True,
+        escalation=escalation,
+    )
+    handler, executor, _ = create_adcp_server_from_platform(
+        service.install(platform), reporting_status=support, validate_at_init=False
+    )
+    request = {}
+    context = ToolContext()
+    if selector in {"body", "combined"}:
+        request.update({"account_id": "acct_a", "account": {"account_id": "acct_a"}})
+    if selector in {"ext", "combined"}:
+        request["ext"] = {"account_id": "acct_a"}
+    if selector in {"metadata", "combined"}:
+        context.metadata["account_id"] = "acct_a"
+    try:
+        with pytest.raises(
+            ReportingNotificationError, match="^status_capability_requires_durable_reporting$"
+        ):
+            await handler.get_adcp_capabilities(request, context)
+        await h.status.baseline(account_id="acct_b")
+        capabilities = await handler.get_adcp_capabilities(request, context)
+        assert (
+            capabilities["media_buy"]["reporting_delivery"]["status_notification"]
+            == "reporting.status_changed"
+        )
+    finally:
+        executor.shutdown(wait=True)
+        await service.close()
 
 
 # Catches a stale constructor surface after an account is enrolled.
@@ -118,9 +242,9 @@ async def test_dynamic_surface_requires_complete_nonempty_evidence(status_harnes
     await h.status.baseline(account_id="acct_a")
     _, static = await support_for(h)
     surface = ReportingStatusAccountSurface(
-        account_ids=()
-        if missing == "accounts"
-        else (("",) if missing == "account_id" else ("acct_a",)),
+        account_ids=(
+            () if missing == "accounts" else (("",) if missing == "account_id" else ("acct_a",))
+        ),
         account_surface_complete=missing != "complete",
         readiness_subscriptions=() if missing == "probes" else static.readiness_subscriptions,
     )

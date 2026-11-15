@@ -54,6 +54,11 @@ class ReportingStatusSupport:
     readiness_subscriptions: tuple[ReportingNotificationSubscription, ...] = ()
     account_surface_resolver: ReportingStatusAccountSurfaceResolver | None = None
 
+    def _bind_handler(self, handler: ADCPHandler[Any]) -> None:
+        if self.handler is not None and self.handler is not handler:
+            raise ReportingNotificationError("status_handler_mismatch")
+        object.__setattr__(self, "handler", handler)
+
     async def resolve_account_surface(self) -> ReportingStatusAccountSurface:
         if self.account_surface_resolver is None:
             return ReportingStatusAccountSurface(
