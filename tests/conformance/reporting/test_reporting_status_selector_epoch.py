@@ -434,13 +434,21 @@ async def test_old_memory_state_image_without_any_epoch_fields_is_imported_as_v1
 async def test_existing_c_service_discovers_old_accounts_without_an_account_list(status_harness):
     from types import SimpleNamespace
 
-    from adcp.reporting.outbox import ReportingStatusService
+    from adcp.reporting.outbox import ReportingStatusAccountSurface, ReportingStatusService
 
     h = status_harness
     await h.seed(readable=True)
     await h.status.baseline(account_id="acct_a")
     await mark_v1(h)
-    service = ReportingStatusService(SimpleNamespace(store=h.status, account_ids=()))
+
+    async def resolve_account_surface() -> ReportingStatusAccountSurface:
+        return ReportingStatusAccountSurface(
+            account_ids=(), account_surface_complete=True, readiness_subscriptions=()
+        )
+
+    service = ReportingStatusService(
+        SimpleNamespace(store=h.status, resolve_account_surface=resolve_account_surface)
+    )
     destination_operation_10 = await service.drain()
     assert destination_operation_10 >= 2
     assert await h.status.baseline_ready(account_id="acct_a")
