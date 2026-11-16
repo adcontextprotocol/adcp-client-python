@@ -226,9 +226,9 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
 
     clock[0] += timedelta(minutes=1)
     unchanged = await producer.run_worker()
-    assert len(unchanged.revisions_committed) == 1
+    assert unchanged.revisions_committed == []
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
 
     # The successful observation advances both the cadence clock and execution
     # ordinal, so an immediate worker turn neither polls nor replays it.
@@ -323,7 +323,7 @@ async def test_source_without_a_window_retains_its_final_default_read() -> None:
     clock[0] = obligation.period.end + timedelta(days=10)
     await producer.run_worker()
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
     checkpoint = await store.get_restatement_checkpoint(
         account_id=ACCOUNT,
         reporting_obligation_id=obligation.reporting_obligation_id,

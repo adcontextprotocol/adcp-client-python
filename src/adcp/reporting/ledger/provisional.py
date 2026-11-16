@@ -205,4 +205,10 @@ class ProvisionalObservationStore(Protocol):
         revision: ReportingRevisionRecord,
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
+        """Atomically publish an observation and advance its checkpoint.
+
+        An unchanged snapshot must reuse its readable current predecessor instead
+        of emitting a revision. Implementations make that decision under the same
+        account lock that commits changed content and the observation.
+        """
         pass

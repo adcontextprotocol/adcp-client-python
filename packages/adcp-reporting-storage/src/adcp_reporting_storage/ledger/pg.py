@@ -152,6 +152,7 @@ from adcp.reporting.ledger.store import (
     validate_adjustment_currency,
     validate_managed_revision_rows,
     validate_revision_currency,
+    validate_revision_rows_binding,
 )
 from adcp_reporting_storage.ledger.row_storage import (
     REPORTING_ROW_STORAGE_DDL_PATH,
@@ -1837,10 +1838,7 @@ class PgReportingLedgerStore:
             ).fetchone()
             if existing is not None:
                 retained_observation = ProvisionalObservation.from_wire(existing[1])
-                if (
-                    retained_observation.acquisition != acquisition
-                    or existing[0] != observation.revision_id
-                ):
+                if retained_observation.acquisition != acquisition:
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
                 retained_revision = await self.get_revision(
                     account_id=acquisition.account_id, reporting_revision_id=existing[0]
@@ -1849,6 +1847,18 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                if existing[0] != observation.revision_id:
+                    if (
+                        revision.finality != "snapshot"
+                        or revision.supersedes_reporting_revision_id != existing[0]
+                        or revision.source_manifest_sha256
+                        != retained_revision.source_manifest_sha256
+                    ):
+                        raise LedgerConflictError(
+                            "OBSERVATION_CONFLICT", "observation replay differs"
+                        )
+                    validate_revision_rows_binding(retained_revision, rows)
+                    revision = retained_revision
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
                 return await self.commit_revision(revision, rows)
@@ -1867,6 +1877,24 @@ class PgReportingLedgerStore:
             )
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            predecessor_id = revision.supersedes_reporting_revision_id
+            if revision.finality == "snapshot" and predecessor_id is not None:
+                await self._require_current_leaf(connection, revision)
+                predecessor = await self.get_revision(
+                    account_id=acquisition.account_id,
+                    reporting_revision_id=predecessor_id,
+                )
+                if predecessor is None:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "observation predecessor is missing"
+                    )
+                if (
+                    predecessor.readable
+                    and predecessor.source_manifest_sha256 == revision.source_manifest_sha256
+                ):
+                    validate_revision_rows_binding(predecessor, rows)
+                    revision = predecessor
+                    observation = replace(observation, revision_id=predecessor_id)
             committed = await self.commit_revision(revision, rows)
             await self.record_restatement_checkpoint(
                 RestatementCheckpoint(

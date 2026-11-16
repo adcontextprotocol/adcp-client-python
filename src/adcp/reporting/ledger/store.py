@@ -700,6 +700,18 @@ def validate_managed_revision_rows(
         )
 
 
+def validate_revision_rows_binding(
+    revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+) -> None:
+    """Verify submitted rows against an already retained revision's Core binding."""
+    from adcp.reporting.ledger.producer import recompute_revision_content_sha256
+
+    if recompute_revision_content_sha256(revision, rows) != revision.revision_content_sha256:
+        raise LedgerConflictError(
+            "REVISION_CONTENT_MISMATCH", "revision row content does not match its immutable binding"
+        )
+
+
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
     payload: dict[str, Any] = {
         "chain": list(status.chain_key),
@@ -1308,15 +1320,25 @@ class InMemoryReportingLedgerStore:
                     "observation replay differs: acquisition does not bind this obligation",
                 )
             if existing is not None:
-                if (
-                    existing.acquisition != acquisition
-                    or existing.revision_id != observation.revision_id
-                ):
+                if existing.acquisition != acquisition:
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
-                if existing.revision_id not in self._revisions:
+                retained_revision = self._revisions.get(existing.revision_id)
+                if retained_revision is None:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                if existing.revision_id != observation.revision_id:
+                    if (
+                        revision.finality != "snapshot"
+                        or revision.supersedes_reporting_revision_id != existing.revision_id
+                        or revision.source_manifest_sha256
+                        != retained_revision.source_manifest_sha256
+                    ):
+                        raise LedgerConflictError(
+                            "OBSERVATION_CONFLICT", "observation replay differs"
+                        )
+                    validate_revision_rows_binding(retained_revision, rows)
+                    revision = retained_revision
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
                 return await self.commit_revision(revision, rows)
@@ -1326,6 +1348,22 @@ class InMemoryReportingLedgerStore:
             checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            predecessor_id = revision.supersedes_reporting_revision_id
+            if revision.finality == "snapshot" and predecessor_id is not None:
+                siblings = [
+                    item
+                    for item in self._revisions.values()
+                    if item.reporting_obligation_id == revision.reporting_obligation_id
+                ]
+                self._require_current_leaf(revision, siblings)
+                predecessor = self._revisions[predecessor_id]
+                if (
+                    predecessor.readable
+                    and predecessor.source_manifest_sha256 == revision.source_manifest_sha256
+                ):
+                    validate_revision_rows_binding(predecessor, rows)
+                    revision = predecessor
+                    observation = replace(observation, revision_id=predecessor_id)
             committed = await self.commit_revision(revision, rows)
             await self.record_restatement_checkpoint(
                 RestatementCheckpoint(

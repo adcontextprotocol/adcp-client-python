@@ -96,7 +96,7 @@ async def test_progress_retains_policy_until_terminal_publication(
         assert len(source.requests) == 1
         h.source_clock.now = END + timedelta(hours=1)
         unchanged = await source_turn(h.production)
-        assert len(unchanged.revisions_committed) == 1
+        assert not unchanged.revisions_committed
         assert len(source.requests) == 2
         checkpoint = await h.store.get_restatement_checkpoint(
             account_id=h.item.config.account_id,
@@ -111,9 +111,8 @@ async def test_progress_retains_policy_until_terminal_publication(
         changed = await source_turn(h.production)
         assert len(changed.revisions_committed) == 1
         history = await revisions(h)
-        assert len(history) == 3
+        assert len(history) == 2
         assert history[1].supersedes_reporting_revision_id == history[0].reporting_revision_id
-        assert history[2].supersedes_reporting_revision_id == history[1].reporting_revision_id
 
         h.source_clock.now = END + timedelta(hours=3)
         await source_turn(h.production)
@@ -135,7 +134,6 @@ async def test_progress_retains_policy_until_terminal_publication(
         completed = await source_turn(h.production)
         assert len(completed.revisions_committed) == 1
         assert [r.finality for r in await revisions(h)] == [
-            "snapshot",
             "snapshot",
             "snapshot",
             "official",
@@ -163,7 +161,7 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
         assert len(initial.revisions_committed) == 1
         h.source_clock.now = END + timedelta(hours=1)
         noop = await source_turn(h.production)
-        assert len(noop.revisions_committed) == 1
+        assert not noop.revisions_committed
         original_source = h.production.offerings[0].producer._source
         assert len(original_source.requests) == 2
         prior_keys = {r.identity.source_execution_key for r in original_source.requests}
@@ -199,6 +197,6 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
                 reporting_obligation_id=fresh.item.obligation.reporting_obligation_id,
             )
             assert checkpoint is not None and checkpoint.next_observation == 3
-            assert len(await revisions(fresh)) == 3
+            assert len(await revisions(fresh)) == 2
             unfinished = await pending(fresh)
             assert unfinished == (fresh.item.obligation.reporting_obligation_id,)

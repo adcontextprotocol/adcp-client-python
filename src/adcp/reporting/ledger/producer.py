@@ -1874,7 +1874,8 @@ class ReportingProducer:
         finally:
             if staged and staging is not None:
                 staging.discard_staged_revision_rows(revision)
-        turn.revisions_committed.append(committed.reporting_revision_id)
+        if committed.reporting_revision_id == revision.reporting_revision_id:
+            turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 
     async def _commit_publication(
