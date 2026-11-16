@@ -22,10 +22,11 @@ status store, pure projector, due sweeper, C outbox/HTTP worker, signing and
 subscription resolvers, and a mounted `ReportingStatusNotificationHandler`.
 `scheduled=True` is the adopter's commitment to supervise all worker phases;
 the SDK does not start them implicitly. Capability checks validate schema,
-baseline, policy agreement, the actual `get_reporting_status` tool, and signing
-material for validated `readiness_subscriptions`. An empty subscription lookup
-does not prove signing readiness. Memory implementations are conformance tools
-and never advertise durability.
+baseline, policy agreement, the actual `get_reporting_status` tool, and delivery
+configuration for every active subscription. Optional
+`readiness_subscriptions` remain supported as additional signing probes, but an
+external subscriber is not a prerequisite for capability discovery. Memory
+implementations are conformance tools and never advertise durability.
 
 Activity storage is optional for status delivery. If the C HTTP worker has an
 activity recorder attached, readiness also validates that recorder's C tables
@@ -51,25 +52,33 @@ for lifecycle work as well as capability proof; incomplete results refuse work
 before any side effects.
 
 Resolve all three fields from one complete deployment-wide transaction or
-configuration revision, including the account enumeration and its signing
-readiness probes. Request body, `ext` and arbitrary request context are never
-resolver inputs. A request-scoped account or convenient single-account sample
-cannot prove deployment-wide readiness. An incomplete, empty or unavailable
-surface cannot advertise status notifications. Every listed account must be
-migrated, baselined and structurally ready; one unready account suppresses the
-global claim. An empty `readiness_subscriptions=()` is valid for strict type
-checking but fails readiness at runtime. Every account needs a validated signing
-probe, even when it has no active subscribers.
+configuration revision. Request body, `ext` and arbitrary request context are
+never resolver inputs. A request-scoped account or convenient single-account
+sample cannot prove deployment-wide readiness. An incomplete or unavailable
+surface cannot advertise status notifications. A complete empty account surface
+is valid and lets a deployment advertise before its first account or subscriber
+is enrolled. Every listed account must be migrated, baselined and structurally
+ready; one unready account suppresses the global claim. Every active subscription
+and every supplied readiness probe must retain valid authorization,
+proof-of-control, signing and delivery configuration. Empty
+`readiness_subscriptions=()` is valid and does not weaken those checks.
 
 Readiness is structural. A valid waiver, an outage, incomplete coverage and
 other current business health never disable a ready feature. Explicit claims
 with missing components raise secret-free configuration errors; omission stays
-omission. Calling `support.advertised_notifications()` explicitly opts into
-automatic advertisement when ready. Generated reporting capability models emit
+omission. The decisioning handler calls `support.advertised_notifications()`
+for each capability request and projects the result only when that request's
+`webhook_signing.supported` is true. Generated reporting capability models emit
 only explicitly set optional task, notification and tier fields. Required
-`configuration_task` and `status_task` declarations must also be supplied by the
-adopter; do not rely on generated defaults to mount handlers. Other claimed
-tasks must have real overrides and appear in `tools/list` and MCP/A2A dispatch.
+`configuration_task` declarations must be supplied by the adopter. Ready status
+support projects its mounted `status_task` with the notification claim. Other
+claimed tasks must have real overrides and appear in `tools/list` and MCP/A2A
+dispatch.
+
+This bootstrap rule does not enroll a receiver. Consumers still require the
+signed-webhook capability and their full notification set before registering
+doorbells. Authorization, proof-of-control, signing-scope and delivery checks
+run for every active subscription during readiness and again at delivery time.
 
 `DecisioningPlatform` does not gain reporting task implementations from a
 capability declaration. Compose real handlers, as in
@@ -81,7 +90,7 @@ participant. It checks types under `mypy --strict`.
 
 ### ESA decisioning setup
 
-ESA upgrades to `adcp>=9.6.3`; no `adcp-reporting-storage` upgrade or wire-schema
+ESA upgrades to `adcp>=10.0.0b19`; no `adcp-reporting-storage` upgrade or wire-schema
 change is required for dynamic account resolution. Import the public surface
 and support types from `adcp.reporting.outbox` and pass the support to ordinary
 decisioning `serve()`. It binds its generated handler to the support
@@ -89,9 +98,10 @@ automatically; the adopter does not construct or mutate that handler.
 
 The following composition assumes the real platform reporting handlers,
 PostgreSQL store, worker, projector and sweeper are configured. The adopter's
-`read_reporting_accounts_and_probes()` reads the complete deployment account IDs
-and validated readiness subscriptions together in one transaction/revision;
-it takes no request inputs and must fail if that complete read is unavailable.
+`read_reporting_accounts()` reads the complete deployment account IDs in one
+transaction/revision; it takes no request inputs and must fail if that complete
+read is unavailable. Deployments with internal signing probes may return them in
+the same snapshot.
 
 ```python
 from adcp.decisioning import serve
@@ -99,11 +109,11 @@ from adcp.reporting.outbox import ReportingStatusAccountSurface, ReportingStatus
 
 
 async def account_surface() -> ReportingStatusAccountSurface:
-    account_ids, readiness_subscriptions = await read_reporting_accounts_and_probes()
+    account_ids = await read_reporting_accounts()
     return ReportingStatusAccountSurface(
         account_ids=tuple(account_ids),
         account_surface_complete=True,
-        readiness_subscriptions=tuple(readiness_subscriptions),
+        readiness_subscriptions=(),
     )
 
 
@@ -122,6 +132,9 @@ This ordinary `serve()` call mounts the handler; `scheduled=True` still requires
 ESA to supervise lifecycle work. Capability checks resolve a fresh surface, so
 adding an account requires no server restart. The global claim stays suppressed
 until that account has been baselined and all readiness checks pass. The
+complete empty surface advertises during bootstrap when webhook signing and the
+durable lifecycle are ready. A newly enrolled active subscription is validated
+on the next proof and on delivery. The
 [custom-handler lifecycle example](../examples/reporting_status_notifications.py)
 also accepts this resolver; omitting it adapts the supplied static account and
 probe sequences to a constant async snapshot.
