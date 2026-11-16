@@ -20,6 +20,11 @@ from adcp.server.base import ADCPHandler
 
 logger = logging.getLogger(__name__)
 
+_STATUS_NOTIFICATION_CLAIMS = {
+    "status_task": "get_reporting_status",
+    "status_notification": "reporting.status_changed",
+}
+
 
 @dataclass(frozen=True, kw_only=True)
 class ReportingStatusAccountSurface:
@@ -107,11 +112,15 @@ class ReportingStatusSupport:
         return await self._account_ready(account_id=account_id, surface=surface)
 
     async def _account_ready(
-        self, *, account_id: str, surface: ReportingStatusAccountSurface
+        self,
+        *,
+        account_id: str,
+        surface: ReportingStatusAccountSurface,
+        queue_ready: bool = False,
     ) -> bool:
-        if not await self.queue_durable() or not await self.store.baseline_ready(
-            account_id=account_id
-        ):
+        if not queue_ready and not await self.queue_durable():
+            return False
+        if not await self.store.baseline_ready(account_id=account_id):
             return False
         assert isinstance(self.store, ReportingDurableStatusStore)
         if await self.store.managed_delivery_recorded(account_id=account_id):
@@ -119,9 +128,12 @@ class ReportingStatusSupport:
         subscriptions = await self.worker.subscriptions.list_active(
             account_id=account_id, notification_type="reporting.status_changed"
         )
-        probes = tuple(s for s in surface.readiness_subscriptions if s.account_id == account_id)
-        if not probes:
-            return False
+        probes: list[ReportingNotificationSubscription] = []
+        for subscription in surface.readiness_subscriptions:
+            if type(subscription) is not ReportingNotificationSubscription:
+                raise ReportingNotificationError("status_subscription_unready")
+            if subscription.account_id == account_id:
+                probes.append(subscription)
         identities: set[str] = set()
         for subscription in subscriptions:
             if (
@@ -163,11 +175,18 @@ class ReportingStatusSupport:
             return False
         if (
             not surface.account_surface_complete
-            or not surface.account_ids
             or any(not account_id for account_id in surface.account_ids)
-            or not surface.readiness_subscriptions
             or self.handler is None
         ):
+            return False
+        accounts = frozenset(surface.account_ids)
+        if any(
+            type(subscription) is not ReportingNotificationSubscription
+            or subscription.account_id not in accounts
+            for subscription in surface.readiness_subscriptions
+        ):
+            raise ReportingNotificationError("status_subscription_unready")
+        if not await self.queue_durable():
             return False
         projection = getattr(self.handler, "reporting_status_handler", None)
         if (
@@ -179,23 +198,18 @@ class ReportingStatusSupport:
             not in {t["name"] for t in get_tools_for_handler(self.handler, _include_schemas=False)}
         ):
             return False
-        return all(
-            [
-                await self._account_ready(account_id=a, surface=surface)
-                for a in sorted(set(surface.account_ids))
-            ]
-        )
+        for account_id in sorted(set(surface.account_ids)):
+            if not await self._account_ready(
+                account_id=account_id,
+                surface=surface,
+                queue_ready=True,
+            ):
+                return False
+        return True
 
     async def advertised_notifications(self) -> dict[str, str]:
         """An explicit global claim, after checking the entire trusted surface."""
-        return (
-            {
-                "status_task": "get_reporting_status",
-                "status_notification": "reporting.status_changed",
-            }
-            if await self.durable()
-            else {}
-        )
+        return dict(_STATUS_NOTIFICATION_CLAIMS) if await self.durable() else {}
 
 
 async def validate_status_claims(
@@ -207,15 +221,36 @@ async def validate_status_claims(
     claim = response.get("media_buy", {}).get("reporting_delivery", {}).get("status_notification")
     if claim is None:
         return
+    ready = support is not None and await support.durable()
+    _validate_ready_status_claims(
+        response,
+        support=support,
+        handler=handler,
+        ready=ready,
+    )
+
+
+def _validate_ready_status_claims(
+    response: dict[str, Any],
+    *,
+    support: ReportingStatusSupport | None,
+    handler: ADCPHandler[Any] | None,
+    ready: bool,
+) -> None:
+    claim = response.get("media_buy", {}).get("reporting_delivery", {}).get("status_notification")
+    if claim is None:
+        return
     block = response.get("media_buy", {}).get("reporting_delivery", {})
+    signing = response.get("webhook_signing", {})
     if (
         claim != "reporting.status_changed"
         or support is None
         or block.get("status_task") != "get_reporting_status"
+        or not isinstance(signing, dict)
+        or signing.get("supported") is not True
         or (handler is not None and support.handler is not handler)
+        or not ready
     ):
-        raise ReportingNotificationError("status_capability_requires_durable_reporting")
-    if not await support.durable():
         raise ReportingNotificationError("status_capability_requires_durable_reporting")
     from adcp.server.mcp_tools import get_tools_for_handler
 
@@ -224,3 +259,31 @@ async def validate_status_claims(
     for field, task in block.items():
         if field.endswith("_task") and isinstance(task, str) and task not in mounted:
             raise ReportingNotificationError("reporting_capability_requires_mounted_task")
+
+
+def _project_ready_status_claims(
+    response: dict[str, Any],
+    *,
+    advertised: dict[str, str],
+    support: ReportingStatusSupport | None,
+    handler: ADCPHandler[Any],
+) -> None:
+    if advertised:
+        if advertised != _STATUS_NOTIFICATION_CLAIMS:
+            raise ReportingNotificationError("status_capability_requires_durable_reporting")
+        media_buy = response.setdefault("media_buy", {})
+        if not isinstance(media_buy, dict):
+            raise ReportingNotificationError("status_capability_requires_durable_reporting")
+        reporting_delivery = media_buy.setdefault("reporting_delivery", {})
+        if not isinstance(reporting_delivery, dict) or any(
+            field in reporting_delivery and reporting_delivery[field] != value
+            for field, value in advertised.items()
+        ):
+            raise ReportingNotificationError("status_capability_requires_durable_reporting")
+        reporting_delivery.update(advertised)
+    _validate_ready_status_claims(
+        response,
+        support=support,
+        handler=handler,
+        ready=bool(advertised),
+    )

@@ -2438,7 +2438,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # truncate and flag *_complete: false rather than serve them whole.
         bound_capability_domain_lists(response)
 
-        from adcp.reporting.outbox.status_support import validate_status_claims
+        from adcp.reporting.outbox.status_support import _project_ready_status_claims
         from adcp.reporting.outbox.support import validate_activity_claims
 
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
@@ -2448,7 +2448,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 adcp_version=context.resolved_adcp_version if context is not None else None,
             )
 
-        await validate_status_claims(response, support=self._reporting_status, handler=self)
+        signing = response.get("webhook_signing", {})
+        signing_supported = isinstance(signing, dict) and signing.get("supported") is True
+        advertised_status: dict[str, str] = {}
+        if signing_supported and self._reporting_status is not None:
+            advertised_status = await self._reporting_status.advertised_notifications()
+        _project_ready_status_claims(
+            response,
+            advertised=advertised_status,
+            support=self._reporting_status,
+            handler=self,
+        )
 
         await validate_activity_claims(
             response,
