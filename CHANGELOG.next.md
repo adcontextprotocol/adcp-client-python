@@ -1,5 +1,15 @@
 # Changelog
 
+## [10.0.0-beta.19](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.18...v10.0.0-beta.19) (2026-11-16)
+
+
+### Bug Fixes
+
+* **reporting:** unblock status webhook bootstrap ([ce0e21a](https://github.com/adcontextprotocol/adcp-client-python/commit/ce0e21ab678f03a6e12e86b344c7702ee9448ae7))
+* **reporting:** unblock status webhook bootstrap ([9d73b47](https://github.com/adcontextprotocol/adcp-client-python/commit/9d73b47387e33a1e970cd6eeec0b9779455a4244))
+* **signing:** use public httpcore2 socket option type ([b3cfd65](https://github.com/adcontextprotocol/adcp-client-python/commit/b3cfd6561564f7acb928273764685da3e8de5d96))
+* **signing:** use public httpcore2 socket option type ([2d44e5e](https://github.com/adcontextprotocol/adcp-client-python/commit/2d44e5e0ba9f4984c402483b5e13c131584471e9))
+
 ## [10.0.0-beta.18](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.17...v10.0.0-beta.18) (2026-11-15)
 
 
