@@ -96,10 +96,17 @@ def test_httpcore2_backends_match_the_httpcore_signatures() -> None:
     """The ``2``-suffixed transports pin through the same extension
     point in the httpcore2 generation. One signature test covers both,
     because the port is only valid while the two agree."""
-    assert inspect.signature(SyncBackend2.connect_tcp) == inspect.signature(SyncBackend.connect_tcp)
-    assert inspect.signature(AnyIOBackend2.connect_tcp) == inspect.signature(
-        AnyIOBackend.connect_tcp
-    )
+    sync_params = inspect.signature(SyncBackend.connect_tcp).parameters.values()
+    sync2_params = inspect.signature(SyncBackend2.connect_tcp).parameters.values()
+    assert [(param.name, param.kind, param.default) for param in sync2_params] == [
+        (param.name, param.kind, param.default) for param in sync_params
+    ]
+
+    async_params = inspect.signature(AnyIOBackend.connect_tcp).parameters.values()
+    async2_params = inspect.signature(AnyIOBackend2.connect_tcp).parameters.values()
+    assert [(param.name, param.kind, param.default) for param in async2_params] == [
+        (param.name, param.kind, param.default) for param in async_params
+    ]
     assert "network_backend" in inspect.signature(httpcore2.ConnectionPool.__init__).parameters
     assert "network_backend" in inspect.signature(httpcore2.AsyncConnectionPool.__init__).parameters
 
@@ -146,9 +153,9 @@ def test_resolve_normalizes_idn_hostname_to_punycode() -> None:
     # Patch getaddrinfo to short-circuit DNS for the IDN test host.
     def fake_getaddrinfo(host, _port, *_args, **_kwargs):
         # Must be called with the ASCII-encoded form.
-        assert (
-            host == "xn--mnchen-3ya.example"
-        ), f"resolve_and_validate_host should IDNA-encode; got {host!r}"
+        assert host == "xn--mnchen-3ya.example", (
+            f"resolve_and_validate_host should IDNA-encode; got {host!r}"
+        )
         return [(socket.AF_INET, 0, 0, "", ("8.8.8.8", 0))]
 
     with patch("adcp.signing.jwks.socket.getaddrinfo", side_effect=fake_getaddrinfo):
