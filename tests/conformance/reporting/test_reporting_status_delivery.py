@@ -199,7 +199,6 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
         "schema",
         "worker",
         "task",
-        "signing_probe",
         "account_surface",
     ],
 )
@@ -243,8 +242,6 @@ async def test_status_capability_requires_each_component_independently_of_activi
         support = replace(support, worker=n.worker())
     elif missing == "task":
         support = replace(support, handler=None)
-    elif missing == "signing_probe":
-        support = replace(support, readiness_subscriptions=())
     elif missing == "account_surface":
         support = replace(support, account_surface_complete=False)
     elif missing == "schema" and h.reliable.blobs.pool is not None:
@@ -258,6 +255,7 @@ async def test_status_capability_requires_each_component_independently_of_activi
         else {}
     )
     claim = {
+        "webhook_signing": {"supported": True},
         "media_buy": {
             "reporting_delivery": {
                 "status_task": "get_reporting_status",
