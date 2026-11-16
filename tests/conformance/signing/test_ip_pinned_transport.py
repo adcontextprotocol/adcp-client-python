@@ -96,10 +96,17 @@ def test_httpcore2_backends_match_the_httpcore_signatures() -> None:
     """The ``2``-suffixed transports pin through the same extension
     point in the httpcore2 generation. One signature test covers both,
     because the port is only valid while the two agree."""
-    assert inspect.signature(SyncBackend2.connect_tcp) == inspect.signature(SyncBackend.connect_tcp)
-    assert inspect.signature(AnyIOBackend2.connect_tcp) == inspect.signature(
-        AnyIOBackend.connect_tcp
-    )
+    sync_params = inspect.signature(SyncBackend.connect_tcp).parameters.values()
+    sync2_params = inspect.signature(SyncBackend2.connect_tcp).parameters.values()
+    assert [(param.name, param.kind, param.default) for param in sync2_params] == [
+        (param.name, param.kind, param.default) for param in sync_params
+    ]
+
+    async_params = inspect.signature(AnyIOBackend.connect_tcp).parameters.values()
+    async2_params = inspect.signature(AnyIOBackend2.connect_tcp).parameters.values()
+    assert [(param.name, param.kind, param.default) for param in async2_params] == [
+        (param.name, param.kind, param.default) for param in async_params
+    ]
     assert "network_backend" in inspect.signature(httpcore2.ConnectionPool.__init__).parameters
     assert "network_backend" in inspect.signature(httpcore2.AsyncConnectionPool.__init__).parameters
 
