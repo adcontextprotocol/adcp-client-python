@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-13 21:42:00 UTC
+Generation date: 2026-11-17 02:20:14 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
         Adcp,
         AgeRestriction,
         Algorithm,
+        AssignmentOperation,
         AttributionWindow,
         AudienceEvidence,
         AudienceTargeting,
@@ -246,6 +247,7 @@ __all__ = [
     "Adcp",
     "AgeRestriction",
     "Algorithm",
+    "AssignmentOperation",
     "AttributionWindow",
     "AudienceEvidence",
     "AudienceTargeting",
@@ -441,6 +443,7 @@ _DECLARED_IN = {
     "Adcp": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "AgeRestriction": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "Algorithm": "adcp.types.domains.protocol.get_adcp_capabilities_response",
+    "AssignmentOperation": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "AttributionWindow": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "AudienceEvidence": "adcp.types.domains.protocol.get_adcp_capabilities_response",
     "AudienceTargeting": "adcp.types.domains.protocol.get_adcp_capabilities_response",

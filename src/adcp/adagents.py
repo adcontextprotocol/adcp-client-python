@@ -14,7 +14,7 @@ import json
 import logging
 import re
 import socket
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -48,8 +48,16 @@ async def fetch_publisher_signing_pins(
     """Fetch current pins for inventory selected from a verifier's own records.
 
     Calls the uncached fetch path so a second call force-refreshes adagents.json.
-    An absent signing_keys field imposes no pin; an empty or malformed pin
-    matches nothing. Missing or ambiguous authorization fails closed.
+    Every ``authorized_agents[]`` entry that matches the agent counts: one with
+    the agent's URL, and an origin-only entry for its origin (AdCP 3.3,
+    adcontextprotocol/adcp#8943, #9016). The agent is pinned only if every
+    matching entry carries ``signing_keys``. One without them (absent or empty)
+    leaves it unpinned (``None``). Otherwise the pin is the union of their keys,
+    and copies of one key keep the earliest ``revoked_at``. A malformed
+    ``signing_keys`` value contributes no key. A publisher that authorizes no
+    matching entry fails closed. Pins are per publisher domain: a message's
+    narrower scope (property, window, country, collection, placement) is not
+    evaluated here, so every matching entry of the domain counts.
     """
     from adcp.signing.canonical import canonicalize_target_uri
 
@@ -58,33 +66,64 @@ async def fetch_publisher_signing_pins(
     pins: dict[str, list[dict[str, Any]] | None] = {}
     for domain in publisher_domains:
         record = await fetch_adagents(domain)
-        listed = [
-            (entry, canonicalize_target_uri(entry["url"]))
-            for entry in record.get("authorized_agents", [])
-            if isinstance(entry, dict) and isinstance(entry.get("url"), str)
-        ]
-        matches = [entry for entry, url in listed if url == canonical]
-        if not matches:
+        matches = []
+        for entry in record.get("authorized_agents", []):
+            if not isinstance(entry, dict) or not isinstance(entry.get("url"), str):
+                continue
+            url = canonicalize_target_uri(entry["url"])
+            parts = urlsplit(url)
             # An origin-only entry authorizes the agent at that origin,
             # whatever its path (AdCP 3.3.0-beta.6, adcontextprotocol/adcp#8862).
-            matches = [
-                entry
-                for entry, url in listed
-                if (parts := urlsplit(url)).path == "/"
+            if url == canonical or (
+                parts.path == "/"
                 and not parts.query
                 and (parts.scheme, parts.netloc) == (agent.scheme, agent.netloc)
-            ]
-        if len(matches) != 1:
-            raise ValueError("publisher must authorize exactly one matching agent")
-        entry = matches[0]
-        if "signing_keys" not in entry:
+            ):
+                matches.append(entry)
+        if not matches:
+            raise ValueError("publisher must authorize a matching agent")
+        if any(entry.get("signing_keys") in (None, []) for entry in matches):
             pins[domain] = None
-        else:
-            keys = entry["signing_keys"]
-            pins[domain] = (
-                [key for key in keys if isinstance(key, dict)] if isinstance(keys, list) else []
-            )
+            continue
+        pins[domain] = _merge_signing_pins(
+            key
+            for entry in matches
+            if isinstance(entry["signing_keys"], list)
+            for key in entry["signing_keys"]
+            if isinstance(key, dict)
+        )
     return pins
+
+
+def _merge_signing_pins(keys: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Union pinned keys, one per RFC 7638 thumbprint with the earliest ``revoked_at``.
+
+    A copy whose ``revoked_at`` cannot be read counts as the earliest, so the
+    key stays refused rather than accepted through another copy.
+    """
+    from adcp.signing.publisher_pins import jwk_thumbprint
+
+    def revoked(key: dict[str, Any]) -> float:
+        value = key.get("revoked_at")
+        if value is None:
+            return float("inf")
+        if not isinstance(value, str):
+            return float("-inf")
+        try:
+            moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return float("-inf")
+        return moment.timestamp() if moment.tzinfo is not None else float("-inf")
+
+    merged: dict[str, dict[str, Any]] = {}
+    for key in keys:
+        thumbprint = jwk_thumbprint(key)
+        if thumbprint is None:
+            continue
+        kept = merged.get(thumbprint)
+        if kept is None or revoked(key) < revoked(kept):
+            merged[thumbprint] = key
+    return list(merged.values())
 
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]

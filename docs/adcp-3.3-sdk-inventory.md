@@ -22,8 +22,8 @@ it adopted the bundle, and what is left to the codegen/wire-fidelity (2) and
 
 | Item | Detail | SDK status |
 | --- | --- | --- |
-| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-beta.6` (was `3.3.0-beta.0`, then `3.3.0-beta.1`, `3.3.0-beta.2`, `3.3.0-beta.3`, `3.3.0-beta.4` and `3.3.0-beta.5`; see sections 11 to 16); bundle key `3.3.0-beta.6` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
-| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-beta.6`, never a stable `3.3`, so buyers opt into the beta they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-beta.6, 3.2-rc.7`. | done (1) |
+| Wire pin | `src/adcp/ADCP_VERSION` is `3.3.0-rc.0` (was `3.3.0-beta.0`, then `3.3.0-beta.1` through `3.3.0-beta.6`; see sections 11 to 17); bundle key `3.3.0-rc.0` (prereleases keep their full identifier, `resolve_bundle_key`). The 3.2 cache stays synced from the signed 3.2.4 release as a preview bundle (`PREVIEW_VERSIONS`), beside 3.1.27. | done (1) |
+| Advertised versions | `COMPATIBLE_ADCP_VERSIONS = ("3.0", "3.1", "3.2", "3.3")`; `get_supported_adcp_versions()` advertises the exact prerelease `3.3-rc.0`, never a stable `3.3`, so buyers opt into the prerelease they validated against (DR-0024). Full set: `3.0, 3.1, 3.2, 3.3-rc.0, 3.2-rc.7`. | done (1) |
 | Negotiation | `negotiate_version` matches prereleases exactly. The client's outgoing conversion treats the SDK's served prerelease as its line (`is_convertible_version`), so a 3.3-beta.0 buyer still negotiates down to a 3.1 or 3.2 seller. | done (1) |
 | Translation | `convert_payload` steps 3.3-beta.0 ↔ 3.2 ↔ 3.1 ↔ 3.0 through the bundled schemas; the 3.3 step uses the `3.3.0-beta.0` bundle. Downgrades go through `_require_target_valid`, so a converted payload the older schema refuses fails as `ADCPVersionConversionError` (#1621 / #1630). | done (1); per-field rules below are (3) |
 | Restricted servers | A server that lists `supported_versions` without `adcp_version` now pins to the newest listed release (`version_policy.default_adcp_version`), instead of refusing because the SDK default (3.3-beta.0) is outside the list. | done (1) |
@@ -348,3 +348,22 @@ the bundle's `CHANGELOG.md` and adcontextprotocol/adcp#8501, DR-0036, #8793,
 | Origin-only `authorized_agents[].url` (#8862) | An entry with the root path and no query authorizes every agent at that origin; an entry with a path still matches exactly. | `find_authorized_agent_entries` (and every adagents verifier through it) and `fetch_publisher_signing_pins`, where an exact URL entry still wins |
 | Other | `image_carousel` `card_image_sizes`, video containers `3gp` / `mpeg` / `m4v`, `UNRECOGNIZED_TERMS`, seventeen URL patterns loosened to `^https://`, `sla-window` back to its 3.2.8 shape. | generated. Numbered names renumber where siblings changed (`Action25` → `Action27`, `Payload19` → `Payload20`, ...) |
 | Reporting subscriptions | No change: the six vendored coverage-vector files are byte-identical to the bundle's. | the parity test passes unchanged |
+
+## 17. 3.3.0-rc.0 delta
+
+Adopted from the signed `3.3.0-rc.0` bundle (pinned in
+`schemas/releases/3.3.0-rc.0.json`, source commit
+`620b161718bedb72cbb3ad7c5240c8ab7ec92090`, bundle sha256
+`bdcacb0bb54821bfcad7e64a47cd6446609500a86ba99032f51de5ba638a2055`). Sources:
+the bundle's `CHANGELOG.md` and adcontextprotocol/adcp#8901, #8791, #8933,
+#8943, #9016, #8936, #8992, #8960, #8856 and #8733.
+
+| Item | Detail | SDK status |
+| --- | --- | --- |
+| Wire pin | `3.3.0-rc.0` / `3.3-rc.0`, the first 3.3 release candidate. `3.3-beta.6` is no longer advertised or accepted as a pin; its cache and compliance trees stay in the source tree and leave the wheel. | done. SDK-hosted reporting's default `supported_versions` dropped every `-rc` release, the packaged one included; it now leaves out only the compatibility aliases (`3.2-rc.7`) |
+| Renamed experimental values (#8901) | `input_required` → `input-required` (execution readiness), `click_through` → `clickthrough` (creative change kinds), `underdelivery` → `under_delivery` (delivery projection end state); no alias. | generated; no hand-written code used the old spellings |
+| Reserved-word-safe replacements (#8791) | `passed`/`pass`, `all`/`global`, `full_name`/`name` in six positions; the originals are deprecated, and a replacement goes only to peers on 3.3 or later. | generated. Version conversion rewrites a replacement to the original it supersedes for an older peer, from the 3.3 schema's `x-superseded-by`; untyped `error.details` (`RATE_LIMITED` `scope`) is not rewritten |
+| `authorized_agents` multi-match (#8943, #9016) | Every matching entry authorizes the agent; a `signing_keys` pin holds only if every matching entry pins, as the union of their keys, with the earliest `revoked_at`. | `fetch_publisher_signing_pins` follows it per publisher domain; a message's narrower scope is not evaluated there |
+| Assignment operations (#8933) | `creative.assignment_operations` on capabilities; buyers send only listed operations; live updates require `replace`; a compact-buy seller with a creative library lists `assign`. | generated. The SDK does not refuse an unlisted operation before sending, nor check the compact-buy `assign` rule at startup |
+| Other | Audience targeting without inline member push (#8936), social distribution identifiers (#8992), `image_carousel` `cta_values` (#8960), aligned inline `submitted` branches (#8856), campaign governance `human_review_required` (#8733). | generated |
+| Reporting subscriptions | No change: the six vendored coverage-vector files are byte-identical to the bundle's; adcontextprotocol/adcp#8797 is not in rc.0. | the parity test passes unchanged |

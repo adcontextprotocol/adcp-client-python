@@ -141,23 +141,54 @@ def _pinned(*entries: dict[str, Any]) -> dict[str, Any]:
     return {"authorized_agents": list(entries)}
 
 
+def _jwk() -> dict[str, Any]:
+    import base64
+
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    raw = Ed25519PrivateKey.generate().public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    x = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    return {"kty": "OKP", "crv": "Ed25519", "x": x}
+
+
 @pytest.mark.asyncio
-async def test_signing_pins_take_an_origin_only_entry_and_prefer_the_exact_url(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_signing_pins_combine_every_matching_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AdCP 3.3.0-rc.0 (adcontextprotocol/adcp#8943, #9016).
+
+    Every matching entry authorizes the agent. It is pinned only if each one
+    carries signing_keys; then the pin is their union, and copies of a key keep
+    the earliest revoked_at.
+    """
     from adcp import adagents
 
-    origin = {"url": "https://sales.example.com", "signing_keys": [{"kid": "origin"}]}
-    exact = {"url": AGENT, "signing_keys": [{"kid": "exact"}]}
-    records = {"a.example": _pinned(origin), "b.example": _pinned(origin, exact)}
+    k1, k2 = _jwk(), _jwk()
+    origin = {"url": "https://sales.example.com", "signing_keys": [k1]}
+    exact = {"url": AGENT, "signing_keys": [k2]}
+    later = {**k1, "revoked_at": "2026-12-01T00:00:00Z"}
+    earlier = {**k1, "revoked_at": "2026-11-01T00:00:00Z"}
+    records = {
+        "union.example": _pinned(origin, exact),
+        "absent.example": _pinned(origin, {"url": AGENT}),
+        "empty.example": _pinned(origin, {"url": AGENT, "signing_keys": []}),
+        "revoked.example": _pinned(
+            {**origin, "signing_keys": [later]}, {**exact, "signing_keys": [earlier, k1]}
+        ),
+        "other.example": _pinned({"url": "https://other.example.com", "signing_keys": [k1]}),
+    }
 
     async def fetch(domain: str) -> dict[str, Any]:
         return records[domain]
 
     monkeypatch.setattr(adagents, "fetch_adagents", fetch)
-    pins = await adagents.fetch_publisher_signing_pins(["a.example", "b.example"], AGENT)
-    assert pins == {"a.example": [{"kid": "origin"}], "b.example": [{"kid": "exact"}]}
-
-    records["c.example"] = _pinned(origin, {**origin, "signing_keys": []})
-    with pytest.raises(ValueError, match="exactly one"):
-        await adagents.fetch_publisher_signing_pins(["c.example"], AGENT)
+    pins = await adagents.fetch_publisher_signing_pins(
+        ["union.example", "absent.example", "empty.example", "revoked.example"], AGENT
+    )
+    assert pins == {
+        "union.example": [k1, k2],
+        "absent.example": None,
+        "empty.example": None,
+        "revoked.example": [earlier],
+    }
+    with pytest.raises(ValueError, match="matching agent"):
+        await adagents.fetch_publisher_signing_pins(["other.example"], AGENT)
