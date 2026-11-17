@@ -1,5 +1,16 @@
 # Changelog
 
+## [10.0.0-beta.20](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.19...v10.0.0-beta.20) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-beta.6. get_supported_adcp_versions is 3.0, 3.1, 3.2, 3.3-rc.0 and 3.2-rc.7; an adcp_version pin of 3.3-beta.6 or 3.3.0-beta.6 raises ConfigurationError, and a peer that advertises only 3.3-beta.6 for the 3.3 line negotiates down to 3.2. Re-pin to 3.3-rc.0 or omit the pin. The experimental values input_required, click_through and underdelivery are renamed with no alias, and fetch_publisher_signing_pins now returns the union of every matching entry's pins, or None when any matching entry is unpinned.
+
+### Features
+
+* **protocol:** adopt the signed AdCP 3.3.0-rc.0 bundle ([#1919](https://github.com/adcontextprotocol/adcp-client-python/issues/1919)) ([2f46153](https://github.com/adcontextprotocol/adcp-client-python/commit/2f4615392a65730a6ee832674cd4e6860b02b387))
+
 ## [10.0.0-beta.19](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.18...v10.0.0-beta.19) (2026-11-16)
 
 
