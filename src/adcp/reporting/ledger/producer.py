@@ -336,7 +336,6 @@ class _SettlingPolicy:
     restatement_window: timedelta
     restatement_cadence: timedelta
     official_close_lag: timedelta | None
-    official_stability_duration: timedelta | None = None
 
 
 class ReportingProducer:
@@ -938,13 +937,6 @@ class ReportingProducer:
             ),
             restatement_cadence=cadence,
             official_close_lag=close_lag,
-            official_stability_duration=(
-                timedelta(
-                    milliseconds=iso_duration_milliseconds_v1(offering.official_stability_duration)
-                )
-                if offering.official_stability_duration is not None
-                else None
-            ),
         )
 
     async def _acquire_with_settling_policy(
@@ -969,12 +961,7 @@ class ReportingProducer:
         )
         if latest is not None:
             frozen = latest.acquisition.policy
-            policy = _SettlingPolicy(
-                frozen.window,
-                frozen.cadence,
-                frozen.official_close_lag,
-                frozen.official_stability_duration,
-            )
+            policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
         explicit_close = (
             policy.official_close_lag is not None
             and self._offerings.official_offering_id is not None
@@ -1058,11 +1045,7 @@ class ReportingProducer:
         # Preserve explicitly configured official-close boundary precedence.
         # Snapshot-only policies retain their final inclusive due read through
         # downtime; expiry alone is never an official publication.
-        if (
-            not explicit_close
-            or _utc(now) < settles_at
-            or (policy.official_stability_duration is not None and next_due is not None)
-        ):
+        if not explicit_close or _utc(now) < settles_at:
             if next_due is None:
                 return not explicit_close
             if _utc(now) >= _utc(next_due):
@@ -1090,13 +1073,6 @@ class ReportingProducer:
             _utc(obligation.period.end) + policy.official_close_lag,
             self._source_available_at(obligation, target_finality="official"),
         )
-        if policy.official_stability_duration is not None:
-            snapshot = self._current_snapshot(revisions)
-            if snapshot is None:
-                raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
-            closes_at = max(
-                closes_at, _utc(snapshot.created_at) + policy.official_stability_duration
-            )
         if _utc(now) >= closes_at:
             await self.acquire_obligation(
                 configuration,
@@ -1250,10 +1226,7 @@ class ReportingProducer:
                 latest.acquisition.policy
                 if latest is not None
                 else ProvisionalPolicy(
-                    policy.restatement_window,
-                    policy.restatement_cadence,
-                    policy.official_close_lag,
-                    policy.official_stability_duration,
+                    policy.restatement_window, policy.restatement_cadence, policy.official_close_lag
                 )
             )
             leaf = self._current_snapshot(revisions)
@@ -1299,14 +1272,6 @@ class ReportingProducer:
             # cancellation of this producer (notably on Python 3.10). Retain
             # the execution explicitly until even synchronous work has settled.
             await cancel_and_settle(execution)
-            if (
-                acquisition is not None
-                and finality == "official"
-                and acquisition.policy.official_stability_duration is not None
-            ):
-                await self._record_unpublished_official_attempt(
-                    obligation, acquisition, now=now, manifest_json='{"outcome":"not_ready"}'
-                )
             turn.slices_failed.append(obligation.reporting_obligation_id)
             await self._schedule_retry(obligation, turn, now=now, replayed=manual_replay)
             self._note_escalation(
@@ -1334,15 +1299,6 @@ class ReportingProducer:
                 error.code,
                 error.retry,
             )
-            if (
-                acquisition is not None
-                and finality == "official"
-                and acquisition.policy.official_stability_duration is not None
-                and error.retry == "retryable"
-            ):
-                await self._record_unpublished_official_attempt(
-                    obligation, acquisition, now=now, manifest_json='{"outcome":"not_ready"}'
-                )
             turn.slices_failed.append(obligation.reporting_obligation_id)
             await self._schedule_retry(
                 obligation,
@@ -1370,29 +1326,6 @@ class ReportingProducer:
             )
         self._validate_manifest_currency(obligation, manifest)
         rows = await self._read_rows(request, manifest)
-        if (
-            acquisition is not None
-            and finality == "official"
-            and acquisition.policy.official_stability_duration is not None
-            and (
-                manifest.finality_evidence.basis
-                not in ("provider_declared", "provider_job_terminal")
-                or manifest.finality_evidence.evidence_ref is None
-                or manifest.finality_evidence.stable_since is None
-                or _utc(manifest.finality_evidence.observed_at)
-                < _utc(manifest.finality_evidence.stable_since)
-                + acquisition.policy.official_stability_duration
-                or _utc(request.period.source_read_cutoff_at)
-                < _utc(manifest.finality_evidence.stable_since)
-                + acquisition.policy.official_stability_duration
-            )
-        ):
-            await self._record_unpublished_official_attempt(
-                obligation, acquisition, now=now, manifest_json=manifest.model_dump_json()
-            )
-            turn.slices_failed.append(obligation.reporting_obligation_id)
-            await self._schedule_retry(obligation, turn, now=now)
-            return None
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         # Every successful scheduled read reaches the atomic observation/checkpoint commit.
@@ -1709,31 +1642,6 @@ class ReportingProducer:
             )
         return self._store
 
-    async def _record_unpublished_official_attempt(
-        self,
-        obligation: ReportingObligationRecord,
-        acquisition: ProvisionalAcquisition,
-        *,
-        now: datetime,
-        manifest_json: str,
-    ) -> None:
-        predecessor = acquisition.predecessor_revision_id
-        if predecessor is None:
-            raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
-        boundary = acquisition.previous_boundary or (
-            _utc(obligation.period.end) + acquisition.policy.window
-        )
-        observation = ProvisionalObservation(
-            acquisition,
-            predecessor,
-            _utc(now),
-            _utc(boundary),
-            None,
-            manifest_json,
-        )
-        async with self._revision_publication(obligation, acquisition.request().offering_id):
-            await self._observation_store().commit_provisional_observation(observation, None, ())
-
     async def _pending_acquisition(
         self, obligation: ReportingObligationRecord, *, ordinal: int
     ) -> ProvisionalAcquisition | None:
@@ -1870,27 +1778,6 @@ class ReportingProducer:
         )
         if selection.kind == "corrupt" or leaf.kind == "corrupt":
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "the revision history requires repair")
-        if acquisition is not None and finality == "official":
-            stable = acquisition.policy.official_stability_duration
-            if stable is not None:
-                if (
-                    leaf.kind != "selected"
-                    or _utc(now) < _utc(obligation.period.end) + acquisition.policy.window
-                    or _utc(now) < _utc(leaf.revision.created_at) + stable
-                    or manifest.finality_evidence.evidence_ref is None
-                    or manifest.finality_evidence.stable_since is None
-                    or _utc(manifest.finality_evidence.observed_at)
-                    < _utc(manifest.finality_evidence.stable_since) + stable
-                    or _utc(acquisition.request().period.source_read_cutoff_at)
-                    < _utc(manifest.finality_evidence.stable_since) + stable
-                    or manifest.finality_evidence.basis
-                    not in ("provider_declared", "provider_job_terminal")
-                ):
-                    raise LedgerConflictError(
-                        "OFFICIAL_FINALITY_UNPROVEN",
-                        "official close requires the declared age, stable snapshot, "
-                        "and source evidence",
-                    )
         supersedes = (
             leaf.revision.reporting_revision_id
             if finality == "snapshot" and leaf.kind == "selected"
@@ -1990,18 +1877,30 @@ class ReportingProducer:
             )
             if predecessor is None:
                 raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
-            if predecessor.source_manifest_sha256 == manifest.content_fingerprint.split(":", 1)[-1]:
+            predecessor_content_sha256 = revision_content_sha256(
+                reporting_revision_id=predecessor.reporting_revision_id,
+                row_count=revision.row_count,
+                control_totals=revision.control_totals,
+                reporting_rows=rows,
+                control_total_evidence=(
+                    revision.managed_control_totals
+                    if predecessor.managed_control_totals is not None
+                    else None
+                ),
+            )
+            if (
+                predecessor.readable
+                and predecessor.source_manifest_sha256
+                == manifest.content_fingerprint.split(":", 1)[-1]
+                and predecessor.revision_content_sha256 == predecessor_content_sha256
+            ):
                 retained = predecessor
-        staged = (
-            staging is not None
-            and retained is None
-            and bool(await staging.stage_revision_rows(revision, rows))
-        )
+        staged = staging is not None and bool(await staging.stage_revision_rows(revision, rows))
         try:
             committed = await self._commit_publication(
                 obligation,
                 manifest,
-                revision if retained is None else None,
+                revision,
                 rows,
                 finality,
                 now,
@@ -2013,7 +1912,7 @@ class ReportingProducer:
         finally:
             if staged and staging is not None:
                 staging.discard_staged_revision_rows(revision)
-        if retained is None:
+        if retained is None or committed.reporting_revision_id != retained.reporting_revision_id:
             turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 
@@ -2213,11 +2112,6 @@ class ReportingProducer:
         publication_class: ReportingPublicationClass = (
             "AUTHORITATIVE" if resolved_finality == "official" else "PROVISIONAL_SNAPSHOT"
         )
-        snapshot_offering = (
-            self._source.capabilities.offering(self._offerings.snapshot_offering_id)
-            if self._offerings.snapshot_offering_id is not None
-            else None
-        )
         return ReportingSourceSliceRequestV1(
             identity=ReportingSourceIdentityV1(
                 account_id=obligation.account_id,
@@ -2255,11 +2149,6 @@ class ReportingProducer:
             ),
             revision_kind="authoritative" if publication_class == "AUTHORITATIVE" else "snapshot",
             trigger=trigger,
-            require_finality_evidence=(
-                publication_class == "AUTHORITATIVE"
-                and isinstance(snapshot_offering, ProvisionalSnapshotOfferingV1)
-                and snapshot_offering.official_stability_duration is not None
-            ),
             coverage=ReportingSourceCoverageRequestV1(
                 expected="full",
                 constituents=resolved_constituents,

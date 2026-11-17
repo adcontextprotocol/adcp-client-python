@@ -700,6 +700,48 @@ def validate_managed_revision_rows(
         )
 
 
+def validate_retained_provisional_observation(
+    revision: ReportingRevisionRecord,
+    observation: ProvisionalObservation,
+    rows: Sequence[dict[str, Any]],
+    *,
+    require_readable: bool = True,
+) -> None:
+    """Validate an unchanged observation against immutable predecessor content."""
+    manifest = json.loads(observation.manifest_json)
+    if (
+        revision.source_manifest_sha256 is None
+        or manifest.get("content_fingerprint") != f"sha256:{revision.source_manifest_sha256}"
+    ):
+        raise LedgerConflictError(
+            "REVISION_IMMUTABLE", "observation content differs from the snapshot predecessor"
+        )
+    from adcp.reporting.ledger.producer import recompute_revision_content_sha256
+
+    if len(rows) != revision.row_count:
+        raise LedgerConflictError("ROW_COUNT_MISMATCH", "row count differs from revision metadata")
+    if recompute_revision_content_sha256(revision, rows) != revision.revision_content_sha256:
+        raise LedgerConflictError(
+            "REVISION_IMMUTABLE", "observation rows differ from the snapshot predecessor"
+        )
+    if require_readable and not revision.readable:
+        raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is not readable")
+
+
+def provisional_observation_reuse_candidate(
+    acquisition: ProvisionalAcquisition,
+    observation: ProvisionalObservation,
+    revision: ReportingRevisionRecord | None,
+) -> bool:
+    """Whether a candidate can replace its unchanged predecessor if reuse becomes unsafe."""
+    return (
+        revision is not None
+        and revision.reporting_revision_id != observation.revision_id
+        and acquisition.predecessor_revision_id == observation.revision_id
+        and revision.supersedes_reporting_revision_id == observation.revision_id
+    )
+
+
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
     payload: dict[str, Any] = {
         "chain": list(status.chain_key),
@@ -1293,10 +1335,13 @@ class InMemoryReportingLedgerStore:
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+        reuse_candidate = provisional_observation_reuse_candidate(
+            acquisition, observation, revision
+        )
         if revision is not None and (
             revision.account_id != acquisition.account_id
             or revision.reporting_obligation_id != acquisition.obligation_id
-            or revision.reporting_revision_id != observation.revision_id
+            or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
         ):
             raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
         async with self._mutation():
@@ -1310,7 +1355,14 @@ class InMemoryReportingLedgerStore:
             if existing is not None:
                 if (
                     existing.acquisition != acquisition
-                    or existing.revision_id != observation.revision_id
+                    or (
+                        existing.revision_id != observation.revision_id
+                        and (
+                            not reuse_candidate
+                            or revision is None
+                            or existing.revision_id != revision.reporting_revision_id
+                        )
+                    )
                     or existing.manifest_json != observation.manifest_json
                 ):
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
@@ -1320,18 +1372,21 @@ class InMemoryReportingLedgerStore:
                     )
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
-                return (
-                    await self.commit_revision(revision, rows)
-                    if revision is not None
-                    else self._revisions[existing.revision_id]
-                )
+                if revision is None or (
+                    reuse_candidate and existing.revision_id == observation.revision_id
+                ):
+                    validate_retained_provisional_observation(
+                        self._revisions[existing.revision_id], observation, rows
+                    )
+                    return self._revisions[existing.revision_id]
+                return await self.commit_revision(revision, rows)
             retained = self._provisional_acquisitions.get(key)
             if retained != acquisition:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition was not reserved")
             checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
-            if revision is None:
+            if revision is None or reuse_candidate:
                 if acquisition.predecessor_revision_id != observation.revision_id:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor differs"
@@ -1356,6 +1411,16 @@ class InMemoryReportingLedgerStore:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
+                validate_retained_provisional_observation(
+                    committed, observation, rows, require_readable=False
+                )
+                if not committed.readable:
+                    if revision is None:
+                        raise LedgerConflictError(
+                            "HISTORY_UNAVAILABLE", "snapshot predecessor is not readable"
+                        )
+                    committed = await self.commit_revision(revision, rows)
+                    observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
             await self.record_restatement_checkpoint(

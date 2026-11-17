@@ -284,12 +284,6 @@ class InlineFetchResult:
     scheduling correctly after a restart.
     """
 
-    finality_evidence_ref: str | None = field(default=None, kw_only=True)
-    """Source evidence reference for an authoritative close."""
-
-    finality_stable_since: datetime | None = field(default=None, kw_only=True)
-    """Source attestation of when authoritative content last changed."""
-
     cell_availability: Mapping[str, Mapping[str, MetricEvidence]] | None = field(
         default=None, kw_only=True
     )
@@ -825,17 +819,6 @@ class InlineReportingSource:
                 unavailable_status="delayed",
             )
 
-        if request.require_finality_evidence and (
-            not answer.finality_evidence_ref or answer.finality_stable_since is None
-        ):
-            return ReportingSourceExecutorResult.failed(
-                ReportingSourceErrorV1(
-                    code="PROVIDER_TRANSIENT",
-                    retry="retryable",
-                    safe_message="source has not supplied official finality evidence",
-                )
-            )
-
         return await self._publish(request, answer, cancel=cancel)
 
     # -- fetch ----------------------------------------------------------
@@ -1038,8 +1021,6 @@ class InlineReportingSource:
                 control_totals=control_totals,
                 warnings=warnings,
                 provisional_until=result.provisional_until,
-                finality_evidence_ref=result.finality_evidence_ref,
-                finality_stable_since=result.finality_stable_since,
             )
 
             manifest_bytes = encode_source_batch_manifest_v1(manifest)
@@ -1215,8 +1196,6 @@ class InlineReportingSource:
         control_totals: list[SourceControlTotalV1],
         warnings: list[str],
         provisional_until: datetime | None,
-        finality_evidence_ref: str | None,
-        finality_stable_since: datetime | None,
     ) -> SourceBatchManifestV1:
         coverage = SourceBatchCoverageV1(
             denominator_fingerprint=request.coverage.denominator_fingerprint,
@@ -1251,19 +1230,9 @@ class InlineReportingSource:
                 basis=(
                     "provisional_observation"
                     if request.publication_class == "PROVISIONAL_SNAPSHOT"
-                    else (
-                        "provider_declared"
-                        if finality_evidence_ref
-                        else "elapsed_settlement_window"
-                    )
+                    else "elapsed_settlement_window"
                 ),
                 observed_at=finality_at,
-                evidence_ref=finality_evidence_ref
-                if request.publication_class == "AUTHORITATIVE"
-                else None,
-                stable_since=finality_stable_since
-                if request.publication_class == "AUTHORITATIVE"
-                else None,
                 provisional_until=(
                     provisional_until
                     if request.publication_class == "PROVISIONAL_SNAPSHOT"

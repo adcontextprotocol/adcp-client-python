@@ -160,6 +160,28 @@ async def test_retained_ownerless_acquisition_requires_reconciliation_before_rep
     assert retained.request_json == legacy.request_json
 
 
+async def test_retained_acquisition_decodes_finality_evidence_flag_without_exposing_it(
+    make_harness,
+):
+    producer, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
+    producer._source._fetch = lambda request: None
+    await producer.run_worker()
+    obligation = await _only_obligation(store)
+    reserved = await store.get_provisional_acquisition(
+        account_id=obligation.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        ordinal=0,
+    )
+    assert reserved is not None
+    wire = reserved.to_wire()
+    wire["request"]["require_finality_evidence"] = False
+
+    decoded = ProvisionalAcquisition.from_wire(wire)
+
+    assert decoded.request() == reserved.request()
+    assert "require_finality_evidence" not in decoded.request().model_dump()
+
+
 async def _publication_effect_counts(store):
     if isinstance(store, PgReportingLedgerStore):
         async with store._pool.connection() as connection:
@@ -244,6 +266,69 @@ async def test_unchanged_scheduled_read_keeps_snapshot_and_advances_observation(
         assert sorted(count for _, count in counts) == [1]
     await producer.run_worker()
     assert len(fetch.calls) == 2
+
+
+async def test_unchanged_content_repairs_an_unreadable_snapshot(make_harness):
+    producer, store, _, clock = await make_harness(_capabilities(restatement_window=None))
+    await producer.run_worker()
+    original = (await _revisions(store))[0]
+    clock[0] += timedelta(hours=1)
+    await producer.run_worker()
+    observation = await latest(store)
+    rows = (
+        await store.read_revision_rows(
+            account_id=ACCOUNT,
+            reporting_revision_id=original.reporting_revision_id,
+        )
+    ).rows
+    await store.set_revision_readable(
+        account_id=ACCOUNT,
+        reporting_revision_id=original.reporting_revision_id,
+        readable=False,
+    )
+
+    with pytest.raises(LedgerConflictError) as conflict:
+        await store.commit_provisional_observation(observation, None, rows)
+    assert conflict.value.code == "HISTORY_UNAVAILABLE"
+
+    assert observation.next_due_at is not None
+    clock[0] = observation.next_due_at
+    await producer.run_worker()
+    history = await _revisions(store)
+    assert len(history) == 2
+    assert not history[0].readable
+    assert history[1].readable
+    assert history[1].supersedes_reporting_revision_id == original.reporting_revision_id
+    assert (await latest(store)).revision_id == history[1].reporting_revision_id
+
+
+async def test_readability_change_during_unchanged_commit_publishes_repair(
+    make_harness, monkeypatch
+):
+    producer, store, _, clock = await make_harness(_capabilities(restatement_window=None))
+    await producer.run_worker()
+    original = (await _revisions(store))[0]
+    commit_observation = store.commit_provisional_observation
+
+    async def make_predecessor_unreadable(observation, revision, rows):
+        await store.set_revision_readable(
+            account_id=ACCOUNT,
+            reporting_revision_id=original.reporting_revision_id,
+            readable=False,
+        )
+        return await commit_observation(observation, revision, rows)
+
+    monkeypatch.setattr(store, "commit_provisional_observation", make_predecessor_unreadable)
+    clock[0] += timedelta(hours=1)
+    turn = await producer.run_worker()
+
+    history = await _revisions(store)
+    assert len(history) == 2
+    assert not history[0].readable
+    assert history[1].readable
+    assert history[1].supersedes_reporting_revision_id == original.reporting_revision_id
+    assert turn.revisions_committed == [history[1].reporting_revision_id]
+    assert (await latest(store)).revision_id == history[1].reporting_revision_id
 
 
 @pytest.mark.parametrize("offset", [timedelta(minutes=30), timedelta(days=4)])
@@ -704,6 +789,7 @@ async def test_recorded_observation_replay_validates_content_and_keeps_original_
     for submitted_revision, submitted_rows, code in (
         (changed_revision, changed_rows, "REVISION_IMMUTABLE"),
         (revision, (), "ROW_COUNT_MISMATCH"),
+        (None, changed_rows, "REVISION_IMMUTABLE"),
     ):
         with pytest.raises(LedgerConflictError) as conflict:
             await store.commit_provisional_observation(
