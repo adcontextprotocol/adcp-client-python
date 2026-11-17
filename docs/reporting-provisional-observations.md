@@ -2,12 +2,13 @@
 
 This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
 
-The producer records every successful scheduled provisional read as a new
-immutable revision, including a read whose rows are unchanged. A durable
+The producer records every successful scheduled provisional read as a durable
+observation. Changed content creates an immutable revision; unchanged content
+retains the current snapshot and advances the checkpoint without a notification. A durable
 reservation freezes the acquisition before source work starts. Its successful
-observation, revision rows, ledger change, notifications and next checkpoint
-commit together. A retry of the same reserved acquisition returns the existing
-revision instead of appending another observation.
+observation and next checkpoint commit together with any revision rows, ledger
+change and notification. A retry of the same reserved acquisition returns the
+existing observation instead of appending another one.
 
 This is a producer and persistence change. Complete service rollout qualification
 is still pending, including activation of previously retired work, source-object
@@ -54,8 +55,8 @@ same atomic operations. Custom producer stores must implement
 `ProvisionalObservationStore` from `adcp.reporting.ledger.provisional` together
 with `RestatementCheckpointStore`.
 
-The packaged `reporting/ledger/required_provisional_schema.json` describes all
-27 objects added by this extension. Bootstrap and each reservation, observation
+The packaged `reporting/ledger/required_provisional_schema.json` describes the
+required objects. Bootstrap and each reservation, observation
 read, and atomic observation commit validate those objects, including immutable
 triggers and their function definitions. Validation also runs with notifications
 disabled. Missing, disabled or changed objects fail closed with
@@ -63,11 +64,11 @@ disabled. Missing, disabled or changed objects fail closed with
 production. Notification readiness alone does not establish observation readiness:
 historical notification-only schemas remain valid for their original operations.
 
-Existing revision tables, exact-read row layout and pinned migration manifests
-are unchanged. Each observation has its own revision ID and revision-specific
-wire content hash. Unchanged source content retains its source content identity;
-it does not mean that the revision ID or wire hash is reused. Historical readers
-can still read rows directly from `reporting_revision_rows` for every revision.
+Existing revision tables and exact-read row layout are unchanged. An unchanged
+observation points to the retained snapshot revision. The observation table's
+revision ID uniqueness constraint is removed by `create_schema()` so multiple
+observations can reference the same immutable revision. Historical readers can
+still read rows directly from `reporting_revision_rows` for every revision.
 
 This change retains per-revision row payloads. Content-addressed reuse of staged
 source objects is a separate pending change; complete payload deduplication has

@@ -679,8 +679,8 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
     ``restatement_window`` overrides the SDK's default three-day provisional
     re-read window after period close. ``restatement_cadence`` defaults to the
     configured reporting period (and is never allowed to beat
-    ``fastest_safe_cadence``). Every successful scheduled read is a new immutable
-    observation, including unchanged content. A per-slice ``provisional_until``
+    ``fastest_safe_cadence``). Every successful scheduled read is a durable
+    observation; only changed content creates a revision. A per-slice ``provisional_until``
     is authoritative over this offering default. ``official_close_lag`` still
     requires an explicitly declared window and asks a producer with an
     authoritative offering to publish an official revision after settlement;
@@ -696,12 +696,17 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
     restatement_window: IsoDuration | None = None
     restatement_cadence: IsoDuration | None = None
     official_close_lag: IsoDuration | None = None
+    official_stability_duration: IsoDuration | None = None
 
     @model_validator(mode="after")
     def _lag_range_is_ordered(self) -> ProvisionalSnapshotOfferingV1:
         _validate_lag_range(self.expected_availability_lag, self.worst_case_availability_lag)
         if self.restatement_window is None:
-            if self.restatement_cadence is not None or self.official_close_lag is not None:
+            if (
+                self.restatement_cadence is not None
+                or self.official_close_lag is not None
+                or self.official_stability_duration is not None
+            ):
                 raise ValueError(
                     "restatement_cadence and official_close_lag require restatement_window"
                 )
@@ -716,6 +721,11 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
                 raise ValueError("restatement_cadence must not be faster than fastest_safe_cadence")
         if self.official_close_lag is not None:
             iso_duration_milliseconds_v1(self.official_close_lag)
+        if self.official_stability_duration is not None:
+            if self.official_close_lag is None:
+                raise ValueError("official_stability_duration requires official_close_lag")
+            if iso_duration_milliseconds_v1(self.official_stability_duration) <= 0:
+                raise ValueError("official_stability_duration must be positive")
         return self
 
 
@@ -878,6 +888,7 @@ class ReportingSourceSliceRequestV1(_Frozen):
     revision_kind: ReportingRevisionKind
     supersedes_publication_id: OpaqueReference | None = None
     trigger: ReportingTriggerKind = "scheduled_poll"
+    require_finality_evidence: bool = False
     coverage: ReportingSourceCoverageRequestV1
     requested_metrics: list[MetricName] = Field(min_length=1, max_length=1_000)
     requested_dimensions: list[MetricName] = Field(default_factory=list, max_length=1_000)
@@ -1006,10 +1017,16 @@ class ReportingFinalityEvidenceV1(_Frozen):
     ]
     observed_at: datetime
     evidence_ref: ExternalId | None = None
+    stable_since: datetime | None = None
     provisional_until: datetime | None = None
 
     @model_validator(mode="after")
     def _provisional_signal_matches_basis(self) -> ReportingFinalityEvidenceV1:
+        if self.stable_since is not None:
+            if self.basis not in ("provider_declared", "provider_job_terminal"):
+                raise ValueError("stable_since requires authoritative source evidence")
+            if _aware(self.stable_since, "stable_since") > _aware(self.observed_at, "observed_at"):
+                raise ValueError("stable_since must not follow finality observation")
         if self.provisional_until is None:
             return self
         if self.basis != "provisional_observation":

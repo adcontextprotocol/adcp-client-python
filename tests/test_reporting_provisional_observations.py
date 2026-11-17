@@ -11,7 +11,7 @@ import pytest
 from adcp_reporting_storage import PgReportingLedgerStore
 from pydantic import ValidationError
 
-from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID
+from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID, SNAPSHOT_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingProducer,
@@ -196,12 +196,12 @@ async def test_adapter_without_window_rereads_with_sdk_default(make_harness):
     refreshed = await producer.run_worker()
 
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(refreshed.revisions_committed) == 1
-    assert len(await _revisions(store)) == 2
+    assert refreshed.revisions_committed == []
+    assert len(await _revisions(store)) == 1
     assert all(item.finality == "snapshot" for item in await _revisions(store))
 
 
-async def test_unchanged_scheduled_read_is_a_distinct_immutable_observation(make_harness):
+async def test_unchanged_scheduled_read_keeps_snapshot_and_advances_observation(make_harness):
     producer, store, fetch, clock = await make_harness(
         _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
     )
@@ -211,28 +211,28 @@ async def test_unchanged_scheduled_read_is_a_distinct_immutable_observation(make
     original_rows = await store.read_revision_rows(
         account_id=ACCOUNT, reporting_revision_id=original.reporting_revision_id
     )
+    effects_before = await _publication_effect_counts(store)
     clock[0] += timedelta(hours=1)
     refreshed = await producer.run_worker()
 
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(refreshed.revisions_committed) == 1
+    assert refreshed.revisions_committed == []
     history = await _revisions(store)
-    assert len(history) == 2 and history[0] == original
-    assert history[1].reporting_revision_id != original.reporting_revision_id
-    assert history[1].supersedes_reporting_revision_id == original.reporting_revision_id
-    assert history[1].observed_at > original.observed_at
-    assert history[1].source_manifest_sha256 == original.source_manifest_sha256
-    assert history[1].revision_content_sha256 != original.revision_content_sha256
+    assert history == (original,)
+    effects_after = await _publication_effect_counts(store)
+    assert effects_after[:2] == effects_before[:2]
+    assert effects_after[2] == effects_before[2] + 1
+    assert effects_after[4:] == effects_before[4:]
     second = await latest(store)
     assert second.acquisition.ordinal == first.acquisition.ordinal + 1
     assert second.checked_at > first.checked_at
     assert second.next_due_at == clock[0] + timedelta(hours=1)
-    assert second.revision_id == history[1].reporting_revision_id
+    assert second.revision_id == original.reporting_revision_id
     current_rows = await store.read_revision_rows(
         account_id=ACCOUNT, reporting_revision_id=second.revision_id
     )
     assert current_rows.rows == original_rows.rows
-    # The legacy SQL layout retains every new revision's rows as well.
+    # The retained revision remains readable after the observation.
     if isinstance(store, PgReportingLedgerStore):
         async with store._pool.connection() as connection:
             counts = await (
@@ -241,7 +241,7 @@ async def test_unchanged_scheduled_read_is_a_distinct_immutable_observation(make
                     " GROUP BY reporting_revision_id ORDER BY reporting_revision_id"
                 )
             ).fetchall()
-        assert sorted(count for _, count in counts) == [1, 1]
+        assert sorted(count for _, count in counts) == [1]
     await producer.run_worker()
     assert len(fetch.calls) == 2
 
@@ -259,7 +259,7 @@ async def test_source_boundary_shortens_or_extends_fallback(make_harness, offset
     clock[0] = first.next_due_at
     await producer.run_worker()
     assert len(fetch.calls) == 2
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
 
 
 async def test_final_read_at_boundary_and_overdue_restart_never_promote(make_harness):
@@ -271,7 +271,7 @@ async def test_final_read_at_boundary_and_overdue_restart_never_promote(make_har
     final = await latest(store)
     assert final.next_due_at is None
     assert len(fetch.calls) == 2
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
     assert all(item.finality == "snapshot" for item in await _revisions(store))
     await producer.run_worker()
     assert len(fetch.calls) == 2
@@ -388,12 +388,115 @@ async def test_concurrent_same_acquisition_commits_once(make_harness):
             for _ in range(2)
         ]
     )
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
     assert (await latest(store)).acquisition.ordinal == 1
     checkpoint = await store.get_restatement_checkpoint(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
     assert checkpoint.next_observation == 2
+
+
+async def test_unchanged_observation_rejects_superseded_predecessor(make_harness):
+    from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+
+    producer, store, fetch, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    first = (await _revisions(store))[0]
+    fetch.impressions = 25
+    clock[0] += timedelta(hours=1)
+    await producer.run_worker()
+    obligation = await _only_obligation(store)
+    configuration = (
+        await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer-settling"))
+    )[0]
+    checkpoint = await store.get_restatement_checkpoint(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert checkpoint is not None
+    request = producer._build_slice(
+        configuration,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        now=clock[0],
+        observation=checkpoint.next_observation,
+    )
+    acquisition = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(),
+            checkpoint.next_observation,
+            (await latest(store)).acquisition.policy,
+            first.reporting_revision_id,
+            checkpoint.provisional_until,
+        )
+    )
+    observation = ProvisionalObservation(
+        acquisition,
+        first.reporting_revision_id,
+        clock[0],
+        checkpoint.provisional_until,
+        None,
+        '{"outcome":"not_ready"}',
+    )
+    with pytest.raises(LedgerConflictError, match="snapshot predecessor"):
+        await store.commit_provisional_observation(observation, None, ())
+
+
+async def test_unchanged_observation_rejects_another_obligation_snapshot(make_harness):
+    from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+
+    producer, store, _, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    first_obligation = await _only_obligation(store)
+    configuration = (
+        await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer-settling"))
+    )[0]
+    other_configuration = replace(configuration, delivery_config_id="another-settling-config")
+    await store.put_configuration(other_configuration)
+    other_obligation = (await producer.close_elapsed_periods(other_configuration, now=clock[0]))[0]
+    await producer.acquire_obligation(
+        other_configuration, other_obligation, now=clock[0], track_settling=True
+    )
+    other_revision = (
+        await store.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=other_obligation.reporting_obligation_id
+        )
+    )[0]
+    checkpoint = await store.get_restatement_checkpoint(
+        account_id=ACCOUNT, reporting_obligation_id=first_obligation.reporting_obligation_id
+    )
+    assert checkpoint is not None and checkpoint.provisional_until is not None
+    request = producer._build_slice(
+        configuration,
+        first_obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        now=clock[0],
+        observation=checkpoint.next_observation,
+    )
+    acquisition = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(),
+            checkpoint.next_observation,
+            (await latest(store)).acquisition.policy,
+            other_revision.reporting_revision_id,
+            checkpoint.provisional_until,
+        )
+    )
+    observation = ProvisionalObservation(
+        acquisition,
+        other_revision.reporting_revision_id,
+        clock[0],
+        checkpoint.provisional_until,
+        None,
+        '{"outcome":"not_ready"}',
+    )
+    with pytest.raises(LedgerConflictError, match="snapshot predecessor"):
+        await store.commit_provisional_observation(observation, None, ())
 
 
 async def test_account_cannot_read_or_publish_another_observation(make_harness):
@@ -506,10 +609,8 @@ async def test_watermark_and_history_advance_with_unchanged_rows(make_harness):
     clock[0] += timedelta(hours=1)
     await producer.run_worker()
     history = await _revisions(store)
-    assert len(history) == 2
-    assert history[1].data_through > first.data_through
-    assert history[1].source_manifest_sha256 == first.source_manifest_sha256
-    assert (await latest(store)).revision_id == history[1].reporting_revision_id
+    assert history == (first,)
+    assert (await latest(store)).revision_id == first.reporting_revision_id
 
 
 async def test_schema_reinstallation_preserves_observations_and_row_layout(make_harness):
@@ -763,10 +864,10 @@ async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_har
     await producer.run_worker()
     assert requests[1].identity == requests[0].identity
     assert requests[1].publication_class == "PROVISIONAL_SNAPSHOT"
-    assert [revision.finality for revision in await _revisions(store)] == ["snapshot", "snapshot"]
+    assert [revision.finality for revision in await _revisions(store)] == ["snapshot"]
     await producer.run_worker()
     history = await _revisions(store)
-    assert sorted(revision.finality for revision in history) == ["official", "snapshot", "snapshot"]
+    assert sorted(revision.finality for revision in history) == ["official", "snapshot"]
     official = next(revision for revision in history if revision.finality == "official")
     assert (await latest(store)).revision_id == official.reporting_revision_id
     assert (await latest(store)).acquisition.ordinal == 2
@@ -830,7 +931,7 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
     if pending_lookup:
         assert requests[1].identity == requests[0].identity
         assert requests[1].publication_class == "PROVISIONAL_SNAPSHOT"
-    assert len(await _revisions(store)) == (2 if pending_lookup else 1)
+    assert len(await _revisions(store)) == 1
     await restarted.run_worker()
     assert len(requests) == (2 if pending_lookup else 1)
     # Waiting for the next offering must not freeze an early source cutoff.
@@ -852,10 +953,10 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
         await restarted.run_worker()
     assert requests[-1].publication_class == "AUTHORITATIVE"
     assert requests[-1].period.source_read_cutoff_at == clock[0]
-    assert len(await _revisions(store)) == 3
+    assert len(await _revisions(store)) == 2
 
 
-async def test_empty_successful_reads_still_append_observations(make_harness):
+async def test_empty_successful_reads_advance_observation_without_revision(make_harness):
     producer, store, fetch, clock = await make_harness(_capabilities(restatement_window=None))
     source = producer._source
     original_fetch = source._fetch
@@ -864,6 +965,6 @@ async def test_empty_successful_reads_still_append_observations(make_harness):
     clock[0] += timedelta(hours=1)
     await producer.run_worker()
     history = await _revisions(store)
-    assert len(history) == 2
+    assert len(history) == 1
     assert all(revision.row_count == 0 and revision.readable for revision in history)
-    assert history[1].supersedes_reporting_revision_id == history[0].reporting_revision_id
+    assert (await latest(store)).revision_id == history[0].reporting_revision_id
