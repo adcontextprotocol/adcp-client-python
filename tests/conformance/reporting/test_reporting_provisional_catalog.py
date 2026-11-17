@@ -120,6 +120,30 @@ async def test_both_observation_tables_reject_update_and_delete():
                 assert await latest(store) == before
 
 
+async def test_observation_schema_upgrade_removes_revision_uniqueness():
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE reporting_provisional_observations "
+                "ADD CONSTRAINT "
+                "reporting_provisional_observations_reporting_revision_id_key "
+                "UNIQUE (reporting_revision_id)"
+            )
+        await store.create_schema()
+        async with pool.connection() as connection:
+            retained = await (
+                await connection.execute(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conrelid='reporting_provisional_observations'::regclass "
+                    "AND conname="
+                    "'reporting_provisional_observations_reporting_revision_id_key'"
+                )
+            ).fetchone()
+        assert retained is None
+
+
 async def test_observation_foreign_keys_bind_both_obligation_and_revision_accounts():
     psycopg = pytest.importorskip("psycopg")
     async with isolated_reporting_pool() as pool:
