@@ -109,7 +109,7 @@ from adcp.signing.jwks import resolve_and_validate_host
 
 if TYPE_CHECKING:
     from httpcore._backends.base import SOCKET_OPTION
-    from httpcore2._backends.base import SOCKET_OPTION as SOCKET_OPTION2
+    from httpcore2 import SOCKET_OPTION as SOCKET_OPTION2
 
 
 __all__ = [
