@@ -436,12 +436,11 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     assert len(turn.obligations_committed) == 1
     # The source omits an explicit restatement window, so the SDK's default
     # policy also schedules another read of the first period on this turn.
+    # Identical content advances the observation without creating a revision.
     first_revisions = await ledger.list_revisions(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
-    assert len(first_revisions) == 2
-    automatic = next(item for item in first_revisions if item.reporting_revision_id != revision_id)
-    assert automatic.supersedes_reporting_revision_id == revision_id
+    assert [item.reporting_revision_id for item in first_revisions] == [revision_id]
 
     zero_obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
@@ -456,10 +455,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
         account_id=ACCOUNT, reporting_obligation_id=zero_obligation.reporting_obligation_id
     )
     assert [item.row_count for item in zero_revisions] == [0]
-    assert set(turn.revisions_committed) == {
-        automatic.reporting_revision_id,
-        zero_revisions[0].reporting_revision_id,
-    }
+    assert turn.revisions_committed == [zero_revisions[0].reporting_revision_id]
 
     settled = await _reconcile(ledger, expected=_expected_periods(2))
     assert settled.definitive is True, settled.obligations
@@ -503,14 +499,12 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
         )
         == ()
     )
-    # At this later turn the first period's next hourly observation is due
-    # too. Preserve that automatic revision as the next restatement's parent.
+    # At this later turn the first period's next hourly observation is due too.
+    # Repeated observations of the same content retain the published revision.
     refreshed_first = await ledger.list_revisions(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
-    assert len(refreshed_first) == 3
-    automatic_at_ready = max(refreshed_first, key=lambda item: item.created_at)
-    assert automatic_at_ready.supersedes_reporting_revision_id == automatic.reporting_revision_id
+    assert [item.reporting_revision_id for item in refreshed_first] == [revision_id]
 
     # The zero-row period and the silent period are distinguishable, which is
     # the entire operational point of the tier.
@@ -560,8 +554,8 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     chain = await ledger.list_revisions(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
-    assert len(chain) == 4
-    assert restated.supersedes_reporting_revision_id == automatic_at_ready.reporting_revision_id
+    assert len(chain) == 2
+    assert restated.supersedes_reporting_revision_id == revision_id
     # The superseded revision is still retained and still readable: a consumer
     # that already cited it must be able to fetch exactly what it cited.
     superseded = await ledger.read_revision_rows(
