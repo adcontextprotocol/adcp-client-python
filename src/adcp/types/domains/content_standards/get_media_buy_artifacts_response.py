@@ -35,7 +35,7 @@ class Artifact(AdcpVersionEnvelope):
     country: Annotated[str | None, NoExplicitNull] = None
     channel: Annotated[str | None, NoExplicitNull] = None
     brand_context: Annotated[BrandContext | None, NoExplicitNull] = None
-    local_verdict: Annotated[Literal['pass', 'fail', 'unevaluated'] | None, NoExplicitNull] = None
+    local_verdict: Annotated[Literal['pass', 'fail', 'unevaluated', 'passed'] | None, NoExplicitNull] = None
 
 
 class CollectionInfo(AdcpVersionEnvelope):

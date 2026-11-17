@@ -150,7 +150,7 @@ def _line(version: str) -> tuple[int, int] | None:
 def _wire_for_line(major: int, minor: int) -> str:
     """The release-precision value this SDK serves for a minor line.
 
-    A line whose packaged spec is a prerelease (``3.3-beta.6`` on the 3.3
+    A line whose packaged spec is a prerelease (``3.3-rc.0`` on the 3.3
     line) is spoken, converted and validated as that exact prerelease: its
     schemas are the only 3.3 contract this wheel ships. Every other line is
     its stable release.
@@ -182,7 +182,7 @@ def is_convertible_version(version: str) -> bool:
     """Whether minor-release translation applies to ``version``.
 
     Stable releases of the SDK's major convert, as does the exact prerelease
-    the SDK serves for a line (``3.3-beta.6`` while the pin is that beta).
+    the SDK serves for a line (``3.3-rc.0`` while the pin is that beta).
     Any other prerelease keeps its own schema contract and gates: the
     translators must not guess prerelease semantics.
     """
@@ -318,12 +318,45 @@ def _view(schema: Any, value: Any, root: dict[str, Any]) -> dict[str, Any]:
         child = _view(branch, value, root)
         properties.update(child.get("properties", {}))
         required.update(child.get("required", []))
-        for key in ("type", "items", "additionalProperties", "patternProperties", "enum", "const"):
+        for key in (
+            "type",
+            "items",
+            "additionalProperties",
+            "patternProperties",
+            "enum",
+            "enumMetadata",
+            "const",
+        ):
             if key in child:
                 result[key] = child[key]
     result["properties"] = properties
     result["required"] = required
     return result
+
+
+def _superseded_original(value: Any, source: dict[str, Any], target: dict[str, Any]) -> Any:
+    """The deprecated original a newer replacement supersedes, for an older peer.
+
+    AdCP 3.3 adds reserved-word-safe replacements (``passed`` for ``pass``,
+    ``all`` for ``global``, ``full_name`` for ``name``; adcontextprotocol/adcp#8791)
+    and sends a replacement only to a peer on 3.3 or later. When the target's
+    enum lacks ``value`` and the source marks one of the target's values
+    ``x-superseded-by`` it, that original is the older release's spelling.
+    Returns ``None`` otherwise.
+    """
+    if not isinstance(value, str) or "enum" not in target or value in target["enum"]:
+        return None
+    metadata = source.get("enumMetadata")
+    if not isinstance(metadata, dict):
+        return None
+    for original, entry in metadata.items():
+        if (
+            isinstance(entry, dict)
+            and entry.get("x-superseded-by") == value
+            and original in target["enum"]
+        ):
+            return original
+    return None
 
 
 def _property(schema: dict[str, Any], key: str) -> Any:
@@ -676,6 +709,10 @@ def _project(
                     ConversionLoss(child_path, source_version, target_version, "null_unavailable")
                 )
                 continue
+            original = _superseded_original(child, source_view, target_view)
+            if original is not None:
+                projected[key] = original
+                continue
             # An optional enum member introduced by the newer release cannot
             # be sent to the old peer. A required value is never replaced by
             # a different meaning; the target check fails it structurally.
@@ -741,6 +778,10 @@ def _project(
                 losses.append(
                     ConversionLoss(_pointer(path, index), source_version, target_version, omitted)
                 )
+                continue
+            original = _superseded_original(child, source_item, target_item)
+            if original is not None:
+                projected_items.append(original)
                 continue
             if (
                 not isinstance(child, (dict, list))

@@ -1997,10 +1997,17 @@ class ReliableReportingService:
                 # SDK serves unless the seller states its own.
                 adcp = dict(payload.get("adcp") or {})
                 if not adcp.get("supported_versions"):
-                    from adcp._version import get_supported_adcp_versions
+                    from adcp._version import (
+                        get_supported_adcp_versions,
+                        resolve_adcp_version_alias,
+                    )
 
+                    # Leave out compatibility aliases (3.2-rc.7), never the
+                    # packaged release, which can itself be a candidate (3.3-rc.0).
                     adcp["supported_versions"] = [
-                        item for item in get_supported_adcp_versions() if "-rc" not in item
+                        item
+                        for item in get_supported_adcp_versions()
+                        if resolve_adcp_version_alias(item) == item
                     ]
                     payload["adcp"] = adcp
             if self._managed is not None and serves_subscriptions(adcp_version):
