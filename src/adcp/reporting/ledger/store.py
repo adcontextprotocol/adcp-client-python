@@ -1288,12 +1288,12 @@ class InMemoryReportingLedgerStore:
     async def commit_provisional_observation(
         self,
         observation: ProvisionalObservation,
-        revision: ReportingRevisionRecord,
+        revision: ReportingRevisionRecord | None,
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        if (
+        if revision is not None and (
             revision.account_id != acquisition.account_id
             or revision.reporting_obligation_id != acquisition.obligation_id
             or revision.reporting_revision_id != observation.revision_id
@@ -1311,6 +1311,7 @@ class InMemoryReportingLedgerStore:
                 if (
                     existing.acquisition != acquisition
                     or existing.revision_id != observation.revision_id
+                    or existing.manifest_json != observation.manifest_json
                 ):
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
                 if existing.revision_id not in self._revisions:
@@ -1319,14 +1320,44 @@ class InMemoryReportingLedgerStore:
                     )
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
-                return await self.commit_revision(revision, rows)
+                return (
+                    await self.commit_revision(revision, rows)
+                    if revision is not None
+                    else self._revisions[existing.revision_id]
+                )
             retained = self._provisional_acquisitions.get(key)
             if retained != acquisition:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition was not reserved")
             checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
-            committed = await self.commit_revision(revision, rows)
+            if revision is None:
+                if acquisition.predecessor_revision_id != observation.revision_id:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor differs"
+                    )
+                committed = self._revisions.get(observation.revision_id)
+                if (
+                    committed is None
+                    or committed.finality != "snapshot"
+                    or committed.account_id != acquisition.account_id
+                    or committed.reporting_obligation_id != acquisition.obligation_id
+                ):
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "snapshot predecessor is missing"
+                    )
+                if any(
+                    item.supersedes_reporting_revision_id == observation.revision_id
+                    for item in self._revisions.values()
+                    if item.account_id == acquisition.account_id
+                    and item.reporting_obligation_id == acquisition.obligation_id
+                    and item.finality == "snapshot"
+                ):
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
+                    )
+            else:
+                committed = await self.commit_revision(revision, rows)
             await self.record_restatement_checkpoint(
                 RestatementCheckpoint(
                     acquisition.account_id,

@@ -1805,12 +1805,12 @@ class PgReportingLedgerStore:
     async def commit_provisional_observation(
         self,
         observation: ProvisionalObservation,
-        revision: ReportingRevisionRecord,
+        revision: ReportingRevisionRecord | None,
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        if (
+        if revision is not None and (
             revision.account_id != acquisition.account_id
             or revision.reporting_obligation_id != acquisition.obligation_id
             or revision.reporting_revision_id != observation.revision_id
@@ -1840,6 +1840,7 @@ class PgReportingLedgerStore:
                 if (
                     retained_observation.acquisition != acquisition
                     or existing[0] != observation.revision_id
+                    or retained_observation.manifest_json != observation.manifest_json
                 ):
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
                 retained_revision = await self.get_revision(
@@ -1851,7 +1852,11 @@ class PgReportingLedgerStore:
                     )
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
-                return await self.commit_revision(revision, rows)
+                return (
+                    await self.commit_revision(revision, rows)
+                    if revision is not None
+                    else retained_revision
+                )
             reserved = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_acquisitions"
@@ -1867,7 +1872,38 @@ class PgReportingLedgerStore:
             )
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
-            committed = await self.commit_revision(revision, rows)
+            if revision is None:
+                if acquisition.predecessor_revision_id != observation.revision_id:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor differs"
+                    )
+                committed = await self.get_revision(
+                    account_id=acquisition.account_id,
+                    reporting_revision_id=observation.revision_id,
+                )
+                if (
+                    committed is None
+                    or committed.finality != "snapshot"
+                    or committed.reporting_obligation_id != acquisition.obligation_id
+                ):
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "snapshot predecessor is missing"
+                    )
+                current = await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions"
+                        " WHERE account_id=%s AND reporting_obligation_id=%s"
+                        " AND finality='snapshot' AND supersedes_reporting_revision_id=%s"
+                        " LIMIT 1",
+                        (*key[:2], observation.revision_id),
+                    )
+                ).fetchone()
+                if current is not None:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
+                    )
+            else:
+                committed = await self.commit_revision(revision, rows)
             await self.record_restatement_checkpoint(
                 RestatementCheckpoint(
                     acquisition.account_id,
@@ -1881,7 +1917,7 @@ class PgReportingLedgerStore:
                 "INSERT INTO reporting_provisional_observations"
                 " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
                 " VALUES (%s,%s,%s,%s,%s::jsonb)",
-                (*key, revision.reporting_revision_id, _json(observation.to_wire())),
+                (*key, observation.revision_id, _json(observation.to_wire())),
             )
             return committed
 
