@@ -14,7 +14,7 @@ import inspect
 import logging
 import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -762,6 +762,21 @@ class ReliableReportingService:
             offerings = context.producer_offerings()
             if not isinstance(offerings, ProducerOfferings):
                 raise TypeError("producer_offerings must return ProducerOfferings")
+            snapshot = next(
+                (
+                    offering
+                    for offering in registration.executor.capabilities.offerings
+                    if offering.offering_id == offerings.snapshot_offering_id
+                ),
+                None,
+            )
+            offerings = replace(
+                offerings,
+                snapshot_requests_official_close=(
+                    isinstance(snapshot, ProvisionalSnapshotOfferingV1)
+                    and snapshot.official_close_lag is not None
+                ),
+            )
         except Exception as error:
             if retrying or (recovering and isinstance(error, _MissingFinalityPolicyError)):
                 raise _AccountContextResolutionError(error, permanent=True) from error

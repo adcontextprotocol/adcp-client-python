@@ -3067,10 +3067,10 @@ async def test_standalone_new_close_requires_a_selected_policy(
     store_factory: Any, required: str
 ) -> None:
     producer, store, config, obligation, _, clock = await _harness(
-        store_factory, finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final")
+        store_factory,
+        capabilities=_closing_capabilities() if required == "snapshot" else None,
+        finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final"),
     )
-    if required == "snapshot":
-        producer._source.capabilities = _closing_capabilities()
     config = replace(config, delivery_config_version=2, required_finality=required, definition=None)
     await store.put_configuration(config)
     with pytest.raises(LedgerConflictError) as conflict:

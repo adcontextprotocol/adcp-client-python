@@ -368,7 +368,9 @@ class ProducerOfferings:
     Snapshot and official source publications use different offerings. A
     source-declared settling policy may use them sequentially for one ledger
     obligation, so the producer needs both named explicitly rather than
-    inferring one from the other.
+    inferring one from the other. ``snapshot_requests_official_close`` records
+    an explicit source offering declaration at admission so period closure
+    remains independent of source availability.
     """
 
     snapshot_offering_id: str | None = None
@@ -379,6 +381,7 @@ class ProducerOfferings:
     currency: str = "USD"
     source_scope: dict[str, Any] = field(default_factory=dict)
     slice_timeout: timedelta = timedelta(minutes=10)
+    snapshot_requests_official_close: bool = False
 
     def offering_for(self, finality: str) -> str | None:
         return self.official_offering_id if finality == "official" else self.snapshot_offering_id
@@ -725,15 +728,7 @@ class ReportingProducer:
         return (
             configuration.required_finality == "official"
             or configuration.generation_key in self._recovered_stabilization
-            or (
-                self._offerings.snapshot_offering_id is not None
-                and any(
-                    isinstance(offering, ProvisionalSnapshotOfferingV1)
-                    and offering.offering_id == self._offerings.snapshot_offering_id
-                    and offering.official_close_lag is not None
-                    for offering in self._source.capabilities.offerings
-                )
-            )
+            or self._offerings.snapshot_requests_official_close
         )
 
     async def _close_elapsed_periods(

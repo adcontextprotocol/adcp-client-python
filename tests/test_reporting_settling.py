@@ -187,6 +187,12 @@ async def _harness(
         offerings=ProducerOfferings(
             snapshot_offering_id=SNAPSHOT_OFFERING_ID,
             official_offering_id=OFFICIAL_OFFERING_ID,
+            snapshot_requests_official_close=any(
+                isinstance(offering, ProvisionalSnapshotOfferingV1)
+                and offering.offering_id == SNAPSHOT_OFFERING_ID
+                and offering.official_close_lag is not None
+                for offering in capabilities.offerings
+            ),
             publication_namespace="reporting-source:fixture",
             requested_metrics=("impressions", "spend"),
             source_scope=dict(capabilities.source_scope),
