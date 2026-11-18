@@ -284,6 +284,9 @@ class InlineFetchResult:
     scheduling correctly after a restart.
     """
 
+    finality_evidence: ReportingFinalityEvidenceV1 | None = field(default=None, kw_only=True)
+    """Explicit provider evidence for this publication, including its observed time and signal."""
+
     cell_availability: Mapping[str, Mapping[str, MetricEvidence]] | None = field(
         default=None, kw_only=True
     )
@@ -1021,6 +1024,7 @@ class InlineReportingSource:
                 control_totals=control_totals,
                 warnings=warnings,
                 provisional_until=result.provisional_until,
+                finality_evidence=result.finality_evidence,
             )
 
             manifest_bytes = encode_source_batch_manifest_v1(manifest)
@@ -1196,6 +1200,7 @@ class InlineReportingSource:
         control_totals: list[SourceControlTotalV1],
         warnings: list[str],
         provisional_until: datetime | None,
+        finality_evidence: ReportingFinalityEvidenceV1 | None,
     ) -> SourceBatchManifestV1:
         coverage = SourceBatchCoverageV1(
             denominator_fingerprint=request.coverage.denominator_fingerprint,
@@ -1226,7 +1231,8 @@ class InlineReportingSource:
             "period": request.period,
             "revision_kind": request.revision_kind,
             "supersedes_publication_id": request.supersedes_publication_id,
-            "finality_evidence": ReportingFinalityEvidenceV1(
+            "finality_evidence": finality_evidence
+            or ReportingFinalityEvidenceV1(
                 basis=(
                     "provisional_observation"
                     if request.publication_class == "PROVISIONAL_SNAPSHOT"

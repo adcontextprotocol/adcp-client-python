@@ -935,10 +935,14 @@ class ReportingProducer:
         self,
         configuration: ReportingConfiguration,
         obligation: ReportingObligationRecord,
+        *,
+        cutoff_reservation: bool = False,
     ) -> _SettlingPolicy | None:
         """Resolve the source policy or SDK fallback for a snapshot obligation."""
         offering_id = self._offerings.snapshot_offering_id
-        if obligation.required_finality != "snapshot" or offering_id is None:
+        if (
+            obligation.required_finality != "snapshot" and not cutoff_reservation
+        ) or offering_id is None:
             return None
         offering = self._source.capabilities.offering(offering_id)
         if not isinstance(offering, ProvisionalSnapshotOfferingV1):
@@ -1207,12 +1211,12 @@ class ReportingProducer:
             return None
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
         if finality == "official":
+            if selected_policy is None:
+                raise LedgerConflictError(
+                    "FINALITY_POLICY_UNPROVEN", "official finality requires a selected policy"
+                )
             if isinstance(selected_policy, ReportingStabilizedPolicy):
                 self._observation_history_store()
-            if isinstance(selected_policy, ReportingContractualCutoffPolicy) and _utc(
-                now
-            ) < contractual_cutoff_at(obligation, selected_policy):
-                return None
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
@@ -1229,12 +1233,17 @@ class ReportingProducer:
 
         constituents = await self._admitted_source_constituents(configuration, obligation)
 
-        checkpoint_store = self._restatement_store() if track_settling else None
         derived_close = finality == "official" and source_finality == "snapshot"
-        if derived_close and revisions and isinstance(self._store, RestatementCheckpointStore):
-            # A manual close and a scheduled close must replay the same acquisition,
-            # even after unchanged observations have advanced beyond the revision count.
-            checkpoint_store = self._store
+        if isinstance(selected_policy, ReportingContractualCutoffPolicy) and derived_close:
+            track_settling = (
+                track_settling
+                or manual_replay
+                or (
+                    self._optional_observation_store() is not None
+                    and isinstance(self._store, RestatementCheckpointStore)
+                )
+            )
+        checkpoint_store = self._restatement_store() if track_settling else None
         checkpoint = (
             await checkpoint_store.get_restatement_checkpoint(
                 account_id=obligation.account_id,
@@ -1244,6 +1253,11 @@ class ReportingProducer:
             else None
         )
         observation = checkpoint.next_observation if checkpoint is not None else len(revisions)
+        if derived_close and isinstance(selected_policy, ReportingContractualCutoffPolicy):
+            if _utc(now) < contractual_cutoff_at(obligation, selected_policy):
+                pending = await self._pending_acquisition(obligation, ordinal=observation)
+                if pending is None or pending.output_finality == "official":
+                    return None
         request = self._build_slice(
             configuration,
             obligation,
@@ -1256,36 +1270,15 @@ class ReportingProducer:
         )
         acquisition = None
         if track_settling:
-            policy = self._settling_policy(configuration, obligation)
-            assert policy is not None
-            latest = await self._observation_store().get_provisional_observation(
-                account_id=obligation.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
+            acquisition = await self._reserve_observation(
+                configuration,
+                obligation,
+                request,
+                ordinal=observation,
+                revisions=revisions,
+                previous_boundary=checkpoint.provisional_until if checkpoint else None,
+                derived_close=derived_close,
             )
-            frozen_policy = (
-                latest.acquisition.policy
-                if latest is not None
-                else ProvisionalPolicy(
-                    policy.restatement_window, policy.restatement_cadence, policy.official_close_lag
-                )
-            )
-            leaf = self._current_snapshot(revisions)
-            acquisition = await self._observation_store().reserve_provisional_acquisition(
-                ProvisionalAcquisition(
-                    request.model_dump_json(),
-                    observation,
-                    frozen_policy,
-                    leaf.reporting_revision_id if leaf is not None else None,
-                    checkpoint.provisional_until if checkpoint is not None else None,
-                    output_finality="official" if derived_close else None,
-                )
-            )
-            if not acquisition.binds(obligation):
-                raise LedgerConflictError(
-                    "OBSERVATION_CONFLICT",
-                    "frozen source acquisition does not bind the obligation's consumer; "
-                    "operator reconciliation and a new configuration generation are required",
-                )
             request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
             if manual_replay:
                 request = request.model_copy(update={"trigger": "manual_replay"})
@@ -1370,7 +1363,17 @@ class ReportingProducer:
                 "a full-coverage request cannot complete with partial or missing coverage",
             )
         self._validate_manifest_currency(obligation, manifest)
-        rows = await self._read_rows(request, manifest)
+        if finality == "official":
+            self._official_source_request(
+                configuration,
+                obligation,
+                manifest,
+                constituents=constituents,
+                ordinal=observation,
+                cutoff_ceiling=now,
+                acquisition=acquisition,
+            )
+        rows = await self._read_rows(request, manifest, require_staged=finality == "official")
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         # Every successful scheduled read reaches the atomic observation/checkpoint commit.
@@ -1380,20 +1383,28 @@ class ReportingProducer:
                 "PUBLICATION_TIME_INVALID",
                 "producer clock regressed during acquisition; correct the clock before retrying",
             )
-        committed = await self.commit_revision_from_manifest(
-            obligation,
-            manifest,
-            rows=rows,
-            finality=finality,
-            finality_proof=(
-                manifest_finality_proof(obligation, manifest, published_at)
-                if finality == "official"
-                else None
-            ),
-            now=published_at,
-            turn=turn,
-            acquisition=acquisition,
-        )
+        if finality == "official":
+            committed = await self._commit_revision_from_manifest(
+                obligation,
+                manifest,
+                rows=rows,
+                finality=finality,
+                finality_proof=manifest_finality_proof(obligation, manifest, published_at),
+                now=published_at,
+                turn=turn,
+                acquisition=acquisition,
+                verified_source_rows=True,
+            )
+        else:
+            committed = await self.commit_revision_from_manifest(
+                obligation,
+                manifest,
+                rows=rows,
+                finality=finality,
+                now=published_at,
+                turn=turn,
+                acquisition=acquisition,
+            )
         await self._clear_retry(obligation, turn=turn, now=published_at)
         return committed
 
@@ -1638,6 +1649,19 @@ class ReportingProducer:
         if not isinstance(self._source, ReportingProductionSource):
             yield
             return
+        configuration = await self._retained_source_configuration(obligation)
+        # Read immutable admission scope before taking the publication lock. It
+        # is not an authorization grant: the callback is checked again inside
+        # the lock against this exact mapping, including on replay.
+        constituents = await self._admitted_source_constituents(configuration, obligation)
+        async with self._source_publication(
+            configuration, offering_id, admitted_constituents=constituents
+        ):
+            yield
+
+    async def _retained_source_configuration(
+        self, obligation: ReportingObligationRecord
+    ) -> ReportingConfiguration:
         configuration = next(
             (
                 candidate
@@ -1653,14 +1677,7 @@ class ReportingProducer:
         )
         if configuration is None:
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "source generation is unavailable")
-        # Read immutable admission scope before taking the publication lock. It
-        # is not an authorization grant: the callback is checked again inside
-        # the lock against this exact mapping, including on replay.
-        constituents = await self._admitted_source_constituents(configuration, obligation)
-        async with self._source_publication(
-            configuration, offering_id, admitted_constituents=constituents
-        ):
-            yield
+        return configuration
 
     def _restatement_store(self) -> RestatementCheckpointStore:
         explicit = all(
@@ -1675,7 +1692,7 @@ class ReportingProducer:
             )
         return self._store
 
-    def _observation_store(self) -> ProvisionalObservationPublicationStore:
+    def _optional_observation_store(self) -> ProvisionalObservationPublicationStore | None:
         explicit = all(
             inspect.getattr_static(self._store, name, None) is not None
             for name in (
@@ -1684,13 +1701,19 @@ class ReportingProducer:
                 "commit_provisional_observation",
             )
         )
-        if not explicit or not isinstance(self._store, ProvisionalObservationPublicationStore):
+        if explicit and isinstance(self._store, ProvisionalObservationPublicationStore):
+            return self._store
+        return None
+
+    def _observation_store(self) -> ProvisionalObservationPublicationStore:
+        store = self._optional_observation_store()
+        if store is None:
             raise LedgerConflictError(
                 "PROVISIONAL_OBSERVATIONS_NOT_SUPPORTED",
                 "scheduled provisional reads require explicitly implemented atomic "
                 "observation methods, including any decorating publisher's preparation",
             )
-        return self._store
+        return store
 
     def _observation_history_store(self) -> ProvisionalObservationStore:
         store = self._observation_store()
@@ -1710,6 +1733,50 @@ class ReportingProducer:
                 "stabilized finality requires explicitly implemented bounded observation history",
             )
         return store
+
+    async def _reserve_observation(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        request: ReportingSourceSliceRequestV1,
+        *,
+        ordinal: int,
+        revisions: Sequence[ReportingRevisionRecord],
+        previous_boundary: datetime | None,
+        derived_close: bool,
+    ) -> ProvisionalAcquisition:
+        store = self._observation_store()
+        latest = await store.get_provisional_observation(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if latest is not None:
+            frozen_policy = latest.acquisition.policy
+        else:
+            policy = self._settling_policy(
+                configuration, obligation, cutoff_reservation=derived_close
+            )
+            assert policy is not None
+            frozen_policy = ProvisionalPolicy(
+                policy.restatement_window, policy.restatement_cadence, policy.official_close_lag
+            )
+        acquisition = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(),
+                ordinal,
+                frozen_policy,
+                self._current_snapshot_leaf(revisions),
+                previous_boundary,
+                output_finality="official" if derived_close else None,
+            )
+        )
+        if not acquisition.binds(obligation):
+            raise LedgerConflictError(
+                "OBSERVATION_CONFLICT",
+                "frozen source acquisition does not bind the obligation's consumer; "
+                "operator reconciliation and a new configuration generation are required",
+            )
+        return acquisition
 
     async def _pending_acquisition(
         self, obligation: ReportingObligationRecord, *, ordinal: int
@@ -1765,10 +1832,19 @@ class ReportingProducer:
         return parse_verified_source_batch_manifest_v1(response.manifest, manifest_bytes)
 
     async def _read_rows(
-        self, request: ReportingSourceSliceRequestV1, manifest: SourceBatchManifestV1
+        self,
+        request: ReportingSourceSliceRequestV1,
+        manifest: SourceBatchManifestV1,
+        *,
+        require_staged: bool = False,
     ) -> list[dict[str, Any]]:
         """Materialize the manifest's staged rows into the revision's frozen rows."""
         if self._object_reader is None:
+            if require_staged:
+                raise LedgerConflictError(
+                    "STAGED_OBJECT_UNAVAILABLE",
+                    "official publication requires a staged object reader",
+                )
             return []
         import json
 
@@ -1782,15 +1858,82 @@ class ReportingProducer:
                 source_scope=request.identity.source_scope,
                 cancel=cancel,
             )
-            if hashlib.sha256(payload).hexdigest() != staged.sha256:
+            if hashlib.sha256(payload).hexdigest() != staged.sha256 or (
+                require_staged and len(payload) != staged.byte_count
+            ):
                 raise LedgerConflictError(
                     "STAGED_OBJECT_MISMATCH",
-                    f"staged object {staged.ordinal} does not match its manifest digest",
+                    f"staged object {staged.ordinal} does not match its manifest evidence",
                 )
+            start = len(rows)
             for line in payload.decode("utf-8").splitlines():
                 if line.strip():
                     rows.append(json.loads(line))
+            if require_staged and len(rows) - start != staged.row_count:
+                raise LedgerConflictError(
+                    "STAGED_OBJECT_MISMATCH", "staged object row count differs from its manifest"
+                )
         return rows
+
+    def _official_source_request(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        *,
+        constituents: tuple[ReportingConstituent, ...] | None,
+        ordinal: int,
+        cutoff_ceiling: datetime,
+        acquisition: ProvisionalAcquisition | None,
+    ) -> ReportingSourceSliceRequestV1:
+        from adcp.reporting.conformance import (
+            ReportingSourceConformanceError,
+            _validate_manifest_against_request,
+        )
+
+        offering_id = self._offerings.offering_for(_source_finality(obligation, "official"))
+        if offering_id is None or offering_id != manifest.offering_id:
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH", "official proof must use the selected source offering"
+            )
+        cutoff = manifest.period.source_read_cutoff_at
+        if _utc(cutoff) > _utc(cutoff_ceiling):
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH", "source cutoff exceeds the requested read"
+            )
+        # A retry can receive an earlier seal for its immutable execution key.
+        # Reconstruct the authorized source and denominator, using the original dispatch
+        # identity. A durable reservation also binds its exact cutoff and run.
+        request = self._build_slice(
+            configuration,
+            obligation,
+            offering_id,
+            finality="official",
+            now=cutoff,
+            observation=ordinal,
+            constituents=constituents,
+        )
+        if acquisition is not None and not self._matches_reservation(request, acquisition):
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH", "official source manifest differs from its frozen request"
+            )
+        try:
+            _validate_manifest_against_request(
+                self._source.capabilities.offering(offering_id), request, manifest
+            )
+        except ReportingSourceConformanceError as error:
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH", "official manifest does not bind the configured source request"
+            ) from error
+        return request
+
+    @staticmethod
+    def _matches_reservation(
+        request: ReportingSourceSliceRequestV1, acquisition: ProvisionalAcquisition
+    ) -> bool:
+        return request == acquisition.request().model_copy(
+            update={"deadline_at": request.deadline_at, "trigger": request.trigger}
+        )
 
     async def commit_revision_from_manifest(
         self,
@@ -1813,6 +1956,31 @@ class ReportingProducer:
         A new official revision requires proof of the obligation's selected policy.
         Replaying a publication retains its original times, policy fields and parent.
         """
+        return await self._commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=rows,
+            finality=finality,
+            finality_proof=finality_proof,
+            now=now,
+            turn=turn,
+            acquisition=acquisition,
+            verified_source_rows=False,
+        )
+
+    async def _commit_revision_from_manifest(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        *,
+        rows: Sequence[dict[str, Any]],
+        finality: str,
+        finality_proof: FinalityProof | None,
+        now: datetime | None,
+        turn: WorkerTurn | None,
+        acquisition: ProvisionalAcquisition | None,
+        verified_source_rows: bool,
+    ) -> ReportingRevisionRecord:
         obligation = await self._stored_obligation(obligation)
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
@@ -1905,6 +2073,15 @@ class ReportingProducer:
                     "MANIFEST_MISMATCH", "official proof must use the selected source offering"
                 )
             finality_proof.validate(obligation, manifest, created_at)
+            if not verified_source_rows:
+                acquisition = await self._verify_direct_official_publication(
+                    obligation,
+                    manifest,
+                    rows,
+                    acquisition,
+                    revisions=existing,
+                    created_at=created_at,
+                )
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
             account_id=obligation.account_id,
@@ -1989,6 +2166,77 @@ class ReportingProducer:
         if retained is None or committed.reporting_revision_id != retained.reporting_revision_id:
             turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
+
+    async def _verify_direct_official_publication(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        rows: Sequence[dict[str, Any]],
+        acquisition: ProvisionalAcquisition | None,
+        *,
+        revisions: Sequence[ReportingRevisionRecord],
+        created_at: datetime,
+    ) -> ProvisionalAcquisition | None:
+        configuration = await self._retained_source_configuration(obligation)
+        constituents = await self._admitted_source_constituents(configuration, obligation)
+        ordinal = len(revisions)
+        checkpoint = None
+        if isinstance(self._store, RestatementCheckpointStore):
+            checkpoint = await self._store.get_restatement_checkpoint(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if checkpoint is not None:
+                ordinal = checkpoint.next_observation
+        pending = await self._pending_acquisition(obligation, ordinal=ordinal)
+        if pending is not None:
+            if (acquisition is not None and acquisition != pending) or (
+                pending.output_finality is None
+                and pending.request().publication_class == "PROVISIONAL_SNAPSHOT"
+            ):
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT",
+                    "finish the reserved acquisition before official publication",
+                )
+            acquisition = pending
+        request = self._official_source_request(
+            configuration,
+            obligation,
+            manifest,
+            constituents=constituents,
+            ordinal=ordinal,
+            cutoff_ceiling=created_at,
+            acquisition=acquisition,
+        )
+        staged_rows = await self._read_rows(request, manifest, require_staged=True)
+        if rfc8785.dumps(staged_rows) != rfc8785.dumps(list(rows)):
+            raise LedgerConflictError(
+                "STAGED_OBJECT_MISMATCH", "supplied rows differ from verified staged objects"
+            )
+        if (
+            pending is None
+            and request.publication_class == "PROVISIONAL_SNAPSHOT"
+            and self._optional_observation_store() is not None
+            and isinstance(self._store, RestatementCheckpointStore)
+        ):
+            # Staged reads release the ledger lock. Reserve the verified request before
+            # publication so an ordinary snapshot that won meanwhile is never skipped.
+            acquisition = await self._reserve_observation(
+                configuration,
+                obligation,
+                request,
+                ordinal=ordinal,
+                revisions=revisions,
+                previous_boundary=checkpoint.provisional_until if checkpoint else None,
+                derived_close=True,
+            )
+            if acquisition.output_finality != "official" or not self._matches_reservation(
+                request, acquisition
+            ):
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "another source acquisition won the reservation"
+                )
+        return acquisition
 
     async def _commit_publication(
         self,

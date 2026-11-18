@@ -32,9 +32,20 @@ from adcp.reporting.ledger import (
     ReportingSourceFinalPolicy,
     revision_content_sha256,
 )
-from adcp.reporting.ledger.finality import FinalityProof, source_finality_proof
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition
-from adcp.reporting.source import ReportingFinalityEvidenceV1
+from adcp.reporting.ledger.finality import (
+    FinalityProof,
+    manifest_finality_proof,
+    source_finality_proof,
+)
+from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalPolicy
+from adcp.reporting.source import (
+    ReportingFinalityEvidenceV1,
+    ReportingSourceExecutorResult,
+    SourceBatchManifestV1,
+    coverage_denominator_fingerprint_v1,
+    publication_content_fingerprint_v1,
+    source_batch_object_set_sha256_v1,
+)
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_source_availability import (
     END,
@@ -182,8 +193,10 @@ async def test_contractual_cutoff_promotes_a_post_cutoff_snapshot() -> None:
 
 async def test_manual_contractual_cutoff_acquires_fresh_content_after_unchanged_reads(
     monkeypatch: pytest.MonkeyPatch,
+    store_factory: Any,
 ) -> None:
     scheduled, store, config, obligation, _, clock = await _harness(
+        store_factory,
         capabilities=_closing_capabilities(),
         finality_policy=ReportingContractualCutoffPolicy("three-hours", "PT3H"),
     )
@@ -230,6 +243,7 @@ async def test_manual_contractual_cutoff_acquires_fresh_content_after_unchanged_
             )
     assert len(calls) == 3
 
+    clock[0] += timedelta(hours=1)
     turn = await producer.run_configuration(config)
     assert len(turn.revisions_committed) == 1
     revision = await store.get_revision(
@@ -237,7 +251,294 @@ async def test_manual_contractual_cutoff_acquires_fresh_content_after_unchanged_
     )
     assert revision is not None and revision.finality == "official"
     assert len(calls) == 3
-    assert calls[-1].period.source_read_cutoff_at == revision.finalized_at == clock[0]
+    observation = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert observation is not None
+    persisted = observation.acquisition.request()
+    sealed = SourceBatchManifestV1.model_validate_json(observation.manifest_json)
+    assert persisted.identity == sealed.identity == calls[-1].identity
+    assert persisted.period == sealed.period == calls[-1].period
+    assert revision.finalized_at == clock[0]
+
+
+@pytest.mark.parametrize("stale", ["observed_at", "batch", "constituent", "metric"])
+async def test_contractual_proof_requires_post_cutoff_observation_and_full_watermarks(
+    stale: str,
+) -> None:
+    policy = ReportingContractualCutoffPolicy("cutoff", "PT2H")
+    producer, _, config, obligation, _, clock = await _harness(
+        official=True, finality_policy=policy
+    )
+    clock[0] = END + timedelta(hours=2)
+    request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0])
+    _, manifest, _ = redacted_completed_result(
+        request,
+        observed_at=clock[0] - timedelta(seconds=1) if stale == "observed_at" else clock[0],
+        data_through=END - timedelta(seconds=1) if stale == "batch" else END,
+    )
+    raw = manifest.model_dump()
+    raw["acquired_at"] = clock[0]
+    if stale == "constituent":
+        raw["coverage"]["constituents"][0]["data_through"] = END - timedelta(seconds=1)
+    if stale == "metric":
+        raw["metric_availability"][0]["data_through"] = END - timedelta(seconds=1)
+    manifest = SourceBatchManifestV1.model_validate(raw)
+    with pytest.raises(LedgerConflictError) as error:
+        manifest_finality_proof(obligation, manifest, clock[0])
+    assert error.value.code == "FINALITY_POLICY_UNPROVEN"
+
+
+@pytest.mark.parametrize("entry", ["acquire", "commit"])
+@pytest.mark.parametrize("different", ["namespace", "scope", "build", "constituents", "metrics"])
+async def test_new_official_binds_provider_and_denominator(
+    entry: str, different: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = ReportingSourceFinalPolicy("selected", "source-evidence-redacted")
+    producer, store, config, obligation, _, clock = await _harness(
+        official=True, finality_policy=policy
+    )
+    request = producer._build_slice(config, obligation, OFFICIAL_OFFERING_ID, now=clock[0])
+    other = request
+    if different == "namespace":
+        other = request.model_copy(update={"publication_namespace": "reporting-source:alternate"})
+    elif different == "scope":
+        other = request.model_copy(
+            update={
+                "identity": request.identity.model_copy(
+                    update={"source_scope": {"provider": "other"}}
+                )
+            }
+        )
+    elif different == "build":
+        other = request.model_copy(
+            update={
+                "adapter_build": request.adapter_build.model_copy(
+                    update={"adapter_version": "other"}
+                )
+            }
+        )
+    elif different == "constituents":
+        members = [request.coverage.constituents[0].model_copy(update={"product_id": "other"})]
+        other = request.model_copy(
+            update={
+                "coverage": request.coverage.model_copy(
+                    update={
+                        "constituents": members,
+                        "denominator_fingerprint": coverage_denominator_fingerprint_v1(members),
+                    }
+                )
+            }
+        )
+    else:
+        other = request.model_copy(update={"requested_metrics": ["impressions"]})
+    result, manifest, _ = redacted_completed_result(other, page_bodies=[PROVIDER_ROW])
+    _, _, producer._source.reader = redacted_completed_result(request, page_bodies=[PROVIDER_ROW])
+
+    async def execute(*args: Any, **kwargs: Any) -> ReportingSourceExecutorResult:
+        return result
+
+    monkeypatch.setattr(producer._source, "execute", execute)
+    with pytest.raises(LedgerConflictError) as error:
+        if entry == "acquire":
+            await producer.acquire_obligation(config, obligation)
+        else:
+            await producer.commit_revision_from_manifest(
+                obligation,
+                manifest,
+                rows=ROWS,
+                finality="official",
+                finality_proof=source_finality_proof(obligation, manifest, policy),
+            )
+    assert error.value.code == "MANIFEST_MISMATCH"
+    assert not await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+
+
+@pytest.mark.parametrize("after_reservation", [timedelta(hours=1), timedelta(hours=3)])
+async def test_manual_cutoff_finishes_reserved_snapshot_first(
+    monkeypatch: pytest.MonkeyPatch, after_reservation: timedelta
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("three-hours", "PT3H"),
+    )
+    clock[0] = END + timedelta(hours=1)
+
+    async def interrupted(**kwargs: Any) -> bytes:
+        raise OSError("interrupted snapshot")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._source, "read", interrupted)
+        with pytest.raises(OSError, match="interrupted snapshot"):
+            await producer.run_configuration(config)
+    frozen = producer._source.requests[-1]
+    clock[0] += after_reservation
+    if after_reservation == timedelta(hours=3):
+        direct = producer._build_slice(
+            config, obligation, SNAPSHOT_OFFERING_ID, finality="official", now=clock[0]
+        )
+        _, manifest, producer._source.reader = redacted_completed_result(
+            direct, page_bodies=[PROVIDER_ROW]
+        )
+        with pytest.raises(LedgerConflictError) as conflict:
+            await producer.commit_revision_from_manifest(
+                obligation,
+                manifest,
+                rows=ROWS,
+                finality="official",
+                finality_proof=manifest_finality_proof(obligation, manifest, clock[0]),
+            )
+        assert conflict.value.code == "OBSERVATION_CONFLICT"
+    revision = await producer.acquire_obligation(
+        config, obligation, restate=True, target_finality="official", manual_replay=True
+    )
+    assert revision is not None and revision.finality == "snapshot"
+    latest = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert latest is not None and latest.acquisition.request().period == frozen.period
+
+
+@pytest.mark.parametrize("entry", ["acquire", "commit"])
+@pytest.mark.parametrize("reader", ["absent", "mismatched", "verified"])
+async def test_official_zero_rows_require_staged_verification(
+    entry: str, reader: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = ReportingSourceFinalPolicy("selected", "source-evidence-redacted")
+    producer, _, config, obligation, _, clock = await _harness(
+        official=True, finality_policy=policy
+    )
+    request = producer._build_slice(config, obligation, OFFICIAL_OFFERING_ID, now=clock[0])
+    result, manifest, _ = redacted_completed_result(request, page_bodies=[""], row_counts=[0])
+
+    async def execute(*args: Any, **kwargs: Any) -> ReportingSourceExecutorResult:
+        return result
+
+    monkeypatch.setattr(producer._source, "execute", execute)
+    reads = []
+
+    async def read(**kwargs: Any) -> bytes:
+        reads.append(kwargs["object_ref"])
+        return b"" if reader == "verified" else b"other"
+
+    if reader == "absent":
+        producer._object_reader = None
+    else:
+        monkeypatch.setattr(producer._source, "read", read)
+    publish = (
+        producer.acquire_obligation(config, obligation)
+        if entry == "acquire"
+        else producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=[],
+            finality="official",
+            finality_proof=source_finality_proof(obligation, manifest, policy),
+        )
+    )
+    if reader == "verified":
+        revision = await publish
+        assert revision is not None and revision.row_count == 0 and revision.finality == "official"
+    else:
+        with pytest.raises(LedgerConflictError, match="staged"):
+            await publish
+    assert reads == ([] if reader == "absent" else [manifest.objects[0].object_ref])
+
+
+@pytest.mark.parametrize("competing_snapshot", [False, True])
+async def test_direct_cutoff_honors_the_winning_reservation_during_staged_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    competing_snapshot: bool,
+) -> None:
+    policy = ReportingContractualCutoffPolicy("contract", "PT2H")
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(), finality_policy=policy
+    )
+    clock[0] = END + timedelta(hours=3)
+    snapshot = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0])
+    close = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], finality="official"
+    )
+    _, manifest, producer._source.reader = redacted_completed_result(
+        close, page_bodies=[PROVIDER_ROW]
+    )
+    original = producer._source.read
+
+    async def competing_reservation(**kwargs: Any) -> bytes:
+        winner = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                snapshot.model_dump_json(),
+                0,
+                ProvisionalPolicy(timedelta(hours=12), timedelta(hours=1), timedelta(hours=2)),
+            )
+        )
+        assert winner.request().identity == snapshot.identity
+        return await original(**kwargs)
+
+    if competing_snapshot:
+        monkeypatch.setattr(producer._source, "read", competing_reservation)
+    publication = producer.commit_revision_from_manifest(
+        obligation,
+        manifest,
+        rows=ROWS,
+        finality="official",
+        finality_proof=manifest_finality_proof(obligation, manifest, clock[0]),
+    )
+    if competing_snapshot:
+        with pytest.raises(LedgerConflictError) as conflict:
+            await publication
+        assert conflict.value.code == "OBSERVATION_CONFLICT"
+        assert not await store.list_revisions(
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    else:
+        official = await publication
+        observation = await store.get_provisional_observation(
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+        assert observation is not None and observation.revision_id == official.reporting_revision_id
+        assert observation.acquisition.request() == close
+
+
+async def test_direct_official_commit_checks_staged_size() -> None:
+    policy = ReportingSourceFinalPolicy("selected", "source-evidence-redacted")
+    producer, _, config, obligation, _, clock = await _harness(
+        official=True, finality_policy=policy
+    )
+    request = producer._build_slice(config, obligation, OFFICIAL_OFFERING_ID, now=clock[0])
+    _, manifest, producer._source.reader = redacted_completed_result(
+        request, page_bodies=[""], row_counts=[0]
+    )
+    objects = [manifest.objects[0].model_copy(update={"byte_count": 1})]
+    draft = manifest.model_copy(
+        update={
+            "byte_count": 1,
+            "objects": objects,
+            "object_set_sha256": source_batch_object_set_sha256_v1(objects),
+        }
+    )
+    manifest = SourceBatchManifestV1.model_validate(
+        {**draft.model_dump(), "content_fingerprint": publication_content_fingerprint_v1(draft)}
+    )
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=[],
+            finality="official",
+            finality_proof=source_finality_proof(obligation, manifest, policy),
+        )
+    assert conflict.value.code == "STAGED_OBJECT_MISMATCH"
+
+
+async def test_policyless_official_does_not_dispatch() -> None:
+    producer, _, config, obligation, calls, _ = await _harness(official=True)
+    with pytest.raises(LedgerConflictError) as error:
+        await producer.acquire_obligation(config, obligation)
+    assert error.value.code == "FINALITY_POLICY_UNPROVEN"
+    assert not calls
 
 
 @pytest.mark.parametrize("pending_close", [False, True])
@@ -415,6 +716,7 @@ async def test_retained_official_replay_preserves_original_policy_fields() -> No
     )
     historical = await store.commit_revision(historical, ROWS)
     clock[0] += timedelta(hours=1)
+    assert await producer.acquire_obligation(config, obligation) is None
     assert (
         await producer.commit_revision_from_manifest(
             obligation, manifest, rows=ROWS, finality="official"

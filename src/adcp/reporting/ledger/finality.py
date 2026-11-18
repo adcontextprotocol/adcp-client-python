@@ -181,11 +181,15 @@ def manifest_finality_proof(
         if (
             manifest.publication_class != "PROVISIONAL_SNAPSHOT"
             or not cutoff <= manifest.period.source_read_cutoff_at <= published_at
-            or manifest.acquired_at < cutoff
+            or manifest.observed_at < cutoff
         ):
             raise LedgerConflictError(
                 "FINALITY_POLICY_UNPROVEN", "contractual cutoff requires a post-cutoff snapshot"
             )
+        try:
+            manifest.require_full_period_watermarks()
+        except ValueError as error:
+            raise LedgerConflictError("FINALITY_POLICY_UNPROVEN", str(error)) from error
         return FinalityProof(policy.finality_policy_id, policy.basis, published_at)
     raise LedgerConflictError("FINALITY_POLICY_UNPROVEN", "official finality requires policy proof")
 

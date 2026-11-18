@@ -17,6 +17,7 @@ from adcp.reporting.fixtures import (
     redacted_capabilities,
     redacted_snapshot_request,
 )
+from adcp.reporting.inline_source import InlineFetchResult
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingConfiguration,
@@ -39,6 +40,7 @@ from adcp.reporting.service import (
     ReportingAccountContext,
 )
 from adcp.reporting.source import (
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
     reporting_source_capabilities_sha256_v1,
 )
@@ -154,6 +156,8 @@ def _finality_service(
     close: bool = False,
     store: InMemoryReportingLedgerStore | None = None,
     producer_factory: ProducerFactory = ReportingProducer,
+    results: tuple[InlineFetchResult, ...] = (),
+    clock: DeterministicReportingClock | None = None,
 ) -> ReliableReportingService:
     public = _capability_offering("gam")
     public["supported_finality"] = [configuration.required_finality]
@@ -170,14 +174,61 @@ def _finality_service(
         offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
     ]
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
-    adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), [])
+    adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), results)
     service = ReliableReportingService(
         store=store or InMemoryReportingLedgerStore(),
         account_context=lambda _: context,
         producer_factory=producer_factory,
+        clock=clock,
     )
     service.sources.register("gam", adapter, capability_offerings=[public])
     return service
+
+
+@pytest.mark.parametrize("signal", [None, "delivery.other", "delivery.is_final"])
+async def test_registered_inline_adapter_supplies_explicit_source_final_evidence(
+    signal: str | None,
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        deactivated_at=NOW,
+        definition=replace(
+            DEFINITION,
+            finality_policy=ReportingSourceFinalPolicy("selected-v1", "delivery.is_final"),
+        ),
+    )
+    evidence_time = NOW + timedelta(days=1)
+    answer = InlineFetchResult(rows=_rows(12))
+    if signal is not None:
+        answer = replace(
+            answer,
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_job_terminal",
+                observed_at=evidence_time,
+                evidence_ref=signal,
+            ),
+        )
+    service = _finality_service(
+        config,
+        snapshot=False,
+        official=True,
+        results=(answer,),
+        clock=DeterministicReportingClock(NOW + timedelta(days=3)),
+    )
+    await service.configure(config)
+    turn = await service.run_worker(now=NOW + timedelta(days=3))
+    if signal != "delivery.is_final":
+        error = turn.configuration_errors[config.generation_key]
+        assert isinstance(error, LedgerConflictError) and error.code == "MANIFEST_MISMATCH"
+    else:
+        assert not turn.configuration_errors
+        identifier = turn.configurations[config.generation_key].revisions_committed[0]
+        revision = await service.store.get_revision(
+            account_id=config.account_id, reporting_revision_id=identifier
+        )
+        assert revision is not None and revision.finality_policy_id == "selected-v1"
+        assert revision.finalized_at == evidence_time
 
 
 @pytest.mark.parametrize(

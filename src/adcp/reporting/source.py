@@ -1462,7 +1462,8 @@ class SourceBatchManifestV1(_Frozen):
         for cell in self.metric_availability:
             if cell.data_through is not None:
                 self._require_bounded_watermark(cell.data_through, "metric")
-        self._validate_authoritative_full_window(end)
+        if self.publication_class == "AUTHORITATIVE" and self.coverage.status == "full":
+            self.require_full_period_watermarks()
 
     def _require_bounded_watermark(self, value: datetime, label: str) -> None:
         moment = _aware(value, f"{label} data_through")
@@ -1480,12 +1481,9 @@ class SourceBatchManifestV1(_Frozen):
                 "the batch watermark or the requested source cutoff"
             )
 
-    def _validate_authoritative_full_window(self, end: datetime) -> None:
-        # Full official coverage is the strongest claim in the contract: it
-        # says the period is closed and complete. Data that never reached the
-        # period boundary stays delayed/stale/partial instead.
-        if self.publication_class != "AUTHORITATIVE" or self.coverage.status != "full":
-            return
+    def require_full_period_watermarks(self) -> None:
+        """Verify completeness of the batch and each available constituent and metric."""
+        end = _aware(self.period.end, "period.end")
         if _aware(self.data_through, "data_through") != end:
             raise ValueError("full authoritative coverage must prove the complete reporting window")
         for item in self.coverage.constituents:

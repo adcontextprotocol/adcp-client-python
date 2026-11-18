@@ -9,8 +9,10 @@ from adcp.reporting.fixtures import (
     OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
+    redacted_contract_identity,
 )
 from adcp.reporting.inline_source import (
+    InlineFetchResult,
     InlineReportingSource,
     InMemorySealStore,
     InMemoryStagingStore,
@@ -19,12 +21,15 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     RetryScheduleEntry,
     WorkerTurn,
 )
 from adcp.reporting.source import (
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
     ReportingSourceErrorV1,
     ReportingSourceExecutorResult,
@@ -90,6 +95,14 @@ def configuration(account: str = "account-1", config: str = "config-1") -> Repor
             period_duration="PT1H", delivery_sla="PT10M", alignment="utc"
         ),
         required_finality="official",
+        definition=ReportingDefinitionBinding(
+            **redacted_contract_identity.model_dump(
+                exclude={"report_definition_id", "reporting_profile"}
+            ),
+            finality_policy=ReportingSourceFinalPolicy(
+                "fixture-authority", "source-evidence-redacted"
+            ),
+        ),
         activated_at=datetime(2026, 11, 1, 0, 20, tzinfo=timezone.utc),
         media_buy_ids=("media-buy-1",),
     )
@@ -187,23 +200,35 @@ async def test_post_deadline_failure_uses_configured_slow_cadence():
     assert skipped.earliest_retry_at == turn.earliest_retry_at
 
 
-async def test_unanswered_slice_is_deferred_on_worker_turn():
+async def test_unanswered_slice_is_deferred_until_a_retry_supplies_provider_evidence():
     store = InMemoryReportingLedgerStore()
+    staging = InMemoryStagingStore()
+    clock = [NOW]
     calls = []
 
     def unanswered(request):
         calls.append(request)
-        return None
+        if len(calls) == 1:
+            return None
+        return InlineFetchResult(
+            rows=[],
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_declared",
+                evidence_ref="source-evidence-redacted",
+                observed_at=clock[0],
+            ),
+        )
 
     source = InlineReportingSource(
         capabilities=_ready_capabilities(),
         fetch=unanswered,
-        staging=InMemoryStagingStore(),
+        staging=staging,
         seals=InMemorySealStore(),
+        clock=lambda: clock[0],
     )
     config = configuration()
     await store.put_configuration(config)
-    worker = producer(source, store)
+    worker = producer(source, store, clock=lambda: clock[0], object_reader=staging)
 
     first = await worker.run_configuration(config, now=NOW)
     assert len(calls) == 1
@@ -213,6 +238,17 @@ async def test_unanswered_slice_is_deferred_on_worker_turn():
     second = await worker.run_configuration(config, now=NOW + timedelta(seconds=30))
     assert len(calls) == 1
     assert second.earliest_retry_at == first.earliest_retry_at
+
+    clock[0] = first.earliest_retry_at
+    recovered = await worker.run_configuration(config, now=clock[0])
+    assert len(calls) == 2
+    (revision_id,) = recovered.revisions_committed
+    revision = await store.get_revision(
+        account_id=config.account_id, reporting_revision_id=revision_id
+    )
+    assert revision.finality == "official"
+    assert revision.finality_basis == "source_final"
+    assert revision.finalized_at == clock[0]
 
 
 async def test_retry_starts_when_a_slow_source_finishes():
