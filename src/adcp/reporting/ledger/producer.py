@@ -95,6 +95,8 @@ from adcp.reporting.ledger.store import (
     RestatementCheckpointStore,
     RetryScheduleEntry,
     RetryScheduleStore,
+    managed_revision_metadata,
+    validate_retained_provisional_observation,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
@@ -1036,8 +1038,9 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        if latest is not None:
-            frozen = latest.acquisition.policy
+        scheduled = latest if latest is not None and latest.is_scheduled else None
+        if scheduled is not None:
+            frozen = scheduled.acquisition.policy
             policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
         explicit_close = (
             policy.official_close_lag is not None
@@ -1084,6 +1087,7 @@ class ReportingProducer:
                 )
                 return (
                     published is not None
+                    and published.is_scheduled
                     and published.acquisition.ordinal == ordinal
                     and published.next_due_at is None
                 )
@@ -1099,14 +1103,18 @@ class ReportingProducer:
             )
             return False
 
+        if latest is not None and scheduled is None:
+            # A tracked manual retry advances the durable ordinal only. The
+            # first automatic source read keeps its configured phase and window.
+            checkpoint = None
         declared_until = _utc(obligation.period.end) + policy.restatement_window
         settles_at = (
             _utc(checkpoint.provisional_until)
             if checkpoint is not None and checkpoint.provisional_until is not None
             else declared_until
         )
-        if latest is not None:
-            next_due = latest.next_due_at
+        if scheduled is not None:
+            next_due = scheduled.next_due_at
         elif checkpoint is not None:
             next_due = min(_utc(checkpoint.checked_at) + policy.restatement_cadence, settles_at)
         else:
@@ -1132,7 +1140,12 @@ class ReportingProducer:
                     account_id=obligation.account_id,
                     reporting_obligation_id=obligation.reporting_obligation_id,
                 )
-                if not explicit_close and published is not None and published.next_due_at is None:
+                if (
+                    not explicit_close
+                    and published is not None
+                    and published.is_scheduled
+                    and published.next_due_at is None
+                ):
                     return True
             return False
 
@@ -1293,9 +1306,7 @@ class ReportingProducer:
 
         derived_close = finality == "official" and source_finality == "snapshot"
         manual_observation = manual_replay or (restate and not track_settling)
-        manual_snapshot = (
-            restate and manual_observation and finality == "snapshot" and pending is None
-        )
+        manual_snapshot = manual_observation and finality == "snapshot" and pending is None
         if derived_close and isinstance(selected_policy, ReportingContractualCutoffPolicy):
             if _utc(now) < contractual_cutoff_at(obligation, selected_policy):
                 return None
@@ -1313,7 +1324,13 @@ class ReportingProducer:
             invocation_id=uuid4().hex if manual_snapshot else None,
         )
         acquisition = pending
-        if checkpoint_store is not None and acquisition is None and not manual_snapshot:
+        # An explicitly tracked first invocation must survive a failed fetch and restart.
+        track_first_manual = manual_snapshot and track_settling and not restate and not revisions
+        if (
+            checkpoint_store is not None
+            and acquisition is None
+            and (not manual_snapshot or track_first_manual)
+        ):
             acquisition = await self._reserve_observation(
                 configuration,
                 obligation,
@@ -1902,9 +1919,11 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        if latest is not None:
+        if latest is not None and latest.is_scheduled:
             frozen_policy = latest.acquisition.policy
         else:
+            if latest is not None:
+                previous_boundary = None
             policy = self._settling_policy(configuration, obligation, cutoff_reservation=True)
             # An authoritative-only acquisition has no further due observation.
             frozen_policy = (
@@ -2138,6 +2157,7 @@ class ReportingProducer:
         edit path.  An official close is terminal, so a later source correction
         must arrive as an adjustment instead. ``now`` is a trusted publication
         instant, unlike the dispatch instant accepted by ``acquire_obligation``.
+        Without it, a reserved publication samples the clock after staged verification.
         A new official revision requires proof of the obligation's selected policy.
         Replaying a publication retains its original times, policy fields and parent.
         """
@@ -2225,7 +2245,13 @@ class ReportingProducer:
             if control_totals and (prior is None or prior.managed_control_totals is not None)
             else None
         )
-        created_at = prior.created_at if prior is not None else now
+        retained_official = prior is not None and prior.finality == finality == "official"
+        proved_candidate = finality == "official" and finality_proof is not None
+        created_at = (
+            now
+            if prior is None or (retained_official and finality_proof is not None)
+            else prior.created_at
+        )
         if prior is not None:
             # Still reconstruct and verify the supplied content below. Merely
             # finding the ID must not bypass immutable-content validation.
@@ -2262,6 +2288,11 @@ class ReportingProducer:
                         "snapshot differs from the reserved source acquisition",
                     )
                 if not verified_source_rows:
+                    replay = await self._retained_snapshot_replay(
+                        obligation, manifest, rows, acquisition, prior, now
+                    )
+                    if replay is not None:
+                        return replay
                     self._validate_source_manifest(
                         obligation,
                         request,
@@ -2272,7 +2303,7 @@ class ReportingProducer:
                     rows = await self._verify_supplied_rows(
                         request, manifest, rows, retained=prior is not None
                     )
-        elif prior is not None and prior.finality == "official":
+        elif prior is not None and retained_official and finality_proof is None:
             # A retained immutable publication may be checked or replayed while
             # another acquisition is reserved. Its replay cannot advance that work.
             acquisition = None
@@ -2301,7 +2332,9 @@ class ReportingProducer:
                     "PUBLICATION_TIME_INVALID", "proof is later than the publication clock"
                 )
             finality_proof.validate(obligation, manifest, proof_anchor)
-            if not verified_source_rows:
+            if retained_official and not verified_source_rows:
+                acquisition = None
+            elif not verified_source_rows:
                 acquisition, rows = await self._verify_direct_official_publication(
                     obligation,
                     manifest,
@@ -2310,15 +2343,21 @@ class ReportingProducer:
                     revisions=existing,
                     created_at=created_at,
                 )
-                if sample_after_staging:
-                    completed_at = self._clock()
-                    if _utc(completed_at) < _utc(now):
-                        raise LedgerConflictError(
-                            "PUBLICATION_TIME_INVALID",
-                            "producer clock regressed during staged verification",
-                        )
-                    created_at = now = completed_at
-                    finality_proof = manifest_finality_proof(obligation, manifest, created_at)
+        if (
+            sample_after_staging
+            and not verified_source_rows
+            and prior is None
+            and (acquisition is not None or finality == "official")
+        ):
+            completed_at = self._clock()
+            if _utc(completed_at) < _utc(now):
+                raise LedgerConflictError(
+                    "PUBLICATION_TIME_INVALID",
+                    "producer clock regressed during staged verification",
+                )
+            created_at = now = completed_at
+            if finality == "official":
+                finality_proof = manifest_finality_proof(obligation, manifest, created_at)
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
             account_id=obligation.account_id,
@@ -2395,6 +2434,7 @@ class ReportingProducer:
                 finality,
                 now,
                 acquisition,
+                proved_candidate=proved_candidate,
                 retained_revision_id=(
                     retained.reporting_revision_id if retained is not None else None
                 ),
@@ -2412,6 +2452,81 @@ class ReportingProducer:
         ):
             turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
+
+    async def _retained_snapshot_replay(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        rows: Sequence[dict[str, Any]],
+        acquisition: ProvisionalAcquisition,
+        prior: ReportingRevisionRecord | None,
+        now: datetime,
+    ) -> ReportingRevisionRecord | None:
+        store = self._observation_store()
+        latest = await store.get_provisional_observation(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if latest is None or latest.acquisition.ordinal < acquisition.ordinal:
+            return None
+        revision_id = (
+            prior.reporting_revision_id
+            if prior is not None
+            else acquisition.predecessor_revision_id
+        )
+        if revision_id is None:
+            return None
+        observation = ProvisionalObservation.from_manifest(acquisition, revision_id, now, manifest)
+        is_latest = latest.acquisition.ordinal == acquisition.ordinal
+        if is_latest and (
+            latest.acquisition != acquisition
+            or latest.manifest_json != observation.manifest_json
+            or latest.revision_id != revision_id
+        ):
+            return None
+        if not acquisition.binds(obligation):
+            raise LedgerConflictError("OBSERVATION_CONFLICT", "retained snapshot owner differs")
+        async with self._revision_publication(obligation, manifest, official=False):
+            revision = await self._store.get_revision(
+                account_id=obligation.account_id, reporting_revision_id=revision_id
+            )
+            if (
+                revision is None
+                or revision.finality != "snapshot"
+                or revision.reporting_obligation_id != obligation.reporting_obligation_id
+            ):
+                raise LedgerConflictError("HISTORY_UNAVAILABLE", "retained snapshot is missing")
+            if prior is not None and (
+                revision.source_publication_id != manifest.publication_id
+                or revision.observed_at != manifest.observed_at
+                or revision.data_through != manifest.data_through
+                or revision.supersedes_reporting_revision_id != acquisition.predecessor_revision_id
+            ):
+                raise LedgerConflictError(
+                    "REVISION_IMMUTABLE", "retained source publication differs"
+                )
+            if (
+                revision.row_count != manifest.row_count
+                or revision.control_totals
+                != tuple((total.name, total.value) for total in manifest.control_totals)
+                or (
+                    revision.managed_control_totals is not None
+                    and revision.managed_control_totals
+                    != _typed_control_totals(obligation, manifest)
+                )
+            ):
+                raise LedgerConflictError("REVISION_IMMUTABLE", "retained source totals differ")
+            validate_retained_provisional_observation(revision, observation, rows)
+            if is_latest:
+                return revision
+            # A later observation closes this ordinal to new writes. The store
+            # atomically checks the historical acquisition, manifest and revision.
+            try:
+                return await store.commit_provisional_observation(observation, revision, rows)
+            except LedgerConflictError as error:
+                if error.code != "OBSERVATION_CONFLICT":
+                    raise
+                return None
 
     async def _verify_direct_official_publication(
         self,
@@ -2522,6 +2637,7 @@ class ReportingProducer:
         now: datetime,
         acquisition: ProvisionalAcquisition | None,
         *,
+        proved_candidate: bool,
         retained_revision_id: str | None = None,
     ) -> tuple[ReportingRevisionRecord, bool]:
         async with self._revision_publication(
@@ -2534,43 +2650,72 @@ class ReportingProducer:
                     reporting_revision_id=revision.reporting_revision_id,
                 )
                 if replay is not None and replay.finality == "official":
-                    acquisition = None
-                    revision = replace(
-                        revision, created_at=replay.created_at, finalized_at=replay.finalized_at
+                    revision = await self._official_replay_revision(
+                        revision, replay, manifest, acquisition, proved_candidate=proved_candidate
                     )
+                    acquisition = None
             if acquisition is None:
                 assert revision is not None
                 committed = await self._store.commit_revision(revision, rows)
             else:
                 # ``now`` is the publication anchor, sampled after row acquisition.
                 # The bounds check above already rejects acquired_at after now.
-                checked_at = _utc(now)
-                boundary = manifest.finality_evidence.provisional_until or (
-                    _utc(obligation.period.end) + acquisition.policy.window
-                )
-                next_due = (
-                    min(checked_at + acquisition.policy.cadence, _utc(boundary))
-                    if finality == "snapshot" and checked_at < _utc(boundary)
-                    else None
-                )
                 if retained_revision_id is not None:
                     observation_revision_id = retained_revision_id
                 else:
                     assert revision is not None
                     observation_revision_id = revision.reporting_revision_id
                 committed = await self._observation_store().commit_provisional_observation(
-                    ProvisionalObservation(
-                        acquisition,
-                        observation_revision_id,
-                        checked_at,
-                        _utc(boundary),
-                        next_due,
-                        manifest.model_dump_json(),
+                    ProvisionalObservation.from_manifest(
+                        acquisition, observation_revision_id, now, manifest
                     ),
                     revision,
                     rows,
                 )
         return committed, replay is not None
+
+    async def _official_replay_revision(
+        self,
+        candidate: ReportingRevisionRecord,
+        retained: ReportingRevisionRecord,
+        manifest: SourceBatchManifestV1,
+        acquisition: ProvisionalAcquisition | None,
+        *,
+        proved_candidate: bool,
+    ) -> ReportingRevisionRecord:
+        """Compare official source evidence inside the account publication lock."""
+        store = self._optional_observation_store()
+        observation = (
+            await store.get_provisional_observation(
+                account_id=retained.account_id,
+                reporting_obligation_id=retained.reporting_obligation_id,
+            )
+            if store is not None
+            else None
+        )
+        if observation is None or observation.revision_id != retained.reporting_revision_id:
+            if proved_candidate:
+                raise LedgerConflictError(
+                    "REVISION_IMMUTABLE", "the winning official source evidence is unavailable"
+                )
+        elif json.loads(observation.manifest_json) != manifest.model_dump(mode="json") or (
+            acquisition is not None and observation.acquisition != acquisition
+        ):
+            raise LedgerConflictError("REVISION_IMMUTABLE", "official source observation differs")
+        # Creation and contractual finality are sampled by each producer. A
+        # source-final timestamp belongs to the provider's immutable evidence.
+        replay = replace(
+            candidate,
+            created_at=retained.created_at,
+            finalized_at=(
+                retained.finalized_at
+                if candidate.finality_basis == "contractual_cutoff"
+                else candidate.finalized_at
+            ),
+        )
+        if managed_revision_metadata(replay) != managed_revision_metadata(retained):
+            raise LedgerConflictError("REVISION_IMMUTABLE", "official revision evidence differs")
+        return replay
 
     async def _stored_obligation(
         self, obligation: ReportingObligationRecord

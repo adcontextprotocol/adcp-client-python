@@ -169,8 +169,11 @@ async def test_jitter_keeps_explicit_official_boundary_and_manual_acquisition():
     assert observation.acquisition.request().period.source_read_cutoff_at == clock[0]
 
 
-async def test_manual_pending_retry_keeps_its_clock_before_first_automatic_phase():
-    producer, store, configuration, obligation, _, clock = await _harness(read_jitter_window=WINDOW)
+@pytest.mark.parametrize("store_class", [InMemoryReportingLedgerStore, ProgressStore])
+async def test_manual_pending_retry_keeps_its_clock_before_first_automatic_phase(store_class):
+    producer, store, configuration, obligation, _, clock = await _harness(
+        store_class, read_jitter_window=WINDOW, restatement_window="PT1H"
+    )
     source = producer._source
     original_fetch = source._fetch
     requests = []
@@ -198,6 +201,7 @@ async def test_manual_pending_retry_keeps_its_clock_before_first_automatic_phase
         store=store,
         object_reader=producer._object_reader,
         clock=lambda: clock[0],
+        read_jitter_window=WINDOW,
     )
     clock[0] = retry.retry_not_before - timedelta(microseconds=1)
     await restarted.run_configuration(configuration, now=clock[0])
@@ -206,6 +210,24 @@ async def test_manual_pending_retry_keeps_its_clock_before_first_automatic_phase
     await restarted.run_configuration(configuration, now=clock[0])
     assert len(requests) == 2 and requests[1].identity == requests[0].identity
     assert requests[1].period.source_read_cutoff_at == requests[0].period.source_read_cutoff_at
+    owner = dict(
+        account_id=configuration.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+    )
+    recovered = await store.get_provisional_observation(**owner)
+    assert recovered.acquisition.request().trigger == "manual_replay"
+    scheduled_due = producer._scheduled_source_ready_at(configuration, obligation)
+    clock[0] = scheduled_due - timedelta(microseconds=1)
+    await restarted.run_configuration(configuration, now=clock[0])
+    assert len(requests) == 2
+    clock[0] = scheduled_due
+    await restarted.run_configuration(configuration, now=clock[0])
+    assert [r.trigger for r in requests] == ["manual_replay", "manual_replay", "scheduled_poll"]
+    assert requests[2].identity.source_execution_key != requests[0].identity.source_execution_key
+    history = await store.list_provisional_observations(**owner, limit=3)
+    assert [o.acquisition.request().trigger for o in history] == ["manual_replay", "scheduled_poll"]
+    assert [o.is_scheduled for o in history] == [False, True]
+    assert history[-1].checked_at == scheduled_due
 
 
 async def test_successful_manual_snapshot_keeps_immediate_automatic_official_close():

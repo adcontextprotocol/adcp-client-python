@@ -16,6 +16,7 @@ from adcp.reporting.source import ReportingSourceSliceRequestV1
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.models import ReportingObligationRecord, ReportingRevisionRecord
+    from adcp.reporting.source import SourceBatchManifestV1
 
 
 def utc(value: datetime) -> datetime:
@@ -155,6 +156,32 @@ class ProvisionalObservation:
     provisional_until: datetime
     next_due_at: datetime | None
     manifest_json: str
+
+    @property
+    def is_scheduled(self) -> bool:
+        return self.acquisition.request().trigger == "scheduled_poll"
+
+    @classmethod
+    def from_manifest(
+        cls,
+        acquisition: ProvisionalAcquisition,
+        revision_id: str,
+        checked_at: datetime,
+        manifest: SourceBatchManifestV1,
+    ) -> ProvisionalObservation:
+        checked_at = utc(checked_at)
+        boundary = utc(
+            manifest.finality_evidence.provisional_until
+            or (utc(manifest.period.end) + acquisition.policy.window)
+        )
+        next_due = (
+            min(checked_at + acquisition.policy.cadence, boundary)
+            if acquisition.finality == "snapshot" and checked_at < boundary
+            else None
+        )
+        return cls(
+            acquisition, revision_id, checked_at, boundary, next_due, manifest.model_dump_json()
+        )
 
     def __post_init__(self) -> None:
         utc(self.checked_at)
