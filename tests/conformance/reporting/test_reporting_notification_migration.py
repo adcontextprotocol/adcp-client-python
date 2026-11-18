@@ -286,7 +286,7 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
             "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
             " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"
         ),
-        "DROP TABLE reporting_restatement_checkpoints",
+        "DROP TABLE reporting_restatement_checkpoints CASCADE",
         "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
         "DROP INDEX reporting_restatement_checkpoints_account_idx",
         (
