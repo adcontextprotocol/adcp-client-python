@@ -24,6 +24,7 @@ from adcp.reporting.ledger import (
     ReportingContractualCutoffPolicy,
     ReportingDefinitionBinding,
     ReportingFinalityPolicy,
+    ReportingProducer,
     ReportingScheduleSpec,
     ReportingSourceFinalPolicy,
     ReportingStabilizedPolicy,
@@ -31,6 +32,7 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service import (
+    ProducerFactory,
     ReliableReportingConfigurationError,
     ReliableReportingService,
     ReliableReportingState,
@@ -151,6 +153,7 @@ def _finality_service(
     official: bool,
     close: bool = False,
     store: InMemoryReportingLedgerStore | None = None,
+    producer_factory: ProducerFactory = ReportingProducer,
 ) -> ReliableReportingService:
     public = _capability_offering("gam")
     public["supported_finality"] = [configuration.required_finality]
@@ -169,7 +172,9 @@ def _finality_service(
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
     adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), [])
     service = ReliableReportingService(
-        store=store or InMemoryReportingLedgerStore(), account_context=lambda _: context
+        store=store or InMemoryReportingLedgerStore(),
+        account_context=lambda _: context,
+        producer_factory=producer_factory,
     )
     service.sources.register("gam", adapter, capability_offerings=[public])
     return service
@@ -267,6 +272,38 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
     service = _finality_service(config, snapshot=True, official=False, store=SnapshotStore())
     with pytest.raises(ReliableReportingConfigurationError, match="observation"):
         await service.configure(config)
+
+
+async def test_service_rejects_stabilized_configuration_without_history_before_persisting() -> None:
+    def producer_factory(**kwargs: Any) -> ReportingProducer:
+        store = kwargs.pop("store")
+        publisher = SimpleNamespace(
+            reserve_provisional_acquisition=store.reserve_provisional_acquisition,
+            get_provisional_observation=store.get_provisional_observation,
+            commit_provisional_observation=store.commit_provisional_observation,
+        )
+        return ReportingProducer(store=publisher, retry_store=store, **kwargs)
+
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+        ),
+    )
+    service = _finality_service(
+        config, snapshot=True, official=False, producer_factory=producer_factory
+    )
+    await service.initialize()
+
+    with pytest.raises(ReliableReportingConfigurationError, match="observation"):
+        await service.configure(config)
+
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+    assert config.generation_key not in service._bindings
 
 
 async def test_official_configuration_requires_the_source_to_match_the_pinned_definition() -> None:

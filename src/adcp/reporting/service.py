@@ -762,10 +762,10 @@ class ReliableReportingService:
         )
         if isinstance(policy, ReportingStabilizedPolicy):
             try:
-                producer._observation_store()
+                producer._observation_history_store()
             except LedgerConflictError as error:
                 raise ReliableReportingConfigurationError(
-                    "stabilized finality requires durable provisional observation storage"
+                    "stabilized finality requires durable provisional observation history"
                 ) from error
         binding = _Binding(configuration=configuration, context=context, producer=producer)
         if persist:

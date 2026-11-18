@@ -1652,9 +1652,17 @@ class ReportingProducer:
 
     def _observation_history_store(self) -> ProvisionalObservationStore:
         store = self._observation_store()
-        if inspect.getattr_static(
-            store, "list_provisional_observations", None
-        ) is None or not isinstance(store, ProvisionalObservationStore):
+        name = "list_provisional_observations"
+        stub = ProvisionalObservationStore.list_provisional_observations
+        declared = inspect.getattr_static(store, name, None)
+        implementation = (
+            getattr(store, name, None) if declared is not None and declared is not stub else None
+        )
+        if (
+            not callable(implementation)
+            or getattr(implementation, "__func__", implementation) is stub
+            or not isinstance(store, ProvisionalObservationStore)
+        ):
             raise LedgerConflictError(
                 "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED",
                 "stabilized finality requires explicitly implemented bounded observation history",
