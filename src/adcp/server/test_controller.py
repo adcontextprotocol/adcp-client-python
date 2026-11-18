@@ -1503,6 +1503,7 @@ def register_test_controller(
 
     from adcp.server.base import ToolContext as _ToolContext
     from adcp.server.serve import RequestMetadata as _RequestMetadata
+    from adcp.server.serve import _get_starlette_request_for_dispatch
     from adcp.server.version_policy import enforce_selected_version, resolve_supported_versions
     from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
     from adcp.validation.schema_loader import get_mcp_schema
@@ -1519,7 +1520,11 @@ def register_test_controller(
         )
         context: _ToolContext | None = None
         if context_factory is not None:
-            meta = _RequestMetadata(tool_name="comply_test_controller", transport="mcp")
+            meta = _RequestMetadata(
+                tool_name="comply_test_controller",
+                transport="mcp",
+                request_context=_get_starlette_request_for_dispatch(),
+            )
             context = context_factory(meta)
             if not isinstance(context, _ToolContext):
                 raise TypeError(
