@@ -12,6 +12,7 @@ import pytest
 
 from adcp.reporting.conformance import ReportingSourceConformanceError
 from adcp.reporting.fixtures import (
+    OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
     redacted_snapshot_request,
@@ -20,8 +21,12 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
+    ReportingContractualCutoffPolicy,
     ReportingDefinitionBinding,
+    ReportingFinalityPolicy,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
     ReportingStatusCaller,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
@@ -30,6 +35,10 @@ from adcp.reporting.service import (
     ReliableReportingService,
     ReliableReportingState,
     ReportingAccountContext,
+)
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
 )
 from adcp.reporting.testing import (
     DeterministicReportingClock,
@@ -133,6 +142,205 @@ def _rows(impressions: int) -> list[dict[str, Any]]:
             "spend": "1.25",
         }
     ]
+
+
+def _finality_service(
+    configuration: ReportingConfiguration,
+    *,
+    snapshot: bool,
+    official: bool,
+    close: bool = False,
+    store: InMemoryReportingLedgerStore | None = None,
+) -> ReliableReportingService:
+    public = _capability_offering("gam")
+    public["supported_finality"] = [configuration.required_finality]
+    context = replace(
+        _account_context(configuration),
+        snapshot_offering_id=SNAPSHOT_OFFERING_ID if snapshot else None,
+        official_offering_id=OFFICIAL_OFFERING_ID if official else None,
+        capability_offering=public,
+    )
+    raw = redacted_capabilities().model_dump(mode="json")
+    if close:
+        raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    raw["offerings"] = [
+        offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
+    ]
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), [])
+    service = ReliableReportingService(
+        store=store or InMemoryReportingLedgerStore(), account_context=lambda _: context
+    )
+    service.sources.register("gam", adapter, capability_offerings=[public])
+    return service
+
+
+@pytest.mark.parametrize(
+    ("policy", "source_class", "expected_offering"),
+    [
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "official",
+            OFFICIAL_OFFERING_ID,
+        ),
+        (ReportingSourceFinalPolicy("source-v1", "s" * 512), "official", OFFICIAL_OFFERING_ID),
+        (ReportingContractualCutoffPolicy("cutoff-v1", "P2D"), "snapshot", SNAPSHOT_OFFERING_ID),
+        (ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"), "snapshot", SNAPSHOT_OFFERING_ID),
+    ],
+)
+async def test_official_configuration_routes_by_selected_policy(
+    policy: ReportingFinalityPolicy, source_class: str, expected_offering: str
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    service = _finality_service(
+        config, snapshot=source_class == "snapshot", official=source_class == "official"
+    )
+    await service.configure(config)
+    offerings = service._bindings[config.generation_key].producer._offerings
+    assert offerings.offering_for(source_class) == expected_offering
+
+
+@pytest.mark.parametrize(("required", "close"), [("official", False), ("snapshot", True)])
+async def test_official_configuration_without_selected_policy_fails_before_obligation(
+    required: str, close: bool
+) -> None:
+    config = replace(_configuration(), required_finality=required)
+    service = _finality_service(config, snapshot=True, official=True, close=close)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="selected finality policy"):
+        await service.configure(config)
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+
+
+@pytest.mark.parametrize(
+    ("policy", "required", "snapshot", "official", "close"),
+    [
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "official",
+            True,
+            False,
+            False,
+        ),
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "snapshot",
+            True,
+            False,
+            True,
+        ),
+        (ReportingContractualCutoffPolicy("cutoff-v1", "P2D"), "official", False, True, False),
+        (ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"), "official", False, True, False),
+    ],
+)
+async def test_selected_policy_rejects_wrong_source_class(
+    policy, required, snapshot, official, close
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality=required,
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    service = _finality_service(config, snapshot=snapshot, official=official, close=close)
+    with pytest.raises(ReliableReportingConfigurationError, match="source offering"):
+        await service.configure(config)
+
+
+async def test_stabilized_official_configuration_requires_observation_storage() -> None:
+    class SnapshotStore(InMemoryReportingLedgerStore):
+        reserve_provisional_acquisition = None
+
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False, store=SnapshotStore())
+    with pytest.raises(ReliableReportingConfigurationError, match="observation"):
+        await service.configure(config)
+
+
+async def test_official_configuration_requires_the_source_to_match_the_pinned_definition() -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION,
+            report_definition_sha256="f" * 64,
+            finality_policy=ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+        ),
+    )
+    service = _finality_service(config, snapshot=False, official=True)
+    with pytest.raises(ReliableReportingConfigurationError, match="definition"):
+        await service.configure(config)
+
+
+async def test_legacy_official_configuration_remains_readable_beside_healthy_generation() -> None:
+    store = InMemoryReportingLedgerStore()
+    legacy = replace(_configuration(), required_finality="official")
+    healthy = _configuration("freewheel")
+    for config in (legacy, healthy):
+        await store.put_configuration(config)
+    service = ReliableReportingService(store=store, account_context=_account_context)
+    for route in ("gam", "freewheel"):
+        service.sources.register(route, ScriptedReportingAdapter(redacted_capabilities(), []))
+    await service.initialize()
+    assert list(service._bindings) == [healthy.generation_key]
+    assert "selected finality policy" in str(service.initialization_errors[legacy.generation_key])
+    assert set(await store.list_all_configurations()) == {legacy, healthy}
+
+
+async def test_official_configuration_must_match_the_declared_public_definition() -> None:
+    definition = replace(
+        DEFINITION,
+        report_definition_sha256="f" * 64,
+        finality_policy=ReportingContractualCutoffPolicy("cutoff-v1", "P2D"),
+    )
+    config = replace(_configuration(), required_finality="official", definition=definition)
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][0]["contract"][
+        "report_definition_sha256"
+    ] = definition.report_definition_sha256
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    public = {**_capability_offering("gam"), "supported_finality": ["official"]}
+    context = replace(_account_context(config), capability_offering=public)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), []),
+        capability_offerings=[public],
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="public offering"):
+        await service.configure(config)
+
+
+async def test_snapshot_close_selected_policy_checks_the_initial_snapshot_definition() -> None:
+    config = replace(
+        _configuration(),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("source-v1", "delivery.is_final")
+        ),
+    )
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    raw["offerings"][0]["contract"]["report_definition_sha256"] = "f" * 64
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    context = replace(_account_context(config), official_offering_id=OFFICIAL_OFFERING_ID)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), [])
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="definition"):
+        await service.configure(config)
 
 
 async def test_service_routes_two_frozen_generations_and_resolves_each_once() -> None:

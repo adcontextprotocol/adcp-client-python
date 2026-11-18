@@ -8,18 +8,90 @@ from datetime import timedelta, timezone
 
 import pytest
 
+from adcp.reporting.ledger import (
+    ProducerOfferings,
+    ReportingContractualCutoffPolicy,
+    ReportingProducer,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
+)
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer.contracts import ReportingWriterError, binding_fingerprint
 from adcp.reporting.materializer.work import ReportingMaterializerLease
 from adcp.reporting.production.configuration import ReportingConfigurationAdmission
+from adcp.reporting.production.offerings import ReportingProductionOffering
 from adcp.validation.schema_loader import get_named_validator
 
 from ._feed_support import feed_request, walk
 from ._generation_support import END
-from ._production_support import production_harness
+from ._production_support import Source, production_harness
 from ._production_transport import MountedProduction
 from ._receipt_transport import error_code
 from .test_reporting_production_bindings import source_documents
+from .test_reporting_production_settling import SettlingSource
+
+SOURCE_FINAL = ReportingSourceFinalPolicy("source-v1", "delivery.is_final")
+CUTOFF = ReportingContractualCutoffPolicy("cutoff-v1", "P2D")
+STABILIZED = ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+
+
+@pytest.mark.parametrize(
+    ("policy", "source_class", "finalities", "close", "official_route", "accepted"),
+    [
+        (SOURCE_FINAL, "official", ["official"], False, True, True),
+        (CUTOFF, "snapshot", ["official"], False, False, True),
+        (CUTOFF, "snapshot", ["snapshot", "official"], False, False, True),
+        (STABILIZED, "snapshot", ["official"], False, False, True),
+        (None, "official", ["official"], False, True, False),
+        (SOURCE_FINAL, "snapshot", ["official"], False, False, False),
+        (CUTOFF, "official", ["official"], False, True, False),
+        (None, "snapshot", ["snapshot"], True, True, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, False, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, True, True),
+        (CUTOFF, "snapshot", ["snapshot"], True, False, True),
+    ],
+)
+async def test_production_offering_validates_selected_finality_policy(
+    policy, source_class, finalities, close, official_route, accepted, tmp_path
+):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        definition = replace(installed.verification_key.definition, finality_policy=policy)
+        key = replace(installed.verification_key, definition=definition)
+        if close:
+            source = SettlingSource(key, tmp_path / "selected")
+            official_id = source.official_source_id
+        else:
+            source = Source(key, tmp_path / "selected", official=source_class == "official")
+            official_id = source.source_id
+        config = replace(h.item.config, definition=definition, required_finality=finalities[-1])
+        source.bind_generation(config)
+        producer = ReportingProducer(
+            source=source,
+            store=h.store,
+            object_reader=source.reader,
+            offerings=ProducerOfferings(
+                official_offering_id=official_id if official_route else None,
+                snapshot_offering_id=source.source_id if source_class == "snapshot" else None,
+                publication_namespace=source.capabilities.offerings[0].publication_namespace,
+                source_scope=source.capabilities.source_scope,
+            ),
+        )
+        public = installed.offering.model_copy(update={"supported_finality": finalities})
+        if not accepted:
+            with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+                ReportingProductionOffering(public, producer, key, source.source_id)
+            return
+        offering = ReportingProductionOffering(public, producer, key, source.source_id)
+        offering.check_configuration(
+            config, h.item.binding, retention_days=h.item.writer.resource_retention_days
+        )
+        other = replace(config, definition=replace(definition, finality_policy=None))
+        source.bind_generation(other)
+        with pytest.raises(ReportingWriterError, match="BINDING_MISMATCH"):
+            offering.check_configuration(
+                other, h.item.binding, retention_days=h.item.writer.resource_retention_days
+            )
 
 
 def wire_configuration(h):
@@ -40,6 +112,19 @@ def wire_configuration(h):
         "schedule": offering.configuration_schedule(config),
         "method": h.item.writer.configuration_binding(binding).wire(),
     }
+
+
+async def test_typed_official_finality_admission_requires_selected_policy(tmp_path):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        config = replace(h.item.config, required_finality="official")
+        wire = {**wire_configuration(h), "required_finality": "official"}
+        with pytest.raises(ValueError, match="selected finality policy"):
+            ReportingConfigurationAdmission(
+                h.production.offerings[0].offering_id,
+                config,
+                h.item.binding,
+                configuration_wire=wire,
+            )
 
 
 def state_for(h, configuration):

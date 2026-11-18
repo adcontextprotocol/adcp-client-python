@@ -49,6 +49,11 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
+from adcp.reporting.ledger.finality import (
+    ReportingFinalityPolicy,
+    ReportingStabilizedPolicy,
+    finality_policy_source_class,
+)
 from adcp.reporting.ledger.producer import _advertised_reporting_delivery
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
@@ -62,6 +67,7 @@ from adcp.reporting.service_lifecycle import (
 from adcp.reporting.source import (
     AuthoritativeOfferingV1,
     ProvisionalSnapshotOfferingV1,
+    ReportingContractIdentityV1,
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
@@ -161,6 +167,27 @@ def _wire(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return {str(key): _thaw(item) for key, item in value.items()}
     raise TypeError(f"expected a request model or mapping, got {type(value).__name__}")
+
+
+def _matches_public_contract(
+    contract: ReportingContractIdentityV1, public: Mapping[str, Any]
+) -> bool:
+    """Compare the public offering's declared definition and profile with the source."""
+    profile = public.get("reporting_profile", {})
+    return all(
+        declaration.get(name, expected) == expected
+        for declaration, name, expected in (
+            (public, "report_definition_id", contract.report_definition_id),
+            (public, "report_definition_uri", contract.report_definition_uri),
+            (public, "report_definition_sha256", contract.report_definition_sha256),
+            (profile, "id", contract.reporting_profile),
+            (profile, "version", contract.schema_version),
+            (profile, "schema_uri", contract.schema_uri),
+            (profile, "schema_sha256", contract.schema_sha256),
+            (profile, "schema_dialect", contract.schema_dialect),
+            (profile, "schema_ref_policy", contract.schema_ref_policy),
+        )
+    )
 
 
 async def _resolve(value: Any) -> Any:
@@ -365,25 +392,14 @@ class ReportingAdapterRegistry:
                     f"capability offering {offering_id!r} has conflicting declarations"
                 )
             declared[offering_id] = public
-            profile = public["reporting_profile"]
             for finality in public["supported_finality"]:
                 matching = [
                     source
                     for source in executor.capabilities.offerings
-                    if (
-                        "snapshot"
-                        if isinstance(source, ProvisionalSnapshotOfferingV1)
-                        else "official"
-                    )
-                    == finality
-                    and source.contract.report_definition_id == public["report_definition_id"]
-                    and source.contract.report_definition_uri == public["report_definition_uri"]
-                    and source.contract.report_definition_sha256
-                    == public["report_definition_sha256"]
-                    and source.contract.reporting_profile == profile["id"]
-                    and source.contract.schema_version == profile["version"]
-                    and source.contract.schema_uri == profile["schema_uri"]
-                    and source.contract.schema_sha256 == profile["schema_sha256"]
+                    # The definition selected at admission determines which
+                    # source class can prove an official delivery.
+                    if (finality == "official" or isinstance(source, ProvisionalSnapshotOfferingV1))
+                    and _matches_public_contract(source.contract, public)
                 ]
                 if not matching:
                     raise ReliableReportingConfigurationError(
@@ -414,6 +430,10 @@ class _Binding:
     configuration: ReportingConfiguration
     context: ReportingAccountContext
     producer: ReportingProducer
+
+
+class _MissingFinalityPolicyError(ReliableReportingConfigurationError):
+    """A retained generation may still serve reads while its producer is unbound."""
 
 
 class _AccountContextResolutionError(Exception):
@@ -711,12 +731,12 @@ class ReliableReportingService:
                 "registered source capabilities must be scoped to an effective account"
             )
         try:
-            self._validate_offerings(configuration, context, registration)
+            policy = self._validate_offerings(configuration, context, registration)
             offerings = context.producer_offerings()
             if not isinstance(offerings, ProducerOfferings):
                 raise TypeError("producer_offerings must return ProducerOfferings")
         except Exception as error:
-            if retrying:
+            if retrying or (recovering and isinstance(error, _MissingFinalityPolicyError)):
                 raise _AccountContextResolutionError(error, permanent=True) from error
             raise
         producer = self._producer_factory(
@@ -733,6 +753,13 @@ class ReliableReportingService:
                 else {}
             ),
         )
+        if isinstance(policy, ReportingStabilizedPolicy):
+            try:
+                producer._observation_store()
+            except LedgerConflictError as error:
+                raise ReliableReportingConfigurationError(
+                    "stabilized finality requires durable provisional observation storage"
+                ) from error
         binding = _Binding(configuration=configuration, context=context, producer=producer)
         if persist:
             if self._initialized:
@@ -786,24 +813,27 @@ class ReliableReportingService:
         configuration: ReportingConfiguration,
         context: ReportingAccountContext,
         registration: AdapterRegistration,
-    ) -> None:
+    ) -> ReportingFinalityPolicy | None:
         capabilities = registration.executor.capabilities
         if capabilities.source_scope != _thaw(context.source_scope):
             raise ReliableReportingConfigurationError(
                 "resolved source_scope does not match the registered adapter capabilities"
             )
         selected: list[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1] = []
+        snapshot = None
+        official = None
         if context.snapshot_offering_id is not None:
             try:
-                snapshot = capabilities.offering(context.snapshot_offering_id)
+                offering = capabilities.offering(context.snapshot_offering_id)
             except KeyError as error:
                 raise ReliableReportingConfigurationError(
                     f"snapshot offering {context.snapshot_offering_id!r} is not registered"
                 ) from error
-            if not isinstance(snapshot, ProvisionalSnapshotOfferingV1):
+            if not isinstance(offering, ProvisionalSnapshotOfferingV1):
                 raise ReliableReportingConfigurationError(
                     "snapshot_offering_id must name a provisional snapshot offering"
                 )
+            snapshot = offering
             selected.append(snapshot)
         if context.official_offering_id is not None:
             try:
@@ -825,16 +855,45 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering contract does not match the reporting configuration"
                 )
-        required = (
-            context.official_offering_id
-            if configuration.required_finality == "official"
-            else context.snapshot_offering_id
-        )
-        if required is None:
+        if configuration.required_finality == "snapshot" and snapshot is None:
             raise ReliableReportingConfigurationError(
-                f"configuration requires {configuration.required_finality} but its account "
-                "context declares no matching source offering"
+                "snapshot configuration requires a matching snapshot source offering"
             )
+        policy = None
+        if configuration.required_finality == "official" or (
+            snapshot is not None and snapshot.official_close_lag is not None
+        ):
+            definition = configuration.definition
+            if definition is None or definition.finality_policy is None:
+                raise _MissingFinalityPolicyError(
+                    "official reporting requires a selected finality policy"
+                )
+            policy = definition.finality_policy
+            source_class = finality_policy_source_class(policy)
+            source = official if source_class == "official" else snapshot
+            if source is None:
+                raise ReliableReportingConfigurationError(
+                    f"selected finality policy requires a matching {source_class} source offering"
+                )
+            used = [source]
+            if (
+                configuration.required_finality == "snapshot"
+                and snapshot is not None
+                and snapshot is not source
+            ):
+                used.append(snapshot)
+            for used_offering in used:
+                if any(
+                    getattr(used_offering.contract, name) != value
+                    for name, value in definition.to_wire().items()
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "source offering contract does not match the pinned report definition"
+                    )
+            if not _matches_public_contract(source.contract, context.capability_offering):
+                raise ReliableReportingConfigurationError(
+                    "selected policy's source contract does not match the public offering"
+                )
         declared_id = context.capability_offering.get("offering_id")
         if not declared_id:
             raise ReliableReportingConfigurationError(
@@ -864,6 +923,7 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "account capability offering must match a registered public offering"
                 )
+        return policy
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""

@@ -14,6 +14,7 @@ __all__ = [
     "ReportingFinalityPolicy",
     "ReportingSourceFinalPolicy",
     "ReportingStabilizedPolicy",
+    "finality_policy_source_class",
     "reporting_finality_policy_from_storage",
 ]
 
@@ -90,6 +91,13 @@ class ReportingStabilizedPolicy:
 ReportingFinalityPolicy = (
     ReportingSourceFinalPolicy | ReportingContractualCutoffPolicy | ReportingStabilizedPolicy
 )
+
+
+def finality_policy_source_class(
+    policy: ReportingFinalityPolicy,
+) -> Literal["snapshot", "official"]:
+    """Return the source publication class needed to prove the selected policy."""
+    return "official" if isinstance(policy, ReportingSourceFinalPolicy) else "snapshot"
 
 
 def reporting_finality_policy_from_storage(value: Mapping[str, Any]) -> ReportingFinalityPolicy:
