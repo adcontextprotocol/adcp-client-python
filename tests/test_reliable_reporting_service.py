@@ -284,16 +284,29 @@ async def test_official_configuration_requires_the_source_to_match_the_pinned_de
         await service.configure(config)
 
 
-async def test_legacy_official_configuration_remains_readable_beside_healthy_generation() -> None:
+@pytest.mark.parametrize("definition", [None, DEFINITION])
+async def test_legacy_official_configuration_recovers_with_a_retired_source_route(
+    definition: ReportingDefinitionBinding | None,
+) -> None:
     store = InMemoryReportingLedgerStore()
-    legacy = replace(_configuration(), required_finality="official")
+    legacy = replace(_configuration(), required_finality="official", definition=definition)
     healthy = _configuration("freewheel")
     for config in (legacy, healthy):
         await store.put_configuration(config)
-    service = ReliableReportingService(store=store, account_context=_account_context)
+    resolved = []
+
+    def resolve(config: ReportingConfiguration) -> ReportingAccountContext:
+        resolved.append(config.generation_key)
+        context = _account_context(config)
+        if config == legacy:
+            return replace(context, snapshot_offering_id=None, official_offering_id="retired")
+        return context
+
+    service = ReliableReportingService(store=store, account_context=resolve)
     for route in ("gam", "freewheel"):
         service.sources.register(route, ScriptedReportingAdapter(redacted_capabilities(), []))
     await service.initialize()
+    assert resolved == [healthy.generation_key]
     assert list(service._bindings) == [healthy.generation_key]
     assert "selected finality policy" in str(service.initialization_errors[legacy.generation_key])
     assert set(await store.list_all_configurations()) == {legacy, healthy}

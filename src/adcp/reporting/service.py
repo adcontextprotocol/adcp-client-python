@@ -435,6 +435,9 @@ class _Binding:
 class _MissingFinalityPolicyError(ReliableReportingConfigurationError):
     """A retained generation may still serve reads while its producer is unbound."""
 
+    def __init__(self) -> None:
+        super().__init__("official reporting requires a selected finality policy")
+
 
 class _AccountContextResolutionError(Exception):
     """Distinguish resolver failures from invalid static configuration."""
@@ -702,6 +705,10 @@ class ReliableReportingService:
                 )
             return
         try:
+            if configuration.required_finality == "official" and (
+                configuration.definition is None or configuration.definition.finality_policy is None
+            ):
+                raise _MissingFinalityPolicyError()
             context = await _resolve(self._context_resolver(configuration))
         except Exception as error:
             if recovering:
@@ -865,9 +872,7 @@ class ReliableReportingService:
         ):
             definition = configuration.definition
             if definition is None or definition.finality_policy is None:
-                raise _MissingFinalityPolicyError(
-                    "official reporting requires a selected finality policy"
-                )
+                raise _MissingFinalityPolicyError()
             policy = definition.finality_policy
             source_class = finality_policy_source_class(policy)
             source = official if source_class == "official" else snapshot

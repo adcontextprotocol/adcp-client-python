@@ -94,6 +94,33 @@ async def test_production_offering_validates_selected_finality_policy(
             )
 
 
+@pytest.mark.parametrize("primary", ["snapshot", "official"])
+@pytest.mark.parametrize("required", ["snapshot", "official"])
+async def test_dual_finality_source_final_admits_each_configured_route(primary, required, tmp_path):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        definition = replace(installed.verification_key.definition, finality_policy=SOURCE_FINAL)
+        key = replace(installed.verification_key, definition=definition)
+        source = SettlingSource(key, tmp_path / "selected")
+        routes = replace(
+            installed.producer._offerings,
+            snapshot_offering_id=source.source_id,
+            official_offering_id=source.official_source_id,
+        )
+        producer = ReportingProducer(
+            source=source, offerings=routes, store=h.store, object_reader=source.reader
+        )
+        config = replace(h.item.config, definition=definition, required_finality=required)
+        source.bind_generation(config)
+        public = installed.offering.model_copy(
+            update={"supported_finality": ["snapshot", "official"]}
+        )
+        offering = ReportingProductionOffering(public, producer, key, routes.offering_for(primary))
+        offering.check_configuration(
+            config, h.item.binding, retention_days=h.item.writer.resource_retention_days
+        )
+
+
 def wire_configuration(h):
     config, binding = h.item.config, h.item.binding
     offering = h.production.offerings[0]

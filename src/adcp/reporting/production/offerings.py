@@ -149,32 +149,39 @@ class ReportingProductionOffering:
     def _source_offerings(
         self, capabilities: ReportingSourceCapabilitiesV1
     ) -> tuple[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1, ...]:
-        configured = self.producer._offerings
-        primary = capabilities.offering(self.source_offering_id)
+        def configured_source(
+            source_class: str,
+        ) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
+            source_id = self.producer._offerings.offering_for(source_class)
+            if source_id is None:
+                raise failure("UNSUPPORTED_VERIFICATION")
+            try:
+                return capabilities.offering(source_id)
+            except KeyError:
+                raise failure("UNSUPPORTED_VERIFICATION") from None
+
         finalities = self.wire()["supported_finality"]
-        if "snapshot" in finalities and (
-            not isinstance(primary, ProvisionalSnapshotOfferingV1)
-            or configured.snapshot_offering_id != primary.offering_id
-        ):
-            raise failure("UNSUPPORTED_VERIFICATION")
-        explicit_close = (
-            isinstance(primary, ProvisionalSnapshotOfferingV1)
-            and primary.official_close_lag is not None
-        )
-        if "official" not in finalities and not explicit_close:
-            return (primary,)
+        snapshot = None
+        if "snapshot" in finalities:
+            candidate = configured_source("snapshot")
+            if not isinstance(candidate, ProvisionalSnapshotOfferingV1):
+                raise failure("UNSUPPORTED_VERIFICATION")
+            snapshot = candidate
+        if "official" not in finalities:
+            if snapshot is None or self.source_offering_id != snapshot.offering_id:
+                raise failure("UNSUPPORTED_VERIFICATION")
+            if snapshot.official_close_lag is None:
+                return (snapshot,)
 
         policy = self.verification_key.definition.finality_policy
         if policy is None:
             raise failure("UNSUPPORTED_VERIFICATION")
         source_class = finality_policy_source_class(policy)
-        source_id = configured.offering_for(source_class)
-        if source_id is None or ("official" in finalities and source_id != primary.offering_id):
+        proof_source = configured_source(source_class)
+        if self.source_offering_id != proof_source.offering_id and (
+            snapshot is None or self.source_offering_id != snapshot.offering_id
+        ):
             raise failure("UNSUPPORTED_VERIFICATION")
-        try:
-            proof_source = capabilities.offering(source_id)
-        except KeyError:
-            raise failure("UNSUPPORTED_VERIFICATION") from None
         if source_class == "official":
             if not isinstance(proof_source, AuthoritativeOfferingV1) or (
                 self.reconciled and proof_source.correction_policy != "immutable_correction"
@@ -187,7 +194,9 @@ class ReportingProductionOffering:
                 self.producer._observation_store()
             except LedgerConflictError:
                 raise failure("UNSUPPORTED_VERIFICATION") from None
-        return (primary,) if primary.offering_id == source_id else (primary, proof_source)
+        if snapshot is None or snapshot.offering_id == proof_source.offering_id:
+            return (proof_source,)
+        return (snapshot, proof_source)
 
     def check_source(self, *, effective: bool = False) -> ReportingSourceCapabilitiesV1:
         source = self.producer._source
