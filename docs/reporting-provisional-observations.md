@@ -78,16 +78,19 @@ snapshot origins and generation schedule recovery. An ordinary snapshot route
 can keep using its snapshot publisher when the definition lists an unused
 finality policy. Each scheduled read checks the winner of its own atomic reservation.
 
-A Core producer without observation or checkpoint support can call
-`close_elapsed_periods` and then `acquire_obligation` for the first snapshot of
-the period it just created. It consumes that allowance before calling the source.
-After a retryable fetch failure, the same producer can retry when that slice's
-recorded retry becomes due. A manual replay cannot claim the scheduled retry.
-If another publisher reserves the period, the ledger's atomic revision commit
-rejects the snapshot. With a selected policy and no account publication lock,
-additional reads and later periods need durable evidence ruling out a competing
-close. Recovery checks immutable official revisions as well as retained
-observations and reservations when the stabilization lookup returns no schedule.
+When a definition carries an unused finality policy, a Core producer without
+observation or checkpoint support can call `close_elapsed_periods` and then
+`acquire_obligation` for the first snapshot of the period it just created.
+After a retryable fetch failure, an interrupted staged object read, or caller
+cancellation, the same producer can resume its frozen scheduled request with
+a fresh deadline. It checks its recorded slice
+retry and any shared backoff before dispatch. Only a scheduled read for that
+obligation can claim the retry. The ledger rejects a competing reservation or a
+second snapshot root during the atomic revision commit. With a selected policy
+and no account publication lock, additional reads and later periods need durable
+evidence ruling out a competing close. Recovery checks immutable official
+revisions as well as retained observations and reservations when the stabilization
+lookup returns no schedule.
 
 ## Persistence and compatibility
 

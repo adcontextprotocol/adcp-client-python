@@ -36,7 +36,9 @@ from adcp.reporting.ledger import (
     ReportingStabilizedPolicy,
     RetryScheduleEntry,
     WorkerTurn,
+    project_obligation_health,
     revision_content_sha256,
+    select_reporting_revision,
 )
 from adcp.reporting.ledger.finality import manifest_finality_proof
 from adcp.reporting.ledger.provisional import (
@@ -345,6 +347,142 @@ async def test_failed_first_core_delivery_retries_on_its_recorded_schedule(
 
 
 @pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize(
+    "interruption", ["read_error", "reader_unavailable", "cancel_fetch", "cancel_read"]
+)
+@pytest.mark.parametrize("competitor", ["none", "slice_retry", "snapshot"])
+async def test_interrupted_first_core_delivery_retains_its_scheduled_request(
+    cutoff_backend: Any, interruption: str, competitor: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    source = producer._source
+    execute = source.execute
+    requests = []
+    sealed = None
+    interrupted = asyncio.Event()
+    blocked = asyncio.Event()
+
+    async def dispatch(request: Any, **kwargs: Any) -> Any:
+        nonlocal sealed
+        requests.append(request)
+        if sealed is None:
+            sealed = await execute(request, **kwargs)
+            if interruption == "cancel_fetch":
+                interrupted.set()
+                await blocked.wait()
+        return sealed
+
+    async def read(**kwargs: Any) -> bytes:
+        if interruption == "read_error":
+            raise OSError("staged object temporarily unavailable")
+        if interruption == "reader_unavailable":
+            raise RuntimeError("staged reader unavailable")
+        interrupted.set()
+        await blocked.wait()
+        pytest.fail("cancelled read resumed")
+
+    monkeypatch.setattr(source, "execute", dispatch)
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._object_reader, "read", read)
+        delivery = asyncio.create_task(producer.acquire_obligation(config, obligation))
+        if interruption in {"read_error", "reader_unavailable"}:
+            with pytest.raises((OSError, RuntimeError), match="staged"):
+                await delivery
+        else:
+            try:
+                await asyncio.wait_for(interrupted.wait(), timeout=5)
+            finally:
+                delivery.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await delivery
+    assert await store.list_revisions(**owner) == ()
+    (original,) = requests
+    publication_id = source.manifest.publication_id
+    clock[0] += timedelta(hours=2)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.close_elapsed_periods(config, now=clock[0] + timedelta(days=1))
+    assert requests == [original]
+
+    if competitor == "slice_retry":
+        retry_at = clock[0] + timedelta(minutes=10)
+        await store.record_retry_schedule(
+            RetryScheduleEntry(
+                producer._retry_keys(obligation)[0], retry_at, 4, recorded_at=clock[0]
+            )
+        )
+        assert await producer.acquire_obligation(config, obligation) is None
+        clock[0] = retry_at
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation)
+        assert await store.list_revisions(**owner) == ()
+        assert requests == [original]
+    elif competitor == "snapshot":
+        peer = _restart_producer(producer, CoreStore(store), clock)
+        with monkeypatch.context() as patch:
+            patch.setattr(source, "execute", execute)
+            winner = await peer.acquire_obligation(config, obligation, manual_replay=True)
+        assert await producer.acquire_obligation(config, obligation) is None
+        assert await store.list_revisions(**owner) == (winner,)
+        assert requests == [original]
+    else:
+        recovered = await producer.acquire_obligation(config, obligation)
+        assert recovered.source_publication_id == publication_id
+        assert recovered.reporting_revision_id == f"rpr_{publication_id[4:44]}"
+        assert await store.list_revisions(**owner) == (recovered,)
+        first, retry = requests
+        assert retry.deadline_at > first.deadline_at
+        assert retry == first.model_copy(update={"deadline_at": retry.deadline_at})
+        assert await producer.acquire_obligation(config, obligation) is None
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation, restate=True, manual_replay=True)
+        assert len(requests) == 2
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_first_core_delivery_keeps_its_claim_until_shared_retry_is_recorded(
+    cutoff_backend: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    slice_key, account_key, _ = producer._retry_keys(obligation)
+    writing, release = asyncio.Event(), asyncio.Event()
+    record = store.record_retry_schedule
+
+    async def record_shared(entry: RetryScheduleEntry) -> RetryScheduleEntry:
+        if entry.scope_key == account_key:
+            writing.set()
+            await release.wait()
+        return await record(entry)
+
+    monkeypatch.setattr(store, "record_retry_schedule", record_shared)
+    failure = FailingSource(scope="account")
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._source, "execute", failure.execute)
+        first = asyncio.create_task(producer.acquire_obligation(config, obligation))
+        await asyncio.wait_for(writing.wait(), timeout=5)
+    try:
+        clock[0] = (await store.get_retry_schedule(scope_key=slice_key)).retry_not_before
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation)
+    finally:
+        release.set()
+        assert await first is None
+    assert failure.calls == 1 and calls == []
+    shared = await store.get_retry_schedule(scope_key=account_key)
+    clock[0] = max(clock[0], shared.retry_not_before)
+    recovered = await producer.acquire_obligation(config, obligation)
+    assert recovered.finality == "snapshot" and calls == [clock[0]]
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
 @pytest.mark.parametrize("competing", ["persisting_retry", "retry", "reservation"])
 async def test_core_retry_checks_the_durable_winner(
     cutoff_backend: Any, competing: str, monkeypatch: pytest.MonkeyPatch
@@ -530,6 +668,75 @@ async def test_overlapping_closes_cannot_rearm_an_attempted_core_delivery(
     with pytest.raises(LedgerConflictError, match="publication lock"):
         await producer.acquire_obligation(config, obligation, manual_replay=True)
     assert calls == []
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("manual_wins", [False, True])
+async def test_competing_manual_and_scheduled_core_snapshots_commit_one_root(
+    cutoff_backend: Any, manual_wins: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    template, store, config, _, calls, clock = await _harness(
+        cutoff_backend[0], finality_policy=ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    config = replace(config, delivery_config_id="concurrent-first-snapshot")
+    await store.put_configuration(config)
+    lagging = _restart_producer(template, UnlockedCore(store), clock)
+    leading = _restart_producer(template, UnlockedCore(store), clock)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def delayed_close(candidate: Any) -> Any:
+        entered.set()
+        await release.wait()
+        return await store.commit_obligation(candidate)
+
+    monkeypatch.setattr(lagging.store, "commit_obligation", delayed_close)
+    closing = asyncio.create_task(lagging.close_elapsed_periods(config))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        (obligation,) = await leading.close_elapsed_periods(config)
+    finally:
+        release.set()
+        closed = await closing
+    assert closed == [obligation]
+
+    entered, release = asyncio.Event(), asyncio.Event()
+    candidates: list[ReportingRevisionRecord] = []
+
+    async def delayed_root(revision: ReportingRevisionRecord, rows: Any) -> Any:
+        candidates.append(revision)
+        entered.set()
+        await release.wait()
+        return await store.commit_revision(revision, rows)
+
+    monkeypatch.setattr(lagging.store, "commit_revision", delayed_root)
+    publishing = asyncio.create_task(
+        lagging.acquire_obligation(config, obligation, manual_replay=not manual_wins)
+    )
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        winner = await leading.acquire_obligation(config, obligation, manual_replay=manual_wins)
+    finally:
+        release.set()
+        (conflict,) = await asyncio.gather(publishing, return_exceptions=True)
+    assert isinstance(conflict, LedgerConflictError) and conflict.code == "SUPERSEDES_STALE"
+    assert len(calls) == 2
+    (loser,) = candidates
+    assert winner is not None
+    assert loser.reporting_revision_id != winner.reporting_revision_id
+    assert loser.supersedes_reporting_revision_id is None
+    assert winner.supersedes_reporting_revision_id is None
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    history = await store.list_revisions(**owner)
+    assert history == (winner,)
+    assert await store.commit_revision(winner, ROWS) == winner
+    selection = select_reporting_revision(history, **owner, required_finality="snapshot")
+    assert selection.kind == "selected" and selection.revision == winner
+    health = project_obligation_health(
+        obligation, history, ledger_as_of=clock[0], scope_closed=True
+    )
+    assert health.current_revision == winner and not health.issues
 
 
 @pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)

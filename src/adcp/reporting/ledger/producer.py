@@ -428,6 +428,19 @@ class _StabilizedPublication:
     rows: Sequence[dict[str, Any]]
 
 
+@dataclass
+class _FirstCoreDelivery:
+    """The scheduled first read remains one claim through dispatch and retry bookkeeping."""
+
+    state: Literal["scheduled", "retry", "consumed"]
+    retry: RetryScheduleEntry | None = None
+    request: ReportingSourceSliceRequestV1 | None = None
+
+    def interrupted(self) -> None:
+        if self.state == "scheduled":
+            self.state = "retry"
+
+
 def _implements_store_method(store: object, stub: Callable[..., Any]) -> bool:
     name = stub.__name__
     if inspect.getattr_static(store, name, None) is None:
@@ -498,7 +511,7 @@ class ReportingProducer:
         ] = {}
         self._first_core_deliveries: dict[
             tuple[ReportingConfigurationGenerationKey, str],
-            Literal["ready", "attempted"] | RetryScheduleEntry,
+            Literal["ready", "attempted"] | _FirstCoreDelivery,
         ] = {}
 
     @property
@@ -1804,7 +1817,7 @@ class ReportingProducer:
         finality = target_finality or obligation.required_finality
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
         if finality == "official" and isinstance(selected_policy, ReportingStabilizedPolicy):
-            await self._claim_first_core_delivery(obligation, now=now, retry=False)
+            await self._claim_first_core_delivery(obligation, now=now, scheduled=False)
             return await self._acquire_stabilized(
                 configuration,
                 obligation,
@@ -1847,10 +1860,51 @@ class ReportingProducer:
                 offering_id=retry_offering_id,
             )
             return None
-        first_core_obligation = await self._claim_first_core_delivery(
+        first_core = await self._claim_first_core_delivery(
             obligation,
             now=now,
-            retry=finality == "snapshot" and not (manual_replay or restate or track_settling),
+            scheduled=finality == "snapshot" and not (manual_replay or restate or track_settling),
+        )
+        try:
+            return await self._acquire_due_obligation(
+                configuration,
+                obligation,
+                turn=turn,
+                now=now,
+                finality=finality,
+                restate=restate,
+                track_settling=track_settling,
+                manual_replay=manual_replay,
+                admit_tracked_stabilization=admit_tracked_stabilization,
+                first_core=first_core,
+            )
+        except (OSError, asyncio.CancelledError):
+            if first_core is not None:
+                first_core.interrupted()
+            raise
+        finally:
+            if first_core is not None and first_core.state == "retry":
+                self._first_core_deliveries[
+                    (obligation.generation_key, obligation.reporting_obligation_id)
+                ] = first_core
+
+    async def _acquire_due_obligation(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        *,
+        turn: WorkerTurn,
+        now: datetime,
+        finality: str,
+        restate: bool,
+        track_settling: bool,
+        manual_replay: bool,
+        admit_tracked_stabilization: bool,
+        first_core: _FirstCoreDelivery | None,
+    ) -> ReportingRevisionRecord | None:
+        selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        first_core_obligation = (
+            obligation.reporting_obligation_id if first_core is not None else None
         )
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
@@ -1961,17 +2015,24 @@ class ReportingProducer:
                 return None
             if checkpoint_store is None:
                 observation = await self._cutoff_observation_ordinal(obligation, observation)
-        request = self._build_slice(
-            configuration,
-            obligation,
-            offering_id,
-            finality=finality,
-            now=now,
-            observation=observation,
-            constituents=constituents,
-            trigger="manual_replay" if manual_observation else "scheduled_poll",
-            invocation_id=uuid4().hex if manual_snapshot else None,
-        )
+        if first_core is not None and first_core.request is not None:
+            request = first_core.request.model_copy(
+                update={"deadline_at": _utc(now) + self._offerings.slice_timeout}
+            )
+        else:
+            request = self._build_slice(
+                configuration,
+                obligation,
+                offering_id,
+                finality=finality,
+                now=now,
+                observation=observation,
+                constituents=constituents,
+                trigger="manual_replay" if manual_observation else "scheduled_poll",
+                invocation_id=uuid4().hex if manual_snapshot else None,
+            )
+            if first_core is not None and first_core.state == "scheduled":
+                first_core.request = request.model_copy(deep=True)
         acquisition = pending
         # An explicitly tracked first invocation must survive a failed fetch and restart.
         track_first_manual = manual_snapshot and track_settling and not restate and not revisions
@@ -2040,7 +2101,7 @@ class ReportingProducer:
                 turn,
                 now=now,
                 replayed=manual_replay,
-                first_core_delivery=first_core_obligation is not None,
+                first_core_delivery=first_core,
             )
             self._note_escalation(
                 obligation,
@@ -2076,7 +2137,7 @@ class ReportingProducer:
                 retry_after_seconds=error.retry_after_seconds,
                 blocked=error.retry == "terminal",
                 replayed=manual_replay,
-                first_core_delivery=first_core_obligation is not None,
+                first_core_delivery=first_core,
             )
             self._note_escalation(
                 obligation,
@@ -2107,7 +2168,14 @@ class ReportingProducer:
                 cutoff_ceiling=now,
                 acquisition=acquisition,
             )
-        rows = await self._read_rows(request, manifest, require_staged=full_authority)
+        try:
+            rows = await self._read_rows(request, manifest, require_staged=full_authority)
+        except LedgerConflictError:
+            raise
+        except Exception:
+            if first_core is not None:
+                first_core.interrupted()
+            raise
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         # Every successful scheduled read reaches the atomic observation/checkpoint commit.
@@ -2196,6 +2264,8 @@ class ReportingProducer:
                         retry_after_seconds=acquisition.policy.cadence.total_seconds(),
                     )
             raise
+        if first_core is not None:
+            first_core.state = "consumed"
         await self._clear_retry(obligation, turn=turn, now=published_at)
         return committed
 
@@ -2290,24 +2360,29 @@ class ReportingProducer:
         )
 
     async def _claim_first_core_delivery(
-        self, obligation: ReportingObligationRecord, *, now: datetime, retry: bool
-    ) -> str | None:
-        """Consume a first attempt or its own due slice retry before source dispatch."""
+        self, obligation: ReportingObligationRecord, *, now: datetime, scheduled: bool
+    ) -> _FirstCoreDelivery | None:
+        """Claim the first attempt or resume that scheduled read on its own retry state."""
         key = (obligation.generation_key, obligation.reporting_obligation_id)
         state = self._first_core_deliveries.get(key)
-        if isinstance(state, RetryScheduleEntry):
-            if not retry or _utc(now) < _utc(state.retry_not_before):
+        if isinstance(state, _FirstCoreDelivery):
+            if not scheduled or (
+                state.retry is not None and _utc(now) < _utc(state.retry.retry_not_before)
+            ):
                 return None
-            retained = await self._get_retry(state.scope_key)
+            retained = await self._get_retry(self._retry_keys(obligation)[0])
             if self._first_core_deliveries.get(key) is not state:
                 return None
-            if retained != state:
+            if retained != state.retry:
                 self._first_core_deliveries[key] = "attempted"
                 return None
-        elif state != "ready":
+            delivery = replace(state, state="scheduled")
+        elif state == "ready":
+            delivery = _FirstCoreDelivery("scheduled" if scheduled else "consumed")
+        else:
             return None
         self._first_core_deliveries[key] = "attempted"
-        return obligation.reporting_obligation_id
+        return delivery
 
     async def _get_retry(self, key: str) -> RetryScheduleEntry | None:
         return await self._retry_store.get_retry_schedule(scope_key=key)
@@ -2358,11 +2433,13 @@ class ReportingProducer:
         retry_after_seconds: float | None = None,
         blocked: bool = False,
         replayed: bool = False,
-        first_core_delivery: bool = False,
+        first_core_delivery: _FirstCoreDelivery | None = None,
     ) -> None:
         # Dispatch ``now`` can be synthetic in tests and integrations. A slow
         # source may finish long after it, so anchor the cooldown at completion.
         completed_at = max(_utc(now), _utc(self._clock()))
+        if first_core_delivery is not None and blocked:
+            first_core_delivery.state = "consumed"
         keys = self._retry_keys(obligation)
         shared = keys[1 if scope == "account" else 2]
         affected = keys[:1] if scope == "slice" else ((shared,) if blocked else (keys[0], shared))
@@ -2405,10 +2482,16 @@ class ReportingProducer:
             )
             stored = await self._record_retry(entry)
             turn._retry_entries[key] = stored
-            if first_core_delivery and key == keys[0] and not blocked and stored == entry:
-                self._first_core_deliveries[
-                    (obligation.generation_key, obligation.reporting_obligation_id)
-                ] = stored
+            if (
+                first_core_delivery is not None
+                and first_core_delivery.state == "scheduled"
+                and key == keys[0]
+            ):
+                if stored == entry:
+                    first_core_delivery.retry = stored
+                    first_core_delivery.state = "retry"
+                else:
+                    first_core_delivery.state = "consumed"
         if replayed:
             # A manual probe supersedes an earlier terminal blast radius. The
             # new error's declared scope governs subsequent automatic work.

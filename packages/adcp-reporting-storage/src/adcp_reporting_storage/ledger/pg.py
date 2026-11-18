@@ -1534,6 +1534,19 @@ class PgReportingLedgerStore:
                 )
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
+            elif (
+                revision.finality == "snapshot"
+                and await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions WHERE account_id=%s"
+                        " AND reporting_obligation_id=%s LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+            ):
+                raise LedgerConflictError(
+                    "SUPERSEDES_STALE", "the obligation already has a snapshot root"
+                )
             write_error = None
             try:
                 await connection.execute(

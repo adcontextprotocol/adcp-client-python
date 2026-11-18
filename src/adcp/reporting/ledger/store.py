@@ -1357,6 +1357,10 @@ class InMemoryReportingLedgerStore:
                 )
             if revision.supersedes_reporting_revision_id:
                 self._require_current_leaf(revision, siblings)
+            elif revision.finality == "snapshot" and siblings:
+                raise LedgerConflictError(
+                    "SUPERSEDES_STALE", "the obligation already has a snapshot root"
+                )
             self._revisions[revision.reporting_revision_id] = revision
             self._revision_identity[revision.reporting_revision_id] = identity
             self._rows[revision.reporting_revision_id] = tuple(dict(row) for row in rows)
