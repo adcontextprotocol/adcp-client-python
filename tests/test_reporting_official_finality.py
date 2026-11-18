@@ -1757,6 +1757,62 @@ async def test_new_period_checks_an_authoritative_close_with_an_ordinary_predece
     assert calls == before
 
 
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ReportingSourceFinalPolicy("provider", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("cutoff", "PT0S"),
+    ],
+)
+@pytest.mark.parametrize("prior_observation", [False, True])
+async def test_core_official_revision_blocks_unlocked_next_period(
+    store_factory: Any, policy: Any, prior_observation: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.test_reporting_official_acquisition import CoreStore
+
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_factory, finality_policy=policy
+    )
+    clock[0] = END + timedelta(hours=1)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    if prior_observation:
+        await producer.run_configuration(config)
+    observation = await store.get_provisional_observation(**owner)
+    checkpoint = await store.get_restatement_checkpoint(**owner)
+    assert (observation is not None) == prior_observation
+    core = _restart_producer(producer, CoreStore(store), clock)
+    official = await core.acquire_obligation(
+        config, obligation, restate=prior_observation, target_finality="official"
+    )
+    assert official is not None and official.finality_policy_id == policy.finality_policy_id
+    assert await store.get_provisional_observation(**owner) == observation
+    assert await store.get_restatement_checkpoint(**owner) == checkpoint
+    assert await store.get_provisional_acquisition(**owner, ordinal=int(prior_observation)) is None
+    revisions = await store.list_revisions(**owner)
+    before = list(calls)
+    monkeypatch.setattr(store, "source_publication", None)
+    monkeypatch.setattr(store, "get_stabilization_schedule", _stabilized_only_lookup(store))
+    assert await store.get_stabilization_schedule(config.generation_key) is None
+    rebound = _restart_producer(producer, store, clock)
+    assert await rebound._has_retained_official_close(config.generation_key)
+    clock[0] += timedelta(days=1)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await rebound.run_configuration(config)
+    assert calls == before
+    assert await store.list_revisions(**owner) == revisions
+    next_period = await store.find_obligation(
+        account_id=config.account_id,
+        consumer_id=config.consumer_id,
+        delivery_config_id=config.delivery_config_id,
+        delivery_config_version=config.delivery_config_version,
+        period_start=END,
+        period_end=END + timedelta(days=1),
+    )
+    assert next_period is None
+
+
 @pytest.mark.parametrize("configure_before_init", [True, False])
 @pytest.mark.parametrize(
     "policy,missing",

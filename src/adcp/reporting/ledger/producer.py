@@ -496,6 +496,10 @@ class ReportingProducer:
         self._recovered_stabilization: dict[
             ReportingConfigurationGenerationKey, ProvisionalPolicy
         ] = {}
+        self._first_core_deliveries: dict[
+            tuple[ReportingConfigurationGenerationKey, str],
+            Literal["ready", "attempted"] | RetryScheduleEntry,
+        ] = {}
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -686,7 +690,9 @@ class ReportingProducer:
         turn = WorkerTurn()
         if self._stabilization_requested(configuration):
             self._stabilization_store()
-        return await self._close_elapsed_periods(configuration, turn, now=now or self._clock())
+        return await self._close_elapsed_periods(
+            configuration, turn, now=now or self._clock(), admit_first_core_delivery=True
+        )
 
     def _stabilization_requested(self, configuration: ReportingConfiguration) -> bool:
         definition = configuration.definition
@@ -716,6 +722,7 @@ class ReportingProducer:
         turn: WorkerTurn,
         *,
         now: datetime,
+        admit_first_core_delivery: bool = False,
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
@@ -801,16 +808,22 @@ class ReportingProducer:
             after = boundary.end
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)
-            if (
-                selected is not None
-                and self._optional_publication_store() is None
-                and not _implements_store_method(
+            if selected is not None and self._optional_publication_store() is None:
+                if (
+                    admit_first_core_delivery
+                    and stored == obligation
+                    and self._observation_checkpoint_store() is None
+                ):
+                    # Overlapping period closes share the same first delivery.
+                    self._first_core_deliveries.setdefault(
+                        (stored.generation_key, stored.reporting_obligation_id), "ready"
+                    )
+                if not _implements_store_method(
                     self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
-                )
-            ):
-                # Publish this period through its atomic reservation before
-                # considering a later period with an unobservable pending slot.
-                break
+                ):
+                    # Attempt this period before considering a later period with
+                    # an unobservable pending slot.
+                    break
         return committed
 
     def _elapsed_periods(
@@ -1386,6 +1399,7 @@ class ReportingProducer:
         *,
         publishing: bool = False,
         scheduled_reservation: tuple[str, int] | None = None,
+        first_core_obligation: str | None = None,
     ) -> bool:
         """Check completed close evidence and any reservations that could affect this operation."""
         schedule_store = self._stabilization_schedule_store()
@@ -1417,6 +1431,7 @@ class ReportingProducer:
                     obligation,
                     publishing=publishing,
                     scheduled_reservation=scheduled_reservation,
+                    first_core_delivery=first_core_obligation == obligation.reporting_obligation_id,
                 ):
                     return True
             if not page.has_more:
@@ -1429,11 +1444,15 @@ class ReportingProducer:
         *,
         publishing: bool,
         scheduled_reservation: tuple[str, int] | None,
+        first_core_delivery: bool,
     ) -> bool:
         owner = dict(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
+        revisions = await self._store.list_revisions(**owner)
+        if any(revision.finality == "official" for revision in revisions):
+            return True
         observations = self._optional_observation_store()
         latest = await observations.get_provisional_observation(**owner) if observations else None
         if latest is not None and latest.acquisition.finality == "official":
@@ -1452,6 +1471,9 @@ class ReportingProducer:
         lookup = _implements_store_method(
             self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
         )
+        if first_core_delivery and not revisions and latest is None and checkpoint is None:
+            # An ordinary commit arbitrates reservations hidden behind a Core publisher.
+            return lookup and await self._pending_acquisition(obligation, ordinal=0) is not None
         if not lookup and (
             scheduled_reservation is None
             or scheduled_reservation[0] != obligation.reporting_obligation_id
@@ -1459,11 +1481,7 @@ class ReportingProducer:
             # A manual read or another period cannot inspect this reservation by claiming it.
             return publishing or scheduled is None
         # An untracked manual revision can precede the first scheduled reservation.
-        ordinal = (
-            checkpoint.next_observation
-            if checkpoint
-            else len(await self._store.list_revisions(**owner))
-        )
+        ordinal = checkpoint.next_observation if checkpoint else len(revisions)
         if lookup:
             pending = await self._pending_acquisition(obligation, ordinal=ordinal)
             if pending is not None and (
@@ -1786,6 +1804,7 @@ class ReportingProducer:
         finality = target_finality or obligation.required_finality
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
         if finality == "official" and isinstance(selected_policy, ReportingStabilizedPolicy):
+            await self._claim_first_core_delivery(obligation, now=now, retry=False)
             return await self._acquire_stabilized(
                 configuration,
                 obligation,
@@ -1828,6 +1847,11 @@ class ReportingProducer:
                 offering_id=retry_offering_id,
             )
             return None
+        first_core_obligation = await self._claim_first_core_delivery(
+            obligation,
+            now=now,
+            retry=finality == "snapshot" and not (manual_replay or restate or track_settling),
+        )
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
@@ -1911,6 +1935,7 @@ class ReportingProducer:
             official=finality == "official",
             frozen=pending.policy if pending else None,
             scheduled_ordinal=observation if reserve_snapshot else None,
+            first_core_obligation=first_core_obligation,
         )
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
@@ -2010,7 +2035,13 @@ class ReportingProducer:
             # the execution explicitly until even synchronous work has settled.
             await cancel_and_settle(execution)
             turn.slices_failed.append(obligation.reporting_obligation_id)
-            await self._schedule_retry(obligation, turn, now=now, replayed=manual_replay)
+            await self._schedule_retry(
+                obligation,
+                turn,
+                now=now,
+                replayed=manual_replay,
+                first_core_delivery=first_core_obligation is not None,
+            )
             self._note_escalation(
                 obligation,
                 turn,
@@ -2045,6 +2076,7 @@ class ReportingProducer:
                 retry_after_seconds=error.retry_after_seconds,
                 blocked=error.retry == "terminal",
                 replayed=manual_replay,
+                first_core_delivery=first_core_obligation is not None,
             )
             self._note_escalation(
                 obligation,
@@ -2135,6 +2167,7 @@ class ReportingProducer:
                 turn=turn,
                 acquisition=acquisition,
                 verified_source_rows=True,
+                first_core_obligation=first_core_obligation,
                 suppress_untracked_unchanged=untracked_restatement,
                 admit_tracked_stabilization=admit_tracked_stabilization,
             )
@@ -2256,6 +2289,26 @@ class ReportingProducer:
             f"source:{source}",
         )
 
+    async def _claim_first_core_delivery(
+        self, obligation: ReportingObligationRecord, *, now: datetime, retry: bool
+    ) -> str | None:
+        """Consume a first attempt or its own due slice retry before source dispatch."""
+        key = (obligation.generation_key, obligation.reporting_obligation_id)
+        state = self._first_core_deliveries.get(key)
+        if isinstance(state, RetryScheduleEntry):
+            if not retry or _utc(now) < _utc(state.retry_not_before):
+                return None
+            retained = await self._get_retry(state.scope_key)
+            if self._first_core_deliveries.get(key) is not state:
+                return None
+            if retained != state:
+                self._first_core_deliveries[key] = "attempted"
+                return None
+        elif state != "ready":
+            return None
+        self._first_core_deliveries[key] = "attempted"
+        return obligation.reporting_obligation_id
+
     async def _get_retry(self, key: str) -> RetryScheduleEntry | None:
         return await self._retry_store.get_retry_schedule(scope_key=key)
 
@@ -2305,6 +2358,7 @@ class ReportingProducer:
         retry_after_seconds: float | None = None,
         blocked: bool = False,
         replayed: bool = False,
+        first_core_delivery: bool = False,
     ) -> None:
         # Dispatch ``now`` can be synthetic in tests and integrations. A slow
         # source may finish long after it, so anchor the cooldown at completion.
@@ -2341,17 +2395,20 @@ class ReportingProducer:
                 retry_at = completed_at + delay
             except OverflowError:
                 retry_at = datetime.max.replace(tzinfo=timezone.utc)
-            stored = await self._record_retry(
-                RetryScheduleEntry(
-                    key,
-                    completed_at if blocked else retry_at,
-                    attempt,
-                    blocked,
-                    recorded_at=completed_at,
-                    replayed=replayed,
-                )
+            entry = RetryScheduleEntry(
+                key,
+                completed_at if blocked else retry_at,
+                attempt,
+                blocked,
+                recorded_at=completed_at,
+                replayed=replayed,
             )
+            stored = await self._record_retry(entry)
             turn._retry_entries[key] = stored
+            if first_core_delivery and key == keys[0] and not blocked and stored == entry:
+                self._first_core_deliveries[
+                    (obligation.generation_key, obligation.reporting_obligation_id)
+                ] = stored
         if replayed:
             # A manual probe supersedes an earlier terminal blast radius. The
             # new error's declared scope governs subsequent automatic work.
@@ -2631,6 +2688,7 @@ class ReportingProducer:
         frozen: ProvisionalPolicy | None = None,
         check_generation: bool = True,
         scheduled_ordinal: int | None = None,
+        first_core_obligation: str | None = None,
     ) -> None:
         policy = route.definition.finality_policy if route.definition else None
         if policy is None or self._optional_publication_store() is not None:
@@ -2648,7 +2706,10 @@ class ReportingProducer:
             or (
                 check_generation
                 and await self._has_retained_official_close(
-                    route.generation_key, publishing=True, scheduled_reservation=reservation
+                    route.generation_key,
+                    publishing=True,
+                    scheduled_reservation=reservation,
+                    first_core_obligation=first_core_obligation,
                 )
             )
         ):
@@ -2993,6 +3054,7 @@ class ReportingProducer:
         turn: WorkerTurn | None,
         acquisition: ProvisionalAcquisition | None,
         verified_source_rows: bool,
+        first_core_obligation: str | None = None,
         suppress_untracked_unchanged: bool = False,
         admit_tracked_stabilization: bool = True,
     ) -> ReportingRevisionRecord:
@@ -3009,6 +3071,7 @@ class ReportingProducer:
             frozen=acquisition.policy if acquisition else None,
             check_generation=acquisition is None or verified_source_rows,
             scheduled_ordinal=scheduled_ordinal,
+            first_core_obligation=first_core_obligation,
         )
         origin_store: SnapshotOriginStore | None = None
         if finality == "snapshot" and acquisition is not None:

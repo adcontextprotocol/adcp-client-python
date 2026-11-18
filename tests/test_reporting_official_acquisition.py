@@ -34,6 +34,7 @@ from adcp.reporting.ledger import (
     ReportingRevisionRecord,
     ReportingSourceFinalPolicy,
     ReportingStabilizedPolicy,
+    RetryScheduleEntry,
     WorkerTurn,
     revision_content_sha256,
 )
@@ -55,7 +56,8 @@ from adcp.reporting.source import (
     source_batch_object_set_sha256_v1,
 )
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
-from tests.test_reporting_official_finality import ROWS
+from tests.test_reporting_official_finality import ROWS, _restart_producer
+from tests.test_reporting_producer_retry import FailingSource
 from tests.test_reporting_source_availability import (
     END,
     PROVIDER_ROW,
@@ -81,6 +83,11 @@ class CoreStore:
         return self.store.source_publication(account_id, **kwargs)
 
 
+class UnlockedCore(CoreStore):
+    source_publication = None
+    get_stabilization_schedule = None
+
+
 @pytest.mark.parametrize(
     "policy",
     [
@@ -92,9 +99,6 @@ async def test_standalone_official_admission_requires_account_lock(policy: Any) 
     producer, store, config, obligation, calls, _ = await _harness(
         official=True, finality_policy=policy
     )
-
-    class UnlockedCore(CoreStore):
-        source_publication = None
 
     producer._store = UnlockedCore(store)
     changed = replace(config, delivery_config_version=2)
@@ -246,6 +250,304 @@ async def cutoff_backend(request: Any) -> AsyncIterator[Any]:
         yield (
             ProgressStore if request.param == "progress" else InMemoryReportingLedgerStore
         ), request.param == "core"
+
+
+async def _core_snapshot_harness(factory: Any, policy: Any) -> tuple[Any, ...]:
+    template, store, config, _, calls, clock = await _harness(factory, finality_policy=policy)
+    config = replace(config, delivery_config_id="core-snapshot")
+    await store.put_configuration(config)
+    producer = _restart_producer(template, UnlockedCore(store), clock)
+    (obligation,) = await producer.close_elapsed_periods(config)
+    return producer, store, config, obligation, calls, clock
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize(
+    "policy",
+    [
+        None,
+        ReportingSourceFinalPolicy("unused-provider", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("unused-cutoff", "P2D"),
+        ReportingStabilizedPolicy("unused-stable", "PT0S", "PT12H"),
+    ],
+)
+@pytest.mark.parametrize("manual", [False, True])
+async def test_first_core_snapshot_with_unused_policy(
+    cutoff_backend: Any, policy: Any, manual: bool
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], policy
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    if policy is not None:
+        peer = _restart_producer(producer, UnlockedCore(store), clock)
+        assert await peer.close_elapsed_periods(config) == []
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await peer.acquire_obligation(config, obligation)
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.close_elapsed_periods(config, now=clock[0] + timedelta(days=1))
+    assert calls == []
+    snapshot = await producer.acquire_obligation(config, obligation, manual_replay=manual)
+    assert snapshot is not None and snapshot.finality == "snapshot"
+    assert snapshot.finality_policy_id is None
+    assert calls == [clock[0]]
+    assert await store.list_revisions(**owner) == (snapshot,)
+    assert await store.get_provisional_observation(**owner) is None
+    assert await store.get_restatement_checkpoint(**owner) is None
+    clock[0] += timedelta(hours=1)
+    if policy is None:
+        await producer.acquire_obligation(config, obligation, restate=True, manual_replay=True)
+        assert len(calls) == 2
+    else:
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation, restate=True, manual_replay=True)
+        assert len(calls) == 1
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("policy", [None, ReportingContractualCutoffPolicy("unused", "P2D")])
+async def test_failed_first_core_delivery_retries_on_its_recorded_schedule(
+    cutoff_backend: Any, policy: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], policy
+    )
+    failure = FailingSource()
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._source, "execute", failure.execute)
+        assert await producer.acquire_obligation(config, obligation) is None
+    assert failure.calls == 1
+    retry = await store.get_retry_schedule(scope_key=producer._retry_keys(obligation)[0])
+    assert retry is not None and retry.attempt == 1
+    assert await producer.acquire_obligation(config, obligation) is None
+    if policy is not None:
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation, manual_replay=True)
+        assert calls == []
+    clock[0] = retry.retry_not_before
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._source, "execute", failure.execute)
+        assert await producer.acquire_obligation(config, obligation) is None
+    assert failure.calls == 2
+    retry = await store.get_retry_schedule(scope_key=retry.scope_key)
+    assert retry.attempt == 2
+    clock[0] = retry.retry_not_before
+    recovered = await producer.acquire_obligation(config, obligation)
+    assert recovered is not None and recovered.finality == "snapshot"
+    assert calls == [clock[0]]
+    assert (await store.get_retry_schedule(scope_key=retry.scope_key)).attempt == 0
+    if policy is not None:
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation, restate=True, manual_replay=True)
+        assert calls == [clock[0]]
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("competing", ["persisting_retry", "retry", "reservation"])
+async def test_core_retry_checks_the_durable_winner(
+    cutoff_backend: Any, competing: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingSourceFinalPolicy("provider", "delivery.is_final")
+    )
+    with monkeypatch.context() as patch:
+        if competing == "persisting_retry":
+            record = store.record_retry_schedule
+
+            async def race(entry: RetryScheduleEntry) -> RetryScheduleEntry:
+                await record(
+                    replace(
+                        entry,
+                        attempt=entry.attempt + 1,
+                        recorded_at=clock[0] + timedelta(microseconds=1),
+                    )
+                )
+                return await record(entry)
+
+            patch.setattr(store, "record_retry_schedule", race)
+        patch.setattr(producer._source, "execute", FailingSource().execute)
+        assert await producer.acquire_obligation(config, obligation) is None
+    retry = await store.get_retry_schedule(scope_key=producer._retry_keys(obligation)[0])
+    if competing == "retry":
+        retry = await store.record_retry_schedule(
+            replace(retry, attempt=2, retry_not_before=retry.retry_not_before + timedelta(hours=1))
+        )
+        assert retry.attempt == 2
+    elif competing == "reservation":
+        request = producer._build_slice(
+            config, obligation, OFFICIAL_OFFERING_ID, finality="official", now=clock[0]
+        )
+        async with store.source_publication(config.account_id):
+            await store.reserve_provisional_acquisition(
+                ProvisionalAcquisition(
+                    request.model_dump_json(), 0, ProvisionalPolicy(timedelta(0), timedelta(days=1))
+                )
+            )
+    clock[0] = retry.retry_not_before
+    with pytest.raises(LedgerConflictError) as error:
+        await producer.acquire_obligation(config, obligation)
+    assert error.value.code == (
+        "OBSERVATION_CONFLICT"
+        if competing == "reservation"
+        else "OFFICIAL_PUBLICATION_NOT_SUPPORTED"
+    )
+    assert len(calls) == int(competing == "reservation")
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    assert not await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ReportingSourceFinalPolicy("provider", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("cutoff", "PT0S"),
+        ReportingStabilizedPolicy("stable", "PT0S", "PT12H"),
+    ],
+)
+async def test_rejected_official_attempt_consumes_first_core_delivery(
+    cutoff_backend: Any, policy: Any
+) -> None:
+    producer, _, config, obligation, calls, _ = await _core_snapshot_harness(
+        cutoff_backend[0], policy
+    )
+    with pytest.raises(LedgerConflictError):
+        await producer.acquire_obligation(config, obligation, target_finality="official")
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    assert calls == []
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_first_core_snapshot_waits_for_shared_source_retry(cutoff_backend: Any) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingStabilizedPolicy("unused", "PT0S", "PT12H")
+    )
+    retry_at = clock[0] + timedelta(minutes=15)
+    await store.record_retry_schedule(
+        RetryScheduleEntry(producer._retry_keys(obligation)[2], retry_at, 1, recorded_at=clock[0])
+    )
+    assert await producer.acquire_obligation(config, obligation) is None
+    assert calls == []
+    clock[0] = retry_at
+    snapshot = await producer.acquire_obligation(config, obligation)
+    assert snapshot is not None and snapshot.finality == "snapshot"
+    assert calls == [retry_at]
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("visible", [False, True])
+async def test_competing_close_blocks_first_core_snapshot(
+    cutoff_backend: Any, visible: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingSourceFinalPolicy("provider", "delivery.is_final")
+    )
+    request = producer._build_slice(
+        config, obligation, OFFICIAL_OFFERING_ID, finality="official", now=clock[0]
+    )
+    async with store.source_publication(config.account_id):
+        winner = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(), 0, ProvisionalPolicy(timedelta(0), timedelta(days=1))
+            )
+        )
+    execute = producer._source.execute
+    dispatches = 0
+
+    async def during_delivery(*args: Any, **kwargs: Any) -> Any:
+        nonlocal dispatches
+        dispatches += 1
+        assert dispatches == 1
+        with pytest.raises(LedgerConflictError, match="publication lock"):
+            await producer.acquire_obligation(config, obligation, manual_replay=True)
+        return await execute(*args, **kwargs)
+
+    monkeypatch.setattr(producer._source, "execute", during_delivery)
+    if visible:
+        monkeypatch.setattr(
+            producer.store,
+            "get_provisional_acquisition",
+            store.get_provisional_acquisition,
+            raising=False,
+        )
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.acquire_obligation(config, obligation)
+    if visible:
+        assert conflict.value.code == "OFFICIAL_PUBLICATION_NOT_SUPPORTED"
+        assert calls == []
+        monkeypatch.delattr(producer.store, "get_provisional_acquisition")
+    else:
+        assert conflict.value.code == "OBSERVATION_CONFLICT"
+        assert calls == [clock[0]]
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert await store.get_provisional_acquisition(**owner, ordinal=0) == winner
+    assert await store.list_revisions(**owner) == ()
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_overlapping_closes_cannot_rearm_an_attempted_core_delivery(
+    cutoff_backend: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, _, calls, _ = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    config = replace(config, delivery_config_version=2)
+    await store.put_configuration(config)
+    commit = store.commit_obligation
+    pending = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def delayed(candidate: Any) -> Any:
+        if not pending.is_set():
+            pending.set()
+            await resume.wait()
+        return await commit(candidate)
+
+    monkeypatch.setattr(store, "commit_obligation", delayed)
+    overlapping = asyncio.create_task(producer.close_elapsed_periods(config))
+    try:
+        await asyncio.wait_for(pending.wait(), timeout=5)
+        (obligation,) = await producer.close_elapsed_periods(config)
+        failure = FailingSource()
+        with monkeypatch.context() as patch:
+            patch.setattr(producer._source, "execute", failure.execute)
+            assert await producer.acquire_obligation(config, obligation) is None
+        assert failure.calls == 1
+    finally:
+        resume.set()
+        completed = await overlapping
+    assert completed == [obligation]
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    assert calls == []
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_first_core_snapshot_checks_other_periods_for_a_close(cutoff_backend: Any) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingSourceFinalPolicy("provider", "delivery.is_final")
+    )
+    locked = _restart_producer(producer, CoreStore(store), clock)
+    clock[0] += timedelta(days=1)
+    (other,) = await locked.close_elapsed_periods(config)
+    official = await locked.acquire_obligation(config, other, target_finality="official")
+    assert official is not None and official.finality == "official"
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation)
+    assert calls == [clock[0]]
+    assert not await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
 
 
 @pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)

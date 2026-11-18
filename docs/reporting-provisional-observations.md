@@ -75,13 +75,19 @@ Custom Core ledgers that publish official revisions must implement
 shared across all publishers for that account. Stabilization additionally
 requires durable reservations, bounded scheduled history, checkpoints, exact
 snapshot origins and generation schedule recovery. An ordinary snapshot route
-can keep using its snapshot publisher when the definition also lists an unused
-stabilization policy. Each scheduled read checks the winner of its own atomic
-reservation. With a selected policy and no account publication lock, new manual
-acquisitions and later periods also need the pending-acquisition lookup to rule out
-a competing close. Recovery checks retained scheduled observations for
-`source_final` and `contractual_cutoff` when the stabilization lookup returns
-no schedule.
+can keep using its snapshot publisher when the definition lists an unused
+finality policy. Each scheduled read checks the winner of its own atomic reservation.
+
+A Core producer without observation or checkpoint support can call
+`close_elapsed_periods` and then `acquire_obligation` for the first snapshot of
+the period it just created. It consumes that allowance before calling the source.
+After a retryable fetch failure, the same producer can retry when that slice's
+recorded retry becomes due. A manual replay cannot claim the scheduled retry.
+If another publisher reserves the period, the ledger's atomic revision commit
+rejects the snapshot. With a selected policy and no account publication lock,
+additional reads and later periods need durable evidence ruling out a competing
+close. Recovery checks immutable official revisions as well as retained
+observations and reservations when the stabilization lookup returns no schedule.
 
 ## Persistence and compatibility
 
