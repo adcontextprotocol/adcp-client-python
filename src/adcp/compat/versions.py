@@ -754,6 +754,49 @@ def _upgrade_product_reporting_metrics(payload: dict[str, Any]) -> None:
                 )
 
 
+def _downgrade_installment_collection_refs(payload: dict[str, Any]) -> None:
+    """Keep a parent ID when the product proves its publisher namespace."""
+    products = payload.get("products", [])
+    if not isinstance(products, list):
+        return
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        collections = product.get("collections")
+        if not isinstance(collections, list) or not collections:
+            continue
+        if any(
+            not isinstance(selector, dict) or not isinstance(selector.get("publisher_domain"), str)
+            for selector in collections
+        ):
+            continue
+        publishers = {selector["publisher_domain"] for selector in collections}
+        if len(publishers) != 1:
+            continue
+        installments = product.get("installments", [])
+        if not isinstance(installments, list):
+            continue
+        for installment in installments:
+            if not isinstance(installment, dict):
+                continue
+            reference = installment.get("collection_ref")
+            if (
+                not isinstance(reference, dict)
+                or not isinstance(reference.get("publisher_domain"), str)
+                or reference.get("publisher_domain") not in publishers
+                or not isinstance(reference.get("collection_id"), str)
+            ):
+                continue
+            collection_id = reference["collection_id"]
+            if "collection_id" not in installment:
+                installment["collection_id"] = collection_id
+            if installment["collection_id"] == collection_id and set(reference) == {
+                "publisher_domain",
+                "collection_id",
+            }:
+                installment.pop("collection_ref")
+
+
 def _convert_embedded_results(
     tool: str,
     payload: dict[str, Any],
@@ -939,6 +982,8 @@ def _convert_payload(
             _upgrade_governance_registration(result)
         if tool == "get_products" and direction != "request" and (source, target) == ("3.0", "3.1"):
             _upgrade_product_reporting_metrics(result)
+        if tool == "get_products" and direction != "request" and (source, target) == ("3.2", "3.1"):
+            _downgrade_installment_collection_refs(result)
         if direction != "request" and {source, target} == {"3.0", "3.1"}:
             from adcp.validation._response_envelope import uses_task_status_envelope
 
