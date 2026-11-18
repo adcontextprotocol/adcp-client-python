@@ -731,18 +731,34 @@ def validate_retained_provisional_observation(
         raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is not readable")
 
 
-def provisional_observation_reuse_candidate(
-    acquisition: ProvisionalAcquisition,
+def validate_provisional_revision(
     observation: ProvisionalObservation,
     revision: ReportingRevisionRecord | None,
 ) -> bool:
-    """Whether a candidate can replace its unchanged predecessor if reuse becomes unsafe."""
-    return (
-        revision is not None
+    """Check the reserved output and identify a candidate for unchanged snapshot reuse."""
+    acquisition = observation.acquisition
+    if revision is None:
+        if acquisition.finality != "snapshot":
+            raise LedgerConflictError(
+                "OBSERVATION_CONFLICT", "official acquisition requires an official revision"
+            )
+        return False
+    reuse_candidate = (
+        revision.finality == "snapshot"
         and revision.reporting_revision_id != observation.revision_id
         and acquisition.predecessor_revision_id == observation.revision_id
         and revision.supersedes_reporting_revision_id == observation.revision_id
     )
+    if (
+        revision.finality != acquisition.finality
+        or revision.account_id != acquisition.account_id
+        or revision.reporting_obligation_id != acquisition.obligation_id
+        or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
+    ):
+        raise LedgerConflictError(
+            "OBSERVATION_CONFLICT", "observation revision differs from the reserved output"
+        )
+    return reuse_candidate
 
 
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
@@ -1358,15 +1374,7 @@ class InMemoryReportingLedgerStore:
         acquisition = observation.acquisition
         owner = (acquisition.account_id, acquisition.obligation_id)
         key = (*owner, acquisition.ordinal)
-        reuse_candidate = provisional_observation_reuse_candidate(
-            acquisition, observation, revision
-        )
-        if revision is not None and (
-            revision.account_id != acquisition.account_id
-            or revision.reporting_obligation_id != acquisition.obligation_id
-            or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
-        ):
-            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        reuse_candidate = validate_provisional_revision(observation, revision)
         async with self._mutation():
             existing = self._provisional_observations.get(owner, {}).get(acquisition.ordinal)
             obligation = self._obligations.get(acquisition.obligation_id)

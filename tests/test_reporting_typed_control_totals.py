@@ -26,6 +26,7 @@ from adcp.reporting.ledger import producer as producer_module
 from adcp.reporting.ledger.producer import revision_binding_algorithm
 from adcp.reporting.ledger.status import _revision_to_wire
 from adcp.reporting.ledger.store import LedgerConflictError
+from adcp.reporting.source import SourceBatchManifestV1
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_settling import ACCOUNT, _capabilities, _harness, _revisions
 
@@ -123,16 +124,8 @@ async def test_replaying_a_retained_pair_hashed_revision_keeps_its_original_bind
     make_harness: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     producer, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
-    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
-    original = producer.commit_revision_from_manifest
-
-    async def spy(*args: Any, **kwargs: Any) -> Any:
-        calls.append((args, kwargs))
-        return await original(*args, **kwargs)
-
     # Seed the history an earlier SDK would have written: pair-hashed totals.
     with monkeypatch.context() as legacy:
-        legacy.setattr(producer, "commit_revision_from_manifest", spy)
         legacy.setattr(producer_module, "_typed_control_totals", lambda *_: None)
         await producer.run_worker()
     (retained,) = await _revisions(store)
@@ -141,8 +134,19 @@ async def test_replaying_a_retained_pair_hashed_revision_keeps_its_original_bind
 
     # The same publication replayed by the new code reproduces the stored
     # evidence instead of conflicting with it or rehashing it.
-    args, kwargs = calls[0]
-    replayed = await original(*args, **kwargs)
+    owner = dict(account_id=ACCOUNT, reporting_obligation_id=retained.reporting_obligation_id)
+    obligation = await store.get_obligation(**owner)
+    observation = await store.get_provisional_observation(**owner)
+    rows = await store.read_revision_rows(
+        account_id=ACCOUNT, reporting_revision_id=retained.reporting_revision_id
+    )
+    replayed = await producer.commit_revision_from_manifest(
+        obligation,
+        SourceBatchManifestV1.model_validate_json(observation.manifest_json),
+        rows=rows.rows,
+        finality="snapshot",
+        acquisition=observation.acquisition,
+    )
     assert replayed == retained
     assert await _revisions(store) == (retained,)
 

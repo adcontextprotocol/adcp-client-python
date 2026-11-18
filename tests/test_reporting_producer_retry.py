@@ -401,14 +401,20 @@ async def test_turn_keeps_retry_that_became_due_during_later_fetch():
     assert turn.earliest_retry_at == first_due
 
 
-async def test_provisional_manual_replay_marks_restored_request():
+async def test_provisional_manual_replay_preserves_the_reserved_trigger():
     store = InMemoryReportingLedgerStore()
     source = FailingSource(code="AUTHENTICATION_FAILED", retry="terminal")
     config = replace(configuration(), required_finality="snapshot")
     worker = ReportingProducer(
         source=source,
         store=store,
-        offerings=ProducerOfferings(snapshot_offering_id=SNAPSHOT_OFFERING_ID),
+        offerings=ProducerOfferings(
+            snapshot_offering_id=SNAPSHOT_OFFERING_ID,
+            publication_namespace=source.capabilities.offering(
+                SNAPSHOT_OFFERING_ID
+            ).publication_namespace,
+            source_scope=dict(source.capabilities.source_scope),
+        ),
         clock=lambda: NOW,
     )
     obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
@@ -421,4 +427,4 @@ async def test_provisional_manual_replay_marks_restored_request():
         manual_replay=True,
     )
     assert source.calls == 2
-    assert source.requests[-1].trigger == "manual_replay"
+    assert source.requests[-1].trigger == source.requests[0].trigger == "scheduled_poll"

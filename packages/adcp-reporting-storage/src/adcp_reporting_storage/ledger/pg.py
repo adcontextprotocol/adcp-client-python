@@ -148,10 +148,10 @@ from adcp.reporting.ledger.store import (
     configuration_lifecycle,
     encode_cursor,
     issue_is_retirable,
-    provisional_observation_reuse_candidate,
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
     validate_managed_revision_rows,
+    validate_provisional_revision,
     validate_retained_provisional_observation,
     validate_revision_currency,
 )
@@ -1837,15 +1837,7 @@ class PgReportingLedgerStore:
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        reuse_candidate = provisional_observation_reuse_candidate(
-            acquisition, observation, revision
-        )
-        if revision is not None and (
-            revision.account_id != acquisition.account_id
-            or revision.reporting_obligation_id != acquisition.obligation_id
-            or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
-        ):
-            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        reuse_candidate = validate_provisional_revision(observation, revision)
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, acquisition.account_id)
             await self._require_provisional_schema(connection)

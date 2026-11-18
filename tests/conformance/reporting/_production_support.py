@@ -293,11 +293,11 @@ class Source:
     ):
         raw = redacted_capabilities().model_dump(mode="json")
         raw["offerings"] = [raw["offerings"][int(official)]]
+        raw["offerings"][0]["source_timezone"] = "UTC"
         self.source_id = raw["offerings"][0]["offering_id"]
         if official:
             raw["offerings"][0].update(
                 grain="fixed_window",
-                source_timezone="UTC",
                 source_local_ready_time="00:00",
                 days_after_period_end=0,
                 expected_availability_lag="PT0S",

@@ -32,6 +32,7 @@ from adcp.reporting.ledger import (
     ReportingStatusCaller,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
+from adcp.reporting.production.contracts import ReportingProductionSourceBinding
 from adcp.reporting.service import (
     ProducerFactory,
     ReliableReportingConfigurationError,
@@ -159,6 +160,8 @@ def _finality_service(
     results: tuple[InlineFetchResult, ...] = (),
     clock: DeterministicReportingClock | None = None,
     source_format: str | None = None,
+    products: tuple[str, ...] = (),
+    adapter_type: type[ScriptedReportingAdapter] = ScriptedReportingAdapter,
 ) -> ReliableReportingService:
     public = _capability_offering("gam")
     public["supported_finality"] = [configuration.required_finality]
@@ -170,7 +173,9 @@ def _finality_service(
     )
     raw = redacted_capabilities().model_dump(mode="json")
     for offering in raw["offerings"]:
-        offering.update(source_timezone="UTC", product_ids=[configuration.report_definition_id])
+        offering.update(
+            source_timezone="UTC", product_ids=products or [configuration.report_definition_id]
+        )
         offering["windowing"]["minimum_window"] = "PT1H"
     if close:
         raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
@@ -181,7 +186,7 @@ def _finality_service(
         for offering in raw["offerings"]:
             offering["formats"] = [{"media_type": source_format, "compression": "none"}]
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
-    adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), results)
+    adapter = adapter_type(ReportingSourceCapabilitiesV1.model_validate(raw), results)
     service = ReliableReportingService(
         store=store or InMemoryReportingLedgerStore(),
         account_context=lambda _: context,
@@ -190,6 +195,70 @@ def _finality_service(
     )
     service.sources.register("gam", adapter, capability_offerings=[public])
     return service
+
+
+@pytest.mark.parametrize("also_offers_definition", [False, True])
+async def test_registered_source_publishes_only_its_bound_product(
+    also_offers_definition: bool,
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        deactivated_at=NOW,
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("selected", "closed")
+        ),
+    )
+
+    class BoundAdapter(ScriptedReportingAdapter):
+        def configuration_binding(
+            self, configuration: ReportingConfiguration
+        ) -> ReportingProductionSourceBinding:
+            return ReportingProductionSourceBinding.for_configuration(
+                configuration,
+                capabilities_sha256=self.capabilities.capabilities_sha256,
+                media_buy_products=(("media-buy-redacted", "real-product"),),
+            )
+
+        def fetch_slice(self, request: Any) -> InlineFetchResult:
+            self.calls.append(request)
+            product = request.coverage.constituents[0].product_id
+            return InlineFetchResult(
+                rows=[{**_rows(12)[0], "product_id": product}],
+                finality_evidence=ReportingFinalityEvidenceV1(
+                    basis="provider_declared",
+                    evidence_ref="closed",
+                    observed_at=NOW + timedelta(days=1),
+                ),
+            )
+
+    service = _finality_service(
+        config,
+        snapshot=False,
+        official=True,
+        products=(
+            ("real-product", config.report_definition_id)
+            if also_offers_definition
+            else ("real-product",)
+        ),
+        adapter_type=BoundAdapter,
+        clock=DeterministicReportingClock(NOW + timedelta(days=3)),
+    )
+    await service.configure(config)
+    turn = await service.run_worker()
+    assert not turn.configuration_errors
+    adapter = service.sources.get("gam").adapter
+    assert isinstance(adapter, BoundAdapter)
+    assert {c.product_id for req in adapter.calls for c in req.coverage.constituents} == {
+        "real-product"
+    }
+    revisions = turn.configurations[config.generation_key].revisions_committed
+    assert len(revisions) == len(adapter.calls)
+    for revision_id in revisions:
+        page = await service.store.read_revision_rows(
+            account_id=config.account_id, reporting_revision_id=revision_id
+        )
+        assert [row["product_id"] for row in page.rows] == ["real-product"]
 
 
 @pytest.mark.parametrize("signal", [None, "delivery.other", "delivery.is_final"])
