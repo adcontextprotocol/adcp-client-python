@@ -254,9 +254,8 @@ async def cutoff_backend(request: Any) -> AsyncIterator[Any]:
         async with isolated_reporting_pool() as pool:
             yield partial(PgReportingLedgerStore, pool=pool), False
     else:
-        yield (
-            ProgressStore if request.param == "progress" else InMemoryReportingLedgerStore
-        ), request.param == "core"
+        factory = ProgressStore if request.param == "progress" else InMemoryReportingLedgerStore
+        yield factory, request.param == "core"
 
 
 async def _core_snapshot_harness(factory: Any, policy: Any) -> tuple[Any, ...]:
@@ -1688,12 +1687,10 @@ async def test_invalid_source_namespace_leaves_first_reservation_available(route
     if route == "bound_snapshot":
         from adcp.reporting.production.contracts import ReportingProductionSourceBinding
 
-        producer._source.configuration_binding = (
-            lambda configuration: ReportingProductionSourceBinding.for_configuration(
-                configuration,
-                capabilities_sha256=producer._source.capabilities.capabilities_sha256,
-                media_buy_products=(("media-buy-redacted", "fixture-product"),),
-            )
+        producer._source.configuration_binding = partial(
+            ReportingProductionSourceBinding.for_configuration,
+            capabilities_sha256=producer._source.capabilities.capabilities_sha256,
+            media_buy_products=(("media-buy-redacted", "fixture-product"),),
         )
     correct = producer._offerings
     producer._offerings = replace(correct, publication_namespace="other-namespace")

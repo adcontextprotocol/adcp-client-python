@@ -1,6 +1,7 @@
 # Definition-Driven Official Reporting Finality
 
-Status: approved for implementation  
+Status: approved for implementation
+
 Tracking: AI-22659
 
 ## Context

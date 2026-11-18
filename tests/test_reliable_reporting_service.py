@@ -801,9 +801,8 @@ async def test_official_configuration_must_match_the_declared_public_definition(
     )
     config = replace(_configuration(), required_finality="official", definition=definition)
     raw = redacted_capabilities().model_dump(mode="json")
-    raw["offerings"][0]["contract"][
-        "report_definition_sha256"
-    ] = definition.report_definition_sha256
+    contract = raw["offerings"][0]["contract"]
+    contract["report_definition_sha256"] = definition.report_definition_sha256
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
     public = {**_capability_offering("gam"), "supported_finality": ["official"]}
     context = replace(_account_context(config), capability_offering=public)

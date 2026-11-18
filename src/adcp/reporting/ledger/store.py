@@ -978,9 +978,10 @@ class InMemoryReportingLedgerStore:
         self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
         self._retry_schedules: dict[str, RetryScheduleEntry] = {}
         self._provisional_acquisitions: dict[tuple[str, str, int], ProvisionalAcquisition] = {}
-        self._provisional_observations: dict[tuple[str, str], dict[int, ProvisionalObservation]] = (
-            {}
-        )
+        self._provisional_observations: dict[
+            tuple[str, str],
+            dict[int, ProvisionalObservation],
+        ] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}

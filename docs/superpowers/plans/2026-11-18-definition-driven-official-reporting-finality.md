@@ -176,7 +176,10 @@ async def test_official_configuration_routes_by_selected_policy(policy, expected
     configuration = official_configuration(policy)
     await service.configure(configuration)
     binding = service._bindings[configuration.generation_key]
-    assert binding.producer._offerings.offering_for(finality_policy_source_class(policy)) == expected_offering
+    assert (
+        binding.producer._offerings.offering_for(finality_policy_source_class(policy))
+        == expected_offering
+    )
 
 
 async def test_official_configuration_without_policy_fails_before_obligation():
@@ -210,7 +213,9 @@ Expected: missing-policy admission succeeds or the service insists on an authori
 - [ ] **Step 3: Centralize the source-finality requirement**
 
 ```python
-def finality_policy_source_class(policy: ReportingFinalityPolicy) -> Literal["snapshot", "official"]:
+def finality_policy_source_class(
+    policy: ReportingFinalityPolicy,
+) -> Literal["snapshot", "official"]:
     return "official" if isinstance(policy, ReportingSourceFinalPolicy) else "snapshot"
 ```
 
@@ -346,7 +351,9 @@ git commit -m "feat(reporting): expose retained observation history"
 ```python
 async def test_source_final_emits_exact_selected_policy() -> None:
     policy = ReportingSourceFinalPolicy("delivery-final-v1", "delivery.is_final")
-    producer, store, configuration, obligation, authoritative_manifest = await official_harness(policy)
+    producer, store, configuration, obligation, authoritative_manifest = await official_harness(
+        policy
+    )
 
     revision = await producer.acquire_obligation(configuration, obligation)
 
@@ -549,9 +556,7 @@ When proven, reuse the qualifying manifest and rows to commit official. If the m
 ```python
 def _derived_official_revision_id(manifest, proof: FinalityProof) -> str:
     digest = hashlib.sha256(
-        canonical_json_utf8_v1(
-            [manifest.publication_id, "official", proof.finality_policy_id]
-        )
+        canonical_json_utf8_v1([manifest.publication_id, "official", proof.finality_policy_id])
     ).hexdigest()
     return f"rpr_{digest[:40]}"
 ```
