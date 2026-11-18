@@ -34,10 +34,12 @@ reuse, installed-package checks and independent integration review. Follow the
 - Snapshot-only reporting retains one final inclusive read at the boundary,
   including after downtime. Valid new source evidence may extend that boundary.
   Expiry does not create an official revision.
-- An explicit snapshot-to-official route requires a selected definition policy.
-  `official_close_lag` requires an explicitly declared `restatement_window`
-  and schedules a close attempt. The selected policy determines the source
-  offering and the proof needed to publish.
+- Setting `official_close_lag` opts a snapshot offering into an explicit
+  snapshot-to-official route. This requires a declared `restatement_window`
+  and a selected definition policy. For `source_final` and
+  `contractual_cutoff`, the lag can delay the source attempt. For
+  `stabilized`, the SDK promotes the snapshot when its scheduled observations
+  satisfy the selected policy, independently of the lag value.
 
 The durable acquisition freezes the source request, predecessor revision and
 observation ordinal. A retry renews only `deadline_at`, the execution budget for

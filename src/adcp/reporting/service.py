@@ -446,6 +446,14 @@ class _Binding:
             and self.producer._stabilization_schedule_store() is None
         )
 
+    @property
+    def needs_close_recovery_check(self) -> bool:
+        return self.missing_stabilization_lookup or (
+            self.configuration.definition is not None
+            and self.configuration.definition.finality_policy is not None
+            and self.producer._optional_publication_store() is None
+        )
+
 
 class _MissingFinalityPolicyError(ReliableReportingConfigurationError):
     """A retained generation may still serve reads while its producer is unbound."""
@@ -796,7 +804,7 @@ class ReliableReportingService:
             self._pending_bindings[key] = binding
             # Schema initialization makes it possible to distinguish a new snapshot
             # generation from an existing one whose frozen close needs recovery.
-            if not binding.missing_stabilization_lookup:
+            if not binding.needs_close_recovery_check:
                 self._bindings[key] = binding
         else:
             await self._install_binding(binding, persist=persist)
@@ -807,7 +815,7 @@ class ReliableReportingService:
         configuration = binding.configuration
         key = configuration.generation_key
         if (
-            binding.missing_stabilization_lookup
+            binding.needs_close_recovery_check
             and (
                 not persist
                 or any(
@@ -818,10 +826,15 @@ class ReliableReportingService:
                     )
                 )
             )
-            and await binding.producer._has_retained_stabilization(configuration)
+            and await binding.producer._has_retained_official_close(key)
         ):
+            if binding.missing_stabilization_lookup:
+                raise ReliableReportingConfigurationError(
+                    "recovering a selected stabilized generation requires "
+                    "get_stabilization_schedule"
+                )
             raise ReliableReportingConfigurationError(
-                "recovering a selected stabilized generation requires get_stabilization_schedule"
+                "official finality requires an account publication lock"
             )
         if persist:
             await self.store.put_configuration(configuration)

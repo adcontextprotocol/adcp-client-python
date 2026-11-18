@@ -763,8 +763,8 @@ class ReportingProducer:
                         )
                     ),
                 )
-            elif selected is not None and self._official_close_requested(configuration):
-                self._official_publication_lock()
+            else:
+                await self._check_official_publication_lock(configuration)
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -1370,12 +1370,14 @@ class ReportingProducer:
             return self._store
         return None
 
-    async def _has_retained_stabilization(self, configuration: ReportingConfiguration) -> bool:
-        """Inspect retained routes when a snapshot publisher lacks the generation lookup."""
-        key = configuration.generation_key
+    async def _has_retained_official_close(self, key: ReportingConfigurationGenerationKey) -> bool:
+        """Find a frozen scheduled close, including an unfinished first reservation."""
+        schedule_store = self._stabilization_schedule_store()
+        if schedule_store is not None:
+            return await schedule_store.get_stabilization_schedule(key) is not None
         snapshot = await self._store.open_snapshot(
             caller=ReportingDeliveryPrincipal(key.account_id, key.consumer_id),
-            filters_fingerprint=f"stabilization:{key.delivery_config_id}:{key.delivery_config_version}",
+            filters_fingerprint=f"official-close:{key.delivery_config_id}:{key.delivery_config_version}",
         )
         offset = 0
         page_size = 100
@@ -1397,7 +1399,7 @@ class ReportingProducer:
                     self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
                 ):
                     # Without the retained cursor and its reservations a prior
-                    # stabilized close cannot be distinguished from an ordinary poll.
+                    # scheduled close cannot be distinguished from an ordinary poll.
                     return True
                 checkpoint = await checkpoints.get_restatement_checkpoint(
                     account_id=key.account_id,
@@ -1405,7 +1407,16 @@ class ReportingProducer:
                 )
                 if checkpoint is not None and checkpoint.stabilization_policy is not None:
                     return True
-                next_ordinal = checkpoint.next_observation if checkpoint is not None else 0
+                # The first reservation follows any untracked manual revisions.
+                if checkpoint is None:
+                    next_ordinal = len(
+                        await self._store.list_revisions(
+                            account_id=key.account_id,
+                            reporting_obligation_id=obligation.reporting_obligation_id,
+                        )
+                    )
+                else:
+                    next_ordinal = checkpoint.next_observation
                 for ordinal in range(next_ordinal + 1):
                     acquisition = await self._pending_acquisition(obligation, ordinal=ordinal)
                     if (
@@ -1845,12 +1856,9 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "FINALITY_POLICY_UNPROVEN", "official finality requires a selected policy"
                 )
-        if selected_policy is not None and (
-            finality == "official" or self._official_close_requested(configuration)
-        ):
-            self._official_publication_lock(
-                stabilized=isinstance(selected_policy, ReportingStabilizedPolicy)
-            )
+        await self._check_official_publication_lock(
+            obligation, official=finality == "official", frozen=pending.policy if pending else None
+        )
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
@@ -2563,6 +2571,30 @@ class ReportingProducer:
             )
         return store
 
+    async def _check_official_publication_lock(
+        self,
+        route: ReportingConfiguration | ReportingObligationRecord,
+        *,
+        official: bool = False,
+        frozen: ProvisionalPolicy | None = None,
+        check_generation: bool = True,
+    ) -> None:
+        policy = route.definition.finality_policy if route.definition else None
+        if policy is None or self._optional_publication_store() is not None:
+            return
+        if (
+            official
+            or self._official_close_requested(route)
+            or (
+                frozen is not None
+                and (frozen.official_close_lag is not None or frozen.until_stabilized)
+            )
+            or (check_generation and await self._has_retained_official_close(route.generation_key))
+        ):
+            self._official_publication_lock(
+                stabilized=isinstance(policy, ReportingStabilizedPolicy)
+            )
+
     def _stabilization_store(self) -> StabilizationStore:
         history = self._observation_history_store()
         self._restatement_store()
@@ -2625,6 +2657,11 @@ class ReportingProducer:
         ):
             stabilization_history_limit(selected, frozen_policy.cadence)
             frozen_policy = replace(frozen_policy, until_stabilized=True)
+        await self._check_official_publication_lock(
+            obligation,
+            official=derived_close or request.publication_class == "AUTHORITATIVE",
+            frozen=frozen_policy,
+        )
         if self._requires_source_authority(obligation):
             self._source_authority(obligation, request)
             self._check_source_authorization(
@@ -2892,12 +2929,14 @@ class ReportingProducer:
     ) -> ReportingRevisionRecord:
         obligation = await self._stored_obligation(obligation)
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
-        if selected_policy is not None and (
-            finality == "official" or self._official_close_requested(obligation)
-        ):
-            self._official_publication_lock(
-                stabilized=isinstance(selected_policy, ReportingStabilizedPolicy)
-            )
+        # A matching historical observation already retained its own route.
+        # Check generation-wide evidence before admitting any fresh snapshot.
+        await self._check_official_publication_lock(
+            obligation,
+            official=finality == "official",
+            frozen=acquisition.policy if acquisition else None,
+            check_generation=acquisition is None or verified_source_rows,
+        )
         origin_store: SnapshotOriginStore | None = None
         if finality == "snapshot" and acquisition is not None:
             if acquisition.requires_snapshot_origin(
@@ -3027,6 +3066,9 @@ class ReportingProducer:
                     )
                     if replay is not None:
                         return replay
+                    await self._check_official_publication_lock(
+                        obligation, frozen=acquisition.policy
+                    )
                     self._validate_source_manifest(
                         obligation,
                         request,
@@ -3265,9 +3307,8 @@ class ReportingProducer:
                 )
             ):
                 raise LedgerConflictError("REVISION_IMMUTABLE", "retained source totals differ")
-            validate_retained_provisional_observation(
-                revision, latest if is_latest else observation.bind_revision(revision), rows
-            )
+            if is_latest:
+                validate_retained_provisional_observation(revision, latest, rows)
             if origin_store is not None:
                 await self._verify_tracked_snapshot_origin(
                     obligation, acquisition, origin_store, revision
@@ -3279,8 +3320,7 @@ class ReportingProducer:
                 await self._store.verify_snapshot_origin(revision)
             if is_latest and (prior is not None or latest.revision_publication_id is not None):
                 return revision
-            # The atomic replay also checks older observations without a full
-            # predecessor publication witness against the original immutable revision.
+            # The atomic publisher reads this exact ordinal, its stored witness and revision.
             try:
                 committed = await store.commit_provisional_observation(observation, revision, rows)
             except LedgerConflictError as error:

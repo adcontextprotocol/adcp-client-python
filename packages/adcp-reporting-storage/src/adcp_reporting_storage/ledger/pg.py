@@ -1988,6 +1988,9 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                validate_snapshot_origin(
+                    retained_revision, retained_observation.revision_publication_id
+                )
                 if require_origin and retained_revision.finality == "snapshot":
                     await self.verify_snapshot_origin(retained_revision)
                     validate_snapshot_origin(retained_revision, observation.revision_publication_id)

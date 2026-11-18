@@ -50,7 +50,7 @@ from adcp.reporting.ledger.provisional import (
     ProvisionalObservation,
     ProvisionalPolicy,
 )
-from adcp.reporting.service import ReliableReportingService
+from adcp.reporting.service import ReliableReportingConfigurationError, ReliableReportingService
 from adcp.reporting.source import (
     ReportingFinalityEvidenceV1,
     ReportingSourceExecutorResult,
@@ -1500,6 +1500,152 @@ async def test_restart_resumes_ordinary_snapshot_with_unused_stabilized_policy(
     )
     assert [o.revision_id for o in history] == [identifier, identifier]
     assert revision.finality == "snapshot"
+
+
+@pytest.mark.parametrize("configure_before_init", [True, False])
+@pytest.mark.parametrize(
+    "policy,missing",
+    [
+        (ReportingStabilizedPolicy("stable", "PT0S", "PT6H"), "get_stabilization_schedule"),
+        (ReportingSourceFinalPolicy("provider", "closed"), "source_publication"),
+        (ReportingContractualCutoffPolicy("cutoff", "P2D"), "source_publication"),
+    ],
+)
+async def test_recovery_checks_pending_close_after_untracked_manual_revision(
+    store_factory: Any,
+    configure_before_init: bool,
+    policy: Any,
+    missing: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.test_reliable_reporting_service import (
+        DEFINITION,
+        NOW,
+        _configuration,
+        _finality_service,
+        _rows,
+    )
+
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    clock = DeterministicReportingClock(NOW)
+    store = store_factory(clock=clock)
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=isinstance(policy, ReportingSourceFinalPolicy),
+        close=True,
+        store=store,
+        clock=clock,
+        cadence="PT1H",
+        results=(InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at), None),
+    )
+    await original.configure(config)
+    await original.initialize()
+    producer = original._bindings[config.generation_key].producer
+    (obligation,) = await producer.close_elapsed_periods(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    manual = await producer.acquire_obligation(config, obligation, manual_replay=True)
+    assert manual is not None
+    await producer.run_configuration(config)
+    assert await store.get_restatement_checkpoint(**owner) is None
+    assert await store.get_provisional_acquisition(**owner, ordinal=0) is None
+    pending = await store.get_provisional_acquisition(**owner, ordinal=1)
+    assert pending is not None and pending.policy.official_close_lag is not None
+    await original.close()
+    monkeypatch.setattr(store, missing, None)
+    if missing == "source_publication":
+        monkeypatch.setattr(store, "get_stabilization_schedule", None)
+    recovered = _finality_service(
+        config,
+        snapshot=True,
+        official=isinstance(policy, ReportingSourceFinalPolicy),
+        cadence="PT1H",
+        store=store,
+        clock=clock,
+    )
+    expected_error = "publication lock" if missing == "source_publication" else missing
+    with pytest.raises(ReliableReportingConfigurationError, match=expected_error):
+        if configure_before_init:
+            await recovered.configure(config)
+        await recovered.initialize()
+    assert config.generation_key not in recovered._bindings
+    assert await store.get_restatement_checkpoint(**owner) is None
+    assert await store.get_provisional_acquisition(**owner, ordinal=1) == pending
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ReportingSourceFinalPolicy("provider", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("cutoff", "P2D"),
+    ],
+)
+@pytest.mark.parametrize("operation", ["reserve", "acquire", "direct", "next_period"])
+async def test_frozen_explicit_close_requires_lock_before_snapshot_work(
+    store_factory: Any,
+    policy: Any,
+    operation: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_factory,
+        capabilities=_capabilities(
+            restatement_window="P3D", restatement_cadence="PT1H", official_close_lag="P3D"
+        ),
+        finality_policy=policy,
+    )
+    clock[0] = END + timedelta(hours=1)
+    await producer.run_configuration(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    first = await store.get_provisional_observation(**owner)
+    assert first.acquisition.policy.official_close_lag == timedelta(days=3)
+    revisions = await store.list_revisions(**owner)
+    producer._source.capabilities = _capabilities(
+        restatement_window="P3D", restatement_cadence="PT1H"
+    )
+    clock[0] += timedelta(hours=1)
+    restarted = _restart_producer(producer, store, clock)
+    monkeypatch.setattr(store, "source_publication", None)
+    request = restarted._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, finality="snapshot", now=clock[0], observation=1
+    )
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        if operation == "reserve":
+            await restarted._reserve_observation(
+                config,
+                obligation,
+                request,
+                ordinal=1,
+                revisions=revisions,
+                previous_boundary=first.provisional_until,
+                derived_close=False,
+            )
+        elif operation == "acquire":
+            await restarted.acquire_obligation(
+                config, obligation, restate=True, target_finality="snapshot"
+            )
+        elif operation == "direct":
+            _, manifest, restarted._object_reader = redacted_completed_result(
+                request, page_bodies=[PROVIDER_ROW]
+            )
+            await restarted.commit_revision_from_manifest(
+                obligation, manifest, rows=ROWS, finality="snapshot"
+            )
+        else:
+            clock[0] += timedelta(days=1)
+            await restarted.close_elapsed_periods(config)
+    assert len(calls) == 1
+    assert await store.get_provisional_acquisition(**owner, ordinal=1) is None
+    assert await store.list_revisions(**owner) == revisions
 
 
 def test_source_final_evidence_ref_accepts_512_characters() -> None:

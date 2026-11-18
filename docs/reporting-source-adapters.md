@@ -299,8 +299,11 @@ return InlineFetchResult(
 )
 ```
 
-`stable_since` records source evidence and `official_close_lag` schedules an
-explicit close attempt. Proof comes from the selected policy. A custom Core
+`stable_since` records source evidence. Setting `official_close_lag` opts a
+snapshot offering into an explicit close. For `source_final` and
+`contractual_cutoff`, the lag can delay the source attempt. For `stabilized`,
+the SDK promotes the snapshot when the scheduled observations satisfy
+`minimum_age` and `unchanged_for`, independently of the lag value. A custom Core
 ledger that admits official work must implement
 `ReportingSourcePublicationStore.source_publication(account_id)` and serialize
 publication for that account across workers. Exact reads and replays retain

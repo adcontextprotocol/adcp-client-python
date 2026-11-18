@@ -248,6 +248,68 @@ async def cutoff_backend(request: Any) -> AsyncIterator[Any]:
         ), request.param == "core"
 
 
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("witness", [True, False])
+@pytest.mark.parametrize("atomic", [True, False])
+async def test_historical_unchanged_replay_validates_stored_observation_origin(
+    cutoff_backend: Any,
+    witness: bool,
+    atomic: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory, _ = cutoff_backend
+    producer, store, config, obligation, _, clock = await _harness(
+        factory, finality_policy=ReportingContractualCutoffPolicy("cutoff", "P2D")
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    first = await producer.acquire_obligation(config, obligation, track_settling=True)
+    for _ in range(2):
+        clock[0] += timedelta(hours=1)
+        assert first == await producer.acquire_obligation(
+            config, obligation, restate=True, track_settling=True
+        )
+    _, middle, latest = await store.list_provisional_observations(**owner, limit=3)
+    assert middle.acquisition.ordinal == 1 and latest.acquisition.ordinal == 2
+    assert middle.revision_publication_id == first.source_publication_id
+    manifest = SourceBatchManifestV1.model_validate_json(middle.manifest_json)
+    stored_id = first.source_publication_id
+    wrong_id = stored_id[:-1] + ("0" if stored_id[-1] != "0" else "1")
+    if isinstance(store, PgReportingLedgerStore):
+        async with store.storage_identity.connection() as connection, connection.transaction():
+            # Simulate an already inconsistent historical row in this fixture's private schema.
+            await connection.execute(
+                "ALTER TABLE reporting_provisional_observations DISABLE TRIGGER "
+                "reporting_provisional_observation_immutable"
+            )
+            await connection.execute(
+                "UPDATE reporting_provisional_observations SET payload = "
+                "jsonb_set(payload, '{revision_publication_id}', to_jsonb(%s::text)) "
+                "WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=1",
+                (wrong_id, config.account_id, obligation.reporting_obligation_id),
+            )
+            await connection.execute(
+                "ALTER TABLE reporting_provisional_observations ENABLE TRIGGER "
+                "reporting_provisional_observation_immutable"
+            )
+    else:
+        store._provisional_observations[(config.account_id, obligation.reporting_obligation_id)][
+            1
+        ] = replace(middle, revision_publication_id=wrong_id)
+    if not witness:
+        monkeypatch.setattr(store, "verify_snapshot_origin", None)
+    with pytest.raises(LedgerConflictError) as error:
+        if atomic:
+            await store.commit_provisional_observation(middle, first, ROWS)
+        else:
+            await producer.commit_revision_from_manifest(
+                obligation, manifest, rows=ROWS, finality="snapshot", acquisition=middle.acquisition
+            )
+    assert error.value.code in {"REVISION_IMMUTABLE", "STABILIZATION_ORIGIN_CONFLICT"}
+    assert await store.get_provisional_observation(**owner) == latest
+
+
 async def test_stale_cutoff_seal_retries_with_fresh_source_work(
     cutoff_backend: Any, monkeypatch: Any
 ) -> None:

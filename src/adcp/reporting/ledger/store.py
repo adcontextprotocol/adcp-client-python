@@ -1577,6 +1577,7 @@ class InMemoryReportingLedgerStore:
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
                 retained_revision = self._revisions[existing.revision_id]
+                validate_snapshot_origin(retained_revision, existing.revision_publication_id)
                 if require_origin and retained_revision.finality == "snapshot":
                     await self.verify_snapshot_origin(retained_revision)
                     validate_snapshot_origin(retained_revision, observation.revision_publication_id)
