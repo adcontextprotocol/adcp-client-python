@@ -13,8 +13,10 @@ from pydantic import TypeAdapter
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
+    ReportingContractualCutoffPolicy,
     ReportingDeliveryPrincipal,
     ReportingProducer,
+    ReportingSourceFinalPolicy,
 )
 from adcp.reporting.ledger.delivery_models import MaterializationFailure
 from adcp.reporting.materializer import (
@@ -26,6 +28,7 @@ from adcp.reporting.materializer import (
     ReportingWriterFailureCode,
     reference_verifier,
 )
+from adcp.reporting.materializer.work import verification_key_id
 
 from ._generation_support import UncalledSource
 from ._materializer_support import io_context, materializer_case
@@ -156,6 +159,31 @@ def test_readback_page_repr_never_includes_unverified_provider_body():
     page = ReportingDestinationPage("revision", (body,), 1, False, None, "jsonl", "producer")
     assert "credential-sentinel" not in str(page) + repr(page)
     assert "https://provider" not in str(page) + repr(page)
+
+
+def test_verification_key_id_without_finality_policy_preserves_stored_identity() -> None:
+    key = reference_verifier().key
+    assert (
+        verification_key_id(key)
+        == "d53ff0456ffc9b62c98c8c1d198818956ce11ae4749e81f5118ac1f653ce8b5d"
+    )
+
+
+def test_selected_finality_policy_details_distinguish_verification_keys() -> None:
+    key = reference_verifier().key
+    policies = (
+        None,
+        ReportingSourceFinalPolicy("close-v1", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("close-v1", "P1D"),
+        ReportingContractualCutoffPolicy("close-v1", "P2D"),
+    )
+    ids = {
+        verification_key_id(
+            replace(key, definition=replace(key.definition, finality_policy=policy))
+        )
+        for policy in policies
+    }
+    assert len(ids) == len(policies)
 
 
 @pytest.mark.parametrize(
