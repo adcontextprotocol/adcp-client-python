@@ -11,13 +11,24 @@ from typing import Any
 from adcp.reporting._source_authorization import require_account_work
 from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.inline_source import InlineReportingSource
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
+from adcp.reporting.ledger.finality import (
+    ReportingStabilizedPolicy,
+    finality_policy_source_class,
+    stabilization_history_limit,
+)
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     _schedule_clock,
     iso_duration_to_timedelta,
 )
-from adcp.reporting.ledger.producer import ReportingProducer
+from adcp.reporting.ledger.producer import (
+    ReportingProducer,
+    _supports_official_source_formats,
+    snapshot_restatement_cadence,
+)
+from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.contracts import ReportingVerificationKey, failure
 from adcp.reporting.materializer.verification import _same_definition
 from adcp.reporting.production.contracts import (
@@ -144,6 +155,73 @@ class ReportingProductionOffering:
     def wire(self) -> dict[str, Any]:
         return dict(json.loads(self._wire))
 
+    def _source_offerings(
+        self, capabilities: ReportingSourceCapabilitiesV1
+    ) -> tuple[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1, ...]:
+        def configured_source(
+            source_class: str,
+        ) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
+            source_id = self.producer._offerings.offering_for(source_class)
+            if source_id is None:
+                raise failure("UNSUPPORTED_VERIFICATION")
+            try:
+                return capabilities.offering(source_id)
+            except KeyError:
+                raise failure("UNSUPPORTED_VERIFICATION") from None
+
+        finalities = self.wire()["supported_finality"]
+        snapshot = None
+        if "snapshot" in finalities:
+            candidate = configured_source("snapshot")
+            if not isinstance(candidate, ProvisionalSnapshotOfferingV1):
+                raise failure("UNSUPPORTED_VERIFICATION")
+            snapshot = candidate
+        if "official" not in finalities:
+            if snapshot is None or self.source_offering_id != snapshot.offering_id:
+                raise failure("UNSUPPORTED_VERIFICATION")
+            if snapshot.official_close_lag is None:
+                return (snapshot,)
+
+        policy = self.verification_key.definition.finality_policy
+        if policy is None:
+            raise failure("UNSUPPORTED_VERIFICATION")
+        try:
+            self.producer._official_publication_lock()
+        except LedgerConflictError:
+            raise failure("UNSUPPORTED_VERIFICATION") from None
+        source_class = finality_policy_source_class(policy)
+        proof_source = configured_source(source_class)
+        if not _supports_official_source_formats(proof_source) or (
+            snapshot is not None and not _supports_official_source_formats(snapshot)
+        ):
+            raise failure("UNSUPPORTED_VERIFICATION")
+        if self.source_offering_id != proof_source.offering_id and (
+            snapshot is None or self.source_offering_id != snapshot.offering_id
+        ):
+            raise failure("UNSUPPORTED_VERIFICATION")
+        if source_class == "official":
+            if not isinstance(proof_source, AuthoritativeOfferingV1) or (
+                self.reconciled and proof_source.correction_policy != "immutable_correction"
+            ):
+                raise failure("UNSUPPORTED_VERIFICATION")
+        elif not isinstance(proof_source, ProvisionalSnapshotOfferingV1):
+            raise failure("UNSUPPORTED_VERIFICATION")
+        if isinstance(policy, ReportingStabilizedPolicy):
+            try:
+                self.producer._stabilization_store()
+                assert isinstance(proof_source, ProvisionalSnapshotOfferingV1)
+                stabilization_history_limit(
+                    policy,
+                    snapshot_restatement_cadence(
+                        proof_source, self.wire()["schedule"]["period_duration"]
+                    ),
+                )
+            except LedgerConflictError:
+                raise failure("UNSUPPORTED_VERIFICATION") from None
+        if snapshot is None or snapshot.offering_id == proof_source.offering_id:
+            return (proof_source,)
+        return (snapshot, proof_source)
+
     def check_source(self, *, effective: bool = False) -> ReportingSourceCapabilitiesV1:
         source = self.producer._source
         if (
@@ -158,74 +236,46 @@ class ReportingProductionOffering:
         )
         if effective and capabilities.scope != "effective_account":
             raise failure("BINDING_MISMATCH")
-        raw = self.wire()
-        source_offering = capabilities.offering(self.source_offering_id)
-        contract, key = source_offering.contract, self.verification_key
-        source_values = contract.model_dump(mode="json")
-        expected = {
+        configured = self.producer._offerings
+        if dict(configured.source_scope) != capabilities.source_scope:
+            raise failure("UNSUPPORTED_VERIFICATION")
+        key = self.verification_key
+        expected_contract = {
             "report_definition_id": key.report_definition_id,
             "reporting_profile": key.reporting_profile,
+            **key.definition.to_wire(),
         }
-        expected.update(
-            {
-                name: getattr(key.definition, name)
-                for name in (
-                    "report_definition_uri",
-                    "report_definition_sha256",
-                    "schema_version",
-                    "schema_uri",
-                    "schema_sha256",
-                    "schema_dialect",
-                    "schema_ref_policy",
-                )
-            }
-        )
-        finality = raw["supported_finality"]
-        configured = self.producer._offerings
-        if (
-            any(source_values.get(name) != value for name, value in expected.items())
-            or source_offering.publication_namespace != configured.publication_namespace
-            or dict(configured.source_scope) != capabilities.source_scope
-            or not source_offering.provider_execution.supports_cancellation
-            or (
-                "official" in finality
-                and (
-                    not isinstance(source_offering, AuthoritativeOfferingV1)
-                    or configured.official_offering_id != self.source_offering_id
-                    or (
-                        self.reconciled
-                        and source_offering.correction_policy != "immutable_correction"
-                    )
-                )
-            )
-            or (
-                "snapshot" in finality
-                and (
-                    not isinstance(source_offering, ProvisionalSnapshotOfferingV1)
-                    or configured.snapshot_offering_id != self.source_offering_id
-                )
-            )
-        ):
-            raise failure("UNSUPPORTED_VERIFICATION")
-        schedule = raw["schedule"]
+        schedule = self.wire()["schedule"]
         duration = iso_duration_milliseconds_v1(schedule["period_duration"])
-        if not (
-            iso_duration_milliseconds_v1(source_offering.windowing.minimum_window)
-            <= duration
-            <= iso_duration_milliseconds_v1(source_offering.windowing.maximum_window)
-        ) or iso_duration_milliseconds_v1(schedule["delivery_sla"]) < iso_duration_milliseconds_v1(
-            source_offering.worst_case_availability_lag
-        ):
-            raise failure("UNSUPPORTED_VERIFICATION")
-        if isinstance(
-            source_offering, ProvisionalSnapshotOfferingV1
-        ) and duration < iso_duration_milliseconds_v1(source_offering.fastest_safe_cadence):
-            raise failure("UNSUPPORTED_VERIFICATION")
-        if (
-            schedule["alignment"] == "source_timezone"
-            and schedule.get("period_timezone") != source_offering.source_timezone
-        ):
-            raise failure("UNSUPPORTED_VERIFICATION")
+        sla = iso_duration_milliseconds_v1(schedule["delivery_sla"])
+        for offering in self._source_offerings(capabilities):
+            if isinstance(source, InlineReportingSource) and not source.supports_output_format(
+                offering.formats
+            ):
+                raise failure("UNSUPPORTED_VERIFICATION")
+            if (
+                any(
+                    getattr(offering.contract, name) != value
+                    for name, value in expected_contract.items()
+                )
+                or offering.publication_namespace != configured.publication_namespace
+                or not offering.provider_execution.supports_cancellation
+                or not (
+                    iso_duration_milliseconds_v1(offering.windowing.minimum_window)
+                    <= duration
+                    <= iso_duration_milliseconds_v1(offering.windowing.maximum_window)
+                )
+                or sla < iso_duration_milliseconds_v1(offering.worst_case_availability_lag)
+                or (
+                    isinstance(offering, ProvisionalSnapshotOfferingV1)
+                    and duration < iso_duration_milliseconds_v1(offering.fastest_safe_cadence)
+                )
+                or (
+                    schedule["alignment"] == "source_timezone"
+                    and schedule.get("period_timezone") != offering.source_timezone
+                )
+            ):
+                raise failure("UNSUPPORTED_VERIFICATION")
         return capabilities
 
     def source_binding(
@@ -245,7 +295,8 @@ class ReportingProductionOffering:
                 raise _SourceAuthorizationRevokedError()
             if type(binding) is not ReportingProductionSourceBinding:
                 raise failure("BINDING_MISMATCH")
-            binding.check(configuration, capabilities, self.source_offering_id)
+            for offering in self._source_offerings(capabilities):
+                binding.check(configuration, capabilities, offering.offering_id)
             return binding
         except _SourceAuthorizationRevokedError:
             raise
@@ -320,14 +371,13 @@ class ReportingProductionOffering:
                 configuration.report_definition_id,
                 configuration.reporting_profile,
                 configuration.feed_purpose,
-                configuration.required_finality,
             )
             != (
                 key.report_definition_id,
                 key.reporting_profile,
                 raw["feed_purpose"],
-                raw["supported_finality"][0],
             )
+            or configuration.required_finality not in raw["supported_finality"]
             or not _same_definition(key, configuration.definition)
             or configuration.authoritative_party != "seller"
             or binding.reconciliation_mode != raw["reconciliation_mode"]

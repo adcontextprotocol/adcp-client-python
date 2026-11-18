@@ -14,7 +14,7 @@ import inspect
 import logging
 import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -49,7 +49,18 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
-from adcp.reporting.ledger.producer import _advertised_reporting_delivery
+from adcp.reporting.ledger.finality import (
+    ReportingFinalityPolicy,
+    ReportingStabilizedPolicy,
+    finality_policy_source_class,
+    stabilization_history_limit,
+)
+from adcp.reporting.ledger.producer import (
+    _advertised_reporting_delivery,
+    _supports_official_source_formats,
+    snapshot_restatement_cadence,
+)
+from adcp.reporting.ledger.provisional import ProvisionalPolicy
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
     ReliableReportingServiceError,
@@ -62,6 +73,7 @@ from adcp.reporting.service_lifecycle import (
 from adcp.reporting.source import (
     AuthoritativeOfferingV1,
     ProvisionalSnapshotOfferingV1,
+    ReportingContractIdentityV1,
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
@@ -161,6 +173,27 @@ def _wire(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return {str(key): _thaw(item) for key, item in value.items()}
     raise TypeError(f"expected a request model or mapping, got {type(value).__name__}")
+
+
+def _matches_public_contract(
+    contract: ReportingContractIdentityV1, public: Mapping[str, Any]
+) -> bool:
+    """Compare the public offering's declared definition and profile with the source."""
+    profile = public.get("reporting_profile", {})
+    return all(
+        declaration.get(name, expected) == expected
+        for declaration, name, expected in (
+            (public, "report_definition_id", contract.report_definition_id),
+            (public, "report_definition_uri", contract.report_definition_uri),
+            (public, "report_definition_sha256", contract.report_definition_sha256),
+            (profile, "id", contract.reporting_profile),
+            (profile, "version", contract.schema_version),
+            (profile, "schema_uri", contract.schema_uri),
+            (profile, "schema_sha256", contract.schema_sha256),
+            (profile, "schema_dialect", contract.schema_dialect),
+            (profile, "schema_ref_policy", contract.schema_ref_policy),
+        )
+    )
 
 
 async def _resolve(value: Any) -> Any:
@@ -365,25 +398,14 @@ class ReportingAdapterRegistry:
                     f"capability offering {offering_id!r} has conflicting declarations"
                 )
             declared[offering_id] = public
-            profile = public["reporting_profile"]
             for finality in public["supported_finality"]:
                 matching = [
                     source
                     for source in executor.capabilities.offerings
-                    if (
-                        "snapshot"
-                        if isinstance(source, ProvisionalSnapshotOfferingV1)
-                        else "official"
-                    )
-                    == finality
-                    and source.contract.report_definition_id == public["report_definition_id"]
-                    and source.contract.report_definition_uri == public["report_definition_uri"]
-                    and source.contract.report_definition_sha256
-                    == public["report_definition_sha256"]
-                    and source.contract.reporting_profile == profile["id"]
-                    and source.contract.schema_version == profile["version"]
-                    and source.contract.schema_uri == profile["schema_uri"]
-                    and source.contract.schema_sha256 == profile["schema_sha256"]
+                    # The definition selected at admission determines which
+                    # source class can prove an official delivery.
+                    if (finality == "official" or isinstance(source, ProvisionalSnapshotOfferingV1))
+                    and _matches_public_contract(source.contract, public)
                 ]
                 if not matching:
                     raise ReliableReportingConfigurationError(
@@ -414,6 +436,30 @@ class _Binding:
     configuration: ReportingConfiguration
     context: ReportingAccountContext
     producer: ReportingProducer
+
+    @property
+    def missing_stabilization_lookup(self) -> bool:
+        definition = self.configuration.definition
+        return (
+            definition is not None
+            and isinstance(definition.finality_policy, ReportingStabilizedPolicy)
+            and self.producer._stabilization_schedule_store() is None
+        )
+
+    @property
+    def needs_close_recovery_check(self) -> bool:
+        return self.missing_stabilization_lookup or (
+            self.configuration.definition is not None
+            and self.configuration.definition.finality_policy is not None
+            and self.producer._optional_publication_store() is None
+        )
+
+
+class _MissingFinalityPolicyError(ReliableReportingConfigurationError):
+    """A retained generation may still serve reads while its producer is unbound."""
+
+    def __init__(self) -> None:
+        super().__init__("official reporting requires a selected finality policy")
 
 
 class _AccountContextResolutionError(Exception):
@@ -535,9 +581,7 @@ class ReliableReportingService:
         self._reconciled_billing = reconciled_billing
         self._worker_error_handler = worker_error_handler
         self._bindings: dict[ReportingConfigurationGenerationKey, _Binding] = {}
-        self._pending_configurations: dict[
-            ReportingConfigurationGenerationKey, ReportingConfiguration
-        ] = {}
+        self._pending_bindings: dict[ReportingConfigurationGenerationKey, _Binding] = {}
         self._initialized = False
         self._configuration_lock = asyncio.Lock()
         self._initialization_errors: dict[ReportingConfigurationGenerationKey, Exception] = {}
@@ -673,7 +717,7 @@ class ReliableReportingService:
         retrying: bool = False,
     ) -> None:
         key = configuration.generation_key
-        existing = self._bindings.get(key)
+        existing = self._bindings.get(key) or self._pending_bindings.get(key)
         if existing is not None:
             if existing.configuration != configuration:
                 raise ReliableReportingConfigurationError(
@@ -682,6 +726,10 @@ class ReliableReportingService:
                 )
             return
         try:
+            if configuration.required_finality == "official" and (
+                configuration.definition is None or configuration.definition.finality_policy is None
+            ):
+                raise _MissingFinalityPolicyError()
             context = await _resolve(self._context_resolver(configuration))
         except Exception as error:
             if recovering:
@@ -711,12 +759,26 @@ class ReliableReportingService:
                 "registered source capabilities must be scoped to an effective account"
             )
         try:
-            self._validate_offerings(configuration, context, registration)
             offerings = context.producer_offerings()
             if not isinstance(offerings, ProducerOfferings):
                 raise TypeError("producer_offerings must return ProducerOfferings")
+            snapshot = next(
+                (
+                    offering
+                    for offering in registration.executor.capabilities.offerings
+                    if offering.offering_id == offerings.snapshot_offering_id
+                ),
+                None,
+            )
+            offerings = replace(
+                offerings,
+                snapshot_requests_official_close=(
+                    isinstance(snapshot, ProvisionalSnapshotOfferingV1)
+                    and snapshot.official_close_lag is not None
+                ),
+            )
         except Exception as error:
-            if retrying:
+            if retrying or (recovering and isinstance(error, _MissingFinalityPolicyError)):
                 raise _AccountContextResolutionError(error, permanent=True) from error
             raise
         producer = self._producer_factory(
@@ -733,15 +795,65 @@ class ReliableReportingService:
                 else {}
             ),
         )
+        try:
+            frozen = None
+            if configuration.definition and isinstance(
+                configuration.definition.finality_policy, ReportingStabilizedPolicy
+            ):
+                frozen = await producer._recover_stabilization_schedule(
+                    configuration, required=producer._stabilization_requested(configuration)
+                )
+            policy = self._validate_offerings(configuration, context, registration, frozen=frozen)
+            if isinstance(policy, ReportingStabilizedPolicy):
+                producer._stabilization_store()
+            elif policy is not None:
+                producer._official_publication_lock()
+        except LedgerConflictError as error:
+            raise ReliableReportingConfigurationError(str(error)) from error
+        except Exception as error:
+            if retrying or (recovering and isinstance(error, _MissingFinalityPolicyError)):
+                raise _AccountContextResolutionError(error, permanent=True) from error
+            raise
         binding = _Binding(configuration=configuration, context=context, producer=producer)
-        if persist:
-            if self._initialized:
-                await self.store.put_configuration(configuration)
-            else:
-                self._pending_configurations[key] = configuration
-        self._bindings[key] = binding
+        if persist and not self._initialized:
+            self._pending_bindings[key] = binding
+            # Schema initialization makes it possible to distinguish a new snapshot
+            # generation from an existing one whose frozen close needs recovery.
+            if not binding.needs_close_recovery_check:
+                self._bindings[key] = binding
+        else:
+            await self._install_binding(binding, persist=persist)
         self._initialization_errors.pop(key, None)
         self._pending_recovery.pop(key, None)
+
+    async def _install_binding(self, binding: _Binding, *, persist: bool) -> None:
+        configuration = binding.configuration
+        key = configuration.generation_key
+        if (
+            binding.needs_close_recovery_check
+            and (
+                not persist
+                or any(
+                    stored.generation_key == key
+                    for stored in await self.store.list_configurations(
+                        caller=ReportingStatusCaller(key.account_id, key.consumer_id),
+                        delivery_config_ids=[key.delivery_config_id],
+                    )
+                )
+            )
+            and await binding.producer._has_retained_official_close(key)
+        ):
+            if binding.missing_stabilization_lookup:
+                raise ReliableReportingConfigurationError(
+                    "recovering a selected stabilized generation requires "
+                    "get_stabilization_schedule"
+                )
+            raise ReliableReportingConfigurationError(
+                "official finality requires an account publication lock"
+            )
+        if persist:
+            await self.store.put_configuration(configuration)
+        self._bindings[key] = binding
 
     @property
     def initialization_errors(self) -> Mapping[ReportingConfigurationGenerationKey, Exception]:
@@ -786,24 +898,29 @@ class ReliableReportingService:
         configuration: ReportingConfiguration,
         context: ReportingAccountContext,
         registration: AdapterRegistration,
-    ) -> None:
+        *,
+        frozen: ProvisionalPolicy | None = None,
+    ) -> ReportingFinalityPolicy | None:
         capabilities = registration.executor.capabilities
         if capabilities.source_scope != _thaw(context.source_scope):
             raise ReliableReportingConfigurationError(
                 "resolved source_scope does not match the registered adapter capabilities"
             )
         selected: list[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1] = []
+        snapshot = None
+        official = None
         if context.snapshot_offering_id is not None:
             try:
-                snapshot = capabilities.offering(context.snapshot_offering_id)
+                offering = capabilities.offering(context.snapshot_offering_id)
             except KeyError as error:
                 raise ReliableReportingConfigurationError(
                     f"snapshot offering {context.snapshot_offering_id!r} is not registered"
                 ) from error
-            if not isinstance(snapshot, ProvisionalSnapshotOfferingV1):
+            if not isinstance(offering, ProvisionalSnapshotOfferingV1):
                 raise ReliableReportingConfigurationError(
                     "snapshot_offering_id must name a provisional snapshot offering"
                 )
+            snapshot = offering
             selected.append(snapshot)
         if context.official_offering_id is not None:
             try:
@@ -818,6 +935,12 @@ class ReliableReportingService:
                 )
             selected.append(official)
         for offering in selected:
+            if isinstance(
+                registration.executor, InlineReportingSource
+            ) and not registration.executor.supports_output_format(offering.formats):
+                raise ReliableReportingConfigurationError(
+                    "inline source formats must include uncompressed NDJSON"
+                )
             if (
                 offering.contract.report_definition_id != configuration.report_definition_id
                 or offering.contract.reporting_profile != configuration.reporting_profile
@@ -825,16 +948,65 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering contract does not match the reporting configuration"
                 )
-        required = (
-            context.official_offering_id
-            if configuration.required_finality == "official"
-            else context.snapshot_offering_id
-        )
-        if required is None:
+        if configuration.required_finality == "snapshot" and snapshot is None:
             raise ReliableReportingConfigurationError(
-                f"configuration requires {configuration.required_finality} but its account "
-                "context declares no matching source offering"
+                "snapshot configuration requires a matching snapshot source offering"
             )
+        policy = None
+        if (
+            frozen is not None
+            or configuration.required_finality == "official"
+            or (snapshot is not None and snapshot.official_close_lag is not None)
+        ):
+            definition = configuration.definition
+            if definition is None or definition.finality_policy is None:
+                raise _MissingFinalityPolicyError()
+            policy = definition.finality_policy
+            source_class = finality_policy_source_class(policy)
+            source = official if source_class == "official" else snapshot
+            if source is None:
+                raise ReliableReportingConfigurationError(
+                    f"selected finality policy requires a matching {source_class} source offering"
+                )
+            if isinstance(policy, ReportingStabilizedPolicy) and isinstance(
+                source, ProvisionalSnapshotOfferingV1
+            ):
+                try:
+                    stabilization_history_limit(
+                        policy,
+                        (
+                            frozen.cadence
+                            if frozen is not None
+                            else snapshot_restatement_cadence(
+                                source, configuration.schedule.period_duration
+                            )
+                        ),
+                    )
+                except LedgerConflictError as error:
+                    raise ReliableReportingConfigurationError(str(error)) from error
+            used = [source]
+            if (
+                configuration.required_finality == "snapshot"
+                and snapshot is not None
+                and snapshot is not source
+            ):
+                used.append(snapshot)
+            for used_offering in used:
+                if not _supports_official_source_formats(used_offering):
+                    raise ReliableReportingConfigurationError(
+                        "official source formats must be JSON or NDJSON with gzip or no compression"
+                    )
+                if any(
+                    getattr(used_offering.contract, name) != value
+                    for name, value in definition.to_wire().items()
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "source offering contract does not match the pinned report definition"
+                    )
+            if not _matches_public_contract(source.contract, context.capability_offering):
+                raise ReliableReportingConfigurationError(
+                    "selected policy's source contract does not match the public offering"
+                )
         declared_id = context.capability_offering.get("offering_id")
         if not declared_id:
             raise ReliableReportingConfigurationError(
@@ -864,6 +1036,7 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "account capability offering must match a registered public offering"
                 )
+        return policy
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
@@ -913,9 +1086,9 @@ class ReliableReportingService:
             await self.store.create_schema()
             if self._initialize_source_storage is not None:
                 await self._initialize_source_storage()
-            for configuration in self._pending_configurations.values():
-                await self.store.put_configuration(configuration)
-            self._pending_configurations.clear()
+            for binding in self._pending_bindings.values():
+                await self._install_binding(binding, persist=True)
+            self._pending_bindings.clear()
             if self._production is None and self.sources.names:
                 # Older custom stores can retain explicit configure() startup.
                 # Built-in stores recover all generations in one scan, without

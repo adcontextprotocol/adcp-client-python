@@ -181,6 +181,7 @@ async def prepare(h: NotificationHarness, operation: str):
         return lambda: store.commit_obligation(other)
     if operation == "revision":
         changed, rows = revision_for(obligation, suffix="second")
+        changed = replace(changed, supersedes_reporting_revision_id=revision.reporting_revision_id)
         return lambda: store.commit_revision(changed, rows)
     if operation == "readability":
         return lambda: store.set_revision_readable(

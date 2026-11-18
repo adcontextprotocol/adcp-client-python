@@ -15,6 +15,7 @@ from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID, SNAPSHOT_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingProducer,
+    ReportingSourceFinalPolicy,
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
@@ -39,9 +40,10 @@ from tests.test_reporting_settling import (
 async def make_harness(request):
     if request.param == "memory":
 
-        async def build(capabilities):
+        async def build(capabilities, *, finality_policy=None):
             return await _harness(
                 capabilities,
+                finality_policy=finality_policy,
                 store_factory=lambda clock: InMemoryReportingLedgerStore(
                     clock=clock, notifications=True
                 ),
@@ -51,9 +53,10 @@ async def make_harness(request):
     else:
         async with isolated_reporting_pool() as pool:
 
-            async def build(capabilities):
+            async def build(capabilities, *, finality_policy=None):
                 return await _harness(
                     capabilities,
+                    finality_policy=finality_policy,
                     store_factory=lambda clock: PgReportingLedgerStore(
                         pool=pool, clock=clock, notifications=True
                     ),
@@ -69,6 +72,74 @@ async def latest(store):
     )
     assert observation is not None
     return observation
+
+
+async def test_stabilization_history_selects_only_scheduled_snapshot_outputs(make_harness):
+    producer, store, _, clock = await make_harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    scheduled = await latest(store)
+    owner = dict(
+        account_id=scheduled.acquisition.account_id,
+        reporting_obligation_id=scheduled.acquisition.obligation_id,
+    )
+    # Retained history can interleave durable manual retries and official acquisitions.
+    payloads = []
+    for ordinal, (trigger, source_class, output) in enumerate(
+        [
+            ("scheduled_poll", "PROVISIONAL_SNAPSHOT", None),
+            ("manual_replay", "PROVISIONAL_SNAPSHOT", None),
+            ("scheduled_poll", "AUTHORITATIVE", None),
+            ("scheduled_poll", "PROVISIONAL_SNAPSHOT", "official"),
+        ]
+    ):
+        wire = scheduled.to_wire()
+        acquisition = wire["acquisition"]
+        acquisition["ordinal"] = ordinal
+        acquisition["request"]["trigger"] = trigger
+        acquisition["request"]["publication_class"] = source_class
+        if source_class == "AUTHORITATIVE":
+            acquisition["request"]["revision_kind"] = "authoritative"
+        if output:
+            acquisition["output_finality"] = output
+        payloads.append(wire)
+    if isinstance(store, PgReportingLedgerStore):
+        from psycopg.types.json import Jsonb
+
+        async with store.transaction(), store._connection() as connection:
+            for ordinal, payload in enumerate(payloads[1:], start=1):
+                await connection.execute(
+                    "INSERT INTO reporting_provisional_acquisitions"
+                    " (account_id,reporting_obligation_id,ordinal,source_execution_key,payload)"
+                    " VALUES (%s,%s,%s,%s,%s)",
+                    (
+                        owner["account_id"],
+                        owner["reporting_obligation_id"],
+                        ordinal,
+                        f"execution-{ordinal}",
+                        Jsonb(payload["acquisition"]),
+                    ),
+                )
+                await connection.execute(
+                    "INSERT INTO reporting_provisional_observations"
+                    " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
+                    " VALUES (%s,%s,%s,%s,%s)",
+                    (
+                        owner["account_id"],
+                        owner["reporting_obligation_id"],
+                        ordinal,
+                        scheduled.revision_id,
+                        Jsonb(payload),
+                    ),
+                )
+    else:
+        history = store._provisional_observations[
+            (owner["account_id"], owner["reporting_obligation_id"])
+        ]
+        for ordinal, payload in enumerate(payloads[1:], start=1):
+            history[ordinal] = type(scheduled).from_wire(payload)
+    assert await store.list_provisional_observations(
+        **owner, limit=1, scheduled_snapshots_only=True
+    ) == (scheduled,)
 
 
 async def test_jitter_phase_is_persisted_by_memory_and_postgres_observations(make_harness):
@@ -198,12 +269,25 @@ async def _publication_effect_counts(store):
     return (
         len(store._revisions),
         sum(len(rows) for rows in store._rows.values()),
-        len(store._provisional_observations),
+        sum(len(history) for history in store._provisional_observations.values()),
         len(store._restatement_checkpoints),
         len(store._changes),
         len(store._notification_state.events),
         len(store._notification_state.boundaries),
     )
+
+
+async def test_snapshot_only_unchanged_read_reuses_retained_content_without_source_id():
+    producer, store, _, clock = await _harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    (original,) = await _revisions(store)
+    store._revisions[original.reporting_revision_id] = replace(original, source_publication_id=None)
+    clock[0] += timedelta(hours=1)
+    turn = await producer.run_worker()
+    assert not turn.revisions_committed
+    observation = await latest(store)
+    assert observation.acquisition.ordinal == 1
+    assert observation.revision_id == original.reporting_revision_id
 
 
 async def test_adapter_without_window_rereads_with_sdk_default(make_harness):
@@ -221,6 +305,122 @@ async def test_adapter_without_window_rereads_with_sdk_default(make_harness):
     assert refreshed.revisions_committed == []
     assert len(await _revisions(store)) == 1
     assert all(item.finality == "snapshot" for item in await _revisions(store))
+
+
+async def test_observation_history_is_bounded_ordered_and_account_scoped(make_harness) -> None:
+    producer, store, _, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    for _ in range(2):
+        clock[0] += timedelta(hours=1)
+        await producer.run_worker()
+    obligation = await _only_obligation(store)
+
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id, limit=2
+    )
+
+    assert tuple(item.acquisition.ordinal for item in history) == (1, 2)
+    assert all(item.acquisition.account_id == ACCOUNT for item in history)
+    assert all(
+        item.acquisition.obligation_id == obligation.reporting_obligation_id for item in history
+    )
+    assert await latest(store) == history[-1]
+    full_history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id, limit=2**64
+    )
+    assert tuple(item.acquisition.ordinal for item in full_history) == (0, 1, 2)
+    assert (
+        await store.list_provisional_observations(
+            account_id="another-account",
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            limit=2,
+        )
+        == ()
+    )
+    assert (
+        await store.list_provisional_observations(
+            account_id=ACCOUNT, reporting_obligation_id="another-obligation", limit=2
+        )
+        == ()
+    )
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 1.5])
+async def test_observation_history_requires_a_positive_integer_limit(make_harness, limit) -> None:
+    _, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
+
+    with pytest.raises(ValueError):
+        await store.list_provisional_observations(
+            account_id=ACCOUNT, reporting_obligation_id="unknown", limit=limit
+        )
+
+
+@pytest.mark.parametrize("make_harness", ["memory"], indirect=True)
+async def test_observation_history_looks_up_only_the_requested_owner(
+    make_harness, monkeypatch
+) -> None:
+    producer, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    first = await latest(store)
+
+    class KeyLookupOnly(dict):
+        def __iter__(self):
+            raise AssertionError("observation lookup iterated over the owner map")
+
+        items = values = keys = __iter__
+
+    monkeypatch.setattr(
+        store, "_provisional_observations", KeyLookupOnly(store._provisional_observations)
+    )
+
+    assert await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    ) == (first,)
+    assert await latest(store) == first
+
+
+async def test_observation_history_rolls_back_appended_observation(
+    make_harness, monkeypatch
+) -> None:
+    producer, store, _, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    first = await latest(store)
+    clock[0] += timedelta(hours=1)
+
+    class AbortTransactionError(Exception):
+        pass
+
+    commit = store.commit_provisional_observation
+
+    async def abort_after_commit(observation, revision, rows) -> None:
+        async with store.transaction():
+            await commit(observation, revision, rows)
+            history = await store.list_provisional_observations(
+                account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+            )
+            assert tuple(item.acquisition.ordinal for item in history) == (0, 1)
+            raise AbortTransactionError
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "commit_provisional_observation", abort_after_commit)
+        with pytest.raises(AbortTransactionError):
+            await producer.run_worker()
+
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    )
+    assert history == (first,)
+    assert await latest(store) == first
+
+    await producer.run_worker()
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    )
+    assert tuple(item.acquisition.ordinal for item in history) == (0, 1)
 
 
 async def test_unchanged_scheduled_read_keeps_snapshot_and_advances_observation(make_harness):
@@ -931,7 +1131,10 @@ async def test_notification_failure_rolls_back_revision_checkpoint_and_history(
 
 async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_harness):
     producer, store, fetch, clock = await make_harness(
-        _capabilities(restatement_window="PT3H", official_close_lag="PT4H")
+        _capabilities(restatement_window="PT3H", official_close_lag="PT4H"),
+        finality_policy=ReportingSourceFinalPolicy(
+            "delivery-settlement", "settlement.job.complete"
+        ),
     )
     await producer.run_worker()
     source = producer._source
@@ -971,7 +1174,12 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
             offering.update(expected_availability_lag="PT8H", worst_case_availability_lag="PT12H")
     payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     capabilities = ReportingSourceCapabilitiesV1.model_validate(payload)
-    producer, store, _, clock = await make_harness(capabilities)
+    producer, store, _, clock = await make_harness(
+        capabilities,
+        finality_policy=ReportingSourceFinalPolicy(
+            "delivery-settlement", "settlement.job.complete"
+        ),
+    )
     await producer.run_worker()
     source = producer._source
     original_fetch = source._fetch

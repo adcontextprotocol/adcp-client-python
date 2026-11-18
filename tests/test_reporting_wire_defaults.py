@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from adcp.decisioning.capabilities import MediaBuy
 from adcp.types import NotificationConfig
 from adcp.types.base import AdCPBaseModel
-from tests.test_reporting_ledger import _OFFERING
+from tests.reporting_fixtures import REPORTING_OFFERING
 
 
 @pytest.mark.parametrize("model_type", [MediaBuy, MediaBuy.__bases__[0]])
@@ -18,7 +18,7 @@ def test_reporting_defaults_are_explicit_in_actual_bundled_and_canonical_models(
 ):
     supplied = {
         "supported": True,
-        "offerings": [_OFFERING],
+        "offerings": [REPORTING_OFFERING],
         "automated_recovery_window_seconds": 0,
         "status_retention_days": 30,
     }

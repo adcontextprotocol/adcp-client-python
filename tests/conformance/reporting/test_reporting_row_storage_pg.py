@@ -225,7 +225,11 @@ async def test_a_retained_pair_hashed_revision_stores_rows_only_and_verifies_its
         walked, _ = await walk(store, obligation.account_id, revision.reporting_revision_id, 500)
         assert walked == rows
 
-        forged = replace(revision, reporting_revision_id="rpr_forged")
+        forged = replace(
+            revision,
+            reporting_revision_id="rpr_forged",
+            supersedes_reporting_revision_id=revision.reporting_revision_id,
+        )
         with pytest.raises(LedgerConflictError) as conflict:
             await store.commit_revision(forged, rows)
         assert conflict.value.code == "REVISION_CONTENT_MISMATCH"

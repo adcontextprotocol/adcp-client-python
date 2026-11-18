@@ -40,6 +40,11 @@ class ReportingConfigurationAdmission:
     def __post_init__(self) -> None:
         from adcp.validation.schema_loader import get_named_validator
 
+        definition = self.configuration.definition
+        if self.configuration.required_finality == "official" and (
+            definition is None or definition.finality_policy is None
+        ):
+            raise ValueError("official reporting requires a selected finality policy")
         wire = canonical_json_utf8_v1(dict(self.configuration_wire))
         validator = get_named_validator("core/reporting-delivery-config.json")
         if validator is None or next(validator.iter_errors(json.loads(wire)), None) is not None:

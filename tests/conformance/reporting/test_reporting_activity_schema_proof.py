@@ -33,8 +33,8 @@ from adcp.reporting.outbox import (
     ReportingStatusSupport,
 )
 from adcp.types import ReportingDeliveryCapabilities
+from tests.reporting_fixtures import REPORTING_OFFERING
 from tests.test_decisioning_capabilities_projection import _SalesPlatform
-from tests.test_reporting_ledger import _OFFERING
 
 from ._reliable_support import NotificationHarness, reliable_factory
 from .test_reporting_webhook_activity import worker_for
@@ -47,7 +47,7 @@ def mounted_activity(support):
             "supported": True,
             "configuration_task": "sync_accounts",
             "status_task": "get_reporting_status",
-            "offerings": [_OFFERING],
+            "offerings": [REPORTING_OFFERING],
             "automated_recovery_window_seconds": 3600,
             "status_retention_days": 30,
         }
