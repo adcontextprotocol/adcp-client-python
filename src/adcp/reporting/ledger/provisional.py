@@ -108,6 +108,39 @@ class ProvisionalAcquisition:
             return "official"
         return "snapshot"
 
+    @property
+    def legacy_stabilized_close(self) -> bool:
+        return (
+            self.output_finality == "official"
+            and not self.policy.until_stabilized
+            and self.request().publication_class == "PROVISIONAL_SNAPSHOT"
+        )
+
+    @property
+    def is_scheduled_snapshot(self) -> bool:
+        request = self.request()
+        return (
+            request.trigger == "scheduled_poll"
+            and request.publication_class == "PROVISIONAL_SNAPSHOT"
+            and self.output_finality is None
+        )
+
+    def stabilization_schedule(
+        self, required_finality: str, *, pending: bool
+    ) -> ProvisionalPolicy | None:
+        if not self.is_scheduled_snapshot and not (
+            pending and self.legacy_stabilized_close and self.request().trigger == "scheduled_poll"
+        ):
+            return None
+        policy = self.policy
+        if (
+            required_finality == "official"
+            or policy.until_stabilized
+            or policy.official_close_lag is not None
+        ):
+            return policy
+        return None
+
     def observation_deadlines(
         self, checked_at: datetime, manifest: SourceBatchManifestV1
     ) -> tuple[datetime, datetime | None]:
@@ -187,16 +220,19 @@ class ProvisionalObservation:
 
     @property
     def is_scheduled_snapshot(self) -> bool:
-        request = self.acquisition.request()
-        return (
-            request.trigger == "scheduled_poll"
-            and request.publication_class == "PROVISIONAL_SNAPSHOT"
-            and self.acquisition.output_finality is None
-        )
+        return self.acquisition.is_scheduled_snapshot
 
     @property
     def next_stabilization_due_at(self) -> datetime:
         return self.next_due_at or self.checked_at + self.acquisition.policy.cadence
+
+    @property
+    def snapshot_origin(self) -> str | None:
+        if self.acquisition.predecessor_revision_id != self.revision_id:
+            origin = json.loads(self.manifest_json).get("publication_id")
+            if isinstance(origin, str):
+                return origin
+        return self.revision_publication_id
 
     def bind_revision(self, revision: ReportingRevisionRecord) -> ProvisionalObservation:
         """Keep the full originating publication ID when an unchanged read reuses a snapshot."""
@@ -274,6 +310,13 @@ class ProvisionalObservation:
             json.dumps(value["manifest"], sort_keys=True, separators=(",", ":")),
             value.get("revision_publication_id"),
         )
+
+
+@runtime_checkable
+class SnapshotOriginStore(Protocol):
+    """Check a revision against the first retained witness of its full publication ID."""
+
+    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None: ...
 
 
 @runtime_checkable

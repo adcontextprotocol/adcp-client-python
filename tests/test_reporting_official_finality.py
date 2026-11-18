@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from dataclasses import replace
 from datetime import timedelta
 from functools import partial
@@ -27,6 +29,7 @@ from adcp.reporting.inline_source import (
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     LedgerConflictError,
+    ReportingConfigurationGenerationKey,
     ReportingContractualCutoffPolicy,
     ReportingProducer,
     ReportingRevisionRecord,
@@ -98,6 +101,40 @@ async def test_native_recovery_reads_the_schedule_for_the_generation(
     assert await producer._recover_stabilization_schedule(other, store) is None
 
 
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_recovery_finds_the_pending_snapshot_before_the_first_observation(
+    store_factory: Any, legacy: bool
+) -> None:
+    store = store_factory()
+    assert (
+        await store.get_stabilization_schedule(
+            ReportingConfigurationGenerationKey("account-redacted", "buyer", "availability", 1)
+        )
+        is None
+    )
+    producer, _, config, obligation, _, clock = await _stabilized_harness(lambda **kwargs: store)
+    request = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="official" if legacy else "snapshot",
+        now=clock[0],
+    )
+    policy = ProvisionalPolicy(timedelta(days=1), timedelta(hours=6), until_stabilized=not legacy)
+    await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(), 0, policy, output_finality="official" if legacy else None
+        )
+    )
+    assert await producer._recover_stabilization_schedule(config, store) == policy
+    assert (
+        await producer._recover_stabilization_schedule(
+            replace(config, delivery_config_version=2), store
+        )
+        is None
+    )
+
+
 @pytest.mark.parametrize("tracked", [False, True])
 async def test_manual_change_between_equal_scheduled_reads_preserves_stabilization(
     store_factory: Any, monkeypatch: pytest.MonkeyPatch, tracked: bool
@@ -142,9 +179,8 @@ async def test_manual_change_between_equal_scheduled_reads_preserves_stabilizati
     assert len(calls) == 4
 
 
-@pytest.mark.parametrize("origin", [None, "different"])
 async def test_unbound_reused_stabilization_history_recovers_after_fresh_evidence(
-    store_factory: Any, monkeypatch: pytest.MonkeyPatch, origin: str | None
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
     owner = dict(
@@ -159,7 +195,7 @@ async def test_unbound_reused_stabilization_history_recovers_after_fresh_evidenc
 
     async def base_history(**kwargs: Any) -> Any:
         return tuple(
-            replace(o, revision_publication_id=origin) if 0 < o.acquisition.ordinal <= 4 else o
+            replace(o, revision_publication_id=None) if 0 < o.acquisition.ordinal <= 4 else o
             for o in await read(**kwargs)
         )
 
@@ -198,8 +234,9 @@ async def test_stabilized_close_keeps_frozen_route_when_offering_drops_close_lag
     assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
 
 
+@pytest.mark.parametrize("pending_lookup", [True, False])
 async def test_stabilized_retires_base_shaped_derived_official_reservation(
-    store_factory: Any,
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, pending_lookup: bool
 ) -> None:
     producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
     owner = dict(
@@ -215,6 +252,8 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
         output_finality="official",
     )
     await store.reserve_provisional_acquisition(reservation)
+    if not pending_lookup:
+        monkeypatch.setattr(store, "get_provisional_acquisition", None)
     assert "until_stabilized" not in reservation.to_wire()["policy"]
     fresh = ReportingProducer(
         source=producer._source,
@@ -238,6 +277,125 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
         "official",
         "snapshot",
     ]
+
+
+async def test_stabilization_cannot_rebind_a_contradictory_snapshot_origin(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13, 19, 25):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    (snapshot,) = await store.list_revisions(**owner)
+    origin = snapshot.source_publication_id
+    forged = origin[:-1] + ("1" if origin[-1] == "0" else "0")
+    if isinstance(store, InMemoryReportingLedgerStore):
+        store._revisions[snapshot.reporting_revision_id] = replace(
+            snapshot, source_publication_id=forged
+        )
+    else:
+        async with store._pool.connection() as connection:
+            await connection.execute(
+                "UPDATE reporting_revisions SET source_publication_id=%s"
+                " WHERE reporting_revision_id=%s",
+                (forged, snapshot.reporting_revision_id),
+            )
+    # A previous publisher may already have copied the bad ID into an entire suffix.
+    read = store.list_provisional_observations
+
+    async def rebound_suffix(**kwargs: Any) -> Any:
+        return tuple(
+            replace(o, revision_publication_id=forged) if o.acquisition.ordinal > 0 else o
+            for o in await read(**kwargs)
+        )
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "list_provisional_observations", rebound_suffix)
+        with pytest.raises(LedgerConflictError, match="history"):
+            await producer.acquire_obligation(config, obligation)
+    for hour in (31, 31, 37, 43, 49):
+        clock[0] = END + timedelta(hours=hour)
+        with suppress(LedgerConflictError):
+            await producer.acquire_obligation(config, obligation)
+    history = await store.list_provisional_observations(**owner, limit=16)
+    assert all(o.revision_publication_id != forged for o in history)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+    assert len(calls) == 9
+    assert len({r.identity.source_execution_key for r in producer._source.requests}) == 9
+
+    monkeypatch.setattr(
+        "tests.test_reporting_source_availability.PROVIDER_ROW", PROVIDER_ROW.replace("10", "11")
+    )
+    for hour in (55, 61, 67):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(config, obligation)
+        official = [r for r in await store.list_revisions(**owner) if r.finality == "official"]
+        assert [r.finalized_at for r in official] == ([clock[0]] if hour == 67 else [])
+
+
+async def test_scheduled_reservation_waiting_behind_stabilized_official_is_terminal(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    clock[0] = END + timedelta(hours=19)
+    inside_official = asyncio.Event()
+    reaching_reservation = asyncio.Event()
+    release = asyncio.Event()
+    reserve = store.reserve_provisional_acquisition
+    publication_lock = store.source_publication
+    commit = store.commit_revision
+    reservations = []
+
+    async def hold_official(*args: Any, **kwargs: Any) -> Any:
+        inside_official.set()
+        await release.wait()
+        return await commit(*args, **kwargs)
+
+    @asynccontextmanager
+    async def wait_for_lock(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        if inside_official.is_set():
+            reaching_reservation.set()
+        async with publication_lock(*args, **kwargs) as publisher:
+            yield publisher
+
+    async def at_reservation(*args: Any, **kwargs: Any) -> Any:
+        reaching_reservation.set()
+        reservations.append(args[0])
+        return await reserve(*args, **kwargs)
+
+    monkeypatch.setattr(store, "source_publication", wait_for_lock)
+    monkeypatch.setattr(store, "reserve_provisional_acquisition", at_reservation)
+    monkeypatch.setattr(store, "commit_revision", hold_official)
+    close = asyncio.create_task(producer.acquire_obligation(config, obligation))
+    await asyncio.wait_for(inside_official.wait(), timeout=5)
+    attempt = asyncio.create_task(
+        producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    )
+    try:
+        await asyncio.wait_for(reaching_reservation.wait(), timeout=5)
+    finally:
+        release.set()
+    official = await asyncio.wait_for(close, timeout=5)
+    assert official is not None and official.finality == "official"
+    assert await asyncio.wait_for(attempt, timeout=5) is None
+    assert reservations == []
+    assert await store.get_provisional_acquisition(**owner, ordinal=3) is None
+    assert len(calls) == 3
 
 
 @pytest.mark.parametrize("change", ["none", "warnings", "basis"])

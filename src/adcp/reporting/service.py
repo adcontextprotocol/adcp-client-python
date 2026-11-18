@@ -767,10 +767,8 @@ class ReliableReportingService:
         )
         try:
             frozen = None
-            if (
-                recovering
-                and configuration.definition
-                and isinstance(configuration.definition.finality_policy, ReportingStabilizedPolicy)
+            if configuration.definition and isinstance(
+                configuration.definition.finality_policy, ReportingStabilizedPolicy
             ):
                 frozen = await producer._recover_stabilization_schedule(configuration, self.store)
             policy = self._validate_offerings(configuration, context, registration, frozen=frozen)

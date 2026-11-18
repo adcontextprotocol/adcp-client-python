@@ -158,6 +158,7 @@ from adcp.reporting.ledger.store import (
     validate_provisional_revision,
     validate_retained_provisional_observation,
     validate_revision_currency,
+    validate_snapshot_origin,
 )
 from adcp_reporting_storage.ledger.row_storage import (
     REPORTING_ROW_STORAGE_DDL_PATH,
@@ -1816,26 +1817,68 @@ class PgReportingLedgerStore:
         )
         return history[0] if history else None
 
+    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None:
+        async with self._connection() as connection:
+            witness = await (
+                await connection.execute(
+                    "SELECT origin FROM (SELECT COALESCE("
+                    " CASE WHEN payload #>> '{acquisition,predecessor_revision_id}'"
+                    " IS DISTINCT FROM reporting_revision_id"
+                    " THEN payload #>> '{manifest,publication_id}' END,"
+                    " payload->>'revision_publication_id') AS origin, ordinal"
+                    " FROM reporting_provisional_observations WHERE account_id=%s"
+                    " AND reporting_obligation_id=%s AND reporting_revision_id=%s) refs"
+                    " WHERE origin IS NOT NULL ORDER BY ordinal LIMIT 1",
+                    (
+                        revision.account_id,
+                        revision.reporting_obligation_id,
+                        revision.reporting_revision_id,
+                    ),
+                )
+            ).fetchone()
+        if witness is not None:
+            validate_snapshot_origin(revision, witness[0])
+
     async def get_stabilization_schedule(
         self, generation: ReportingConfigurationGenerationKey
     ) -> ProvisionalPolicy | None:
         async with self._connection() as connection:
+            # configure() can precede schema creation on a brand-new installation.
+            installed = await (
+                await connection.execute(
+                    "SELECT to_regclass('reporting_provisional_acquisitions') IS NOT NULL"
+                    " OR to_regclass('reporting_provisional_observations') IS NOT NULL"
+                )
+            ).fetchone()
+            if installed is not None and not installed[0]:
+                return None
             await self._require_provisional_schema(connection)
             row = await (
                 await connection.execute(
-                    "SELECT h.payload #> '{acquisition,policy}' FROM reporting_obligations o"
-                    " JOIN reporting_provisional_observations h"
+                    "SELECT a.payload->'policy' FROM reporting_obligations o"
+                    " JOIN reporting_provisional_acquisitions a"
+                    " USING(account_id, reporting_obligation_id)"
+                    " LEFT JOIN reporting_provisional_observations h"
+                    " USING(account_id, reporting_obligation_id, ordinal)"
+                    " LEFT JOIN reporting_restatement_checkpoints c"
                     " USING(account_id, reporting_obligation_id)"
                     " WHERE o.account_id=%s AND o.consumer_id=%s AND o.delivery_config_id=%s"
                     " AND o.delivery_config_version=%s"
-                    " AND h.payload #>> '{acquisition,request,trigger}' = 'scheduled_poll'"
-                    " AND h.payload #>> '{acquisition,request,publication_class}'"
+                    " AND a.payload #>> '{request,trigger}' = 'scheduled_poll'"
+                    " AND a.payload #>> '{request,publication_class}'"
                     " = 'PROVISIONAL_SNAPSHOT'"
-                    " AND h.payload #>> '{acquisition,output_finality}' IS NULL"
+                    " AND (a.payload->>'output_finality' IS NULL OR (h.ordinal IS NULL"
+                    " AND a.payload->>'output_finality'='official'"
+                    " AND a.payload #>> '{policy,until_stabilized}' IS DISTINCT FROM 'true'))"
+                    " AND (h.ordinal IS NOT NULL OR c.next_observation IS NULL"
+                    " OR c.next_observation=a.ordinal)"
                     " AND (o.required_finality='official'"
-                    " OR h.payload #>> '{acquisition,policy,until_stabilized}' = 'true'"
-                    " OR h.payload #>> '{acquisition,policy,official_close_lag_us}' IS NOT NULL)"
-                    " ORDER BY o.period_start, h.ordinal DESC LIMIT 1",
+                    " OR a.payload #>> '{policy,until_stabilized}' = 'true'"
+                    " OR a.payload #>> '{policy,official_close_lag_us}' IS NOT NULL)"
+                    " ORDER BY (h.ordinal IS NOT NULL) DESC,"
+                    " COALESCE(h.payload->>'checked_at',"
+                    " a.payload #>> '{request,period,source_read_cutoff_at}')::timestamptz DESC,"
+                    " a.ordinal DESC LIMIT 1",
                     (
                         generation.account_id,
                         generation.consumer_id,
@@ -1992,6 +2035,8 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
+                if acquisition.policy.until_stabilized:
+                    await self.verify_snapshot_origin(committed)
                 validate_retained_provisional_observation(
                     committed, observation.bind_revision(committed), rows, require_readable=False
                 )
