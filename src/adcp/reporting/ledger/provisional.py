@@ -255,7 +255,12 @@ class ProvisionalObservation:
     ) -> ProvisionalObservation:
         """Keep the full originating publication ID when an unchanged read reuses a snapshot."""
         if revision.finality == "snapshot" and (
-            require_origin or self.acquisition.policy.until_stabilized
+            require_origin
+            or self.acquisition.policy.until_stabilized
+            or (
+                self.acquisition.predecessor_revision_id == revision.reporting_revision_id
+                and revision.source_publication_id is not None
+            )
         ):
             if (
                 self.revision_publication_id is not None

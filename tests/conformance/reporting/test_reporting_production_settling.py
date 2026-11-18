@@ -13,7 +13,7 @@ from adcp.reporting.source import (
 
 from ._generation_support import END
 from ._materializer_support import reference_rows
-from ._production_support import Source, SQLiteSeals, production_harness
+from ._production_support import Source, SQLiteSeals, production_harness, reference_source_final
 from .test_reporting_production_lock_order import source_turn
 
 
@@ -82,6 +82,7 @@ async def test_progress_retains_policy_until_terminal_publication(
         source_publication=True,
         periods=1,
         source_factory=partial(SettlingSource, close_officially=close_officially),
+        finality_policy=reference_source_final() if close_officially else None,
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)
         source = h.production.offerings[0].producer._source
@@ -155,6 +156,7 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
         source_publication=True,
         periods=1,
         source_factory=SettlingSource,
+        finality_policy=reference_source_final(),
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)
         initial = await source_turn(h.production)
@@ -174,6 +176,7 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
             source_publication=True,
             periods=1,
             source_factory=SettlingSource,
+            finality_policy=reference_source_final(),
             **existing,
         ) as fresh:
             source = fresh.production.offerings[0].producer._source

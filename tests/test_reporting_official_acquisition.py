@@ -77,6 +77,165 @@ class CoreStore:
             raise AttributeError(name)
         return getattr(self.store, name)
 
+    def source_publication(self, account_id: str, **kwargs: Any) -> Any:
+        return self.store.source_publication(account_id, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ReportingSourceFinalPolicy("provider", "delivery.is_final"),
+        ReportingContractualCutoffPolicy("cutoff", "PT0S"),
+    ],
+)
+async def test_standalone_official_admission_requires_account_lock(policy: Any) -> None:
+    producer, store, config, obligation, calls, _ = await _harness(
+        official=True, finality_policy=policy
+    )
+
+    class UnlockedCore(CoreStore):
+        source_publication = None
+
+    producer._store = UnlockedCore(store)
+    changed = replace(config, delivery_config_version=2)
+    await store.put_configuration(changed)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.close_elapsed_periods(changed)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation)
+    assert not calls
+
+
+@pytest.mark.parametrize("finality", ["official", "snapshot"])
+async def test_direct_official_work_requires_lock_before_reserving(
+    monkeypatch: pytest.MonkeyPatch, finality: str
+) -> None:
+    policy = ReportingSourceFinalPolicy("provider", "source-evidence-redacted")
+    producer, store, config, obligation, _, clock = await _harness(
+        official=True, finality_policy=policy
+    )
+    offering = SNAPSHOT_OFFERING_ID if finality == "snapshot" else OFFICIAL_OFFERING_ID
+    request = producer._build_slice(config, obligation, offering, finality=finality, now=clock[0])
+    _, manifest, producer._object_reader = redacted_completed_result(
+        request, page_bodies=[PROVIDER_ROW]
+    )
+    monkeypatch.setattr(store, "source_publication", None)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=ROWS,
+            finality=finality,
+            finality_proof=(
+                manifest_finality_proof(obligation, manifest, clock[0])
+                if finality == "official"
+                else None
+            ),
+        )
+    assert (
+        await store.get_provisional_acquisition(
+            account_id=config.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            ordinal=0,
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("changed", ["signal", "provider_time"])
+async def test_core_source_final_replay_requires_retained_signal_and_timestamp(
+    changed: str,
+) -> None:
+    producer, store, config, obligation, _, _ = await _harness(
+        official=True, finality_policy=ReportingSourceFinalPolicy("provider", "delivery.is_final")
+    )
+    producer._store = CoreStore(store)
+    first = await producer.acquire_obligation(config, obligation)
+    manifest = producer._source.manifest
+    updates = (
+        {"evidence_ref": "another-signal"}
+        if changed == "signal"
+        else {"observed_at": first.finalized_at - timedelta(seconds=1)}
+    )
+    changed_manifest = manifest.model_copy(
+        update={"finality_evidence": manifest.finality_evidence.model_copy(update=updates)}
+    )
+    with pytest.raises(LedgerConflictError) as error:
+        await producer.commit_revision_from_manifest(
+            obligation, changed_manifest, rows=ROWS, finality="official"
+        )
+    assert error.value.code == "REVISION_IMMUTABLE"
+    assert (
+        await producer.commit_revision_from_manifest(
+            obligation, manifest, rows=ROWS, finality="official"
+        )
+        == first
+    )
+
+
+@pytest.mark.parametrize("change", ["prefix", "suffix"])
+@pytest.mark.parametrize("origin_lookup", [True, False])
+@pytest.mark.parametrize(
+    ("archived", "change_stored_revision"), [(False, False), (True, False), (True, True)]
+)
+async def test_unchanged_snapshot_replay_checks_the_referenced_publication(
+    change: str,
+    origin_lookup: bool,
+    archived: bool,
+    change_stored_revision: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        finality_policy=ReportingContractualCutoffPolicy("later", "P2D")
+    )
+    first = await producer.acquire_obligation(config, obligation, track_settling=True)
+    clock[0] += timedelta(hours=1)
+    assert first == await producer.acquire_obligation(
+        config, obligation, restate=True, track_settling=True
+    )
+    observation = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    if archived:
+        observation = replace(observation, revision_publication_id=None)
+        store._provisional_observations[(config.account_id, obligation.reporting_obligation_id)][
+            observation.acquisition.ordinal
+        ] = observation
+    if not origin_lookup:
+        monkeypatch.setattr(store, "verify_snapshot_origin", None)
+    manifest = SourceBatchManifestV1.model_validate_json(observation.manifest_json)
+    assert first == await producer.commit_revision_from_manifest(
+        obligation, manifest, rows=ROWS, finality="snapshot", acquisition=observation.acquisition
+    )
+    get_revision = store.get_revision
+
+    async def different_origin(**kwargs: Any) -> Any:
+        revision = await get_revision(**kwargs)
+        offset = 4 if change == "prefix" else 44
+        identifier = revision.source_publication_id
+        return replace(
+            revision,
+            source_publication_id=identifier[:offset]
+            + ("a" if identifier[offset] != "a" else "b")
+            + identifier[offset + 1 :],
+        )
+
+    if change_stored_revision:
+        store._revisions[first.reporting_revision_id] = await different_origin(
+            account_id=config.account_id, reporting_revision_id=first.reporting_revision_id
+        )
+    else:
+        monkeypatch.setattr(store, "get_revision", different_origin)
+    with pytest.raises(LedgerConflictError) as error:
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=ROWS,
+            finality="snapshot",
+            acquisition=observation.acquisition,
+        )
+    assert error.value.code in {"REVISION_IMMUTABLE", "STABILIZATION_ORIGIN_CONFLICT"}
+
 
 @pytest.fixture(params=["memory", "postgres", "core", "progress"])
 async def cutoff_backend(request: Any) -> AsyncIterator[Any]:

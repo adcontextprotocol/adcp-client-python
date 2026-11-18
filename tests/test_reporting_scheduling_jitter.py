@@ -5,7 +5,12 @@ from datetime import timedelta
 
 import pytest
 
-from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingProducer
+from adcp.reporting.ledger import (
+    InMemoryReportingLedgerStore,
+    ReportingContractualCutoffPolicy,
+    ReportingProducer,
+    ReportingSourceFinalPolicy,
+)
 from tests.test_reporting_settling import _capabilities as settling_capabilities
 from tests.test_reporting_source_availability import (
     ProgressStore,
@@ -152,7 +157,9 @@ async def test_jitter_is_stable_and_bounded_by_sla_short_period_and_cadence():
 
 async def test_jitter_keeps_explicit_official_boundary_and_manual_acquisition():
     producer, store, configuration, obligation, calls, clock = await _harness(
-        read_jitter_window=WINDOW, capabilities=_closing_capabilities()
+        read_jitter_window=WINDOW,
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingSourceFinalPolicy("provider-final", "delivery.is_final"),
     )
     ready = producer._source_available_at(obligation)
     clock[0] = ready
@@ -234,6 +241,7 @@ async def test_successful_manual_snapshot_keeps_immediate_automatic_official_clo
     producer, store, configuration, obligation, calls, clock = await _harness(
         read_jitter_window=WINDOW,
         capabilities=settling_capabilities(restatement_window="PT0S", official_close_lag="PT0S"),
+        finality_policy=ReportingContractualCutoffPolicy("immediate", "PT0S"),
     )
     ready = producer._source_available_at(obligation)
     assert ready < producer._scheduled_source_ready_at(configuration, obligation)

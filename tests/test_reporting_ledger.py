@@ -194,7 +194,7 @@ def test_definition_binding_retains_selected_finality_policy_off_wire() -> None:
     assert _definition_from_payload(binding.to_storage()) == binding
 
 
-@pytest.mark.parametrize("value", ["P1M", "P1Y", "not-a-duration"])
+@pytest.mark.parametrize("value", ["P1M", "P1Y", "not-a-duration", "PT1H\n"])
 def test_finality_policy_refuses_unsupported_duration(value: str) -> None:
     with pytest.raises(ValueError, match="supported reporting duration"):
         ReportingContractualCutoffPolicy("cutoff-v1", value)
@@ -261,7 +261,7 @@ def test_definition_binding_rejects_finality_policy_subclass() -> None:
         replace(DEFINITION, finality_policy=CustomPolicy("daily-v1", "close"))
 
 
-@pytest.mark.parametrize("policy_id", ["", "a" * 256, "contains spaces"])
+@pytest.mark.parametrize("policy_id", ["", "a" * 256, "contains spaces", "close\n"])
 def test_finality_policy_refuses_invalid_identifier(policy_id: str) -> None:
     with pytest.raises(ValueError, match="finality_policy_id"):
         ReportingSourceFinalPolicy(policy_id, "close")

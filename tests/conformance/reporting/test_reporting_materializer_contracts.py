@@ -14,6 +14,7 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
     ReportingContractualCutoffPolicy,
+    ReportingDefinitionBinding,
     ReportingDeliveryPrincipal,
     ReportingProducer,
     ReportingSourceFinalPolicy,
@@ -21,8 +22,11 @@ from adcp.reporting.ledger import (
 from adcp.reporting.ledger.delivery_models import MaterializationFailure
 from adcp.reporting.materializer import (
     ReferenceReportingDestinationWriter,
+    ReportingCanonicalization,
     ReportingDestinationPage,
     ReportingIOContext,
+    ReportingVerificationKey,
+    ReportingWriterCapability,
     ReportingWriterError,
     ReportingWriterFailure,
     ReportingWriterFailureCode,
@@ -162,7 +166,34 @@ def test_readback_page_repr_never_includes_unverified_provider_body():
 
 
 def test_verification_key_id_without_finality_policy_preserves_stored_identity() -> None:
-    key = reference_verifier().key
+    key = ReportingVerificationKey(
+        "reference-report-v1",
+        "paid_media_delivery",
+        ReportingDefinitionBinding(
+            "https://contracts.example.test/reference-definition.json",
+            "2c988a2c008b84097be962248c433dc3acd9663372f89a4b1c7c1235ee635785",
+            "1.0.0",
+            "https://contracts.example.test/reference-row-schema.json",
+            "aa4927d97b5e5889c4d79bd5461da81657cafea75a61d266ab452bfa0fc5d799",
+            monetary_metric_units=(("spend", "USD"),),
+            monetary_control_total_units=(("spend", "USD"),),
+        ),
+        ReportingCanonicalization(
+            "reference-jcs-rows-v1",
+            "https://contracts.example.test/reference-canonicalization.json",
+            "5566f62a29487d54d755e4e9c35c97661bb243d158d4bf7a712fb1c7eb3bcb80",
+        ),
+        ReportingWriterCapability(
+            "file_transfer",
+            "reference-memory",
+            "jsonl",
+            "canonical_digest",
+            "producer",
+            "immutable_location",
+            "sha256",
+            "conditional_create",
+        ),
+    )
     assert (
         verification_key_id(key)
         == "d53ff0456ffc9b62c98c8c1d198818956ce11ae4749e81f5118ac1f653ce8b5d"

@@ -7,7 +7,7 @@ import pytest
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.server.a2a_server import create_a2a_server
 
-from ._production_support import production_harness
+from ._production_support import production_harness, reference_source_final
 from ._production_transport import MountedProduction
 
 
@@ -92,6 +92,7 @@ async def test_discovery_preserves_declaration_while_admission_rechecks_pool(
         notifications=notifications,
         notification_delivery=notifications,
         reconciled=reconciled,
+        finality_policy=reference_source_final() if reconciled else None,
     ) as h:
         support = h.production
         mounted = MountedProduction(h)
@@ -171,6 +172,7 @@ async def test_discovery_preserves_declaration_while_admission_rechecks_queue_po
         notifications=True,
         notification_delivery=delivery,
         reconciled=True,
+        finality_policy=reference_source_final(),
     ) as h:
         mount = MountedProduction(h)
         mount.authorize(h.item)
@@ -231,6 +233,7 @@ async def test_warm_mounted_discovery_does_not_checkout_a_saturated_valid_pool(
         notifications=notifications,
         notification_delivery=notifications,
         reconciled=True,
+        finality_policy=reference_source_final(),
     ) as h:
         mounted = MountedProduction(h)
         mounted.authorize(h.item)

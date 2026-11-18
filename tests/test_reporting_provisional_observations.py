@@ -15,6 +15,7 @@ from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID, SNAPSHOT_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingProducer,
+    ReportingSourceFinalPolicy,
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
@@ -39,9 +40,10 @@ from tests.test_reporting_settling import (
 async def make_harness(request):
     if request.param == "memory":
 
-        async def build(capabilities):
+        async def build(capabilities, *, finality_policy=None):
             return await _harness(
                 capabilities,
+                finality_policy=finality_policy,
                 store_factory=lambda clock: InMemoryReportingLedgerStore(
                     clock=clock, notifications=True
                 ),
@@ -51,9 +53,10 @@ async def make_harness(request):
     else:
         async with isolated_reporting_pool() as pool:
 
-            async def build(capabilities):
+            async def build(capabilities, *, finality_policy=None):
                 return await _harness(
                     capabilities,
+                    finality_policy=finality_policy,
                     store_factory=lambda clock: PgReportingLedgerStore(
                         pool=pool, clock=clock, notifications=True
                     ),
@@ -1128,7 +1131,10 @@ async def test_notification_failure_rolls_back_revision_checkpoint_and_history(
 
 async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_harness):
     producer, store, fetch, clock = await make_harness(
-        _capabilities(restatement_window="PT3H", official_close_lag="PT4H")
+        _capabilities(restatement_window="PT3H", official_close_lag="PT4H"),
+        finality_policy=ReportingSourceFinalPolicy(
+            "delivery-settlement", "settlement.job.complete"
+        ),
     )
     await producer.run_worker()
     source = producer._source
@@ -1168,7 +1174,12 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
             offering.update(expected_availability_lag="PT8H", worst_case_availability_lag="PT12H")
     payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     capabilities = ReportingSourceCapabilitiesV1.model_validate(payload)
-    producer, store, _, clock = await make_harness(capabilities)
+    producer, store, _, clock = await make_harness(
+        capabilities,
+        finality_policy=ReportingSourceFinalPolicy(
+            "delivery-settlement", "settlement.job.complete"
+        ),
+    )
     await producer.run_worker()
     source = producer._source
     original_fetch = source._fetch

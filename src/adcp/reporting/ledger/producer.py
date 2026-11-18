@@ -64,6 +64,7 @@ from adcp.reporting.ledger.finality import (
     MAX_STABILIZATION_HISTORY_OBSERVATIONS,
     FinalityProof,
     ReportingContractualCutoffPolicy,
+    ReportingSourceFinalPolicy,
     ReportingStabilizedPolicy,
     contractual_cutoff_at,
     finality_policy_source_class,
@@ -689,10 +690,15 @@ class ReportingProducer:
 
     def _stabilization_requested(self, configuration: ReportingConfiguration) -> bool:
         definition = configuration.definition
-        if definition is None or not isinstance(
-            definition.finality_policy, ReportingStabilizedPolicy
-        ):
-            return False
+        return (
+            definition is not None
+            and isinstance(definition.finality_policy, ReportingStabilizedPolicy)
+            and self._official_close_requested(configuration)
+        )
+
+    def _official_close_requested(
+        self, configuration: ReportingConfiguration | ReportingObligationRecord
+    ) -> bool:
         return (
             configuration.required_finality == "official"
             or configuration.generation_key in self._recovered_stabilization
@@ -757,6 +763,8 @@ class ReportingProducer:
                         )
                     ),
                 )
+            elif selected is not None and self._official_close_requested(configuration):
+                self._official_publication_lock()
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -1362,6 +1370,56 @@ class ReportingProducer:
             return self._store
         return None
 
+    async def _has_retained_stabilization(self, configuration: ReportingConfiguration) -> bool:
+        """Inspect retained routes when a snapshot publisher lacks the generation lookup."""
+        key = configuration.generation_key
+        snapshot = await self._store.open_snapshot(
+            caller=ReportingDeliveryPrincipal(key.account_id, key.consumer_id),
+            filters_fingerprint=f"stabilization:{key.delivery_config_id}:{key.delivery_config_version}",
+        )
+        offset = 0
+        page_size = 100
+        while True:
+            page = await self._store.read_page(
+                snapshot=snapshot,
+                consumer_id=key.consumer_id,
+                delivery_config_ids=[key.delivery_config_id],
+                media_buy_ids=None,
+                changes_after_sequence=None,
+                offset=offset,
+                limit=page_size,
+            )
+            for obligation in page.obligations:
+                if obligation.generation_key != key:
+                    continue
+                checkpoints = self._optional_restatement_store()
+                if checkpoints is None or not _implements_store_method(
+                    self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
+                ):
+                    # Without the retained cursor and its reservations a prior
+                    # stabilized close cannot be distinguished from an ordinary poll.
+                    return True
+                checkpoint = await checkpoints.get_restatement_checkpoint(
+                    account_id=key.account_id,
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                )
+                if checkpoint is not None and checkpoint.stabilization_policy is not None:
+                    return True
+                next_ordinal = checkpoint.next_observation if checkpoint is not None else 0
+                for ordinal in range(next_ordinal + 1):
+                    acquisition = await self._pending_acquisition(obligation, ordinal=ordinal)
+                    if (
+                        acquisition is not None
+                        and acquisition.stabilization_schedule(
+                            obligation.required_finality, pending=ordinal == next_ordinal
+                        )
+                        is not None
+                    ):
+                        return True
+            if not page.has_more:
+                return False
+            offset += page_size
+
     async def _acquire_stabilized(
         self,
         configuration: ReportingConfiguration,
@@ -1787,6 +1845,12 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "FINALITY_POLICY_UNPROVEN", "official finality requires a selected policy"
                 )
+        if selected_policy is not None and (
+            finality == "official" or self._official_close_requested(configuration)
+        ):
+            self._official_publication_lock(
+                stabilized=isinstance(selected_policy, ReportingStabilizedPolicy)
+            )
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
@@ -2060,7 +2124,9 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        async with self._stabilization_lock().source_publication(obligation.account_id):
+        async with self._official_publication_lock(stabilized=True).source_publication(
+            obligation.account_id
+        ):
             self._check_source_authorization(
                 configuration, request.offering_id, tuple(request.coverage.constituents)
             )
@@ -2315,11 +2381,10 @@ class ReportingProducer:
         if not isinstance(self._source, ReportingProductionSource):
             yield None
             return
-        if not isinstance(self._store, ReportingSourcePublicationStore):
+        store = self._optional_publication_store()
+        if store is None:
             raise TypeError("production source publication requires an SDK account lock")
-        async with self._store.source_publication(
-            configuration.account_id, seals=seals
-        ) as publish_seal:
+        async with store.source_publication(configuration.account_id, seals=seals) as publish_seal:
             self._check_source_authorization(configuration, offering_id, admitted_constituents)
             yield publish_seal
 
@@ -2362,15 +2427,18 @@ class ReportingProducer:
     ) -> AsyncIterator[None]:
         from adcp.reporting.production.contracts import ReportingProductionSource
 
-        if (
-            official
-            and obligation.definition
-            and isinstance(obligation.definition.finality_policy, ReportingStabilizedPolicy)
-        ):
-            self._stabilization_lock()
+        lock: ReportingSourcePublicationStore | None
+        if official and obligation.definition and obligation.definition.finality_policy:
+            lock = self._official_publication_lock(
+                stabilized=isinstance(
+                    obligation.definition.finality_policy, ReportingStabilizedPolicy
+                )
+            )
+        else:
+            lock = self._optional_publication_store()
         if not isinstance(self._source, ReportingProductionSource):
-            if isinstance(self._store, ReportingSourcePublicationStore):
-                async with self._store.source_publication(obligation.account_id):
+            if lock is not None:
+                async with lock.source_publication(obligation.account_id):
                     yield
             else:
                 yield
@@ -2472,21 +2540,33 @@ class ReportingProducer:
             )
         return store
 
-    def _stabilization_lock(self) -> ReportingSourcePublicationStore:
+    def _optional_publication_store(self) -> ReportingSourcePublicationStore | None:
         store = self._store
-        if not _implements_store_method(
+        if _implements_store_method(
             store, ReportingSourcePublicationStore.source_publication
-        ) or not isinstance(store, ReportingSourcePublicationStore):
+        ) and isinstance(store, ReportingSourcePublicationStore):
+            return store
+        return None
+
+    def _official_publication_lock(
+        self, *, stabilized: bool = False
+    ) -> ReportingSourcePublicationStore:
+        store = self._optional_publication_store()
+        if store is None:
             raise LedgerConflictError(
-                "STABILIZATION_PUBLICATION_NOT_SUPPORTED",
-                "stabilized finality requires an account publication lock",
+                (
+                    "STABILIZATION_PUBLICATION_NOT_SUPPORTED"
+                    if stabilized
+                    else "OFFICIAL_PUBLICATION_NOT_SUPPORTED"
+                ),
+                "official finality requires an account publication lock",
             )
         return store
 
     def _stabilization_store(self) -> StabilizationStore:
         history = self._observation_history_store()
         self._restatement_store()
-        self._stabilization_lock()
+        self._official_publication_lock(stabilized=True)
         for stub in (
             ProvisionalObservationPublicationStore.reserve_provisional_acquisition,
             ProvisionalObservationPublicationStore.get_provisional_observation,
@@ -2559,7 +2639,9 @@ class ReportingProducer:
             output_finality="official" if derived_close else None,
         )
         if frozen_policy.until_stabilized:
-            async with self._stabilization_lock().source_publication(obligation.account_id):
+            async with self._official_publication_lock(stabilized=True).source_publication(
+                obligation.account_id
+            ):
                 current = await self._store.list_revisions(
                     account_id=obligation.account_id,
                     reporting_obligation_id=obligation.reporting_obligation_id,
@@ -2810,6 +2892,12 @@ class ReportingProducer:
     ) -> ReportingRevisionRecord:
         obligation = await self._stored_obligation(obligation)
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        if selected_policy is not None and (
+            finality == "official" or self._official_close_requested(obligation)
+        ):
+            self._official_publication_lock(
+                stabilized=isinstance(selected_policy, ReportingStabilizedPolicy)
+            )
         origin_store: SnapshotOriginStore | None = None
         if finality == "snapshot" and acquisition is not None:
             if acquisition.requires_snapshot_origin(
@@ -3154,6 +3242,9 @@ class ReportingProducer:
                 or revision.reporting_obligation_id != obligation.reporting_obligation_id
             ):
                 raise LedgerConflictError("HISTORY_UNAVAILABLE", "retained snapshot is missing")
+            source_id = revision.source_publication_id
+            if source_id is None or revision_id != f"rpr_{source_id[4:44]}":
+                raise LedgerConflictError("REVISION_IMMUTABLE", "retained snapshot origin differs")
             if prior is not None and (
                 revision.source_publication_id != manifest.publication_id
                 or revision.observed_at != manifest.observed_at
@@ -3181,16 +3272,24 @@ class ReportingProducer:
                 await self._verify_tracked_snapshot_origin(
                     obligation, acquisition, origin_store, revision
                 )
-            if is_latest:
+            elif prior is None and _implements_store_method(
+                self._store, SnapshotOriginStore.verify_snapshot_origin
+            ):
+                assert isinstance(self._store, SnapshotOriginStore)
+                await self._store.verify_snapshot_origin(revision)
+            if is_latest and (prior is not None or latest.revision_publication_id is not None):
                 return revision
-            # A later observation closes this ordinal to new writes. The store
-            # atomically checks the historical acquisition, manifest and revision.
+            # The atomic replay also checks older observations without a full
+            # predecessor publication witness against the original immutable revision.
             try:
-                return await store.commit_provisional_observation(observation, revision, rows)
+                committed = await store.commit_provisional_observation(observation, revision, rows)
             except LedgerConflictError as error:
                 if error.code != "OBSERVATION_CONFLICT":
                     raise
                 return None
+            if committed.source_publication_id != source_id:
+                raise LedgerConflictError("REVISION_IMMUTABLE", "retained snapshot origin differs")
+            return committed
 
     async def _verify_direct_official_publication(
         self,
@@ -3455,6 +3554,23 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "REVISION_IMMUTABLE", "the winning official source evidence is unavailable"
                 )
+            if isinstance(policy, ReportingSourceFinalPolicy):
+                try:
+                    proof = manifest_finality_proof(obligation, manifest, retained.created_at)
+                except LedgerConflictError as error:
+                    raise LedgerConflictError(
+                        "REVISION_IMMUTABLE",
+                        "the manifest contradicts the retained source finality",
+                    ) from error
+                if (
+                    manifest.offering_id != self._offerings.official_offering_id
+                    or proof.finality_policy_id != retained.finality_policy_id
+                    or proof.basis != retained.finality_basis
+                    or proof.finalized_at != retained.finalized_at
+                ):
+                    raise LedgerConflictError(
+                        "REVISION_IMMUTABLE", "official source evidence differs"
+                    )
         elif json.loads(observation.manifest_json) != manifest.model_dump(mode="json") or (
             acquisition is not None and observation.acquisition != acquisition
         ):

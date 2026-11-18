@@ -20,7 +20,7 @@ from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
 from adcp.server.serve import _build_mcp_and_a2a_app
 
 from ._feed_support import MountedFeed, feed_harness, feed_request, mixed_case
-from ._production_support import production_harness
+from ._production_support import production_harness, reference_source_final
 from .test_reporting_production_configuration import state_for, wire_configuration
 
 
@@ -130,6 +130,7 @@ async def exact_fixture(backend, root, count):
         count=count,
         source_publication=True,
         reconciled=True,
+        finality_policy=reference_source_final(),
         poll_seconds=0.02,
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)

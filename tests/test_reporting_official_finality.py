@@ -22,6 +22,7 @@ from adcp.reporting.fixtures import (
     redacted_completed_result,
 )
 from adcp.reporting.inline_source import (
+    InlineFetchResult,
     InlineReportingSource,
     InMemorySealStore,
     InMemoryStagingStore,
@@ -35,6 +36,8 @@ from adcp.reporting.ledger import (
     ReportingRevisionRecord,
     ReportingSourceFinalPolicy,
     ReportingStabilizedPolicy,
+    ReportingStatusCaller,
+    ReportingStatusHandler,
     revision_content_sha256,
 )
 from adcp.reporting.ledger.finality import (
@@ -47,6 +50,7 @@ from adcp.reporting.ledger.provisional import (
     ProvisionalObservation,
     ProvisionalPolicy,
 )
+from adcp.reporting.service import ReliableReportingService
 from adcp.reporting.source import (
     ReportingFinalityEvidenceV1,
     ReportingSourceExecutorResult,
@@ -55,6 +59,7 @@ from adcp.reporting.source import (
     publication_content_fingerprint_v1,
     source_batch_object_set_sha256_v1,
 )
+from adcp.reporting.testing import DeterministicReportingClock
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_source_availability import (
     END,
@@ -73,8 +78,9 @@ async def test_standalone_stabilization_requires_account_lock_before_obligations
         source_publication = None
 
     store = UnlockedHistory()
-    with pytest.raises(LedgerConflictError, match="publication"):
+    with pytest.raises(LedgerConflictError, match="publication") as error:
         await _stabilized_harness(lambda **kwargs: store)
+    assert error.value.code == "STABILIZATION_PUBLICATION_NOT_SUPPORTED"
     assert not store._obligations
 
 
@@ -1434,6 +1440,68 @@ async def store_factory(request: pytest.FixtureRequest) -> AsyncIterator[Any]:
             yield partial(PgReportingLedgerStore, pool=pool)
 
 
+@pytest.mark.parametrize("configure_before_init", [True, False])
+async def test_restart_resumes_ordinary_snapshot_with_unused_stabilized_policy(
+    store_factory: Any, configure_before_init: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.test_reliable_reporting_service import (
+        DEFINITION,
+        NOW,
+        _configuration,
+        _finality_service,
+        _rows,
+    )
+
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("unused", "PT0S", "PT1H")
+        ),
+    )
+    clock = DeterministicReportingClock(NOW)
+    store = store_factory(clock=clock)
+    monkeypatch.setattr(store, "get_stabilization_schedule", None)
+    monkeypatch.setattr(store, "verify_snapshot_origin", None)
+
+    def service() -> ReliableReportingService:
+        return _finality_service(
+            config,
+            snapshot=True,
+            official=False,
+            store=store,
+            clock=clock,
+            cadence="PT1H",
+            results=(InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at),),
+        )
+
+    original = service()
+    await original.configure(config)
+    created = await original.run_worker()
+    (identifier,) = created.configurations[config.generation_key].revisions_committed
+    await original.close()
+    clock.advance(timedelta(hours=1))
+    restarted = service()
+    if configure_before_init:
+        await restarted.configure(config)
+    await restarted.initialize()
+    if not configure_before_init:
+        await restarted.configure(config)
+    turn = await restarted.run_worker()
+    assert not turn.configuration_errors
+    revision = await store.get_revision(
+        account_id=config.account_id, reporting_revision_id=identifier
+    )
+    history = await store.list_provisional_observations(
+        account_id=config.account_id,
+        reporting_obligation_id=revision.reporting_obligation_id,
+        limit=3,
+    )
+    assert [o.revision_id for o in history] == [identifier, identifier]
+    assert revision.finality == "snapshot"
+
+
 def test_source_final_evidence_ref_accepts_512_characters() -> None:
     evidence = ReportingFinalityEvidenceV1(
         basis="provider_declared", observed_at=END, evidence_ref="s" * 512
@@ -2096,6 +2164,12 @@ async def test_retained_official_replay_preserves_original_policy_fields() -> No
         source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[1],
     )
     historical = await store.commit_revision(historical, ROWS)
+    result = await ReportingStatusHandler(store).handle(
+        {"view": "revision", "reporting_revision_id": revision_id},
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id),
+    )
+    assert result["revision"]["finality"] == "official"
+    assert result["revision"]["finality_policy_id"] == "archived-policy"
     clock[0] += timedelta(hours=1)
     assert await producer.acquire_obligation(config, obligation) is None
     assert (

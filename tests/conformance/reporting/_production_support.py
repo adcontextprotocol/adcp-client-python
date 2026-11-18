@@ -333,13 +333,15 @@ class Source:
         self.capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
         self.bindings = {}
         self.rows, self.requests = rows, []
+        self.clock = clock or (lambda: END)
+        self.finality_policy = getattr(key.definition, "finality_policy", None)
         self.inline = InlineReportingSource(
             capabilities=self.capabilities,
             fetch=self.fetch,
             staging=FileSystemStagingStore(path.with_suffix(".staging")),
             seals=SQLiteSeals(path.with_suffix(".seals")),
             constituent_of=lambda row, req: req.coverage.constituents[0].constituent_id,
-            clock=clock or (lambda: END),
+            clock=self.clock,
         )
         self.reader = self.inline.staging
 
@@ -360,7 +362,19 @@ class Source:
     async def fetch(self, request):
         assert self.rows is not None, "this seeded publication needs no new acquisition"
         self.requests.append(request)
-        return InlineFetchResult(self.rows, data_through=request.period.end, currency="USD")
+        result = InlineFetchResult(self.rows, data_through=request.period.end, currency="USD")
+        if request.publication_class == "AUTHORITATIVE" and self.finality_policy is not None:
+            from adcp.reporting.source import ReportingFinalityEvidenceV1
+
+            return replace(
+                result,
+                finality_evidence=ReportingFinalityEvidenceV1(
+                    basis="provider_declared",
+                    observed_at=self.clock(),
+                    evidence_ref="fixture_closed",
+                ),
+            )
+        return result
 
     async def execute(self, request, *, cancel, heartbeat=None):
         return await self.inline.execute(request, cancel=cancel, heartbeat=heartbeat)
@@ -368,6 +382,13 @@ class Source:
 
 async def account_task(request, context, admit):
     return {"accounts": []}
+
+
+def reference_source_final():
+    """The provider signal declared by the pinned reference report definition."""
+    from adcp.reporting.ledger import ReportingSourceFinalPolicy
+
+    return ReportingSourceFinalPolicy("reference-final", "fixture_closed")
 
 
 @asynccontextmanager
@@ -386,6 +407,7 @@ async def production_harness(
     source_bindings=(),
     account_handler=None,
     reconciled=False,
+    finality_policy=None,
     feedback=False,
     identity_prefix="",
     poll_seconds=60,
@@ -427,6 +449,9 @@ async def production_harness(
         )
         verifier = reference_verifier(cap)
         key = verifier.key
+        if finality_policy is not None:
+            key = replace(key, definition=replace(key.definition, finality_policy=finality_policy))
+            verifier = replace(verifier, key=key)
         config = replace(
             configuration(consumer_id="https://buyer.example.test/agent"),
             delivery_config_id=identity_prefix + configuration().delivery_config_id,
@@ -483,7 +508,11 @@ async def production_harness(
             END,
             END,
             finality_basis="source_final" if reconciled else None,
-            finality_policy_id="fixture-official-v1" if reconciled else None,
+            finality_policy_id=(
+                (finality_policy.finality_policy_id if finality_policy else "fixture-official-v1")
+                if reconciled
+                else None
+            ),
             finalized_at=END if reconciled else None,
             canonical_content_digest=reference_digest(verifier, rows),
             managed_control_totals=totals,

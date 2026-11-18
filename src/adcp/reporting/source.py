@@ -285,7 +285,7 @@ def iso_duration_milliseconds_v1(value: str) -> int:
     months and years are deliberately absent because their length depends on a
     calendar the source and the producer may not share.
     """
-    match = _ISO_DURATION_RE.match(value)
+    match = _ISO_DURATION_RE.fullmatch(value)
     if match is None:
         raise ValueError(f"{value!r} is not a supported reporting duration")
     days, hours, minutes, seconds, fraction = (

@@ -50,6 +50,7 @@ from adcp.reporting.ledger import (
     ReportingObligationRecord,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
     require_single_currency,
@@ -58,6 +59,7 @@ from adcp.reporting.ledger import (
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.producer import recompute_revision_content_sha256
 from adcp.reporting.source import (
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutorResult,
     ReportingSourceSliceRequestV1,
@@ -570,8 +572,26 @@ async def test_inline_source_rejects_currency_before_aggregation(
 
 
 async def test_official_and_adjustments_keep_frozen_units(store: ReportingLedgerStore) -> None:
-    config = replace(configuration(pinned_currency="EUR"), required_finality="official")
-    source, staging = source_for(money_rows)
+    config = configuration(pinned_currency="EUR")
+    assert config.definition is not None
+    config = replace(
+        config,
+        required_finality="official",
+        definition=replace(
+            config.definition,
+            finality_policy=ReportingSourceFinalPolicy("billed", "billing.closed"),
+        ),
+    )
+
+    def closed_amounts(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
+        return InlineFetchResult(
+            rows=money_rows(request),
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_declared", observed_at=NOW, evidence_ref="billing.closed"
+            ),
+        )
+
+    source, staging = source_for(closed_amounts)
     first = producer_for(store, source, staging, currency="EUR")
     (obligation,) = await close_admitted_periods(first, config)
     restarted = producer_for(store, source, staging, currency="USD")

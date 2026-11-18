@@ -266,3 +266,42 @@ and the [conformance tests](../tests/conformance/reporting/test_inline_cell_avai
 Run `run_reporting_source_replay_conformance` against your adapter and staging
 store to verify that the same execution key returns the original sealed
 evidence even if source measurements or availability later change.
+
+## Official source evidence
+
+For a new generation with `required_finality: official`, copy one policy from
+the pinned report definition into `ReportingDefinitionBinding.finality_policy`.
+The adopter selects the policy for the generation. An explicit snapshot-to-official
+offering also needs a selection. Snapshot-only offerings need no policy. Their
+final scheduled read still produces a snapshot, even after prolonged downtime.
+
+| Selected basis | Source offering | Required evidence |
+| --- | --- | --- |
+| `source_final` | Authoritative | Return `provider_declared` or `provider_job_terminal` evidence with the exact selected `source_signal` in `evidence_ref`. The provider's timestamp becomes `finalized_at`. |
+| `contractual_cutoff` | Snapshot | Read and verify complete staged content at or after period end plus `duration_after_period_end`. The source observation and read cutoff must reach that boundary and the available data must cover the period end. |
+| `stabilized` | Snapshot | The SDK checks verified content from consecutive scheduled observations at the frozen cadence against `minimum_age` and `unchanged_for`. |
+
+For example, if the definition declares the signal `warehouse.close.completed`,
+an adapter can return the timestamp of the completed upstream job.
+
+```python
+from adcp.reporting.inline_source import InlineFetchResult
+from adcp.reporting.source import ReportingFinalityEvidenceV1
+
+return InlineFetchResult(
+    rows=rows,
+    data_through=period_end,
+    finality_evidence=ReportingFinalityEvidenceV1(
+        basis="provider_job_terminal",
+        evidence_ref="warehouse.close.completed",
+        observed_at=job.completed_at,
+    ),
+)
+```
+
+`stable_since` records source evidence and `official_close_lag` schedules an
+explicit close attempt. Proof comes from the selected policy. A custom Core
+ledger that admits official work must implement
+`ReportingSourcePublicationStore.source_publication(account_id)` and serialize
+publication for that account across workers. Exact reads and replays retain
+the original policy fields of previously published official revisions.

@@ -34,16 +34,47 @@ reuse, installed-package checks and independent integration review. Follow the
 - Snapshot-only reporting retains one final inclusive read at the boundary,
   including after downtime. Valid new source evidence may extend that boundary.
   Expiry does not create an official revision.
-- Existing explicitly configured official-close behavior remains in force.
-  `official_close_lag` still requires an explicitly declared `restatement_window`
-  and an official offering. The SDK fallback does not opt an adapter into
-  automatic official publication.
+- An explicit snapshot-to-official route requires a selected definition policy.
+  `official_close_lag` requires an explicitly declared `restatement_window`
+  and schedules a close attempt. The selected policy determines the source
+  offering and the proof needed to publish.
 
 The durable acquisition freezes the source request, predecessor revision and
 observation ordinal. A retry renews only `deadline_at`, the execution budget for
 that attempt. It retains the execution key, run ID, cutoff, scope and remaining
 request fields even after the original deadline expires. Once reserved, a
 successful retry completes that observation before a later acquisition starts.
+
+## Selecting official finality
+
+For a new generation with `required_finality: official`, the adopter copies
+one policy from the pinned report definition into
+`ReportingDefinitionBinding.finality_policy`. Use the same selection when
+configuring an explicit snapshot-to-official close. To migrate unfinished
+official work with no policy, configure a new generation with the selected
+policy. Retained revisions and exact replays keep their original evidence.
+
+- A `source_final` policy uses the authoritative offering. Its
+  `provider_declared` or `provider_job_terminal` evidence must carry the exact
+  selected signal and the upstream finalization time.
+- A `contractual_cutoff` policy uses the snapshot offering. Its full, verified
+  observation must reach the declared period-end cutoff.
+- A `stabilized` policy uses the snapshot offering and durable scheduled
+  observation history. Changed content or a missed cadence restarts the
+  unchanged interval. Manual reads do not establish a run.
+
+`stable_since` is a source observation and `official_close_lag` is scheduling
+metadata. Snapshot-only generations need no selection and remain snapshots
+regardless of elapsed time. After an official close the producer accepts exact
+replay. Later corrections use adjustments.
+
+Custom Core ledgers that publish official revisions must implement
+`ReportingSourcePublicationStore.source_publication(account_id)` with a lock
+shared across all publishers for that account. Stabilization additionally
+requires durable reservations, bounded scheduled history, checkpoints, exact
+snapshot origins and generation schedule recovery. An ordinary snapshot route
+can keep using its snapshot publisher when the definition also lists an unused
+stabilization policy.
 
 ## Persistence and compatibility
 

@@ -404,19 +404,28 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
         await service.configure(config)
 
 
-async def test_stabilized_admission_requires_publication_lock_before_persisting() -> None:
+@pytest.mark.parametrize(
+    ("policy", "required", "close"),
+    [
+        (ReportingStabilizedPolicy("stable", "PT0S", "PT1H"), "official", False),
+        (ReportingSourceFinalPolicy("source", "delivery.final"), "official", False),
+        (ReportingContractualCutoffPolicy("cutoff", "PT1H"), "official", False),
+        (ReportingSourceFinalPolicy("source", "delivery.final"), "snapshot", True),
+    ],
+)
+async def test_official_admission_requires_publication_lock_before_persisting(
+    policy, required, close
+) -> None:
     class UnlockedHistory(InMemoryReportingLedgerStore):
         source_publication = None
 
     config = replace(
         _configuration(),
-        required_finality="official",
-        definition=replace(
-            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
-        ),
+        required_finality=required,
+        definition=replace(DEFINITION, finality_policy=policy),
     )
     store = UnlockedHistory()
-    service = _finality_service(config, snapshot=True, official=False, store=store)
+    service = _finality_service(config, snapshot=True, official=True, store=store, close=close)
     await service.initialize()
     with pytest.raises(ReliableReportingConfigurationError, match="publication"):
         await service.configure(config)
@@ -458,6 +467,7 @@ async def test_stabilized_admission_rejects_missing_evidence_api_before_reading_
 @pytest.mark.parametrize("configure_before_init", [True, False])
 async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis(
     configure_before_init: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class SnapshotPublisher(InMemoryReportingLedgerStore):
         get_stabilization_schedule = None
@@ -473,11 +483,13 @@ async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis(
     )
     clock = DeterministicReportingClock(NOW)
     result = InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at)
+    store = SnapshotPublisher()
+    monkeypatch.setattr(store, "source_publication", None)
     service = _finality_service(
         config,
         snapshot=True,
         official=False,
-        store=SnapshotPublisher(),
+        store=store,
         clock=clock,
         cadence="PT1H",
         results=(result, result),

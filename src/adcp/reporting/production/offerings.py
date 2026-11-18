@@ -185,6 +185,10 @@ class ReportingProductionOffering:
         policy = self.verification_key.definition.finality_policy
         if policy is None:
             raise failure("UNSUPPORTED_VERIFICATION")
+        try:
+            self.producer._official_publication_lock()
+        except LedgerConflictError:
+            raise failure("UNSUPPORTED_VERIFICATION") from None
         source_class = finality_policy_source_class(policy)
         proof_source = configured_source(source_class)
         if not _supports_official_source_formats(proof_source) or (

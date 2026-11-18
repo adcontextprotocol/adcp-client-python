@@ -783,6 +783,8 @@ class ReliableReportingService:
             policy = self._validate_offerings(configuration, context, registration, frozen=frozen)
             if isinstance(policy, ReportingStabilizedPolicy):
                 producer._stabilization_store()
+            elif policy is not None:
+                producer._official_publication_lock()
         except LedgerConflictError as error:
             raise ReliableReportingConfigurationError(str(error)) from error
         except Exception as error:
@@ -804,15 +806,19 @@ class ReliableReportingService:
     async def _install_binding(self, binding: _Binding, *, persist: bool) -> None:
         configuration = binding.configuration
         key = configuration.generation_key
-        if binding.missing_stabilization_lookup and (
-            not persist
-            or any(
-                stored.generation_key == key
-                for stored in await self.store.list_configurations(
-                    caller=ReportingStatusCaller(key.account_id, key.consumer_id),
-                    delivery_config_ids=[key.delivery_config_id],
+        if (
+            binding.missing_stabilization_lookup
+            and (
+                not persist
+                or any(
+                    stored.generation_key == key
+                    for stored in await self.store.list_configurations(
+                        caller=ReportingStatusCaller(key.account_id, key.consumer_id),
+                        delivery_config_ids=[key.delivery_config_id],
+                    )
                 )
             )
+            and await binding.producer._has_retained_stabilization(configuration)
         ):
             raise ReliableReportingConfigurationError(
                 "recovering a selected stabilized generation requires get_stabilization_schedule"
