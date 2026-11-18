@@ -242,6 +242,74 @@ def schema_keyword_raise(keyword: str, message: str, *, indent: str = " " * 8) -
     )
 
 
+def find_class_header(source: str, name: str) -> re.Match[str] | None:
+    """The ``class <name>(<bases>):`` line in *source*, whatever its bases.
+
+    A pass that needs a generated class must find it by NAME: the base-class
+    list is the generator's rendering of how the schema composes its
+    envelopes, and it changed when response schemas composed
+    ``core/protocol-envelope.json`` alone (adcp#8547, #1680). The match's
+    ``bases`` group carries whatever the generator wrote.
+    """
+    return re.search(rf"^class {re.escape(name)}\((?P<bases>[^)]*)\):", source, re.MULTILINE)
+
+
+def require_class_header(source: str, name: str, where: str) -> re.Match[str]:
+    """Like :func:`find_class_header`, failing loudly when the class is gone."""
+    match = find_class_header(source, name)
+    if match is None:
+        raise RuntimeError(f"{where}: class {name} is not in the generated module")
+    return match
+
+
+def protocol_envelope_composes_version_envelope() -> bool:
+    """Whether the generated ``ProtocolEnvelope`` already carries the version fields.
+
+    ``core/protocol-envelope.json`` composes ``core/version-envelope.json``
+    from adcp#8547 on, and the generator then renders ``class
+    ProtocolEnvelope(AdcpVersionEnvelope, ...)``. Read off the generated
+    module rather than the bundle so the answer is the one the generated
+    classes in this tree actually have.
+    """
+    module = OUTPUT_DIR / "core" / "protocol_envelope.py"
+    if not module.exists():
+        return False
+    header = find_class_header(module.read_text(), "ProtocolEnvelope")
+    return header is not None and "AdcpVersionEnvelope" in header.group("bases")
+
+
+def response_envelope_bases(*, protocol: bool) -> str:
+    """The envelope bases a class this script emits should inherit.
+
+    *protocol* names a task response (or an arm of one), which composes the
+    protocol envelope; a request-shaped class composes only the version
+    envelope. When ``ProtocolEnvelope`` already composes ``AdcpVersionEnvelope``,
+    a response inherits ``ProtocolEnvelope`` alone, like every generated
+    response of the same bundle.
+    """
+    if not protocol:
+        return "AdcpVersionEnvelope"
+    if protocol_envelope_composes_version_envelope():
+        return "ProtocolEnvelope"
+    return "AdcpVersionEnvelope, ProtocolEnvelope"
+
+
+def normalize_emitted_envelope_bases(module_text: str) -> str:
+    """Rewrite the envelope bases of a hand-emitted module to the bundle's shape.
+
+    The module literals this script writes spell the pre-#8547 composition,
+    ``(AdcpVersionEnvelope, ProtocolEnvelope)``. On a bundle whose protocol
+    envelope composes the version envelope that spelling is wrong, so the
+    bases are replaced and the then-unused version-envelope import dropped.
+    """
+    bases = response_envelope_bases(protocol=True)
+    text = module_text.replace("(AdcpVersionEnvelope, ProtocolEnvelope)", f"({bases})")
+    if "AdcpVersionEnvelope" not in text.replace(_VERSION_ENVELOPE_IMPORT, ""):
+        text = text.replace(_VERSION_ENVELOPE_IMPORT, "")
+        text = re.sub(r"\n{3,}(from |import )", r"\n\n\1", text, count=1)
+    return text
+
+
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
 
@@ -4370,6 +4438,24 @@ def fix_protocol_envelope_status_default() -> None:
     print("  core/protocol_envelope.py: defaulted status to completed")
 
 
+def _envelope_import_anchor(source: str) -> str:
+    """The envelope import line a module-level constant is inserted after.
+
+    The version-envelope import was the anchor; a response module on a bundle
+    whose protocol envelope composes the version envelope imports only
+    ``ProtocolEnvelope``, so either envelope import serves, and a module with
+    neither has no place for the constant (which is an error, not a skip).
+    """
+    for pattern in (
+        r"^from \.\.core\.version_envelope import AdcpVersionEnvelope\n",
+        r"^from \.\.core\.protocol_envelope import ProtocolEnvelope\n",
+    ):
+        match = re.search(pattern, source, re.MULTILINE)
+        if match is not None:
+            return match.group(0)
+    raise RuntimeError("trusted_match/identity_match_response.py imports no envelope class")
+
+
 def fix_trusted_match_runtime_validators() -> None:
     """Restore Trusted Match constraints that datamodel-codegen does not model.
 
@@ -4442,7 +4528,7 @@ def fix_trusted_match_runtime_validators() -> None:
     source = identity_match_response.read_text()
     if "_validate_tmpx_provider_ids" in source:
         changed = False
-        version_import = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+        version_import = _envelope_import_anchor(source)
         if "_PROVIDER_ID_PATTERN =" not in source:
             source = source.replace(
                 version_import,
@@ -4481,7 +4567,7 @@ def fix_trusted_match_runtime_validators() -> None:
         print("  trusted_match/identity_match_response.py pydantic import shape not found")
         return
 
-    version_import = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+    version_import = _envelope_import_anchor(source)
     source = source.replace(
         version_import,
         version_import + "\n_PROVIDER_ID_PATTERN = re.compile(r'^[A-Za-z0-9_]{1,64}$')\n",
@@ -5504,7 +5590,8 @@ def restore_constructible_response_bases() -> None:
         if first_arm_position < 0:
             raise RuntimeError(f"{relative_path}: unable to locate {first_arm.name}")
         arm_list = ",\n            ".join(arm_names)
-        compatibility_base = f"""class {base_name}(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
+        envelope_bases = response_envelope_bases(protocol=True)
+        compatibility_base = f"""class {base_name}(ResponseArmDispatchMixin, {envelope_bases}):
     \"\"\"Constructible compatibility base for generated response arms.\"\"\"
 
     @classmethod
@@ -5944,7 +6031,7 @@ def restore_response_variant_aliases() -> None:
             self.nested_names.add(class_name)
             required = set(schema.get("required") or [])
             lines = [
-                f"class {class_name}(AdcpVersionEnvelope):",
+                f"class {class_name}({response_envelope_bases(protocol=False)}):",
                 "    model_config = ConfigDict(extra='allow')",
             ]
             props = schema.get("properties") or {}
@@ -6007,11 +6094,7 @@ def restore_response_variant_aliases() -> None:
             # ``core/protocol-envelope.json`` carries the protocol envelope:
             # success arms, error arms and submitted arms alike.
             inherits_protocol_envelope = is_submitted or self.root_composes_protocol_envelope
-            bases = (
-                "AdcpVersionEnvelope, ProtocolEnvelope"
-                if inherits_protocol_envelope
-                else "AdcpVersionEnvelope"
-            )
+            bases = response_envelope_bases(protocol=inherits_protocol_envelope)
             if inherits_protocol_envelope:
                 self.needs_protocol_envelope = True
             # Submitted arms once paired ``validate_default=True`` with
@@ -6177,7 +6260,8 @@ def restore_response_variant_aliases() -> None:
                 all_block.append(f"    {name!r},")
             all_block.append("]")
             body.append("\n".join(all_block))
-            return "\n".join(header) + "\n\n\n" + "\n\n\n".join(body) + "\n"
+            module = "\n".join(header) + "\n\n\n" + "\n\n\n".join(body) + "\n"
+            return normalize_emitted_envelope_bases(module)
 
     for relative, base in response_specs:
         target = OUTPUT_DIR / relative
@@ -6255,9 +6339,13 @@ def fix_check_governance_status_alias() -> None:
         "from pydantic import AwareDatetime, ConfigDict, Field, model_validator",
         1,
     )
-    marker = "class CheckGovernanceResponse(AdcpVersionEnvelope):\n"
-    method = """class CheckGovernanceResponse(AdcpVersionEnvelope):
-    @model_validator(mode='before')
+    header = require_class_header(
+        source, "CheckGovernanceResponse", "governance/check_governance_response.py status alias"
+    )
+    marker = header.group(0) + "\n"
+    method = (
+        marker
+        + """    @model_validator(mode='before')
     @classmethod
     def _status_to_verdict(cls, data: Any) -> Any:
         if isinstance(data, dict) and 'verdict' not in data and 'status' in data:
@@ -6266,9 +6354,7 @@ def fix_check_governance_status_alias() -> None:
         return data
 
 """
-    if marker not in source:
-        print("  governance/check_governance_response.py status alias marker not found")
-        return
+    )
     target.write_text(source.replace(marker, method, 1))
     print("  governance/check_governance_response.py: mapped status to verdict")
 
@@ -6294,9 +6380,15 @@ def fix_report_plan_outcome_status_alias() -> None:
         "from pydantic import ConfigDict, Field, model_validator",
         1,
     )
-    marker = "class ReportPlanOutcomeResponse(AdcpVersionEnvelope):\n"
-    method = """class ReportPlanOutcomeResponse(AdcpVersionEnvelope):
-    @model_validator(mode='before')
+    header = require_class_header(
+        source,
+        "ReportPlanOutcomeResponse",
+        "governance/report_plan_outcome_response.py status alias",
+    )
+    marker = header.group(0) + "\n"
+    method = (
+        marker
+        + """    @model_validator(mode='before')
     @classmethod
     def _status_to_outcome_state(cls, data: Any) -> Any:
         if isinstance(data, dict) and 'outcome_state' not in data and 'status' in data:
@@ -6305,9 +6397,7 @@ def fix_report_plan_outcome_status_alias() -> None:
         return data
 
 """
-    if marker not in source:
-        print("  governance/report_plan_outcome_response.py status alias marker not found")
-        return
+    )
     target.write_text(source.replace(marker, method, 1))
     print("  governance/report_plan_outcome_response.py: mapped status to outcome_state")
 
@@ -6342,7 +6432,8 @@ def fix_verify_brand_claim_models() -> None:
 
     if request.exists() and "claim_type:" not in request.read_text():
         request.write_text(
-            """# generated by datamodel-codegen:
+            normalize_emitted_envelope_bases(
+                """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_request.json
 
 from __future__ import annotations
@@ -6375,12 +6466,14 @@ class VerifyBrandClaimRequest(AdcpVersionEnvelope):
         Field(description='Claim payload. Shape varies by claim_type.'),
     ]
 """
+            )
         )
         print("  brand/verify_brand_claim_request.py: restored claim fields")
 
     if response.exists() and "VerifyBrandClaimSuccessResponse" not in response.read_text():
         response.write_text(
-            """# generated by datamodel-codegen:
+            normalize_emitted_envelope_bases(
+                """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -6440,6 +6533,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
 """
+            )
         )
         print("  brand/verify_brand_claim_response.py: restored response arms")
 
@@ -6450,7 +6544,8 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and '"signed_response"' in response_schema.read_text()
     ):
         response.write_text(
-            """# generated by datamodel-codegen:
+            normalize_emitted_envelope_bases(
+                """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -6602,6 +6697,7 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
 """
+            )
         )
         print("  brand/verify_brand_claim_response.py: restored signed response fields")
 
@@ -6612,7 +6708,8 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and '"signed_response"' in bulk_response_schema.read_text()
     ):
         bulk_response.write_text(
-            """# generated by datamodel-codegen:
+            normalize_emitted_envelope_bases(
+                """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claims_response.json
 
 from __future__ import annotations
@@ -6796,6 +6893,7 @@ class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErrorResponse
 """
+            )
         )
         print("  brand/verify_brand_claims_response.py: restored signed response fields")
 
@@ -6815,9 +6913,13 @@ VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErr
                     "from ..core import ext as ext_1\n",
                     1,
                 )
+            bulk_header = require_class_header(
+                source, "VerifyBrandClaimsResponseBulk", "brand/verify_brand_claims_response.py"
+            ).group(0)
             source = source.replace(
-                "class VerifyBrandClaimsResponseBulk(AdcpVersionEnvelope, ProtocolEnvelope):\n    pass\n",
-                """class VerifyBrandClaimsResponseBulk(AdcpVersionEnvelope, ProtocolEnvelope):
+                bulk_header + "\n    pass\n",
+                bulk_header
+                + """
     model_config = ConfigDict(
         extra='allow',
     )
@@ -6976,7 +7078,10 @@ def fix_list_creatives_format_reference_xor() -> None:
 Creatives = Creative
 Creatives1 = Creative
 """
-        marker = "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):"
+        header = require_class_header(
+            source, "ListCreativesResponse", "creative/list_creatives_response.py merged XOR"
+        )
+        marker = "\n\n" + header.group(0)
         if marker not in source:
             raise RuntimeError("ListCreativesResponse marker missing from merged creative output")
         target.write_text(source.replace(marker, merged_validator + marker, 1))
@@ -7015,9 +7120,13 @@ Creatives1 = Creative
         )
     if "_reject_legacy_format_ref" not in source:
         source = source.replace(
-            "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            "\n\n"
+            + require_class_header(
+                source, "ListCreativesResponse", "creative/list_creatives_response.py XOR"
+            ).group(0),
             canonical_validator
-            + "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            + "\n\n"
+            + find_class_header(source, "ListCreativesResponse").group(0),  # type: ignore[union-attr]
             1,
         )
 
@@ -7193,9 +7302,12 @@ def restore_get_products_field_compatibility_enum() -> None:
     members = enum_members(product_fields.read_text(), "ProductResponseField")
     members.extend(enum_members(source, "Fields"))
     deduplicated = list(dict.fromkeys(members))
-    marker = "\n\nclass GetProductsRequest(AdcpVersionEnvelope):"
-    if not deduplicated or marker not in source:
+    header = find_class_header(source, "GetProductsRequest")
+    if not deduplicated or header is None:
         return
+    marker = "\n\n" + header.group(0)
+    if marker not in source:
+        raise RuntimeError("media_buy/get_products_request.py: GetProductsRequest header moved")
     body = "\n".join(f"    {name} = {value!r}" for name, value in deduplicated)
     compatibility_enum = (
         "\n\nclass Field1(StrEnum):\n"
