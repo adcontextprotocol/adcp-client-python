@@ -231,7 +231,10 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
         assert stored is not None and stored.currency == request.currency
         if not ready:
             return None
-        return InlineFetchResult(rows=money_rows(request), currency=request.currency)
+        rows = money_rows(request)
+        if request.trigger == "manual_replay":
+            rows[0]["impressions"] += 1
+        return InlineFetchResult(rows=rows, currency=request.currency)
 
     source, staging = source_for(fetch)
     producer = producer_for(store, source, staging, resolver=resolver)

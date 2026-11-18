@@ -29,15 +29,20 @@ from adcp.reporting.ledger import (
     LedgerConflictError,
     ReportingContractualCutoffPolicy,
     ReportingProducer,
+    ReportingRevisionRecord,
     ReportingSourceFinalPolicy,
     ReportingStabilizedPolicy,
+    WorkerTurn,
 )
 from adcp.reporting.ledger.finality import manifest_finality_proof
 from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalPolicy
 from adcp.reporting.source import (
+    ReportingSourceExecutorResult,
     SourceBatchManifestV1,
     SourceFormatV1,
+    encode_source_batch_manifest_v1,
     publication_content_fingerprint_v1,
+    source_batch_manifest_reference_v1,
     source_batch_object_set_sha256_v1,
 )
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
@@ -296,6 +301,11 @@ async def test_retained_official_replay_leaves_an_unrelated_reservation_alone() 
         official=True, finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final")
     )
     original = await producer.acquire_obligation(config, obligation)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    previous_observation = await store.get_provisional_observation(**owner)
+    previous_checkpoint = await store.get_restatement_checkpoint(**owner)
     manifest = producer._source.manifest
     request = producer._build_slice(
         config, obligation, SNAPSHOT_OFFERING_ID, finality="snapshot", now=clock[0], observation=1
@@ -307,25 +317,29 @@ async def test_retained_official_replay_leaves_an_unrelated_reservation_alone() 
             ProvisionalPolicy(timedelta(hours=2), timedelta(hours=1), None),
         )
     )
+    turn = WorkerTurn()
     replayed = await producer.commit_revision_from_manifest(
-        obligation, manifest, rows=ROWS, finality="official", acquisition=reserved
+        obligation, manifest, rows=ROWS, finality="official", acquisition=reserved, turn=turn
     )
     assert replayed == original
     assert (
         await store.get_provisional_observation(
             account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
         )
-        is None
+        == previous_observation
     )
     assert (
         await store.get_restatement_checkpoint(
             account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
         )
-        is None
+        == previous_checkpoint
     )
+    assert not turn.did_work and not turn.revisions_committed
 
 
-@pytest.mark.parametrize("change", ["caller_rows", "publication_clock", "explicit_clock"])
+@pytest.mark.parametrize(
+    "change", ["caller_rows", "caller_manifest", "publication_clock", "explicit_clock"]
+)
 async def test_direct_cutoff_publishes_its_verified_rows_and_completion_time(
     change: str, monkeypatch: Any
 ) -> None:
@@ -343,6 +357,8 @@ async def test_direct_cutoff_publishes_its_verified_rows_and_completion_time(
     async def reserve(acquisition: Any) -> Any:
         if change == "caller_rows":
             caller[0]["campaign_id"] = "caller-mutated"
+        if change == "caller_manifest":
+            manifest.objects.clear()
         return await original(acquisition)
 
     monkeypatch.setattr(store, "reserve_provisional_acquisition", reserve)
@@ -359,6 +375,10 @@ async def test_direct_cutoff_publishes_its_verified_rows_and_completion_time(
         account_id=config.account_id, reporting_revision_id=revision.reporting_revision_id
     )
     assert list(page.rows) == ROWS
+    stored = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert len(SourceBatchManifestV1.model_validate_json(stored.manifest_json).objects) == 1
     anchor = start if change == "explicit_clock" else clock[0]
     assert revision.finalized_at == revision.created_at == anchor
 
@@ -436,3 +456,289 @@ async def test_official_source_format_is_decoded_or_refused_before_fetch(
         return
     official = await publication
     assert official.finality == "official" and official.row_count == 1
+
+
+@pytest.mark.parametrize(
+    "mismatch", ["product", "kind", "timezone", "window", "metric", "mutated_request"]
+)
+async def test_official_acquisition_verifies_full_frozen_capability(
+    mismatch: str, monkeypatch: Any
+) -> None:
+    producer, _, config, obligation, calls, _ = await _harness(
+        official=True, finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final")
+    )
+    caps = producer._source.capabilities
+    offering = caps.offering(OFFICIAL_OFFERING_ID)
+    if mismatch == "product":
+        offering = offering.model_copy(update={"product_ids": ["forbidden"]})
+    elif mismatch == "kind":
+        offering = offering.model_copy(update={"constituent_kinds": ["package_item"]})
+    elif mismatch == "timezone":
+        offering = offering.model_copy(update={"source_timezone": "Asia/Tokyo"})
+    elif mismatch == "window":
+        offering = offering.model_copy(
+            update={"windowing": offering.windowing.model_copy(update={"minimum_window": "P2D"})}
+        )
+    elif mismatch == "metric":
+        offering = offering.model_copy(
+            update={"metrics": [row for row in offering.metrics if row.name != "spend"]}
+        )
+    else:
+        original = producer._source.execute
+
+        async def remove_metric(request: Any, **kwargs: Any) -> Any:
+            request.requested_metrics.remove("spend")
+            return await original(request, **kwargs)
+
+        monkeypatch.setattr(producer._source, "execute", remove_metric)
+    producer._source.capabilities = caps.model_copy(
+        update={
+            "offerings": [
+                offering if item.offering_id == offering.offering_id else item
+                for item in caps.offerings
+            ]
+        }
+    )
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.acquire_obligation(config, obligation)
+    assert conflict.value.code == "MANIFEST_MISMATCH"
+    if mismatch != "mutated_request":
+        assert not calls
+
+
+@pytest.mark.parametrize("collision", ["concurrent", "lookup_unavailable"])
+async def test_manual_snapshot_obeys_winning_close(collision: str, monkeypatch: Any) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT2H"),
+    )
+    clock[0] = END + timedelta(hours=3)
+    close = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], finality="official"
+    )
+    reservation = ProvisionalAcquisition(
+        close.model_dump_json(),
+        0,
+        ProvisionalPolicy(timedelta(hours=2), timedelta(hours=1)),
+        output_finality="official",
+    )
+    if collision == "lookup_unavailable":
+        await store.reserve_provisional_acquisition(reservation)
+        monkeypatch.setattr(store, "get_provisional_acquisition", None)
+    else:
+
+        async def raced_lookup(**kwargs: Any) -> None:
+            await store.reserve_provisional_acquisition(reservation)
+
+        monkeypatch.setattr(store, "get_provisional_acquisition", raced_lookup)
+    revision = await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+    )
+    assert revision.finality == "official"
+    assert producer._source.requests[-1].identity == close.identity
+
+
+@pytest.mark.parametrize("supply_reservation", [False, True])
+async def test_direct_snapshot_cannot_consume_official_reservation(
+    supply_reservation: bool, monkeypatch: Any
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT2H"),
+    )
+    clock[0] = END + timedelta(hours=3)
+    close = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], finality="official"
+    )
+    reservation = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            close.model_dump_json(),
+            0,
+            ProvisionalPolicy(timedelta(hours=2), timedelta(hours=1)),
+            output_finality="official",
+        )
+    )
+    _, manifest, _ = redacted_completed_result(close, page_bodies=[PROVIDER_ROW])
+    monkeypatch.setattr(store, "get_provisional_acquisition", None)
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=ROWS,
+            finality="snapshot",
+            acquisition=reservation if supply_reservation else None,
+        )
+    assert conflict.value.code == "OBSERVATION_CONFLICT"
+    assert not await store.list_provisional_observations(
+        account_id=config.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        limit=1,
+    )
+
+
+async def test_satisfied_manual_snapshot_recovers_close_without_lookup(monkeypatch: Any) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT2H"),
+    )
+    await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", track_settling=True
+    )
+    clock[0] = END + timedelta(hours=3)
+    close = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], finality="official", observation=1
+    )
+    reservation = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            close.model_dump_json(),
+            1,
+            ProvisionalPolicy(timedelta(hours=2), timedelta(hours=1)),
+            output_finality="official",
+        )
+    )
+    monkeypatch.setattr(store, "get_provisional_acquisition", None)
+    revision = await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", manual_replay=True
+    )
+    assert revision is not None and revision.finality == "official"
+    assert producer._source.requests[-1].identity == reservation.request().identity
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("reserved_close", [False, True])
+async def test_bare_revision_cannot_overtake_an_observation(
+    cutoff_backend: Any, reserved_close: bool
+) -> None:
+    factory, _ = cutoff_backend
+    producer, store, config, obligation, _, clock = await _harness(factory)
+    request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0])
+    acquisition = ProvisionalAcquisition(
+        request.model_dump_json(),
+        0,
+        ProvisionalPolicy(timedelta(hours=2), timedelta(hours=1)),
+        output_finality="official" if reserved_close else None,
+    )
+    await store.reserve_provisional_acquisition(acquisition)
+    revision = ReportingRevisionRecord(
+        reporting_revision_id="rpr_competing",
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        account_id=config.account_id,
+        finality="snapshot",
+        revision_content_sha256="a" * 64,
+        row_count=0,
+        control_totals=(),
+        observed_at=clock[0],
+        data_through=END,
+        created_at=clock[0],
+    )
+    with pytest.raises(LedgerConflictError) as conflict:
+        await store.commit_revision(revision, ())
+    assert conflict.value.code == "OBSERVATION_CONFLICT"
+    assert not await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+
+
+@pytest.mark.parametrize("core", [False, True])
+async def test_manual_restatements_fetch_current_content(core: bool, monkeypatch: Any) -> None:
+    producer, store, config, obligation, _, clock = await _harness()
+    if core:
+        producer._store = CoreStore(store)
+    calls = []
+    values = iter([1, 99, 1, 2, 3] if core else [1, 1, 2, 3])
+
+    def fetch(request: Any) -> list[dict[str, Any]]:
+        calls.append(request)
+        return [{"media_buy_id": "media-buy-redacted", "impressions": next(values), "spend": "0"}]
+
+    monkeypatch.setattr(producer._source, "_fetch", fetch)
+    first = await producer.acquire_obligation(config, obligation, track_settling=not core)
+    if core:
+
+        async def interrupted(**kwargs: Any) -> bytes:
+            raise OSError("interrupted manual read")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(producer._object_reader, "read", interrupted)
+            with pytest.raises(OSError):
+                await producer.acquire_obligation(config, obligation, restate=True)
+    winners = [
+        await producer.acquire_obligation(config, obligation, restate=True) for _ in range(3)
+    ]
+    assert len(calls) == len(set(req.identity.source_execution_key for req in calls)) == 4 + core
+    assert all(req.trigger == "manual_replay" for req in calls[1:])
+    assert len({r.reporting_revision_id for r in winners}) == 3
+    assert winners[0] == first
+    if not core:
+        history = await store.list_provisional_observations(
+            account_id=config.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            limit=5,
+        )
+        assert [o.acquisition.request().trigger for o in history] == ["scheduled_poll"] + [
+            "manual_replay"
+        ] * 3
+
+
+async def test_contractual_workflow_reads_gzipped_prerequisite_then_closes(
+    monkeypatch: Any,
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT2H"),
+    )
+    caps = producer._source.capabilities
+    snapshot = caps.offering(SNAPSHOT_OFFERING_ID)
+    fmt = SourceFormatV1(media_type="application/x-ndjson", compression="gzip")
+    producer._source.capabilities = caps.model_copy(
+        update={
+            "offerings": [
+                snapshot.model_copy(update={"formats": [fmt]}) if item == snapshot else item
+                for item in caps.offerings
+            ]
+        }
+    )
+    payload = gzip.compress(PROVIDER_ROW.encode())
+
+    async def fetch(request: Any, **kwargs: Any) -> Any:
+        _, old, _ = redacted_completed_result(request, page_bodies=[PROVIDER_ROW])
+        objects = [
+            old.objects[0].model_copy(
+                update={
+                    **fmt.model_dump(),
+                    "sha256": hashlib.sha256(payload).hexdigest(),
+                    "byte_count": len(payload),
+                }
+            )
+        ]
+        draft = old.model_copy(
+            update={
+                "objects": objects,
+                "byte_count": len(payload),
+                "object_set_sha256": source_batch_object_set_sha256_v1(objects),
+            }
+        )
+        raw = encode_source_batch_manifest_v1(
+            draft.model_copy(
+                update={"content_fingerprint": publication_content_fingerprint_v1(draft)}
+            )
+        )
+        return ReportingSourceExecutorResult.completed(
+            request=request,
+            manifest=source_batch_manifest_reference_v1("sealed", raw),
+            manifest_bytes=raw,
+        )
+
+    async def read(**kwargs: Any) -> bytes:
+        return payload
+
+    monkeypatch.setattr(producer._source, "execute", fetch)
+    monkeypatch.setattr(producer._source, "read", read)
+    clock[0] = END + timedelta(hours=1)
+    assert len((await producer.run_configuration(config)).revisions_committed) == 1
+    clock[0] += timedelta(hours=2)
+    assert len((await producer.run_configuration(config)).revisions_committed) == 1
+    revisions = await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert {r.finality for r in revisions} == {"snapshot", "official"}

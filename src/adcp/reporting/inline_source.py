@@ -102,6 +102,7 @@ from adcp.reporting.source import (
     SourceBatchManifestV1,
     SourceBatchObjectV1,
     SourceControlTotalV1,
+    SourceFormatV1,
     _validate_metric_applicability,
     deterministic_source_publication_id_v1,
     encode_source_batch_manifest_v1,
@@ -717,6 +718,9 @@ class InlineReportingSource:
                 f"{sorted(unsupported)} declare evidenced manifests, which would require "
                 "per-call provider evidence this adapter cannot truthfully produce"
             )
+        for offering in capabilities.offerings:
+            if not self.supports_output_format(offering.formats):
+                raise ValueError("inline source formats must include uncompressed NDJSON")
         self._capabilities = capabilities
         self._fetch = fetch
         self._staging = staging or InMemoryStagingStore()
@@ -735,6 +739,14 @@ class InlineReportingSource:
     @property
     def capabilities(self) -> ReportingSourceCapabilitiesV1:
         return self._capabilities
+
+    @staticmethod
+    def supports_output_format(formats: Sequence[SourceFormatV1]) -> bool:
+        """The inline writer stages one uncompressed NDJSON object."""
+        return any(
+            fmt.media_type == "application/x-ndjson" and fmt.compression == "none"
+            for fmt in formats
+        )
 
     @property
     def staging(self) -> ReportingStagingStore:

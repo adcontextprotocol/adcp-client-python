@@ -94,6 +94,12 @@ class ProvisionalAcquisition:
     def execution_key(self) -> str:
         return self.request().identity.source_execution_key
 
+    @property
+    def finality(self) -> Literal["snapshot", "official"]:
+        if self.output_finality or self.request().publication_class == "AUTHORITATIVE":
+            return "official"
+        return "snapshot"
+
     def binds(self, obligation: ReportingObligationRecord) -> bool:
         request = self.request()
         identity = request.identity

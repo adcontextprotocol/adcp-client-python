@@ -858,6 +858,12 @@ class ReliableReportingService:
                 )
             selected.append(official)
         for offering in selected:
+            if isinstance(
+                registration.executor, InlineReportingSource
+            ) and not registration.executor.supports_output_format(offering.formats):
+                raise ReliableReportingConfigurationError(
+                    "inline source formats must include uncompressed NDJSON"
+                )
             if (
                 offering.contract.report_definition_id != configuration.report_definition_id
                 or offering.contract.reporting_profile != configuration.reporting_profile
@@ -883,10 +889,6 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     f"selected finality policy requires a matching {source_class} source offering"
                 )
-            if not _supports_official_source_formats(source):
-                raise ReliableReportingConfigurationError(
-                    "official source formats must be JSON or NDJSON with gzip or no compression"
-                )
             used = [source]
             if (
                 configuration.required_finality == "snapshot"
@@ -895,6 +897,10 @@ class ReliableReportingService:
             ):
                 used.append(snapshot)
             for used_offering in used:
+                if not _supports_official_source_formats(used_offering):
+                    raise ReliableReportingConfigurationError(
+                        "official source formats must be JSON or NDJSON with gzip or no compression"
+                    )
                 if any(
                     getattr(used_offering.contract, name) != value
                     for name, value in definition.to_wire().items()

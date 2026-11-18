@@ -11,6 +11,7 @@ from typing import Any
 from adcp.reporting._source_authorization import require_account_work
 from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.inline_source import InlineReportingSource
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.finality import ReportingStabilizedPolicy, finality_policy_source_class
 from adcp.reporting.ledger.models import (
@@ -178,7 +179,9 @@ class ReportingProductionOffering:
             raise failure("UNSUPPORTED_VERIFICATION")
         source_class = finality_policy_source_class(policy)
         proof_source = configured_source(source_class)
-        if not _supports_official_source_formats(proof_source):
+        if not _supports_official_source_formats(proof_source) or (
+            snapshot is not None and not _supports_official_source_formats(snapshot)
+        ):
             raise failure("UNSUPPORTED_VERIFICATION")
         if self.source_offering_id != proof_source.offering_id and (
             snapshot is None or self.source_offering_id != snapshot.offering_id
@@ -227,6 +230,10 @@ class ReportingProductionOffering:
         duration = iso_duration_milliseconds_v1(schedule["period_duration"])
         sla = iso_duration_milliseconds_v1(schedule["delivery_sla"])
         for offering in self._source_offerings(capabilities):
+            if isinstance(source, InlineReportingSource) and not source.supports_output_format(
+                offering.formats
+            ):
+                raise failure("UNSUPPORTED_VERIFICATION")
             if (
                 any(
                     getattr(offering.contract, name) != value

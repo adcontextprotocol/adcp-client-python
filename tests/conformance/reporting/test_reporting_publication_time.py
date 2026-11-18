@@ -304,6 +304,7 @@ async def test_same_publication_replay_preserves_committed_time_and_source_evide
     if finality == "snapshot":
         clock.now = PUBLISHED + timedelta(minutes=1)
         reader.complete = lambda: None
+        source.rows = [dict(ROWS[0], impressions=6)]
         restated = await producer.acquire_obligation(config, obligation, restate=True)
         assert restated is not None
         assert restated.supersedes_reporting_revision_id == first.reporting_revision_id

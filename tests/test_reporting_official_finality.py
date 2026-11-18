@@ -448,18 +448,29 @@ async def test_official_zero_rows_require_staged_verification(
 
 
 @pytest.mark.parametrize("competing_snapshot", [False, True])
+@pytest.mark.parametrize("authoritative", [False, True])
 async def test_direct_cutoff_honors_the_winning_reservation_during_staged_verification(
     monkeypatch: pytest.MonkeyPatch,
     competing_snapshot: bool,
+    authoritative: bool,
 ) -> None:
-    policy = ReportingContractualCutoffPolicy("contract", "PT2H")
+    policy = (
+        ReportingSourceFinalPolicy("provider", "source-evidence-redacted")
+        if authoritative
+        else ReportingContractualCutoffPolicy("contract", "PT2H")
+    )
     producer, store, config, obligation, _, clock = await _harness(
         capabilities=_closing_capabilities(), finality_policy=policy
     )
     clock[0] = END + timedelta(hours=3)
     snapshot = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0])
     close = producer._build_slice(
-        config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], finality="official"
+        config,
+        obligation,
+        OFFICIAL_OFFERING_ID if authoritative else SNAPSHOT_OFFERING_ID,
+        now=clock[0],
+        finality="official",
+        trigger="manual_replay",
     )
     _, manifest, producer._source.reader = redacted_completed_result(
         close, page_bodies=[PROVIDER_ROW]
@@ -500,6 +511,8 @@ async def test_direct_cutoff_honors_the_winning_reservation_during_staged_verifi
         )
         assert observation is not None and observation.revision_id == official.reporting_revision_id
         assert observation.acquisition.request() == close
+        if authoritative:
+            assert observation.acquisition.request().publication_class == "AUTHORITATIVE"
 
 
 async def test_direct_official_commit_checks_staged_size() -> None:

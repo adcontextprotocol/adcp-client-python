@@ -422,6 +422,8 @@ class ReportingLedgerStore(Protocol):
 
         Enforces terminal officials, exact supersession, and idempotent replay
         of an identical ``reporting_revision_id``.
+        Stores supporting durable observations must atomically reject a new
+        ordinary revision while the obligation has a pending acquisition.
         """
         ...
 
@@ -1201,6 +1203,16 @@ class InMemoryReportingLedgerStore:
                 for item in self._revisions.values()
                 if item.reporting_obligation_id == revision.reporting_obligation_id
             ]
+            checkpoint = self._restatement_checkpoints.get(revision.reporting_obligation_id)
+            ordinal = checkpoint.next_observation if checkpoint else len(siblings)
+            if (
+                revision.account_id,
+                revision.reporting_obligation_id,
+                ordinal,
+            ) in self._provisional_acquisitions:
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "a source acquisition is reserved"
+                )
             if revision.finality == "official" and any(
                 item.finality == "official" for item in siblings
             ):
@@ -1397,6 +1409,17 @@ class InMemoryReportingLedgerStore:
             checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            # Consume the reservation inside this transaction before its revision
+            # uses the ordinary commit path. Any publication failure rolls back both.
+            await self.record_restatement_checkpoint(
+                RestatementCheckpoint(
+                    acquisition.account_id,
+                    acquisition.obligation_id,
+                    observation.checked_at,
+                    acquisition.ordinal + 1,
+                    observation.provisional_until,
+                )
+            )
             if revision is None or reuse_candidate:
                 if acquisition.predecessor_revision_id != observation.revision_id:
                     raise LedgerConflictError(
@@ -1434,15 +1457,6 @@ class InMemoryReportingLedgerStore:
                     observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
-            await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
-                )
-            )
             # The checkpoint enforces ascending ordinals for distinct observations.
             self._provisional_observations.setdefault(owner, {})[acquisition.ordinal] = observation
             return committed

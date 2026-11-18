@@ -169,6 +169,9 @@ def _finality_service(
         capability_offering=public,
     )
     raw = redacted_capabilities().model_dump(mode="json")
+    for offering in raw["offerings"]:
+        offering.update(source_timezone="UTC", product_ids=[configuration.report_definition_id])
+        offering["windowing"]["minimum_window"] = "PT1H"
     if close:
         raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
     raw["offerings"] = [
@@ -329,7 +332,10 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
         await service.configure(config)
 
 
-async def test_service_refuses_an_unreadable_official_source_format_before_admission() -> None:
+@pytest.mark.parametrize("media_type", ["application/json", "application/vnd.apache.parquet"])
+async def test_service_refuses_an_unreadable_official_source_format_before_admission(
+    media_type: str,
+) -> None:
     config = replace(
         _configuration(),
         required_finality="official",
@@ -337,12 +343,9 @@ async def test_service_refuses_an_unreadable_official_source_format_before_admis
             DEFINITION, finality_policy=ReportingSourceFinalPolicy("source", "closed")
         ),
     )
-    service = _finality_service(
-        config, snapshot=False, official=True, source_format="application/vnd.apache.parquet"
-    )
-    with pytest.raises(ReliableReportingConfigurationError, match="source format"):
+    with pytest.raises(ValueError, match="source format"):
+        service = _finality_service(config, snapshot=False, official=True, source_format=media_type)
         await service.configure(config)
-    assert config.generation_key not in service._bindings
 
 
 async def test_service_rejects_stabilized_configuration_without_history_before_persisting() -> None:

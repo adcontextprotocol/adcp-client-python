@@ -151,10 +151,10 @@ async def _with_deadline(
 # --------------------------------------------------------------------------
 
 
-def _validate_request_authority(
+def _validate_request_against_capabilities(
     capabilities: ReportingSourceCapabilitiesV1, request: ReportingSourceSliceRequestV1
 ) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
-    """Verify the source account, executor build, and offering named by the request."""
+    """Is this frozen slice an exact atomic offering of this executor build?"""
     if capabilities.scope != "effective_account":
         raise _fail(
             "CAPABILITY_MISMATCH",
@@ -190,14 +190,6 @@ def _validate_request_authority(
             "CAPABILITY_MISMATCH",
             "the frozen slice is not an exact atomic offering of this executor build",
         )
-    return offering
-
-
-def _validate_request_against_capabilities(
-    capabilities: ReportingSourceCapabilitiesV1, request: ReportingSourceSliceRequestV1
-) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
-    """Is this frozen slice an exact atomic offering of this executor build?"""
-    offering = _validate_request_authority(capabilities, request)
     if (
         offering.source_timezone is not None
         and offering.source_timezone != request.period.source_timezone

@@ -21,6 +21,7 @@ from adcp.reporting.materializer.contracts import ReportingWriterError, binding_
 from adcp.reporting.materializer.work import ReportingMaterializerLease
 from adcp.reporting.production.configuration import ReportingConfigurationAdmission
 from adcp.reporting.production.offerings import ReportingProductionOffering
+from adcp.reporting.service import ReportingAdapterRegistry
 from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
     reporting_source_capabilities_sha256_v1,
@@ -110,7 +111,10 @@ async def test_production_offering_validates_selected_finality_policy(
 
 @pytest.mark.parametrize("primary", ["snapshot", "official"])
 @pytest.mark.parametrize("required", ["snapshot", "official"])
-async def test_dual_finality_source_final_admits_each_configured_route(primary, required, tmp_path):
+@pytest.mark.parametrize("unsupported", ["snapshot", "official"])
+async def test_dual_finality_source_final_admits_each_configured_route(
+    primary, required, unsupported, tmp_path
+):
     async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
         installed = h.production.offerings[0]
         definition = replace(installed.verification_key.definition, finality_policy=SOURCE_FINAL)
@@ -135,7 +139,7 @@ async def test_dual_finality_source_final_admits_each_configured_route(primary, 
         )
         capabilities = source.capabilities.model_dump(mode="json")
         for item in capabilities["offerings"]:
-            if item["offering_id"] == source.official_source_id:
+            if item["offering_id"] == routes.offering_for(unsupported):
                 item["formats"] = [
                     {"media_type": "application/vnd.apache.parquet", "compression": "none"}
                 ]
@@ -143,6 +147,45 @@ async def test_dual_finality_source_final_admits_each_configured_route(primary, 
         source.capabilities = ReportingSourceCapabilitiesV1.model_validate(capabilities)
         with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
             offering.check_source(effective=True)
+
+
+@pytest.mark.parametrize("policy", [CUTOFF, SOURCE_FINAL])
+async def test_production_rechecks_inline_output_before_admission(policy, tmp_path):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        key = replace(
+            installed.verification_key,
+            definition=replace(installed.verification_key.definition, finality_policy=policy),
+        )
+        binding = Source(key, tmp_path / "selected", official=policy == SOURCE_FINAL)
+        adapter = SimpleNamespace(
+            capabilities=binding.capabilities,
+            fetch_slice=binding.fetch,
+            configuration_binding=binding.configuration_binding,
+        )
+        registered = ReportingAdapterRegistry(clock=lambda: END).register("adapter", adapter)
+        routes = replace(
+            installed.producer._offerings,
+            official_offering_id=binding.source_id if policy == SOURCE_FINAL else None,
+            snapshot_offering_id=binding.source_id if policy == CUTOFF else None,
+        )
+        producer = ReportingProducer(
+            source=registered.executor,
+            offerings=routes,
+            store=h.store,
+            object_reader=registered.object_reader,
+        )
+        public = installed.offering.model_copy(update={"supported_finality": ["official"]})
+        offering = ReportingProductionOffering(public, producer, key, binding.source_id)
+        raw = registered.executor.capabilities.model_dump(mode="json")
+        raw["offerings"][0]["formats"] = [
+            {"media_type": "application/x-ndjson", "compression": "gzip"}
+        ]
+        raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+        registered.executor._capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+        with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+            offering.check_source(effective=True)
+        assert not binding.requests
 
 
 def wire_configuration(h):

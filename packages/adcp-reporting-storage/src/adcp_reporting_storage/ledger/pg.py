@@ -1499,6 +1499,20 @@ class PgReportingLedgerStore:
                     "this period is being retired; no revision may be added to it",
                 )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
+            pending = await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_provisional_acquisitions a"
+                    " LEFT JOIN reporting_restatement_checkpoints c"
+                    " USING (account_id, reporting_obligation_id)"
+                    " WHERE a.account_id=%s AND a.reporting_obligation_id=%s"
+                    " AND a.ordinal >= COALESCE(c.next_observation, 0) LIMIT 1",
+                    (revision.account_id, revision.reporting_obligation_id),
+                )
+            ).fetchone()
+            if pending is not None:
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "a source acquisition is reserved"
+                )
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
             write_error = None
@@ -1894,6 +1908,17 @@ class PgReportingLedgerStore:
             )
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            # Consume the reservation under the account lock. Failure of the
+            # ordinary revision write also rolls this checkpoint back.
+            await self.record_restatement_checkpoint(
+                RestatementCheckpoint(
+                    acquisition.account_id,
+                    acquisition.obligation_id,
+                    observation.checked_at,
+                    acquisition.ordinal + 1,
+                    observation.provisional_until,
+                )
+            )
             if revision is None or reuse_candidate:
                 if acquisition.predecessor_revision_id != observation.revision_id:
                     raise LedgerConflictError(
@@ -1936,15 +1961,6 @@ class PgReportingLedgerStore:
                     observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
-            await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
-                )
-            )
             await connection.execute(
                 "INSERT INTO reporting_provisional_observations"
                 " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"

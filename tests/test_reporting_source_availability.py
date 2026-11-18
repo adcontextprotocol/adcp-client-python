@@ -56,6 +56,9 @@ def _capabilities(*, official: bool = False, **changes: Any) -> ReportingSourceC
     payload = redacted_capabilities().model_dump(mode="json")
     identifier = OFFICIAL_OFFERING_ID if official else SNAPSHOT_OFFERING_ID
     for offering in payload["offerings"]:
+        offering.update(
+            source_timezone="UTC", product_ids=["fixture-product", "PAID_MEDIA_DAILY_V1"]
+        )
         if offering["offering_id"] == identifier:
             offering.update(expected_availability_lag="PT1H", worst_case_availability_lag="PT6H")
             offering.update(changes)
@@ -414,6 +417,7 @@ async def test_authoritative_local_readiness_is_conservative_across_clock_change
     producer, _, _, obligation, _, _ = await _harness(
         official=True,
         expected_availability_lag="PT0S",
+        source_timezone="America/New_York",
         days_after_period_end=days_after,
         source_local_ready_time=ready_time,
     )

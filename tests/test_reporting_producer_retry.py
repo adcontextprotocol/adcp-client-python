@@ -43,9 +43,11 @@ def _ready_capabilities():
     """Retry tests begin after data readiness, without an availability delay."""
     payload = redacted_capabilities().model_dump(mode="json")
     for offering in payload["offerings"]:
+        offering.update(source_timezone="UTC", product_ids=["PAID_MEDIA_DAILY_V1"])
         offering.update(expected_availability_lag="PT0S", worst_case_availability_lag="PT0S")
         if offering["offering_id"] == OFFICIAL_OFFERING_ID:
             offering.update(source_local_ready_time="00:00", days_after_period_end=0)
+            offering["windowing"]["minimum_window"] = "PT1H"
     payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     return ReportingSourceCapabilitiesV1.model_validate(payload)
 
