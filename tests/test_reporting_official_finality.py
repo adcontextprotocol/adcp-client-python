@@ -85,6 +85,22 @@ async def test_standalone_stabilization_rejects_an_unbound_snapshot_source() -> 
     assert not store._obligations
 
 
+@pytest.mark.parametrize(
+    "missing",
+    ["verify_snapshot_origin", "get_provisional_acquisition", "get_stabilization_schedule"],
+)
+async def test_standalone_stabilization_checks_durable_apis_before_storage(missing: str) -> None:
+    class IncompletePublisher(InMemoryReportingLedgerStore):
+        async def find_obligation(self, **kwargs: Any) -> Any:
+            pytest.fail("admission read obligations from an incomplete publisher")
+
+    store = IncompletePublisher()
+    setattr(store, missing, None)
+    with pytest.raises(LedgerConflictError, match=missing):
+        await _stabilized_harness(lambda **kwargs: store)
+    assert not store._obligations
+
+
 async def test_native_recovery_reads_the_schedule_for_the_generation(
     store_factory: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -95,10 +111,10 @@ async def test_native_recovery_reads_the_schedule_for_the_generation(
         pytest.fail("recovery should look up the generation's scheduled observation")
 
     monkeypatch.setattr(store, "read_page", forbid_full_ledger)
-    frozen = await producer._recover_stabilization_schedule(config, store)
+    frozen = await producer._recover_stabilization_schedule(config)
     assert frozen and frozen.cadence == timedelta(hours=6)
     other = replace(config, delivery_config_version=2)
-    assert await producer._recover_stabilization_schedule(other, store) is None
+    assert await producer._recover_stabilization_schedule(other) is None
 
 
 @pytest.mark.parametrize("legacy", [False, True])
@@ -126,13 +142,28 @@ async def test_recovery_finds_the_pending_snapshot_before_the_first_observation(
             request.model_dump_json(), 0, policy, output_finality="official" if legacy else None
         )
     )
-    assert await producer._recover_stabilization_schedule(config, store) == policy
+    assert await producer._recover_stabilization_schedule(config) == policy
     assert (
-        await producer._recover_stabilization_schedule(
-            replace(config, delivery_config_version=2), store
-        )
+        await producer._recover_stabilization_schedule(replace(config, delivery_config_version=2))
         is None
     )
+
+
+async def test_previous_checkpoint_schema_recovers_schedule_before_initialize() -> None:
+    async with isolated_reporting_pool() as pool:
+        producer, store, config, _, _, _ = await _stabilized_harness(
+            partial(PgReportingLedgerStore, pool=pool)
+        )
+        await producer.run_configuration(config)
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE reporting_restatement_checkpoints DROP COLUMN stabilization_policy,"
+                " DROP COLUMN next_stabilization_due_at"
+            )
+        policy = await producer._recover_stabilization_schedule(config)
+        assert policy is not None and policy.cadence == timedelta(hours=6)
+        await store.create_schema()
+        assert await producer._recover_stabilization_schedule(config) == policy
 
 
 @pytest.mark.parametrize("tracked", [False, True])
@@ -234,11 +265,18 @@ async def test_stabilized_close_keeps_frozen_route_when_offering_drops_close_lag
     assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
 
 
-@pytest.mark.parametrize("pending_lookup", [True, False])
+@pytest.mark.parametrize("unchanged", ["PT12H", "P30D"])
+@pytest.mark.parametrize("wrapped", [False, True])
 async def test_stabilized_retires_base_shaped_derived_official_reservation(
-    store_factory: Any, monkeypatch: pytest.MonkeyPatch, pending_lookup: bool
+    store_factory: Any, unchanged: str, wrapped: bool
 ) -> None:
-    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_factory,
+        official=True,
+        capabilities=_capabilities(restatement_window="P1D", restatement_cadence="PT6H"),
+        finality_policy=ReportingStabilizedPolicy("stable", "PT0S", unchanged),
+    )
+    clock[0] = END + timedelta(hours=1)
     owner = dict(
         account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
     )
@@ -252,31 +290,72 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
         output_finality="official",
     )
     await store.reserve_provisional_acquisition(reservation)
-    if not pending_lookup:
-        monkeypatch.setattr(store, "get_provisional_acquisition", None)
+    producer._source.capabilities = _capabilities(
+        restatement_window="P1D", restatement_cadence="PT1H"
+    )
     assert "until_stabilized" not in reservation.to_wire()["policy"]
+
+    class Publisher:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(store, name)
+
+    publisher = Publisher() if wrapped else store
+    if wrapped:
+        for name in (
+            "verify_snapshot_origin",
+            "get_provisional_acquisition",
+            "get_stabilization_schedule",
+            "list_provisional_observations",
+            "source_publication",
+            "get_restatement_checkpoint",
+            "record_restatement_checkpoint",
+            "reserve_provisional_acquisition",
+            "get_provisional_observation",
+            "commit_provisional_observation",
+        ):
+            setattr(publisher, name, getattr(store, name))
     fresh = ReportingProducer(
         source=producer._source,
-        store=store,
+        store=publisher,
+        retry_store=store,
         offerings=producer._offerings,
         object_reader=producer._object_reader,
         clock=lambda: clock[0],
         read_jitter_window=timedelta(0),
     )
-    for hour in (1, 1, 7, 13):
+
+    async def interrupt_replacement(*args: Any, **kwargs: Any) -> Any:
+        raise OSError("interrupted before successor reservation")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(fresh, "_reserve_observation", interrupt_replacement)
+        with pytest.raises(OSError, match="before successor reservation"):
+            await fresh.acquire_obligation(config, obligation)
+    assert await store.get_stabilization_schedule(config.generation_key) == reservation.policy
+    fresh = ReportingProducer(
+        source=producer._source,
+        store=publisher,
+        retry_store=store,
+        offerings=producer._offerings,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+        read_jitter_window=timedelta(0),
+    )
+    for hour in (1, 1, 2, 7, 13):
         clock[0] = END + timedelta(hours=hour)
-        await fresh.run_configuration(config)
+        await fresh.acquire_obligation(config, obligation)
     history = await store.list_provisional_observations(**owner, limit=8)
     assert [o.acquisition.ordinal for o in history] == [1, 2, 3]
+    assert [o.checked_at for o in history] == [END + timedelta(hours=h) for h in (1, 7, 13)]
+    assert all(o.acquisition.policy.cadence == timedelta(hours=6) for o in history)
     assert all(o.is_scheduled_snapshot for o in history)
     assert len(calls) == 3 and all(
         r.identity.source_execution_key != reservation.execution_key
         for r in producer._source.requests
     )
-    assert sorted(r.finality for r in await store.list_revisions(**owner)) == [
-        "official",
-        "snapshot",
-    ]
+    assert sorted(r.finality for r in await store.list_revisions(**owner)) == (
+        ["official", "snapshot"] if unchanged == "PT12H" else ["snapshot"]
+    )
 
 
 async def test_stabilization_cannot_rebind_a_contradictory_snapshot_origin(
@@ -318,7 +397,23 @@ async def test_stabilization_cannot_rebind_a_contradictory_snapshot_origin(
         patch.setattr(store, "list_provisional_observations", rebound_suffix)
         with pytest.raises(LedgerConflictError, match="history"):
             await producer.acquire_obligation(config, obligation)
-    for hour in (31, 31, 37, 43, 49):
+
+    async def crash_before_retry(*args: Any, **kwargs: Any) -> Any:
+        raise OSError("interrupted retry write")
+
+    clock[0] = END + timedelta(hours=31)
+    with monkeypatch.context() as patch:
+        patch.setattr(producer, "_schedule_retry", crash_before_retry)
+        with pytest.raises(OSError, match="interrupted retry write"):
+            await producer.acquire_obligation(config, obligation)
+    producer = ReportingProducer(
+        source=producer._source,
+        offerings=producer._offerings,
+        store=store,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+    )
+    for hour in (31, 36, 37, 43, 49):
         clock[0] = END + timedelta(hours=hour)
         with suppress(LedgerConflictError):
             await producer.acquire_obligation(config, obligation)
@@ -396,6 +491,139 @@ async def test_scheduled_reservation_waiting_behind_stabilized_official_is_termi
     assert reservations == []
     assert await store.get_provisional_acquisition(**owner, ordinal=3) is None
     assert len(calls) == 3
+
+
+async def test_untracked_manual_publication_cannot_follow_stabilized_official(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    clock[0] = END + timedelta(hours=14)
+    paused = asyncio.Event()
+    resumed = asyncio.Event()
+    commit = producer._commit_publication
+    candidates = []
+
+    async def hold_manual(*args: Any, **kwargs: Any) -> Any:
+        if args[4] == "snapshot":
+            candidates.append((args[2], args[3]))
+            paused.set()
+            await resumed.wait()
+        return await commit(*args, **kwargs)
+
+    monkeypatch.setattr(producer, "_commit_publication", hold_manual)
+    monkeypatch.setattr(
+        "tests.test_reporting_source_availability.PROVIDER_ROW", PROVIDER_ROW.replace("10", "11")
+    )
+    manual = asyncio.create_task(
+        producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+        )
+    )
+    try:
+        await asyncio.wait_for(paused.wait(), timeout=5)
+        official = await producer.acquire_obligation(config, obligation)
+        assert official is not None and official.finality == "official"
+    finally:
+        resumed.set()
+    assert await asyncio.wait_for(manual, timeout=5) is None
+    (snapshot,) = [r for r in await store.list_revisions(**owner) if r.finality == "snapshot"]
+    assert await store.commit_revision(snapshot, ROWS) == snapshot
+    with pytest.raises(LedgerConflictError, match="official"):
+        await store.commit_revision(*candidates[0])
+
+
+@pytest.mark.parametrize("publish_manual", [True, False])
+async def test_tracked_manual_snapshot_preserves_retired_scheduled_deadline(
+    store_factory: Any, publish_manual: bool
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    await producer.run_configuration(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    first = await store.get_provisional_observation(**owner)
+    for ordinal, hour, trigger in [(1, 7, "scheduled_poll"), (2, 8, "manual_replay")]:
+        clock[0] = END + timedelta(hours=hour)
+        request = producer._build_slice(
+            config,
+            obligation,
+            SNAPSHOT_OFFERING_ID,
+            finality="snapshot",
+            now=clock[0],
+            observation=ordinal,
+            trigger=trigger,
+        )
+        acquisition = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(), ordinal, first.acquisition.policy, first.revision_id
+            )
+        )
+        if trigger == "scheduled_poll":
+            assert await producer._retire_stabilized_acquisition(
+                config, obligation, acquisition, clock[0]
+            )
+        elif not publish_manual:
+
+            async def reject_manual(*args: Any, **kwargs: Any) -> Any:
+                raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "conflicting origin")
+
+            with pytest.MonkeyPatch.context() as patch:
+                patch.setattr(store, "commit_provisional_observation", reject_manual)
+                with pytest.raises(LedgerConflictError, match="conflicting origin"):
+                    await producer.acquire_obligation(
+                        config,
+                        obligation,
+                        target_finality="snapshot",
+                        restate=True,
+                        manual_replay=True,
+                    )
+        else:
+            await producer.acquire_obligation(
+                config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+            )
+    checkpoint = await store.get_restatement_checkpoint(**owner)
+    assert checkpoint.next_observation == 3
+    assert checkpoint.next_stabilization_due_at == END + timedelta(hours=13)
+    await producer.acquire_obligation(config, obligation)
+    assert len(calls) == 2
+    clock[0] = END + timedelta(hours=13)
+    await producer.acquire_obligation(config, obligation)
+    assert len(calls) == 3
+
+
+async def test_native_ledger_rejects_a_new_bare_snapshot_after_official(store_factory: Any) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    (snapshot,) = [r for r in await store.list_revisions(**owner) if r.finality == "snapshot"]
+    later_id = "rpr_" + "f" * 40
+    later = replace(
+        snapshot,
+        reporting_revision_id=later_id,
+        supersedes_reporting_revision_id=snapshot.reporting_revision_id,
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id=later_id,
+            row_count=snapshot.row_count,
+            control_totals=snapshot.control_totals,
+            reporting_rows=ROWS,
+            control_total_evidence=snapshot.managed_control_totals,
+        ),
+    )
+    with pytest.raises(LedgerConflictError, match="official"):
+        await store.commit_revision(later, ROWS)
+    assert await store.commit_revision(snapshot, ROWS) == snapshot
 
 
 @pytest.mark.parametrize("change", ["none", "warnings", "basis"])

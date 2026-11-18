@@ -499,7 +499,7 @@ async def test_distinct_concurrent_writes_take_dense_unique_feed_sequences(
 ) -> None:
     """Order-independent records for one principal must not collide or lose a sequence."""
     store, clock = reconciliation_store
-    s = await scenario(store)
+    s = await scenario(store, billing=False, finality="snapshot")
     clock.now = END + timedelta(seconds=60)
     await store.commit_materialization(s.outcome)
     rows = (

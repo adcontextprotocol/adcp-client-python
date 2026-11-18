@@ -423,6 +423,75 @@ async def test_stabilized_admission_requires_publication_lock_before_persisting(
     assert not await store.list_all_configurations()
 
 
+@pytest.mark.parametrize(
+    "missing",
+    ["verify_snapshot_origin", "get_provisional_acquisition", "get_stabilization_schedule"],
+)
+async def test_stabilized_admission_rejects_missing_evidence_api_before_reading_storage(
+    missing: str,
+) -> None:
+    class IncompletePublisher(InMemoryReportingLedgerStore):
+        async def get_stabilization_schedule(self, generation: Any) -> Any:
+            pytest.fail("admission opened an incomplete publisher")
+
+        async def open_snapshot(self, **kwargs: Any) -> Any:
+            pytest.fail("admission attempted an uninitialized ledger read")
+
+        async def create_schema(self) -> None:
+            pytest.fail("stabilized admission attempted schema initialization")
+
+    store = IncompletePublisher()
+    setattr(store, missing, None)
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False, store=store)
+    with pytest.raises(ReliableReportingConfigurationError, match=missing):
+        await service.configure(config)
+    assert not await store.list_all_configurations()
+
+
+async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis() -> None:
+    class SnapshotPublisher(InMemoryReportingLedgerStore):
+        get_stabilization_schedule = None
+        verify_snapshot_origin = None
+
+    config = replace(
+        _configuration(),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("optional", "PT0S", "PT6H")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False, store=SnapshotPublisher())
+    await service.configure(config)
+    await service.initialize()
+    assert config.generation_key in service._bindings
+
+
+@pytest.mark.parametrize("required", ["snapshot", "official"])
+async def test_stabilized_admission_reports_an_unregistered_snapshot_offering(required) -> None:
+    config = replace(
+        _configuration(),
+        required_finality=required,
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
+        ),
+    )
+    service = ReliableReportingService(
+        store=InMemoryReportingLedgerStore(),
+        account_context=lambda configuration: replace(
+            _account_context(configuration), snapshot_offering_id="retired"
+        ),
+    )
+    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
+    with pytest.raises(ReliableReportingConfigurationError, match="snapshot offering.*registered"):
+        await service.configure(config)
+
+
 async def test_initialize_recovers_frozen_stabilization_cadence_and_healthy_binding() -> None:
     clock = DeterministicReportingClock(NOW + timedelta(days=1))
     store = InMemoryReportingLedgerStore(clock=clock)

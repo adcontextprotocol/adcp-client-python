@@ -149,7 +149,7 @@ class LeasedConfiguration:
 
 @dataclass(frozen=True)
 class RestatementCheckpoint:
-    """Durable scheduling state for successful source observations.
+    """Durable scheduling state for consumed source acquisition ordinals.
 
     ``next_observation`` advances even when the source content is unchanged.
     Without that durable ordinal the next scheduled refresh would replay the
@@ -161,6 +161,8 @@ class RestatementCheckpoint:
     checked_at: datetime
     next_observation: int
     provisional_until: datetime | None = None
+    stabilization_policy: ProvisionalPolicy | None = None
+    next_stabilization_due_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if self.next_observation < 1:
@@ -168,6 +170,43 @@ class RestatementCheckpoint:
         _utc(self.checked_at)
         if self.provisional_until is not None:
             _utc(self.provisional_until)
+        if self.next_stabilization_due_at is not None:
+            _utc(self.next_stabilization_due_at)
+
+    def waiting_for_stabilization(self, now: datetime) -> bool:
+        return self.next_stabilization_due_at is not None and _utc(now) < _utc(
+            self.next_stabilization_due_at
+        )
+
+    @classmethod
+    def after_acquisition(
+        cls,
+        acquisition: ProvisionalAcquisition,
+        checked_at: datetime,
+        provisional_until: datetime | None,
+        previous: RestatementCheckpoint | None,
+        *,
+        retired_stabilized: bool = False,
+    ) -> RestatementCheckpoint:
+        """Consume the ordinal and carry any outstanding scheduled deadline across manual reads."""
+        policy = None
+        due = None
+        if acquisition.request().trigger == "manual_replay":
+            if previous is not None:
+                policy, due = previous.stabilization_policy, previous.next_stabilization_due_at
+        elif retired_stabilized:
+            policy = acquisition.policy
+            if not acquisition.legacy_stabilized_close:
+                due = checked_at + policy.cadence
+        return cls(
+            acquisition.account_id,
+            acquisition.obligation_id,
+            checked_at,
+            acquisition.ordinal + 1,
+            provisional_until,
+            policy,
+            due,
+        )
 
 
 @runtime_checkable
@@ -1303,9 +1342,7 @@ class InMemoryReportingLedgerStore:
                 raise LedgerConflictError(
                     "OBSERVATION_CONFLICT", "a source acquisition is reserved"
                 )
-            if revision.finality == "official" and any(
-                item.finality == "official" for item in siblings
-            ):
+            if any(item.finality == "official" for item in siblings):
                 raise LedgerConflictError(
                     "OFFICIAL_REVISION_TERMINAL",
                     "an official revision already exists for this obligation; publish a later "
@@ -1459,6 +1496,10 @@ class InMemoryReportingLedgerStore:
                 observed is None
                 and checkpoint is not None
                 and ordinal != checkpoint.next_observation
+                and not (
+                    ordinal < checkpoint.next_observation
+                    and checkpoint.stabilization_policy == policy
+                )
             ):
                 continue
             at = (
@@ -1546,12 +1587,8 @@ class InMemoryReportingLedgerStore:
             # Consume the reservation inside this transaction before its revision
             # uses the ordinary commit path. Any publication failure rolls back both.
             await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
+                RestatementCheckpoint.after_acquisition(
+                    acquisition, observation.checked_at, observation.provisional_until, checkpoint
                 )
             )
             if revision is None or reuse_candidate:

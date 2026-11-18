@@ -378,3 +378,14 @@ class ProvisionalObservationStore(ProvisionalObservationPublicationStore, Protoc
         ``limit`` must be a positive integer.
         """
         pass
+
+
+@runtime_checkable
+class StabilizationStore(
+    ProvisionalObservationStore,
+    SnapshotOriginStore,
+    PendingProvisionalAcquisitionStore,
+    StabilizationScheduleStore,
+    Protocol,
+):
+    """Durable evidence and recovery methods required for stabilized publication."""

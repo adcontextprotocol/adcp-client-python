@@ -1518,6 +1518,20 @@ class PgReportingLedgerStore:
                 raise LedgerConflictError(
                     "OBSERVATION_CONFLICT", "a source acquisition is reserved"
                 )
+            if (
+                revision.finality == "snapshot"
+                and await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions WHERE account_id=%s"
+                        " AND reporting_obligation_id=%s AND finality='official' LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+            ):
+                raise LedgerConflictError(
+                    "OFFICIAL_REVISION_TERMINAL",
+                    "a new snapshot cannot follow the official revision",
+                )
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
             write_error = None
@@ -1853,6 +1867,7 @@ class PgReportingLedgerStore:
             if installed is not None and not installed[0]:
                 return None
             await self._require_provisional_schema(connection)
+            # The checkpoint's frozen policy can also be absent on pre-upgrade tables.
             row = await (
                 await connection.execute(
                     "SELECT a.payload->'policy' FROM reporting_obligations o"
@@ -1871,7 +1886,8 @@ class PgReportingLedgerStore:
                     " AND a.payload->>'output_finality'='official'"
                     " AND a.payload #>> '{policy,until_stabilized}' IS DISTINCT FROM 'true'))"
                     " AND (h.ordinal IS NOT NULL OR c.next_observation IS NULL"
-                    " OR c.next_observation=a.ordinal)"
+                    " OR c.next_observation=a.ordinal OR (c.next_observation>a.ordinal"
+                    " AND to_jsonb(c)->'stabilization_policy'=a.payload->'policy'))"
                     " AND (o.required_finality='official'"
                     " OR a.payload #>> '{policy,until_stabilized}' = 'true'"
                     " OR a.payload #>> '{policy,official_close_lag_us}' IS NOT NULL)"
@@ -1997,12 +2013,8 @@ class PgReportingLedgerStore:
             # Consume the reservation under the account lock. Failure of the
             # ordinary revision write also rolls this checkpoint back.
             await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
+                RestatementCheckpoint.after_acquisition(
+                    acquisition, observation.checked_at, observation.provisional_until, checkpoint
                 )
             )
             if revision is None or reuse_candidate:
@@ -2119,7 +2131,8 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     "SELECT account_id, reporting_obligation_id, checked_at,"
-                    " next_observation, provisional_until"
+                    " next_observation, provisional_until, stabilization_policy,"
+                    " next_stabilization_due_at"
                     " FROM reporting_restatement_checkpoints"
                     " WHERE account_id = %s AND reporting_obligation_id = %s",
                     (account_id, reporting_obligation_id),
@@ -2133,6 +2146,8 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
+            stabilization_policy=ProvisionalPolicy.from_wire(row[5]) if row[5] else None,
+            next_stabilization_due_at=_utc(row[6]) if row[6] else None,
         )
 
     async def record_restatement_checkpoint(
@@ -2155,12 +2170,14 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "INSERT INTO reporting_restatement_checkpoints"
                     " (account_id, reporting_obligation_id, checked_at, next_observation,"
-                    "  provisional_until)"
-                    " VALUES (%s, %s, %s, %s, %s)"
+                    "  provisional_until, stabilization_policy, next_stabilization_due_at)"
+                    " VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)"
                     " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
                     " checked_at = EXCLUDED.checked_at,"
                     " next_observation = EXCLUDED.next_observation,"
-                    " provisional_until = EXCLUDED.provisional_until"
+                    " provisional_until = EXCLUDED.provisional_until,"
+                    " stabilization_policy = EXCLUDED.stabilization_policy,"
+                    " next_stabilization_due_at = EXCLUDED.next_stabilization_due_at"
                     " WHERE reporting_restatement_checkpoints.account_id = EXCLUDED.account_id"
                     "   AND (reporting_restatement_checkpoints.next_observation"
                     "        < EXCLUDED.next_observation"
@@ -2169,13 +2186,20 @@ class PgReportingLedgerStore:
                     "         AND reporting_restatement_checkpoints.checked_at"
                     "             < EXCLUDED.checked_at))"
                     " RETURNING account_id, reporting_obligation_id, checked_at,"
-                    " next_observation, provisional_until",
+                    " next_observation, provisional_until, stabilization_policy,"
+                    " next_stabilization_due_at",
                     (
                         checkpoint.account_id,
                         checkpoint.reporting_obligation_id,
                         checkpoint.checked_at,
                         checkpoint.next_observation,
                         checkpoint.provisional_until,
+                        (
+                            json.dumps(checkpoint.stabilization_policy.to_wire())
+                            if checkpoint.stabilization_policy
+                            else None
+                        ),
+                        checkpoint.next_stabilization_due_at,
                     ),
                 )
             ).fetchone()
@@ -2196,6 +2220,8 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
+            stabilization_policy=ProvisionalPolicy.from_wire(row[5]) if row[5] else None,
+            next_stabilization_due_at=_utc(row[6]) if row[6] else None,
         )
 
     async def get_revision(

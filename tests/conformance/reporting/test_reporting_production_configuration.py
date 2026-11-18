@@ -59,6 +59,12 @@ STABILIZED = ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
         ),
         (STABILIZED, "snapshot", ["official"], False, False, False, False),
         (STABILIZED, "snapshot", ["official"], False, False, "unlocked", False),
+        (STABILIZED, "snapshot", ["official"], False, False, "verify_snapshot_origin", False),
+        (STABILIZED, "snapshot", ["official"], False, False, "get_provisional_acquisition", False),
+        (STABILIZED, "snapshot", ["official"], False, False, "get_stabilization_schedule", False),
+        (CUTOFF, "snapshot", ["official"], False, False, "verify_snapshot_origin", True),
+        (SOURCE_FINAL, "official", ["official"], False, True, "get_stabilization_schedule", True),
+        (STABILIZED, "snapshot", ["snapshot"], False, False, "get_stabilization_schedule", True),
         (None, "official", ["official"], False, True, True, False),
         (SOURCE_FINAL, "snapshot", ["official"], False, False, True, False),
         (CUTOFF, "official", ["official"], False, True, True, False),
@@ -84,6 +90,8 @@ async def test_production_offering_validates_selected_finality_policy(
         config = replace(h.item.config, definition=definition, required_finality=finalities[-1])
         source.bind_generation(config)
         store = h.store
+        if isinstance(history, str) and history != "unlocked":
+            setattr(store, history, None)
         if not history:
             store = SimpleNamespace(
                 reserve_provisional_acquisition=h.store.reserve_provisional_acquisition,
