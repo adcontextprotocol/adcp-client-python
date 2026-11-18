@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
+from adcp.reporting.ledger.finality import ReportingStabilizedPolicy
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 
 if TYPE_CHECKING:
@@ -125,6 +126,21 @@ class ProvisionalAcquisition:
             and self.output_finality is None
         )
 
+    def requires_snapshot_origin(
+        self, obligation: ReportingObligationRecord, *, explicitly_tracked: bool = False
+    ) -> bool:
+        definition = obligation.definition
+        return self.policy.until_stabilized or (
+            definition is not None
+            and isinstance(definition.finality_policy, ReportingStabilizedPolicy)
+            and (
+                explicitly_tracked
+                or obligation.required_finality == "official"
+                or self.policy.official_close_lag is not None
+                or not self.is_scheduled_snapshot
+            )
+        )
+
     def stabilization_schedule(
         self, required_finality: str, *, pending: bool
     ) -> ProvisionalPolicy | None:
@@ -234,9 +250,13 @@ class ProvisionalObservation:
                 return origin
         return self.revision_publication_id
 
-    def bind_revision(self, revision: ReportingRevisionRecord) -> ProvisionalObservation:
+    def bind_revision(
+        self, revision: ReportingRevisionRecord, *, require_origin: bool = False
+    ) -> ProvisionalObservation:
         """Keep the full originating publication ID when an unchanged read reuses a snapshot."""
-        if self.acquisition.policy.until_stabilized and revision.finality == "snapshot":
+        if revision.finality == "snapshot" and (
+            require_origin or self.acquisition.policy.until_stabilized
+        ):
             if (
                 self.revision_publication_id is not None
                 and self.revision_publication_id != revision.source_publication_id

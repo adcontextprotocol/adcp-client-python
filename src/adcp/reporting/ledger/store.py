@@ -752,10 +752,17 @@ def validate_retained_provisional_observation(
     rows: Sequence[dict[str, Any]],
     *,
     require_readable: bool = True,
+    require_origin: bool = False,
 ) -> None:
     """Validate an unchanged observation against immutable predecessor content."""
     validate_snapshot_observation_binding(
-        revision, observation, require_publication=observation.acquisition.policy.until_stabilized
+        revision,
+        observation,
+        require_publication=(
+            require_origin
+            or observation.acquisition.policy.until_stabilized
+            or observation.revision_publication_id is not None
+        ),
     )
     validate_snapshot_rows(revision, rows, require_readable=require_readable)
 
@@ -1550,6 +1557,7 @@ class InMemoryReportingLedgerStore:
                     "OBSERVATION_CONFLICT",
                     "observation replay differs: acquisition does not bind this obligation",
                 )
+            require_origin = acquisition.requires_snapshot_origin(obligation)
             if existing is not None:
                 if (
                     existing.acquisition != acquisition
@@ -1568,15 +1576,17 @@ class InMemoryReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                retained_revision = self._revisions[existing.revision_id]
+                if require_origin and retained_revision.finality == "snapshot":
+                    await self.verify_snapshot_origin(retained_revision)
+                    validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
                 if revision is None or (
                     reuse_candidate and existing.revision_id == observation.revision_id
                 ):
-                    validate_retained_provisional_observation(
-                        self._revisions[existing.revision_id], existing, rows
-                    )
-                    return self._revisions[existing.revision_id]
+                    validate_retained_provisional_observation(retained_revision, existing, rows)
+                    return retained_revision
                 return await self.commit_revision(revision, rows)
             retained = self._provisional_acquisitions.get(key)
             if retained != acquisition:
@@ -1616,10 +1626,14 @@ class InMemoryReportingLedgerStore:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
-                if acquisition.policy.until_stabilized:
+                if require_origin:
                     await self.verify_snapshot_origin(committed)
                 validate_retained_provisional_observation(
-                    committed, observation.bind_revision(committed), rows, require_readable=False
+                    committed,
+                    observation.bind_revision(committed, require_origin=require_origin),
+                    rows,
+                    require_readable=False,
+                    require_origin=require_origin,
                 )
                 if not committed.readable:
                     if revision is None:
@@ -1631,7 +1645,7 @@ class InMemoryReportingLedgerStore:
             else:
                 committed = await self.commit_revision(revision, rows)
             # The checkpoint enforces ascending ordinals for distinct observations.
-            observation = observation.bind_revision(committed)
+            observation = observation.bind_revision(committed, require_origin=require_origin)
             self._provisional_observations.setdefault(owner, {})[acquisition.ordinal] = observation
             return committed
 

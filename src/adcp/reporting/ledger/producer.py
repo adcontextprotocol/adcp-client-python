@@ -1344,17 +1344,23 @@ class ReportingProducer:
             self._stabilization_store()
         if frozen is not None:
             return frozen
-        if not _implements_store_method(
-            self._store, StabilizationScheduleStore.get_stabilization_schedule
-        ):
+        store = self._stabilization_schedule_store()
+        if store is None:
             return None
-        assert isinstance(self._store, StabilizationScheduleStore)
-        policy = await self._store.get_stabilization_schedule(key)
+        policy = await store.get_stabilization_schedule(key)
         if policy is not None:
             if not required:
                 self._stabilization_store()
             self._recovered_stabilization[key] = policy
         return policy
+
+    def _stabilization_schedule_store(self) -> StabilizationScheduleStore | None:
+        if _implements_store_method(
+            self._store, StabilizationScheduleStore.get_stabilization_schedule
+        ):
+            assert isinstance(self._store, StabilizationScheduleStore)
+            return self._store
+        return None
 
     async def _acquire_stabilized(
         self,
@@ -2006,6 +2012,7 @@ class ReportingProducer:
                 acquisition=acquisition,
                 verified_source_rows=True,
                 suppress_untracked_unchanged=untracked_restatement,
+                admit_tracked_stabilization=admit_tracked_stabilization,
             )
         except LedgerConflictError as error:
             if error.code == "OFFICIAL_REVISION_TERMINAL" and untracked_restatement:
@@ -2799,8 +2806,25 @@ class ReportingProducer:
         acquisition: ProvisionalAcquisition | None,
         verified_source_rows: bool,
         suppress_untracked_unchanged: bool = False,
+        admit_tracked_stabilization: bool = True,
     ) -> ReportingRevisionRecord:
         obligation = await self._stored_obligation(obligation)
+        selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        origin_store: SnapshotOriginStore | None = None
+        if finality == "snapshot" and acquisition is not None:
+            if acquisition.requires_snapshot_origin(
+                obligation,
+                explicitly_tracked=(
+                    admit_tracked_stabilization
+                    or obligation.generation_key in self._recovered_stabilization
+                ),
+            ):
+                origin_store = self._stabilization_store()
+            elif isinstance(
+                selected_policy, ReportingStabilizedPolicy
+            ) and _implements_store_method(self._store, SnapshotOriginStore.verify_snapshot_origin):
+                assert isinstance(self._store, SnapshotOriginStore)
+                origin_store = self._store
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:
@@ -2848,7 +2872,6 @@ class ReportingProducer:
 
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"
-        selected_policy = obligation.definition.finality_policy if obligation.definition else None
         stabilized = finality == "official" and isinstance(
             selected_policy, ReportingStabilizedPolicy
         )
@@ -2912,7 +2935,7 @@ class ReportingProducer:
                     )
                 if not verified_source_rows:
                     replay = await self._retained_snapshot_replay(
-                        obligation, manifest, rows, acquisition, prior, now
+                        obligation, manifest, rows, acquisition, prior, now, origin_store
                     )
                     if replay is not None:
                         return replay
@@ -3068,6 +3091,7 @@ class ReportingProducer:
                 now,
                 acquisition,
                 candidate_proof=candidate_proof,
+                origin_store=origin_store,
                 retained_revision_id=(
                     retained.reporting_revision_id if retained is not None else None
                 ),
@@ -3094,6 +3118,7 @@ class ReportingProducer:
         acquisition: ProvisionalAcquisition,
         prior: ReportingRevisionRecord | None,
         now: datetime,
+        origin_store: SnapshotOriginStore | None,
     ) -> ReportingRevisionRecord | None:
         store = self._observation_store()
         latest = await store.get_provisional_observation(
@@ -3152,6 +3177,10 @@ class ReportingProducer:
             validate_retained_provisional_observation(
                 revision, latest if is_latest else observation.bind_revision(revision), rows
             )
+            if origin_store is not None:
+                await self._verify_tracked_snapshot_origin(
+                    obligation, acquisition, origin_store, revision
+                )
             if is_latest:
                 return revision
             # A later observation closes this ordinal to new writes. The store
@@ -3273,55 +3302,57 @@ class ReportingProducer:
             or obligation.generation_key in self._recovered_stabilization
         )
 
-    async def _verify_reused_snapshot_origin(
+    async def _verify_tracked_snapshot_origin(
         self,
         obligation: ReportingObligationRecord,
         acquisition: ProvisionalAcquisition,
-        revision_id: str,
+        witness: SnapshotOriginStore,
+        revision: ReportingRevisionRecord,
+        *,
+        retained_revision_id: str | None = None,
     ) -> None:
+        if retained_revision_id is not None:
+            predecessor = await self._store.get_revision(
+                account_id=obligation.account_id, reporting_revision_id=retained_revision_id
+            )
+            if predecessor is None:
+                raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
+            if not predecessor.readable:
+                # The atomic publisher can use the fresh snapshot when the
+                # predecessor loses readability during staging.
+                await witness.verify_snapshot_origin(revision)
+            revision = predecessor
+        await witness.verify_snapshot_origin(revision)
+        if revision.reporting_revision_id != acquisition.predecessor_revision_id:
+            return
         selected = obligation.definition.finality_policy if obligation.definition else None
-        if not isinstance(selected, ReportingStabilizedPolicy) or not (
-            acquisition.policy.until_stabilized or acquisition.is_scheduled_snapshot
+        if isinstance(selected, ReportingStabilizedPolicy) and self._uses_stabilization_schedule(
+            obligation, acquisition.policy
         ):
-            return
-        active = self._uses_stabilization_schedule(obligation, acquisition.policy)
-        if active:
-            witness: SnapshotOriginStore = self._stabilization_store()
-        elif _implements_store_method(self._store, SnapshotOriginStore.verify_snapshot_origin):
-            assert isinstance(self._store, SnapshotOriginStore)
-            witness = self._store
-        else:
-            return
-        predecessor = await self._store.get_revision(
-            account_id=obligation.account_id, reporting_revision_id=revision_id
-        )
-        if predecessor is None:
-            raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
-        await witness.verify_snapshot_origin(predecessor)
-        if active:
             limit = stabilization_history_limit(selected, acquisition.policy.cadence)
             for observed in await self._scheduled_snapshot_history(obligation, limit):
-                if observed.revision_id == revision_id:
-                    validate_snapshot_origin(predecessor, observed.snapshot_origin)
+                if observed.revision_id == revision.reporting_revision_id:
+                    validate_snapshot_origin(revision, observed.snapshot_origin)
 
     async def _commit_publication(
         self,
         obligation: ReportingObligationRecord,
         manifest: SourceBatchManifestV1,
-        revision: ReportingRevisionRecord | None,
+        revision: ReportingRevisionRecord,
         rows: Sequence[dict[str, Any]],
         finality: str,
         now: datetime,
         acquisition: ProvisionalAcquisition | None,
         *,
         candidate_proof: FinalityProof | None,
+        origin_store: SnapshotOriginStore | None,
         retained_revision_id: str | None = None,
     ) -> tuple[ReportingRevisionRecord, bool]:
         async with self._revision_publication(
             obligation, manifest, official=finality == "official"
         ):
             replay = None
-            if finality == "official" and revision is not None:
+            if finality == "official":
                 selected = obligation.definition.finality_policy if obligation.definition else None
                 if candidate_proof is not None and isinstance(selected, ReportingStabilizedPolicy):
                     scheduled = await self._scheduled_snapshot_history(obligation, 1)
@@ -3354,7 +3385,7 @@ class ReportingProducer:
                         proved_candidate=candidate_proof is not None,
                     )
                     acquisition = None
-            if finality == "snapshot" and acquisition is None and revision is not None:
+            if finality == "snapshot" and acquisition is None:
                 siblings = await self._store.list_revisions(
                     account_id=obligation.account_id,
                     reporting_obligation_id=obligation.reporting_obligation_id,
@@ -3367,22 +3398,24 @@ class ReportingProducer:
                         "a new snapshot cannot follow the official revision",
                     )
             if acquisition is None:
-                assert revision is not None
                 committed = await self._store.commit_revision(revision, rows)
             else:
                 # ``now`` is the publication anchor, sampled after row acquisition.
                 # The bounds check above already rejects acquired_at after now.
-                if retained_revision_id is not None:
-                    observation_revision_id = retained_revision_id
-                    await self._verify_reused_snapshot_origin(
-                        obligation, acquisition, retained_revision_id
+                if origin_store is not None:
+                    await self._verify_tracked_snapshot_origin(
+                        obligation,
+                        acquisition,
+                        origin_store,
+                        revision,
+                        retained_revision_id=retained_revision_id,
                     )
-                else:
-                    assert revision is not None
-                    observation_revision_id = revision.reporting_revision_id
                 committed = await self._observation_store().commit_provisional_observation(
                     ProvisionalObservation.from_manifest(
-                        acquisition, observation_revision_id, now, manifest
+                        acquisition,
+                        retained_revision_id or revision.reporting_revision_id,
+                        now,
+                        manifest,
                     ),
                     revision,
                     rows,

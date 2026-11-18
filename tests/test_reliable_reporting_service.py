@@ -455,7 +455,10 @@ async def test_stabilized_admission_rejects_missing_evidence_api_before_reading_
     assert not await store.list_all_configurations()
 
 
-async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis() -> None:
+@pytest.mark.parametrize("configure_before_init", [True, False])
+async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis(
+    configure_before_init: bool,
+) -> None:
     class SnapshotPublisher(InMemoryReportingLedgerStore):
         get_stabilization_schedule = None
         verify_snapshot_origin = None
@@ -468,23 +471,46 @@ async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis() -> 
             DEFINITION, finality_policy=ReportingStabilizedPolicy("optional", "PT0S", "PT6H")
         ),
     )
+    clock = DeterministicReportingClock(NOW)
+    result = InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at)
     service = _finality_service(
         config,
         snapshot=True,
         official=False,
         store=SnapshotPublisher(),
-        clock=DeterministicReportingClock(NOW + timedelta(days=1)),
-        results=(InlineFetchResult(rows=_rows(10)),),
+        clock=clock,
+        cadence="PT1H",
+        results=(result, result),
     )
+    if not configure_before_init:
+        await service.initialize()
     await service.configure(config)
     await service.initialize()
     assert config.generation_key in service._bindings
     turn = await service.run_worker()
     assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    (identifier,) = turn.configurations[config.generation_key].obligations_committed
+    clock.advance(timedelta(hours=1))
+    turn = await service.run_worker()
+    assert not turn.configuration_errors
+    history = await service.store.list_provisional_observations(
+        account_id=config.account_id, reporting_obligation_id=identifier, limit=2
+    )
+    assert len(history) == 2 and history[0].revision_id == history[1].revision_id
 
 
-async def test_recovered_snapshot_close_requires_origin_witness_after_live_lag_removal(
+@pytest.mark.parametrize(
+    "missing,configure_before_init",
+    [
+        ("verify_snapshot_origin", False),
+        ("get_stabilization_schedule", False),
+        ("get_stabilization_schedule", True),
+    ],
+)
+async def test_recovered_snapshot_close_requires_evidence_after_live_lag_removal(
     monkeypatch: pytest.MonkeyPatch,
+    missing: str,
+    configure_before_init: bool,
 ) -> None:
     clock = DeterministicReportingClock(NOW + timedelta(days=1))
     store = InMemoryReportingLedgerStore(clock=clock)
@@ -509,11 +535,14 @@ async def test_recovered_snapshot_close_requires_origin_witness_after_live_lag_r
     await original.configure(config)
     turn = await original.run_worker()
     assert len(turn.configurations[config.generation_key].revisions_committed) == 1
-    monkeypatch.setattr(store, "verify_snapshot_origin", None)
+    monkeypatch.setattr(store, missing, None)
     recovered = _finality_service(
         config, snapshot=True, official=False, cadence="PT1H", store=store, clock=clock
     )
-    with pytest.raises(ReliableReportingConfigurationError, match="verify_snapshot_origin"):
+    if configure_before_init:
+        await recovered.configure(config)
+        assert config.generation_key not in recovered._bindings
+    with pytest.raises(ReliableReportingConfigurationError, match=missing):
         await recovered.initialize()
     assert config.generation_key not in recovered._bindings
 

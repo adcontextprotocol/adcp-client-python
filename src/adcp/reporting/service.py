@@ -437,6 +437,15 @@ class _Binding:
     context: ReportingAccountContext
     producer: ReportingProducer
 
+    @property
+    def missing_stabilization_lookup(self) -> bool:
+        definition = self.configuration.definition
+        return (
+            definition is not None
+            and isinstance(definition.finality_policy, ReportingStabilizedPolicy)
+            and self.producer._stabilization_schedule_store() is None
+        )
+
 
 class _MissingFinalityPolicyError(ReliableReportingConfigurationError):
     """A retained generation may still serve reads while its producer is unbound."""
@@ -564,9 +573,7 @@ class ReliableReportingService:
         self._reconciled_billing = reconciled_billing
         self._worker_error_handler = worker_error_handler
         self._bindings: dict[ReportingConfigurationGenerationKey, _Binding] = {}
-        self._pending_configurations: dict[
-            ReportingConfigurationGenerationKey, ReportingConfiguration
-        ] = {}
+        self._pending_bindings: dict[ReportingConfigurationGenerationKey, _Binding] = {}
         self._initialized = False
         self._configuration_lock = asyncio.Lock()
         self._initialization_errors: dict[ReportingConfigurationGenerationKey, Exception] = {}
@@ -702,7 +709,7 @@ class ReliableReportingService:
         retrying: bool = False,
     ) -> None:
         key = configuration.generation_key
-        existing = self._bindings.get(key)
+        existing = self._bindings.get(key) or self._pending_bindings.get(key)
         if existing is not None:
             if existing.configuration != configuration:
                 raise ReliableReportingConfigurationError(
@@ -783,14 +790,36 @@ class ReliableReportingService:
                 raise _AccountContextResolutionError(error, permanent=True) from error
             raise
         binding = _Binding(configuration=configuration, context=context, producer=producer)
-        if persist:
-            if self._initialized:
-                await self.store.put_configuration(configuration)
-            else:
-                self._pending_configurations[key] = configuration
-        self._bindings[key] = binding
+        if persist and not self._initialized:
+            self._pending_bindings[key] = binding
+            # Schema initialization makes it possible to distinguish a new snapshot
+            # generation from an existing one whose frozen close needs recovery.
+            if not binding.missing_stabilization_lookup:
+                self._bindings[key] = binding
+        else:
+            await self._install_binding(binding, persist=persist)
         self._initialization_errors.pop(key, None)
         self._pending_recovery.pop(key, None)
+
+    async def _install_binding(self, binding: _Binding, *, persist: bool) -> None:
+        configuration = binding.configuration
+        key = configuration.generation_key
+        if binding.missing_stabilization_lookup and (
+            not persist
+            or any(
+                stored.generation_key == key
+                for stored in await self.store.list_configurations(
+                    caller=ReportingStatusCaller(key.account_id, key.consumer_id),
+                    delivery_config_ids=[key.delivery_config_id],
+                )
+            )
+        ):
+            raise ReliableReportingConfigurationError(
+                "recovering a selected stabilized generation requires get_stabilization_schedule"
+            )
+        if persist:
+            await self.store.put_configuration(configuration)
+        self._bindings[key] = binding
 
     @property
     def initialization_errors(self) -> Mapping[ReportingConfigurationGenerationKey, Exception]:
@@ -1023,9 +1052,9 @@ class ReliableReportingService:
             await self.store.create_schema()
             if self._initialize_source_storage is not None:
                 await self._initialize_source_storage()
-            for configuration in self._pending_configurations.values():
-                await self.store.put_configuration(configuration)
-            self._pending_configurations.clear()
+            for binding in self._pending_bindings.values():
+                await self._install_binding(binding, persist=True)
+            self._pending_bindings.clear()
             if self._production is None and self.sources.names:
                 # Older custom stores can retain explicit configure() startup.
                 # Built-in stores recover all generations in one scan, without

@@ -42,7 +42,11 @@ from adcp.reporting.ledger.finality import (
     manifest_finality_proof,
     source_finality_proof,
 )
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalPolicy
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalPolicy,
+)
 from adcp.reporting.source import (
     ReportingFinalityEvidenceV1,
     ReportingSourceExecutorResult,
@@ -421,6 +425,192 @@ def _restart_producer(
         clock=lambda: clock[0],
         read_jitter_window=timedelta(0),
     )
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "get_stabilization_schedule",
+        "get_provisional_acquisition",
+        "verify_snapshot_origin",
+        "origin",
+    ],
+)
+@pytest.mark.parametrize("official", [True, False])
+async def test_reserved_manifest_requires_stabilization_evidence_before_first_snapshot(
+    store_factory: Any, failure: str, official: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        store_factory, official=official
+    )
+    producer._source.capabilities = _capabilities(official_close_lag=None)
+    request = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, finality="snapshot", now=clock[0]
+    )
+    reservation = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(), 0, ProvisionalPolicy(timedelta(days=1), timedelta(hours=6))
+        )
+    )
+    await producer._source.execute(request)
+    manifest = producer._source.manifest
+    publisher = _stabilization_publisher(store)
+    if failure == "origin":
+
+        async def contradict(candidate: ReportingRevisionRecord) -> None:
+            assert candidate.source_publication_id == manifest.publication_id
+            assert not await store.list_revisions(**owner)
+            assert await store.get_provisional_observation(**owner) is None
+            assert await store.get_restatement_checkpoint(**owner) is None
+            raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "publisher origin differs")
+
+        monkeypatch.setattr(publisher, "verify_snapshot_origin", contradict)
+    else:
+        monkeypatch.setattr(publisher, failure, None)
+    fresh = _restart_producer(producer, publisher, clock)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    with pytest.raises(LedgerConflictError, match=failure):
+        await fresh.commit_revision_from_manifest(
+            replace(obligation, definition=None),
+            manifest,
+            rows=ROWS,
+            finality="snapshot",
+            acquisition=reservation,
+        )
+    assert not await store.list_revisions(**owner)
+    assert await store.get_provisional_observation(**owner) is None
+    assert await store.get_restatement_checkpoint(**owner) is None
+    assert await store.get_provisional_acquisition(**owner, ordinal=0) == reservation
+    fresh._store = store
+    published = await fresh.commit_revision_from_manifest(
+        obligation, manifest, rows=ROWS, finality="snapshot", acquisition=reservation
+    )
+    assert published.source_publication_id == manifest.publication_id
+    assert (await store.get_restatement_checkpoint(**owner)).next_observation == 1
+
+
+@pytest.mark.parametrize("entry", ["manifest", "acquire", "ledger"])
+@pytest.mark.parametrize("official", [True, False])
+async def test_manual_snapshot_reservation_without_stabilization_flag_checks_predecessor_origin(
+    store_factory: Any, entry: str, official: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        store_factory, official=official
+    )
+    producer._source.capabilities = _capabilities(
+        restatement_window="P3D", restatement_cadence="PT6H", official_close_lag=None
+    )
+    first = await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", track_settling=True
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    observations = await store.list_provisional_observations(**owner, limit=2)
+    checkpoint = await store.get_restatement_checkpoint(**owner)
+    clock[0] += timedelta(hours=1)
+    request = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        trigger="manual_replay",
+        observation=1,
+        now=clock[0],
+    )
+    reservation = await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(),
+            1,
+            ProvisionalPolicy(timedelta(days=3), timedelta(hours=6)),
+            first.reporting_revision_id,
+        )
+    )
+    assert "until_stabilized" not in reservation.to_wire()["policy"]
+    publisher = _stabilization_publisher(store)
+
+    async def contradict(predecessor: ReportingRevisionRecord) -> None:
+        assert predecessor == first
+        raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "publisher origin differs")
+
+    monkeypatch.setattr(
+        store if entry == "ledger" else publisher, "verify_snapshot_origin", contradict
+    )
+    fresh = _restart_producer(producer, publisher, clock)
+    with pytest.raises(LedgerConflictError, match="publisher origin differs"):
+        if entry == "ledger":
+            await producer._source.execute(request)
+            observation = ProvisionalObservation.from_manifest(
+                reservation, first.reporting_revision_id, clock[0], producer._source.manifest
+            )
+            await store.commit_provisional_observation(observation, None, ROWS)
+        elif entry == "manifest":
+            await producer._source.execute(request)
+            await fresh.commit_revision_from_manifest(
+                obligation,
+                producer._source.manifest,
+                rows=ROWS,
+                finality="snapshot",
+                acquisition=reservation,
+            )
+        else:
+            await fresh.acquire_obligation(
+                config, obligation, target_finality="snapshot", manual_replay=True, restate=True
+            )
+    assert await store.list_provisional_observations(**owner, limit=2) == observations
+    assert await store.get_restatement_checkpoint(**owner) == checkpoint
+    assert await store.get_provisional_acquisition(**owner, ordinal=1) == reservation
+    monkeypatch.undo()
+    await producer._source.execute(request)
+    manifest = producer._source.manifest
+    if entry == "ledger":
+        observation = ProvisionalObservation.from_manifest(
+            reservation, first.reporting_revision_id, clock[0], manifest
+        )
+        origin = first.source_publication_id
+        different_origin = origin[:-1] + ("0" if origin[-1] != "0" else "1")
+        with pytest.raises(LedgerConflictError, match="origin|publication"):
+            await store.commit_provisional_observation(
+                replace(observation, revision_publication_id=different_origin), None, ROWS
+            )
+        assert await store.get_restatement_checkpoint(**owner) == checkpoint
+    retried = await fresh.commit_revision_from_manifest(
+        obligation, manifest, rows=ROWS, finality="snapshot", acquisition=reservation
+    )
+    assert retried == first
+    latest = await store.get_provisional_observation(**owner)
+    assert latest.revision_publication_id == first.source_publication_id
+    if entry == "ledger":
+        with pytest.raises(LedgerConflictError, match="origin|publication"):
+            await store.commit_provisional_observation(
+                replace(latest, revision_publication_id=different_origin), None, ROWS
+            )
+
+
+async def test_reserved_snapshot_replay_checks_the_publishers_witness(store_factory: Any) -> None:
+    producer, store, config, obligation, _, _ = await _stabilized_harness(store_factory)
+    await producer.run_configuration(config)
+    first = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    publisher = _stabilization_publisher(store)
+
+    async def contradict(candidate: ReportingRevisionRecord) -> None:
+        assert candidate.reporting_revision_id == first.revision_id
+        raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "publisher origin differs")
+
+    publisher.verify_snapshot_origin = contradict
+    producer._store = publisher
+    with pytest.raises(LedgerConflictError, match="publisher origin differs"):
+        await producer.commit_revision_from_manifest(
+            obligation,
+            producer._source.manifest,
+            rows=ROWS,
+            finality="snapshot",
+            acquisition=first.acquisition,
+        )
 
 
 async def test_unchanged_scheduled_observation_respects_the_publishers_origin_witness(

@@ -1958,6 +1958,7 @@ class PgReportingLedgerStore:
                     "OBSERVATION_CONFLICT",
                     "observation replay differs: acquisition does not bind this obligation",
                 )
+            require_origin = acquisition.requires_snapshot_origin(obligation)
             existing = await (
                 await connection.execute(
                     "SELECT reporting_revision_id,payload FROM reporting_provisional_observations"
@@ -1987,6 +1988,9 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                if require_origin and retained_revision.finality == "snapshot":
+                    await self.verify_snapshot_origin(retained_revision)
+                    validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
                 if revision is None or (reuse_candidate and existing[0] == observation.revision_id):
@@ -2047,10 +2051,14 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
-                if acquisition.policy.until_stabilized:
+                if require_origin:
                     await self.verify_snapshot_origin(committed)
                 validate_retained_provisional_observation(
-                    committed, observation.bind_revision(committed), rows, require_readable=False
+                    committed,
+                    observation.bind_revision(committed, require_origin=require_origin),
+                    rows,
+                    require_readable=False,
+                    require_origin=require_origin,
                 )
                 if not committed.readable:
                     if revision is None:
@@ -2061,7 +2069,7 @@ class PgReportingLedgerStore:
                     observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
-            observation = observation.bind_revision(committed)
+            observation = observation.bind_revision(committed, require_origin=require_origin)
             await connection.execute(
                 "INSERT INTO reporting_provisional_observations"
                 " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
