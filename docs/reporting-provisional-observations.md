@@ -96,11 +96,14 @@ lookup returns no schedule.
 
 ## Persistence and compatibility
 
-`PgReportingLedgerStore.create_schema()` installs two additive private tables:
-`reporting_provisional_acquisitions` and `reporting_provisional_observations`.
-They retain immutable reservation and observation metadata. The existing
-restatement checkpoint remains the progress cursor. The in-memory store has the
-same atomic operations. Custom producer stores must implement
+`PgReportingLedgerStore.create_schema()` installs
+`reporting_provisional_acquisitions` and `reporting_provisional_observations`
+for immutable reservations and observations. The existing restatement checkpoint
+tracks progress. Its stabilization policy and next due time live in
+`adcp_reporting_stabilization_checkpoints`, keyed to the checkpoint's obligation,
+ordinal and timestamp. An older writer can advance the checkpoint without
+inheriting the previous policy or deadline. The in-memory store has the same
+atomic operations. Custom producer stores must implement
 `ProvisionalObservationStore` from `adcp.reporting.ledger.provisional` together
 with `RestatementCheckpointStore`.
 
