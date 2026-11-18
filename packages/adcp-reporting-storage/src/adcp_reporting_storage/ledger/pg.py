@@ -211,6 +211,11 @@ _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 _CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
 _RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
+_PROVISIONAL_HISTORY_TABLES = (
+    "reporting_provisional_acquisitions",
+    "reporting_provisional_observations",
+)
+_STABILIZATION_TABLE = "adcp_reporting_stabilization_checkpoints"
 _BIGINT_MAX = 2**63 - 1
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
@@ -800,26 +805,36 @@ class PgReportingLedgerStore:
 
         await validate_provisional_schema(connection)
 
-    async def _provisional_tables_installed(self, connection: Any) -> bool:
-        row = await (
+    @staticmethod
+    async def _provisional_tables(connection: Any) -> set[str]:
+        """Resolve the same tables as the ledger statements and reject split schemas."""
+        names = [
+            "reporting_restatement_checkpoints",
+            _STABILIZATION_TABLE,
+            *_PROVISIONAL_HISTORY_TABLES,
+        ]
+        rows = await (
             await connection.execute(
-                "SELECT to_regclass(quote_ident(current_schema())"
-                " || '.reporting_provisional_acquisitions') IS NOT NULL"
-                " OR to_regclass(quote_ident(current_schema())"
-                " || '.reporting_provisional_observations') IS NOT NULL"
+                "SELECT c.relname, c.relnamespace = ("
+                " SELECT ledger.relnamespace FROM pg_catalog.pg_class ledger"
+                " WHERE ledger.oid=pg_catalog.to_regclass('reporting_obligations'))"
+                " FROM unnest(%s::text[]) AS requested(name)"
+                " JOIN pg_catalog.pg_class c ON c.oid=pg_catalog.to_regclass(requested.name)",
+                (names,),
             )
-        ).fetchone()
-        return bool(row and row[0])
+        ).fetchall()
+        for name, in_ledger in rows:
+            if not in_ledger:
+                raise LedgerConflictError(
+                    "PROVISIONAL_SCHEMA_UNREADY",
+                    f"provisional_schema_unready:outside_ledger:{name}",
+                )
+        return {name for name, _ in rows}
 
-    async def _stabilization_checkpoint_join(self, connection: Any) -> str:
+    @staticmethod
+    def _stabilization_checkpoint_join(tables: set[str]) -> str:
         """Join private policy metadata when reading a checkpoint on either schema version."""
-        row = await (
-            await connection.execute(
-                "SELECT to_regclass(quote_ident(current_schema())"
-                " || '.adcp_reporting_stabilization_checkpoints') IS NOT NULL"
-            )
-        ).fetchone()
-        if row and row[0]:
+        if _STABILIZATION_TABLE in tables:
             return (
                 " LEFT JOIN adcp_reporting_stabilization_checkpoints s"
                 " ON s.reporting_obligation_id=c.reporting_obligation_id"
@@ -1534,7 +1549,8 @@ class PgReportingLedgerStore:
                     "this period is being retired; no revision may be added to it",
                 )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
-            if await self._provisional_tables_installed(connection):
+            tables = await self._provisional_tables(connection)
+            if not tables.isdisjoint(_PROVISIONAL_HISTORY_TABLES):
                 pending = await (
                     await connection.execute(
                         "SELECT 1 FROM reporting_provisional_acquisitions a"
@@ -1792,6 +1808,7 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str, ordinal: int
     ) -> ProvisionalAcquisition | None:
         async with self._connection() as connection:
+            await self._provisional_tables(connection)
             row = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_acquisitions"
@@ -1877,6 +1894,7 @@ class PgReportingLedgerStore:
 
     async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None:
         async with self._connection() as connection:
+            await self._provisional_tables(connection)
             witness = await (
                 await connection.execute(
                     "SELECT origin FROM (SELECT COALESCE("
@@ -1902,10 +1920,11 @@ class PgReportingLedgerStore:
     ) -> ProvisionalPolicy | None:
         async with self._connection() as connection:
             # configure() can precede schema creation on a brand-new installation.
-            if not await self._provisional_tables_installed(connection):
+            tables = await self._provisional_tables(connection)
+            if tables.isdisjoint(_PROVISIONAL_HISTORY_TABLES):
                 return None
             await self._require_provisional_schema(connection)
-            policy_join = await self._stabilization_checkpoint_join(connection)
+            policy_join = self._stabilization_checkpoint_join(tables)
             row = await (
                 await connection.execute(
                     "SELECT a.payload->'policy' FROM reporting_obligations o"  # noqa: S608  # nosec B608
@@ -2180,7 +2199,8 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str
     ) -> RestatementCheckpoint | None:
         async with self._connection() as connection:
-            policy_join = await self._stabilization_checkpoint_join(connection)
+            tables = await self._provisional_tables(connection)
+            policy_join = self._stabilization_checkpoint_join(tables)
             row = await (
                 await connection.execute(
                     "SELECT c.account_id, c.reporting_obligation_id, c.checked_at,"  # noqa: S608  # nosec B608
@@ -2207,6 +2227,7 @@ class PgReportingLedgerStore:
         self, checkpoint: RestatementCheckpoint
     ) -> RestatementCheckpoint:
         async with self._connection() as connection, connection.transaction():
+            await self._provisional_tables(connection)
             obligation = await (
                 await connection.execute(
                     "SELECT 1 FROM reporting_obligations"

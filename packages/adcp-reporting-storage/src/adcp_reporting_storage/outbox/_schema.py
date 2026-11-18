@@ -46,6 +46,7 @@ async def _catalog_objects(
     table_names: tuple[str, ...] | None = None,
     function_identity: tuple[str, str] | None = None,
     name_prefix: str = "reporting_",
+    ledger_schema: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Read fresh catalog state with the same fingerprints for either scope.
 
@@ -57,25 +58,32 @@ async def _catalog_objects(
     if name_prefix not in _CATALOG_PREFIXES:
         raise ValueError("unsupported catalog prefix")
 
-    def scoped(query: str) -> str:
-        return query.replace("'reporting_'", f"'{name_prefix}'")
+    # An adopter may put a separate application schema before its installed ledger.
+    # Catalog fingerprints normalize names against the same schema as the table lookup.
+    schema = (
+        "(SELECT n.nspname FROM pg_catalog.pg_namespace n"
+        " JOIN pg_catalog.pg_class ledger ON ledger.relnamespace=n.oid"
+        " WHERE ledger.oid=pg_catalog.to_regclass('reporting_obligations'))"
+        if ledger_schema
+        else "current_schema()"
+    )
+
+    async def execute(query: str, parameters: tuple[object, ...] | None = None) -> Any:
+        query = query.replace("{schema}", schema).replace("'reporting_'", f"'{name_prefix}'")
+        return await connection.execute(query, parameters)
 
     table_query = (
         "SELECT c.oid, c.relname, c.relkind, c.relpersistence FROM pg_class c"
-        " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()"
+        " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = {schema}"
         " AND c.relkind IN ('r','p') AND starts_with(c.relname, 'reporting_')"
-        " ORDER BY c.relname"
     )
+    if ledger_schema:
+        table_query += " AND pg_catalog.pg_table_is_visible(c.oid)"
     if table_names is not None:
-        table_query = (
-            "SELECT c.oid, c.relname, c.relkind, c.relpersistence FROM pg_class c"
-            " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()"
-            " AND c.relkind IN ('r','p') AND starts_with(c.relname, 'reporting_')"
-            " AND c.relname = ANY(%s::text[]) ORDER BY c.relname"
-        )
+        table_query += " AND c.relname = ANY(%s::text[])"
     tables = await (
-        await connection.execute(
-            scoped(table_query),
+        await execute(
+            table_query + " ORDER BY c.relname",
             (list(table_names),) if table_names is not None else None,
         )
     ).fetchall()
@@ -92,10 +100,10 @@ async def _catalog_objects(
     # DDL drift. Round trips no longer grow with the number of reporting tables.
     oids = list(names)
     columns = await (
-        await connection.execute(
+        await execute(
             "SELECT a.attrelid, a.attname, format_type(a.atttypid, a.atttypmod),"
             " a.attnotnull, co.collname, replace(pg_get_expr(d.adbin, d.adrelid),"
-            " quote_ident(current_schema()) || '.', ''),"
+            " quote_ident({schema}) || '.', ''),"
             " a.attidentity, a.attgenerated FROM pg_attribute a"
             " LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum"
             " LEFT JOIN pg_collation co ON co.oid = a.attcollation"
@@ -107,9 +115,9 @@ async def _catalog_objects(
     for oid, *row in columns:
         remember(f"column:{names[oid]}.{row[0]}", row[1:])
     constraints = await (
-        await connection.execute(
+        await execute(
             "SELECT conrelid, conname, contype, replace(pg_get_constraintdef(oid),"
-            " quote_ident(current_schema()) || '.', ''),"
+            " quote_ident({schema}) || '.', ''),"
             " convalidated, condeferrable, condeferred"
             " FROM pg_constraint WHERE conrelid = ANY(%s::oid[]) ORDER BY conrelid, conname",
             (oids,),
@@ -118,9 +126,9 @@ async def _catalog_objects(
     for oid, *row in constraints:
         remember(f"constraint:{names[oid]}.{row[0]}", row[1:], enabled=bool(row[3]))
     indexes = await (
-        await connection.execute(
+        await execute(
             "SELECT i.indrelid, c.relname, i.indisunique, i.indisvalid, i.indisready, i.indislive,"
-            " replace(pg_get_indexdef(i.indexrelid), quote_ident(current_schema()) || '.', '')"
+            " replace(pg_get_indexdef(i.indexrelid), quote_ident({schema}) || '.', '')"
             " FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid"
             " WHERE i.indrelid = ANY(%s::oid[]) ORDER BY i.indrelid, c.relname",
             (oids,),
@@ -129,9 +137,9 @@ async def _catalog_objects(
     for oid, *row in indexes:
         remember(f"index:{names[oid]}.{row[0]}", row[1:], enabled=all(row[2:5]))
     triggers = await (
-        await connection.execute(
+        await execute(
             "SELECT tgrelid, tgname, tgenabled, replace(pg_get_triggerdef(oid),"
-            " quote_ident(current_schema()) || '.', '') FROM pg_trigger"
+            " quote_ident({schema}) || '.', '') FROM pg_trigger"
             " WHERE tgrelid = ANY(%s::oid[]) AND NOT tgisinternal ORDER BY tgrelid, tgname",
             (oids,),
         )
@@ -143,7 +151,7 @@ async def _catalog_objects(
         " l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,"
         " pg_get_function_result(p.oid), p.proparallel, p.proleakproof FROM pg_proc p"
         " JOIN pg_namespace n ON n.oid = p.pronamespace JOIN pg_language l ON l.oid = p.prolang"
-        " WHERE n.nspname = current_schema() AND starts_with(p.proname, 'reporting_')"
+        " WHERE n.nspname = {schema} AND starts_with(p.proname, 'reporting_')"
         " ORDER BY p.proname, pg_get_function_identity_arguments(p.oid)"
     )
     if function_identity is not None:
@@ -152,13 +160,11 @@ async def _catalog_objects(
             " l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,"
             " pg_get_function_result(p.oid), p.proparallel, p.proleakproof FROM pg_proc p"
             " JOIN pg_namespace n ON n.oid = p.pronamespace JOIN pg_language l ON l.oid = p.prolang"
-            " WHERE n.nspname = current_schema() AND starts_with(p.proname, 'reporting_')"
+            " WHERE n.nspname = {schema} AND starts_with(p.proname, 'reporting_')"
             " AND p.proname=%s AND pg_get_function_identity_arguments(p.oid)=%s"
             " ORDER BY p.proname, pg_get_function_identity_arguments(p.oid)"
         )
-    functions = await (
-        await connection.execute(scoped(function_query), function_identity)
-    ).fetchall()
+    functions = await (await execute(function_query, function_identity)).fetchall()
     for row in functions:
         remember(f"function:{row[0]}({row[1]})", row[2:])
     return result
@@ -251,6 +257,7 @@ async def validate_provisional_schema(connection: Any) -> None:
                 "reporting_provisional_observations",
             ),
             function_identity=("reporting_provisional_immutable", ""),
+            ledger_schema=True,
         )
     except Exception:
         raise LedgerConflictError(

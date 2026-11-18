@@ -61,7 +61,7 @@ from adcp.reporting.source import (
     source_batch_object_set_sha256_v1,
 )
 from adcp.reporting.testing import DeterministicReportingClock
-from tests.conformance.reporting._generation_support import isolated_reporting_pool
+from tests.conformance.reporting._generation_support import isolated_reporting_pool, revision_for
 from tests.test_reporting_source_availability import (
     END,
     PROVIDER_ROW,
@@ -172,6 +172,103 @@ async def test_previous_checkpoint_schema_recovers_schedule_before_initialize() 
         assert policy is not None and policy.cadence == timedelta(hours=6)
         await store.create_schema()
         assert await store.get_stabilization_schedule(config.generation_key) == policy
+
+
+@pytest.fixture
+async def prefixed_reporting_ledger() -> AsyncIterator[tuple[Any, ...]]:
+    async with isolated_reporting_pool() as ledger, isolated_reporting_pool() as application:
+        from psycopg_pool import AsyncConnectionPool
+
+        producer, store, config, obligation, _, clock = await _stabilized_harness(
+            partial(PgReportingLedgerStore, pool=ledger)
+        )
+        async with application.connection() as app, ledger.connection() as db:
+            app_row = await (await app.execute("SELECT current_schema()")).fetchone()
+            ledger_row = await (await db.execute("SELECT current_schema()")).fetchone()
+            assert app_row is not None and ledger_row is not None
+        pool: AsyncConnectionPool = AsyncConnectionPool(
+            ledger.conninfo,
+            kwargs={"options": f"-csearch_path={app_row[0]},{ledger_row[0]}"},
+            min_size=1,
+            open=False,
+        )
+        async with pool:
+            yield PgReportingLedgerStore(pool=pool), store, producer, config, obligation, clock[0]
+
+
+async def test_prefixed_search_path_round_trips_checkpoint_policy_and_due_time(
+    prefixed_reporting_ledger: tuple[Any, ...],
+) -> None:
+    prefixed, installed, _, config, obligation, now = prefixed_reporting_ledger
+    policy = ProvisionalPolicy(timedelta(days=1), timedelta(hours=6), until_stabilized=True)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    checkpoint = RestatementCheckpoint(
+        **owner,
+        checked_at=now,
+        next_observation=1,
+        stabilization_policy=policy,
+        next_stabilization_due_at=now + policy.cadence,
+    )
+    assert await prefixed.record_restatement_checkpoint(checkpoint) == checkpoint
+    assert await installed.get_restatement_checkpoint(**owner) == checkpoint
+    assert await prefixed.get_restatement_checkpoint(**owner) == checkpoint
+
+
+async def test_prefixed_search_path_refuses_checkpoint_metadata_outside_the_ledger(
+    prefixed_reporting_ledger: tuple[Any, ...],
+) -> None:
+    from psycopg import sql
+
+    prefixed, installed, _, config, obligation, now = prefixed_reporting_ledger
+    async with prefixed._connection() as connection:
+        (application,) = await (await connection.execute("SELECT current_schema()")).fetchone()
+        await connection.execute(
+            sql.SQL("ALTER TABLE adcp_reporting_stabilization_checkpoints SET SCHEMA {}").format(
+                sql.Identifier(application)
+            )
+        )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    checkpoint = RestatementCheckpoint(
+        **owner,
+        checked_at=now,
+        next_observation=1,
+        next_stabilization_due_at=now + timedelta(hours=6),
+    )
+    with pytest.raises(LedgerConflictError) as conflict:
+        await prefixed.record_restatement_checkpoint(checkpoint)
+    assert conflict.value.code == "PROVISIONAL_SCHEMA_UNREADY"
+    assert await installed.get_restatement_checkpoint(**owner) is None
+
+
+@pytest.mark.parametrize("operation", ["recover_schedule", "commit_revision"])
+async def test_prefixed_search_path_respects_a_reserved_acquisition(
+    prefixed_reporting_ledger: tuple[Any, ...],
+    operation: str,
+) -> None:
+    prefixed, installed, producer, config, obligation, now = prefixed_reporting_ledger
+    policy = ProvisionalPolicy(timedelta(days=1), timedelta(hours=6), until_stabilized=True)
+    request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=now)
+    await installed.reserve_provisional_acquisition(
+        ProvisionalAcquisition(request.model_dump_json(), 0, policy)
+    )
+    if operation == "recover_schedule":
+        assert await prefixed.get_stabilization_schedule(config.generation_key) == policy
+    else:
+        revision, rows = revision_for(obligation)
+        with pytest.raises(LedgerConflictError) as conflict:
+            await prefixed.commit_revision(revision, rows)
+        assert conflict.value.code == "OBSERVATION_CONFLICT"
+        assert (
+            await installed.list_revisions(
+                account_id=config.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            == ()
+        )
 
 
 @pytest.mark.parametrize("later_clock", [False, True])
