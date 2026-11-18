@@ -402,7 +402,7 @@ class ProvisionalObservationStore(ProvisionalObservationPublicationStore, Protoc
         A scheduled snapshot filter applies before the limit.
         ``limit`` must be a positive integer.
         """
-        pass
+        ...
 
 
 @runtime_checkable

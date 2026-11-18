@@ -1626,7 +1626,8 @@ class ReportingProducer:
             )
         verified: list[tuple[ProvisionalObservation, str, bytes]] = []
         previous: ProvisionalObservation | None = None
-        revision = None
+        retained: tuple[ReportingRevisionRecord, bytes] | None = None
+        manifest: SourceBatchManifestV1 | None = None
         rows: list[dict[str, Any]] = []
         for observation in history:
             acquisition = observation.acquisition
@@ -1645,7 +1646,7 @@ class ReportingProducer:
                     "HISTORY_UNAVAILABLE", "stabilization history acquisition differs"
                 )
             previous = observation
-            if revision is None or revision.reporting_revision_id != observation.revision_id:
+            if retained is None or retained[0].reporting_revision_id != observation.revision_id:
                 revision = await self._store.get_revision(
                     account_id=obligation.account_id, reporting_revision_id=observation.revision_id
                 )
@@ -1660,7 +1661,8 @@ class ReportingProducer:
                         "HISTORY_UNAVAILABLE", "stabilization history requires a readable snapshot"
                     )
                 rows = await self._retained_snapshot_rows(revision)
-                row_binding = hashlib.sha256(rfc8785.dumps(rows)).digest()
+                retained = revision, hashlib.sha256(rfc8785.dumps(rows)).digest()
+            revision, row_binding = retained
             try:
                 manifest = SourceBatchManifestV1.model_validate_json(observation.manifest_json)
                 self._validate_source_manifest(
@@ -1711,7 +1713,7 @@ class ReportingProducer:
                 ) from error
             verified.append((observation, manifest.content_fingerprint, row_binding))
         proof = prove_stabilized_finality(obligation, policy, verified)
-        if proof is None:
+        if proof is None or manifest is None:
             return None
         return _StabilizedPublication(proof, manifest, rows)
 

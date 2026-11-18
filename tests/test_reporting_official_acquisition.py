@@ -29,6 +29,8 @@ from adcp.reporting.inline_source import (
     InlineReportingSource,
     InMemorySealStore,
     InMemoryStagingStore,
+    ReportingSealStore,
+    ReportingStagingStore,
 )
 from adcp.reporting.inline_storage import InlineStorageError
 from adcp.reporting.ledger import (
@@ -399,6 +401,8 @@ async def test_first_core_snapshot_recovers_a_committed_inline_seal(
     else:
         staging = InMemoryStagingStore()
         seals = InMemorySealStore()
+    assert isinstance(staging, ReportingStagingStore)
+    assert isinstance(seals, ReportingSealStore)
     fetched = []
 
     def fetch(request: Any) -> InlineFetchResult:
