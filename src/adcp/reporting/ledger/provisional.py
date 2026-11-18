@@ -341,7 +341,8 @@ class ProvisionalObservation:
 class SnapshotOriginStore(Protocol):
     """Check a revision against the first retained witness of its full publication ID."""
 
-    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None: ...
+    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None:
+        pass
 
 
 @runtime_checkable
@@ -350,7 +351,8 @@ class StabilizationScheduleStore(Protocol):
 
     async def get_stabilization_schedule(
         self, generation: ReportingConfigurationGenerationKey
-    ) -> ProvisionalPolicy | None: ...
+    ) -> ProvisionalPolicy | None:
+        pass
 
 
 @runtime_checkable
@@ -402,7 +404,7 @@ class ProvisionalObservationStore(ProvisionalObservationPublicationStore, Protoc
         A scheduled snapshot filter applies before the limit.
         ``limit`` must be a positive integer.
         """
-        ...
+        pass
 
 
 @runtime_checkable

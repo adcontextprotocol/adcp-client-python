@@ -312,5 +312,4 @@ def reporting_finality_policy_from_storage(value: Mapping[str, Any]) -> Reportin
             **extra,
         } if not extra:
             return ReportingStabilizedPolicy(policy_id, minimum_age, unchanged_for)
-        case _:
-            raise ValueError("invalid reporting finality policy storage payload")
+    raise ValueError("invalid reporting finality policy storage payload")
