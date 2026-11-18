@@ -195,7 +195,9 @@ class PendingProvisionalAcquisitionStore(Protocol):
 
 
 @runtime_checkable
-class ProvisionalObservationStore(Protocol):
+class ProvisionalObservationPublicationStore(Protocol):
+    """Reserve, read the latest, and commit scheduled snapshot observations."""
+
     async def reserve_provisional_acquisition(
         self, acquisition: ProvisionalAcquisition
     ) -> ProvisionalAcquisition:
@@ -212,4 +214,17 @@ class ProvisionalObservationStore(Protocol):
         revision: ReportingRevisionRecord | None,
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
+        pass
+
+
+@runtime_checkable
+class ProvisionalObservationStore(ProvisionalObservationPublicationStore, Protocol):
+    async def list_provisional_observations(
+        self, *, account_id: str, reporting_obligation_id: str, limit: int
+    ) -> tuple[ProvisionalObservation, ...]:
+        """Return up to ``limit`` latest observations in ascending ordinal order.
+
+        The read is scoped to the requested account and reporting obligation.
+        ``limit`` must be a positive integer.
+        """
         pass

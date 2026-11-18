@@ -41,6 +41,7 @@ from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from itertools import islice
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 from uuid import uuid4
 
@@ -839,7 +840,9 @@ class InMemoryReportingLedgerStore:
         self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
         self._retry_schedules: dict[str, RetryScheduleEntry] = {}
         self._provisional_acquisitions: dict[tuple[str, str, int], ProvisionalAcquisition] = {}
-        self._provisional_observations: dict[tuple[str, str, int], ProvisionalObservation] = {}
+        self._provisional_observations: dict[tuple[str, str], dict[int, ProvisionalObservation]] = (
+            {}
+        )
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}
@@ -1320,12 +1323,19 @@ class InMemoryReportingLedgerStore:
     async def get_provisional_observation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ProvisionalObservation | None:
-        observations = [
-            value
-            for (account, obligation, _), value in self._provisional_observations.items()
-            if account == account_id and obligation == reporting_obligation_id
-        ]
-        return max(observations, key=lambda item: item.acquisition.ordinal, default=None)
+        history = await self.list_provisional_observations(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id, limit=1
+        )
+        return history[0] if history else None
+
+    async def list_provisional_observations(
+        self, *, account_id: str, reporting_obligation_id: str, limit: int
+    ) -> tuple[ProvisionalObservation, ...]:
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("observation history limit must be a positive integer")
+        observations = self._provisional_observations.get((account_id, reporting_obligation_id), {})
+        newest_first = list(islice(reversed(observations.values()), min(limit, len(observations))))
+        return tuple(reversed(newest_first))
 
     async def commit_provisional_observation(
         self,
@@ -1334,7 +1344,8 @@ class InMemoryReportingLedgerStore:
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
-        key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+        owner = (acquisition.account_id, acquisition.obligation_id)
+        key = (*owner, acquisition.ordinal)
         reuse_candidate = provisional_observation_reuse_candidate(
             acquisition, observation, revision
         )
@@ -1345,7 +1356,7 @@ class InMemoryReportingLedgerStore:
         ):
             raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
         async with self._mutation():
-            existing = self._provisional_observations.get(key)
+            existing = self._provisional_observations.get(owner, {}).get(acquisition.ordinal)
             obligation = self._obligations.get(acquisition.obligation_id)
             if obligation is None or not acquisition.binds(obligation):
                 raise LedgerConflictError(
@@ -1432,7 +1443,8 @@ class InMemoryReportingLedgerStore:
                     observation.provisional_until,
                 )
             )
-            self._provisional_observations[key] = observation
+            # The checkpoint enforces ascending ordinals for distinct observations.
+            self._provisional_observations.setdefault(owner, {})[acquisition.ordinal] = observation
             return committed
 
     async def get_restatement_checkpoint(

@@ -191,7 +191,7 @@ class ReportingProductionOffering:
             raise failure("UNSUPPORTED_VERIFICATION")
         if isinstance(policy, ReportingStabilizedPolicy):
             try:
-                self.producer._observation_store()
+                self.producer._observation_history_store()
             except LedgerConflictError:
                 raise failure("UNSUPPORTED_VERIFICATION") from None
         if snapshot is None or snapshot.offering_id == proof_source.offering_id:

@@ -56,6 +56,7 @@ from adcp.reporting.currency import (
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+from adcp.reporting.ledger.finality import ReportingStabilizedPolicy
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -68,6 +69,7 @@ from adcp.reporting.ledger.provisional import (
     PendingProvisionalAcquisitionStore,
     ProvisionalAcquisition,
     ProvisionalObservation,
+    ProvisionalObservationPublicationStore,
     ProvisionalObservationStore,
     ProvisionalPolicy,
 )
@@ -1179,6 +1181,12 @@ class ReportingProducer:
         satisfied = current is not None and current.readable
         if satisfied and not restate:
             return None
+        if (
+            finality == "official"
+            and obligation.definition is not None
+            and isinstance(obligation.definition.finality_policy, ReportingStabilizedPolicy)
+        ):
+            self._observation_history_store()
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
@@ -1625,7 +1633,7 @@ class ReportingProducer:
             )
         return self._store
 
-    def _observation_store(self) -> ProvisionalObservationStore:
+    def _observation_store(self) -> ProvisionalObservationPublicationStore:
         explicit = all(
             inspect.getattr_static(self._store, name, None) is not None
             for name in (
@@ -1634,13 +1642,24 @@ class ReportingProducer:
                 "commit_provisional_observation",
             )
         )
-        if not explicit or not isinstance(self._store, ProvisionalObservationStore):
+        if not explicit or not isinstance(self._store, ProvisionalObservationPublicationStore):
             raise LedgerConflictError(
                 "PROVISIONAL_OBSERVATIONS_NOT_SUPPORTED",
                 "scheduled provisional reads require explicitly implemented atomic "
                 "observation methods, including any decorating publisher's preparation",
             )
         return self._store
+
+    def _observation_history_store(self) -> ProvisionalObservationStore:
+        store = self._observation_store()
+        if inspect.getattr_static(
+            store, "list_provisional_observations", None
+        ) is None or not isinstance(store, ProvisionalObservationStore):
+            raise LedgerConflictError(
+                "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED",
+                "stabilized finality requires explicitly implemented bounded observation history",
+            )
+        return store
 
     async def _pending_acquisition(
         self, obligation: ReportingObligationRecord, *, ordinal: int

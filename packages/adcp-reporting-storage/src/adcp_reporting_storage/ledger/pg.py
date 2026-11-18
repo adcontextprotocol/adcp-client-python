@@ -206,6 +206,7 @@ _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 _CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
 _RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
+_BIGINT_MAX = 2**63 - 1
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -1792,17 +1793,27 @@ class PgReportingLedgerStore:
     async def get_provisional_observation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ProvisionalObservation | None:
+        history = await self.list_provisional_observations(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id, limit=1
+        )
+        return history[0] if history else None
+
+    async def list_provisional_observations(
+        self, *, account_id: str, reporting_obligation_id: str, limit: int
+    ) -> tuple[ProvisionalObservation, ...]:
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("observation history limit must be a positive integer")
         async with self._connection() as connection:
             await self._require_provisional_schema(connection)
-            row = await (
+            rows = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_observations"
                     " WHERE account_id=%s AND reporting_obligation_id=%s"
-                    " ORDER BY ordinal DESC LIMIT 1",
-                    (account_id, reporting_obligation_id),
+                    " ORDER BY ordinal DESC LIMIT %s",
+                    (account_id, reporting_obligation_id, min(limit, _BIGINT_MAX)),
                 )
-            ).fetchone()
-        return ProvisionalObservation.from_wire(row[0]) if row else None
+            ).fetchall()
+        return tuple(ProvisionalObservation.from_wire(row[0]) for row in reversed(rows))
 
     async def commit_provisional_observation(
         self,

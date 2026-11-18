@@ -198,7 +198,7 @@ async def _publication_effect_counts(store):
     return (
         len(store._revisions),
         sum(len(rows) for rows in store._rows.values()),
-        len(store._provisional_observations),
+        sum(len(history) for history in store._provisional_observations.values()),
         len(store._restatement_checkpoints),
         len(store._changes),
         len(store._notification_state.events),
@@ -221,6 +221,122 @@ async def test_adapter_without_window_rereads_with_sdk_default(make_harness):
     assert refreshed.revisions_committed == []
     assert len(await _revisions(store)) == 1
     assert all(item.finality == "snapshot" for item in await _revisions(store))
+
+
+async def test_observation_history_is_bounded_ordered_and_account_scoped(make_harness) -> None:
+    producer, store, _, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    for _ in range(2):
+        clock[0] += timedelta(hours=1)
+        await producer.run_worker()
+    obligation = await _only_obligation(store)
+
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id, limit=2
+    )
+
+    assert tuple(item.acquisition.ordinal for item in history) == (1, 2)
+    assert all(item.acquisition.account_id == ACCOUNT for item in history)
+    assert all(
+        item.acquisition.obligation_id == obligation.reporting_obligation_id for item in history
+    )
+    assert await latest(store) == history[-1]
+    full_history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id, limit=2**64
+    )
+    assert tuple(item.acquisition.ordinal for item in full_history) == (0, 1, 2)
+    assert (
+        await store.list_provisional_observations(
+            account_id="another-account",
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            limit=2,
+        )
+        == ()
+    )
+    assert (
+        await store.list_provisional_observations(
+            account_id=ACCOUNT, reporting_obligation_id="another-obligation", limit=2
+        )
+        == ()
+    )
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 1.5])
+async def test_observation_history_requires_a_positive_integer_limit(make_harness, limit) -> None:
+    _, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
+
+    with pytest.raises(ValueError):
+        await store.list_provisional_observations(
+            account_id=ACCOUNT, reporting_obligation_id="unknown", limit=limit
+        )
+
+
+@pytest.mark.parametrize("make_harness", ["memory"], indirect=True)
+async def test_observation_history_looks_up_only_the_requested_owner(
+    make_harness, monkeypatch
+) -> None:
+    producer, store, _, _ = await make_harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    first = await latest(store)
+
+    class KeyLookupOnly(dict):
+        def __iter__(self):
+            raise AssertionError("observation lookup iterated over the owner map")
+
+        items = values = keys = __iter__
+
+    monkeypatch.setattr(
+        store, "_provisional_observations", KeyLookupOnly(store._provisional_observations)
+    )
+
+    assert await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    ) == (first,)
+    assert await latest(store) == first
+
+
+async def test_observation_history_rolls_back_appended_observation(
+    make_harness, monkeypatch
+) -> None:
+    producer, store, _, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    first = await latest(store)
+    clock[0] += timedelta(hours=1)
+
+    class AbortTransactionError(Exception):
+        pass
+
+    commit = store.commit_provisional_observation
+
+    async def abort_after_commit(observation, revision, rows) -> None:
+        async with store.transaction():
+            await commit(observation, revision, rows)
+            history = await store.list_provisional_observations(
+                account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+            )
+            assert tuple(item.acquisition.ordinal for item in history) == (0, 1)
+            raise AbortTransactionError
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "commit_provisional_observation", abort_after_commit)
+        with pytest.raises(AbortTransactionError):
+            await producer.run_worker()
+
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    )
+    assert history == (first,)
+    assert await latest(store) == first
+
+    await producer.run_worker()
+    history = await store.list_provisional_observations(
+        account_id=ACCOUNT, reporting_obligation_id=first.acquisition.obligation_id, limit=2
+    )
+    assert tuple(item.acquisition.ordinal for item in history) == (0, 1)
 
 
 async def test_unchanged_scheduled_read_keeps_snapshot_and_advances_observation(make_harness):

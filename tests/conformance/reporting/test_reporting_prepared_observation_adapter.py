@@ -6,10 +6,33 @@ from datetime import timedelta
 
 import pytest
 
-from adcp.reporting.ledger import LedgerConflictError
+from adcp.reporting.ledger import LedgerConflictError, ReportingStabilizedPolicy
 
 from ._reliable_support import ScriptedSource, complete_fetch, configuration, reliable_factory
 from .test_reporting_evidence_currency_integration import frozen_slice
+
+
+async def test_stabilized_acquisition_requires_publisher_to_expose_history() -> None:
+    async with reliable_factory("memory") as h:
+        config = configuration("eur", finality="official")
+        assert config.definition is not None
+        config = replace(
+            config,
+            definition=replace(
+                config.definition,
+                finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"),
+            ),
+        )
+        await h.store.put_configuration(config)
+        script = ScriptedSource(eur=[])
+        producer = h.producer(h.source(script.async_fetch))
+        (obligation,) = await producer.close_elapsed_periods(config)
+
+        with pytest.raises(LedgerConflictError) as error:
+            await producer.acquire_obligation(config, obligation)
+
+        assert error.value.code == "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED"
+        assert script.requests == []
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])

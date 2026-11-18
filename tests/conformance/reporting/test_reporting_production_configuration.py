@@ -5,6 +5,7 @@ import json
 import sqlite3
 from dataclasses import replace
 from datetime import timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -36,23 +37,24 @@ STABILIZED = ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
 
 
 @pytest.mark.parametrize(
-    ("policy", "source_class", "finalities", "close", "official_route", "accepted"),
+    ("policy", "source_class", "finalities", "close", "official_route", "history", "accepted"),
     [
-        (SOURCE_FINAL, "official", ["official"], False, True, True),
-        (CUTOFF, "snapshot", ["official"], False, False, True),
-        (CUTOFF, "snapshot", ["snapshot", "official"], False, False, True),
-        (STABILIZED, "snapshot", ["official"], False, False, True),
-        (None, "official", ["official"], False, True, False),
-        (SOURCE_FINAL, "snapshot", ["official"], False, False, False),
-        (CUTOFF, "official", ["official"], False, True, False),
-        (None, "snapshot", ["snapshot"], True, True, False),
-        (SOURCE_FINAL, "snapshot", ["snapshot"], True, False, False),
-        (SOURCE_FINAL, "snapshot", ["snapshot"], True, True, True),
-        (CUTOFF, "snapshot", ["snapshot"], True, False, True),
+        (SOURCE_FINAL, "official", ["official"], False, True, True, True),
+        (CUTOFF, "snapshot", ["official"], False, False, True, True),
+        (CUTOFF, "snapshot", ["snapshot", "official"], False, False, True, True),
+        (STABILIZED, "snapshot", ["official"], False, False, True, True),
+        (STABILIZED, "snapshot", ["official"], False, False, False, False),
+        (None, "official", ["official"], False, True, True, False),
+        (SOURCE_FINAL, "snapshot", ["official"], False, False, True, False),
+        (CUTOFF, "official", ["official"], False, True, True, False),
+        (None, "snapshot", ["snapshot"], True, True, True, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, False, True, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, True, True, True),
+        (CUTOFF, "snapshot", ["snapshot"], True, False, True, True),
     ],
 )
 async def test_production_offering_validates_selected_finality_policy(
-    policy, source_class, finalities, close, official_route, accepted, tmp_path
+    policy, source_class, finalities, close, official_route, history, accepted, tmp_path
 ):
     async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
         installed = h.production.offerings[0]
@@ -66,9 +68,17 @@ async def test_production_offering_validates_selected_finality_policy(
             official_id = source.source_id
         config = replace(h.item.config, definition=definition, required_finality=finalities[-1])
         source.bind_generation(config)
+        store = h.store
+        if not history:
+            store = SimpleNamespace(
+                reserve_provisional_acquisition=h.store.reserve_provisional_acquisition,
+                get_provisional_observation=h.store.get_provisional_observation,
+                commit_provisional_observation=h.store.commit_provisional_observation,
+            )
         producer = ReportingProducer(
             source=source,
-            store=h.store,
+            store=store,
+            retry_store=h.store,
             object_reader=source.reader,
             offerings=ProducerOfferings(
                 official_offering_id=official_id if official_route else None,
