@@ -160,6 +160,7 @@ def _finality_service(
     results: tuple[InlineFetchResult, ...] = (),
     clock: DeterministicReportingClock | None = None,
     source_format: str | None = None,
+    cadence: str | None = None,
     products: tuple[str, ...] = (),
     adapter_type: type[ScriptedReportingAdapter] = ScriptedReportingAdapter,
 ) -> ReliableReportingService:
@@ -179,6 +180,8 @@ def _finality_service(
         offering["windowing"]["minimum_window"] = "PT1H"
     if close:
         raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    if cadence is not None:
+        raw["offerings"][0].update(restatement_window="P1D", restatement_cadence=cadence)
     raw["offerings"] = [
         offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
     ]
@@ -399,6 +402,84 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
     service = _finality_service(config, snapshot=True, official=False, store=SnapshotStore())
     with pytest.raises(ReliableReportingConfigurationError, match="observation"):
         await service.configure(config)
+
+
+async def test_stabilized_admission_requires_publication_lock_before_persisting() -> None:
+    class UnlockedHistory(InMemoryReportingLedgerStore):
+        source_publication = None
+
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
+        ),
+    )
+    store = UnlockedHistory()
+    service = _finality_service(config, snapshot=True, official=False, store=store)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="publication"):
+        await service.configure(config)
+    assert not await store.list_all_configurations()
+
+
+async def test_initialize_recovers_frozen_stabilization_cadence_and_healthy_binding() -> None:
+    clock = DeterministicReportingClock(NOW + timedelta(days=1))
+    store = InMemoryReportingLedgerStore(clock=clock)
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "P30D")
+        ),
+    )
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        cadence="PT6H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await original.configure(config)
+    turn = await original.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    healthy = replace(
+        config,
+        delivery_config_id="healthy",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("short", "PT0S", "PT6H")
+        ),
+    )
+    await store.put_configuration(healthy)
+    recovered = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        cadence="PT1H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await recovered.initialize()
+    assert set(recovered._bindings) == {config.generation_key, healthy.generation_key}
+    assert not recovered.initialization_errors
+    restarted = recovered._bindings[config.generation_key].producer
+    (obligation_id,) = turn.configurations[config.generation_key].obligations_committed
+    owner = dict(account_id=config.account_id, reporting_obligation_id=obligation_id)
+    first = await store.get_provisional_observation(**owner)
+    assert first is not None
+    clock.advance(timedelta(hours=1))
+    await restarted.run_configuration(config)
+    assert await store.get_provisional_observation(**owner) == first
+    clock.advance(timedelta(hours=5))
+    await restarted.run_configuration(config)
+    second = await store.get_provisional_observation(**owner)
+    assert second is not None and second.checked_at == clock()
+    assert second.acquisition.policy.cadence == timedelta(hours=6)
 
 
 async def test_stabilized_configuration_rejects_excessive_history_before_admission() -> None:

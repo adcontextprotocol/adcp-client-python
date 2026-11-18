@@ -136,7 +136,11 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalPolicy,
+)
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
@@ -1812,6 +1816,36 @@ class PgReportingLedgerStore:
         )
         return history[0] if history else None
 
+    async def get_stabilization_schedule(
+        self, generation: ReportingConfigurationGenerationKey
+    ) -> ProvisionalPolicy | None:
+        async with self._connection() as connection:
+            await self._require_provisional_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT h.payload #> '{acquisition,policy}' FROM reporting_obligations o"
+                    " JOIN reporting_provisional_observations h"
+                    " USING(account_id, reporting_obligation_id)"
+                    " WHERE o.account_id=%s AND o.consumer_id=%s AND o.delivery_config_id=%s"
+                    " AND o.delivery_config_version=%s"
+                    " AND h.payload #>> '{acquisition,request,trigger}' = 'scheduled_poll'"
+                    " AND h.payload #>> '{acquisition,request,publication_class}'"
+                    " = 'PROVISIONAL_SNAPSHOT'"
+                    " AND h.payload #>> '{acquisition,output_finality}' IS NULL"
+                    " AND (o.required_finality='official'"
+                    " OR h.payload #>> '{acquisition,policy,until_stabilized}' = 'true'"
+                    " OR h.payload #>> '{acquisition,policy,official_close_lag_us}' IS NOT NULL)"
+                    " ORDER BY o.period_start, h.ordinal DESC LIMIT 1",
+                    (
+                        generation.account_id,
+                        generation.consumer_id,
+                        generation.delivery_config_id,
+                        generation.delivery_config_version,
+                    ),
+                )
+            ).fetchone()
+        return ProvisionalPolicy.from_wire(row[0]) if row is not None else None
+
     async def list_provisional_observations(
         self,
         *,
@@ -1959,7 +1993,7 @@ class PgReportingLedgerStore:
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
                 validate_retained_provisional_observation(
-                    committed, observation, rows, require_readable=False
+                    committed, observation.bind_revision(committed), rows, require_readable=False
                 )
                 if not committed.readable:
                     if revision is None:

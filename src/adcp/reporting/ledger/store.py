@@ -76,7 +76,11 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalPolicy,
+)
 
 if TYPE_CHECKING:
     from adcp.reporting.inline_source import ReportingSealStore
@@ -749,10 +753,6 @@ def validate_snapshot_observation_binding(
     if (
         revision.reporting_revision_id != observation.revision_id
         or source_id is None
-        or (
-            observation.revision_publication_id is not None
-            and source_id != observation.revision_publication_id
-        )
         or revision.reporting_revision_id != f"rpr_{source_id[4:44]}"
         or observation_source != expected_publication
         or (
@@ -768,6 +768,13 @@ def validate_snapshot_observation_binding(
     ):
         raise LedgerConflictError(
             "REVISION_IMMUTABLE", "retained snapshot source publication differs"
+        )
+    if (
+        observation_source != source_id or observation.revision_publication_id is not None
+    ) and observation.revision_publication_id != source_id:
+        raise LedgerConflictError(
+            "STABILIZATION_ORIGIN_UNAVAILABLE",
+            "stabilization history lacks the exact source publication of its referenced snapshot",
         )
 
 
@@ -1414,6 +1421,23 @@ class InMemoryReportingLedgerStore:
         )
         return history[0] if history else None
 
+    async def get_stabilization_schedule(
+        self, generation: ReportingConfigurationGenerationKey
+    ) -> ProvisionalPolicy | None:
+        for obligation in self._obligations.values():
+            if obligation.generation_key != generation:
+                continue
+            owner = (obligation.account_id, obligation.reporting_obligation_id)
+            for observation in reversed(self._provisional_observations.get(owner, {}).values()):
+                policy = observation.acquisition.policy
+                if observation.is_scheduled_snapshot and (
+                    obligation.required_finality == "official"
+                    or policy.until_stabilized
+                    or policy.official_close_lag is not None
+                ):
+                    return policy
+        return None
+
     async def list_provisional_observations(
         self,
         *,
@@ -1523,7 +1547,7 @@ class InMemoryReportingLedgerStore:
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
                 validate_retained_provisional_observation(
-                    committed, observation, rows, require_readable=False
+                    committed, observation.bind_revision(committed), rows, require_readable=False
                 )
                 if not committed.readable:
                     if revision is None:

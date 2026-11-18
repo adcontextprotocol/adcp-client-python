@@ -61,6 +61,236 @@ from tests.test_reporting_source_availability import (
 ROWS = [{"campaign_id": "campaign-redacted-1", "impressions": 10}]
 
 
+async def test_standalone_stabilization_requires_account_lock_before_obligations() -> None:
+    class UnlockedHistory(InMemoryReportingLedgerStore):
+        source_publication = None
+
+    store = UnlockedHistory()
+    with pytest.raises(LedgerConflictError, match="publication"):
+        await _stabilized_harness(lambda **kwargs: store)
+    assert not store._obligations
+
+
+async def test_standalone_stabilization_rejects_an_unbound_snapshot_source() -> None:
+    producer, _, config, _, _, _ = await _stabilized_harness(InMemoryReportingLedgerStore)
+    store = InMemoryReportingLedgerStore()
+    await store.put_configuration(config)
+    producer._store = store
+    producer._offerings = replace(producer._offerings, snapshot_offering_id=None)
+    with pytest.raises(LedgerConflictError, match="snapshot"):
+        await producer.close_elapsed_periods(config)
+    assert not store._obligations
+
+
+async def test_native_recovery_reads_the_schedule_for_the_generation(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, _, _, _ = await _stabilized_harness(store_factory)
+    await producer.run_configuration(config)
+
+    async def forbid_full_ledger(**kwargs: Any) -> Any:
+        pytest.fail("recovery should look up the generation's scheduled observation")
+
+    monkeypatch.setattr(store, "read_page", forbid_full_ledger)
+    frozen = await producer._recover_stabilization_schedule(config, store)
+    assert frozen and frozen.cadence == timedelta(hours=6)
+    other = replace(config, delivery_config_version=2)
+    assert await producer._recover_stabilization_schedule(other, store) is None
+
+
+@pytest.mark.parametrize("tracked", [False, True])
+async def test_manual_change_between_equal_scheduled_reads_preserves_stabilization(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, tracked: bool
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    clock[0] = END + timedelta(hours=8)
+    prior = await store.get_provisional_observation(**owner)
+    if tracked:
+        request = producer._build_slice(
+            config,
+            obligation,
+            SNAPSHOT_OFFERING_ID,
+            finality="snapshot",
+            now=clock[0],
+            observation=2,
+            trigger="manual_replay",
+        )
+        await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(), 2, prior.acquisition.policy, prior.revision_id
+            )
+        )
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "tests.test_reporting_source_availability.PROVIDER_ROW",
+            PROVIDER_ROW.replace("10", "11"),
+        )
+        manual = await producer.acquire_obligation(
+            config, obligation, restate=True, target_finality="snapshot", manual_replay=True
+        )
+    assert manual is not None and manual.reporting_revision_id != prior.revision_id
+    clock[0] = END + timedelta(hours=13)
+    await producer.run_configuration(config)
+    revisions = await store.list_revisions(**owner)
+    assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
+    assert len(calls) == 4
+
+
+@pytest.mark.parametrize("origin", [None, "different"])
+async def test_unbound_reused_stabilization_history_recovers_after_fresh_evidence(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, origin: str | None
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13, 19, 25):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    read = store.list_provisional_observations
+
+    async def base_history(**kwargs: Any) -> Any:
+        return tuple(
+            replace(o, revision_publication_id=origin) if 0 < o.acquisition.ordinal <= 4 else o
+            for o in await read(**kwargs)
+        )
+
+    monkeypatch.setattr(store, "list_provisional_observations", base_history)
+    with pytest.raises(LedgerConflictError, match="exact source publication"):
+        await producer.acquire_obligation(config, obligation)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+    for hour in (31, 37, 43):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(config, obligation)
+        official = [r for r in await store.list_revisions(**owner) if r.finality == "official"]
+        assert [r.finalized_at for r in official] == ([clock[0]] if hour == 43 else [])
+
+
+async def test_stabilized_close_keeps_frozen_route_when_offering_drops_close_lag(
+    store_factory: Any,
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        store_factory,
+        capabilities=_capabilities(
+            restatement_window="P3D", restatement_cadence="PT6H", official_close_lag="P4D"
+        ),
+        finality_policy=ReportingStabilizedPolicy("stable-12h", "PT0S", "PT12H"),
+    )
+    clock[0] = END + timedelta(hours=1)
+    await producer.run_configuration(config)
+    producer._source.capabilities = _capabilities(
+        restatement_window="PT6H", restatement_cadence="PT6H", official_close_lag=None
+    )
+    for hour in (7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    revisions = await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
+
+
+async def test_stabilized_retires_base_shaped_derived_official_reservation(
+    store_factory: Any,
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    request = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, finality="official", now=clock[0]
+    )
+    reservation = ProvisionalAcquisition(
+        request.model_dump_json(),
+        0,
+        ProvisionalPolicy(timedelta(hours=6), timedelta(hours=6), timedelta(hours=6)),
+        output_finality="official",
+    )
+    await store.reserve_provisional_acquisition(reservation)
+    assert "until_stabilized" not in reservation.to_wire()["policy"]
+    fresh = ReportingProducer(
+        source=producer._source,
+        store=store,
+        offerings=producer._offerings,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+        read_jitter_window=timedelta(0),
+    )
+    for hour in (1, 1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await fresh.run_configuration(config)
+    history = await store.list_provisional_observations(**owner, limit=8)
+    assert [o.acquisition.ordinal for o in history] == [1, 2, 3]
+    assert all(o.is_scheduled_snapshot for o in history)
+    assert len(calls) == 3 and all(
+        r.identity.source_execution_key != reservation.execution_key
+        for r in producer._source.requests
+    )
+    assert sorted(r.finality for r in await store.list_revisions(**owner)) == [
+        "official",
+        "snapshot",
+    ]
+
+
+@pytest.mark.parametrize("change", ["none", "warnings", "basis"])
+async def test_proofless_stabilized_replay_requires_its_qualifying_observation(
+    monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        InMemoryReportingLedgerStore
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    manifest = producer._source.manifest
+    if change == "warnings":
+        manifest = manifest.model_copy(update={"warnings": ["different evidence"]})
+    if change == "basis":
+        (official,) = (r for r in store._revisions.values() if r.finality == "official")
+        store._revisions[official.reporting_revision_id] = replace(
+            official, finality_basis="source_final"
+        )
+
+    async def missing(**kwargs: Any) -> tuple[Any, ...]:
+        return ()
+
+    monkeypatch.setattr(store, "list_provisional_observations", missing)
+    assert await producer.acquire_obligation(config, obligation) is None
+    with pytest.raises(LedgerConflictError, match="evidence|history"):
+        await producer.commit_revision_from_manifest(
+            obligation, manifest, rows=ROWS, finality="official"
+        )
+
+
+async def test_proofless_stabilized_replay_requires_the_qualifying_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        InMemoryReportingLedgerStore
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    read = store.list_provisional_observations
+
+    async def truncated(**kwargs: Any) -> Any:
+        return (await read(**kwargs))[-1:]
+
+    monkeypatch.setattr(store, "list_provisional_observations", truncated)
+    with pytest.raises(LedgerConflictError, match="history|evidence"):
+        await producer.commit_revision_from_manifest(
+            obligation, producer._source.manifest, rows=ROWS, finality="official"
+        )
+
+
 async def _stabilized_harness(
     store_factory: Any, *, minimum_age: str = "PT0S", official: bool = True
 ) -> tuple[Any, ...]:

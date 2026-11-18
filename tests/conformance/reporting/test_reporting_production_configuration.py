@@ -58,6 +58,7 @@ STABILIZED = ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
             False,
         ),
         (STABILIZED, "snapshot", ["official"], False, False, False, False),
+        (STABILIZED, "snapshot", ["official"], False, False, "unlocked", False),
         (None, "official", ["official"], False, True, True, False),
         (SOURCE_FINAL, "snapshot", ["official"], False, False, True, False),
         (CUTOFF, "official", ["official"], False, True, True, False),
@@ -88,6 +89,20 @@ async def test_production_offering_validates_selected_finality_policy(
                 reserve_provisional_acquisition=h.store.reserve_provisional_acquisition,
                 get_provisional_observation=h.store.get_provisional_observation,
                 commit_provisional_observation=h.store.commit_provisional_observation,
+            )
+        if history == "unlocked":
+            store = SimpleNamespace(
+                **{
+                    name: getattr(h.store, name)
+                    for name in (
+                        "reserve_provisional_acquisition",
+                        "get_provisional_observation",
+                        "commit_provisional_observation",
+                        "list_provisional_observations",
+                        "get_restatement_checkpoint",
+                        "record_restatement_checkpoint",
+                    )
+                }
             )
         producer = ReportingProducer(
             source=source,

@@ -60,6 +60,7 @@ from adcp.reporting.ledger.producer import (
     _supports_official_source_formats,
     snapshot_restatement_cadence,
 )
+from adcp.reporting.ledger.provisional import ProvisionalPolicy
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
     ReliableReportingServiceError,
@@ -743,7 +744,6 @@ class ReliableReportingService:
                 "registered source capabilities must be scoped to an effective account"
             )
         try:
-            policy = self._validate_offerings(configuration, context, registration)
             offerings = context.producer_offerings()
             if not isinstance(offerings, ProducerOfferings):
                 raise TypeError("producer_offerings must return ProducerOfferings")
@@ -765,13 +765,23 @@ class ReliableReportingService:
                 else {}
             ),
         )
-        if isinstance(policy, ReportingStabilizedPolicy):
-            try:
-                producer._observation_history_store()
-            except LedgerConflictError as error:
-                raise ReliableReportingConfigurationError(
-                    "stabilized finality requires durable provisional observation history"
-                ) from error
+        try:
+            frozen = None
+            if (
+                recovering
+                and configuration.definition
+                and isinstance(configuration.definition.finality_policy, ReportingStabilizedPolicy)
+            ):
+                frozen = await producer._recover_stabilization_schedule(configuration, self.store)
+            policy = self._validate_offerings(configuration, context, registration, frozen=frozen)
+            if isinstance(policy, ReportingStabilizedPolicy):
+                producer._stabilization_store()
+        except LedgerConflictError as error:
+            raise ReliableReportingConfigurationError(str(error)) from error
+        except Exception as error:
+            if retrying or (recovering and isinstance(error, _MissingFinalityPolicyError)):
+                raise _AccountContextResolutionError(error, permanent=True) from error
+            raise
         binding = _Binding(configuration=configuration, context=context, producer=producer)
         if persist:
             if self._initialized:
@@ -825,6 +835,8 @@ class ReliableReportingService:
         configuration: ReportingConfiguration,
         context: ReportingAccountContext,
         registration: AdapterRegistration,
+        *,
+        frozen: ProvisionalPolicy | None = None,
     ) -> ReportingFinalityPolicy | None:
         capabilities = registration.executor.capabilities
         if capabilities.source_scope != _thaw(context.source_scope):
@@ -878,8 +890,10 @@ class ReliableReportingService:
                 "snapshot configuration requires a matching snapshot source offering"
             )
         policy = None
-        if configuration.required_finality == "official" or (
-            snapshot is not None and snapshot.official_close_lag is not None
+        if (
+            frozen is not None
+            or configuration.required_finality == "official"
+            or (snapshot is not None and snapshot.official_close_lag is not None)
         ):
             definition = configuration.definition
             if definition is None or definition.finality_policy is None:
@@ -897,8 +911,12 @@ class ReliableReportingService:
                 try:
                     stabilization_history_limit(
                         policy,
-                        snapshot_restatement_cadence(
-                            source, configuration.schedule.period_duration
+                        (
+                            frozen.cadence
+                            if frozen is not None
+                            else snapshot_restatement_cadence(
+                                source, configuration.schedule.period_duration
+                            )
                         ),
                     )
                 except LedgerConflictError as error:

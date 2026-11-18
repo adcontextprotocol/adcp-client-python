@@ -204,7 +204,7 @@ class ReportingProductionOffering:
             raise failure("UNSUPPORTED_VERIFICATION")
         if isinstance(policy, ReportingStabilizedPolicy):
             try:
-                self.producer._observation_history_store()
+                self.producer._stabilization_store()
                 assert isinstance(proof_source, ProvisionalSnapshotOfferingV1)
                 stabilization_history_limit(
                     policy,

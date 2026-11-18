@@ -162,21 +162,21 @@ def stabilization_history_limit(policy: ReportingStabilizedPolicy, cadence: time
 def prove_stabilized_finality(
     obligation: ReportingObligationRecord,
     policy: ReportingStabilizedPolicy,
-    history: Sequence[tuple[ProvisionalObservation, str]],
+    history: Sequence[tuple[ProvisionalObservation, str, bytes]],
 ) -> FinalityProof | None:
     """Evaluate a bounded, verified sequence of scheduled snapshot observations."""
     if not history:
         return None
-    latest, _ = history[-1]
+    latest, _, _ = history[-1]
     run_start = latest.checked_at
-    for (prior, prior_fingerprint), (current, fingerprint) in zip(
+    for (prior, prior_fingerprint, prior_rows), (current, fingerprint, current_rows) in zip(
         reversed(history[:-1]), reversed(history[1:])
     ):
         dispatch_at = current.acquisition.request().period.source_read_cutoff_at
         if (
             prior.next_due_at is None
             or dispatch_at > prior.next_due_at
-            or prior.revision_id != current.revision_id
+            or prior_rows != current_rows
             or prior_fingerprint != fingerprint
         ):
             break

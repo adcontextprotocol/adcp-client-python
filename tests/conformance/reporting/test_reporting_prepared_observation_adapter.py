@@ -41,7 +41,7 @@ class _PublisherWithHistory(_PreparedRevisionStore):
     "publisher",
     [_PreparedRevisionStore, _PublisherWithProtocolStub, _PublisherWithNoncallableHistory],
 )
-async def test_stabilized_acquisition_requires_publisher_to_expose_history(
+async def test_stabilized_admission_requires_publisher_to_expose_history(
     backend, publisher, monkeypatch
 ) -> None:
     async with reliable_factory(backend) as h:
@@ -58,10 +58,8 @@ async def test_stabilized_acquisition_requires_publisher_to_expose_history(
         script = ScriptedSource(eur=[])
         producer = h.producer(h.source(script.async_fetch))
         monkeypatch.setattr(producer, "_store", publisher(h))
-        (obligation,) = await producer.close_elapsed_periods(config)
-
         with pytest.raises(LedgerConflictError) as error:
-            await producer.acquire_obligation(config, obligation)
+            await producer.close_elapsed_periods(config)
 
         assert error.value.code == "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED"
         assert script.requests == []

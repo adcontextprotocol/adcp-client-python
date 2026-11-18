@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 
 if TYPE_CHECKING:
-    from adcp.reporting.ledger.models import ReportingObligationRecord, ReportingRevisionRecord
+    from adcp.reporting.ledger.models import (
+        ReportingConfigurationGenerationKey,
+        ReportingObligationRecord,
+        ReportingRevisionRecord,
+    )
     from adcp.reporting.source import SourceBatchManifestV1
 
 
@@ -197,6 +201,15 @@ class ProvisionalObservation:
     def bind_revision(self, revision: ReportingRevisionRecord) -> ProvisionalObservation:
         """Keep the full originating publication ID when an unchanged read reuses a snapshot."""
         if self.acquisition.policy.until_stabilized and revision.finality == "snapshot":
+            if (
+                self.revision_publication_id is not None
+                and self.revision_publication_id != revision.source_publication_id
+            ):
+                from adcp.reporting.ledger.store import LedgerConflictError
+
+                raise LedgerConflictError(
+                    "REVISION_IMMUTABLE", "observation snapshot origin differs"
+                )
             return replace(
                 self,
                 revision_id=revision.reporting_revision_id,
@@ -261,6 +274,15 @@ class ProvisionalObservation:
             json.dumps(value["manifest"], sort_keys=True, separators=(",", ":")),
             value.get("revision_publication_id"),
         )
+
+
+@runtime_checkable
+class StabilizationScheduleStore(Protocol):
+    """Optional generation-scoped lookup of an admitted scheduled snapshot's policy."""
+
+    async def get_stabilization_schedule(
+        self, generation: ReportingConfigurationGenerationKey
+    ) -> ProvisionalPolicy | None: ...
 
 
 @runtime_checkable
