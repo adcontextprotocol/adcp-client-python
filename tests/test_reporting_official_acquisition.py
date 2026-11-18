@@ -13,7 +13,11 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from adcp_reporting_storage import PgReportingLedgerStore
+from adcp_reporting_storage import (
+    PgReportingLedgerStore,
+    PgReportingSealStore,
+    PgReportingStagingStore,
+)
 
 from adcp.reporting.fixtures import (
     OFFICIAL_OFFERING_ID,
@@ -26,6 +30,7 @@ from adcp.reporting.inline_source import (
     InMemorySealStore,
     InMemoryStagingStore,
 )
+from adcp.reporting.inline_storage import InlineStorageError
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     LedgerConflictError,
@@ -344,6 +349,103 @@ async def test_failed_first_core_delivery_retries_on_its_recorded_schedule(
         with pytest.raises(LedgerConflictError, match="publication lock"):
             await producer.acquire_obligation(config, obligation, restate=True, manual_replay=True)
         assert calls == [clock[0]]
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_manual_first_core_snapshot_releases_only_its_due_scheduled_retry(
+    cutoff_backend: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    failure = FailingSource(code="RATE_LIMITED", retry_after_seconds=120)
+    with monkeypatch.context() as patch:
+        patch.setattr(producer._source, "execute", failure.execute)
+        assert await producer.acquire_obligation(config, obligation, manual_replay=True) is None
+    (manual,) = failure.requests
+    retry = await store.get_retry_schedule(scope_key=producer._retry_keys(obligation)[0])
+    assert retry is not None and retry.attempt == 1
+    clock[0] = retry.retry_not_before - timedelta(microseconds=1)
+    assert await producer.acquire_obligation(config, obligation) is None
+    clock[0] = retry.retry_not_before
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.close_elapsed_periods(config, now=clock[0] + timedelta(days=1))
+    assert calls == []
+    recovered = await producer.acquire_obligation(config, obligation)
+    assert recovered is not None and recovered.finality == "snapshot"
+    (scheduled,) = producer._source.requests
+    assert scheduled == manual.model_copy(update={"deadline_at": scheduled.deadline_at})
+    assert scheduled.deadline_at > manual.deadline_at
+    assert await producer.acquire_obligation(config, obligation) is None
+    assert calls == [clock[0]]
+    assert (await store.get_retry_schedule(scope_key=retry.scope_key)).attempt == 0
+    assert await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    ) == (recovered,)
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_first_core_snapshot_recovers_a_committed_inline_seal(
+    cutoff_backend: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _core_snapshot_harness(
+        cutoff_backend[0], ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    if isinstance(store, PgReportingLedgerStore):
+        staging = PgReportingStagingStore(pool=store._pool)
+        seals = PgReportingSealStore(pool=store._pool)
+        await staging.create_schema()
+    else:
+        staging = InMemoryStagingStore()
+        seals = InMemorySealStore()
+    fetched = []
+
+    def fetch(request: Any) -> InlineFetchResult:
+        fetched.append(request)
+        return InlineFetchResult(rows=ROWS, data_through=request.period.end)
+
+    producer._source = InlineReportingSource(
+        capabilities=producer._source.capabilities,
+        fetch=fetch,
+        staging=staging,
+        seals=seals,
+        clock=lambda: clock[0],
+    )
+    producer._object_reader = staging
+    put = seals.put
+
+    async def lose_acknowledgment(**kwargs: Any) -> None:
+        await put(**kwargs)
+        raise InlineStorageError("RESOURCE_UNAVAILABLE")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(seals, "put", lose_acknowledgment)
+        with pytest.raises(InlineStorageError) as failure:
+            await producer.acquire_obligation(config, obligation)
+    assert failure.value.code == "RESOURCE_UNAVAILABLE"
+    (first,) = fetched
+    sealed = await seals.get(
+        account_id=config.account_id, source_execution_key=first.identity.source_execution_key
+    )
+    assert sealed is not None
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert await store.list_revisions(**owner) == ()
+    clock[0] += timedelta(hours=2)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, manual_replay=True)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.close_elapsed_periods(config, now=clock[0] + timedelta(days=1))
+    recovered = await producer.acquire_obligation(config, obligation)
+    assert recovered is not None and recovered.finality == "snapshot"
+    manifest = SourceBatchManifestV1.model_validate_json(sealed.manifest_bytes)
+    assert recovered.source_publication_id == manifest.publication_id
+    assert await producer.acquire_obligation(config, obligation) is None
+    assert fetched == [first]
+    assert await store.list_revisions(**owner) == (recovered,)
 
 
 @pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)

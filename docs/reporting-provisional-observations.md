@@ -81,11 +81,13 @@ finality policy. Each scheduled read checks the winner of its own atomic reserva
 When a definition carries an unused finality policy, a Core producer without
 observation or checkpoint support can call `close_elapsed_periods` and then
 `acquire_obligation` for the first snapshot of the period it just created.
-After a retryable fetch failure, an interrupted staged object read, or caller
-cancellation, the same producer can resume its frozen scheduled request with
-a fresh deadline. It checks its recorded slice
-retry and any shared backoff before dispatch. Only a scheduled read for that
-obligation can claim the retry. The ledger rejects a competing reservation or a
+If a manual or scheduled first snapshot encounters a retryable fetch failure,
+the same producer can resume the frozen request with a fresh deadline. It
+checks the recorded slice retry and any shared backoff before dispatch. An
+interrupted staged read, caller cancellation, or an unconfirmed inline storage
+operation also preserves the execution identity so the source can replay an
+existing seal. Only a scheduled read for that obligation can claim the retry.
+The ledger rejects a competing reservation or a
 second snapshot root during the atomic revision commit. With a selected policy
 and no account publication lock, additional reads and later periods need durable
 evidence ruling out a competing close. Recovery checks immutable official

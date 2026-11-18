@@ -430,14 +430,14 @@ class _StabilizedPublication:
 
 @dataclass
 class _FirstCoreDelivery:
-    """The scheduled first read remains one claim through dispatch and retry bookkeeping."""
+    """The first snapshot remains one claim through dispatch and retry bookkeeping."""
 
-    state: Literal["scheduled", "retry", "consumed"]
+    state: Literal["dispatching", "retry", "consumed"]
     retry: RetryScheduleEntry | None = None
     request: ReportingSourceSliceRequestV1 | None = None
 
     def interrupted(self) -> None:
-        if self.state == "scheduled":
+        if self.state == "dispatching":
             self.state = "retry"
 
 
@@ -1817,7 +1817,7 @@ class ReportingProducer:
         finality = target_finality or obligation.required_finality
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
         if finality == "official" and isinstance(selected_policy, ReportingStabilizedPolicy):
-            await self._claim_first_core_delivery(obligation, now=now, scheduled=False)
+            await self._claim_first_core_delivery(obligation, now=now, trigger=None)
             return await self._acquire_stabilized(
                 configuration,
                 obligation,
@@ -1860,11 +1860,10 @@ class ReportingProducer:
                 offering_id=retry_offering_id,
             )
             return None
-        first_core = await self._claim_first_core_delivery(
-            obligation,
-            now=now,
-            scheduled=finality == "snapshot" and not (manual_replay or restate or track_settling),
-        )
+        trigger: Literal["scheduled", "manual"] | None = None
+        if finality == "snapshot" and not track_settling:
+            trigger = "manual" if manual_replay or restate else "scheduled"
+        first_core = await self._claim_first_core_delivery(obligation, now=now, trigger=trigger)
         try:
             return await self._acquire_due_obligation(
                 configuration,
@@ -2031,7 +2030,7 @@ class ReportingProducer:
                 trigger="manual_replay" if manual_observation else "scheduled_poll",
                 invocation_id=uuid4().hex if manual_snapshot else None,
             )
-            if first_core is not None and first_core.state == "scheduled":
+            if first_core is not None and first_core.state == "dispatching":
                 first_core.request = request.model_copy(deep=True)
         acquisition = pending
         # An explicitly tracked first invocation must survive a failed fetch and restart.
@@ -2117,6 +2116,8 @@ class ReportingProducer:
 
             # Return closed data from the executor task: a raw driver exception
             # must not survive through a context manager or Task wakeup frame.
+            if result.code == "RESOURCE_UNAVAILABLE" and first_core is not None:
+                first_core.interrupted()
             raise InlineStorageError(result.code)
 
         if not result.ok:
@@ -2360,13 +2361,17 @@ class ReportingProducer:
         )
 
     async def _claim_first_core_delivery(
-        self, obligation: ReportingObligationRecord, *, now: datetime, scheduled: bool
+        self,
+        obligation: ReportingObligationRecord,
+        *,
+        now: datetime,
+        trigger: Literal["scheduled", "manual"] | None,
     ) -> _FirstCoreDelivery | None:
-        """Claim the first attempt or resume that scheduled read on its own retry state."""
+        """Claim the first attempt or let the scheduler resume its own recorded retry."""
         key = (obligation.generation_key, obligation.reporting_obligation_id)
         state = self._first_core_deliveries.get(key)
         if isinstance(state, _FirstCoreDelivery):
-            if not scheduled or (
+            if trigger != "scheduled" or (
                 state.retry is not None and _utc(now) < _utc(state.retry.retry_not_before)
             ):
                 return None
@@ -2376,9 +2381,9 @@ class ReportingProducer:
             if retained != state.retry:
                 self._first_core_deliveries[key] = "attempted"
                 return None
-            delivery = replace(state, state="scheduled")
+            delivery = replace(state, state="dispatching")
         elif state == "ready":
-            delivery = _FirstCoreDelivery("scheduled" if scheduled else "consumed")
+            delivery = _FirstCoreDelivery("dispatching" if trigger is not None else "consumed")
         else:
             return None
         self._first_core_deliveries[key] = "attempted"
@@ -2484,7 +2489,7 @@ class ReportingProducer:
             turn._retry_entries[key] = stored
             if (
                 first_core_delivery is not None
-                and first_core_delivery.state == "scheduled"
+                and first_core_delivery.state == "dispatching"
                 and key == keys[0]
             ):
                 if stored == entry:
