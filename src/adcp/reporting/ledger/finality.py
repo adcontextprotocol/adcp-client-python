@@ -39,6 +39,13 @@ def _validate_policy_id(value: str) -> None:
         raise ValueError("finality_policy_id must match [A-Za-z0-9_.:-]{1,255}")
 
 
+def _policy_duration(value: str) -> timedelta:
+    duration = timedelta(milliseconds=iso_duration_milliseconds_v1(value))
+    if duration > datetime.max - datetime.min:
+        raise ValueError("finality policy duration exceeds the supported datetime range")
+    return duration
+
+
 @dataclass(frozen=True)
 class ReportingSourceFinalPolicy:
     """Close on an authoritative source publication with the declared signal."""
@@ -70,7 +77,7 @@ class ReportingContractualCutoffPolicy:
 
     def __post_init__(self) -> None:
         _validate_policy_id(self.finality_policy_id)
-        iso_duration_milliseconds_v1(self.duration_after_period_end)
+        _policy_duration(self.duration_after_period_end)
 
     def to_storage(self) -> dict[str, str]:
         return {
@@ -91,8 +98,8 @@ class ReportingStabilizedPolicy:
 
     def __post_init__(self) -> None:
         _validate_policy_id(self.finality_policy_id)
-        iso_duration_milliseconds_v1(self.minimum_age)
-        iso_duration_milliseconds_v1(self.unchanged_for)
+        _policy_duration(self.minimum_age)
+        _policy_duration(self.unchanged_for)
 
     def to_storage(self) -> dict[str, str]:
         return {
@@ -159,6 +166,23 @@ def stabilization_history_limit(policy: ReportingStabilizedPolicy, cadence: time
     return limit
 
 
+def stabilization_interval_elapsed(
+    policy: ReportingStabilizedPolicy, period_end: datetime, first: datetime, latest: datetime
+) -> bool:
+    return latest - period_end >= _policy_duration(policy.minimum_age) and (
+        latest - first >= _policy_duration(policy.unchanged_for)
+    )
+
+
+def consecutive_stabilization_slots(
+    prior: ProvisionalObservation, current: ProvisionalObservation
+) -> bool:
+    dispatch_at = current.acquisition.request().period.source_read_cutoff_at
+    return prior.next_due_at is not None and (
+        dispatch_at - prior.next_due_at < prior.acquisition.policy.cadence
+    )
+
+
 def prove_stabilized_finality(
     obligation: ReportingObligationRecord,
     policy: ReportingStabilizedPolicy,
@@ -172,19 +196,15 @@ def prove_stabilized_finality(
     for (prior, prior_fingerprint, prior_rows), (current, fingerprint, current_rows) in zip(
         reversed(history[:-1]), reversed(history[1:])
     ):
-        dispatch_at = current.acquisition.request().period.source_read_cutoff_at
         if (
-            prior.next_due_at is None
-            or dispatch_at > prior.next_due_at
+            not consecutive_stabilization_slots(prior, current)
             or prior_rows != current_rows
             or prior_fingerprint != fingerprint
         ):
             break
         run_start = prior.checked_at
-    age_ms = (latest.checked_at - obligation.period.end) // timedelta(milliseconds=1)
-    stable_ms = (latest.checked_at - run_start) // timedelta(milliseconds=1)
-    if age_ms < iso_duration_milliseconds_v1(policy.minimum_age) or (
-        stable_ms < iso_duration_milliseconds_v1(policy.unchanged_for)
+    if not stabilization_interval_elapsed(
+        policy, obligation.period.end, run_start, latest.checked_at
     ):
         return None
     return FinalityProof(policy.finality_policy_id, policy.basis, latest.checked_at)
@@ -193,9 +213,16 @@ def prove_stabilized_finality(
 def contractual_cutoff_at(
     obligation: ReportingObligationRecord, policy: ReportingContractualCutoffPolicy
 ) -> datetime:
-    return obligation.period.end.astimezone(timezone.utc) + timedelta(
-        milliseconds=iso_duration_milliseconds_v1(policy.duration_after_period_end)
-    )
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    try:
+        return obligation.period.end.astimezone(timezone.utc) + _policy_duration(
+            policy.duration_after_period_end
+        )
+    except OverflowError as error:
+        raise LedgerConflictError(
+            "FINALITY_POLICY_UNPROVEN", "contractual cutoff exceeds the supported datetime range"
+        ) from error
 
 
 def source_finality_proof(
@@ -240,6 +267,7 @@ def manifest_finality_proof(
             manifest.publication_class != "PROVISIONAL_SNAPSHOT"
             or not cutoff <= manifest.period.source_read_cutoff_at <= published_at
             or manifest.observed_at < cutoff
+            or manifest.acquired_at > published_at
         ):
             raise LedgerConflictError(
                 "FINALITY_POLICY_UNPROVEN", "contractual cutoff requires a post-cutoff snapshot"

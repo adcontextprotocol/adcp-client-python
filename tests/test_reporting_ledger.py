@@ -21,11 +21,13 @@ from adcp.reporting.ledger import (
     ProducerOfferings,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingDeliveryEscalation,
     ReportingObligationRecord,
     ReportingProducer,
     ReportingRevisionRecord,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
     aggregate_reporting_health,
@@ -62,6 +64,14 @@ _OFFERING: dict[str, Any] = {
 }
 
 HOURLY = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT1H", alignment="utc")
+_OFFICIAL_DEFINITION = ReportingDefinitionBinding(
+    report_definition_uri=_OFFERING["report_definition_uri"],
+    report_definition_sha256=_OFFERING["report_definition_sha256"],
+    schema_version=_OFFERING["reporting_profile"]["version"],
+    schema_uri=_OFFERING["reporting_profile"]["schema_uri"],
+    schema_sha256=_OFFERING["reporting_profile"]["schema_sha256"],
+    finality_policy=ReportingSourceFinalPolicy("daily-close", "delivery.closed"),
+)
 
 
 def _configuration(**overrides) -> ReportingConfiguration:
@@ -220,9 +230,13 @@ def test_periods_track_wall_clock_across_a_dst_transition() -> None:
 # -- obligations before reports ---------------------------------------------
 
 
-async def test_an_obligation_is_committed_before_any_source_data_exists() -> None:
+@pytest.mark.parametrize("finality", ["snapshot", "official"])
+async def test_an_obligation_is_committed_before_any_source_data_exists(finality: str) -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(
+        required_finality=finality,
+        definition=_OFFICIAL_DEFINITION if finality == "official" else None,
+    )
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     committed = await producer.close_elapsed_periods(
@@ -244,7 +258,7 @@ async def test_an_obligation_is_committed_before_any_source_data_exists() -> Non
 
 async def test_closing_periods_twice_commits_each_obligation_once() -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(definition=_OFFICIAL_DEFINITION)
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     now = datetime(2026, 9, 1, 5, 0, tzinfo=timezone.utc)
@@ -255,7 +269,7 @@ async def test_closing_periods_twice_commits_each_obligation_once() -> None:
 
 async def test_a_period_that_has_not_closed_is_not_obligated() -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(definition=_OFFICIAL_DEFINITION)
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     # Exactly at the boundary: the obligation appears in the first snapshot

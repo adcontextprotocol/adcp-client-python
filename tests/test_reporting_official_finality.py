@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -43,6 +44,7 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger.finality import (
     FinalityProof,
+    contractual_cutoff_at,
     manifest_finality_proof,
     source_finality_proof,
 )
@@ -57,7 +59,9 @@ from adcp.reporting.source import (
     ReportingSourceExecutorResult,
     SourceBatchManifestV1,
     coverage_denominator_fingerprint_v1,
+    encode_source_batch_manifest_v1,
     publication_content_fingerprint_v1,
+    source_batch_manifest_reference_v1,
     source_batch_object_set_sha256_v1,
 )
 from adcp.reporting.testing import DeterministicReportingClock
@@ -315,7 +319,7 @@ async def test_older_writer_advancing_checkpoint_retires_its_stabilization_metad
 
 
 @pytest.mark.parametrize("tracked", [False, True])
-async def test_manual_change_between_equal_scheduled_reads_preserves_stabilization(
+async def test_manual_change_between_equal_scheduled_reads_restarts_stabilization(
     store_factory: Any, monkeypatch: pytest.MonkeyPatch, tracked: bool
 ) -> None:
     producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
@@ -351,11 +355,303 @@ async def test_manual_change_between_equal_scheduled_reads_preserves_stabilizati
             config, obligation, restate=True, target_finality="snapshot", manual_replay=True
         )
     assert manual is not None and manual.reporting_revision_id != prior.revision_id
-    clock[0] = END + timedelta(hours=13)
+    for hour in (13, 19, 25):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(config, obligation)
+        revisions = await store.list_revisions(**owner)
+        assert [r.finalized_at for r in revisions if r.finality == "official"] == (
+            [clock[0]] if hour == 25 else []
+        )
+    assert len(calls) == 6
+
+
+async def test_stabilized_promotion_rechecks_the_active_leaf_under_lock(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, restate=True, target_finality="snapshot", track_settling=True
+        )
+    prepared, resume = asyncio.Event(), asyncio.Event()
+    publication = producer._revision_publication
+
+    @asynccontextmanager
+    async def pause_official(*args: Any, official: bool, **kwargs: Any) -> AsyncIterator[Any]:
+        if official:
+            prepared.set()
+            await resume.wait()
+        async with publication(*args, official=official, **kwargs) as result:
+            yield result
+
+    monkeypatch.setattr(producer, "_revision_publication", pause_official)
+    closing = asyncio.create_task(producer.run_configuration(config))
+    try:
+        await asyncio.wait_for(prepared.wait(), timeout=5)
+        monkeypatch.setattr(
+            "tests.test_reporting_source_availability.PROVIDER_ROW",
+            PROVIDER_ROW.replace("10", "11"),
+        )
+        manual = await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+        )
+        assert manual and manual.finality == "snapshot"
+    finally:
+        resume.set()
+    await asyncio.wait_for(closing, timeout=5)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+    await producer.acquire_obligation(config, obligation)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+
+
+@pytest.mark.parametrize("missed_slot", [False, True])
+async def test_stabilized_cadence_accepts_jitter_and_resets_after_a_whole_slot(
+    store_factory: Any, missed_slot: bool
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
     await producer.run_configuration(config)
-    revisions = await store.list_revisions(**owner)
-    assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
-    assert len(calls) == 4
+    clock[0] += timedelta(hours=12 if missed_slot else 6, milliseconds=1)
+    await producer.acquire_obligation(config, obligation)
+    clock[0] += timedelta(hours=6, milliseconds=1)
+    await producer.acquire_obligation(config, obligation)
+    official = [r for r in await store.list_revisions(**owner) if r.finality == "official"]
+    if missed_slot:
+        assert not official
+        clock[0] += timedelta(hours=6, milliseconds=1)
+        await producer.acquire_obligation(config, obligation)
+        official = [r for r in await store.list_revisions(**owner) if r.finality == "official"]
+    assert [r.finalized_at for r in official] == [clock[0]]
+
+
+@pytest.mark.parametrize("stale", ["batch", "constituent", "metric"])
+async def test_stabilized_watermarks_cover_the_complete_period(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, stale: str
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+
+    def partial_result(request: Any, **kwargs: Any) -> Any:
+        if stale == "batch":
+            kwargs["data_through"] = END - timedelta(milliseconds=1)
+        _, manifest, reader = redacted_completed_result(request, **kwargs)
+        raw = manifest.model_dump()
+        through = END - timedelta(milliseconds=1)
+        if stale == "constituent":
+            raw["coverage"]["constituents"][0]["data_through"] = through
+        if stale == "metric":
+            raw["metric_availability"][0]["data_through"] = through
+        manifest = SourceBatchManifestV1.model_validate(raw)
+        body = encode_source_batch_manifest_v1(manifest)
+        return (
+            ReportingSourceExecutorResult.completed(
+                request=request,
+                manifest=source_batch_manifest_reference_v1("watermarks", body),
+                manifest_bytes=body,
+            ),
+            manifest,
+            reader,
+        )
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "tests.test_reporting_source_availability.redacted_completed_result", partial_result
+        )
+        for hour in (1, 7, 13):
+            clock[0] = END + timedelta(hours=hour)
+            await producer.acquire_obligation(config, obligation)
+    assert len(await store.list_provisional_observations(**owner, limit=4)) == 3
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+    for hour in (19, 25, 31):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(config, obligation)
+    assert any(r.finality == "official" for r in await store.list_revisions(**owner))
+
+
+@pytest.mark.parametrize("idle", [False, True])
+async def test_stabilization_reads_rows_only_for_possible_proof_outside_publication(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, idle: bool
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        store_factory, minimum_age="PT13H"
+    )
+    await producer.run_configuration(config)
+    locked = False
+    reads: list[bool] = []
+    publication = store.source_publication
+    read = store.read_revision_rows
+
+    @asynccontextmanager
+    async def observe_publication(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        nonlocal locked
+        async with publication(*args, **kwargs) as result:
+            locked = True
+            try:
+                yield result
+            finally:
+                locked = False
+
+    async def observe_read(**kwargs: Any) -> Any:
+        reads.append(locked)
+        return await read(**kwargs)
+
+    monkeypatch.setattr(store, "source_publication", observe_publication)
+    monkeypatch.setattr(store, "read_revision_rows", observe_read)
+    for hour in (2, 7, 8):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(config, obligation)
+        if idle:
+            assert not reads
+    reads.clear()
+    clock[0] = END + timedelta(hours=13)
+    revision = await producer.acquire_obligation(config, obligation)
+    assert revision and revision.finality == "official"
+    assert reads == [False]
+    reads.clear()
+    assert (
+        await producer.commit_revision_from_manifest(
+            obligation, producer._source.manifest, rows=ROWS, finality="official"
+        )
+        == revision
+    )
+    assert reads == [False]
+
+
+async def test_stabilized_publication_reads_object_rows_outside_the_account_transaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.conformance.reporting.test_reporting_row_storage_object_pg import lease, options
+
+    async with isolated_reporting_pool() as pool:
+        storage = options(tmp_path)
+        producer, store, config, obligation, _, clock = await _stabilized_harness(
+            lambda **kwargs: PgReportingLedgerStore(pool=pool, row_storage=storage, **kwargs)
+        )
+        await lease(pool)
+        for hour in (1, 7, 13):
+            clock[0] = END + timedelta(hours=hour)
+            await producer.acquire_obligation(
+                config, obligation, restate=True, target_finality="snapshot", track_settling=True
+            )
+
+        in_publication = False
+        get = type(storage.providers["filesystem"]).get
+        publication = store.source_publication
+        reads = []
+
+        @asynccontextmanager
+        async def locked(*args: Any, **kwargs: Any) -> Any:
+            nonlocal in_publication
+            async with publication(*args, **kwargs) as publisher:
+                in_publication = True
+                try:
+                    yield publisher
+                finally:
+                    in_publication = False
+
+        async def read(*args: Any, **kwargs: Any) -> Any:
+            reads.append(in_publication)
+            return await get(*args, **kwargs)
+
+        monkeypatch.setattr(type(storage.providers["filesystem"]), "get", read)
+        monkeypatch.setattr(store, "source_publication", locked)
+        official = await producer.acquire_obligation(config, obligation)
+        assert official and official.finality == "official"
+        assert reads and not any(reads)
+        reads.clear()
+        assert (
+            await producer.commit_revision_from_manifest(
+                obligation, producer._source.manifest, rows=ROWS, finality="official"
+            )
+            == official
+        )
+        assert reads and not any(reads)
+
+
+async def test_idle_after_changed_scheduled_content_skips_snapshot_bodies(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        if hour == 13:
+            monkeypatch.setattr(
+                "tests.test_reporting_source_availability.PROVIDER_ROW",
+                PROVIDER_ROW.replace("10", "11"),
+            )
+        await producer.acquire_obligation(config, obligation)
+
+    async def unexpected_read(**kwargs: Any) -> Any:
+        pytest.fail("an idle poll hydrated the body of an ineligible stability run")
+
+    monkeypatch.setattr(store, "read_revision_rows", unexpected_read)
+    clock[0] += timedelta(minutes=10)
+    assert await producer.acquire_obligation(config, obligation) is None
+
+
+@pytest.mark.parametrize("change", ["none", "rows", "totals"])
+async def test_same_fingerprint_manual_leaf_requires_immutable_row_binding(
+    store_factory: Any, change: str
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        snapshot = await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    clock[0] += timedelta(minutes=10)
+    request = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        now=clock[0],
+        trigger="manual_replay",
+        observation=3,
+    )
+    _, manifest, _ = redacted_completed_result(request, page_bodies=[PROVIDER_ROW])
+    if change == "totals":
+        revision_id = f"rpr_{manifest.publication_id[4:44]}"
+        totals = (("impressions", "11"),)
+        typed = (ReportingControlTotalRecord("impressions", "11", "integer"),)
+        manual = await store.commit_revision(
+            replace(
+                snapshot,
+                reporting_revision_id=revision_id,
+                supersedes_reporting_revision_id=snapshot.reporting_revision_id,
+                source_publication_id=manifest.publication_id,
+                control_totals=totals,
+                managed_control_totals=typed,
+                revision_content_sha256=revision_content_sha256(
+                    reporting_revision_id=revision_id,
+                    row_count=len(ROWS),
+                    control_totals=totals,
+                    control_total_evidence=typed,
+                    reporting_rows=ROWS,
+                ),
+                created_at=clock[0],
+            ),
+            ROWS,
+        )
+    else:
+        rows = [{**ROWS[0], "impressions": 11}] if change == "rows" else ROWS
+        manual = await producer.commit_revision_from_manifest(
+            obligation, manifest, rows=rows, finality="snapshot"
+        )
+    assert manual.supersedes_reporting_revision_id
+    await producer.acquire_obligation(config, obligation)
+    revisions = await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert any(r.finality == "official" for r in revisions) == (change == "none")
 
 
 async def test_unbound_reused_stabilization_history_recovers_after_fresh_evidence(
@@ -1267,12 +1563,12 @@ async def test_stabilized_close_restarts_from_the_qualifying_observation(
 
 @pytest.mark.parametrize(
     ("reset", "hours"),
-    [("changed", (1, 7, 13, 19)), ("gap", (1, 8, 14, 20)), ("age", (1, 7, 13, 19))],
+    [("changed", (1, 7, 13, 19)), ("gap", (1, 13, 19, 25)), ("age", (1, 7, 13, 19))],
 )
 async def test_stabilized_requires_a_complete_unchanged_run(
     reset: str, hours: tuple[int, ...], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    producer, store, config, obligation, calls, clock = await _stabilized_harness(
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
         ProgressStore, minimum_age="PT19H" if reset == "age" else "PT0S"
     )
     owner = dict(
@@ -1289,7 +1585,13 @@ async def test_stabilized_requires_a_complete_unchanged_run(
         revisions = await store.list_revisions(**owner)
         assert any(r.finality == "official" for r in revisions) == (idx == 3)
         assert (obligation.reporting_obligation_id in store.pending) == (idx != 3)
-    assert len(calls) == 4
+    assert (
+        sum(
+            req.identity.reporting_obligation_id == obligation.reporting_obligation_id
+            for req in producer._source.requests
+        )
+        == 4
+    )
     assert sum(r.finality == "snapshot" for r in revisions) == (2 if reset == "changed" else 1)
 
 
@@ -2760,8 +3062,65 @@ async def test_direct_official_commit_checks_staged_size() -> None:
     assert conflict.value.code == "STAGED_OBJECT_MISMATCH"
 
 
-async def test_policyless_official_does_not_dispatch() -> None:
-    producer, _, config, obligation, calls, _ = await _harness(official=True)
+@pytest.mark.parametrize("required", ["official", "snapshot"])
+async def test_standalone_new_close_requires_a_selected_policy(
+    store_factory: Any, required: str
+) -> None:
+    producer, store, config, obligation, _, clock = await _harness(
+        store_factory, finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final")
+    )
+    if required == "snapshot":
+        producer._source.capabilities = _closing_capabilities()
+    config = replace(config, delivery_config_version=2, required_finality=required, definition=None)
+    await store.put_configuration(config)
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.close_elapsed_periods(config, now=clock[0])
+    assert conflict.value.code == "FINALITY_POLICY_UNPROVEN"
+    assert (
+        await store.find_obligation(
+            account_id=config.account_id,
+            consumer_id=config.consumer_id,
+            delivery_config_id=config.delivery_config_id,
+            delivery_config_version=2,
+            period_start=obligation.period.start,
+            period_end=obligation.period.end,
+        )
+        is None
+    )
+
+
+async def _retained_policyless_official(store_factory: Any) -> tuple[Any, ...]:
+    producer, store, config, obligation, calls, clock = await _harness(store_factory)
+    config = replace(config, delivery_config_version=2, required_finality="official")
+    await store.put_configuration(config)
+    obligation = await store.commit_obligation(
+        replace(
+            obligation,
+            delivery_config_version=2,
+            reporting_obligation_id="archived-official",
+            required_finality="official",
+        )
+    )
+    return producer, store, config, obligation, calls, clock
+
+
+async def test_contractual_cutoff_at_datetime_boundary_fails_with_a_ledger_error() -> None:
+    _, _, _, obligation, _, _ = await _harness()
+    end = END.replace(year=9999, month=12, day=31)
+    period = replace(obligation.period, start=end - timedelta(days=1), end=end, expected_at=end)
+    with pytest.raises(LedgerConflictError) as error:
+        contractual_cutoff_at(
+            replace(
+                obligation, period=period, scope_resolved_at=end, automated_recovery_deadline_at=end
+            ),
+            ReportingContractualCutoffPolicy("cutoff", "P1D"),
+        )
+    assert error.value.code == "FINALITY_POLICY_UNPROVEN"
+
+
+async def test_policyless_official_does_not_dispatch(store_factory: Any) -> None:
+    producer, _, config, obligation, calls, _ = await _retained_policyless_official(store_factory)
+    assert await producer.close_elapsed_periods(config) == []
     with pytest.raises(LedgerConflictError) as error:
         await producer.acquire_obligation(config, obligation)
     assert error.value.code == "FINALITY_POLICY_UNPROVEN"
@@ -2910,8 +3269,12 @@ async def test_official_construction_rejects_proof_for_another_policy() -> None:
     assert conflict.value.code == "FINALITY_POLICY_UNPROVEN"
 
 
-async def test_retained_official_replay_preserves_original_policy_fields() -> None:
-    producer, store, config, obligation, _, clock = await _harness(official=True)
+async def test_retained_official_replay_preserves_original_policy_fields(
+    store_factory: Any,
+) -> None:
+    producer, store, config, obligation, _, clock = await _retained_policyless_official(
+        store_factory
+    )
     request = producer._build_slice(config, obligation, OFFICIAL_OFFERING_ID, now=clock[0])
     _, manifest, _ = redacted_completed_result(request, page_bodies=[PROVIDER_ROW])
     revision_id = f"rpr_{manifest.publication_id[4:44]}"

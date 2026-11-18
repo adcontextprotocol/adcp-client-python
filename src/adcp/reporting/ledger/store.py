@@ -194,6 +194,10 @@ class RestatementCheckpoint:
         if acquisition.request().trigger == "manual_replay":
             if previous is not None:
                 policy, due = previous.stabilization_policy, previous.next_stabilization_due_at
+                checked_at = previous.checked_at
+                provisional_until = previous.provisional_until
+            else:
+                provisional_until = None
         elif retired_stabilized:
             policy = acquisition.policy
             if not acquisition.legacy_stabilized_close:

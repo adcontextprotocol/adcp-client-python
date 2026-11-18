@@ -56,14 +56,21 @@ configuring an explicit snapshot-to-official close. To migrate unfinished
 official work with no policy, configure a new generation with the selected
 policy. Retained revisions and exact replays keep their original evidence.
 
+During a rolling deployment, upgrade every process that reads configuration
+or obligation definitions before any writer persists a definition containing
+`finality_policy`. Earlier readers reject the additional definition field.
+
 - A `source_final` policy uses the authoritative offering. Its
   `provider_declared` or `provider_job_terminal` evidence must carry the exact
   selected signal and the upstream finalization time.
 - A `contractual_cutoff` policy uses the snapshot offering. Its full, verified
   observation must reach the declared period-end cutoff.
-- A `stabilized` policy uses the snapshot offering and durable scheduled
-  observation history. Changed content or a missed cadence restarts the
-  unchanged interval. Manual reads do not establish a run.
+- A `stabilized` policy uses full-period batch, constituent and metric
+  watermarks from durable scheduled snapshots. A poll may arrive after its
+  due time within the same cadence slot. Missing the entire slot restarts the
+  unchanged interval. A manual publication that changes the active snapshot
+  also restarts the interval at the next scheduled observation. Only scheduled
+  observations can establish the interval.
 
 `stable_since` is a source observation and `official_close_lag` is scheduling
 metadata. Snapshot-only generations need no selection and remain snapshots

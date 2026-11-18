@@ -49,6 +49,17 @@ def test_finality_policy_refuses_unsupported_duration(value: str) -> None:
         ReportingContractualCutoffPolicy("cutoff-v1", value)
 
 
+@pytest.mark.parametrize("field", ["duration_after_period_end", "minimum_age", "unchanged_for"])
+def test_finality_policy_rejects_durations_beyond_the_datetime_range(field: str) -> None:
+    with pytest.raises(ValueError, match="duration"):
+        if field == "duration_after_period_end":
+            ReportingContractualCutoffPolicy("cutoff", "P99999999D")
+        elif field == "minimum_age":
+            ReportingStabilizedPolicy("stable", "P99999999D", "PT1H")
+        else:
+            ReportingStabilizedPolicy("stable", "PT1H", "P99999999D")
+
+
 @pytest.mark.parametrize(
     ("policy", "payload"),
     [

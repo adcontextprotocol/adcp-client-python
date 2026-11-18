@@ -72,6 +72,7 @@ from tests.test_reporting_source_availability import (
     PROVIDER_ROW,
     EvidenceSource,
     ProgressStore,
+    _capabilities,
     _closing_capabilities,
     _harness,
 )
@@ -184,6 +185,111 @@ async def test_core_source_final_replay_requires_retained_signal_and_timestamp(
         )
         == first
     )
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize(
+    "change", ["offering", "early", "late", "acquired", "constituent", "metric"]
+)
+async def test_core_contractual_replay_proves_the_retained_publication(
+    cutoff_backend: Any, change: str
+) -> None:
+    factory, _ = cutoff_backend
+    producer, store, config, obligation, _, clock = await _harness(
+        factory, official=True, finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT2H")
+    )
+    producer._store = CoreStore(store)
+    clock[0] = END + timedelta(hours=3)
+    first = await producer.acquire_obligation(config, obligation)
+    manifest = producer._source.manifest
+    clock[0] += timedelta(hours=1)
+    assert (
+        await producer.commit_revision_from_manifest(
+            obligation, manifest, rows=ROWS, finality="official"
+        )
+        == first
+    )
+    raw = manifest.model_dump()
+    if change == "offering":
+        producer._offerings = replace(producer._offerings, snapshot_offering_id="different")
+    elif change in {"early", "late"}:
+        raw["period"]["source_read_cutoff_at"] = END + timedelta(
+            hours=1 if change == "early" else 4
+        )
+    elif change == "acquired":
+        raw["acquired_at"] = clock[0]
+    elif change == "constituent":
+        raw["coverage"]["constituents"][0]["data_through"] = END - timedelta(milliseconds=1)
+    else:
+        raw["metric_availability"][0]["data_through"] = END - timedelta(milliseconds=1)
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation, SourceBatchManifestV1.model_validate(raw), rows=ROWS, finality="official"
+        )
+    assert conflict.value.code == "REVISION_IMMUTABLE"
+
+
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+async def test_checkpoint_preserves_scheduled_cadence_without_history_listing(
+    cutoff_backend: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    factory, _ = cutoff_backend
+    producer, store, config, obligation, calls, clock = await _harness(
+        factory,
+        restatement_window="PT12H",
+        restatement_cadence="PT6H",
+        finality_policy=ReportingContractualCutoffPolicy("unused", "P2D"),
+    )
+    observations = store.list_provisional_observations
+
+    async def latest_observation(**owner: Any) -> Any:
+        found = await observations(**owner, limit=1)
+        return found[-1] if found else None
+
+    monkeypatch.setattr(store, "get_provisional_observation", latest_observation)
+    monkeypatch.setattr(store, "list_provisional_observations", None)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    clock[0] = END + timedelta(hours=1)
+    await producer.run_configuration(config)
+    first = await store.get_provisional_observation(**owner)
+    clock[0] += timedelta(hours=1)
+    manual = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        now=clock[0],
+        observation=1,
+        trigger="manual_replay",
+    )
+    await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            manual.model_dump_json(),
+            1,
+            first.acquisition.policy,
+            first.revision_id,
+            first.provisional_until,
+        )
+    )
+    await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+    )
+    assert len(calls) == 2
+    producer._source.capabilities = _capabilities(
+        restatement_window="P2D", restatement_cadence="PT1H"
+    )
+    restarted = _restart_producer(producer, store, clock)
+    clock[0] = END + timedelta(hours=7, milliseconds=-1)
+    await restarted.run_configuration(config)
+    assert len(calls) == 2
+    clock[0] += timedelta(milliseconds=1)
+    await restarted.run_configuration(config)
+    latest = await store.get_provisional_observation(**owner)
+    assert len(calls) == 3 and latest.acquisition.ordinal == 2
+    assert latest.acquisition.policy == first.acquisition.policy
+    assert latest.next_due_at == END + timedelta(hours=12)
 
 
 @pytest.mark.parametrize("change", ["prefix", "suffix"])

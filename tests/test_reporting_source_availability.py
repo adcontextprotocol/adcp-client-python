@@ -417,6 +417,7 @@ async def test_authoritative_local_readiness_is_conservative_across_clock_change
     producer, _, _, obligation, _, _ = await _harness(
         official=True,
         expected_availability_lag="PT0S",
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
         source_timezone="America/New_York",
         days_after_period_end=days_after,
         source_local_ready_time=ready_time,
@@ -439,6 +440,7 @@ async def test_authoritative_readiness_uses_period_timezone_when_offering_omits_
     producer, _, _, obligation, _, _ = await _harness(
         official=True,
         source_timezone=None,
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
         days_after_period_end=1,
         source_local_ready_time="06:00",
     )
