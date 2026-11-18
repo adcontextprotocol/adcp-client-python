@@ -5,17 +5,26 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any, Literal
 
 from adcp.reporting.source import iso_duration_milliseconds_v1
 
+if TYPE_CHECKING:
+    from adcp.reporting.ledger.models import ReportingObligationRecord
+    from adcp.reporting.source import SourceBatchManifestV1
+
 __all__ = [
+    "FinalityProof",
     "ReportingContractualCutoffPolicy",
     "ReportingFinalityPolicy",
     "ReportingSourceFinalPolicy",
     "ReportingStabilizedPolicy",
+    "contractual_cutoff_at",
     "finality_policy_source_class",
+    "manifest_finality_proof",
     "reporting_finality_policy_from_storage",
+    "source_finality_proof",
 ]
 
 
@@ -91,6 +100,94 @@ class ReportingStabilizedPolicy:
 ReportingFinalityPolicy = (
     ReportingSourceFinalPolicy | ReportingContractualCutoffPolicy | ReportingStabilizedPolicy
 )
+
+
+@dataclass(frozen=True)
+class FinalityProof:
+    """The selected policy and the instant its publication requirements were met."""
+
+    finality_policy_id: str
+    basis: Literal["source_final", "contractual_cutoff", "stabilized"]
+    finalized_at: datetime
+
+    def validate(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        created_at: datetime,
+    ) -> None:
+        from adcp.reporting.ledger.store import LedgerConflictError
+
+        if self.finalized_at.utcoffset() is None or not (
+            obligation.period.end.astimezone(timezone.utc)
+            <= self.finalized_at.astimezone(timezone.utc)
+            <= created_at.astimezone(timezone.utc)
+        ):
+            raise LedgerConflictError(
+                "PUBLICATION_TIME_INVALID", "proven finality is outside the publication time bounds"
+            )
+        if self != manifest_finality_proof(obligation, manifest, created_at):
+            raise LedgerConflictError(
+                "FINALITY_POLICY_UNPROVEN", "proof differs from the selected policy or its evidence"
+            )
+
+
+def contractual_cutoff_at(
+    obligation: ReportingObligationRecord, policy: ReportingContractualCutoffPolicy
+) -> datetime:
+    return obligation.period.end.astimezone(timezone.utc) + timedelta(
+        milliseconds=iso_duration_milliseconds_v1(policy.duration_after_period_end)
+    )
+
+
+def source_finality_proof(
+    obligation: ReportingObligationRecord,
+    manifest: SourceBatchManifestV1,
+    policy: ReportingSourceFinalPolicy,
+) -> FinalityProof:
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    evidence = manifest.finality_evidence
+    if (
+        manifest.publication_class != "AUTHORITATIVE"
+        or evidence.basis not in {"provider_declared", "provider_job_terminal"}
+        or evidence.evidence_ref != policy.source_signal
+        or evidence.observed_at.astimezone(timezone.utc)
+        < obligation.period.end.astimezone(timezone.utc)
+    ):
+        raise LedgerConflictError(
+            "MANIFEST_MISMATCH", "authoritative evidence must prove the selected source signal"
+        )
+    return FinalityProof(policy.finality_policy_id, policy.basis, evidence.observed_at)
+
+
+def manifest_finality_proof(
+    obligation: ReportingObligationRecord, manifest: SourceBatchManifestV1, published_at: datetime
+) -> FinalityProof:
+    """Verify the policy that a single complete source publication can prove."""
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    if (
+        manifest.coverage.status != "full"
+        or manifest.period.start != obligation.period.start
+        or manifest.period.end != obligation.period.end
+    ):
+        raise LedgerConflictError("MANIFEST_MISMATCH", "official proof requires the full period")
+    policy = obligation.definition.finality_policy if obligation.definition else None
+    if isinstance(policy, ReportingSourceFinalPolicy):
+        return source_finality_proof(obligation, manifest, policy)
+    if isinstance(policy, ReportingContractualCutoffPolicy):
+        cutoff = contractual_cutoff_at(obligation, policy)
+        if (
+            manifest.publication_class != "PROVISIONAL_SNAPSHOT"
+            or not cutoff <= manifest.period.source_read_cutoff_at <= published_at
+            or manifest.acquired_at < cutoff
+        ):
+            raise LedgerConflictError(
+                "FINALITY_POLICY_UNPROVEN", "contractual cutoff requires a post-cutoff snapshot"
+            )
+        return FinalityProof(policy.finality_policy_id, policy.basis, published_at)
+    raise LedgerConflictError("FINALITY_POLICY_UNPROVEN", "official finality requires policy proof")
 
 
 def finality_policy_source_class(

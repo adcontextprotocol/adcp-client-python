@@ -10,7 +10,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 
@@ -64,11 +64,14 @@ class ProvisionalAcquisition:
     policy: ProvisionalPolicy
     predecessor_revision_id: str | None = None
     previous_boundary: datetime | None = None
+    output_finality: Literal["official"] | None = None
 
     def __post_init__(self) -> None:
         if type(self.ordinal) is not int or self.ordinal < 0:
             raise ValueError("observation ordinal must be a nonnegative integer")
         self.request()
+        if self.output_finality not in {None, "official"}:
+            raise ValueError("invalid provisional acquisition output finality")
         if self.previous_boundary is not None:
             utc(self.previous_boundary)
 
@@ -109,6 +112,7 @@ class ProvisionalAcquisition:
     def to_wire(self) -> dict[str, Any]:
         return {
             "request": json.loads(self.request_json),
+            **({"output_finality": self.output_finality} if self.output_finality else {}),
             "ordinal": self.ordinal,
             "policy": self.policy.to_wire(),
             "predecessor_revision_id": self.predecessor_revision_id,
@@ -133,6 +137,7 @@ class ProvisionalAcquisition:
                 if value["previous_boundary"] is not None
                 else None
             ),
+            value.get("output_finality"),
         )
 
 

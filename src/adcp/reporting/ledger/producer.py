@@ -56,7 +56,14 @@ from adcp.reporting.currency import (
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
-from adcp.reporting.ledger.finality import ReportingStabilizedPolicy
+from adcp.reporting.ledger.finality import (
+    FinalityProof,
+    ReportingContractualCutoffPolicy,
+    ReportingStabilizedPolicy,
+    contractual_cutoff_at,
+    finality_policy_source_class,
+    manifest_finality_proof,
+)
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -161,6 +168,13 @@ class FixedCurrencyResolver:
 
 def _utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
+
+
+def _source_finality(obligation: ReportingObligationRecord, output_finality: str) -> str:
+    policy = obligation.definition.finality_policy if obligation.definition else None
+    if output_finality == "official" and policy is not None:
+        return finality_policy_source_class(policy)
+    return output_finality
 
 
 def revision_content_sha256(
@@ -863,7 +877,9 @@ class ReportingProducer:
                 obligation.report_definition_id,
                 _utc(obligation.period.start).isoformat(),
                 _utc(obligation.period.end).isoformat(),
-                self._offerings.offering_for(obligation.required_finality),
+                self._offerings.offering_for(
+                    _source_finality(obligation, obligation.required_finality)
+                ),
             ]
         )
         offset = int.from_bytes(hashlib.sha256(seed).digest(), "big") % (microseconds + 1)
@@ -878,12 +894,20 @@ class ReportingProducer:
         worst_case: bool = False,
     ) -> datetime:
         end = _utc(obligation.period.end)
-        offering_id = offering_id or self._offerings.offering_for(
-            target_finality or obligation.required_finality
-        )
+        output_finality = target_finality or obligation.required_finality
+        policy = obligation.definition.finality_policy if obligation.definition else None
+        cutoff = end
+        if offering_id is None:
+            offering_id = self._offerings.offering_for(
+                _source_finality(obligation, output_finality)
+            )
+            if output_finality == "official" and isinstance(
+                policy, ReportingContractualCutoffPolicy
+            ):
+                cutoff = contractual_cutoff_at(obligation, policy)
         if offering_id is None:
             # The acquisition path reports the existing missing-offering error.
-            return end
+            return cutoff
         offering = self._source.capabilities.offering(offering_id)
         lag = (
             offering.worst_case_availability_lag
@@ -905,7 +929,7 @@ class ReportingProducer:
                 _utc(local_ready.replace(fold=0)),
                 _utc(local_ready.replace(fold=1)),
             )
-        return ready_at
+        return max(ready_at, cutoff)
 
     def _settling_policy(
         self,
@@ -966,7 +990,7 @@ class ReportingProducer:
             policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
         explicit_close = (
             policy.official_close_lag is not None
-            and self._offerings.official_offering_id is not None
+            and self._offerings.offering_for(_source_finality(obligation, "official")) is not None
         )
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
@@ -993,7 +1017,8 @@ class ReportingProducer:
                 restate=bool(revisions),
                 turn=turn,
                 now=now,
-                target_finality=(
+                target_finality=pending.output_finality
+                or (
                     "snapshot"
                     if request.publication_class == "PROVISIONAL_SNAPSHOT"
                     else "official"
@@ -1068,8 +1093,7 @@ class ReportingProducer:
                     return True
             return False
 
-        if policy.official_close_lag is None or self._offerings.official_offering_id is None:
-            return True
+        assert policy.official_close_lag is not None
         closes_at = max(
             settles_at,
             _utc(obligation.period.end) + policy.official_close_lag,
@@ -1181,19 +1205,22 @@ class ReportingProducer:
         satisfied = current is not None and current.readable
         if satisfied and not restate:
             return None
-        if (
-            finality == "official"
-            and obligation.definition is not None
-            and isinstance(obligation.definition.finality_policy, ReportingStabilizedPolicy)
-        ):
-            self._observation_history_store()
+        selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        if finality == "official":
+            if isinstance(selected_policy, ReportingStabilizedPolicy):
+                self._observation_history_store()
+            if isinstance(selected_policy, ReportingContractualCutoffPolicy) and _utc(
+                now
+            ) < contractual_cutoff_at(obligation, selected_policy):
+                return None
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
         # the no-op it already was instead of becoming an error on every turn.
         require_frozen_currency(obligation.currency)
 
-        offering_id = self._offerings.offering_for(finality)
+        source_finality = _source_finality(obligation, finality)
+        offering_id = self._offerings.offering_for(source_finality)
         if offering_id is None:
             raise LedgerConflictError(
                 "NO_OFFERING_FOR_FINALITY",
@@ -1203,6 +1230,11 @@ class ReportingProducer:
         constituents = await self._admitted_source_constituents(configuration, obligation)
 
         checkpoint_store = self._restatement_store() if track_settling else None
+        derived_close = finality == "official" and source_finality == "snapshot"
+        if derived_close and revisions and isinstance(self._store, RestatementCheckpointStore):
+            # A manual close and a scheduled close must replay the same acquisition,
+            # even after unchanged observations have advanced beyond the revision count.
+            checkpoint_store = self._store
         checkpoint = (
             await checkpoint_store.get_restatement_checkpoint(
                 account_id=obligation.account_id,
@@ -1245,6 +1277,7 @@ class ReportingProducer:
                     frozen_policy,
                     leaf.reporting_revision_id if leaf is not None else None,
                     checkpoint.provisional_until if checkpoint is not None else None,
+                    output_finality="official" if derived_close else None,
                 )
             )
             if not acquisition.binds(obligation):
@@ -1256,9 +1289,13 @@ class ReportingProducer:
             request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
             if manual_replay:
                 request = request.model_copy(update={"trigger": "manual_replay"})
-            finality = (
+            finality = acquisition.output_finality or (
                 "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
             )
+            if acquisition.output_finality and _utc(now) < _utc(
+                request.period.source_read_cutoff_at
+            ):
+                return None
         cancel = asyncio.Event()
         execution = asyncio.create_task(
             self._execute_source(
@@ -1348,6 +1385,11 @@ class ReportingProducer:
             manifest,
             rows=rows,
             finality=finality,
+            finality_proof=(
+                manifest_finality_proof(obligation, manifest, published_at)
+                if finality == "official"
+                else None
+            ),
             now=published_at,
             turn=turn,
             acquisition=acquisition,
@@ -1757,6 +1799,7 @@ class ReportingProducer:
         *,
         rows: Sequence[dict[str, Any]],
         finality: str,
+        finality_proof: FinalityProof | None = None,
         now: datetime | None = None,
         turn: WorkerTurn | None = None,
         acquisition: ProvisionalAcquisition | None = None,
@@ -1767,7 +1810,8 @@ class ReportingProducer:
         edit path.  An official close is terminal, so a later source correction
         must arrive as an adjustment instead. ``now`` is a trusted publication
         instant, unlike the dispatch instant accepted by ``acquire_obligation``.
-        Replaying a publication retains its original creation time and parent.
+        A new official revision requires proof of the obligation's selected policy.
+        Replaying a publication retains its original times, policy fields and parent.
         """
         obligation = await self._stored_obligation(obligation)
         self._validate_manifest_currency(obligation, manifest)
@@ -1836,16 +1880,31 @@ class ReportingProducer:
             _utc(manifest.acquired_at) > _utc(now)
             or _utc(manifest.observed_at) > _utc(created_at)
             or _utc(manifest.finality_evidence.observed_at) > _utc(created_at)
-            or (
-                finality == "official"
-                and _utc(manifest.finality_evidence.observed_at) < _utc(obligation.period.end)
-            )
         ):
             raise LedgerConflictError(
                 "PUBLICATION_TIME_INVALID",
                 "source observation or finality is outside the publication time bounds; "
                 "check source evidence and the producer clock before retrying",
             )
+        if finality != "official":
+            finality_proof = None
+        elif prior is not None and prior.finality == "official":
+            assert prior.finality_policy_id and prior.finality_basis and prior.finalized_at
+            finality_proof = FinalityProof(
+                prior.finality_policy_id, prior.finality_basis, prior.finalized_at
+            )
+        elif finality_proof is None:
+            raise LedgerConflictError(
+                "FINALITY_POLICY_UNPROVEN", "official finality requires policy proof"
+            )
+        else:
+            if manifest.offering_id != self._offerings.offering_for(
+                _source_finality(obligation, "official")
+            ):
+                raise LedgerConflictError(
+                    "MANIFEST_MISMATCH", "official proof must use the selected source offering"
+                )
+            finality_proof.validate(obligation, manifest, created_at)
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
             account_id=obligation.account_id,
@@ -1865,21 +1924,9 @@ class ReportingProducer:
             data_through=manifest.data_through,
             created_at=created_at,
             supersedes_reporting_revision_id=supersedes,
-            finality_basis=(
-                (
-                    "stabilized"
-                    if manifest.finality_evidence.basis == "elapsed_settlement_window"
-                    else "source_final"
-                )
-                if finality == "official"
-                else None
-            ),
-            finality_policy_id=(
-                f"{obligation.report_definition_id}:{manifest.offering_id}"
-                if finality == "official"
-                else None
-            ),
-            finalized_at=manifest.finality_evidence.observed_at if finality == "official" else None,
+            finality_basis=finality_proof.basis if finality_proof else None,
+            finality_policy_id=finality_proof.finality_policy_id if finality_proof else None,
+            finalized_at=finality_proof.finalized_at if finality_proof else None,
             source_publication_id=manifest.publication_id,
             source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[-1],
         )
@@ -2127,17 +2174,22 @@ class ReportingProducer:
                 "an obligation with no media buys has no source work; it is a platform-owned "
                 "no-op, not a slice",
             )
-        source_execution_key = (
-            "rse-"
-            + hashlib.sha256(
-                canonical_json_utf8_v1(
-                    [obligation.reporting_obligation_id, offering_id, observation]
-                )
-            ).hexdigest()[:40]
-        )
         resolved_finality = finality or obligation.required_finality
+        source_finality = _source_finality(obligation, resolved_finality)
+        execution_identity: list[str | int] = [
+            obligation.reporting_obligation_id,
+            offering_id,
+            observation,
+        ]
+        if resolved_finality == "official" and source_finality == "snapshot":
+            # A policy close requires its own post-cutoff read, even when the
+            # same snapshot offering already sealed an observation at this ordinal.
+            execution_identity.append("official")
+        source_execution_key = (
+            "rse-" + hashlib.sha256(canonical_json_utf8_v1(execution_identity)).hexdigest()[:40]
+        )
         publication_class: ReportingPublicationClass = (
-            "AUTHORITATIVE" if resolved_finality == "official" else "PROVISIONAL_SNAPSHOT"
+            "AUTHORITATIVE" if source_finality == "official" else "PROVISIONAL_SNAPSHOT"
         )
         return ReportingSourceSliceRequestV1(
             identity=ReportingSourceIdentityV1(

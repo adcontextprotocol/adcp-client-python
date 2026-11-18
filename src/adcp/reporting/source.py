@@ -183,6 +183,7 @@ Fingerprint = Annotated[str, StringConstraints(pattern=_FINGERPRINT_PATTERN)]
 OpaqueReference = Annotated[str, StringConstraints(pattern=_OPAQUE_REFERENCE_PATTERN)]
 Identifier = Annotated[str, StringConstraints(pattern=_IDENTIFIER_PATTERN)]
 ExternalId = Annotated[str, StringConstraints(min_length=1, max_length=255)]
+EvidenceRef = Annotated[str, StringConstraints(min_length=1, max_length=512)]
 MetricName = Annotated[str, StringConstraints(pattern=_METRIC_NAME_PATTERN)]
 Grain = Annotated[str, StringConstraints(pattern=_GRAIN_PATTERN)]
 EvidenceReason = Annotated[str, StringConstraints(pattern=_EVIDENCE_REASON_PATTERN)]
@@ -1005,7 +1006,7 @@ class ReportingFinalityEvidenceV1(_Frozen):
         "elapsed_settlement_window",
     ]
     observed_at: datetime
-    evidence_ref: ExternalId | None = None
+    evidence_ref: EvidenceRef | None = None
     stable_since: datetime | None = Field(
         default=None,
         description="Source evidence timestamp preserved without deriving SDK finality policy",
