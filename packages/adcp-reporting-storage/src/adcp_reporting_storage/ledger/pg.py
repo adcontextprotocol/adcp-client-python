@@ -1996,10 +1996,12 @@ class PgReportingLedgerStore:
                     validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
-                if revision is None or (reuse_candidate and existing[0] == observation.revision_id):
+                reused = reuse_candidate and existing[0] == observation.revision_id
+                if retained_revision.finality == "snapshot" or revision is None or reused:
                     validate_retained_provisional_observation(
                         retained_revision, retained_observation, rows
                     )
+                if revision is None or reused:
                     return retained_revision
                 return await self.commit_revision(revision, rows)
             reserved = await (

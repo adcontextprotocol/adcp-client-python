@@ -1583,10 +1583,10 @@ class InMemoryReportingLedgerStore:
                     validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
-                if revision is None or (
-                    reuse_candidate and existing.revision_id == observation.revision_id
-                ):
+                reused = reuse_candidate and existing.revision_id == observation.revision_id
+                if retained_revision.finality == "snapshot" or revision is None or reused:
                     validate_retained_provisional_observation(retained_revision, existing, rows)
+                if revision is None or reused:
                     return retained_revision
                 return await self.commit_revision(revision, rows)
             retained = self._provisional_acquisitions.get(key)

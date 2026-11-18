@@ -496,6 +496,7 @@ class ReportingProducer:
         self._recovered_stabilization: dict[
             ReportingConfigurationGenerationKey, ProvisionalPolicy
         ] = {}
+        self._new_snapshot_obligations: set[tuple[str, str]] = set()
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -798,6 +799,16 @@ class ReportingProducer:
                     configuration, obligation, previous_end=after
                 )
             )
+            if (
+                selected is not None
+                and self._optional_publication_store() is None
+                and self._stabilization_schedule_store() is None
+            ):
+                # Until the first scheduled observation, only this producer knows
+                # it admitted this particular period on an ordinary snapshot route.
+                self._new_snapshot_obligations.add(
+                    (stored.account_id, stored.reporting_obligation_id)
+                )
             after = boundary.end
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)
@@ -1394,42 +1405,54 @@ class ReportingProducer:
             for obligation in page.obligations:
                 if obligation.generation_key != key:
                     continue
-                checkpoints = self._optional_restatement_store()
-                if checkpoints is None or not _implements_store_method(
-                    self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
-                ):
-                    # Without the retained cursor and its reservations a prior
-                    # scheduled close cannot be distinguished from an ordinary poll.
+                if await self._obligation_has_retained_close(obligation):
                     return True
-                checkpoint = await checkpoints.get_restatement_checkpoint(
-                    account_id=key.account_id,
-                    reporting_obligation_id=obligation.reporting_obligation_id,
-                )
-                if checkpoint is not None and checkpoint.stabilization_policy is not None:
-                    return True
-                # The first reservation follows any untracked manual revisions.
-                if checkpoint is None:
-                    next_ordinal = len(
-                        await self._store.list_revisions(
-                            account_id=key.account_id,
-                            reporting_obligation_id=obligation.reporting_obligation_id,
-                        )
-                    )
-                else:
-                    next_ordinal = checkpoint.next_observation
-                for ordinal in range(next_ordinal + 1):
-                    acquisition = await self._pending_acquisition(obligation, ordinal=ordinal)
-                    if (
-                        acquisition is not None
-                        and acquisition.stabilization_schedule(
-                            obligation.required_finality, pending=ordinal == next_ordinal
-                        )
-                        is not None
-                    ):
-                        return True
             if not page.has_more:
                 return False
             offset += page_size
+
+    async def _obligation_has_retained_close(self, obligation: ReportingObligationRecord) -> bool:
+        identity = (obligation.account_id, obligation.reporting_obligation_id)
+        owner = dict(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        observations = self._optional_observation_store()
+        latest = await observations.get_provisional_observation(**owner) if observations else None
+        scheduled = await self._latest_scheduled_snapshot(obligation, latest)
+        if scheduled is not None:
+            self._new_snapshot_obligations.discard(identity)
+            schedule = scheduled.acquisition.stabilization_schedule(
+                obligation.required_finality, pending=False
+            )
+            if schedule is not None:
+                return True
+        checkpoints = self._optional_restatement_store()
+        checkpoint = await checkpoints.get_restatement_checkpoint(**owner) if checkpoints else None
+        if checkpoint is not None and checkpoint.stabilization_policy is not None:
+            return True
+        lookup = _implements_store_method(
+            self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
+        )
+        if lookup:
+            # An untracked manual revision can precede the first scheduled reservation.
+            ordinal = (
+                checkpoint.next_observation
+                if checkpoint
+                else len(await self._store.list_revisions(**owner))
+            )
+            pending = await self._pending_acquisition(obligation, ordinal=ordinal)
+            if (
+                pending is not None
+                and pending.stabilization_schedule(obligation.required_finality, pending=True)
+                is not None
+            ):
+                return True
+        return (
+            scheduled is None
+            and identity not in self._new_snapshot_obligations
+            and (checkpoints is None or not lookup or checkpoint is not None)
+        )
 
     async def _acquire_stabilized(
         self,
@@ -2694,6 +2717,15 @@ class ReportingProducer:
                 "frozen source acquisition does not bind the obligation's consumer; "
                 "operator reconciliation and a new configuration generation are required",
             )
+        if acquisition != candidate:
+            # A pending-only lookup can be absent. Reservation then returns the
+            # winner's frozen route, which may differ from the proposed snapshot.
+            await self._check_official_publication_lock(
+                obligation,
+                official=acquisition.finality == "official",
+                frozen=acquisition.policy,
+                check_generation=False,
+            )
         return acquisition
 
     async def _pending_acquisition(
@@ -3309,6 +3341,8 @@ class ReportingProducer:
                 raise LedgerConflictError("REVISION_IMMUTABLE", "retained source totals differ")
             if is_latest:
                 validate_retained_provisional_observation(revision, latest, rows)
+            else:
+                validate_snapshot_rows(revision, rows)
             if origin_store is not None:
                 await self._verify_tracked_snapshot_origin(
                     obligation, acquisition, origin_store, revision

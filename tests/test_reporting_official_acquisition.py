@@ -310,6 +310,77 @@ async def test_historical_unchanged_replay_validates_stored_observation_origin(
     assert await store.get_provisional_observation(**owner) == latest
 
 
+@pytest.mark.parametrize("cutoff_backend", ["memory", "postgres"], indirect=True)
+@pytest.mark.parametrize("ordinal", [0, 1])
+@pytest.mark.parametrize("change", ["rows", "unreadable"])
+@pytest.mark.parametrize("entry", ["producer", "atomic", "archived_core"])
+async def test_historical_snapshot_replay_checks_rows_and_readability_at_each_ordinal(
+    cutoff_backend: Any, ordinal: int, change: str, entry: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    factory, _ = cutoff_backend
+    producer, store, config, obligation, _, clock = await _harness(
+        factory,
+        finality_policy=(
+            None if entry == "archived_core" else ReportingContractualCutoffPolicy("unused", "P2D")
+        ),
+    )
+    if entry == "archived_core":
+        # Older Core revisions hash the control-total pairs without typed evidence.
+        assert obligation.definition is None
+        monkeypatch.setattr("adcp.reporting.ledger.producer._typed_control_totals", lambda *_: None)
+    revision = await producer.acquire_obligation(config, obligation, track_settling=True)
+    for _ in range(2):
+        clock[0] += timedelta(hours=1)
+        assert revision == await producer.acquire_obligation(
+            config, obligation, restate=True, track_settling=True
+        )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    history = await store.list_provisional_observations(**owner, limit=3)
+    assert [item.acquisition.ordinal for item in history] == [0, 1, 2]
+    item = history[ordinal]
+    manifest = SourceBatchManifestV1.model_validate_json(item.manifest_json)
+    page = await store.read_revision_rows(
+        account_id=config.account_id, reporting_revision_id=revision.reporting_revision_id
+    )
+    rows = list(page.rows)
+    if entry == "archived_core":
+        assert revision.managed_control_totals is None
+        producer._store = SimpleNamespace(
+            get_obligation=store.get_obligation,
+            list_revisions=store.list_revisions,
+            get_revision=store.get_revision,
+            reserve_provisional_acquisition=store.reserve_provisional_acquisition,
+            get_provisional_observation=store.get_provisional_observation,
+            commit_provisional_observation=store.commit_provisional_observation,
+        )
+        producer._object_reader = None
+
+    async def replay(rows: list[dict[str, Any]]) -> ReportingRevisionRecord:
+        if entry == "atomic":
+            return await store.commit_provisional_observation(item, revision, rows)
+        return await producer.commit_revision_from_manifest(
+            obligation, manifest, rows=rows, finality="snapshot", acquisition=item.acquisition
+        )
+
+    assert await replay(rows) == revision
+    if change == "unreadable":
+        await store.set_revision_readable(
+            account_id=config.account_id,
+            reporting_revision_id=revision.reporting_revision_id,
+            readable=False,
+        )
+    else:
+        rows = [dict(rows[0], campaign_id="changed")]
+    with pytest.raises(LedgerConflictError) as error:
+        await replay(rows)
+    assert error.value.code == (
+        "HISTORY_UNAVAILABLE" if change == "unreadable" else "REVISION_IMMUTABLE"
+    )
+    assert await store.list_provisional_observations(**owner, limit=3) == history
+
+
 async def test_stale_cutoff_seal_retries_with_fresh_source_work(
     cutoff_backend: Any, monkeypatch: Any
 ) -> None:

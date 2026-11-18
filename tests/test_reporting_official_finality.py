@@ -1502,6 +1502,72 @@ async def test_restart_resumes_ordinary_snapshot_with_unused_stabilized_policy(
     assert revision.finality == "snapshot"
 
 
+@pytest.mark.parametrize("interleave", [True, False])
+async def test_standalone_new_snapshot_with_unused_policy_needs_no_optional_lookups(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, interleave: bool
+) -> None:
+    store = store_factory()
+    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+        monkeypatch.setattr(store, name, None)
+    producer, _, config, obligation, _, clock = await _harness(
+        lambda **kwargs: store, finality_policy=ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    if interleave:
+        other = replace(config, delivery_config_id="other")
+        await store.put_configuration(other)
+        await producer.close_elapsed_periods(other)
+    clock[0] = END + timedelta(hours=1)
+    turn = await producer.run_configuration(config)
+    (identifier,) = turn.revisions_committed
+    revision = await store.get_revision(
+        account_id=config.account_id, reporting_revision_id=identifier
+    )
+    assert (
+        revision.reporting_obligation_id == obligation.reporting_obligation_id
+        and revision.finality == "snapshot"
+    )
+
+
+@pytest.mark.parametrize("period", ["admitted", "external"])
+async def test_snapshot_admission_checks_another_publishers_pending_close(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, period: str
+) -> None:
+    store = store_factory()
+    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+        monkeypatch.setattr(store, name, None)
+    producer, _, config, obligation, calls, clock = await _harness(
+        lambda **kwargs: store, finality_policy=ReportingContractualCutoffPolicy("cutoff", "P2D")
+    )
+    if period == "external":
+        clock[0] += timedelta(days=1)
+        boundary = producer._elapsed_periods(config, now=clock[0])[-1]
+        obligation = await store.commit_obligation(
+            replace(
+                obligation,
+                reporting_obligation_id=producer._obligation_id(config, boundary),
+                period=boundary,
+                scope_resolved_at=boundary.end,
+                automated_recovery_deadline_at=boundary.expected_at,
+            )
+        )
+    request = producer._build_slice(
+        config, obligation, SNAPSHOT_OFFERING_ID, finality="snapshot", now=clock[0]
+    )
+    await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(),
+            0,
+            ProvisionalPolicy(timedelta(days=3), timedelta(hours=1), timedelta(days=2)),
+        )
+    )
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, target_finality="snapshot")
+    assert calls == []
+    assert not await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+
+
 @pytest.mark.parametrize("configure_before_init", [True, False])
 @pytest.mark.parametrize(
     "policy,missing",
@@ -1646,6 +1712,177 @@ async def test_frozen_explicit_close_requires_lock_before_snapshot_work(
     assert len(calls) == 1
     assert await store.get_provisional_acquisition(**owner, ordinal=1) is None
     assert await store.list_revisions(**owner) == revisions
+
+
+@pytest.mark.parametrize("configure_before_init", [True, False])
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ReportingSourceFinalPolicy("source", "closed"),
+        ReportingContractualCutoffPolicy("cutoff", "P1D"),
+        ReportingStabilizedPolicy("stable", "PT0S", "PT6H"),
+    ],
+)
+@pytest.mark.parametrize(
+    "state", ["new", "ordinary", "completed", "manual_after_close", "ambiguous"]
+)
+async def test_snapshot_admission_distinguishes_new_from_retained_close(
+    store_factory: Any,
+    configure_before_init: bool,
+    policy: Any,
+    state: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.test_reliable_reporting_service import (
+        DEFINITION,
+        NOW,
+        _configuration,
+        _finality_service,
+        _rows,
+    )
+
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    clock = DeterministicReportingClock(NOW)
+    store = store_factory(clock=clock)
+    result = InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at)
+    if state != "new":
+        original = _finality_service(
+            config,
+            snapshot=True,
+            official=isinstance(policy, ReportingSourceFinalPolicy),
+            close=state != "ordinary",
+            store=store,
+            clock=clock,
+            cadence="PT1H",
+            results=(result, result),
+        )
+        await original.configure(config)
+        await original.initialize()
+        producer = original._bindings[config.generation_key].producer
+        (obligation,) = await producer.close_elapsed_periods(config)
+        owner = dict(
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+        if state != "ambiguous":
+            await producer.run_configuration(config)
+            retained = await store.get_provisional_observation(**owner)
+            assert retained.acquisition.policy.official_close_lag == (
+                None if state == "ordinary" else timedelta(days=2)
+            )
+            if state == "manual_after_close":
+                clock.advance(timedelta(minutes=5))
+                request = producer._build_slice(
+                    config,
+                    obligation,
+                    SNAPSHOT_OFFERING_ID,
+                    finality="snapshot",
+                    now=clock(),
+                    observation=1,
+                    trigger="manual_replay",
+                )
+                await store.reserve_provisional_acquisition(
+                    ProvisionalAcquisition(
+                        request.model_dump_json(),
+                        1,
+                        retained.acquisition.policy,
+                        retained.revision_id,
+                    )
+                )
+                await producer.acquire_obligation(
+                    config,
+                    obligation,
+                    restate=True,
+                    target_finality="snapshot",
+                    manual_replay=True,
+                    track_settling=True,
+                )
+                latest = await store.get_provisional_observation(**owner)
+                assert latest.acquisition.ordinal == 1 and not latest.is_scheduled
+        await original.close()
+        if state == "ordinary":
+            clock.advance(timedelta(hours=1))
+
+    monkeypatch.setattr(store, "source_publication", None)
+    monkeypatch.setattr(store, "get_stabilization_schedule", None)
+    monkeypatch.setattr(store, "verify_snapshot_origin", None)
+    if state in {"completed", "manual_after_close"}:
+
+        async def only_pending(**kwargs: Any) -> None:
+            # A completed reservation is no longer returned by the pending-only API.
+            return None
+
+        monkeypatch.setattr(store, "get_provisional_acquisition", only_pending)
+        checkpoint = store.get_restatement_checkpoint
+
+        async def historical_checkpoint(**kwargs: Any) -> Any:
+            value = await checkpoint(**kwargs)
+            return (
+                replace(value, stabilization_policy=None, next_stabilization_due_at=None)
+                if value
+                else value
+            )
+
+        monkeypatch.setattr(store, "get_restatement_checkpoint", historical_checkpoint)
+        if state == "completed":
+            # A custom atomic publisher can expose its latest read without a history interface.
+            read = store.list_provisional_observations
+
+            async def read_latest(**kwargs: Any) -> ProvisionalObservation | None:
+                history = await read(**kwargs, limit=1)
+                return history[-1] if history else None
+
+            monkeypatch.setattr(store, "get_provisional_observation", read_latest)
+            monkeypatch.setattr(store, "list_provisional_observations", None)
+    else:
+        monkeypatch.setattr(store, "get_provisional_acquisition", None)
+    service = _finality_service(
+        config,
+        snapshot=True,
+        official=isinstance(policy, ReportingSourceFinalPolicy),
+        store=store,
+        clock=clock,
+        cadence="PT1H",
+        results=(result,),
+    )
+
+    async def start() -> None:
+        if configure_before_init:
+            await service.configure(config)
+        await service.initialize()
+        if not configure_before_init:
+            await service.configure(config)
+
+    if state == "new":
+        await start()
+        turn = await service.run_worker()
+        (identifier,) = turn.configurations[config.generation_key].revisions_committed
+        revision = await store.get_revision(
+            account_id=config.account_id, reporting_revision_id=identifier
+        )
+        assert revision.finality == "snapshot"
+    elif state == "ordinary":
+        await start()
+        turn = await service.run_worker()
+        assert not turn.configuration_errors
+        history = await store.list_provisional_observations(**owner, limit=3)
+        assert [item.revision_id for item in history] == [
+            retained.revision_id,
+            retained.revision_id,
+        ]
+    else:
+        expected = (
+            "get_stabilization_schedule"
+            if isinstance(policy, ReportingStabilizedPolicy)
+            else "publication lock"
+        )
+        with pytest.raises(ReliableReportingConfigurationError, match=expected):
+            await start()
+        assert config.generation_key not in service._bindings
 
 
 def test_source_final_evidence_ref_accepts_512_characters() -> None:
