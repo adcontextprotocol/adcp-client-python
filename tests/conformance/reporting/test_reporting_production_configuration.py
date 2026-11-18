@@ -21,6 +21,10 @@ from adcp.reporting.materializer.contracts import ReportingWriterError, binding_
 from adcp.reporting.materializer.work import ReportingMaterializerLease
 from adcp.reporting.production.configuration import ReportingConfigurationAdmission
 from adcp.reporting.production.offerings import ReportingProductionOffering
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
+)
 from adcp.validation.schema_loader import get_named_validator
 
 from ._feed_support import feed_request, walk
@@ -129,6 +133,16 @@ async def test_dual_finality_source_final_admits_each_configured_route(primary, 
         offering.check_configuration(
             config, h.item.binding, retention_days=h.item.writer.resource_retention_days
         )
+        capabilities = source.capabilities.model_dump(mode="json")
+        for item in capabilities["offerings"]:
+            if item["offering_id"] == source.official_source_id:
+                item["formats"] = [
+                    {"media_type": "application/vnd.apache.parquet", "compression": "none"}
+                ]
+        capabilities["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(capabilities)
+        source.capabilities = ReportingSourceCapabilitiesV1.model_validate(capabilities)
+        with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+            offering.check_source(effective=True)
 
 
 def wire_configuration(h):

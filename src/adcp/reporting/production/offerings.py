@@ -18,7 +18,7 @@ from adcp.reporting.ledger.models import (
     _schedule_clock,
     iso_duration_to_timedelta,
 )
-from adcp.reporting.ledger.producer import ReportingProducer
+from adcp.reporting.ledger.producer import ReportingProducer, _supports_official_source_formats
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.contracts import ReportingVerificationKey, failure
 from adcp.reporting.materializer.verification import _same_definition
@@ -178,6 +178,8 @@ class ReportingProductionOffering:
             raise failure("UNSUPPORTED_VERIFICATION")
         source_class = finality_policy_source_class(policy)
         proof_source = configured_source(source_class)
+        if not _supports_official_source_formats(proof_source):
+            raise failure("UNSUPPORTED_VERIFICATION")
         if self.source_offering_id != proof_source.offering_id and (
             snapshot is None or self.source_offering_id != snapshot.offering_id
         ):

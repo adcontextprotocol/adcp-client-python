@@ -29,9 +29,12 @@ loop, or from whatever supervisor you already operate.
 from __future__ import annotations
 
 import asyncio
+import gzip
 import hashlib
 import inspect
+import json
 import logging
+import zlib
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
@@ -87,6 +90,7 @@ from adcp.reporting.ledger.store import (
     ReportingRowStagingStore,
     ReportingSourcePublicationStore,
     ReportingWorkerRetryPolicy,
+    RestatementCheckpoint,
     RestatementCheckpointStore,
     RetryScheduleEntry,
     RetryScheduleStore,
@@ -108,6 +112,7 @@ from adcp.reporting.source import (
     ReportingSourceStagedObjectReader,
     ReportingTriggerKind,
     SourceBatchManifestV1,
+    SourceBatchObjectV1,
     _validate_metric_applicability,
     coverage_denominator_fingerprint_v1,
     iso_duration_milliseconds_v1,
@@ -168,6 +173,43 @@ class FixedCurrencyResolver:
 
 def _utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
+
+
+def _source_run_id(cutoff: datetime) -> str:
+    return f"run-{_utc(cutoff).strftime('%Y%m%dT%H%M%S')}"
+
+
+def _supports_official_source_formats(
+    offering: ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1,
+) -> bool:
+    """An official source may emit any encoding it declares for the selected offering."""
+    return all(
+        item.media_type in {"application/json", "application/x-ndjson"}
+        and item.compression in {"none", "gzip"}
+        for item in offering.formats
+    )
+
+
+def _official_object_rows(staged: SourceBatchObjectV1, payload: bytes) -> list[dict[str, Any]]:
+    try:
+        if staged.compression == "gzip":
+            payload = gzip.decompress(payload)
+        if staged.media_type == "application/json":
+            document = json.loads(payload)
+            rows = document if isinstance(document, list) else [document]
+        else:
+            rows = [
+                json.loads(line) for line in payload.decode("utf-8").splitlines() if line.strip()
+            ]
+    except (ValueError, OSError, EOFError, zlib.error) as error:
+        raise LedgerConflictError(
+            "STAGED_OBJECT_MISMATCH", "staged object does not decode with its declared format"
+        ) from error
+    if len(rows) != staged.row_count or not all(isinstance(row, dict) for row in rows):
+        raise LedgerConflictError(
+            "STAGED_OBJECT_MISMATCH", "staged object does not contain the declared reporting rows"
+        )
+    return rows
 
 
 def _source_finality(obligation: ReportingObligationRecord, output_finality: str) -> str:
@@ -796,6 +838,10 @@ class ReportingProducer:
             try:
                 if policy is None:
                     await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                    if obligation.definition and isinstance(
+                        obligation.definition.finality_policy, ReportingContractualCutoffPolicy
+                    ):
+                        finished = identifier not in turn._retry_keys_by_obligation
                 else:
                     finished = await self._acquire_with_settling_policy(
                         configuration, obligation, policy=policy, turn=turn, now=now
@@ -1206,10 +1252,32 @@ class ReportingProducer:
             # An official close is terminal. A later source correction is an
             # adjustment, never another acquisition.
             return None
-        satisfied = current is not None and current.readable
-        if satisfied and not restate:
-            return None
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        checkpoint_store = (
+            self._restatement_store() if track_settling else self._observation_checkpoint_store()
+        )
+        checkpoint = (
+            await checkpoint_store.get_restatement_checkpoint(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if checkpoint_store is not None
+            else None
+        )
+        observation = checkpoint.next_observation if checkpoint else len(revisions)
+        pending = (
+            await self._pending_acquisition(obligation, ordinal=observation)
+            if checkpoint_store is not None
+            else None
+        )
+        if pending is not None:
+            finality = pending.output_finality or (
+                "snapshot"
+                if pending.request().publication_class == "PROVISIONAL_SNAPSHOT"
+                else "official"
+            )
+        if current is not None and current.readable and not restate and pending is None:
+            return None
         if finality == "official":
             if selected_policy is None:
                 raise LedgerConflictError(
@@ -1234,30 +1302,13 @@ class ReportingProducer:
         constituents = await self._admitted_source_constituents(configuration, obligation)
 
         derived_close = finality == "official" and source_finality == "snapshot"
-        if isinstance(selected_policy, ReportingContractualCutoffPolicy) and derived_close:
-            track_settling = (
-                track_settling
-                or manual_replay
-                or (
-                    self._optional_observation_store() is not None
-                    and isinstance(self._store, RestatementCheckpointStore)
-                )
-            )
-        checkpoint_store = self._restatement_store() if track_settling else None
-        checkpoint = (
-            await checkpoint_store.get_restatement_checkpoint(
-                account_id=obligation.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-            )
-            if checkpoint_store is not None
-            else None
-        )
-        observation = checkpoint.next_observation if checkpoint is not None else len(revisions)
         if derived_close and isinstance(selected_policy, ReportingContractualCutoffPolicy):
             if _utc(now) < contractual_cutoff_at(obligation, selected_policy):
-                pending = await self._pending_acquisition(obligation, ordinal=observation)
-                if pending is None or pending.output_finality == "official":
-                    return None
+                return None
+            if checkpoint_store is None:
+                observation = await self._cutoff_observation_ordinal(obligation, observation)
+            else:
+                track_settling = True
         request = self._build_slice(
             configuration,
             obligation,
@@ -1268,8 +1319,8 @@ class ReportingProducer:
             constituents=constituents,
             trigger="manual_replay" if manual_replay else "scheduled_poll",
         )
-        acquisition = None
-        if track_settling:
+        acquisition = pending
+        if track_settling and acquisition is None:
             acquisition = await self._reserve_observation(
                 configuration,
                 obligation,
@@ -1279,6 +1330,7 @@ class ReportingProducer:
                 previous_boundary=checkpoint.provisional_until if checkpoint else None,
                 derived_close=derived_close,
             )
+        if acquisition is not None:
             request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
             if manual_replay:
                 request = request.model_copy(update={"trigger": "manual_replay"})
@@ -1289,6 +1341,8 @@ class ReportingProducer:
                 request.period.source_read_cutoff_at
             ):
                 return None
+        if finality == "official":
+            self._official_source_authority(request)
         cancel = asyncio.Event()
         execution = asyncio.create_task(
             self._execute_source(
@@ -1364,14 +1418,13 @@ class ReportingProducer:
             )
         self._validate_manifest_currency(obligation, manifest)
         if finality == "official":
-            self._official_source_request(
-                configuration,
-                obligation,
-                manifest,
-                constituents=constituents,
-                ordinal=observation,
-                cutoff_ceiling=now,
-                acquisition=acquisition,
+            assert result.response is not None
+            if result.response.identity != request.identity:
+                raise LedgerConflictError(
+                    "MANIFEST_MISMATCH", "source response identity differs from its request"
+                )
+            self._validate_official_manifest(
+                request, manifest, cutoff_ceiling=now, acquisition=acquisition
             )
         rows = await self._read_rows(request, manifest, require_staged=finality == "official")
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
@@ -1384,12 +1437,46 @@ class ReportingProducer:
                 "producer clock regressed during acquisition; correct the clock before retrying",
             )
         if finality == "official":
+            if _utc(manifest.acquired_at) > _utc(published_at):
+                raise LedgerConflictError(
+                    "PUBLICATION_TIME_INVALID",
+                    "source acquisition is later than the publication clock",
+                )
+            try:
+                proof = manifest_finality_proof(obligation, manifest, published_at)
+            except LedgerConflictError as error:
+                if (
+                    not isinstance(selected_policy, ReportingContractualCutoffPolicy)
+                    or error.code != "FINALITY_POLICY_UNPROVEN"
+                ):
+                    raise
+                # A valid, stale seal cannot become a qualifying cutoff observation.
+                # Retire its execution identity only after staged verification.
+                turn.slices_failed.append(obligation.reporting_obligation_id)
+                await self._schedule_retry(
+                    obligation, turn, now=published_at, replayed=manual_replay
+                )
+                await self._retire_cutoff_attempt(
+                    obligation,
+                    ordinal=observation,
+                    checked_at=published_at,
+                    checkpoint_store=checkpoint_store,
+                    checkpoint=checkpoint,
+                )
+                self._note_escalation(
+                    obligation,
+                    turn,
+                    now=published_at,
+                    availability_retry=True,
+                    offering_id=request.offering_id,
+                )
+                return None
             committed = await self._commit_revision_from_manifest(
                 obligation,
                 manifest,
                 rows=rows,
                 finality=finality,
-                finality_proof=manifest_finality_proof(obligation, manifest, published_at),
+                finality_proof=proof,
                 now=published_at,
                 turn=turn,
                 acquisition=acquisition,
@@ -1407,6 +1494,48 @@ class ReportingProducer:
             )
         await self._clear_retry(obligation, turn=turn, now=published_at)
         return committed
+
+    @staticmethod
+    def _cutoff_ordinal_key(obligation: ReportingObligationRecord) -> str:
+        return f"cutoff:{obligation.account_id}:{obligation.reporting_obligation_id}"
+
+    async def _retire_cutoff_attempt(
+        self,
+        obligation: ReportingObligationRecord,
+        *,
+        ordinal: int,
+        checked_at: datetime,
+        checkpoint_store: RestatementCheckpointStore | None,
+        checkpoint: RestatementCheckpoint | None,
+    ) -> None:
+        """Advance the acquisition cursor without publishing a revision or observation."""
+        if checkpoint_store is not None:
+            await checkpoint_store.record_restatement_checkpoint(
+                RestatementCheckpoint(
+                    obligation.account_id,
+                    obligation.reporting_obligation_id,
+                    checked_at,
+                    ordinal + 1,
+                    checkpoint.provisional_until if checkpoint else None,
+                )
+            )
+        else:
+            # Core ledgers have a durable retry schedule but no observation cursor.
+            # Keep the attempt number independent from transient source backoff.
+            await self._record_retry(
+                RetryScheduleEntry(
+                    self._cutoff_ordinal_key(obligation),
+                    checked_at,
+                    ordinal + 1,
+                    recorded_at=checked_at,
+                )
+            )
+
+    async def _cutoff_observation_ordinal(
+        self, obligation: ReportingObligationRecord, ordinal: int
+    ) -> int:
+        retired = await self._get_retry(self._cutoff_ordinal_key(obligation))
+        return max(ordinal, retired.attempt) if retired else ordinal
 
     def _retry_keys(self, obligation: ReportingObligationRecord) -> tuple[str, str, str]:
         source = hashlib.sha256(
@@ -1679,18 +1808,29 @@ class ReportingProducer:
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "source generation is unavailable")
         return configuration
 
-    def _restatement_store(self) -> RestatementCheckpointStore:
+    def _optional_restatement_store(self) -> RestatementCheckpointStore | None:
         explicit = all(
             inspect.getattr_static(self._store, name, None) is not None
             for name in ("get_restatement_checkpoint", "record_restatement_checkpoint")
         )
-        if not explicit or not isinstance(self._store, RestatementCheckpointStore):
+        if explicit and isinstance(self._store, RestatementCheckpointStore):
+            return self._store
+        return None
+
+    def _observation_checkpoint_store(self) -> RestatementCheckpointStore | None:
+        if self._optional_observation_store() is None:
+            return None
+        return self._optional_restatement_store()
+
+    def _restatement_store(self) -> RestatementCheckpointStore:
+        store = self._optional_restatement_store()
+        if store is None:
             raise LedgerConflictError(
                 "RESTATEMENT_CHECKPOINTS_NOT_SUPPORTED",
                 "a source settling window requires explicitly implemented durable "
                 "restatement checkpoint methods",
             )
-        return self._store
+        return store
 
     def _optional_observation_store(self) -> ProvisionalObservationPublicationStore | None:
         explicit = all(
@@ -1846,8 +1986,6 @@ class ReportingProducer:
                     "official publication requires a staged object reader",
                 )
             return []
-        import json
-
         rows: list[dict[str, Any]] = []
         cancel = asyncio.Event()
         for staged in manifest.objects:
@@ -1865,67 +2003,78 @@ class ReportingProducer:
                     "STAGED_OBJECT_MISMATCH",
                     f"staged object {staged.ordinal} does not match its manifest evidence",
                 )
-            start = len(rows)
-            for line in payload.decode("utf-8").splitlines():
-                if line.strip():
-                    rows.append(json.loads(line))
-            if require_staged and len(rows) - start != staged.row_count:
-                raise LedgerConflictError(
-                    "STAGED_OBJECT_MISMATCH", "staged object row count differs from its manifest"
+            if require_staged:
+                rows.extend(_official_object_rows(staged, payload))
+            else:
+                rows.extend(
+                    json.loads(line)
+                    for line in payload.decode("utf-8").splitlines()
+                    if line.strip()
                 )
         return rows
 
-    def _official_source_request(
+    def _official_source_authority(
+        self, request: ReportingSourceSliceRequestV1
+    ) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
+        from adcp.reporting.conformance import (
+            ReportingSourceConformanceError,
+            _validate_request_authority,
+        )
+
+        try:
+            offering = _validate_request_authority(self._source.capabilities, request)
+        except ReportingSourceConformanceError as error:
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH", "official request contradicts its declared source authority"
+            ) from error
+        if not _supports_official_source_formats(offering):
+            raise LedgerConflictError(
+                "UNSUPPORTED_SOURCE_FORMAT",
+                "official producer requires JSON or NDJSON with gzip or no compression",
+            )
+        return offering
+
+    def _validate_official_manifest(
         self,
-        configuration: ReportingConfiguration,
-        obligation: ReportingObligationRecord,
+        request: ReportingSourceSliceRequestV1,
         manifest: SourceBatchManifestV1,
         *,
-        constituents: tuple[ReportingConstituent, ...] | None,
-        ordinal: int,
         cutoff_ceiling: datetime,
         acquisition: ProvisionalAcquisition | None,
-    ) -> ReportingSourceSliceRequestV1:
+    ) -> None:
         from adcp.reporting.conformance import (
             ReportingSourceConformanceError,
             _validate_manifest_against_request,
         )
 
-        offering_id = self._offerings.offering_for(_source_finality(obligation, "official"))
-        if offering_id is None or offering_id != manifest.offering_id:
-            raise LedgerConflictError(
-                "MANIFEST_MISMATCH", "official proof must use the selected source offering"
-            )
         cutoff = manifest.period.source_read_cutoff_at
         if _utc(cutoff) > _utc(cutoff_ceiling):
             raise LedgerConflictError(
                 "MANIFEST_MISMATCH", "source cutoff exceeds the requested read"
             )
-        # A retry can receive an earlier seal for its immutable execution key.
-        # Reconstruct the authorized source and denominator, using the original dispatch
-        # identity. A durable reservation also binds its exact cutoff and run.
-        request = self._build_slice(
-            configuration,
-            obligation,
-            offering_id,
-            finality="official",
-            now=cutoff,
-            observation=ordinal,
-            constituents=constituents,
-        )
+        # A core-store retry can receive an earlier seal for the same execution key.
+        # Only its dispatch time can differ. A durable reservation also fixes that time.
+        if cutoff != request.period.source_read_cutoff_at:
+            request = request.model_copy(
+                update={
+                    "identity": request.identity.model_copy(
+                        update={"run_id": _source_run_id(cutoff)}
+                    ),
+                    "period": request.period.model_copy(update={"source_read_cutoff_at": cutoff}),
+                }
+            )
         if acquisition is not None and not self._matches_reservation(request, acquisition):
             raise LedgerConflictError(
                 "MANIFEST_MISMATCH", "official source manifest differs from its frozen request"
             )
         try:
             _validate_manifest_against_request(
-                self._source.capabilities.offering(offering_id), request, manifest
+                self._official_source_authority(request), request, manifest
             )
         except ReportingSourceConformanceError as error:
             raise LedgerConflictError(
                 "MANIFEST_MISMATCH", "official manifest does not bind the configured source request"
             ) from error
-        return request
 
     @staticmethod
     def _matches_reservation(
@@ -1992,6 +2141,7 @@ class ReportingProducer:
                     "MANIFEST_MISMATCH",
                     "unsupported cells require partial metric support with a reason",
                 ) from None
+        sample_after_staging = now is None
         now = now or self._clock()
         turn = turn or WorkerTurn()
         existing = await self._store.list_revisions(
@@ -2057,6 +2207,9 @@ class ReportingProducer:
         if finality != "official":
             finality_proof = None
         elif prior is not None and prior.finality == "official":
+            # A retained immutable publication may be checked or replayed while
+            # another acquisition is reserved. Its replay cannot advance that work.
+            acquisition = None
             assert prior.finality_policy_id and prior.finality_basis and prior.finalized_at
             finality_proof = FinalityProof(
                 prior.finality_policy_id, prior.finality_basis, prior.finalized_at
@@ -2072,9 +2225,18 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "MANIFEST_MISMATCH", "official proof must use the selected source offering"
                 )
-            finality_proof.validate(obligation, manifest, created_at)
+            proof_anchor = (
+                finality_proof.finalized_at
+                if sample_after_staging and finality_proof.basis == "contractual_cutoff"
+                else created_at
+            )
+            if _utc(proof_anchor) > _utc(created_at):
+                raise LedgerConflictError(
+                    "PUBLICATION_TIME_INVALID", "proof is later than the publication clock"
+                )
+            finality_proof.validate(obligation, manifest, proof_anchor)
             if not verified_source_rows:
-                acquisition = await self._verify_direct_official_publication(
+                acquisition, rows = await self._verify_direct_official_publication(
                     obligation,
                     manifest,
                     rows,
@@ -2082,6 +2244,15 @@ class ReportingProducer:
                     revisions=existing,
                     created_at=created_at,
                 )
+                if sample_after_staging:
+                    completed_at = self._clock()
+                    if _utc(completed_at) < _utc(now):
+                        raise LedgerConflictError(
+                            "PUBLICATION_TIME_INVALID",
+                            "producer clock regressed during staged verification",
+                        )
+                    created_at = now = completed_at
+                    finality_proof = manifest_finality_proof(obligation, manifest, created_at)
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
             account_id=obligation.account_id,
@@ -2176,18 +2347,23 @@ class ReportingProducer:
         *,
         revisions: Sequence[ReportingRevisionRecord],
         created_at: datetime,
-    ) -> ProvisionalAcquisition | None:
+    ) -> tuple[ProvisionalAcquisition | None, list[dict[str, Any]]]:
         configuration = await self._retained_source_configuration(obligation)
         constituents = await self._admitted_source_constituents(configuration, obligation)
         ordinal = len(revisions)
         checkpoint = None
-        if isinstance(self._store, RestatementCheckpointStore):
-            checkpoint = await self._store.get_restatement_checkpoint(
+        checkpoint_store = self._observation_checkpoint_store()
+        if checkpoint_store is not None:
+            checkpoint = await checkpoint_store.get_restatement_checkpoint(
                 account_id=obligation.account_id,
                 reporting_obligation_id=obligation.reporting_obligation_id,
             )
             if checkpoint is not None:
                 ordinal = checkpoint.next_observation
+        elif obligation.definition and isinstance(
+            obligation.definition.finality_policy, ReportingContractualCutoffPolicy
+        ):
+            ordinal = await self._cutoff_observation_ordinal(obligation, ordinal)
         pending = await self._pending_acquisition(obligation, ordinal=ordinal)
         if pending is not None:
             if (acquisition is not None and acquisition != pending) or (
@@ -2199,14 +2375,17 @@ class ReportingProducer:
                     "finish the reserved acquisition before official publication",
                 )
             acquisition = pending
-        request = self._official_source_request(
+        request = self._build_slice(
             configuration,
             obligation,
-            manifest,
+            manifest.offering_id,
+            finality="official",
+            now=manifest.period.source_read_cutoff_at,
             constituents=constituents,
-            ordinal=ordinal,
-            cutoff_ceiling=created_at,
-            acquisition=acquisition,
+            observation=ordinal,
+        )
+        self._validate_official_manifest(
+            request, manifest, cutoff_ceiling=created_at, acquisition=acquisition
         )
         staged_rows = await self._read_rows(request, manifest, require_staged=True)
         if rfc8785.dumps(staged_rows) != rfc8785.dumps(list(rows)):
@@ -2216,8 +2395,7 @@ class ReportingProducer:
         if (
             pending is None
             and request.publication_class == "PROVISIONAL_SNAPSHOT"
-            and self._optional_observation_store() is not None
-            and isinstance(self._store, RestatementCheckpointStore)
+            and checkpoint_store is not None
         ):
             # Staged reads release the ledger lock. Reserve the verified request before
             # publication so an ordinary snapshot that won meanwhile is never skipped.
@@ -2236,7 +2414,7 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "OBSERVATION_CONFLICT", "another source acquisition won the reservation"
                 )
-        return acquisition
+        return acquisition, staged_rows
 
     async def _commit_publication(
         self,
@@ -2449,7 +2627,7 @@ class ReportingProducer:
                 reporting_obligation_id=obligation.reporting_obligation_id,
                 period_key=obligation.period.period_key,
                 source_execution_key=source_execution_key,
-                run_id=f"run-{_utc(now).strftime('%Y%m%dT%H%M%S')}",
+                run_id=_source_run_id(now),
                 logical_slice_fingerprint=_logical_slice_fingerprint(obligation, offering_id),
                 source_scope=dict(self._offerings.source_scope),
             ),

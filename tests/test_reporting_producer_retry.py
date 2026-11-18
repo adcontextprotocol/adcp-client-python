@@ -114,7 +114,10 @@ def producer(source, store, *, clock=None, **kwargs):
         store=store,
         offerings=ProducerOfferings(
             official_offering_id=OFFICIAL_OFFERING_ID,
-            publication_namespace="reporting-source:retry-test",
+            publication_namespace=source.capabilities.offering(
+                OFFICIAL_OFFERING_ID
+            ).publication_namespace,
+            source_scope=dict(source.capabilities.source_scope),
         ),
         clock=clock or (lambda: NOW),
         **kwargs,

@@ -158,6 +158,7 @@ def _finality_service(
     producer_factory: ProducerFactory = ReportingProducer,
     results: tuple[InlineFetchResult, ...] = (),
     clock: DeterministicReportingClock | None = None,
+    source_format: str | None = None,
 ) -> ReliableReportingService:
     public = _capability_offering("gam")
     public["supported_finality"] = [configuration.required_finality]
@@ -173,6 +174,9 @@ def _finality_service(
     raw["offerings"] = [
         offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
     ]
+    if source_format:
+        for offering in raw["offerings"]:
+            offering["formats"] = [{"media_type": source_format, "compression": "none"}]
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
     adapter = ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), results)
     service = ReliableReportingService(
@@ -323,6 +327,22 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
     service = _finality_service(config, snapshot=True, official=False, store=SnapshotStore())
     with pytest.raises(ReliableReportingConfigurationError, match="observation"):
         await service.configure(config)
+
+
+async def test_service_refuses_an_unreadable_official_source_format_before_admission() -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("source", "closed")
+        ),
+    )
+    service = _finality_service(
+        config, snapshot=False, official=True, source_format="application/vnd.apache.parquet"
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="source format"):
+        await service.configure(config)
+    assert config.generation_key not in service._bindings
 
 
 async def test_service_rejects_stabilized_configuration_without_history_before_persisting() -> None:

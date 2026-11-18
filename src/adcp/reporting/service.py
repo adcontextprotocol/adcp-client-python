@@ -54,7 +54,10 @@ from adcp.reporting.ledger.finality import (
     ReportingStabilizedPolicy,
     finality_policy_source_class,
 )
-from adcp.reporting.ledger.producer import _advertised_reporting_delivery
+from adcp.reporting.ledger.producer import (
+    _advertised_reporting_delivery,
+    _supports_official_source_formats,
+)
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
     ReliableReportingServiceError,
@@ -879,6 +882,10 @@ class ReliableReportingService:
             if source is None:
                 raise ReliableReportingConfigurationError(
                     f"selected finality policy requires a matching {source_class} source offering"
+                )
+            if not _supports_official_source_formats(source):
+                raise ReliableReportingConfigurationError(
+                    "official source formats must be JSON or NDJSON with gzip or no compression"
                 )
             used = [source]
             if (
