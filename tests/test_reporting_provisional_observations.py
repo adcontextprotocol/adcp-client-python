@@ -71,6 +71,74 @@ async def latest(store):
     return observation
 
 
+async def test_stabilization_history_selects_only_scheduled_snapshot_outputs(make_harness):
+    producer, store, _, clock = await make_harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    scheduled = await latest(store)
+    owner = dict(
+        account_id=scheduled.acquisition.account_id,
+        reporting_obligation_id=scheduled.acquisition.obligation_id,
+    )
+    # Retained history can interleave durable manual retries and official acquisitions.
+    payloads = []
+    for ordinal, (trigger, source_class, output) in enumerate(
+        [
+            ("scheduled_poll", "PROVISIONAL_SNAPSHOT", None),
+            ("manual_replay", "PROVISIONAL_SNAPSHOT", None),
+            ("scheduled_poll", "AUTHORITATIVE", None),
+            ("scheduled_poll", "PROVISIONAL_SNAPSHOT", "official"),
+        ]
+    ):
+        wire = scheduled.to_wire()
+        acquisition = wire["acquisition"]
+        acquisition["ordinal"] = ordinal
+        acquisition["request"]["trigger"] = trigger
+        acquisition["request"]["publication_class"] = source_class
+        if source_class == "AUTHORITATIVE":
+            acquisition["request"]["revision_kind"] = "authoritative"
+        if output:
+            acquisition["output_finality"] = output
+        payloads.append(wire)
+    if isinstance(store, PgReportingLedgerStore):
+        from psycopg.types.json import Jsonb
+
+        async with store.transaction(), store._connection() as connection:
+            for ordinal, payload in enumerate(payloads[1:], start=1):
+                await connection.execute(
+                    "INSERT INTO reporting_provisional_acquisitions"
+                    " (account_id,reporting_obligation_id,ordinal,source_execution_key,payload)"
+                    " VALUES (%s,%s,%s,%s,%s)",
+                    (
+                        owner["account_id"],
+                        owner["reporting_obligation_id"],
+                        ordinal,
+                        f"execution-{ordinal}",
+                        Jsonb(payload["acquisition"]),
+                    ),
+                )
+                await connection.execute(
+                    "INSERT INTO reporting_provisional_observations"
+                    " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
+                    " VALUES (%s,%s,%s,%s,%s)",
+                    (
+                        owner["account_id"],
+                        owner["reporting_obligation_id"],
+                        ordinal,
+                        scheduled.revision_id,
+                        Jsonb(payload),
+                    ),
+                )
+    else:
+        history = store._provisional_observations[
+            (owner["account_id"], owner["reporting_obligation_id"])
+        ]
+        for ordinal, payload in enumerate(payloads[1:], start=1):
+            history[ordinal] = type(scheduled).from_wire(payload)
+    assert await store.list_provisional_observations(
+        **owner, limit=1, scheduled_snapshots_only=True
+    ) == (scheduled,)
+
+
 async def test_jitter_phase_is_persisted_by_memory_and_postgres_observations(make_harness):
     producer, store, _, clock = await make_harness(_capabilities(restatement_window="P3D"))
     configurations = await store.list_configurations(
@@ -204,6 +272,19 @@ async def _publication_effect_counts(store):
         len(store._notification_state.events),
         len(store._notification_state.boundaries),
     )
+
+
+async def test_snapshot_only_unchanged_read_reuses_retained_content_without_source_id():
+    producer, store, _, clock = await _harness(_capabilities(restatement_window="P3D"))
+    await producer.run_worker()
+    (original,) = await _revisions(store)
+    store._revisions[original.reporting_revision_id] = replace(original, source_publication_id=None)
+    clock[0] += timedelta(hours=1)
+    turn = await producer.run_worker()
+    assert not turn.revisions_committed
+    observation = await latest(store)
+    assert observation.acquisition.ordinal == 1
+    assert observation.revision_id == original.reporting_revision_id
 
 
 async def test_adapter_without_window_rereads_with_sdk_default(make_harness):

@@ -13,13 +13,21 @@ from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.inline_source import InlineReportingSource
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
-from adcp.reporting.ledger.finality import ReportingStabilizedPolicy, finality_policy_source_class
+from adcp.reporting.ledger.finality import (
+    ReportingStabilizedPolicy,
+    finality_policy_source_class,
+    stabilization_history_limit,
+)
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     _schedule_clock,
     iso_duration_to_timedelta,
 )
-from adcp.reporting.ledger.producer import ReportingProducer, _supports_official_source_formats
+from adcp.reporting.ledger.producer import (
+    ReportingProducer,
+    _supports_official_source_formats,
+    snapshot_restatement_cadence,
+)
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.contracts import ReportingVerificationKey, failure
 from adcp.reporting.materializer.verification import _same_definition
@@ -197,6 +205,13 @@ class ReportingProductionOffering:
         if isinstance(policy, ReportingStabilizedPolicy):
             try:
                 self.producer._observation_history_store()
+                assert isinstance(proof_source, ProvisionalSnapshotOfferingV1)
+                stabilization_history_limit(
+                    policy,
+                    snapshot_restatement_cadence(
+                        proof_source, self.wire()["schedule"]["period_duration"]
+                    ),
+                )
             except LedgerConflictError:
                 raise failure("UNSUPPORTED_VERIFICATION") from None
         if snapshot is None or snapshot.offering_id == proof_source.offering_id:

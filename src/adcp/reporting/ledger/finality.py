@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal
@@ -12,10 +12,12 @@ from adcp.reporting.source import iso_duration_milliseconds_v1
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.models import ReportingObligationRecord
+    from adcp.reporting.ledger.provisional import ProvisionalObservation
     from adcp.reporting.source import SourceBatchManifestV1
 
 __all__ = [
     "FinalityProof",
+    "MAX_STABILIZATION_HISTORY_OBSERVATIONS",
     "ReportingContractualCutoffPolicy",
     "ReportingFinalityPolicy",
     "ReportingSourceFinalPolicy",
@@ -23,9 +25,13 @@ __all__ = [
     "contractual_cutoff_at",
     "finality_policy_source_class",
     "manifest_finality_proof",
+    "prove_stabilized_finality",
     "reporting_finality_policy_from_storage",
     "source_finality_proof",
+    "stabilization_history_limit",
 ]
+
+MAX_STABILIZATION_HISTORY_OBSERVATIONS = 256
 
 
 def _validate_policy_id(value: str) -> None:
@@ -110,12 +116,7 @@ class FinalityProof:
     basis: Literal["source_final", "contractual_cutoff", "stabilized"]
     finalized_at: datetime
 
-    def validate(
-        self,
-        obligation: ReportingObligationRecord,
-        manifest: SourceBatchManifestV1,
-        created_at: datetime,
-    ) -> None:
+    def validate_time(self, obligation: ReportingObligationRecord, created_at: datetime) -> None:
         from adcp.reporting.ledger.store import LedgerConflictError
 
         if self.finalized_at.utcoffset() is None or not (
@@ -126,10 +127,67 @@ class FinalityProof:
             raise LedgerConflictError(
                 "PUBLICATION_TIME_INVALID", "proven finality is outside the publication time bounds"
             )
+
+    def validate(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        created_at: datetime,
+    ) -> None:
+        from adcp.reporting.ledger.store import LedgerConflictError
+
+        self.validate_time(obligation, created_at)
         if self != manifest_finality_proof(obligation, manifest, created_at):
             raise LedgerConflictError(
                 "FINALITY_POLICY_UNPROVEN", "proof differs from the selected policy or its evidence"
             )
+
+
+def stabilization_history_limit(policy: ReportingStabilizedPolicy, cadence: timedelta) -> int:
+    """Admit only policy intervals that can be proved with a bounded ledger read."""
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    cadence_us = cadence // timedelta(microseconds=1)
+    duration_us = iso_duration_milliseconds_v1(policy.unchanged_for) * 1000
+    limit = (duration_us + cadence_us - 1) // cadence_us + 2
+    if limit > MAX_STABILIZATION_HISTORY_OBSERVATIONS:
+        raise LedgerConflictError(
+            "STABILIZATION_HISTORY_LIMIT",
+            f"stabilization history requires {limit} observations, exceeding the "
+            f"maximum of {MAX_STABILIZATION_HISTORY_OBSERVATIONS}",
+        )
+    return limit
+
+
+def prove_stabilized_finality(
+    obligation: ReportingObligationRecord,
+    policy: ReportingStabilizedPolicy,
+    history: Sequence[tuple[ProvisionalObservation, str]],
+) -> FinalityProof | None:
+    """Evaluate a bounded, verified sequence of scheduled snapshot observations."""
+    if not history:
+        return None
+    latest, _ = history[-1]
+    run_start = latest.checked_at
+    for (prior, prior_fingerprint), (current, fingerprint) in zip(
+        reversed(history[:-1]), reversed(history[1:])
+    ):
+        dispatch_at = current.acquisition.request().period.source_read_cutoff_at
+        if (
+            prior.next_due_at is None
+            or dispatch_at > prior.next_due_at
+            or prior.revision_id != current.revision_id
+            or prior_fingerprint != fingerprint
+        ):
+            break
+        run_start = prior.checked_at
+    age_ms = (latest.checked_at - obligation.period.end) // timedelta(milliseconds=1)
+    stable_ms = (latest.checked_at - run_start) // timedelta(milliseconds=1)
+    if age_ms < iso_duration_milliseconds_v1(policy.minimum_age) or (
+        stable_ms < iso_duration_milliseconds_v1(policy.unchanged_for)
+    ):
+        return None
+    return FinalityProof(policy.finality_policy_id, policy.basis, latest.checked_at)
 
 
 def contractual_cutoff_at(

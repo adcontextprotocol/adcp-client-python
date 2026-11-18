@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from datetime import timedelta
@@ -30,6 +31,7 @@ from adcp.reporting.ledger import (
     ReportingProducer,
     ReportingRevisionRecord,
     ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
     revision_content_sha256,
 )
 from adcp.reporting.ledger.finality import (
@@ -50,11 +52,394 @@ from tests.conformance.reporting._generation_support import isolated_reporting_p
 from tests.test_reporting_source_availability import (
     END,
     PROVIDER_ROW,
+    ProgressStore,
+    _capabilities,
     _closing_capabilities,
     _harness,
 )
 
 ROWS = [{"campaign_id": "campaign-redacted-1", "impressions": 10}]
+
+
+async def _stabilized_harness(
+    store_factory: Any, *, minimum_age: str = "PT0S", official: bool = True
+) -> tuple[Any, ...]:
+    result = await _harness(
+        store_factory,
+        official=official,
+        capabilities=_capabilities(
+            restatement_window="PT6H", restatement_cadence="PT6H", official_close_lag="PT6H"
+        ),
+        finality_policy=ReportingStabilizedPolicy("stable-12h", minimum_age, "PT12H"),
+    )
+    result[-1][0] = END + timedelta(hours=1)
+    return result
+
+
+@pytest.mark.parametrize("official", [False, True])
+async def test_stabilized_close_restarts_from_the_qualifying_observation(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, official: bool
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(
+        store_factory, official=official
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    await producer.run_configuration(config)
+    clock[0] += timedelta(hours=6)
+    await producer.run_configuration(config)
+    clock[0] += timedelta(hours=6)
+    qualified_at = clock[0]
+    original = store.commit_revision
+
+    async def interrupted(revision: Any, rows: Any) -> Any:
+        if revision.finality == "official":
+            raise OSError("interrupted official commit")
+        return await original(revision, rows)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "commit_revision", interrupted)
+        with pytest.raises(OSError, match="interrupted official commit"):
+            await producer.run_configuration(config)
+    history = await store.list_provisional_observations(**owner, limit=4)
+    assert [o.checked_at for o in history] == [END + timedelta(hours=h) for h in (1, 7, 13)]
+    (snapshot,) = await store.list_revisions(**owner)
+    assert all(o.revision_id == snapshot.reporting_revision_id for o in history)
+    clock[0] += timedelta(minutes=10)
+    fresh = ReportingProducer(
+        source=producer._source,
+        offerings=producer._offerings,
+        store=store,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+    )
+    turn = await fresh.run_configuration(config)
+    closed = next(r for r in await store.list_revisions(**owner) if r.finality == "official")
+    assert turn.revisions_committed == [closed.reporting_revision_id]
+    assert closed.reporting_revision_id != snapshot.reporting_revision_id
+    assert closed.supersedes_reporting_revision_id is None
+    assert closed.finality_policy_id == "stable-12h" and closed.finality_basis == "stabilized"
+    assert closed.finalized_at == qualified_at and closed.created_at == clock[0]
+    manifest = SourceBatchManifestV1.model_validate_json(history[-1].manifest_json)
+    assert closed.source_publication_id == manifest.publication_id
+    assert (
+        await store.read_revision_rows(
+            account_id=config.account_id, reporting_revision_id=closed.reporting_revision_id
+        )
+    ).rows == tuple(ROWS)
+    assert (
+        await fresh.commit_revision_from_manifest(
+            obligation, manifest, rows=ROWS, finality="official"
+        )
+        == closed
+    )
+    assert not (await fresh.run_configuration(config)).revisions_committed
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize(
+    ("reset", "hours"),
+    [("changed", (1, 7, 13, 19)), ("gap", (1, 8, 14, 20)), ("age", (1, 7, 13, 19))],
+)
+async def test_stabilized_requires_a_complete_unchanged_run(
+    reset: str, hours: tuple[int, ...], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(
+        ProgressStore, minimum_age="PT19H" if reset == "age" else "PT0S"
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for idx, hour in enumerate(hours):
+        clock[0] = END + timedelta(hours=hour)
+        if reset == "changed" and idx == 1:
+            monkeypatch.setattr(
+                "tests.test_reporting_source_availability.PROVIDER_ROW",
+                PROVIDER_ROW.replace("10", "11"),
+            )
+        await producer.run_configuration(config)
+        revisions = await store.list_revisions(**owner)
+        assert any(r.finality == "official" for r in revisions) == (idx == 3)
+        assert (obligation.reporting_obligation_id in store.pending) == (idx != 3)
+    assert len(calls) == 4
+    assert sum(r.finality == "snapshot" for r in revisions) == (2 if reset == "changed" else 1)
+
+
+@pytest.mark.parametrize("corruption", ["unreadable", "publication", "owner", "unchanged-manifest"])
+async def test_stabilized_requires_readable_history_and_retained_provenance(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, corruption: str
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    for hour in (1, 7):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    (snapshot,) = await store.list_revisions(**owner)
+    if corruption == "unreadable":
+        await store.set_revision_readable(
+            account_id=config.account_id,
+            reporting_revision_id=snapshot.reporting_revision_id,
+            readable=False,
+        )
+    elif corruption in {"publication", "owner"}:
+        get = store.get_revision
+
+        async def corrupt_revision(**kwargs: Any) -> Any:
+            revision = await get(**kwargs)
+            if revision == snapshot:
+                if corruption == "owner":
+                    return replace(revision, account_id="different-account")
+                return replace(revision, source_publication_id="src-" + "0" * 64)
+            return revision
+
+        monkeypatch.setattr(store, "get_revision", corrupt_revision)
+    else:
+        read = store.list_provisional_observations
+
+        async def corrupt_history(**kwargs: Any) -> Any:
+            observations = await read(**kwargs)
+            return tuple(
+                (
+                    replace(
+                        o,
+                        manifest_json=json.dumps(
+                            {**json.loads(o.manifest_json), "publication_id": "src-" + "0" * 64}
+                        ),
+                    )
+                    if o.acquisition.ordinal == 1
+                    else o
+                )
+                for o in observations
+            )
+
+        monkeypatch.setattr(store, "list_provisional_observations", corrupt_history)
+    clock[0] += timedelta(hours=6)
+    with pytest.raises(LedgerConflictError, match="history"):
+        await producer.run_configuration(config)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+
+
+async def test_stabilized_manual_history_cannot_move_the_due_time_or_displace_scheduled_reads(
+    store_factory: Any,
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    await producer.acquire_obligation(
+        config, obligation, target_finality="snapshot", track_settling=True
+    )
+    first = await store.get_provisional_observation(**owner)
+    for ordinal in range(1, 7):
+        clock[0] += timedelta(minutes=5)
+        request = producer._build_slice(
+            config,
+            obligation,
+            SNAPSHOT_OFFERING_ID,
+            finality="snapshot",
+            now=clock[0],
+            observation=ordinal,
+            trigger="manual_replay",
+        )
+        await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(), ordinal, first.acquisition.policy, first.revision_id
+            )
+        )
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+        )
+    await producer.run_configuration(config)
+    assert len(calls) == 7
+    for hour in (7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    history = await store.list_provisional_observations(**owner, limit=10)
+    assert [o.acquisition.ordinal for o in history if o.is_scheduled] == [0, 7, 8]
+    assert [r.finality for r in await store.list_revisions(**owner)].count("official") == 1
+
+
+async def test_stabilized_progress_survives_a_temporarily_unreadable_history() -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(ProgressStore)
+    await producer.run_configuration(config)
+    clock[0] += timedelta(hours=6)
+    await producer.run_configuration(config)
+    (snapshot,) = await store.list_revisions(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    key = dict(account_id=config.account_id, reporting_revision_id=snapshot.reporting_revision_id)
+    await store.set_revision_readable(**key, readable=False)
+    clock[0] += timedelta(hours=6)
+    turn = await producer.run_configuration(config)
+    assert obligation.reporting_obligation_id in turn.slices_failed
+    assert obligation.reporting_obligation_id in store.pending
+    await store.set_revision_readable(**key, readable=True)
+    assert (await producer.run_configuration(config)).revisions_committed
+    assert obligation.reporting_obligation_id not in store.pending
+
+
+async def test_stabilized_history_rejects_an_extended_frozen_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer, store, config, _, _, clock = await _stabilized_harness(InMemoryReportingLedgerStore)
+    await producer.run_configuration(config)
+    read = store.list_provisional_observations
+
+    async def extended(**kwargs: Any) -> Any:
+        return tuple(
+            replace(o, next_due_at=o.next_due_at + timedelta(hours=1)) for o in await read(**kwargs)
+        )
+
+    monkeypatch.setattr(store, "list_provisional_observations", extended)
+    clock[0] += timedelta(hours=7)
+    with pytest.raises(LedgerConflictError, match="history"):
+        await producer.run_configuration(config)
+
+
+async def test_stabilized_unchanged_suffix_binds_the_complete_origin_publication(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(store_factory)
+    for hour in (1, 7, 13, 19, 25):
+        clock[0] = END + timedelta(hours=hour)
+        snapshot = await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", restate=True, track_settling=True
+        )
+    assert snapshot is not None
+    original = snapshot.source_publication_id
+    forged = original[:-1] + ("1" if original[-1] == "0" else "0")
+    get = store.get_revision
+
+    async def replace_origin(**kwargs: Any) -> Any:
+        revision = await get(**kwargs)
+        return replace(revision, source_publication_id=forged) if revision == snapshot else revision
+
+    monkeypatch.setattr(store, "get_revision", replace_origin)
+    with pytest.raises(LedgerConflictError, match="history"):
+        await producer.acquire_obligation(config, obligation)
+
+
+async def test_stabilized_replay_compares_the_detached_qualifying_manifest() -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        InMemoryReportingLedgerStore
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    observed = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    manifest = SourceBatchManifestV1.model_validate_json(observed.manifest_json)
+    other = manifest.model_copy(update={"warnings": ["other source evidence"]})
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation, other, rows=ROWS, finality="official"
+        )
+    assert conflict.value.code == "REVISION_IMMUTABLE"
+
+
+async def test_settled_stabilized_obligation_needs_no_acquisition_history() -> None:
+    from tests.test_reporting_official_acquisition import CoreStore
+
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(
+        InMemoryReportingLedgerStore
+    )
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    reader = ReportingProducer(
+        source=producer._source,
+        offerings=producer._offerings,
+        store=CoreStore(store),
+        retry_store=store,
+        clock=lambda: clock[0],
+    )
+    assert await reader.acquire_obligation(config, obligation) is None
+    assert not (await reader.run_configuration(config)).did_work
+    assert len(calls) == 3
+
+
+async def test_stabilized_unchanged_replay_binds_the_observations_own_publication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        InMemoryReportingLedgerStore
+    )
+    for hour in (1, 7):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    observed = await store.get_provisional_observation(**owner)
+    other = SourceBatchManifestV1.model_validate_json(observed.manifest_json).model_copy(
+        update={"publication_id": "src-" + "0" * 64}
+    )
+
+    async def corrupted(**kwargs: Any) -> Any:
+        return replace(observed, manifest_json=other.model_dump_json())
+
+    monkeypatch.setattr(store, "get_provisional_observation", corrupted)
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation, other, rows=ROWS, finality="snapshot", acquisition=observed.acquisition
+        )
+    assert conflict.value.code == "REVISION_IMMUTABLE"
+
+
+async def test_stabilized_workers_cannot_consume_a_future_observation(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    await producer.run_configuration(config)
+    clock[0] += timedelta(hours=6)
+    other = ReportingProducer(
+        source=producer._source,
+        offerings=producer._offerings,
+        store=store,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+    )
+    acquire = producer.acquire_obligation
+
+    async def after_other_worker(*args: Any, **kwargs: Any) -> Any:
+        await other.run_configuration(config)
+        return await acquire(*args, **kwargs)
+
+    monkeypatch.setattr(producer, "acquire_obligation", after_other_worker)
+    await producer.run_configuration(config)
+    history = await store.list_provisional_observations(
+        account_id=config.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        limit=4,
+    )
+    assert [o.acquisition.ordinal for o in history] == [0, 1]
+    assert len(calls) == 2
+
+
+async def test_stabilized_restart_reads_at_the_admitted_cadence_after_capabilities_change() -> None:
+    producer, store, config, obligation, calls, clock = await _harness(
+        official=True,
+        capabilities=_capabilities(restatement_window="P1D", restatement_cadence="PT6H"),
+        finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "P30D"),
+    )
+    clock[0] = END + timedelta(hours=1)
+    await producer.run_configuration(config)
+    producer._source.capabilities = _capabilities(
+        restatement_window="P1D", restatement_cadence="PT1H"
+    )
+    clock[0] += timedelta(hours=6)
+    await producer.run_configuration(config)
+    assert len(calls) == 2
+    observed = await store.get_provisional_observation(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert observed.next_due_at == clock[0] + timedelta(hours=6)
 
 
 @pytest.fixture(params=["memory", "postgres"])

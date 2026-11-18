@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
@@ -30,6 +30,7 @@ class ProvisionalPolicy:
     window: timedelta
     cadence: timedelta
     official_close_lag: timedelta | None = None
+    until_stabilized: bool = False
 
     def __post_init__(self) -> None:
         if self.window < timedelta(0) or self.cadence <= timedelta(0):
@@ -39,6 +40,7 @@ class ProvisionalPolicy:
 
     def to_wire(self) -> dict[str, int | None]:
         return {
+            **({"until_stabilized": True} if self.until_stabilized else {}),
             "window_us": self.window // timedelta(microseconds=1),
             "cadence_us": self.cadence // timedelta(microseconds=1),
             "official_close_lag_us": (
@@ -55,6 +57,7 @@ class ProvisionalPolicy:
             timedelta(microseconds=value["window_us"]),
             timedelta(microseconds=value["cadence_us"]),
             timedelta(microseconds=lag) if lag is not None else None,
+            value.get("until_stabilized", False),
         )
 
 
@@ -100,6 +103,22 @@ class ProvisionalAcquisition:
         if self.output_finality or self.request().publication_class == "AUTHORITATIVE":
             return "official"
         return "snapshot"
+
+    def observation_deadlines(
+        self, checked_at: datetime, manifest: SourceBatchManifestV1
+    ) -> tuple[datetime, datetime | None]:
+        boundary = utc(
+            manifest.finality_evidence.provisional_until
+            or (utc(manifest.period.end) + self.policy.window)
+        )
+        if self.finality != "snapshot" or (
+            not self.policy.until_stabilized and checked_at >= boundary
+        ):
+            return boundary, None
+        next_poll = utc(checked_at) + self.policy.cadence
+        if self.policy.until_stabilized:
+            return boundary, next_poll
+        return boundary, min(next_poll, boundary)
 
     def binds(self, obligation: ReportingObligationRecord) -> bool:
         request = self.request()
@@ -156,10 +175,34 @@ class ProvisionalObservation:
     provisional_until: datetime
     next_due_at: datetime | None
     manifest_json: str
+    revision_publication_id: str | None = None
 
     @property
     def is_scheduled(self) -> bool:
         return self.acquisition.request().trigger == "scheduled_poll"
+
+    @property
+    def is_scheduled_snapshot(self) -> bool:
+        request = self.acquisition.request()
+        return (
+            request.trigger == "scheduled_poll"
+            and request.publication_class == "PROVISIONAL_SNAPSHOT"
+            and self.acquisition.output_finality is None
+        )
+
+    @property
+    def next_stabilization_due_at(self) -> datetime:
+        return self.next_due_at or self.checked_at + self.acquisition.policy.cadence
+
+    def bind_revision(self, revision: ReportingRevisionRecord) -> ProvisionalObservation:
+        """Keep the full originating publication ID when an unchanged read reuses a snapshot."""
+        if self.acquisition.policy.until_stabilized and revision.finality == "snapshot":
+            return replace(
+                self,
+                revision_id=revision.reporting_revision_id,
+                revision_publication_id=revision.source_publication_id,
+            )
+        return self
 
     @classmethod
     def from_manifest(
@@ -170,15 +213,7 @@ class ProvisionalObservation:
         manifest: SourceBatchManifestV1,
     ) -> ProvisionalObservation:
         checked_at = utc(checked_at)
-        boundary = utc(
-            manifest.finality_evidence.provisional_until
-            or (utc(manifest.period.end) + acquisition.policy.window)
-        )
-        next_due = (
-            min(checked_at + acquisition.policy.cadence, boundary)
-            if acquisition.finality == "snapshot" and checked_at < boundary
-            else None
-        )
+        boundary, next_due = acquisition.observation_deadlines(checked_at, manifest)
         return cls(
             acquisition, revision_id, checked_at, boundary, next_due, manifest.model_dump_json()
         )
@@ -198,6 +233,11 @@ class ProvisionalObservation:
         return {
             "acquisition": self.acquisition.to_wire(),
             "revision_id": self.revision_id,
+            **(
+                {"revision_publication_id": self.revision_publication_id}
+                if self.revision_publication_id is not None
+                else {}
+            ),
             "checked_at": utc(self.checked_at).isoformat(),
             "provisional_until": utc(self.provisional_until).isoformat(),
             "next_due_at": (
@@ -219,6 +259,7 @@ class ProvisionalObservation:
                 else None
             ),
             json.dumps(value["manifest"], sort_keys=True, separators=(",", ":")),
+            value.get("revision_publication_id"),
         )
 
 
@@ -258,11 +299,17 @@ class ProvisionalObservationPublicationStore(Protocol):
 @runtime_checkable
 class ProvisionalObservationStore(ProvisionalObservationPublicationStore, Protocol):
     async def list_provisional_observations(
-        self, *, account_id: str, reporting_obligation_id: str, limit: int
+        self,
+        *,
+        account_id: str,
+        reporting_obligation_id: str,
+        limit: int,
+        scheduled_snapshots_only: bool = False,
     ) -> tuple[ProvisionalObservation, ...]:
         """Return up to ``limit`` latest observations in ascending ordinal order.
 
         The read is scoped to the requested account and reporting obligation.
+        A scheduled snapshot filter applies before the limit.
         ``limit`` must be a positive integer.
         """
         pass

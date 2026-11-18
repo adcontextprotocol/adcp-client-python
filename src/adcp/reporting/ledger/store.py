@@ -711,6 +711,21 @@ def validate_retained_provisional_observation(
     require_readable: bool = True,
 ) -> None:
     """Validate an unchanged observation against immutable predecessor content."""
+    validate_snapshot_observation_binding(
+        revision, observation, require_publication=observation.acquisition.policy.until_stabilized
+    )
+    validate_snapshot_rows(revision, rows, require_readable=require_readable)
+
+
+def validate_snapshot_observation_binding(
+    revision: ReportingRevisionRecord,
+    observation: ProvisionalObservation,
+    *,
+    require_publication: bool = True,
+) -> None:
+    """An unchanged observation has its own publication and the retained snapshot's content."""
+    from adcp.reporting.source import deterministic_source_publication_id_v1
+
     manifest = json.loads(observation.manifest_json)
     if (
         revision.source_manifest_sha256 is None
@@ -719,6 +734,49 @@ def validate_retained_provisional_observation(
         raise LedgerConflictError(
             "REVISION_IMMUTABLE", "observation content differs from the snapshot predecessor"
         )
+    if not require_publication:
+        return
+    source_id = revision.source_publication_id
+    observation_source = manifest.get("publication_id")
+    request = observation.acquisition.request()
+    expected_publication = deterministic_source_publication_id_v1(
+        source_execution_key=request.identity.source_execution_key,
+        logical_slice_fingerprint=request.identity.logical_slice_fingerprint,
+        publication_class=request.publication_class,
+        revision_kind=request.revision_kind,
+        supersedes_publication_id=request.supersedes_publication_id,
+    )
+    if (
+        revision.reporting_revision_id != observation.revision_id
+        or source_id is None
+        or (
+            observation.revision_publication_id is not None
+            and source_id != observation.revision_publication_id
+        )
+        or revision.reporting_revision_id != f"rpr_{source_id[4:44]}"
+        or observation_source != expected_publication
+        or (
+            observation_source != source_id
+            and (
+                observation.acquisition.predecessor_revision_id != observation.revision_id
+                or f"rpr_{observation_source[4:44]}" == observation.revision_id
+            )
+        )
+        or manifest.get("row_count") != revision.row_count
+        or tuple((t["name"], t["value"]) for t in manifest.get("control_totals", ()))
+        != revision.control_totals
+    ):
+        raise LedgerConflictError(
+            "REVISION_IMMUTABLE", "retained snapshot source publication differs"
+        )
+
+
+def validate_snapshot_rows(
+    revision: ReportingRevisionRecord,
+    rows: Sequence[dict[str, Any]],
+    *,
+    require_readable: bool = True,
+) -> None:
     from adcp.reporting.ledger.producer import recompute_revision_content_sha256
 
     if len(rows) != revision.row_count:
@@ -1357,12 +1415,23 @@ class InMemoryReportingLedgerStore:
         return history[0] if history else None
 
     async def list_provisional_observations(
-        self, *, account_id: str, reporting_obligation_id: str, limit: int
+        self,
+        *,
+        account_id: str,
+        reporting_obligation_id: str,
+        limit: int,
+        scheduled_snapshots_only: bool = False,
     ) -> tuple[ProvisionalObservation, ...]:
         if type(limit) is not int or limit <= 0:
             raise ValueError("observation history limit must be a positive integer")
         observations = self._provisional_observations.get((account_id, reporting_obligation_id), {})
-        newest_first = list(islice(reversed(observations.values()), min(limit, len(observations))))
+        candidates = reversed(observations.values())
+        newest_first = list(
+            islice(
+                (o for o in candidates if not scheduled_snapshots_only or o.is_scheduled_snapshot),
+                min(limit, len(observations)),
+            )
+        )
         return tuple(reversed(newest_first))
 
     async def commit_provisional_observation(
@@ -1407,7 +1476,7 @@ class InMemoryReportingLedgerStore:
                     reuse_candidate and existing.revision_id == observation.revision_id
                 ):
                     validate_retained_provisional_observation(
-                        self._revisions[existing.revision_id], observation, rows
+                        self._revisions[existing.revision_id], existing, rows
                     )
                     return self._revisions[existing.revision_id]
                 return await self.commit_revision(revision, rows)
@@ -1466,6 +1535,7 @@ class InMemoryReportingLedgerStore:
             else:
                 committed = await self.commit_revision(revision, rows)
             # The checkpoint enforces ascending ordinals for distinct observations.
+            observation = observation.bind_revision(committed)
             self._provisional_observations.setdefault(owner, {})[acquisition.ordinal] = observation
             return committed
 

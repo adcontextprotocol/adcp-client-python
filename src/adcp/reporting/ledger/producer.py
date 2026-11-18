@@ -61,12 +61,15 @@ from adcp.reporting.currency import (
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.finality import (
+    MAX_STABILIZATION_HISTORY_OBSERVATIONS,
     FinalityProof,
     ReportingContractualCutoffPolicy,
     ReportingStabilizedPolicy,
     contractual_cutoff_at,
     finality_policy_source_class,
     manifest_finality_proof,
+    prove_stabilized_finality,
+    stabilization_history_limit,
 )
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
@@ -97,6 +100,8 @@ from adcp.reporting.ledger.store import (
     RetryScheduleStore,
     managed_revision_metadata,
     validate_retained_provisional_observation,
+    validate_snapshot_observation_binding,
+    validate_snapshot_rows,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
@@ -220,6 +225,17 @@ def _source_finality(obligation: ReportingObligationRecord, output_finality: str
     if output_finality == "official" and policy is not None:
         return finality_policy_source_class(policy)
     return output_finality
+
+
+def snapshot_restatement_cadence(
+    offering: ProvisionalSnapshotOfferingV1, period_duration: str
+) -> timedelta:
+    if offering.restatement_cadence is not None:
+        return timedelta(milliseconds=iso_duration_milliseconds_v1(offering.restatement_cadence))
+    return max(
+        iso_duration_to_timedelta(period_duration),
+        timedelta(milliseconds=iso_duration_milliseconds_v1(offering.fastest_safe_cadence)),
+    )
 
 
 def revision_content_sha256(
@@ -397,6 +413,13 @@ class _SettlingPolicy:
     restatement_window: timedelta
     restatement_cadence: timedelta
     official_close_lag: timedelta | None
+
+
+@dataclass(frozen=True)
+class _StabilizedPublication:
+    proof: FinalityProof
+    manifest: SourceBatchManifestV1
+    rows: Sequence[dict[str, Any]]
 
 
 class ReportingProducer:
@@ -674,6 +697,24 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
+            selected = (
+                configuration.definition.finality_policy if configuration.definition else None
+            )
+            if (
+                isinstance(selected, ReportingStabilizedPolicy)
+                and self._offerings.snapshot_offering_id
+            ):
+                offering = self._source.capabilities.offering(self._offerings.snapshot_offering_id)
+                if isinstance(offering, ProvisionalSnapshotOfferingV1) and (
+                    configuration.required_finality == "official"
+                    or offering.official_close_lag is not None
+                ):
+                    stabilization_history_limit(
+                        selected,
+                        snapshot_restatement_cadence(
+                            offering, configuration.schedule.period_duration
+                        ),
+                    )
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -863,6 +904,10 @@ class ReportingProducer:
                 finished = error.code != "OBSERVATION_CONFLICT" and (
                     policy is None or isinstance(error, LedgerConflictError)
                 )
+                if obligation.definition and isinstance(
+                    obligation.definition.finality_policy, ReportingStabilizedPolicy
+                ):
+                    finished = False
             if finished:
                 await progress.finish_producer_acquisition(
                     configuration, reporting_obligation_id=identifier
@@ -989,22 +1034,17 @@ class ReportingProducer:
     ) -> _SettlingPolicy | None:
         """Resolve the source policy or SDK fallback for a snapshot obligation."""
         offering_id = self._offerings.snapshot_offering_id
+        selected = obligation.definition.finality_policy if obligation.definition else None
         if (
-            obligation.required_finality != "snapshot" and not cutoff_reservation
+            obligation.required_finality != "snapshot"
+            and not cutoff_reservation
+            and not isinstance(selected, ReportingStabilizedPolicy)
         ) or offering_id is None:
             return None
         offering = self._source.capabilities.offering(offering_id)
         if not isinstance(offering, ProvisionalSnapshotOfferingV1):
             return None
-        if offering.restatement_cadence is not None:
-            cadence = timedelta(
-                milliseconds=iso_duration_milliseconds_v1(offering.restatement_cadence)
-            )
-        else:
-            cadence = max(
-                iso_duration_to_timedelta(configuration.schedule.period_duration),
-                timedelta(milliseconds=iso_duration_milliseconds_v1(offering.fastest_safe_cadence)),
-            )
+        cadence = snapshot_restatement_cadence(offering, configuration.schedule.period_duration)
         close_lag = (
             timedelta(milliseconds=iso_duration_milliseconds_v1(offering.official_close_lag))
             if offering.official_close_lag is not None
@@ -1032,13 +1072,29 @@ class ReportingProducer:
         A readable snapshot completes one acquisition, not the settling policy.
         The progress store retains its rotating work item until the policy ends.
         """
+        revisions = await self._store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if any(item.finality == "official" for item in revisions):
+            return True
+        selected = obligation.definition.finality_policy if obligation.definition else None
+        if isinstance(selected, ReportingStabilizedPolicy) and (
+            obligation.required_finality == "official" or policy.official_close_lag is not None
+        ):
+            await self._acquire_stabilized(configuration, obligation, selected, turn, now)
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            return any(r.finality == "official" for r in revisions)
         checkpoint_store = self._restatement_store()
         observation_store = self._observation_store()
         latest = await observation_store.get_provisional_observation(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        scheduled = latest if latest is not None and latest.is_scheduled else None
+        scheduled = await self._latest_scheduled_snapshot(obligation, latest)
         if scheduled is not None:
             frozen = scheduled.acquisition.policy
             policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
@@ -1046,12 +1102,6 @@ class ReportingProducer:
             policy.official_close_lag is not None
             and self._offerings.offering_for(_source_finality(obligation, "official")) is not None
         )
-        revisions = await self._store.list_revisions(
-            account_id=obligation.account_id,
-            reporting_obligation_id=obligation.reporting_obligation_id,
-        )
-        if any(item.finality == "official" for item in revisions):
-            return True
         checkpoint = await checkpoint_store.get_restatement_checkpoint(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
@@ -1107,12 +1157,11 @@ class ReportingProducer:
             # A tracked manual retry advances the durable ordinal only. The
             # first automatic source read keeps its configured phase and window.
             checkpoint = None
-        declared_until = _utc(obligation.period.end) + policy.restatement_window
-        settles_at = (
-            _utc(checkpoint.provisional_until)
-            if checkpoint is not None and checkpoint.provisional_until is not None
-            else declared_until
-        )
+        settles_at = _utc(obligation.period.end) + policy.restatement_window
+        if scheduled is not None:
+            settles_at = _utc(scheduled.provisional_until)
+        elif checkpoint is not None and checkpoint.provisional_until is not None:
+            settles_at = _utc(checkpoint.provisional_until)
         if scheduled is not None:
             next_due = scheduled.next_due_at
         elif checkpoint is not None:
@@ -1174,6 +1223,274 @@ class ReportingProducer:
             return any(item.finality == "official" for item in revisions)
         return False
 
+    async def _scheduled_snapshot_history(
+        self, obligation: ReportingObligationRecord, limit: int
+    ) -> tuple[ProvisionalObservation, ...]:
+        store = self._observation_history_store()
+        read = store.list_provisional_observations
+        parameters = inspect.signature(read).parameters.values()
+        if any(p.name == "scheduled_snapshots_only" or p.kind == p.VAR_KEYWORD for p in parameters):
+            return await read(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                limit=limit,
+                scheduled_snapshots_only=True,
+            )
+        # Custom publishers with the original history interface can still prove a
+        # run. Widen a mixed suffix only as far as the same finite evidence budget.
+        count = limit
+        while True:
+            history = await read(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                limit=count,
+            )
+            scheduled = tuple(o for o in history if o.is_scheduled_snapshot)
+            if (
+                len(scheduled) >= limit
+                or len(history) < count
+                or history[0].acquisition.ordinal == 0
+            ):
+                return scheduled[-limit:]
+            if count == MAX_STABILIZATION_HISTORY_OBSERVATIONS:
+                raise LedgerConflictError(
+                    "STABILIZATION_HISTORY_LIMIT",
+                    "mixed observation history requires a scheduled snapshot filter",
+                )
+            count = min(2 * count, MAX_STABILIZATION_HISTORY_OBSERVATIONS)
+
+    async def _latest_scheduled_snapshot(
+        self, obligation: ReportingObligationRecord, latest: ProvisionalObservation | None
+    ) -> ProvisionalObservation | None:
+        if latest is None or latest.is_scheduled_snapshot:
+            return latest
+        if inspect.getattr_static(self._store, "list_provisional_observations", None) is None:
+            return None
+        try:
+            history = await self._scheduled_snapshot_history(obligation, 1)
+        except LedgerConflictError as error:
+            if error.code == "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED":
+                return None
+            raise
+        return history[-1] if history else None
+
+    async def _acquire_stabilized(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        policy: ReportingStabilizedPolicy,
+        turn: WorkerTurn,
+        now: datetime,
+        *,
+        manual: bool = False,
+        track_manual: bool = False,
+    ) -> ReportingRevisionRecord | None:
+        owner = dict(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        revisions = await self._store.list_revisions(**owner)
+        if any(r.finality == "official" for r in revisions):
+            return None
+        store = self._observation_history_store()
+        checkpoint = await self._restatement_store().get_restatement_checkpoint(**owner)
+        ordinal = checkpoint.next_observation if checkpoint else len(revisions)
+        pending = await self._pending_acquisition(obligation, ordinal=ordinal)
+        if pending is not None and pending.finality != "snapshot":
+            raise LedgerConflictError(
+                "OBSERVATION_CONFLICT", "stabilized finality requires a reserved snapshot output"
+            )
+        latest = await self._latest_scheduled_snapshot(
+            obligation, await store.get_provisional_observation(**owner)
+        )
+        if latest is not None and pending is None:
+            official = await self._promote_stabilized(obligation, policy, latest, turn)
+            if official is not None:
+                return official
+            if not manual and _utc(now) < _utc(latest.next_stabilization_due_at):
+                return None
+        elif latest is None and not manual and pending is None:
+            if _utc(now) < self._scheduled_source_ready_at(configuration, obligation):
+                return None
+        snapshot = await self.acquire_obligation(
+            configuration,
+            obligation,
+            target_finality="snapshot",
+            turn=turn,
+            now=now,
+            track_settling=not manual or track_manual,
+            restate=bool(revisions),
+            manual_replay=manual,
+        )
+        if snapshot is not None:
+            observed = await store.get_provisional_observation(**owner)
+            if (
+                observed is not None
+                and observed.is_scheduled_snapshot
+                and observed.acquisition.ordinal == ordinal
+            ):
+                official = await self._promote_stabilized(obligation, policy, observed, turn)
+                if official is not None:
+                    return official
+        return snapshot
+
+    async def _promote_stabilized(
+        self,
+        obligation: ReportingObligationRecord,
+        policy: ReportingStabilizedPolicy,
+        latest: ProvisionalObservation,
+        turn: WorkerTurn,
+    ) -> ReportingRevisionRecord | None:
+        evidence = await self._stabilized_publication(obligation, policy, latest)
+        if evidence is None:
+            return None
+        return await self._commit_revision_from_manifest(
+            obligation,
+            evidence.manifest,
+            rows=evidence.rows,
+            finality="official",
+            finality_proof=evidence.proof,
+            now=self._clock(),
+            turn=turn,
+            acquisition=None,
+            verified_source_rows=True,
+        )
+
+    async def _stabilized_publication(
+        self,
+        obligation: ReportingObligationRecord,
+        policy: ReportingStabilizedPolicy,
+        latest: ProvisionalObservation,
+    ) -> _StabilizedPublication | None:
+        limit = stabilization_history_limit(policy, latest.acquisition.policy.cadence)
+        history = await self._scheduled_snapshot_history(obligation, limit)
+        if not history or history[-1] != latest or len(history) > limit:
+            raise LedgerConflictError(
+                "OBSERVATION_CONFLICT", "stabilization history changed during proof"
+            )
+        verified: list[tuple[ProvisionalObservation, str]] = []
+        revision = None
+        rows: list[dict[str, Any]] = []
+        for observation in history:
+            acquisition = observation.acquisition
+            if (
+                not observation.is_scheduled_snapshot
+                or not acquisition.binds(obligation)
+                or (
+                    verified
+                    and (
+                        acquisition.ordinal <= verified[-1][0].acquisition.ordinal
+                        or acquisition.request().period.source_read_cutoff_at
+                        < verified[-1][0].checked_at
+                    )
+                )
+            ):
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "stabilization history acquisition differs"
+                )
+            if revision is None or revision.reporting_revision_id != observation.revision_id:
+                revision = await self._store.get_revision(
+                    account_id=obligation.account_id, reporting_revision_id=observation.revision_id
+                )
+                if (
+                    revision is None
+                    or not revision.readable
+                    or revision.finality != "snapshot"
+                    or revision.account_id != obligation.account_id
+                    or revision.reporting_obligation_id != obligation.reporting_obligation_id
+                ):
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "stabilization history requires a readable snapshot"
+                    )
+                rows = await self._retained_snapshot_rows(revision)
+            try:
+                manifest = SourceBatchManifestV1.model_validate_json(observation.manifest_json)
+                self._validate_source_manifest(
+                    obligation,
+                    acquisition.request(),
+                    manifest,
+                    cutoff_ceiling=observation.checked_at,
+                    acquisition=acquisition,
+                )
+                if manifest.acquired_at > observation.checked_at:
+                    raise ValueError("acquisition is later than its observation")
+                if acquisition.observation_deadlines(observation.checked_at, manifest) != (
+                    observation.provisional_until,
+                    observation.next_due_at,
+                ):
+                    raise ValueError("observation deadline differs from its frozen schedule")
+                if revision.source_publication_id == manifest.publication_id and (
+                    revision.observed_at != manifest.observed_at
+                    or revision.data_through != manifest.data_through
+                    or revision.supersedes_reporting_revision_id
+                    != acquisition.predecessor_revision_id
+                ):
+                    raise ValueError("originating snapshot differs from its publication")
+                validate_snapshot_observation_binding(revision, observation)
+                if (
+                    revision.managed_control_totals is not None
+                    and revision.managed_control_totals
+                    != _typed_control_totals(obligation, manifest)
+                ):
+                    raise ValueError("snapshot control totals differ")
+            except (ValueError, LedgerConflictError) as error:
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE",
+                    "stabilization history differs from its snapshot publication",
+                ) from error
+            verified.append((observation, manifest.content_fingerprint))
+        proof = prove_stabilized_finality(obligation, policy, verified)
+        if proof is None:
+            return None
+        revisions = await self._store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if self._current_snapshot_leaf(revisions) != latest.revision_id:
+            return None
+        return _StabilizedPublication(proof, manifest, rows)
+
+    async def _retained_snapshot_rows(
+        self, revision: ReportingRevisionRecord
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            page = await self._store.read_revision_rows(
+                account_id=revision.account_id,
+                reporting_revision_id=revision.reporting_revision_id,
+                cursor=cursor,
+            )
+            if (
+                page.reporting_revision_id not in (None, revision.reporting_revision_id)
+                or page.total_count != revision.row_count
+            ):
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE",
+                    "stabilization history row page differs from its snapshot",
+                )
+            rows.extend(page.rows)
+            if not page.has_more:
+                break
+            if (
+                not page.rows
+                or page.cursor is None
+                or page.cursor == cursor
+                or len(rows) >= revision.row_count
+            ):
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "stabilization history rows are incomplete"
+                )
+            cursor = page.cursor
+        try:
+            validate_snapshot_rows(revision, rows)
+        except LedgerConflictError as error:
+            raise LedgerConflictError(
+                "HISTORY_UNAVAILABLE",
+                "stabilization history rows differ from their snapshot binding",
+            ) from error
+        return rows
+
     async def acquire_obligation(
         self,
         configuration: ReportingConfiguration,
@@ -1208,6 +1525,17 @@ class ReportingProducer:
         turn = turn or WorkerTurn()
         now = now or self._clock()
         finality = target_finality or obligation.required_finality
+        selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        if finality == "official" and isinstance(selected_policy, ReportingStabilizedPolicy):
+            return await self._acquire_stabilized(
+                configuration,
+                obligation,
+                selected_policy,
+                turn,
+                now,
+                manual=manual_replay or (restate and not track_settling),
+                track_manual=track_settling,
+            )
         if not manual_replay and await self._retry_not_before(obligation, turn, now=now):
             retry_offering_id: str | None = None
             if track_settling:
@@ -1258,7 +1586,6 @@ class ReportingProducer:
             # An official close is terminal. A later source correction is an
             # adjustment, never another acquisition.
             return None
-        selected_policy = obligation.definition.finality_policy if obligation.definition else None
         checkpoint_store = (
             self._restatement_store() if track_settling else self._observation_checkpoint_store()
         )
@@ -1278,6 +1605,21 @@ class ReportingProducer:
         )
         if pending is not None:
             finality = pending.finality
+        elif (
+            finality == "snapshot"
+            and track_settling
+            and not manual_replay
+            and isinstance(selected_policy, ReportingStabilizedPolicy)
+        ):
+            # Another worker can finish the due observation between selecting this
+            # period and reading its checkpoint. Its successor has a fresh deadline.
+            latest = await self._observation_store().get_provisional_observation(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            scheduled = await self._latest_scheduled_snapshot(obligation, latest)
+            if scheduled is not None and _utc(now) < _utc(scheduled.next_stabilization_due_at):
+                return None
         if current is not None and current.readable and not restate and pending is None:
             return None
         if finality == "official":
@@ -1285,8 +1627,6 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "FINALITY_POLICY_UNPROVEN", "official finality requires a selected policy"
                 )
-            if isinstance(selected_policy, ReportingStabilizedPolicy):
-                self._observation_history_store()
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
         # it. Gate here rather than earlier so a settled legacy obligation stays
@@ -1919,8 +2259,11 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        if latest is not None and latest.is_scheduled:
-            frozen_policy = latest.acquisition.policy
+        scheduled = await self._latest_scheduled_snapshot(obligation, latest)
+        selected = obligation.definition.finality_policy if obligation.definition else None
+        if scheduled is not None:
+            frozen_policy = scheduled.acquisition.policy
+            previous_boundary = scheduled.provisional_until
         else:
             if latest is not None:
                 previous_boundary = None
@@ -1935,6 +2278,12 @@ class ReportingProducer:
                     timedelta(0), iso_duration_to_timedelta(configuration.schedule.period_duration)
                 )
             )
+        if isinstance(selected, ReportingStabilizedPolicy) and (
+            obligation.required_finality == "official"
+            or frozen_policy.official_close_lag is not None
+        ):
+            stabilization_history_limit(selected, frozen_policy.cadence)
+            frozen_policy = replace(frozen_policy, until_stabilized=True)
         if self._requires_source_authority(obligation):
             self._source_authority(obligation, request)
             self._check_source_authorization(
@@ -2236,6 +2585,17 @@ class ReportingProducer:
 
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"
+        selected_policy = obligation.definition.finality_policy if obligation.definition else None
+        stabilized = finality == "official" and isinstance(
+            selected_policy, ReportingStabilizedPolicy
+        )
+        if stabilized and selected_policy is not None:
+            digest = hashlib.sha256(
+                canonical_json_utf8_v1(
+                    [manifest.publication_id, "official", selected_policy.finality_policy_id]
+                )
+            ).hexdigest()
+            revision_id = f"rpr_{digest[:40]}"
         prior = next((item for item in existing if item.reporting_revision_id == revision_id), None)
         # New revisions bind protocol-shape totals. A replay of a retained
         # pair-hashed revision must reproduce its original binding, because
@@ -2246,7 +2606,7 @@ class ReportingProducer:
             else None
         )
         retained_official = prior is not None and prior.finality == finality == "official"
-        proved_candidate = finality == "official" and finality_proof is not None
+        candidate_proof = finality_proof if finality == "official" else None
         created_at = (
             now
             if prior is None or (retained_official and finality_proof is not None)
@@ -2331,8 +2691,18 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "PUBLICATION_TIME_INVALID", "proof is later than the publication clock"
                 )
-            finality_proof.validate(obligation, manifest, proof_anchor)
-            if retained_official and not verified_source_rows:
+            if stabilized:
+                # A single source publication cannot prove stabilization. The account
+                # publication lock protects the retained-history check at commit.
+                finality_proof.validate_time(obligation, proof_anchor)
+                if acquisition is not None:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT",
+                        "commit the snapshot observation before stabilization",
+                    )
+            else:
+                finality_proof.validate(obligation, manifest, proof_anchor)
+            if stabilized or (retained_official and not verified_source_rows):
                 acquisition = None
             elif not verified_source_rows:
                 acquisition, rows = await self._verify_direct_official_publication(
@@ -2356,7 +2726,7 @@ class ReportingProducer:
                     "producer clock regressed during staged verification",
                 )
             created_at = now = completed_at
-            if finality == "official":
+            if finality == "official" and not stabilized:
                 finality_proof = manifest_finality_proof(obligation, manifest, created_at)
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
@@ -2434,7 +2804,7 @@ class ReportingProducer:
                 finality,
                 now,
                 acquisition,
-                proved_candidate=proved_candidate,
+                candidate_proof=candidate_proof,
                 retained_revision_id=(
                     retained.reporting_revision_id if retained is not None else None
                 ),
@@ -2516,7 +2886,9 @@ class ReportingProducer:
                 )
             ):
                 raise LedgerConflictError("REVISION_IMMUTABLE", "retained source totals differ")
-            validate_retained_provisional_observation(revision, observation, rows)
+            validate_retained_provisional_observation(
+                revision, latest if is_latest else observation, rows
+            )
             if is_latest:
                 return revision
             # A later observation closes this ordinal to new writes. The store
@@ -2637,7 +3009,7 @@ class ReportingProducer:
         now: datetime,
         acquisition: ProvisionalAcquisition | None,
         *,
-        proved_candidate: bool,
+        candidate_proof: FinalityProof | None,
         retained_revision_id: str | None = None,
     ) -> tuple[ReportingRevisionRecord, bool]:
         async with self._revision_publication(
@@ -2645,13 +3017,36 @@ class ReportingProducer:
         ):
             replay = None
             if finality == "official" and revision is not None:
+                selected = obligation.definition.finality_policy if obligation.definition else None
+                if candidate_proof is not None and isinstance(selected, ReportingStabilizedPolicy):
+                    scheduled = await self._scheduled_snapshot_history(obligation, 1)
+                    evidence = (
+                        await self._stabilized_publication(obligation, selected, scheduled[-1])
+                        if scheduled
+                        else None
+                    )
+                    if (
+                        evidence is None
+                        or evidence.manifest != manifest
+                        or evidence.proof != candidate_proof
+                        or rfc8785.dumps(list(rows)) != rfc8785.dumps(list(evidence.rows))
+                    ):
+                        raise LedgerConflictError(
+                            "FINALITY_POLICY_UNPROVEN",
+                            "retained snapshot history does not prove this official publication",
+                        )
                 replay = await self._store.get_revision(
                     account_id=obligation.account_id,
                     reporting_revision_id=revision.reporting_revision_id,
                 )
                 if replay is not None and replay.finality == "official":
                     revision = await self._official_replay_revision(
-                        revision, replay, manifest, acquisition, proved_candidate=proved_candidate
+                        obligation,
+                        revision,
+                        replay,
+                        manifest,
+                        acquisition,
+                        proved_candidate=candidate_proof is not None,
                     )
                     acquisition = None
             if acquisition is None:
@@ -2676,6 +3071,7 @@ class ReportingProducer:
 
     async def _official_replay_revision(
         self,
+        obligation: ReportingObligationRecord,
         candidate: ReportingRevisionRecord,
         retained: ReportingRevisionRecord,
         manifest: SourceBatchManifestV1,
@@ -2684,16 +3080,23 @@ class ReportingProducer:
         proved_candidate: bool,
     ) -> ReportingRevisionRecord:
         """Compare official source evidence inside the account publication lock."""
-        store = self._optional_observation_store()
-        observation = (
-            await store.get_provisional_observation(
-                account_id=retained.account_id,
-                reporting_obligation_id=retained.reporting_obligation_id,
-            )
-            if store is not None
-            else None
-        )
-        if observation is None or observation.revision_id != retained.reporting_revision_id:
+        observation = None
+        if retained.finality_basis == "stabilized":
+            scheduled = await self._scheduled_snapshot_history(obligation, 1)
+            observation = scheduled[-1] if scheduled else None
+        else:
+            store = self._optional_observation_store()
+            if store is not None:
+                observation = await store.get_provisional_observation(
+                    account_id=retained.account_id,
+                    reporting_obligation_id=retained.reporting_obligation_id,
+                )
+                if (
+                    observation is not None
+                    and observation.revision_id != retained.reporting_revision_id
+                ):
+                    observation = None
+        if observation is None:
             if proved_candidate:
                 raise LedgerConflictError(
                     "REVISION_IMMUTABLE", "the winning official source evidence is unavailable"

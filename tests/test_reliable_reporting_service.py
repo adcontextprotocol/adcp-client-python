@@ -401,6 +401,24 @@ async def test_stabilized_official_configuration_requires_observation_storage() 
         await service.configure(config)
 
 
+async def test_stabilized_configuration_rejects_excessive_history_before_admission() -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("too-long", "PT0S", "P10000D")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="history"):
+        await service.configure(config)
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+
+
 @pytest.mark.parametrize("media_type", ["application/json", "application/vnd.apache.parquet"])
 async def test_service_refuses_an_unreadable_official_source_format_before_admission(
     media_type: str,

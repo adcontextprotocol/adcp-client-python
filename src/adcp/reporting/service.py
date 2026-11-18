@@ -53,10 +53,12 @@ from adcp.reporting.ledger.finality import (
     ReportingFinalityPolicy,
     ReportingStabilizedPolicy,
     finality_policy_source_class,
+    stabilization_history_limit,
 )
 from adcp.reporting.ledger.producer import (
     _advertised_reporting_delivery,
     _supports_official_source_formats,
+    snapshot_restatement_cadence,
 )
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
@@ -889,6 +891,18 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     f"selected finality policy requires a matching {source_class} source offering"
                 )
+            if isinstance(policy, ReportingStabilizedPolicy) and isinstance(
+                source, ProvisionalSnapshotOfferingV1
+            ):
+                try:
+                    stabilization_history_limit(
+                        policy,
+                        snapshot_restatement_cadence(
+                            source, configuration.schedule.period_duration
+                        ),
+                    )
+                except LedgerConflictError as error:
+                    raise ReliableReportingConfigurationError(str(error)) from error
             used = [source]
             if (
                 configuration.required_finality == "snapshot"

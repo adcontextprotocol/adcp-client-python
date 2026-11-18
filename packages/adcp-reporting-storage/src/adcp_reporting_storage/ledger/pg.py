@@ -1813,7 +1813,12 @@ class PgReportingLedgerStore:
         return history[0] if history else None
 
     async def list_provisional_observations(
-        self, *, account_id: str, reporting_obligation_id: str, limit: int
+        self,
+        *,
+        account_id: str,
+        reporting_obligation_id: str,
+        limit: int,
+        scheduled_snapshots_only: bool = False,
     ) -> tuple[ProvisionalObservation, ...]:
         if type(limit) is not int or limit <= 0:
             raise ValueError("observation history limit must be a positive integer")
@@ -1823,8 +1828,18 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_observations"
                     " WHERE account_id=%s AND reporting_obligation_id=%s"
+                    " AND (NOT %s OR ("
+                    " payload #>> '{acquisition,request,trigger}' = 'scheduled_poll'"
+                    " AND payload #>> '{acquisition,request,publication_class}'"
+                    " = 'PROVISIONAL_SNAPSHOT'"
+                    " AND payload #>> '{acquisition,output_finality}' IS NULL))"
                     " ORDER BY ordinal DESC LIMIT %s",
-                    (account_id, reporting_obligation_id, min(limit, _BIGINT_MAX)),
+                    (
+                        account_id,
+                        reporting_obligation_id,
+                        scheduled_snapshots_only,
+                        min(limit, _BIGINT_MAX),
+                    ),
                 )
             ).fetchall()
         return tuple(ProvisionalObservation.from_wire(row[0]) for row in reversed(rows))
@@ -1882,7 +1897,9 @@ class PgReportingLedgerStore:
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
                 if revision is None or (reuse_candidate and existing[0] == observation.revision_id):
-                    validate_retained_provisional_observation(retained_revision, observation, rows)
+                    validate_retained_provisional_observation(
+                        retained_revision, retained_observation, rows
+                    )
                     return retained_revision
                 return await self.commit_revision(revision, rows)
             reserved = await (
@@ -1953,6 +1970,7 @@ class PgReportingLedgerStore:
                     observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
+            observation = observation.bind_revision(committed)
             await connection.execute(
                 "INSERT INTO reporting_provisional_observations"
                 " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
