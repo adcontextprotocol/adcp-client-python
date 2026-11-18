@@ -47,7 +47,6 @@ def _capabilities(
     restatement_window: str | None,
     restatement_cadence: str | None = None,
     official_close_lag: str | None = None,
-    official_stability_duration: str | None = None,
 ) -> ReportingSourceCapabilitiesV1:
     base = redacted_capabilities()
     snapshot = base.offering(SNAPSHOT_OFFERING_ID)
@@ -58,7 +57,6 @@ def _capabilities(
             "restatement_window": restatement_window,
             "restatement_cadence": restatement_cadence,
             "official_close_lag": official_close_lag,
-            "official_stability_duration": official_stability_duration,
             # These tests exercise restatement policy with already-ready data.
             "expected_availability_lag": "PT0S",
             "worst_case_availability_lag": "PT0S",
@@ -92,8 +90,6 @@ class _MutableFetch:
     def __init__(self) -> None:
         self.impressions = 10
         self.provisional_until: datetime | None = None
-        self.finality_evidence_ref: str | None = None
-        self.finality_stable_since: datetime | None = None
         self.calls: list[str] = []
         self.requests: list[Any] = []
 
@@ -114,8 +110,6 @@ class _MutableFetch:
                 if request.publication_class == "PROVISIONAL_SNAPSHOT"
                 else None
             ),
-            finality_evidence_ref=self.finality_evidence_ref,
-            finality_stable_since=self.finality_stable_since,
         )
 
 
@@ -250,53 +244,6 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
     assert checkpoint is not None and checkpoint.next_observation == 2
 
 
-async def test_source_stable_close_requires_age_stability_and_evidence() -> None:
-    producer, store, fetch, clock = await _harness(
-        _capabilities(
-            restatement_window="P90D",
-            restatement_cadence="P1D",
-            official_close_lag="P90D",
-            official_stability_duration="P1D",
-        )
-    )
-    await producer.run_worker()
-    obligation = await _only_obligation(store)
-    clock[0] = obligation.period.end + timedelta(days=89)
-    fetch.impressions = 20
-    await producer.run_worker()
-    clock[0] = obligation.period.end + timedelta(days=90)
-    await producer.run_worker()
-    assert all(item.finality == "snapshot" for item in await _revisions(store))
-    assert len(await _revisions(store)) == 2
-
-    clock[0] += timedelta(seconds=1)
-    await producer.run_worker()
-    assert all(item.finality == "snapshot" for item in await _revisions(store))
-    first_official = fetch.requests[-1]
-
-    fetch.finality_evidence_ref = "source-ledger:close-1"
-    fetch.finality_stable_since = obligation.period.end + timedelta(days=90, hours=12)
-    clock[0] += timedelta(days=1)
-    await producer.run_worker()
-    assert all(item.finality == "snapshot" for item in await _revisions(store))
-    assert (
-        fetch.requests[-1].identity.source_execution_key
-        != first_official.identity.source_execution_key
-    )
-    assert (
-        fetch.requests[-1].period.source_read_cutoff_at
-        > first_official.period.source_read_cutoff_at
-    )
-    early_evidence = fetch.requests[-1]
-    clock[0] += timedelta(hours=12)
-    await producer.run_worker()
-    assert (
-        fetch.requests[-1].identity.source_execution_key
-        != early_evidence.identity.source_execution_key
-    )
-    assert (await _revisions(store))[-1].finality == "official"
-
-
 async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_officially() -> None:
     producer, store, fetch, clock = await _harness(
         _capabilities(
@@ -402,7 +349,17 @@ def test_settling_options_require_a_declared_window_and_safe_cadence() -> None:
                 "restatement_cadence": "PT1M",
             }
         )
-    with pytest.raises(ValidationError, match="requires official_close_lag"):
+
+
+def test_snapshot_offering_rejects_official_stability_policy() -> None:
+    snapshot = redacted_capabilities().offering(SNAPSHOT_OFFERING_ID)
+    assert isinstance(snapshot, ProvisionalSnapshotOfferingV1)
+    with pytest.raises(ValidationError, match="official_stability_duration"):
         ProvisionalSnapshotOfferingV1.model_validate(
-            {**payload, "restatement_window": "P90D", "official_stability_duration": "P1D"}
+            {
+                **snapshot.model_dump(mode="python"),
+                "restatement_window": "P90D",
+                "official_close_lag": "P90D",
+                "official_stability_duration": "P1D",
+            }
         )

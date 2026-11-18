@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from pydantic import ValidationError
 
+from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.conformance import (
     ReportingSourceConformanceError,
     run_reporting_source_replay_conformance,
@@ -81,6 +82,21 @@ def _rebind(manifest: SourceBatchManifestV1, **updates) -> SourceBatchManifestV1
     payload = draft.model_dump(mode="json", exclude_none=True)
     payload["content_fingerprint"] = publication_content_fingerprint_v1(draft)
     return SourceBatchManifestV1.model_validate(payload)
+
+
+def test_manifest_preserves_declared_source_stability_evidence() -> None:
+    _, manifest, _ = redacted_completed_result(redacted_authoritative_request())
+    payload = manifest.model_dump(mode="json", exclude_none=True)
+    payload["finality_evidence"].update(
+        basis="provider_declared",
+        evidence_ref="source-ledger:close-1",
+        stable_since=payload["finality_evidence"]["observed_at"],
+    )
+    manifest_bytes = canonical_json_utf8_v1(payload)
+
+    retained = SourceBatchManifestV1.model_validate_json(manifest_bytes)
+
+    assert encode_source_batch_manifest_v1(retained) == manifest_bytes
 
 
 # -- capability admission ---------------------------------------------------

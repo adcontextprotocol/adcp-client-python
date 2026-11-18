@@ -29,18 +29,12 @@ class ProvisionalPolicy:
     window: timedelta
     cadence: timedelta
     official_close_lag: timedelta | None = None
-    official_stability_duration: timedelta | None = None
 
     def __post_init__(self) -> None:
         if self.window < timedelta(0) or self.cadence <= timedelta(0):
             raise ValueError("provisional window must be nonnegative and cadence positive")
         if self.official_close_lag is not None and self.official_close_lag < timedelta(0):
             raise ValueError("official close lag must be nonnegative")
-        if (
-            self.official_stability_duration is not None
-            and self.official_stability_duration <= timedelta(0)
-        ):
-            raise ValueError("official stability duration must be positive")
 
     def to_wire(self) -> dict[str, int | None]:
         return {
@@ -51,22 +45,15 @@ class ProvisionalPolicy:
                 if self.official_close_lag is not None
                 else None
             ),
-            "official_stability_duration_us": (
-                self.official_stability_duration // timedelta(microseconds=1)
-                if self.official_stability_duration is not None
-                else None
-            ),
         }
 
     @classmethod
     def from_wire(cls, value: dict[str, Any]) -> ProvisionalPolicy:
         lag = value["official_close_lag_us"]
-        stable = value.get("official_stability_duration_us")
         return cls(
             timedelta(microseconds=value["window_us"]),
             timedelta(microseconds=value["cadence_us"]),
             timedelta(microseconds=lag) if lag is not None else None,
-            timedelta(microseconds=stable) if stable is not None else None,
         )
 
 
@@ -134,8 +121,10 @@ class ProvisionalAcquisition:
 
     @classmethod
     def from_wire(cls, value: dict[str, Any]) -> ProvisionalAcquisition:
+        request = dict(value["request"])
+        request.pop("require_finality_evidence", None)
         return cls(
-            json.dumps(value["request"], sort_keys=True, separators=(",", ":")),
+            json.dumps(request, sort_keys=True, separators=(",", ":")),
             value["ordinal"],
             ProvisionalPolicy.from_wire(value["policy"]),
             value["predecessor_revision_id"],
@@ -161,6 +150,11 @@ class ProvisionalObservation:
         utc(self.provisional_until)
         if self.next_due_at is not None:
             utc(self.next_due_at)
+        object.__setattr__(
+            self,
+            "manifest_json",
+            json.dumps(json.loads(self.manifest_json), sort_keys=True, separators=(",", ":")),
+        )
 
     def to_wire(self) -> dict[str, Any]:
         return {
