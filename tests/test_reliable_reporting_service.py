@@ -462,14 +462,60 @@ async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis() -> 
 
     config = replace(
         _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
         definition=replace(
             DEFINITION, finality_policy=ReportingStabilizedPolicy("optional", "PT0S", "PT6H")
         ),
     )
-    service = _finality_service(config, snapshot=True, official=False, store=SnapshotPublisher())
+    service = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        store=SnapshotPublisher(),
+        clock=DeterministicReportingClock(NOW + timedelta(days=1)),
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
     await service.configure(config)
     await service.initialize()
     assert config.generation_key in service._bindings
+    turn = await service.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+
+
+async def test_recovered_snapshot_close_requires_origin_witness_after_live_lag_removal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = DeterministicReportingClock(NOW + timedelta(days=1))
+    store = InMemoryReportingLedgerStore(clock=clock)
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT12H")
+        ),
+    )
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        close=True,
+        cadence="PT6H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await original.configure(config)
+    turn = await original.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    monkeypatch.setattr(store, "verify_snapshot_origin", None)
+    recovered = _finality_service(
+        config, snapshot=True, official=False, cadence="PT1H", store=store, clock=clock
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="verify_snapshot_origin"):
+        await recovered.initialize()
+    assert config.generation_key not in recovered._bindings
 
 
 @pytest.mark.parametrize("required", ["snapshot", "official"])

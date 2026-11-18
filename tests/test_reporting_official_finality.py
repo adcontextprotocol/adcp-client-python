@@ -7,7 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import partial
 from typing import Any
 
@@ -163,7 +163,7 @@ async def test_previous_checkpoint_schema_recovers_schedule_before_initialize() 
         policy = await producer._recover_stabilization_schedule(config)
         assert policy is not None and policy.cadence == timedelta(hours=6)
         await store.create_schema()
-        assert await producer._recover_stabilization_schedule(config) == policy
+        assert await store.get_stabilization_schedule(config.generation_key) == policy
 
 
 @pytest.mark.parametrize("tracked", [False, True])
@@ -265,6 +265,217 @@ async def test_stabilized_close_keeps_frozen_route_when_offering_drops_close_lag
     assert [r.finalized_at for r in revisions if r.finality == "official"] == [clock[0]]
 
 
+async def test_manual_official_reservation_cannot_replace_the_scheduled_generation_cadence(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, _, _, clock = await _stabilized_harness(store_factory)
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    period_end = END + timedelta(days=1)
+    clock[0] = period_end + timedelta(hours=1)
+    (obligation,) = await producer.close_elapsed_periods(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    request = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="official",
+        trigger="manual_replay",
+        now=clock[0],
+    )
+    await store.reserve_provisional_acquisition(
+        ProvisionalAcquisition(
+            request.model_dump_json(),
+            0,
+            ProvisionalPolicy(timedelta(days=1), timedelta(hours=12)),
+            output_finality="official",
+        )
+    )
+    producer._source.capabilities = _capabilities(
+        restatement_window="P1D", restatement_cadence="PT1H", official_close_lag="P2D"
+    )
+    restarted = _restart_producer(producer, store, clock)
+    for hour, impressions in ((1, 10), (7, 11), (13, 10)):
+        clock[0] = period_end + timedelta(hours=hour)
+        monkeypatch.setattr(
+            "tests.test_reporting_source_availability.PROVIDER_ROW",
+            PROVIDER_ROW.replace("10", str(impressions)),
+        )
+        await restarted.run_configuration(config)
+    revisions = await store.list_revisions(**owner)
+    assert all(revision.finality == "snapshot" for revision in revisions)
+    observations = await store.list_provisional_observations(**owner, limit=4)
+    assert [item.checked_at for item in observations] == [
+        period_end + timedelta(hours=h) for h in (1, 7, 13)
+    ]
+    assert [item.acquisition.ordinal for item in observations] == [1, 2, 3]
+    assert all(item.acquisition.policy.cadence == timedelta(hours=6) for item in observations)
+    for item, impressions in zip(observations, (10, 11, 10)):
+        page = await store.read_revision_rows(
+            account_id=config.account_id, reporting_revision_id=item.revision_id
+        )
+        assert page.rows == ({"campaign_id": "campaign-redacted-1", "impressions": impressions},)
+
+
+@pytest.mark.parametrize("period_already_created", [False, True])
+async def test_standalone_period_recovers_generation_schedule_after_close_lag_removal(
+    store_factory: Any, period_already_created: bool
+) -> None:
+    producer, store, config, _, _, clock = await _stabilized_harness(store_factory, official=False)
+    for hour in (1, 7, 13):
+        clock[0] = END + timedelta(hours=hour)
+        await producer.run_configuration(config)
+    period_end = END + timedelta(days=1)
+    clock[0] = period_end + timedelta(hours=1)
+    if period_already_created:
+        await producer.close_elapsed_periods(config)
+    producer._source.capabilities = _capabilities(
+        restatement_window="PT1H", restatement_cadence="PT1H", official_close_lag=None
+    )
+    restarted = _restart_producer(producer, store, clock)
+    for hour in (1, 2, 7, 13):
+        clock[0] = period_end + timedelta(hours=hour)
+        await restarted.run_configuration(config)
+    obligation = await store.find_obligation(
+        account_id=config.account_id,
+        consumer_id=config.consumer_id,
+        delivery_config_id=config.delivery_config_id,
+        delivery_config_version=config.delivery_config_version,
+        period_start=END,
+        period_end=period_end,
+    )
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    observations = await store.list_provisional_observations(**owner, limit=5)
+    assert [item.checked_at for item in observations] == [
+        period_end + timedelta(hours=h) for h in (1, 7, 13)
+    ]
+    assert all(item.acquisition.policy.cadence == timedelta(hours=6) for item in observations)
+    assert all(item.acquisition.policy.until_stabilized for item in observations)
+    assert [
+        r.finalized_at for r in await store.list_revisions(**owner) if r.finality == "official"
+    ] == [clock[0]]
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["verify_snapshot_origin", "get_provisional_acquisition", "get_stabilization_schedule"],
+)
+@pytest.mark.parametrize("official,track", [(False, True), (True, True), (True, False)])
+async def test_direct_tracked_snapshot_requires_stabilization_capabilities_before_dispatch(
+    store_factory: Any, missing: str, official: bool, track: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, _ = await _stabilized_harness(
+        store_factory, official=official
+    )
+    producer._source.capabilities = _capabilities(official_close_lag=None)
+    monkeypatch.setattr(store, missing, None)
+    with pytest.raises(LedgerConflictError, match=missing):
+        await producer.acquire_obligation(
+            config, obligation, target_finality="snapshot", track_settling=track
+        )
+    assert not calls
+    assert (
+        await store.get_provisional_observation(
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+        is None
+    )
+
+
+def _stabilization_publisher(store: Any) -> Any:
+    class Publisher:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(store, name)
+
+    publisher = Publisher()
+    for name in (
+        "verify_snapshot_origin",
+        "get_provisional_acquisition",
+        "get_stabilization_schedule",
+        "list_provisional_observations",
+        "source_publication",
+        "get_restatement_checkpoint",
+        "record_restatement_checkpoint",
+        "reserve_provisional_acquisition",
+        "get_provisional_observation",
+        "commit_provisional_observation",
+    ):
+        setattr(publisher, name, getattr(store, name))
+    return publisher
+
+
+def _restart_producer(
+    producer: ReportingProducer, publisher: Any, clock: list[datetime]
+) -> ReportingProducer:
+    return ReportingProducer(
+        source=producer._source,
+        store=publisher,
+        retry_store=producer._retry_store,
+        offerings=producer._offerings,
+        object_reader=producer._object_reader,
+        clock=lambda: clock[0],
+        read_jitter_window=timedelta(0),
+    )
+
+
+async def test_unchanged_scheduled_observation_respects_the_publishers_origin_witness(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, calls, clock = await _stabilized_harness(store_factory)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    await producer.run_configuration(config)
+    first = await store.get_provisional_observation(**owner)
+    publisher = _stabilization_publisher(store)
+
+    async def conflicting_origin(revision: ReportingRevisionRecord) -> None:
+        assert revision.reporting_revision_id == first.revision_id
+        raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "publisher origin differs")
+
+    monkeypatch.setattr(publisher, "verify_snapshot_origin", conflicting_origin)
+    producer._store = publisher
+    clock[0] += timedelta(hours=6)
+    await producer.run_configuration(config)
+    assert await store.list_provisional_observations(**owner, limit=3) == (first,)
+    assert all(r.finality == "snapshot" for r in await store.list_revisions(**owner))
+    clock[0] += timedelta(hours=1)
+    await producer.run_configuration(config)
+    assert len(calls) == 2
+
+
+async def test_direct_tracked_unchanged_snapshot_checks_the_admitted_witness_without_live_close(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, obligation, _, clock = await _stabilized_harness(
+        store_factory, official=False
+    )
+    producer._source.capabilities = _capabilities(
+        restatement_window="P3D", restatement_cadence="PT6H", official_close_lag=None
+    )
+    publisher = _stabilization_publisher(store)
+    producer._store = publisher
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    await producer.acquire_obligation(config, obligation, track_settling=True)
+    first = await store.get_provisional_observation(**owner)
+
+    async def conflicting_origin(revision: ReportingRevisionRecord) -> None:
+        raise LedgerConflictError("STABILIZATION_ORIGIN_CONFLICT", "publisher origin differs")
+
+    monkeypatch.setattr(publisher, "verify_snapshot_origin", conflicting_origin)
+    clock[0] += timedelta(hours=6)
+    with pytest.raises(LedgerConflictError, match="publisher origin differs"):
+        await producer.acquire_obligation(config, obligation, restate=True, track_settling=True)
+    assert await store.list_provisional_observations(**owner, limit=3) == (first,)
+
+
 @pytest.mark.parametrize("unchanged", ["PT12H", "P30D"])
 @pytest.mark.parametrize("wrapped", [False, True])
 async def test_stabilized_retires_base_shaped_derived_official_reservation(
@@ -295,34 +506,8 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
     )
     assert "until_stabilized" not in reservation.to_wire()["policy"]
 
-    class Publisher:
-        def __getattr__(self, name: str) -> Any:
-            return getattr(store, name)
-
-    publisher = Publisher() if wrapped else store
-    if wrapped:
-        for name in (
-            "verify_snapshot_origin",
-            "get_provisional_acquisition",
-            "get_stabilization_schedule",
-            "list_provisional_observations",
-            "source_publication",
-            "get_restatement_checkpoint",
-            "record_restatement_checkpoint",
-            "reserve_provisional_acquisition",
-            "get_provisional_observation",
-            "commit_provisional_observation",
-        ):
-            setattr(publisher, name, getattr(store, name))
-    fresh = ReportingProducer(
-        source=producer._source,
-        store=publisher,
-        retry_store=store,
-        offerings=producer._offerings,
-        object_reader=producer._object_reader,
-        clock=lambda: clock[0],
-        read_jitter_window=timedelta(0),
-    )
+    publisher = _stabilization_publisher(store) if wrapped else store
+    fresh = _restart_producer(producer, publisher, clock)
 
     async def interrupt_replacement(*args: Any, **kwargs: Any) -> Any:
         raise OSError("interrupted before successor reservation")
@@ -332,15 +517,7 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
         with pytest.raises(OSError, match="before successor reservation"):
             await fresh.acquire_obligation(config, obligation)
     assert await store.get_stabilization_schedule(config.generation_key) == reservation.policy
-    fresh = ReportingProducer(
-        source=producer._source,
-        store=publisher,
-        retry_store=store,
-        offerings=producer._offerings,
-        object_reader=producer._object_reader,
-        clock=lambda: clock[0],
-        read_jitter_window=timedelta(0),
-    )
+    fresh = _restart_producer(producer, publisher, clock)
     for hour in (1, 1, 2, 7, 13):
         clock[0] = END + timedelta(hours=hour)
         await fresh.acquire_obligation(config, obligation)

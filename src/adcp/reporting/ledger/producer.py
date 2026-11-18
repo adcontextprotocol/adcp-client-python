@@ -427,6 +427,14 @@ class _StabilizedPublication:
     rows: Sequence[dict[str, Any]]
 
 
+def _implements_store_method(store: object, stub: Callable[..., Any]) -> bool:
+    name = stub.__name__
+    if inspect.getattr_static(store, name, None) is None:
+        return False
+    method = getattr(store, name, None)
+    return callable(method) and getattr(method, "__func__", method) is not stub
+
+
 class ReportingProducer:
     """Closes periods, drives the source, and commits immutable revisions."""
 
@@ -705,6 +713,10 @@ class ReportingProducer:
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
+        selected = configuration.definition.finality_policy if configuration.definition else None
+        frozen = None
+        if isinstance(selected, ReportingStabilizedPolicy):
+            frozen = await self._recover_stabilization_schedule(configuration, required=False)
         progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
         after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
@@ -724,39 +736,27 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
-            selected = (
-                configuration.definition.finality_policy if configuration.definition else None
-            )
-            if isinstance(selected, ReportingStabilizedPolicy):
+            if isinstance(selected, ReportingStabilizedPolicy) and self._stabilization_requested(
+                configuration
+            ):
+                self._stabilization_store()
                 offering_id = self._offerings.snapshot_offering_id
                 offering = self._source.capabilities.offering(offering_id) if offering_id else None
-                frozen = self._recovered_stabilization.get(configuration.generation_key)
-                if (
-                    frozen is not None
-                    or configuration.required_finality == "official"
-                    or (
-                        isinstance(offering, ProvisionalSnapshotOfferingV1)
-                        and offering.official_close_lag is not None
+                if not isinstance(offering, ProvisionalSnapshotOfferingV1):
+                    raise LedgerConflictError(
+                        "SNAPSHOT_OFFERING_REQUIRED",
+                        "stabilized finality requires a snapshot source offering",
                     )
-                ):
-                    self._stabilization_store()
-                    if frozen is None:
-                        frozen = await self._recover_stabilization_schedule(configuration)
-                    if not isinstance(offering, ProvisionalSnapshotOfferingV1):
-                        raise LedgerConflictError(
-                            "SNAPSHOT_OFFERING_REQUIRED",
-                            "stabilized finality requires a snapshot source offering",
+                stabilization_history_limit(
+                    selected,
+                    (
+                        frozen.cadence
+                        if frozen is not None
+                        else snapshot_restatement_cadence(
+                            offering, configuration.schedule.period_duration
                         )
-                    stabilization_history_limit(
-                        selected,
-                        (
-                            frozen.cadence
-                            if frozen is not None
-                            else snapshot_restatement_cadence(
-                                offering, configuration.schedule.period_duration
-                            )
-                        ),
-                    )
+                    ),
+                )
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -1142,11 +1142,19 @@ class ReportingProducer:
             policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
         if isinstance(selected, ReportingStabilizedPolicy) and (
             obligation.required_finality == "official"
+            or configuration.generation_key in self._recovered_stabilization
             or policy.official_close_lag is not None
             or (scheduled is not None and scheduled.acquisition.policy.until_stabilized)
         ):
             result = await self._acquire_stabilized(configuration, obligation, selected, turn, now)
             return result is not None and result.finality == "official"
+        # A snapshot-only schedule can carry an unused definition policy. Its
+        # automatic reads need only the ordinary observation publisher.
+        acquire = (
+            self._acquire_obligation
+            if isinstance(selected, ReportingStabilizedPolicy)
+            else self.acquire_obligation
+        )
         explicit_close = (
             policy.official_close_lag is not None
             and self._offerings.offering_for(_source_finality(obligation, "official")) is not None
@@ -1164,7 +1172,7 @@ class ReportingProducer:
             request = pending.request()
             if _utc(now) < self._source_available_at(obligation, offering_id=request.offering_id):
                 return False
-            await self.acquire_obligation(
+            await acquire(
                 configuration,
                 obligation,
                 restate=bool(revisions),
@@ -1192,7 +1200,7 @@ class ReportingProducer:
                 )
             return False
         if not revisions:
-            await self.acquire_obligation(
+            await acquire(
                 configuration,
                 obligation,
                 turn=turn,
@@ -1225,7 +1233,7 @@ class ReportingProducer:
             if next_due is None:
                 return not explicit_close
             if _utc(now) >= _utc(next_due):
-                await self.acquire_obligation(
+                await acquire(
                     configuration,
                     obligation,
                     restate=True,
@@ -1254,7 +1262,7 @@ class ReportingProducer:
             self._source_available_at(obligation, target_finality="official"),
         )
         if _utc(now) >= closes_at:
-            await self.acquire_obligation(
+            await acquire(
                 configuration,
                 obligation,
                 restate=True,
@@ -1330,15 +1338,22 @@ class ReportingProducer:
         required: bool = True,
     ) -> ProvisionalPolicy | None:
         """Restore the exact generation's frozen schedule before validating its history budget."""
-        try:
-            store = self._stabilization_store()
-        except LedgerConflictError:
-            if required:
-                raise
+        key = configuration.generation_key
+        frozen = self._recovered_stabilization.get(key)
+        if required or frozen is not None:
+            self._stabilization_store()
+        if frozen is not None:
+            return frozen
+        if not _implements_store_method(
+            self._store, StabilizationScheduleStore.get_stabilization_schedule
+        ):
             return None
-        policy = await store.get_stabilization_schedule(configuration.generation_key)
+        assert isinstance(self._store, StabilizationScheduleStore)
+        policy = await self._store.get_stabilization_schedule(key)
         if policy is not None:
-            self._recovered_stabilization[configuration.generation_key] = policy
+            if not required:
+                self._stabilization_store()
+            self._recovered_stabilization[key] = policy
         return policy
 
     async def _acquire_stabilized(
@@ -1359,19 +1374,16 @@ class ReportingProducer:
         revisions = await self._store.list_revisions(**owner)
         if any(r.finality == "official" for r in revisions):
             return None
-        store = self._stabilization_store()
+        await self._recover_stabilization_schedule(configuration)
+        store = self._store
+        assert isinstance(store, StabilizationStore)
         checkpoint_store = self._restatement_store()
         checkpoint = await checkpoint_store.get_restatement_checkpoint(**owner)
-        if checkpoint is not None and checkpoint.stabilization_policy is not None:
-            self._recovered_stabilization[configuration.generation_key] = (
-                checkpoint.stabilization_policy
-            )
         if not manual and checkpoint is not None and checkpoint.waiting_for_stabilization(now):
             return None
         ordinal = checkpoint.next_observation if checkpoint else len(revisions)
         pending = await self._pending_acquisition(obligation, ordinal=ordinal)
         if pending is not None and pending.legacy_stabilized_close:
-            self._recovered_stabilization[configuration.generation_key] = pending.policy
             if not await self._retire_stabilized_acquisition(
                 configuration, obligation, pending, now
             ):
@@ -1617,6 +1629,31 @@ class ReportingProducer:
         ``now`` freezes dispatch and the source read cutoff. Revision creation
         uses a fresh producer clock sample after the staged objects are read.
         """
+        return await self._acquire_obligation(
+            configuration,
+            obligation,
+            restate=restate,
+            turn=turn,
+            now=now,
+            target_finality=target_finality,
+            track_settling=track_settling,
+            manual_replay=manual_replay,
+            admit_tracked_stabilization=True,
+        )
+
+    async def _acquire_obligation(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        *,
+        restate: bool = False,
+        turn: WorkerTurn | None = None,
+        now: datetime | None = None,
+        target_finality: str | None = None,
+        track_settling: bool = False,
+        manual_replay: bool = False,
+        admit_tracked_stabilization: bool = False,
+    ) -> ReportingRevisionRecord | None:
         if configuration.generation_key != obligation.generation_key:
             raise LedgerConflictError(
                 "CONFIGURATION_GENERATION_MISMATCH",
@@ -1710,6 +1747,16 @@ class ReportingProducer:
             if checkpoint_store is not None
             else None
         )
+        if (
+            admit_tracked_stabilization
+            and isinstance(selected_policy, ReportingStabilizedPolicy)
+            and (
+                track_settling
+                or pending is not None
+                or (checkpoint_store is not None and not restate and not manual_replay)
+            )
+        ):
+            await self._recover_stabilization_schedule(configuration)
         if pending is not None:
             finality = pending.finality
         elif (
@@ -1966,7 +2013,12 @@ class ReportingProducer:
             if (
                 error.code == "STABILIZATION_ORIGIN_CONFLICT"
                 and acquisition is not None
-                and acquisition.policy.until_stabilized
+                and isinstance(selected_policy, ReportingStabilizedPolicy)
+                and (acquisition.policy.until_stabilized or acquisition.is_scheduled_snapshot)
+                and (
+                    admit_tracked_stabilization
+                    or self._uses_stabilization_schedule(obligation, acquisition.policy)
+                )
             ):
                 # A sealed unchanged read cannot repair its predecessor's conflicting origin.
                 retired = await self._retire_stabilized_acquisition(
@@ -2404,17 +2456,9 @@ class ReportingProducer:
 
     def _observation_history_store(self) -> ProvisionalObservationStore:
         store = self._observation_store()
-        name = "list_provisional_observations"
-        stub = ProvisionalObservationStore.list_provisional_observations
-        declared = inspect.getattr_static(store, name, None)
-        implementation = (
-            getattr(store, name, None) if declared is not None and declared is not stub else None
-        )
-        if (
-            not callable(implementation)
-            or getattr(implementation, "__func__", implementation) is stub
-            or not isinstance(store, ProvisionalObservationStore)
-        ):
+        if not _implements_store_method(
+            store, ProvisionalObservationStore.list_provisional_observations
+        ) or not isinstance(store, ProvisionalObservationStore):
             raise LedgerConflictError(
                 "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED",
                 "stabilized finality requires explicitly implemented bounded observation history",
@@ -2423,16 +2467,9 @@ class ReportingProducer:
 
     def _stabilization_lock(self) -> ReportingSourcePublicationStore:
         store = self._store
-        stub = ReportingSourcePublicationStore.source_publication
-        declared = inspect.getattr_static(store, "source_publication", None)
-        implementation = (
-            getattr(store, "source_publication", None) if declared is not None else None
-        )
-        if (
-            not callable(implementation)
-            or getattr(implementation, "__func__", implementation) is stub
-            or not isinstance(store, ReportingSourcePublicationStore)
-        ):
+        if not _implements_store_method(
+            store, ReportingSourcePublicationStore.source_publication
+        ) or not isinstance(store, ReportingSourcePublicationStore):
             raise LedgerConflictError(
                 "STABILIZATION_PUBLICATION_NOT_SUPPORTED",
                 "stabilized finality requires an account publication lock",
@@ -2453,16 +2490,10 @@ class ReportingProducer:
             PendingProvisionalAcquisitionStore.get_provisional_acquisition,
             StabilizationScheduleStore.get_stabilization_schedule,
         ):
-            name = stub.__name__
-            method = (
-                getattr(history, name, None)
-                if inspect.getattr_static(history, name, None) is not None
-                else None
-            )
-            if not callable(method) or getattr(method, "__func__", method) is stub:
+            if not _implements_store_method(history, stub):
                 raise LedgerConflictError(
                     "STABILIZATION_STORAGE_NOT_SUPPORTED",
-                    f"stabilized finality requires explicitly implemented {name}",
+                    f"stabilized finality requires explicitly implemented {stub.__name__}",
                 )
         assert isinstance(history, StabilizationStore)
         return history
@@ -2502,23 +2533,8 @@ class ReportingProducer:
                     timedelta(0), iso_duration_to_timedelta(configuration.schedule.period_duration)
                 )
             )
-        if (
-            isinstance(selected, ReportingStabilizedPolicy)
-            and (checkpoint_store := self._optional_restatement_store()) is not None
-        ):
-            checkpoint = await checkpoint_store.get_restatement_checkpoint(
-                account_id=obligation.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-            )
-            if (
-                checkpoint is not None
-                and checkpoint.next_observation == ordinal
-                and checkpoint.stabilization_policy is not None
-            ):
-                frozen_policy = checkpoint.stabilization_policy
-        if isinstance(selected, ReportingStabilizedPolicy) and (
-            obligation.required_finality == "official"
-            or frozen_policy.official_close_lag is not None
+        if isinstance(selected, ReportingStabilizedPolicy) and self._uses_stabilization_schedule(
+            obligation, frozen_policy
         ):
             stabilization_history_limit(selected, frozen_policy.cadence)
             frozen_policy = replace(frozen_policy, until_stabilized=True)
@@ -3041,13 +3057,6 @@ class ReportingProducer:
                 retained = predecessor
                 if acquisition is None:
                     return retained
-                if acquisition.policy.until_stabilized and isinstance(
-                    selected_policy, ReportingStabilizedPolicy
-                ):
-                    limit = stabilization_history_limit(selected_policy, acquisition.policy.cadence)
-                    for observed in await self._scheduled_snapshot_history(obligation, limit):
-                        if observed.revision_id == predecessor.reporting_revision_id:
-                            validate_snapshot_origin(predecessor, observed.snapshot_origin)
         staged = staging is not None and bool(await staging.stage_revision_rows(revision, rows))
         try:
             committed, replayed = await self._commit_publication(
@@ -3254,6 +3263,47 @@ class ReportingProducer:
             )
         return staged_rows
 
+    def _uses_stabilization_schedule(
+        self, obligation: ReportingObligationRecord, policy: ProvisionalPolicy
+    ) -> bool:
+        return (
+            obligation.required_finality == "official"
+            or policy.until_stabilized
+            or policy.official_close_lag is not None
+            or obligation.generation_key in self._recovered_stabilization
+        )
+
+    async def _verify_reused_snapshot_origin(
+        self,
+        obligation: ReportingObligationRecord,
+        acquisition: ProvisionalAcquisition,
+        revision_id: str,
+    ) -> None:
+        selected = obligation.definition.finality_policy if obligation.definition else None
+        if not isinstance(selected, ReportingStabilizedPolicy) or not (
+            acquisition.policy.until_stabilized or acquisition.is_scheduled_snapshot
+        ):
+            return
+        active = self._uses_stabilization_schedule(obligation, acquisition.policy)
+        if active:
+            witness: SnapshotOriginStore = self._stabilization_store()
+        elif _implements_store_method(self._store, SnapshotOriginStore.verify_snapshot_origin):
+            assert isinstance(self._store, SnapshotOriginStore)
+            witness = self._store
+        else:
+            return
+        predecessor = await self._store.get_revision(
+            account_id=obligation.account_id, reporting_revision_id=revision_id
+        )
+        if predecessor is None:
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is missing")
+        await witness.verify_snapshot_origin(predecessor)
+        if active:
+            limit = stabilization_history_limit(selected, acquisition.policy.cadence)
+            for observed in await self._scheduled_snapshot_history(obligation, limit):
+                if observed.revision_id == revision_id:
+                    validate_snapshot_origin(predecessor, observed.snapshot_origin)
+
     async def _commit_publication(
         self,
         obligation: ReportingObligationRecord,
@@ -3324,6 +3374,9 @@ class ReportingProducer:
                 # The bounds check above already rejects acquired_at after now.
                 if retained_revision_id is not None:
                     observation_revision_id = retained_revision_id
+                    await self._verify_reused_snapshot_origin(
+                        obligation, acquisition, retained_revision_id
+                    )
                 else:
                     assert revision is not None
                     observation_revision_id = revision.reporting_revision_id
