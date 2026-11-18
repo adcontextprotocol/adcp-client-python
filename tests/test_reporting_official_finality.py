@@ -38,6 +38,7 @@ from adcp.reporting.ledger import (
     ReportingStabilizedPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
+    RestatementCheckpoint,
     revision_content_sha256,
 )
 from adcp.reporting.ledger.finality import (
@@ -166,14 +167,54 @@ async def test_previous_checkpoint_schema_recovers_schedule_before_initialize() 
         )
         await producer.run_configuration(config)
         async with pool.connection() as connection:
-            await connection.execute(
-                "ALTER TABLE reporting_restatement_checkpoints DROP COLUMN stabilization_policy,"
-                " DROP COLUMN next_stabilization_due_at"
-            )
+            await connection.execute("DROP TABLE adcp_reporting_stabilization_checkpoints")
         policy = await producer._recover_stabilization_schedule(config)
         assert policy is not None and policy.cadence == timedelta(hours=6)
         await store.create_schema()
         assert await store.get_stabilization_schedule(config.generation_key) == policy
+
+
+@pytest.mark.parametrize("later_clock", [False, True])
+async def test_older_writer_advancing_checkpoint_retires_its_stabilization_metadata(
+    later_clock: bool,
+) -> None:
+    async with isolated_reporting_pool() as pool:
+        _, store, config, obligation, _, clock = await _stabilized_harness(
+            partial(PgReportingLedgerStore, pool=pool)
+        )
+        owner = dict(
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+        policy = ProvisionalPolicy(timedelta(days=1), timedelta(hours=6), until_stabilized=True)
+        first = RestatementCheckpoint(
+            account_id=config.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            checked_at=clock[0],
+            next_observation=1,
+            stabilization_policy=policy,
+            next_stabilization_due_at=clock[0] + policy.cadence,
+        )
+        assert await store.record_restatement_checkpoint(first) == first
+        assert await store.get_restatement_checkpoint(**owner) == first
+        advanced = replace(
+            first,
+            checked_at=first.checked_at + timedelta(minutes=1) if later_clock else first.checked_at,
+            next_observation=1 if later_clock else 2,
+            stabilization_policy=None,
+            next_stabilization_due_at=None,
+        )
+        async with pool.connection() as connection:
+            await connection.execute(
+                "UPDATE reporting_restatement_checkpoints SET checked_at=%s, next_observation=%s"
+                " WHERE reporting_obligation_id=%s AND account_id=%s",
+                (
+                    advanced.checked_at,
+                    advanced.next_observation,
+                    obligation.reporting_obligation_id,
+                    config.account_id,
+                ),
+            )
+        assert await store.get_restatement_checkpoint(**owner) == advanced
 
 
 @pytest.mark.parametrize("tracked", [False, True])

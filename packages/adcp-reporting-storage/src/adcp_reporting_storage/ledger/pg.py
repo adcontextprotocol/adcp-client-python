@@ -800,6 +800,36 @@ class PgReportingLedgerStore:
 
         await validate_provisional_schema(connection)
 
+    async def _provisional_tables_installed(self, connection: Any) -> bool:
+        row = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.reporting_provisional_acquisitions') IS NOT NULL"
+                " OR to_regclass(quote_ident(current_schema())"
+                " || '.reporting_provisional_observations') IS NOT NULL"
+            )
+        ).fetchone()
+        return bool(row and row[0])
+
+    async def _stabilization_checkpoint_join(self, connection: Any) -> str:
+        """Join private policy metadata when reading a checkpoint on either schema version."""
+        row = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.adcp_reporting_stabilization_checkpoints') IS NOT NULL"
+            )
+        ).fetchone()
+        if row and row[0]:
+            return (
+                " LEFT JOIN adcp_reporting_stabilization_checkpoints s"
+                " ON s.reporting_obligation_id=c.reporting_obligation_id"
+                " AND s.next_observation=c.next_observation AND s.checked_at=c.checked_at"
+            )
+        return (
+            " CROSS JOIN (SELECT NULL::jsonb AS stabilization_policy,"
+            " NULL::timestamptz AS next_stabilization_due_at) s"
+        )
+
     async def _notification_now(self, connection: Any) -> datetime:
         from adcp_reporting_storage.outbox.pg import database_now
 
@@ -1504,20 +1534,21 @@ class PgReportingLedgerStore:
                     "this period is being retired; no revision may be added to it",
                 )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
-            pending = await (
-                await connection.execute(
-                    "SELECT 1 FROM reporting_provisional_acquisitions a"
-                    " LEFT JOIN reporting_restatement_checkpoints c"
-                    " USING (account_id, reporting_obligation_id)"
-                    " WHERE a.account_id=%s AND a.reporting_obligation_id=%s"
-                    " AND a.ordinal >= COALESCE(c.next_observation, 0) LIMIT 1",
-                    (revision.account_id, revision.reporting_obligation_id),
-                )
-            ).fetchone()
-            if pending is not None:
-                raise LedgerConflictError(
-                    "OBSERVATION_CONFLICT", "a source acquisition is reserved"
-                )
+            if await self._provisional_tables_installed(connection):
+                pending = await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_provisional_acquisitions a"
+                        " LEFT JOIN reporting_restatement_checkpoints c"
+                        " USING (account_id, reporting_obligation_id)"
+                        " WHERE a.account_id=%s AND a.reporting_obligation_id=%s"
+                        " AND a.ordinal >= COALESCE(c.next_observation, 0) LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+                if pending is not None:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "a source acquisition is reserved"
+                    )
             if (
                 revision.finality == "snapshot"
                 and await (
@@ -1871,25 +1902,20 @@ class PgReportingLedgerStore:
     ) -> ProvisionalPolicy | None:
         async with self._connection() as connection:
             # configure() can precede schema creation on a brand-new installation.
-            installed = await (
-                await connection.execute(
-                    "SELECT to_regclass('reporting_provisional_acquisitions') IS NOT NULL"
-                    " OR to_regclass('reporting_provisional_observations') IS NOT NULL"
-                )
-            ).fetchone()
-            if installed is not None and not installed[0]:
+            if not await self._provisional_tables_installed(connection):
                 return None
             await self._require_provisional_schema(connection)
-            # The checkpoint's frozen policy can also be absent on pre-upgrade tables.
+            policy_join = await self._stabilization_checkpoint_join(connection)
             row = await (
                 await connection.execute(
-                    "SELECT a.payload->'policy' FROM reporting_obligations o"
+                    "SELECT a.payload->'policy' FROM reporting_obligations o"  # noqa: S608  # nosec B608
                     " JOIN reporting_provisional_acquisitions a"
                     " USING(account_id, reporting_obligation_id)"
                     " LEFT JOIN reporting_provisional_observations h"
                     " USING(account_id, reporting_obligation_id, ordinal)"
                     " LEFT JOIN reporting_restatement_checkpoints c"
                     " USING(account_id, reporting_obligation_id)"
+                    f"{policy_join}"
                     " WHERE o.account_id=%s AND o.consumer_id=%s AND o.delivery_config_id=%s"
                     " AND o.delivery_config_version=%s"
                     " AND a.payload #>> '{request,trigger}' = 'scheduled_poll'"
@@ -1900,7 +1926,7 @@ class PgReportingLedgerStore:
                     " AND a.payload #>> '{policy,until_stabilized}' IS DISTINCT FROM 'true'))"
                     " AND (h.ordinal IS NOT NULL OR c.next_observation IS NULL"
                     " OR c.next_observation=a.ordinal OR (c.next_observation>a.ordinal"
-                    " AND to_jsonb(c)->'stabilization_policy'=a.payload->'policy'))"
+                    " AND s.stabilization_policy=a.payload->'policy'))"
                     " AND (o.required_finality='official'"
                     " OR a.payload #>> '{policy,until_stabilized}' = 'true'"
                     " OR a.payload #>> '{policy,official_close_lag_us}' IS NOT NULL)"
@@ -2154,13 +2180,14 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str
     ) -> RestatementCheckpoint | None:
         async with self._connection() as connection:
+            policy_join = await self._stabilization_checkpoint_join(connection)
             row = await (
                 await connection.execute(
-                    "SELECT account_id, reporting_obligation_id, checked_at,"
-                    " next_observation, provisional_until, stabilization_policy,"
-                    " next_stabilization_due_at"
-                    " FROM reporting_restatement_checkpoints"
-                    " WHERE account_id = %s AND reporting_obligation_id = %s",
+                    "SELECT c.account_id, c.reporting_obligation_id, c.checked_at,"  # noqa: S608  # nosec B608
+                    " c.next_observation, c.provisional_until, s.stabilization_policy,"
+                    " s.next_stabilization_due_at"
+                    f" FROM reporting_restatement_checkpoints c{policy_join}"
+                    " WHERE c.account_id = %s AND c.reporting_obligation_id = %s",
                     (account_id, reporting_obligation_id),
                 )
             ).fetchone()
@@ -2179,7 +2206,7 @@ class PgReportingLedgerStore:
     async def record_restatement_checkpoint(
         self, checkpoint: RestatementCheckpoint
     ) -> RestatementCheckpoint:
-        async with self._connection() as connection:
+        async with self._connection() as connection, connection.transaction():
             obligation = await (
                 await connection.execute(
                     "SELECT 1 FROM reporting_obligations"
@@ -2196,14 +2223,12 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "INSERT INTO reporting_restatement_checkpoints"
                     " (account_id, reporting_obligation_id, checked_at, next_observation,"
-                    "  provisional_until, stabilization_policy, next_stabilization_due_at)"
-                    " VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)"
+                    "  provisional_until)"
+                    " VALUES (%s, %s, %s, %s, %s)"
                     " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
                     " checked_at = EXCLUDED.checked_at,"
                     " next_observation = EXCLUDED.next_observation,"
-                    " provisional_until = EXCLUDED.provisional_until,"
-                    " stabilization_policy = EXCLUDED.stabilization_policy,"
-                    " next_stabilization_due_at = EXCLUDED.next_stabilization_due_at"
+                    " provisional_until = EXCLUDED.provisional_until"
                     " WHERE reporting_restatement_checkpoints.account_id = EXCLUDED.account_id"
                     "   AND (reporting_restatement_checkpoints.next_observation"
                     "        < EXCLUDED.next_observation"
@@ -2212,23 +2237,41 @@ class PgReportingLedgerStore:
                     "         AND reporting_restatement_checkpoints.checked_at"
                     "             < EXCLUDED.checked_at))"
                     " RETURNING account_id, reporting_obligation_id, checked_at,"
-                    " next_observation, provisional_until, stabilization_policy,"
-                    " next_stabilization_due_at",
+                    " next_observation, provisional_until",
                     (
                         checkpoint.account_id,
                         checkpoint.reporting_obligation_id,
                         checkpoint.checked_at,
                         checkpoint.next_observation,
                         checkpoint.provisional_until,
+                    ),
+                )
+            ).fetchone()
+            if row and (
+                checkpoint.stabilization_policy is not None
+                or checkpoint.next_stabilization_due_at is not None
+            ):
+                await connection.execute(
+                    "INSERT INTO adcp_reporting_stabilization_checkpoints"
+                    " (reporting_obligation_id, next_observation, checked_at,"
+                    " stabilization_policy, next_stabilization_due_at)"
+                    " VALUES (%s, %s, %s, %s::jsonb, %s)"
+                    " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
+                    " next_observation=EXCLUDED.next_observation, checked_at=EXCLUDED.checked_at,"
+                    " stabilization_policy=EXCLUDED.stabilization_policy,"
+                    " next_stabilization_due_at=EXCLUDED.next_stabilization_due_at",
+                    (
+                        checkpoint.reporting_obligation_id,
+                        checkpoint.next_observation,
+                        checkpoint.checked_at,
                         (
                             json.dumps(checkpoint.stabilization_policy.to_wire())
-                            if checkpoint.stabilization_policy
+                            if checkpoint.stabilization_policy is not None
                             else None
                         ),
                         checkpoint.next_stabilization_due_at,
                     ),
                 )
-            ).fetchone()
         if row is None:
             stored = await self.get_restatement_checkpoint(
                 account_id=checkpoint.account_id,
@@ -2246,8 +2289,12 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
-            stabilization_policy=ProvisionalPolicy.from_wire(row[5]) if row[5] else None,
-            next_stabilization_due_at=_utc(row[6]) if row[6] else None,
+            stabilization_policy=checkpoint.stabilization_policy,
+            next_stabilization_due_at=(
+                _utc(checkpoint.next_stabilization_due_at)
+                if checkpoint.next_stabilization_due_at is not None
+                else None
+            ),
         )
 
     async def get_revision(

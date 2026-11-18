@@ -199,10 +199,6 @@ CREATE TABLE IF NOT EXISTS reporting_restatement_checkpoints (
 CREATE INDEX IF NOT EXISTS reporting_restatement_checkpoints_account_idx
     ON reporting_restatement_checkpoints (account_id, checked_at);
 
-ALTER TABLE reporting_restatement_checkpoints
-    ADD COLUMN IF NOT EXISTS stabilization_policy JSONB,
-    ADD COLUMN IF NOT EXISTS next_stabilization_due_at TIMESTAMPTZ;
-
 -- Mutable scheduling state; it does not enter the immutable ledger change feed.
 CREATE TABLE IF NOT EXISTS adcp_reporting_producer_retry_schedules (
     scope_key        TEXT COLLATE "C" PRIMARY KEY,
