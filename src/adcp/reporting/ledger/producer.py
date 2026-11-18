@@ -496,7 +496,6 @@ class ReportingProducer:
         self._recovered_stabilization: dict[
             ReportingConfigurationGenerationKey, ProvisionalPolicy
         ] = {}
-        self._new_snapshot_obligations: set[tuple[str, str]] = set()
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -799,19 +798,19 @@ class ReportingProducer:
                     configuration, obligation, previous_end=after
                 )
             )
-            if (
-                selected is not None
-                and self._optional_publication_store() is None
-                and self._stabilization_schedule_store() is None
-            ):
-                # Until the first scheduled observation, only this producer knows
-                # it admitted this particular period on an ordinary snapshot route.
-                self._new_snapshot_obligations.add(
-                    (stored.account_id, stored.reporting_obligation_id)
-                )
             after = boundary.end
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)
+            if (
+                selected is not None
+                and self._optional_publication_store() is None
+                and not _implements_store_method(
+                    self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
+                )
+            ):
+                # Publish this period through its atomic reservation before
+                # considering a later period with an unobservable pending slot.
+                break
         return committed
 
     def _elapsed_periods(
@@ -1381,11 +1380,20 @@ class ReportingProducer:
             return self._store
         return None
 
-    async def _has_retained_official_close(self, key: ReportingConfigurationGenerationKey) -> bool:
-        """Find a frozen scheduled close, including an unfinished first reservation."""
+    async def _has_retained_official_close(
+        self,
+        key: ReportingConfigurationGenerationKey,
+        *,
+        publishing: bool = False,
+        scheduled_reservation: tuple[str, int] | None = None,
+    ) -> bool:
+        """Check completed close evidence and any reservations that could affect this operation."""
         schedule_store = self._stabilization_schedule_store()
         if schedule_store is not None:
-            return await schedule_store.get_stabilization_schedule(key) is not None
+            schedule = await schedule_store.get_stabilization_schedule(key)
+            if schedule is not None:
+                return True
+        # A negative stabilization lookup still requires checking the other close policies.
         snapshot = await self._store.open_snapshot(
             caller=ReportingDeliveryPrincipal(key.account_id, key.consumer_id),
             filters_fingerprint=f"official-close:{key.delivery_config_id}:{key.delivery_config_version}",
@@ -1405,23 +1413,33 @@ class ReportingProducer:
             for obligation in page.obligations:
                 if obligation.generation_key != key:
                     continue
-                if await self._obligation_has_retained_close(obligation):
+                if await self._obligation_has_retained_close(
+                    obligation,
+                    publishing=publishing,
+                    scheduled_reservation=scheduled_reservation,
+                ):
                     return True
             if not page.has_more:
                 return False
             offset += page_size
 
-    async def _obligation_has_retained_close(self, obligation: ReportingObligationRecord) -> bool:
-        identity = (obligation.account_id, obligation.reporting_obligation_id)
+    async def _obligation_has_retained_close(
+        self,
+        obligation: ReportingObligationRecord,
+        *,
+        publishing: bool,
+        scheduled_reservation: tuple[str, int] | None,
+    ) -> bool:
         owner = dict(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
         observations = self._optional_observation_store()
         latest = await observations.get_provisional_observation(**owner) if observations else None
+        if latest is not None and latest.acquisition.finality == "official":
+            return True
         scheduled = await self._latest_scheduled_snapshot(obligation, latest)
         if scheduled is not None:
-            self._new_snapshot_obligations.discard(identity)
             schedule = scheduled.acquisition.stabilization_schedule(
                 obligation.required_finality, pending=False
             )
@@ -1434,25 +1452,30 @@ class ReportingProducer:
         lookup = _implements_store_method(
             self._store, PendingProvisionalAcquisitionStore.get_provisional_acquisition
         )
+        if not lookup and (
+            scheduled_reservation is None
+            or scheduled_reservation[0] != obligation.reporting_obligation_id
+        ):
+            # A manual read or another period cannot inspect this reservation by claiming it.
+            return publishing or scheduled is None
+        # An untracked manual revision can precede the first scheduled reservation.
+        ordinal = (
+            checkpoint.next_observation
+            if checkpoint
+            else len(await self._store.list_revisions(**owner))
+        )
         if lookup:
-            # An untracked manual revision can precede the first scheduled reservation.
-            ordinal = (
-                checkpoint.next_observation
-                if checkpoint
-                else len(await self._store.list_revisions(**owner))
-            )
             pending = await self._pending_acquisition(obligation, ordinal=ordinal)
-            if (
-                pending is not None
-                and pending.stabilization_schedule(obligation.required_finality, pending=True)
+            if pending is not None and (
+                pending.finality == "official"
+                or pending.stabilization_schedule(obligation.required_finality, pending=True)
                 is not None
             ):
                 return True
-        return (
-            scheduled is None
-            and identity not in self._new_snapshot_obligations
-            and (checkpoints is None or not lookup or checkpoint is not None)
-        )
+        elif scheduled_reservation != (obligation.reporting_obligation_id, ordinal):
+            # A completed ordinal cannot prove which publisher owns the next one.
+            return True
+        return scheduled is None and (checkpoints is None or checkpoint is not None)
 
     async def _acquire_stabilized(
         self,
@@ -1879,8 +1902,15 @@ class ReportingProducer:
                 raise LedgerConflictError(
                     "FINALITY_POLICY_UNPROVEN", "official finality requires a selected policy"
                 )
+        manual_observation = manual_replay or (restate and not track_settling)
+        reserve_snapshot = (
+            finality == "snapshot" and not manual_observation and checkpoint_store is not None
+        )
         await self._check_official_publication_lock(
-            obligation, official=finality == "official", frozen=pending.policy if pending else None
+            obligation,
+            official=finality == "official",
+            frozen=pending.policy if pending else None,
+            scheduled_ordinal=observation if reserve_snapshot else None,
         )
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
@@ -1900,7 +1930,6 @@ class ReportingProducer:
         constituents = self._check_source_authorization(configuration, offering_id, constituents)
 
         derived_close = finality == "official" and source_finality == "snapshot"
-        manual_observation = manual_replay or (restate and not track_settling)
         manual_snapshot = manual_observation and finality == "snapshot" and pending is None
         if derived_close and isinstance(selected_policy, ReportingContractualCutoffPolicy):
             if _utc(now) < contractual_cutoff_at(obligation, selected_policy):
@@ -2601,10 +2630,14 @@ class ReportingProducer:
         official: bool = False,
         frozen: ProvisionalPolicy | None = None,
         check_generation: bool = True,
+        scheduled_ordinal: int | None = None,
     ) -> None:
         policy = route.definition.finality_policy if route.definition else None
         if policy is None or self._optional_publication_store() is not None:
             return
+        reservation = None
+        if scheduled_ordinal is not None and isinstance(route, ReportingObligationRecord):
+            reservation = (route.reporting_obligation_id, scheduled_ordinal)
         if (
             official
             or self._official_close_requested(route)
@@ -2612,7 +2645,12 @@ class ReportingProducer:
                 frozen is not None
                 and (frozen.official_close_lag is not None or frozen.until_stabilized)
             )
-            or (check_generation and await self._has_retained_official_close(route.generation_key))
+            or (
+                check_generation
+                and await self._has_retained_official_close(
+                    route.generation_key, publishing=True, scheduled_reservation=reservation
+                )
+            )
         ):
             self._official_publication_lock(
                 stabilized=isinstance(policy, ReportingStabilizedPolicy)
@@ -2684,6 +2722,7 @@ class ReportingProducer:
             obligation,
             official=derived_close or request.publication_class == "AUTHORITATIVE",
             frozen=frozen_policy,
+            scheduled_ordinal=ordinal if request.trigger == "scheduled_poll" else None,
         )
         if self._requires_source_authority(obligation):
             self._source_authority(obligation, request)
@@ -2717,15 +2756,13 @@ class ReportingProducer:
                 "frozen source acquisition does not bind the obligation's consumer; "
                 "operator reconciliation and a new configuration generation are required",
             )
-        if acquisition != candidate:
-            # A pending-only lookup can be absent. Reservation then returns the
-            # winner's frozen route, which may differ from the proposed snapshot.
-            await self._check_official_publication_lock(
-                obligation,
-                official=acquisition.finality == "official",
-                frozen=acquisition.policy,
-                check_generation=False,
-            )
+        # The returned ordinal may already have completed while the reservation was in flight.
+        await self._check_official_publication_lock(
+            obligation,
+            official=acquisition.finality == "official",
+            frozen=acquisition.policy,
+            scheduled_ordinal=acquisition.ordinal if acquisition.is_scheduled_snapshot else None,
+        )
         return acquisition
 
     async def _pending_acquisition(
@@ -2963,11 +3000,15 @@ class ReportingProducer:
         selected_policy = obligation.definition.finality_policy if obligation.definition else None
         # A matching historical observation already retained its own route.
         # Check generation-wide evidence before admitting any fresh snapshot.
+        scheduled_ordinal = None
+        if verified_source_rows and acquisition is not None and acquisition.is_scheduled_snapshot:
+            scheduled_ordinal = acquisition.ordinal
         await self._check_official_publication_lock(
             obligation,
             official=finality == "official",
             frozen=acquisition.policy if acquisition else None,
             check_generation=acquisition is None or verified_source_rows,
+            scheduled_ordinal=scheduled_ordinal,
         )
         origin_store: SnapshotOriginStore | None = None
         if finality == "snapshot" and acquisition is not None:

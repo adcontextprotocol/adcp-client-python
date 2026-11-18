@@ -76,7 +76,12 @@ shared across all publishers for that account. Stabilization additionally
 requires durable reservations, bounded scheduled history, checkpoints, exact
 snapshot origins and generation schedule recovery. An ordinary snapshot route
 can keep using its snapshot publisher when the definition also lists an unused
-stabilization policy.
+stabilization policy. Each scheduled read checks the winner of its own atomic
+reservation. With a selected policy and no account publication lock, new manual
+acquisitions and later periods also need the pending-acquisition lookup to rule out
+a competing close. Recovery checks retained scheduled observations for
+`source_final` and `contractual_cutoff` when the stabilization lookup returns
+no schedule.
 
 ## Persistence and compatibility
 

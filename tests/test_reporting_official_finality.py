@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -1503,12 +1503,15 @@ async def test_restart_resumes_ordinary_snapshot_with_unused_stabilized_policy(
 
 
 @pytest.mark.parametrize("interleave", [True, False])
+@pytest.mark.parametrize("schedule_lookup", [True, False])
 async def test_standalone_new_snapshot_with_unused_policy_needs_no_optional_lookups(
-    store_factory: Any, monkeypatch: pytest.MonkeyPatch, interleave: bool
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, interleave: bool, schedule_lookup: bool
 ) -> None:
     store = store_factory()
-    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+    for name in ("source_publication", "get_provisional_acquisition"):
         monkeypatch.setattr(store, name, None)
+    if not schedule_lookup:
+        monkeypatch.setattr(store, "get_stabilization_schedule", None)
     producer, _, config, obligation, _, clock = await _harness(
         lambda **kwargs: store, finality_policy=ReportingContractualCutoffPolicy("unused", "P2D")
     )
@@ -1566,6 +1569,192 @@ async def test_snapshot_admission_checks_another_publishers_pending_close(
     assert not await store.list_revisions(
         account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
     )
+
+
+@pytest.mark.parametrize("completed_ordinary", [False, True])
+@pytest.mark.parametrize("operation", ["manual", "next_period"])
+async def test_first_snapshot_admission_cannot_hide_a_later_publishers_close(
+    store_factory: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    completed_ordinary: bool,
+    operation: str,
+) -> None:
+    store = store_factory()
+    publication = store.source_publication
+    lookup = store.get_provisional_acquisition
+    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+        monkeypatch.setattr(store, name, None)
+    producer, _, config, obligation, calls, clock = await _harness(
+        lambda **kwargs: store, finality_policy=ReportingContractualCutoffPolicy("cutoff", "P2D")
+    )
+    clock[0] = END + timedelta(hours=1)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    if completed_ordinary:
+        await producer.run_configuration(config)
+        ordinary = await store.get_provisional_observation(**owner)
+        assert ordinary.acquisition.policy.official_close_lag is None
+    revisions = await store.list_revisions(**owner)
+    previous_calls = list(calls)
+    ordinal = int(completed_ordinary)
+    request = producer._build_slice(
+        config,
+        obligation,
+        SNAPSHOT_OFFERING_ID,
+        finality="snapshot",
+        now=clock[0],
+        observation=ordinal,
+    )
+    async with publication(config.account_id):
+        winning = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(
+                request.model_dump_json(),
+                ordinal,
+                ProvisionalPolicy(timedelta(days=3), timedelta(hours=1), timedelta(days=2)),
+                revisions[-1].reporting_revision_id if revisions else None,
+            )
+        )
+    assert winning.policy.official_close_lag == timedelta(days=2)
+    clock[0] += timedelta(days=1)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        if operation == "manual":
+            await producer.acquire_obligation(
+                config, obligation, target_finality="snapshot", restate=True, manual_replay=True
+            )
+        else:
+            await producer.close_elapsed_periods(config)
+    assert calls == previous_calls
+    assert await lookup(**owner, ordinal=ordinal) == winning
+    assert await store.list_revisions(**owner) == revisions
+    later = await store.find_obligation(
+        account_id=config.account_id,
+        consumer_id=config.consumer_id,
+        delivery_config_id=config.delivery_config_id,
+        delivery_config_version=config.delivery_config_version,
+        period_start=END,
+        period_end=END + timedelta(days=1),
+    )
+    assert later is None
+
+
+def _stabilized_only_lookup(
+    store: Any,
+) -> Callable[[ReportingConfigurationGenerationKey], Awaitable[ProvisionalPolicy | None]]:
+    lookup = store.get_stabilization_schedule
+
+    async def read(generation: ReportingConfigurationGenerationKey) -> ProvisionalPolicy | None:
+        schedule = await lookup(generation)
+        return schedule if schedule is not None and schedule.until_stabilized else None
+
+    return read
+
+
+async def test_completed_reservation_cannot_authorize_dispatch_past_a_competing_close(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = store_factory()
+    publication = store.source_publication
+    lookup = store.get_provisional_acquisition
+    reserve = store.reserve_provisional_acquisition
+    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+        monkeypatch.setattr(store, name, None)
+    producer, _, config, obligation, calls, clock = await _harness(
+        lambda **kwargs: store, finality_policy=ReportingContractualCutoffPolicy("cutoff", "P2D")
+    )
+    clock[0] = END + timedelta(hours=1)
+
+    async def finish_and_reserve_close(candidate: ProvisionalAcquisition) -> ProvisionalAcquisition:
+        winning = await reserve(candidate)
+        # The locked publisher finishes this ordinal and reserves the next
+        # close before the unlocked worker gets its reservation back.
+        with monkeypatch.context() as locked:
+            locked.setattr(store, "source_publication", publication)
+            locked.setattr(store, "get_provisional_acquisition", lookup)
+            locked.setattr(store, "reserve_provisional_acquisition", reserve)
+            peer = _restart_producer(producer, store, clock)
+            revision = await peer.acquire_obligation(config, obligation, target_finality="snapshot")
+            request = peer._build_slice(
+                config, obligation, SNAPSHOT_OFFERING_ID, now=clock[0], observation=1
+            )
+            async with publication(config.account_id):
+                await reserve(
+                    ProvisionalAcquisition(
+                        request.model_dump_json(),
+                        1,
+                        replace(candidate.policy, official_close_lag=timedelta(days=2)),
+                        revision.reporting_revision_id,
+                    )
+                )
+        return winning
+
+    monkeypatch.setattr(store, "reserve_provisional_acquisition", finish_and_reserve_close)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.acquire_obligation(config, obligation, target_finality="snapshot")
+    assert calls == [clock[0]]
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert (await store.get_restatement_checkpoint(**owner)).next_observation == 1
+    assert (await lookup(**owner, ordinal=1)).policy.official_close_lag == timedelta(days=2)
+
+
+async def test_new_ordinary_worker_can_publish_its_first_overdue_period(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    producer, store, config, _, calls, clock = await _harness(
+        store_factory, finality_policy=ReportingContractualCutoffPolicy("unused", "P2D")
+    )
+    for name in ("source_publication", "get_stabilization_schedule", "get_provisional_acquisition"):
+        monkeypatch.setattr(store, name, None)
+    fresh = replace(config, delivery_config_id="new-overdue")
+    await store.put_configuration(fresh)
+    clock[0] = END + timedelta(days=1, hours=1)
+    turn = await producer.run_configuration(fresh)
+    (identifier,) = turn.revisions_committed
+    revision = await store.get_revision(
+        account_id=fresh.account_id, reporting_revision_id=identifier
+    )
+    obligation = await store.get_obligation(
+        account_id=fresh.account_id, reporting_obligation_id=revision.reporting_obligation_id
+    )
+    assert len(calls) == 1
+    assert obligation.period.end == END and revision.finality == "snapshot"
+
+
+@pytest.mark.parametrize("completed", [False, True])
+async def test_new_period_checks_an_authoritative_close_with_an_ordinary_predecessor(
+    store_factory: Any, monkeypatch: pytest.MonkeyPatch, completed: bool
+) -> None:
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_factory, finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final")
+    )
+    clock[0] = END + timedelta(hours=1)
+    await producer.run_configuration(config)
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    ordinary = await store.get_provisional_observation(**owner)
+    assert ordinary.acquisition.policy.official_close_lag is None
+    request = producer._build_slice(
+        config, obligation, OFFICIAL_OFFERING_ID, finality="official", now=clock[0], observation=1
+    )
+    async with store.source_publication(config.account_id):
+        reserved = await store.reserve_provisional_acquisition(
+            ProvisionalAcquisition(request.model_dump_json(), 1, ordinary.acquisition.policy)
+        )
+    assert reserved.finality == "official"
+    if completed:
+        closed = await producer.acquire_obligation(config, obligation, target_finality="official")
+        assert closed.finality == "official"
+    before = list(calls)
+    monkeypatch.setattr(store, "source_publication", None)
+    monkeypatch.setattr(store, "get_stabilization_schedule", _stabilized_only_lookup(store))
+    assert await store.get_stabilization_schedule(config.generation_key) is None
+    clock[0] += timedelta(days=1)
+    with pytest.raises(LedgerConflictError, match="publication lock"):
+        await producer.close_elapsed_periods(config)
+    assert calls == before
 
 
 @pytest.mark.parametrize("configure_before_init", [True, False])
@@ -1654,10 +1843,12 @@ async def test_recovery_checks_pending_close_after_untracked_manual_revision(
     ],
 )
 @pytest.mark.parametrize("operation", ["reserve", "acquire", "direct", "next_period"])
+@pytest.mark.parametrize("stabilized_only_lookup", [False, True])
 async def test_frozen_explicit_close_requires_lock_before_snapshot_work(
     store_factory: Any,
     policy: Any,
     operation: str,
+    stabilized_only_lookup: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     producer, store, config, obligation, calls, clock = await _harness(
@@ -1681,6 +1872,9 @@ async def test_frozen_explicit_close_requires_lock_before_snapshot_work(
     clock[0] += timedelta(hours=1)
     restarted = _restart_producer(producer, store, clock)
     monkeypatch.setattr(store, "source_publication", None)
+    if stabilized_only_lookup:
+        monkeypatch.setattr(store, "get_stabilization_schedule", _stabilized_only_lookup(store))
+        assert await store.get_stabilization_schedule(config.generation_key) is None
     request = restarted._build_slice(
         config, obligation, SNAPSHOT_OFFERING_ID, finality="snapshot", now=clock[0], observation=1
     )
@@ -1724,7 +1918,8 @@ async def test_frozen_explicit_close_requires_lock_before_snapshot_work(
     ],
 )
 @pytest.mark.parametrize(
-    "state", ["new", "ordinary", "completed", "manual_after_close", "ambiguous"]
+    "state",
+    ["new", "ordinary", "completed", "stabilized_lookup", "manual_after_close", "ambiguous"],
 )
 async def test_snapshot_admission_distinguishes_new_from_retained_close(
     store_factory: Any,
@@ -1808,9 +2003,13 @@ async def test_snapshot_admission_distinguishes_new_from_retained_close(
             clock.advance(timedelta(hours=1))
 
     monkeypatch.setattr(store, "source_publication", None)
-    monkeypatch.setattr(store, "get_stabilization_schedule", None)
+    monkeypatch.setattr(
+        store,
+        "get_stabilization_schedule",
+        _stabilized_only_lookup(store) if state == "stabilized_lookup" else None,
+    )
     monkeypatch.setattr(store, "verify_snapshot_origin", None)
-    if state in {"completed", "manual_after_close"}:
+    if state in {"completed", "stabilized_lookup", "manual_after_close"}:
 
         async def only_pending(**kwargs: Any) -> None:
             # A completed reservation is no longer returned by the pending-only API.
@@ -1828,7 +2027,9 @@ async def test_snapshot_admission_distinguishes_new_from_retained_close(
             )
 
         monkeypatch.setattr(store, "get_restatement_checkpoint", historical_checkpoint)
-        if state == "completed":
+        if state == "completed" or (
+            state == "stabilized_lookup" and not isinstance(policy, ReportingStabilizedPolicy)
+        ):
             # A custom atomic publisher can expose its latest read without a history interface.
             read = store.list_provisional_observations
 
@@ -1877,7 +2078,7 @@ async def test_snapshot_admission_distinguishes_new_from_retained_close(
     else:
         expected = (
             "get_stabilization_schedule"
-            if isinstance(policy, ReportingStabilizedPolicy)
+            if isinstance(policy, ReportingStabilizedPolicy) and state != "stabilized_lookup"
             else "publication lock"
         )
         with pytest.raises(ReliableReportingConfigurationError, match=expected):
