@@ -10,8 +10,9 @@ import rfc8785
 from adcp.reporting.inline_source import InlineFetchResult
 from adcp.reporting.materializer import ReportingRevisionVerifier, reference_verifier
 from adcp.reporting.materializer.contracts import failure
+from adcp.reporting.source import ReportingFinalityEvidenceV1
 
-from ._production_support import Source, SQLiteDestination
+from ._production_support import Source, SQLiteDestination, reference_source_final
 
 ACCOUNTS = {"usd": ("USD", 503), "eur": ("EUR", 3)}
 
@@ -35,7 +36,12 @@ class AccountSource(Source):
         account = str(request.identity.account_id)
         self.requests.append(request)
         return InlineFetchResult(
-            rows_for(account), data_through=request.period.end, currency=ACCOUNTS[account][0]
+            rows_for(account),
+            data_through=request.period.end,
+            currency=ACCOUNTS[account][0],
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_declared", observed_at=self.clock(), evidence_ref="fixture_closed"
+            ),
         )
 
 
@@ -55,6 +61,8 @@ class CurrencyDestination(SQLiteDestination):
 
 def verifier_for(currency, capability):
     base = reference_verifier(capability)
+    definition_binding = replace(base.key.definition, finality_policy=reference_source_final())
+    base = replace(base, key=replace(base.key, definition=definition_binding))
     if currency == "USD":
         return base
     assert currency == "EUR"
