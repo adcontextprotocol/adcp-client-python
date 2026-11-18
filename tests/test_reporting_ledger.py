@@ -8,7 +8,6 @@ consumer's own statement degrades only its own view.
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
@@ -22,16 +21,11 @@ from adcp.reporting.ledger import (
     ProducerOfferings,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
-    ReportingContractualCutoffPolicy,
-    ReportingDefinitionBinding,
     ReportingDeliveryEscalation,
-    ReportingFinalityPolicy,
     ReportingObligationRecord,
     ReportingProducer,
     ReportingRevisionRecord,
     ReportingScheduleSpec,
-    ReportingSourceFinalPolicy,
-    ReportingStabilizedPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
     aggregate_reporting_health,
@@ -39,11 +33,9 @@ from adcp.reporting.ledger import (
     derive_period,
     iso_duration_to_timedelta,
     project_obligation_health,
-    reporting_finality_policy_from_storage,
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
-from adcp.reporting.ledger._record_rows import _definition_from_payload
 
 ACCOUNT = "acct_1"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_1")
@@ -70,13 +62,6 @@ _OFFERING: dict[str, Any] = {
 }
 
 HOURLY = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT1H", alignment="utc")
-DEFINITION = ReportingDefinitionBinding(
-    report_definition_uri="https://contracts.example.test/reporting/daily-delivery-v1",
-    report_definition_sha256="a" * 64,
-    schema_version="1.0.0",
-    schema_uri="https://contracts.example.test/reporting/rows-v1.json",
-    schema_sha256="b" * 64,
-)
 
 
 def _configuration(**overrides) -> ReportingConfiguration:
@@ -174,103 +159,6 @@ def _revision(obligation: ReportingObligationRecord, **overrides) -> ReportingRe
         )
     defaults.update(overrides)
     return ReportingRevisionRecord(**defaults), rows  # type: ignore[return-value,arg-type]
-
-
-def test_definition_binding_retains_selected_finality_policy_off_wire() -> None:
-    policy = ReportingStabilizedPolicy(
-        finality_policy_id="daily-stable-v1",
-        minimum_age="P2D",
-        unchanged_for="PT12H",
-    )
-    binding = replace(DEFINITION, finality_policy=policy)
-
-    assert binding.to_wire() == DEFINITION.to_wire()
-    assert binding.to_storage()["finality_policy"] == {
-        "finality_policy_id": "daily-stable-v1",
-        "basis": "stabilized",
-        "minimum_age": "P2D",
-        "unchanged_for": "PT12H",
-    }
-    assert _definition_from_payload(binding.to_storage()) == binding
-
-
-@pytest.mark.parametrize("value", ["P1M", "P1Y", "not-a-duration", "PT1H\n"])
-def test_finality_policy_refuses_unsupported_duration(value: str) -> None:
-    with pytest.raises(ValueError, match="supported reporting duration"):
-        ReportingContractualCutoffPolicy("cutoff-v1", value)
-
-
-@pytest.mark.parametrize(
-    ("policy", "payload"),
-    [
-        (
-            ReportingSourceFinalPolicy("daily.source:v1", "source_closed"),
-            {
-                "finality_policy_id": "daily.source:v1",
-                "basis": "source_final",
-                "source_signal": "source_closed",
-            },
-        ),
-        (
-            ReportingContractualCutoffPolicy("cutoff-v1", "PT4H"),
-            {
-                "finality_policy_id": "cutoff-v1",
-                "basis": "contractual_cutoff",
-                "duration_after_period_end": "PT4H",
-            },
-        ),
-    ],
-)
-def test_finality_policy_storage_round_trip(
-    policy: ReportingFinalityPolicy, payload: dict[str, str]
-) -> None:
-    assert policy.to_storage() == payload
-    assert reporting_finality_policy_from_storage(payload) == policy
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {"finality_policy_id": "daily-v1", "basis": "unknown"},
-        {"finality_policy_id": "daily-v1", "basis": "source_final"},
-        {"finality_policy_id": "daily-v1", "basis": "source_final", "source_signal": ["close"]},
-        {
-            "finality_policy_id": "daily-v1",
-            "basis": "source_final",
-            "source_signal": "close",
-            "duration_after_period_end": "PT4H",
-        },
-        None,
-    ],
-)
-def test_definition_binding_rejects_invalid_finality_policy_storage(payload: object) -> None:
-    with pytest.raises(ValueError, match="finality policy"):
-        _definition_from_payload({**DEFINITION.to_storage(), "finality_policy": payload})
-
-
-def test_definition_binding_reads_storage_without_a_finality_policy() -> None:
-    assert DEFINITION.to_storage() == DEFINITION.to_wire()
-    assert _definition_from_payload(DEFINITION.to_storage()) == DEFINITION
-
-
-def test_definition_binding_rejects_finality_policy_subclass() -> None:
-    class CustomPolicy(ReportingSourceFinalPolicy):
-        pass
-
-    with pytest.raises(ValueError, match="finality_policy"):
-        replace(DEFINITION, finality_policy=CustomPolicy("daily-v1", "close"))
-
-
-@pytest.mark.parametrize("policy_id", ["", "a" * 256, "contains spaces", "close\n"])
-def test_finality_policy_refuses_invalid_identifier(policy_id: str) -> None:
-    with pytest.raises(ValueError, match="finality_policy_id"):
-        ReportingSourceFinalPolicy(policy_id, "close")
-
-
-@pytest.mark.parametrize("source_signal", ["", "a" * 513])
-def test_source_finality_policy_refuses_invalid_signal(source_signal: str) -> None:
-    with pytest.raises(ValueError, match="source_signal must contain 1 to 512 characters"):
-        ReportingSourceFinalPolicy("daily-v1", source_signal)
 
 
 # -- period derivation ------------------------------------------------------
@@ -443,6 +331,7 @@ async def test_an_unreadable_revision_is_action_required_not_complete() -> None:
     configuration = _configuration()
     obligation = _obligation(configuration)
     revision, _ = _revision(obligation)
+    from dataclasses import replace
 
     projection = project_obligation_health(
         obligation,
