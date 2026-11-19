@@ -3,11 +3,19 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from itertools import islice
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from adcp.reporting.ledger import ProducerOfferings, ReportingProducer, ReportingScheduleSpec
+from adcp.reporting.ledger import (
+    ConsumerStatusRecord,
+    ProducerOfferings,
+    ReportingProducer,
+    ReportingScheduleSpec,
+)
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+from adcp.reporting.ledger.consumer_status import validate_consumer_status_timing
+from adcp.reporting.ledger.producer import _source_local_date
 from adcp.reporting.ledger.schedule import committed_periods, next_reporting_expectation
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.types import GetReportingStatusResponse
@@ -150,6 +158,141 @@ def test_civil_days_across_dst_preserve_the_captured_timezone_and_sla(date, hour
         == first.expected_at
     )
     assert next_reporting_expectation((config,), (), as_of=first.expected_at) > first.expected_at
+
+
+@pytest.mark.parametrize(
+    "zone_name,local_date,start,end",
+    [
+        (
+            "America/New_York",
+            "2026-03-08",
+            "2026-03-08T05:00:00+00:00",
+            "2026-03-09T04:00:00+00:00",
+        ),
+        (
+            "America/New_York",
+            "2026-11-01",
+            "2026-11-01T04:00:00+00:00",
+            "2026-11-02T05:00:00+00:00",
+        ),
+        ("Asia/Kolkata", "2026-09-15", "2026-09-14T18:30:00+00:00", "2026-09-15T18:30:00+00:00"),
+    ],
+)
+def test_source_timezone_daily_periods_are_local_midnights_with_stable_identity(
+    zone_name, local_date, start, end
+):
+    first_start = datetime.fromisoformat(start)
+    first_end = datetime.fromisoformat(end)
+    config = replace(
+        configuration(),
+        account_timezone="UTC",
+        activated_at=first_start,
+        deactivated_at=first_end,
+        schedule=ReportingScheduleSpec("P1D", "PT1H", "source_timezone", zone_name),
+    )
+    first = next(committed_periods(config))
+    assert first.start == first_start
+    assert first.end == first_end
+    assert first.start.astimezone(ZoneInfo(zone_name)).date().isoformat() == local_date
+    assert _source_local_date(first.start, first.source_timezone) == local_date
+    assert first.source_timezone == zone_name
+    assert first.period_key == f"{first_start.strftime('%Y-%m-%dT%H:%M:%SZ')}_P1D"
+    assert first.expected_at == first_end + timedelta(hours=1)
+    assert next(committed_periods(config)).period_key == first.period_key
+    assert next_reporting_expectation((config,), (), as_of=first_start) == first.expected_at
+
+
+async def test_source_timezone_period_close_retry_keeps_the_same_identity(schedules):
+    h = schedules
+    start = datetime(2026, 3, 8, 5, tzinfo=timezone.utc)
+    end = datetime(2026, 3, 9, 4, tzinfo=timezone.utc)
+    config = replace(
+        configuration(),
+        activated_at=start,
+        deactivated_at=end,
+        schedule=ReportingScheduleSpec("P1D", "PT1H", "source_timezone", "America/New_York"),
+    )
+    h.clock.now = end + timedelta(hours=1)
+    await h.store.put_configuration(config)
+    producer = ReportingProducer(
+        source=UncalledSource(), offerings=ProducerOfferings(), store=h.store
+    )
+    first = await producer.close_elapsed_periods(config, now=h.clock())
+    assert len(first) == 1
+    assert first[0].period == next(committed_periods(config))
+    assert await producer.close_elapsed_periods(config, now=h.clock()) == []
+
+
+@pytest.mark.parametrize(
+    "alignment,zone_name",
+    [
+        ("utc", None),
+        ("account_timezone", None),
+        ("custom_timezone", "America/New_York"),
+    ],
+)
+def test_captured_clock_phase_is_unchanged_for_existing_alignments(alignment, zone_name):
+    schedule = ReportingScheduleSpec("P1D", "PT1H", alignment, zone_name)
+    config = replace(
+        configuration(),
+        account_timezone="America/New_York",
+        activated_at=datetime(2026, 3, 8, tzinfo=timezone.utc),
+        deactivated_at=datetime(2026, 3, 11, tzinfo=timezone.utc),
+        schedule=schedule,
+    )
+    first = next(committed_periods(config))
+    assert first.start == datetime(2026, 3, 8, tzinfo=timezone.utc)
+    assert first.end == datetime(
+        2026,
+        3,
+        9 if alignment == "utc" else 8,
+        0 if alignment == "utc" else 23,
+        tzinfo=timezone.utc,
+    )
+
+
+def test_consumer_status_uses_the_source_timezone_calendar():
+    start = datetime(2026, 3, 8, 5, tzinfo=timezone.utc)
+    config = replace(
+        configuration(),
+        activated_at=start,
+        deactivated_at=None,
+        schedule=ReportingScheduleSpec("P1D", "PT1H", "source_timezone", "America/New_York"),
+    )
+    period = next(committed_periods(config))
+    statement = ConsumerStatusRecord(
+        reporting_status_id="status_source_day",
+        account_id=config.account_id,
+        consumer_id=config.consumer_id,
+        delivery_config_id=config.delivery_config_id,
+        delivery_config_version=config.delivery_config_version,
+        report_definition_id=config.report_definition_id,
+        period_start=period.start,
+        period_end=period.end,
+        period_source_timezone=period.source_timezone,
+        consumer_status="obligation_missing",
+        status_as_of=period.expected_at,
+        recorded_at=period.expected_at,
+    )
+    validate_consumer_status_timing(statement, config, as_of=period.expected_at)
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        ReportingScheduleSpec("P1D", "PT1H", "source_timezone"),
+        ReportingScheduleSpec(
+            "P1D",
+            "PT1H",
+            "source_timezone",
+            "America/New_York",
+            datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+    ],
+)
+def test_source_timezone_schedule_requires_a_resolved_zone_and_no_anchor(schedule):
+    with pytest.raises(ValueError):
+        next(committed_periods(replace(configuration(), schedule=schedule)))
 
 
 @pytest.mark.parametrize("duration", ["PT1H", "PT10M"])

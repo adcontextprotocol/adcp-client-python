@@ -574,9 +574,7 @@ def validate_consumer_status_timing(
     record: ConsumerStatusRecord, generation: ReportingConfiguration, *, as_of: datetime
 ) -> None:
     """Validate a statement's derived calendar and observation at the locked boundary."""
-    from zoneinfo import ZoneInfo
-
-    from adcp.reporting.ledger.models import derive_period, iso_duration_to_timedelta
+    from adcp.reporting.ledger.models import _schedule_clock, derive_period
 
     stamps = (
         record.period_start,
@@ -602,12 +600,8 @@ def validate_consumer_status_timing(
         raise LedgerConflictError(
             "INVALID_STATUS_PERIOD", "status timezone differs from the accepted schedule"
         )
-    zone = ZoneInfo(zone_name)
-    anchor = generation.schedule.period_anchor or datetime(1970, 1, 1, tzinfo=timezone.utc)
-    delta = record.period_start.astimezone(zone).replace(tzinfo=None) - anchor.astimezone(
-        zone
-    ).replace(tzinfo=None)
-    duration = iso_duration_to_timedelta(generation.schedule.period_duration)
+    zone, duration, anchor = _schedule_clock(generation.schedule, generation.account_timezone)
+    delta = record.period_start.astimezone(zone).replace(tzinfo=None) - anchor
     if duration <= timedelta(0) or delta % duration:
         raise LedgerConflictError(
             "INVALID_STATUS_PERIOD", "status period is not a scheduled boundary"

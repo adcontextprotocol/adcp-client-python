@@ -229,6 +229,7 @@ class ReportingProductionOffering:
             raise failure("UNSUPPORTED_VERIFICATION")
         if (
             schedule["alignment"] == "source_timezone"
+            and source_offering.source_timezone is not None
             and schedule.get("period_timezone") != source_offering.source_timezone
         ):
             raise failure("UNSUPPORTED_VERIFICATION")
@@ -269,15 +270,16 @@ class ReportingProductionOffering:
         offered = self.wire()["schedule"]
         schedule = configuration.schedule
         alignment = offered["alignment"]
-        expected_alignment = (
-            alignment if alignment in {"utc", "account_timezone"} else "custom_timezone"
-        )
+        expected_alignment = alignment if alignment != "billing_cycle" else "custom_timezone"
         zone, duration, anchor = _schedule_clock(schedule, configuration.account_timezone)
         if (
             schedule.alignment != expected_alignment
             or schedule.period_duration != offered["period_duration"]
             or schedule.delivery_sla != offered["delivery_sla"]
-            or (alignment != "billing_cycle" and (anchor - datetime(1970, 1, 1)) % duration)
+            or (
+                alignment not in {"billing_cycle", "source_timezone"}
+                and (anchor - datetime(1970, 1, 1)) % duration
+            )
             or (alignment == "billing_cycle" and schedule.period_anchor is None)
         ):
             raise failure("BINDING_MISMATCH")
@@ -302,8 +304,13 @@ class ReportingProductionOffering:
             raise failure("BINDING_MISMATCH")
         if (
             alignment == "source_timezone"
-            and zone.key
-            != self.check_source(effective=True).offering(self.source_offering_id).source_timezone
+            and (
+                source_zone := self.check_source(effective=True)
+                .offering(self.source_offering_id)
+                .source_timezone
+            )
+            is not None
+            and zone.key != source_zone
         ):
             raise failure("BINDING_MISMATCH")
         return result

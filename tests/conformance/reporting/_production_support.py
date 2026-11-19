@@ -393,6 +393,7 @@ async def production_harness(
     adcp_version=None,
     source_registry_factory=None,
     service_factory=None,
+    offering_schedule=None,
 ):
     from contextlib import AsyncExitStack
 
@@ -585,11 +586,8 @@ async def production_harness(
                 "report_definition_uri": key.definition.report_definition_uri,
                 "report_definition_sha256": key.definition.report_definition_sha256,
                 "reporting_profile": profile,
-                "schedule": {
-                    "period_duration": "PT1H",
-                    "alignment": "utc",
-                    "delivery_sla": "PT1H",
-                },
+                "schedule": offering_schedule
+                or {"period_duration": "PT1H", "alignment": "utc", "delivery_sla": "PT1H"},
                 "supported_finality": [config.required_finality],
                 "reconciliation_mode": binding.reconciliation_mode,
                 "method": writer.delivery_methods[0].wire(),
