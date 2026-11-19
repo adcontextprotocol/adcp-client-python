@@ -756,18 +756,53 @@ def _obligation_coverage(obligation: ReportingObligationRecord) -> dict[str, Any
 def _coverage_roll_up(
     obligations: Sequence[ReportingObligationRecord], *, as_of: datetime
 ) -> dict[str, Any]:
-    media_buy_ids = sorted(
-        {item for obligation in obligations for item in obligation.media_buy_ids}
+    media_statuses: dict[str, set[str]] = {}
+    package_statuses: dict[str, set[str]] = {}
+    for obligation in obligations:
+        for media_buy_id in obligation.media_buy_ids:
+            media_statuses.setdefault(media_buy_id, set()).add(obligation.coverage_status)
+        for package_id in obligation.package_ids:
+            package_statuses.setdefault(package_id, set()).add(obligation.coverage_status)
+
+    media_buy_ids = sorted(media_statuses)
+    package_ids = sorted(package_statuses)
+    fully_covered_media_buy_ids = sorted(
+        item for item, statuses in media_statuses.items() if statuses == {"full"}
     )
-    package_ids = sorted({item for obligation in obligations for item in obligation.package_ids})
-    statuses = {obligation.coverage_status for obligation in obligations}
-    status = (
-        "full"
-        if statuses <= {"full"}
-        else ("partial" if statuses.intersection({"full", "partial"}) else "none")
+    partially_covered_media_buy_ids = sorted(
+        item
+        for item, statuses in media_statuses.items()
+        if statuses != {"full"} and ("full" in statuses or "partial" in statuses)
     )
-    if "unknown" in statuses:
+    unknown_media_buy_ids = sorted(
+        item
+        for item, statuses in media_statuses.items()
+        if "unknown" in statuses and not statuses.intersection({"full", "partial"})
+    )
+    unsupported_media_buy_ids = sorted(
+        item for item, statuses in media_statuses.items() if statuses == {"none"}
+    )
+    covered_package_ids = sorted(
+        item for item, statuses in package_statuses.items() if statuses == {"full"}
+    )
+    unsupported_package_ids = sorted(
+        item for item, statuses in package_statuses.items() if statuses == {"none"}
+    )
+    unknown_package_ids = sorted(
+        item
+        for item, statuses in package_statuses.items()
+        if statuses != {"full"} and statuses != {"none"}
+    )
+    if len(fully_covered_media_buy_ids) == len(media_buy_ids) and len(covered_package_ids) == len(
+        package_ids
+    ):
+        status = "full"
+    elif fully_covered_media_buy_ids or partially_covered_media_buy_ids or covered_package_ids:
+        status = "partial"
+    elif unknown_media_buy_ids or unknown_package_ids:
         status = "unknown"
+    else:
+        status = "none"
     evaluated = (
         max(obligation.scope_resolved_at for obligation in obligations) if obligations else as_of
     )
@@ -775,14 +810,14 @@ def _coverage_roll_up(
         "status": status,
         "evaluated_at": _iso(evaluated),
         "media_buy_ids": media_buy_ids,
-        "fully_covered_media_buy_ids": media_buy_ids if status == "full" else [],
-        "partially_covered_media_buy_ids": [],
-        "unsupported_media_buy_ids": [],
-        "unknown_media_buy_ids": [],
+        "fully_covered_media_buy_ids": fully_covered_media_buy_ids,
+        "partially_covered_media_buy_ids": partially_covered_media_buy_ids,
+        "unsupported_media_buy_ids": unsupported_media_buy_ids,
+        "unknown_media_buy_ids": unknown_media_buy_ids,
         "package_ids": package_ids,
-        "covered_package_ids": package_ids if status == "full" else [],
-        "unsupported_package_ids": [],
-        "unknown_package_ids": [],
+        "covered_package_ids": covered_package_ids,
+        "unsupported_package_ids": unsupported_package_ids,
+        "unknown_package_ids": unknown_package_ids,
         "limitations": [],
     }
 

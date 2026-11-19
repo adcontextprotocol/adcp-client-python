@@ -36,6 +36,8 @@ from adcp.reporting.ledger import (
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+from adcp.reporting.ledger.status import _coverage_roll_up, _obligation_coverage
+from adcp.types import GetReportingStatusResponse
 
 ACCOUNT = "acct_1"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_1")
@@ -635,6 +637,103 @@ async def test_summary_escalates_after_the_automated_recovery_window() -> None:
     payload = await ReportingStatusHandler(store).handle({"view": "summary"}, caller=CALLER)
     assert payload["health"] == "action_required"
     assert payload["issues"][0]["recommended_action"] == "contact_seller"
+
+
+def test_unknown_coverage_partitions_exact_buys_without_inventing_packages() -> None:
+    configuration = _configuration(media_buy_ids=("mb_2", "mb_1"))
+    obligation = _obligation(configuration, coverage_status="unknown")
+
+    period = _obligation_coverage(obligation)
+    summary = _coverage_roll_up((obligation,), as_of=obligation.period.end)
+    for coverage in (period, summary):
+        assert coverage["status"] == "unknown"
+        assert coverage["media_buy_ids"] == coverage["unknown_media_buy_ids"]
+        assert set(coverage["unknown_media_buy_ids"]) == {"mb_1", "mb_2"}
+        assert coverage["fully_covered_media_buy_ids"] == []
+        assert coverage["package_ids"] == []
+        assert coverage["covered_package_ids"] == []
+        assert coverage["unknown_package_ids"] == []
+
+
+def test_summary_partitions_full_and_unknown_buys_across_periods() -> None:
+    configuration = _configuration(media_buy_ids=("mb_full", "mb_unknown"))
+    full = _obligation(configuration, ordinal=1, media_buy_ids=("mb_full",))
+    unknown = _obligation(
+        configuration, ordinal=2, media_buy_ids=("mb_unknown",), coverage_status="unknown"
+    )
+
+    coverage = _coverage_roll_up((full, unknown), as_of=unknown.period.end)
+
+    assert coverage["status"] == "partial"
+    assert coverage["media_buy_ids"] == ["mb_full", "mb_unknown"]
+    assert coverage["fully_covered_media_buy_ids"] == ["mb_full"]
+    assert coverage["partially_covered_media_buy_ids"] == []
+    assert coverage["unsupported_media_buy_ids"] == []
+    assert coverage["unknown_media_buy_ids"] == ["mb_unknown"]
+    assert coverage["package_ids"] == []
+
+
+def test_summary_classifies_buy_with_full_and_unknown_periods_as_partial() -> None:
+    configuration = _configuration(media_buy_ids=("mb_shared",))
+    full = _obligation(configuration, ordinal=1)
+    unknown = _obligation(configuration, ordinal=2, coverage_status="unknown")
+
+    coverage = _coverage_roll_up((full, unknown), as_of=unknown.period.end)
+
+    assert coverage["status"] == "partial"
+    assert coverage["media_buy_ids"] == ["mb_shared"]
+    assert coverage["fully_covered_media_buy_ids"] == []
+    assert coverage["partially_covered_media_buy_ids"] == ["mb_shared"]
+    assert coverage["unknown_media_buy_ids"] == []
+
+
+async def test_public_status_summary_partitions_full_and_unknown_periods() -> None:
+    store = InMemoryReportingLedgerStore(clock=lambda: datetime(2026, 9, 30, tzinfo=timezone.utc))
+    configuration = _configuration(media_buy_ids=("mb_full", "mb_unknown"))
+    await store.put_configuration(configuration)
+    await store.commit_obligation(_obligation(configuration, ordinal=1, media_buy_ids=("mb_full",)))
+    await store.commit_obligation(
+        _obligation(
+            configuration,
+            ordinal=2,
+            media_buy_ids=("mb_unknown",),
+            coverage_status="unknown",
+        )
+    )
+
+    payload = await ReportingStatusHandler(store).handle({"view": "summary"}, caller=CALLER)
+    GetReportingStatusResponse.model_validate(payload)
+    coverage = payload["coverage"]
+    assert coverage["status"] == "partial"
+    assert coverage["media_buy_ids"] == ["mb_full", "mb_unknown"]
+    assert coverage["fully_covered_media_buy_ids"] == ["mb_full"]
+    assert coverage["partially_covered_media_buy_ids"] == []
+    assert coverage["unsupported_media_buy_ids"] == []
+    assert coverage["unknown_media_buy_ids"] == ["mb_unknown"]
+    assert coverage["package_ids"] == []
+
+
+def test_proven_empty_revision_keeps_full_coverage_and_complete_health() -> None:
+    configuration = _configuration()
+    obligation = _obligation(configuration)
+    revision, rows = _revision(obligation, rows=[], control_totals=(("impressions", "0"),))
+    assert rows == []
+    projection = project_obligation_health(
+        obligation,
+        [revision],
+        ledger_as_of=obligation.automated_recovery_deadline_at + timedelta(days=1),
+        scope_closed=True,
+    )
+
+    assert projection.health == "complete"
+    for coverage in (
+        _obligation_coverage(obligation),
+        _coverage_roll_up((obligation,), as_of=obligation.period.end),
+    ):
+        assert coverage["status"] == "full"
+        assert coverage["fully_covered_media_buy_ids"] == ["mb_1"]
+        assert coverage["unknown_media_buy_ids"] == []
+        assert coverage["package_ids"] == []
 
 
 async def test_periods_view_paginates_one_snapshot() -> None:
