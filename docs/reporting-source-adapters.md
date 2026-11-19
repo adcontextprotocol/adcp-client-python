@@ -5,6 +5,11 @@ sealed, replayable reporting publication. Return `InlineFetchResult` when metric
 availability differs within a constituent. Its `cell_availability` map is keyed
 by **request constituent ID, then metric name**. Constituent IDs are not
 necessarily media buy IDs; read them from `request.coverage.constituents`.
+A package request uses `coverage.grain == "package_item"` and freezes its buy
+selector in `coverage.media_buy_ids`. Each package constituent binds both
+`media_buy_id` and `package_id`. An empty constituent list can represent a
+complete package scan for the selected buys. For ordinary buy requests,
+`request.media_buy_ids` derives the selected buys from the constituents.
 
 ```python
 from adcp.reporting.inline_source import InlineFetchResult, MetricEvidence
@@ -117,11 +122,12 @@ Cell evidence cannot bypass that freshness gate.
 Rows can omit missing, unsupported, or delayed metrics; available measurements
 for other metrics are retained. A control total is a checksum over the staged
 rows -- a consumer recomputes it from the revision's rows -- so it covers every
-staged row, including rows outside the requested coverage, which stay staged
-with a warning. It is emitted when every staged row carries a valid finite
-numeric value for the metric. Missing fields, nulls, booleans, and invalid
-numbers prevent a total, and an omitted explicit-zero row value is not filled
-in. Statuses the SDK derives on its own withdraw nothing: a result with no
+staged row. Package requests reject rows outside the exact requested
+`(media_buy_id, package_id)` pairs before staging; buy requests retain the
+warning behavior for outside rows. A total is emitted when every staged row
+carries a valid finite numeric value for the metric. Missing fields, nulls,
+booleans, and invalid numbers prevent a total. An omitted explicit-zero row
+value is not filled in. Statuses the SDK derives on its own withdraw nothing: a result with no
 `cell_availability` publishes exactly the totals it published before.
 
 ### The withdrawal invariant

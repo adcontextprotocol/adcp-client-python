@@ -387,6 +387,8 @@ def redacted_completed_result(
 
     coverage = SourceBatchCoverageV1(
         denominator_fingerprint=request.coverage.denominator_fingerprint,
+        grain=request.coverage.grain,
+        media_buy_ids=request.coverage.media_buy_ids,
         status="full" if available else "none",
         constituents=[
             ReportingConstituentCoverageV1(constituent=item, status=status, **evidence)  # type: ignore[arg-type]
