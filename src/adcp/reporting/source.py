@@ -88,18 +88,22 @@ from adcp.reporting.evidence import consumer_reference
 __all__ = [
     "REPORTING_EVIDENCE_REASON_MAX_LENGTH_V1",
     "REPORTING_SOURCE_CONTRACT_VERSION_V1",
+    "REPORTING_SOURCE_CONTRACT_VERSION_V2",
     "SOURCE_BATCH_MANIFEST_MAX_BYTES_V1",
     "SOURCE_BATCH_MANIFEST_MAX_METRIC_AVAILABILITY_V1",
     "SOURCE_BATCH_MANIFEST_MAX_PROVIDER_CALLS_V1",
     "AuthoritativeOfferingV1",
     "MediaBuyConstituentV1",
     "PackageItemConstituentV1",
+    "PackageItemConstituentV2",
     "ProductConstituentV1",
     "ProvisionalSnapshotOfferingV1",
     "ReportingAdapterBuildIdentityV1",
     "ReportingAvailabilityStatus",
     "ReportingConstituent",
+    "ReportingConstituentV2",
     "ReportingConstituentCoverageV1",
+    "ReportingConstituentCoverageV2",
     "ReportingContractIdentityV1",
     "ReportingCoverageStatus",
     "ReportingFinalityEvidenceV1",
@@ -111,10 +115,13 @@ __all__ = [
     "ReportingPublicationClass",
     "ReportingRevisionKind",
     "ReportingSourceCapabilitiesV1",
+    "ReportingSourceCapabilitiesV2",
+    "ReportingSourceCoverageRequestV2",
     "ReportingSourceError",
     "ReportingSourceErrorCode",
     "ReportingSourceErrorV1",
     "ReportingSourceExecutionResponseV1",
+    "ReportingSourceExecutionResponseV2",
     "ReportingSourceExecutor",
     "ReportingSourceExecutorResult",
     "ReportingSourceIdentityV1",
@@ -122,25 +129,37 @@ __all__ = [
     "ReportingSourcePeriodV1",
     "ReportingSourceRetryClass",
     "ReportingSourceSliceRequestV1",
+    "ReportingSourceSliceRequestV2",
     "ReportingSourceStagedObjectReader",
     "ReportingSourceWindowingV1",
     "ReportingTriggerKind",
     "SourceBatchManifestReferenceV1",
     "SourceBatchManifestV1",
+    "SourceBatchManifestV2",
+    "SourceBatchCoverageV2",
     "SourceBatchObjectV1",
     "SourceControlTotalV1",
     "completed_reporting_source_response_v1",
     "coverage_denominator_fingerprint_v1",
+    "coverage_denominator_fingerprint_v2",
     "deterministic_source_publication_id_v1",
     "encode_source_batch_manifest_v1",
+    "encode_source_batch_manifest_v2",
+    "parse_verified_source_batch_manifest_v2",
     "publication_content_fingerprint_v1",
+    "publication_content_fingerprint_v2",
     "reporting_source_capabilities_sha256_v1",
+    "reporting_source_capabilities_sha256_v2",
     "source_batch_coverage_fingerprint_v1",
+    "source_batch_coverage_fingerprint_v2",
     "source_batch_manifest_reference_v1",
     "source_batch_object_set_sha256_v1",
+    "validate_reporting_source_rows_v2",
+    "validate_reporting_source_staged_rows_v2",
 ]
 
 REPORTING_SOURCE_CONTRACT_VERSION_V1: Final[Literal["1.0"]] = "1.0"
+REPORTING_SOURCE_CONTRACT_VERSION_V2: Final[Literal["2.0"]] = "2.0"
 
 #: A retained manifest is evidence, not a payload.  Rows belong in staged
 #: objects; the manifest that binds them stays small enough to keep forever.
@@ -515,6 +534,16 @@ class PackageItemConstituentV1(_Frozen):
     package_id: ExternalId
 
 
+class PackageItemConstituentV2(_Frozen):
+    """A package constituent scoped to exactly one media buy."""
+
+    constituent_kind: Literal["package_item"] = "package_item"
+    constituent_id: ExternalId
+    product_id: ExternalId
+    package_id: ExternalId
+    media_buy_id: ExternalId
+
+
 class MediaBuyConstituentV1(_Frozen):
     """A media-buy constituent: a product inside a named media buy."""
 
@@ -528,6 +557,21 @@ ReportingConstituent = Annotated[
     ProductConstituentV1 | PackageItemConstituentV1 | MediaBuyConstituentV1,
     Field(discriminator="constituent_kind"),
 ]
+
+ReportingConstituentV2 = Annotated[
+    ProductConstituentV1 | PackageItemConstituentV2 | MediaBuyConstituentV1,
+    Field(discriminator="constituent_kind"),
+]
+
+
+def _require_unique_package_pairs(constituents: Sequence[ReportingConstituentV2]) -> None:
+    pairs = [
+        (item.media_buy_id, item.package_id)
+        for item in constituents
+        if isinstance(item, PackageItemConstituentV2)
+    ]
+    if len(set(pairs)) != len(pairs):
+        raise ValueError("a package pair may appear only once in the coverage denominator")
 
 
 def coverage_denominator_fingerprint_v1(constituents: Sequence[Any]) -> str:
@@ -551,6 +595,35 @@ def coverage_denominator_fingerprint_v1(constituents: Sequence[Any]) -> str:
     )
     return reporting_fingerprint_v1(
         {"kind": "reporting_coverage_denominator_v1", "constituents": ordered}
+    )
+
+
+def coverage_denominator_fingerprint_v2(
+    constituents: Sequence[Any], *, media_buy_ids: Sequence[str] | None = None
+) -> str:
+    """Fingerprint the frozen buy selector and its exact package pair set."""
+    if media_buy_ids is None:
+        media_buy_ids = sorted({item.media_buy_id for item in constituents})
+    ordered = sorted(
+        (
+            {
+                key: value
+                for key, value in _constituent_identity(constituent).items()
+                if value is not None
+            }
+            for constituent in constituents
+        ),
+        key=lambda item: str(item["constituent_id"]).encode("utf-16-be", errors="surrogatepass"),
+    )
+    return reporting_fingerprint_v1(
+        {
+            "kind": "reporting_coverage_denominator_v2",
+            "media_buy_ids": sorted(
+                media_buy_ids,
+                key=lambda value: str(value).encode("utf-16-be", errors="surrogatepass"),
+            ),
+            "constituents": ordered,
+        }
     )
 
 
@@ -800,6 +873,22 @@ class ReportingSourceCapabilitiesV1(_Frozen):
         raise KeyError(offering_id)
 
 
+class ReportingSourceCapabilitiesV2(ReportingSourceCapabilitiesV1):
+    """An executor declaration with an explicit set of supported source versions."""
+
+    contract_version: Literal["2.0"]  # type: ignore[assignment]
+    supported_contract_versions: tuple[Literal["1.0", "2.0"], ...] = Field(
+        min_length=1, max_length=2
+    )
+
+    @model_validator(mode="after")
+    def _supported_versions_are_unique(self) -> ReportingSourceCapabilitiesV2:
+        versions = self.supported_contract_versions
+        if len(set(versions)) != len(versions) or "2.0" not in versions:
+            raise ValueError("supported_contract_versions must uniquely include version 2.0")
+        return self
+
+
 def reporting_source_capabilities_sha256_v1(
     capabilities: ReportingSourceCapabilitiesV1 | Mapping[str, Any],
 ) -> str:
@@ -812,6 +901,13 @@ def reporting_source_capabilities_sha256_v1(
     payload = dict(strip_absent(raw))
     payload.pop("capabilities_sha256", None)
     return canonical_json_sha256_v1(payload)
+
+
+def reporting_source_capabilities_sha256_v2(
+    capabilities: ReportingSourceCapabilitiesV2 | Mapping[str, Any],
+) -> str:
+    """Bind the complete V2 capability declaration, including its version."""
+    return reporting_source_capabilities_sha256_v1(capabilities)
 
 
 # --------------------------------------------------------------------------
@@ -840,6 +936,35 @@ class ReportingSourceCoverageRequestV1(_Frozen):
         if len(set(ids)) != len(ids):
             raise ValueError("constituent_id must be unique within a coverage denominator")
         expected = coverage_denominator_fingerprint_v1(self.constituents)
+        if expected != self.denominator_fingerprint:
+            raise ValueError(
+                "denominator_fingerprint must bind the complete constituent tuple set; "
+                f"expected {expected}"
+            )
+        return self
+
+
+class ReportingSourceCoverageRequestV2(ReportingSourceCoverageRequestV1):
+    """The frozen buy selector and its requested package pairs."""
+
+    media_buy_ids: tuple[ExternalId, ...] = Field(min_length=1, max_length=100_000)
+    constituents: list[PackageItemConstituentV2] = Field(  # type: ignore[assignment]
+        max_length=SOURCE_BATCH_MANIFEST_MAX_METRIC_AVAILABILITY_V1
+    )
+
+    @model_validator(mode="after")
+    def _denominator_binds_the_constituents(self) -> ReportingSourceCoverageRequestV2:
+        ids = [constituent.constituent_id for constituent in self.constituents]
+        if len(set(ids)) != len(ids):
+            raise ValueError("constituent_id must be unique within a coverage denominator")
+        if len(set(self.media_buy_ids)) != len(self.media_buy_ids):
+            raise ValueError("media_buy_ids must be unique")
+        if any(item.media_buy_id not in self.media_buy_ids for item in self.constituents):
+            raise ValueError("package pairs must belong to the frozen media_buy_ids")
+        _require_unique_package_pairs(self.constituents)
+        expected = coverage_denominator_fingerprint_v2(
+            self.constituents, media_buy_ids=self.media_buy_ids
+        )
         if expected != self.denominator_fingerprint:
             raise ValueError(
                 "denominator_fingerprint must bind the complete constituent tuple set; "
@@ -942,6 +1067,92 @@ class ReportingSourceSliceRequestV1(_Frozen):
         )
 
 
+class ReportingSourceSliceRequestV2(ReportingSourceSliceRequestV1):
+    """A package-aware slice sent only to a V2-capable executor."""
+
+    contract_version: Literal["2.0"]  # type: ignore[assignment]
+    coverage: ReportingSourceCoverageRequestV2
+
+    @property
+    def package_ids(self) -> tuple[str, ...]:
+        """The unique packages represented by the V2 denominator."""
+        return tuple(
+            dict.fromkeys(
+                constituent.package_id
+                for constituent in self.coverage.constituents
+                if isinstance(constituent, PackageItemConstituentV2)
+            )
+        )
+
+    @property
+    def media_buy_ids(self) -> tuple[str, ...]:
+        """The frozen media buys, including those with no package pairs."""
+        return self.coverage.media_buy_ids
+
+
+def validate_reporting_source_rows_v2(
+    request: ReportingSourceSliceRequestV2,
+    manifest: SourceBatchManifestV2,
+    rows: Sequence[Mapping[str, Any]],
+) -> None:
+    """Reject normalized rows outside a frozen V2 coverage denominator before revision staging."""
+    if manifest.coverage.denominator_fingerprint != request.coverage.denominator_fingerprint:
+        raise ValueError("manifest coverage differs from the requested coverage")
+    matched = _matched_reporting_source_rows_v2(request, rows)
+    statuses = {item.constituent_id: item.status for item in manifest.coverage.constituents}
+    for index, constituent in enumerate(matched):
+        if statuses.get(constituent.constituent_id) == "explicit_zero":
+            raise ValueError(f"row {index} contradicts explicit zero coverage")
+
+
+def validate_reporting_source_staged_rows_v2(
+    request: ReportingSourceSliceRequestV2, rows: Sequence[Mapping[str, Any]]
+) -> None:
+    """Fence normalized package rows against the frozen request before staging."""
+    _matched_reporting_source_rows_v2(request, rows)
+
+
+def _matched_reporting_source_rows_v2(
+    request: ReportingSourceSliceRequestV2, rows: Sequence[Mapping[str, Any]]
+) -> list[PackageItemConstituentV2]:
+    packages = {
+        (item.media_buy_id, item.package_id): item for item in request.coverage.constituents
+    }
+    matched: list[PackageItemConstituentV2] = []
+    seen_grains: set[tuple[str, str, bytes]] = set()
+    for index, row in enumerate(rows):
+        package_id = row.get("package_id")
+        media_buy_id = row.get("media_buy_id")
+        product_id = row.get("product_id")
+        constituent_id = row.get("constituent_id")
+        if any(
+            value is not None and not isinstance(value, str)
+            for value in (package_id, media_buy_id, product_id, constituent_id)
+        ):
+            raise ValueError(f"row {index} is outside the requested coverage")
+        constituent = (
+            packages.get((media_buy_id, package_id))
+            if isinstance(media_buy_id, str) and isinstance(package_id, str)
+            else None
+        )
+        if (
+            constituent is None
+            or (product_id is not None and product_id != constituent.product_id)
+            or (constituent_id is not None and constituent_id != constituent.constituent_id)
+        ):
+            raise ValueError(f"row {index} is outside the requested coverage")
+        grain = (
+            constituent.media_buy_id,
+            constituent.package_id,
+            canonical_json_utf8_v1([row.get(name) for name in request.requested_dimensions]),
+        )
+        if grain in seen_grains:
+            raise ValueError(f"row {index} is a duplicate row at the requested dimension grain")
+        seen_grains.add(grain)
+        matched.append(constituent)
+    return matched
+
+
 # --------------------------------------------------------------------------
 # Manifest
 # --------------------------------------------------------------------------
@@ -1040,6 +1251,25 @@ class ReportingConstituentCoverageV1(_Frozen):
         return self.constituent.constituent_id
 
 
+class ReportingConstituentCoverageV2(_Frozen):
+    """Coverage evidence for a constituent with a complete package identity."""
+
+    constituent: PackageItemConstituentV2
+    status: ReportingAvailabilityStatus
+    data_through: datetime | None = None
+    reason: EvidenceReason | None = None
+
+    @model_validator(mode="after")
+    def _unavailable_coverage_is_explained(self) -> ReportingConstituentCoverageV2:
+        if self.status not in _AVAILABLE_STATUSES and not self.reason:
+            raise ValueError(f"constituent status {self.status!r} needs a stable reason")
+        return self
+
+    @property
+    def constituent_id(self) -> str:
+        return self.constituent.constituent_id
+
+
 class ReportingMetricAvailabilityV1(_Frozen):
     """One ``(constituent, metric)`` cell's publication evidence.
 
@@ -1105,6 +1335,49 @@ class SourceBatchCoverageV1(_Frozen):
             )
         expected = coverage_denominator_fingerprint_v1(
             [item.constituent for item in self.constituents]
+        )
+        if expected != self.denominator_fingerprint:
+            raise ValueError(
+                "denominator_fingerprint must bind the complete constituent tuple set; "
+                f"expected {expected}"
+            )
+        return self
+
+
+class SourceBatchCoverageV2(SourceBatchCoverageV1):
+    """Coverage evidence for the frozen buy selector and package pairs."""
+
+    media_buy_ids: tuple[ExternalId, ...] = Field(min_length=1, max_length=100_000)
+    constituents: list[ReportingConstituentCoverageV2] = Field(  # type: ignore[assignment]
+        max_length=100_000
+    )
+
+    @model_validator(mode="after")
+    def _status_matches_the_evidence(self) -> SourceBatchCoverageV2:
+        ids = [item.constituent_id for item in self.constituents]
+        if len(set(ids)) != len(ids):
+            raise ValueError("constituent_id must be unique within manifest coverage")
+        if len(set(self.media_buy_ids)) != len(self.media_buy_ids):
+            raise ValueError("media_buy_ids must be unique")
+        if any(
+            item.constituent.media_buy_id not in self.media_buy_ids for item in self.constituents
+        ):
+            raise ValueError("package pairs must belong to the frozen media_buy_ids")
+        _require_unique_package_pairs([item.constituent for item in self.constituents])
+        covered = sum(1 for item in self.constituents if item.status in _AVAILABLE_STATUSES)
+        partial = sum(1 for item in self.constituents if item.status == "partial")
+        all_covered = covered == len(self.constituents)
+        any_evidence = covered > 0 or partial > 0
+        if self.status == "full" and not all_covered:
+            raise ValueError("full coverage requires every constituent present or explicit zero")
+        if self.status == "none" and any_evidence:
+            raise ValueError("none coverage must not contain a covered or partial constituent")
+        if self.status == "partial" and (not any_evidence or all_covered):
+            raise ValueError(
+                "partial coverage requires coverage evidence without every constituent covered"
+            )
+        expected = coverage_denominator_fingerprint_v2(
+            [item.constituent for item in self.constituents], media_buy_ids=self.media_buy_ids
         )
         if expected != self.denominator_fingerprint:
             raise ValueError(
@@ -1649,6 +1922,50 @@ class SourceBatchManifestV1(_Frozen):
             )
 
 
+class SourceBatchManifestV2(SourceBatchManifestV1):
+    """A versioned publication that echoes the package and media-buy pairs."""
+
+    manifest_version: Literal["2.0"]  # type: ignore[assignment]
+    coverage: SourceBatchCoverageV2
+    metric_availability: list[ReportingMetricAvailabilityV1] = Field(
+        max_length=SOURCE_BATCH_MANIFEST_MAX_METRIC_AVAILABILITY_V1
+    )
+
+    def _validate_zero_rows(self) -> None:
+        if not self.coverage.constituents and self.coverage.status == "full":
+            if self.row_count != 0 or self.metric_availability or self.explicit_zero:
+                raise ValueError("complete empty package coverage requires zero rows and cells")
+            if self.event_time_range is not None or any(
+                not total.is_zero for total in self.control_totals
+            ):
+                raise ValueError("complete empty package coverage cannot declare events or totals")
+            if self.data_through != min(self.period.end, self.period.source_read_cutoff_at):
+                raise ValueError("complete empty package coverage needs the current source cutoff")
+            return
+        super()._validate_zero_rows()
+
+    @property
+    def contract_version(self) -> Literal["2.0"]:
+        """The negotiated source contract version."""
+        return self.manifest_version
+
+    @model_validator(mode="after")
+    def _manifest_is_internally_consistent(self) -> SourceBatchManifestV2:
+        self._validate_objects()
+        self._validate_time_evidence()
+        self._validate_finality()
+        self._validate_cells()
+        self._validate_zero_rows()
+        self._validate_event_range()
+        self._validate_strictness()
+        expected = publication_content_fingerprint_v2(self)
+        if expected != self.content_fingerprint:
+            raise ValueError(
+                f"content_fingerprint must bind the publication content; expected {expected}"
+            )
+        return self
+
+
 # --------------------------------------------------------------------------
 # Fingerprints and sealing
 # --------------------------------------------------------------------------
@@ -1695,6 +2012,30 @@ def source_batch_coverage_fingerprint_v1(
     )
     return reporting_fingerprint_v1(
         {"kind": "reporting_coverage_evidence_v1", "constituents": ordered}
+    )
+
+
+def source_batch_coverage_fingerprint_v2(
+    constituents: Sequence[ReportingConstituentCoverageV2],
+    *,
+    media_buy_ids: Sequence[str],
+) -> str:
+    """Fingerprint package evidence and its frozen media-buy selector."""
+    ordered = sorted(
+        (item.canonical_payload() for item in constituents),
+        key=lambda item: str(item["constituent"]["constituent_id"]).encode(
+            "utf-16-be", errors="surrogatepass"
+        ),
+    )
+    return reporting_fingerprint_v1(
+        {
+            "kind": "reporting_coverage_evidence_v2",
+            "media_buy_ids": sorted(
+                media_buy_ids,
+                key=lambda value: str(value).encode("utf-16-be", errors="surrogatepass"),
+            ),
+            "constituents": ordered,
+        }
     )
 
 
@@ -1764,6 +2105,16 @@ def publication_content_fingerprint_v1(manifest: SourceBatchManifestV1 | Mapping
     return reporting_fingerprint_v1(content)
 
 
+def publication_content_fingerprint_v2(manifest: SourceBatchManifestV2 | Mapping[str, Any]) -> str:
+    """Bind V2 content and its version, including the pair-bound denominator."""
+    return reporting_fingerprint_v1(
+        {
+            "kind": "reporting_source_content_v2",
+            "content_fingerprint": publication_content_fingerprint_v1(manifest),
+        }
+    )
+
+
 def deterministic_source_publication_id_v1(
     *,
     source_execution_key: str,
@@ -1798,6 +2149,19 @@ class SourceBatchManifestError(RuntimeError):
 
 def encode_source_batch_manifest_v1(manifest: SourceBatchManifestV1) -> bytes:
     """Seal a manifest into its ``canonical_json_utf8_v1`` bytes."""
+    payload = manifest.model_dump(mode="json", exclude_none=True)
+    encoded = canonical_json_utf8_v1(payload)
+    if len(encoded) > SOURCE_BATCH_MANIFEST_MAX_BYTES_V1:
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_TOO_LARGE",
+            "the source manifest exceeds the 1 MiB retained-evidence limit; "
+            "large data belongs in staged objects",
+        )
+    return encoded
+
+
+def encode_source_batch_manifest_v2(manifest: SourceBatchManifestV2) -> bytes:
+    """Seal V2 manifest bytes with the retained-evidence size bound."""
     payload = manifest.model_dump(mode="json", exclude_none=True)
     encoded = canonical_json_utf8_v1(payload)
     if len(encoded) > SOURCE_BATCH_MANIFEST_MAX_BYTES_V1:
@@ -1874,6 +2238,45 @@ def parse_verified_source_batch_manifest_v1(
     return manifest
 
 
+def parse_verified_source_batch_manifest_v2(
+    reference: SourceBatchManifestReferenceV1, raw_bytes: bytes
+) -> SourceBatchManifestV2:
+    """Verify the reference, V2 schema, and exact canonical manifest bytes."""
+    import hashlib
+    import json
+
+    if (
+        len(raw_bytes) > SOURCE_BATCH_MANIFEST_MAX_BYTES_V1
+        or len(raw_bytes) != reference.byte_count
+    ):
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_TOO_LARGE",
+            "the staged manifest size does not match the bounded reference",
+        )
+    if hashlib.sha256(raw_bytes).hexdigest() != reference.manifest_sha256:
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_CHECKSUM_MISMATCH",
+            "the staged manifest bytes do not match the declared checksum",
+        )
+    try:
+        payload = json.loads(raw_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as error:
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_JSON_INVALID", "the staged manifest is not valid UTF-8 JSON"
+        ) from error
+    if not isinstance(payload, dict) or payload.get("manifest_version") != "2.0":
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_VERSION_MISMATCH", "the staged manifest must declare version 2.0"
+        )
+    manifest = SourceBatchManifestV2.model_validate(payload)
+    if encode_source_batch_manifest_v2(manifest) != raw_bytes:
+        raise SourceBatchManifestError(
+            "SOURCE_MANIFEST_CANONICAL_ENCODING_MISMATCH",
+            "the staged manifest is not canonical_json_utf8_v1",
+        )
+    return manifest
+
+
 # --------------------------------------------------------------------------
 # Execution result
 # --------------------------------------------------------------------------
@@ -1886,6 +2289,12 @@ class ReportingSourceExecutionResponseV1(_Frozen):
     identity: ReportingSourceIdentityV1
     outcome: Literal["completed"] = "completed"
     manifest: SourceBatchManifestReferenceV1
+
+
+class ReportingSourceExecutionResponseV2(ReportingSourceExecutionResponseV1):
+    """The V2 success arm with the request identity and manifest reference."""
+
+    contract_version: Literal["2.0"]  # type: ignore[assignment]
 
 
 class ReportingSourceErrorV1(_Frozen):
@@ -1965,7 +2374,7 @@ def _default_retry_class(code: ReportingSourceErrorCode) -> ReportingSourceRetry
 class ReportingSourceExecutorResult(_Frozen):
     """Exactly one of: a completed publication, or a typed failure."""
 
-    response: ReportingSourceExecutionResponseV1 | None = None
+    response: ReportingSourceExecutionResponseV1 | ReportingSourceExecutionResponseV2 | None = None
     manifest_bytes: bytes | None = None
     error: ReportingSourceErrorV1 | None = None
 
@@ -1988,14 +2397,20 @@ class ReportingSourceExecutorResult(_Frozen):
     def completed(
         cls,
         *,
-        request: ReportingSourceSliceRequestV1,
+        request: ReportingSourceSliceRequestV1 | ReportingSourceSliceRequestV2,
         manifest: SourceBatchManifestReferenceV1,
         manifest_bytes: bytes,
     ) -> ReportingSourceExecutorResult:
-        return cls(
-            response=completed_reporting_source_response_v1(request=request, manifest=manifest),
-            manifest_bytes=manifest_bytes,
+        response = (
+            ReportingSourceExecutionResponseV2(
+                contract_version=REPORTING_SOURCE_CONTRACT_VERSION_V2,
+                identity=request.identity,
+                manifest=manifest,
+            )
+            if isinstance(request, ReportingSourceSliceRequestV2)
+            else completed_reporting_source_response_v1(request=request, manifest=manifest)
         )
+        return cls(response=response, manifest_bytes=manifest_bytes)
 
     @classmethod
     def failed(cls, error: ReportingSourceErrorV1) -> ReportingSourceExecutorResult:

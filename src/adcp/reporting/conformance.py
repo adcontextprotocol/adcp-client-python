@@ -34,25 +34,33 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any, Literal, TypeVar
+
+from pydantic import ValidationError
 
 from adcp.reporting.source import (
     AuthoritativeOfferingV1,
     ProvisionalSnapshotOfferingV1,
     ReportingSourceCapabilitiesV1,
+    ReportingSourceCapabilitiesV2,
     ReportingSourceErrorCode,
     ReportingSourceErrorV1,
     ReportingSourceExecutor,
     ReportingSourceExecutorResult,
     ReportingSourceSliceRequestV1,
+    ReportingSourceSliceRequestV2,
     ReportingSourceStagedObjectReader,
+    SourceBatchManifestError,
     SourceBatchManifestV1,
+    SourceBatchManifestV2,
     _validate_metric_applicability,
     deterministic_source_publication_id_v1,
     iso_duration_milliseconds_v1,
     parse_verified_source_batch_manifest_v1,
+    parse_verified_source_batch_manifest_v2,
     source_batch_object_set_sha256_v1,
 )
 
@@ -152,9 +160,20 @@ async def _with_deadline(
 
 
 def _validate_request_against_capabilities(
-    capabilities: ReportingSourceCapabilitiesV1, request: ReportingSourceSliceRequestV1
+    capabilities: ReportingSourceCapabilitiesV1 | ReportingSourceCapabilitiesV2,
+    request: ReportingSourceSliceRequestV1 | ReportingSourceSliceRequestV2,
 ) -> ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1:
     """Is this frozen slice an exact atomic offering of this executor build?"""
+    supported_versions = (
+        capabilities.supported_contract_versions
+        if isinstance(capabilities, ReportingSourceCapabilitiesV2)
+        else (capabilities.contract_version,)
+    )
+    if request.contract_version not in supported_versions:
+        raise _fail(
+            "CAPABILITY_MISMATCH",
+            "the executor must explicitly declare the request contract version",
+        )
     if capabilities.scope != "effective_account":
         raise _fail(
             "CAPABILITY_MISMATCH",
@@ -199,6 +218,15 @@ def _validate_request_against_capabilities(
         )
 
     _validate_window_bounds(offering, request)
+
+    if (
+        isinstance(request, ReportingSourceSliceRequestV2)
+        and "package_item" not in offering.constituent_kinds
+    ):
+        raise _fail(
+            "CAPABILITY_MISMATCH",
+            "a V2 package slice requires package_item support in the selected offering",
+        )
 
     for constituent in request.coverage.constituents:
         if constituent.product_id not in offering.product_ids:
@@ -291,9 +319,11 @@ def _source_calendar_elapsed_ms(request: ReportingSourceSliceRequestV1) -> int:
 
 def _validate_manifest_against_request(
     offering: ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1,
-    request: ReportingSourceSliceRequestV1,
-    manifest: SourceBatchManifestV1,
+    request: ReportingSourceSliceRequestV1 | ReportingSourceSliceRequestV2,
+    manifest: SourceBatchManifestV1 | SourceBatchManifestV2,
 ) -> None:
+    if manifest.manifest_version != request.contract_version:
+        raise _fail("MANIFEST_MISMATCH", "the manifest version must match the request version")
     if request.coverage.expected == "full" and manifest.coverage.status != "full":
         raise _fail(
             "MANIFEST_MISMATCH",
@@ -376,6 +406,22 @@ def _validate_manifest_against_request(
             request.coverage.denominator_fingerprint,
         ),
     ]
+    if isinstance(request, ReportingSourceSliceRequestV2):
+        assert isinstance(manifest, SourceBatchManifestV2)
+        echoed.extend(
+            [
+                (
+                    "coverage.media_buy_ids",
+                    manifest.coverage.media_buy_ids,
+                    request.coverage.media_buy_ids,
+                ),
+                (
+                    "coverage.constituents",
+                    [item.constituent for item in manifest.coverage.constituents],
+                    request.coverage.constituents,
+                ),
+            ]
+        )
     for field, actual, expected in echoed:
         if actual != expected:
             raise _fail(
@@ -445,13 +491,13 @@ def _validate_manifest_against_request(
 
 async def validate_reporting_source_execution(
     *,
-    capabilities: ReportingSourceCapabilitiesV1,
-    request: ReportingSourceSliceRequestV1,
+    capabilities: ReportingSourceCapabilitiesV1 | ReportingSourceCapabilitiesV2,
+    request: ReportingSourceSliceRequestV1 | ReportingSourceSliceRequestV2,
     result: ReportingSourceExecutorResult,
     object_reader: ReportingSourceStagedObjectReader,
     cancel: asyncio.Event | None = None,
     clock: Callable[[], datetime] | None = None,
-) -> SourceBatchManifestV1:
+) -> SourceBatchManifestV1 | SourceBatchManifestV2:
     """Validate one execution end to end and return its verified manifest.
 
     Reads every staged object the manifest names and checks its bytes against
@@ -470,12 +516,32 @@ async def validate_reporting_source_execution(
     manifest_bytes = result.manifest_bytes
     assert manifest_bytes is not None
 
+    if response.contract_version != request.contract_version:
+        raise _fail("MANIFEST_MISMATCH", "the execution response version must match the request")
+
     if response.identity != request.identity:
         raise _fail(
             "IDENTITY_MISMATCH", "the response must echo the complete frozen request identity"
         )
 
-    manifest = parse_verified_source_batch_manifest_v1(response.manifest, manifest_bytes)
+    manifest: SourceBatchManifestV1 | SourceBatchManifestV2
+    if isinstance(request, ReportingSourceSliceRequestV2):
+        try:
+            manifest = parse_verified_source_batch_manifest_v2(response.manifest, manifest_bytes)
+        except SourceBatchManifestError as error:
+            if error.code == "SOURCE_MANIFEST_VERSION_MISMATCH":
+                raise _fail("MANIFEST_MISMATCH", "the manifest must declare version 2.0") from error
+            raise
+    else:
+        try:
+            manifest = parse_verified_source_batch_manifest_v1(response.manifest, manifest_bytes)
+        except ValidationError as error:
+            payload = json.loads(manifest_bytes)
+            if isinstance(payload, dict) and payload.get("manifest_version") == "2.0":
+                raise _fail(
+                    "MANIFEST_MISMATCH", "the manifest version must match the request"
+                ) from error
+            raise
     _validate_manifest_against_request(offering, request, manifest)
 
     cancel = cancel or asyncio.Event()
