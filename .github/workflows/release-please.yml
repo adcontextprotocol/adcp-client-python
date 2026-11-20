@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   actions: write # Queue the main-branch publication workflow for a created release.
+  pull-requests: read # Inspect the merged release PR before Release Please creates tags.
 
 concurrency:
   group: release-please-main
@@ -31,6 +32,10 @@ jobs:
           repositories: adcp-client-python
           permission-contents: write
           permission-pull-requests: write
+      - name: Validate merged release PR notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m scripts.ci.check_release_pr
       - name: Open or update the release PR, or create its release after merge
         id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5

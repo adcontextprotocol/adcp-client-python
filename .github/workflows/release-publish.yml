@@ -101,6 +101,11 @@ jobs:
             python -m build --outdir dist/ packages/adcp-reporting-storage
           fi
           python -m twine check dist/*
+      - name: Match release tag to built distributions
+        env:
+          PACKAGE: ${{ inputs.package }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+        run: python -m scripts.ci.check_publish_version dist "$PACKAGE" "$RELEASE_TAG"
       # Every release, on main and on next, needs a published companion it
       # actually works with, not one whose version range merely admits it
       # (#1763: adcp 10.0.0b4 installed beside adcp-reporting-storage 0.2.0b0
