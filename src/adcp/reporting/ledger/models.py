@@ -205,7 +205,7 @@ class ReportingScheduleSpec:
 
     period_duration: str
     delivery_sla: str
-    alignment: Literal["utc", "account_timezone", "custom_timezone"] = "utc"
+    alignment: Literal["utc", "account_timezone", "custom_timezone", "source_timezone"] = "utc"
     period_timezone: str | None = None
     period_anchor: datetime | None = None
 
@@ -214,6 +214,10 @@ class ReportingScheduleSpec:
             return "UTC"
         if self.alignment == "account_timezone":
             return account_timezone
+        if self.alignment == "source_timezone":
+            if not self.period_timezone:
+                raise ValueError("source_timezone alignment requires period_timezone")
+            return self.period_timezone
         if not self.period_timezone:
             raise ValueError("custom_timezone alignment requires period_timezone")
         return self.period_timezone
@@ -243,12 +247,18 @@ def _schedule_clock(
     duration = iso_duration_to_timedelta(schedule.period_duration)
     if duration <= timedelta(0):
         raise ValueError("period_duration must be positive")
-    anchor = (
-        _utc(schedule.period_anchor)
-        if schedule.period_anchor is not None
-        else datetime(1970, 1, 1, tzinfo=timezone.utc)
-    )
-    return zone, duration, anchor.astimezone(zone).replace(tzinfo=None)
+    if schedule.alignment == "source_timezone":
+        if schedule.period_anchor is not None:
+            raise ValueError("source_timezone alignment does not accept period_anchor")
+        anchor = datetime(1970, 1, 1)
+    else:
+        instant = (
+            _utc(schedule.period_anchor)
+            if schedule.period_anchor is not None
+            else datetime(1970, 1, 1, tzinfo=timezone.utc)
+        )
+        anchor = instant.astimezone(zone).replace(tzinfo=None)
+    return zone, duration, anchor
 
 
 def _period_instants(
@@ -277,9 +287,9 @@ def derive_period(
     evidence that nothing happened.  That only works if the derivation is
     identical, so it lives here rather than in each side's handler.
 
-    Periods are anchored at the Unix epoch in the schedule's timezone (or at an
-    explicit ``period_anchor`` for billing-cycle alignment), which is what makes
-    "the next full boundary" unambiguous.  A configuration activated mid-period
+    Source-timezone periods use local midnight as their civil-day origin.
+    Other periods use the Unix epoch's local clock or an explicit anchor.
+    A configuration activated mid-period
     begins at the next boundary -- a partial first period would be reported as
     complete and understate delivery.
     """

@@ -4,19 +4,25 @@ import copy
 import json
 import sqlite3
 from dataclasses import replace
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
+from adcp.reporting.ledger import ReportingScheduleSpec
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer.contracts import ReportingWriterError, binding_fingerprint
 from adcp.reporting.materializer.work import ReportingMaterializerLease
 from adcp.reporting.production.configuration import ReportingConfigurationAdmission
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
+)
 from adcp.validation.schema_loader import get_named_validator
 
 from ._feed_support import feed_request, walk
 from ._generation_support import END
-from ._production_support import production_harness
+from ._production_support import Source, production_harness
 from ._production_transport import MountedProduction
 from ._receipt_transport import error_code
 from .test_reporting_production_bindings import source_documents
@@ -40,6 +46,78 @@ def wire_configuration(h):
         "schedule": offering.configuration_schedule(config),
         "method": h.item.writer.configuration_binding(binding).wire(),
     }
+
+
+@pytest.mark.parametrize(
+    "policy,offered_zone,accepted",
+    [
+        ("account_resolved", None, True),
+        ("fixed", "America/Los_Angeles", False),
+    ],
+)
+async def test_source_timezone_admission_uses_the_resolved_network_zone(
+    policy, offered_zone, accepted, tmp_path
+):
+    class AccountResolvedSource(Source):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            raw = self.capabilities.model_dump(mode="json", exclude_none=True)
+            raw["offerings"][0].pop("source_timezone")
+            raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+            self.capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+
+    offered_schedule = {
+        "period_duration": "P1D",
+        "delivery_sla": "PT1H",
+        "alignment": "source_timezone",
+        "period_timezone_policy": policy,
+    }
+    if offered_zone is not None:
+        offered_schedule["period_timezone"] = offered_zone
+    async with production_harness(
+        "memory",
+        tmp_path / "destination.sqlite",
+        count=0,
+        source_factory=AccountResolvedSource,
+        offering_schedule=offered_schedule,
+    ) as h:
+        installed = h.production.offerings[0]
+        source = installed.producer._source
+        assert source.capabilities.scope == "effective_account"
+        assert source.capabilities.offering(installed.source_offering_id).source_timezone is None
+        config = replace(
+            h.item.config,
+            delivery_config_version=2,
+            account_timezone="UTC",
+            activated_at=datetime(2026, 3, 8, 5, tzinfo=timezone.utc),
+            schedule=ReportingScheduleSpec("P1D", "PT1H", "source_timezone", "America/New_York"),
+        )
+        binding = replace(h.item.binding, generation_key=config.generation_key)
+        source.bind_generation(config)
+        h.item.writer.grant(binding)
+        await h.production.activate(account_id=config.account_id)
+        if accepted:
+            await h.store.admit_production_configuration(
+                config, binding, offering_id=installed.offering_id
+            )
+            assert installed.configuration_schedule(config) == {
+                "period_duration": "P1D",
+                "delivery_sla": "PT1H",
+                "alignment": "source_timezone",
+                "period_timezone": "America/New_York",
+            }
+            assert config in await h.store.list_configurations(
+                caller=binding.principal, delivery_config_ids=[config.delivery_config_id]
+            )
+        else:
+            with pytest.raises(ReportingWriterError) as denied:
+                await h.store.admit_production_configuration(
+                    config, binding, offering_id=installed.offering_id
+                )
+            assert denied.value.failure.code == "BINDING_MISMATCH"
+            assert config not in await h.store.list_configurations(
+                caller=binding.principal, delivery_config_ids=[config.delivery_config_id]
+            )
 
 
 def state_for(h, configuration):
