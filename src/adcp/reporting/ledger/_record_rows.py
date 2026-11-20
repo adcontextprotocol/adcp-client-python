@@ -36,7 +36,8 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at, currency, consumer_id, offering_id"
+    " package_ids, schedule, definition, created_at, currency, consumer_id, offering_id,"
+    " package_reporting"
 )
 
 #: ``offering_id`` is '' for an account-level generation and the resolved
@@ -217,6 +218,7 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         currency=row[21],
         consumer_id=row[22],
         offering_id=_offering(row, 23),
+        package_reporting=row[24],
     )
 
 

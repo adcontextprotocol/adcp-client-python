@@ -64,6 +64,11 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
     iso_duration_to_timedelta,
 )
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
+)
 from adcp.reporting.ledger.provisional import (
     PendingProvisionalAcquisitionStore,
     ProvisionalAcquisition,
@@ -81,6 +86,7 @@ from adcp.reporting.ledger.store import (
     RestatementCheckpointStore,
     RetryScheduleEntry,
     RetryScheduleStore,
+    validate_package_revision_rows,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
@@ -396,6 +402,7 @@ class ReportingProducer:
         max_periods_per_turn: int = 64,
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
         revision_verifier: ReportingRevisionVerifier | None = None,
         retry_initial_delay: timedelta = timedelta(minutes=1),
         retry_max_delay: timedelta = timedelta(minutes=30),
@@ -432,6 +439,7 @@ class ReportingProducer:
             else FixedCurrencyResolver(offerings.currency)
         )
         self._revision_verifier = revision_verifier
+        self._package_roster_resolver = package_roster_resolver
         self._retry_initial_delay = retry_initial_delay
         self._retry_max_delay = retry_max_delay
         self._post_deadline_retry_interval = post_deadline_retry_interval
@@ -659,6 +667,15 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
+            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            if "package" in self._offerings.requested_dimensions:
+                roster = (
+                    await self._package_roster_resolver(configuration, boundary.end)
+                    if self._package_roster_resolver is not None and configuration.media_buy_ids
+                    else MissingHistoricalPackageRoster()
+                )
+                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                    raise TypeError("package roster resolver returned an unsupported result")
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -674,6 +691,11 @@ class ReportingProducer:
                 # the period it is being reported against.
                 scope_resolved_at=boundary.end,
                 media_buy_ids=configuration.media_buy_ids,
+                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
+                package_reporting="package" in self._offerings.requested_dimensions,
+                coverage_status=(
+                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=(
                     boundary.expected_at + configuration.automated_recovery_window
@@ -1217,6 +1239,15 @@ class ReportingProducer:
             )
         obligation = await self._stored_obligation(obligation)
         turn = turn or WorkerTurn()
+        package_mode = "package" in self._offerings.requested_dimensions
+        if obligation.package_reporting is None or obligation.package_reporting != package_mode:
+            raise LedgerConflictError(
+                "PACKAGE_MODE_MISMATCH",
+                "the producer package mode differs from the frozen obligation",
+            )
+        if package_mode and obligation.coverage_status != "full":
+            turn.slices_failed.append(obligation.reporting_obligation_id)
+            return None
         now = now or self._clock()
         finality = target_finality or obligation.required_finality
         if not manual_replay and await self._retry_not_before(obligation, turn, now=now):
@@ -1844,6 +1875,27 @@ class ReportingProducer:
         """
         obligation = await self._stored_obligation(obligation)
         rows = subscription_rows(obligation, rows)
+        validate_package_revision_rows(obligation, rows)
+        if obligation.package_reporting:
+            requested_dimensions = tuple(
+                dimension for dimension in manifest.requested_dimensions if dimension != "package"
+            )
+            observed_grains: set[tuple[str, str, bytes]] = set()
+            for row in rows:
+                media_buy_id = row.get("media_buy_id")
+                package_id = row.get("package_id")
+                assert isinstance(media_buy_id, str) and isinstance(package_id, str)
+                grain = (
+                    media_buy_id,
+                    package_id,
+                    canonical_json_utf8_v1([row.get(name) for name in requested_dimensions]),
+                )
+                if grain in observed_grains:
+                    raise LedgerConflictError(
+                        "PACKAGE_ROW_DUPLICATE",
+                        "a source row repeats a package reporting grain",
+                    )
+                observed_grains.add(grain)
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:

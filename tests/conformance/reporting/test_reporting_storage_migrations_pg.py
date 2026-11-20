@@ -34,10 +34,11 @@ async def test_migrate_applies_every_version_once_and_status_reads_it() -> None:
         lines = describe(await migration_status(pool))
         assert all(": applied " in line for line in lines)
         # A new ledger was never expanded: its contract step applied without --contract.
-        assert lines[-2].startswith("0007 reporting_contract_generation_keys: applied ")
-        assert lines[-2].endswith("[contract]")
-        assert lines[-1].startswith("0008 reporting_issue_events: applied ")
-        assert not any("stopped-worker" in line for line in lines)
+        assert lines[-3].startswith("0007 reporting_contract_generation_keys: applied ")
+        assert lines[-3].endswith("[contract]")
+        assert lines[-2].startswith("0008 reporting_issue_events: applied ")
+        assert lines[-1].startswith("0009 reporting_package_mode: applied ")
+        assert lines[-1].endswith("[stopped-worker upgrade]")
 
 
 @pytest.mark.asyncio
@@ -55,9 +56,9 @@ async def test_storage_refuses_a_schema_that_is_behind_and_starts_once_migrated(
         error = refused.value
         assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
         # The contract step alone never makes a schema "behind" (0007 is not listed).
-        assert "pending: 0001, 0002, 0003, 0004, 0005, 0006, 0008)" in str(error)
+        assert "pending: 0001, 0002, 0003, 0004, 0005, 0006, 0008, 0009)" in str(error)
         assert "python -m adcp migrate" in str(error)
-        assert "stopped-worker" not in str(error)  # every upgrade is rolling-deploy safe
+        assert "stopped-worker" in str(error)
         await migrate(pool)
         await storage.check_schema()
 
@@ -98,7 +99,7 @@ async def test_the_cli_migrates_and_reports_status(capsys) -> None:
             "0007 reporting_contract_generation_keys: pending  [contract: run once every"
             " earlier-release reporting process has stopped: python -m adcp migrate --contract]"
         ) in status
-        assert "8 pending" in status
+        assert "9 pending" in status
         assert await _run(dsn, status=False, dry_run=False) == 0
         applied = capsys.readouterr().out
         assert "applied 0002 reporting_subscription_generations\n" in applied
@@ -273,6 +274,7 @@ async def test_create_schema_builds_its_own_schema_beside_a_migrated_one() -> No
             "0006",
             "0007",
             "0008",
+            "0009",
         ]
         assert await _catalog(other, other_schema) == before
 
@@ -323,6 +325,7 @@ async def test_a_new_ledger_is_created_contracted(entry: str, capsys) -> None:
                 "0006",
                 "0007",
                 "0008",
+                "0009",
             ]
         assert await _expand_objects(pool) == []
         assert not await needs_contract(pool)

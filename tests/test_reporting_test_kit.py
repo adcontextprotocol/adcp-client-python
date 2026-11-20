@@ -159,7 +159,7 @@ async def test_issue_1770_gaps_keep_the_boundaries_of_the_schedule_they_removed(
         return {
             "subscription_id": "analytics-daily",
             "scope": {"all_authorized_accounts": True},
-            "selector": {**selector, "alignment": alignment, "dimensions": ["package"]},
+            "selector": {**selector, "alignment": alignment},
             "reconciliation_mode": "delivery_only",
         }
 

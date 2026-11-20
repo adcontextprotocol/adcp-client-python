@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -46,6 +46,11 @@ from adcp.reporting.ledger.models import (
     ReportingPeriodBoundary,
     ReportingScheduleSpec,
     ReportingSubscriptionGeneration,
+)
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
 )
 from adcp.reporting.ledger.store import ReportingLedgerStore, ReportingSubscriptionLedger
 from adcp.reporting.subscriptions._clock import parse_delivery_sla, utc_instant
@@ -174,6 +179,7 @@ class SubscriptionObligationPlanner:
         status_retention_days: int = 400,
         install: GenerationInstaller | None = None,
         commit: ObligationCommitter | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
     ) -> None:
         if not isinstance(store, ReportingSubscriptionLedger):
             raise TypeError(
@@ -189,6 +195,7 @@ class SubscriptionObligationPlanner:
         self._retention_days = status_retention_days
         self._install = install or self._put_configuration
         self._commit = commit or self._commit_obligation
+        self._package_roster_resolver = package_roster_resolver
 
     async def _put_configuration(
         self, configuration: ReportingConfiguration, version: Mapping[str, Any]
@@ -299,6 +306,17 @@ class SubscriptionObligationPlanner:
             )
             if existing is not None:
                 continue  # immutable: never rewritten
+            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            if "package" in offering.dimensions:
+                roster = (
+                    await self._package_roster_resolver(
+                        replace(configuration, media_buy_ids=tuple(period.media_buy_ids)), end
+                    )
+                    if self._package_roster_resolver is not None and period.media_buy_ids
+                    else MissingHistoricalPackageRoster()
+                )
+                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                    raise TypeError("package roster resolver returned an unsupported result")
             expected_at = end + parse_delivery_sla(offering.delivery_sla)
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=subscription_obligation_id(
@@ -329,6 +347,11 @@ class SubscriptionObligationPlanner:
                 ),
                 scope_resolved_at=end,
                 media_buy_ids=tuple(period.media_buy_ids),
+                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
+                package_reporting="package" in offering.dimensions,
+                coverage_status=(
+                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=expected_at + self._window,
                 schedule=configuration.schedule,

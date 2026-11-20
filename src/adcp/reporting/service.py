@@ -49,6 +49,7 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
+from adcp.reporting.ledger.package_roster import PackageRosterResolver
 from adcp.reporting.ledger.producer import _advertised_reporting_delivery
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
@@ -510,6 +511,7 @@ class ReliableReportingService:
         clock: Callable[[], datetime] | None = None,
         worker_interval: timedelta | None = None,
         producer_factory: ProducerFactory = ReportingProducer,
+        package_roster_resolver: PackageRosterResolver | None = None,
         read_jitter_window: timedelta | None = None,
         materialization_worker: ReportingBackgroundWorker | None = None,
         notification_worker: ReportingBackgroundWorker | None = None,
@@ -639,6 +641,7 @@ class ReliableReportingService:
         self._status_retention_days = status_retention_days
         self._worker_interval = worker_interval
         self._producer_factory = producer_factory
+        self._package_roster_resolver = package_roster_resolver
         # Preserve the existing custom-factory keyword contract unless the
         # caller explicitly opts into forwarding this additional setting.
         self._pass_read_jitter_window = (
@@ -809,6 +812,7 @@ class ReliableReportingService:
                 automated_recovery_window=self._automated_recovery_window,
                 status_retention_days=self._status_retention_days,
                 install=self._install_subscription_generation,
+                package_roster_resolver=self._package_roster_resolver,
             )
         except TypeError as error:
             raise ReliableReportingConfigurationError(str(error)) from None
@@ -1205,6 +1209,11 @@ class ReliableReportingService:
                 if self._pass_read_jitter_window
                 else {}
             ),
+            **(
+                {"package_roster_resolver": self._package_roster_resolver}
+                if self._package_roster_resolver is not None
+                else {}
+            ),
         )
         binding = _Binding(configuration=configuration, context=context, producer=producer)
         if persist:
@@ -1301,6 +1310,23 @@ class ReliableReportingService:
         context: ReportingAccountContext,
         registration: AdapterRegistration,
     ) -> None:
+        if configuration.subscription is not None and self._subscriptions is not None:
+            subscription_offering = next(
+                (
+                    offering
+                    for offering in self._subscriptions.engine.offerings
+                    if offering.offering_id == configuration.subscription.offering_id
+                ),
+                None,
+            )
+            if subscription_offering is None:
+                raise ReliableReportingConfigurationError("subscription offering is not registered")
+            if ("package" in subscription_offering.dimensions) != (
+                "package" in context.requested_dimensions
+            ):
+                raise ReliableReportingConfigurationError(
+                    "subscription package dimension does not match source requested dimensions"
+                )
         capabilities = registration.executor.capabilities
         if capabilities.source_scope != _thaw(context.source_scope):
             raise ReliableReportingConfigurationError(

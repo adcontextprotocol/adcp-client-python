@@ -239,12 +239,12 @@ async def _composed(tmp_path, clock, store, pool_buys, notifications, managed=Fa
                 delivery_sla="PT1H",
                 supported_finality=frozenset({"snapshot"}),
                 reconciliation_mode="delivery_only",
-                dimensions=frozenset({"package"}),
+                dimensions=frozenset(),
                 method_pattern="warehouse_materialization",
                 method_transport="fixture-sql",
             )
         ],
-        support=ReportingSubscriptionSupport(dimensions=("package",)),
+        support=ReportingSubscriptionSupport(dimensions=()),
         clock=engine_clock,
     )
     principals.set_reporting_subscriptions(engine.principal_options())
@@ -336,7 +336,7 @@ async def _composed(tmp_path, clock, store, pool_buys, notifications, managed=Fa
                 bind_managed_generation=bind,
                 planning_error_handler=failures.append,
                 # The served 3.3.0-beta.1 offering contract has no standard_dimensions.
-                standard_dimensions={OFFERING_ID: ["package"]},
+                standard_dimensions={OFFERING_ID: []},
             )
         }
     else:
@@ -398,7 +398,6 @@ async def _subscribe(h, buys: list[SubscriptionBuy]) -> None:
                             "feed_purpose": "analytics",
                             "period_duration": "PT1H",
                             "required_finality": "snapshot",
-                            "dimensions": ["package"],
                         },
                         "reconciliation_mode": "delivery_only",
                         "destination": {"destination_id": "warehouse", "path_template": PATH},
@@ -609,7 +608,6 @@ async def test_the_managed_path_serves_production_through_its_application(
                                 "feed_purpose": "analytics",
                                 "period_duration": "PT1H",
                                 "required_finality": "snapshot",
-                                "dimensions": ["package"],
                             },
                             "reconciliation_mode": "delivery_only",
                             "destination": {"destination_id": "warehouse", "path_template": PATH},

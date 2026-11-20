@@ -501,3 +501,21 @@ comment on `adcp_reporting_change_account_horizon` records it) and changes
 nothing on a ledger upgraded straight from 0.1.0b5. As for the `(xid, seq)`
 upgrade on SDK 9, stop every older host's change maintenance before this
 release starts.
+
+## Frozen package mode (migration `0009`)
+
+Stop reporting workers before applying `0009 reporting_package_mode` with
+`python -m adcp migrate`. The migration adds nullable
+`reporting_obligations.package_reporting` without a default. `NULL` marks a
+retained obligation whose package mode cannot be proven and blocks new source
+acquisition or revision commits. There is no inferred backfill from
+`package_ids`: an empty list could mean either a buy report or a proven empty
+package roster. Newly committed obligations freeze `false` for ordinary buy
+reporting and `true` for package reporting. A trigger prevents changing the
+frozen value. This field is internal to storage; the public obligation and
+revision coverage arrays retain their existing shape.
+
+SDK and `adcp-reporting-storage` must both implement storage contract 3 before
+workers restart. The storage distribution's `adcp` dependency floor must be
+the first published SDK version declaring contract 3; a lower floor allows an
+incompatible pair to install.

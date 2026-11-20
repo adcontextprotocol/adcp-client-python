@@ -135,8 +135,40 @@ CREATE TABLE IF NOT EXISTS reporting_obligations (
     -- NULL is unknown legacy currency, never an implicit USD default. The
     -- currency migration installs validation and immutability on all schemas.
     currency                TEXT COLLATE "C",
-    offering_id             TEXT COLLATE "C" NOT NULL DEFAULT ''
+    offering_id             TEXT COLLATE "C" NOT NULL DEFAULT '',
+    package_reporting       BOOLEAN
 );
+
+CREATE OR REPLACE FUNCTION reporting_obligation_package_mode_immutable()
+RETURNS TRIGGER LANGUAGE plpgsql AS $function$
+BEGIN
+    IF NEW.package_reporting IS DISTINCT FROM OLD.package_reporting THEN
+        RAISE EXCEPTION 'reporting obligation package mode is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END
+$function$;
+
+DO $package_mode_trigger$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'reporting_obligations'::regclass
+          AND attname = 'package_reporting'
+          AND NOT attisdropped
+    ) AND NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgrelid = 'reporting_obligations'::regclass
+          AND tgname = 'reporting_obligation_package_mode_immutable'
+          AND NOT tgisinternal
+    ) THEN
+        CREATE TRIGGER reporting_obligation_package_mode_immutable
+            BEFORE UPDATE OF package_reporting ON reporting_obligations
+            FOR EACH ROW EXECUTE FUNCTION reporting_obligation_package_mode_immutable();
+    END IF;
+END
+$package_mode_trigger$;
 
 -- One obligation per logical period. Without this, two workers racing a period
 -- close could commit two obligations and a seller could quietly publish twice
