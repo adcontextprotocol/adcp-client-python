@@ -223,6 +223,66 @@ async def test_source_timezone_period_close_retry_keeps_the_same_identity(schedu
     assert await producer.close_elapsed_periods(config, now=h.clock()) == []
 
 
+async def test_source_timezone_period_status_preserves_its_schedule_calendar():
+    adcp_version = "3.3-rc.0"
+    start = datetime(2026, 9, 14, 18, 30, tzinfo=timezone.utc)
+    end = start + timedelta(days=1)
+    async with reliable_factory("memory") as h:
+        h.clock.now = end + timedelta(hours=1)
+        config = replace(
+            configuration(),
+            account_timezone="UTC",
+            activated_at=start,
+            deactivated_at=end,
+            schedule=ReportingScheduleSpec("P1D", "PT1H", "source_timezone", "Asia/Kolkata"),
+        )
+        await h.store.put_configuration(config)
+        producer = ReportingProducer(
+            source=UncalledSource(), offerings=ProducerOfferings(), store=h.store
+        )
+        assert len(await producer.close_elapsed_periods(config, now=h.clock())) == 1
+
+        raw = await ReportingStatusHandler(h.store).handle(
+            {"view": "periods", "adcp_version": adcp_version},
+            caller=ReportingStatusCaller("acct_a", "buyer"),
+        )
+        GetReportingStatusResponse.model_validate(raw)
+        validator = get_validator("get_reporting_status", "sync", version=adcp_version)
+        assert validator is not None
+        validator.validate(raw)
+        assert raw["periods"][0]["schedule"] == {
+            "period_duration": "P1D",
+            "alignment": "source_timezone",
+            "period_timezone": "Asia/Kolkata",
+            "delivery_sla": "PT1H",
+        }
+
+
+@pytest.mark.parametrize("adcp_version", ["3.2-rc.3", "3.2-rc.6"])
+async def test_utc_v1_period_status_keeps_its_schedule(adcp_version):
+    async with reliable_factory("memory") as h:
+        h.clock.now = START + timedelta(hours=3)
+        config = configuration()
+        await h.store.put_configuration(config)
+        producer = ReportingProducer(
+            source=UncalledSource(), offerings=ProducerOfferings(), store=h.store
+        )
+        assert len(await producer.close_elapsed_periods(config, now=h.clock())) == 1
+
+        raw = await ReportingStatusHandler(h.store).handle(
+            {"view": "periods", "adcp_version": adcp_version},
+            caller=ReportingStatusCaller("acct_a", "buyer"),
+        )
+        validator = get_validator("get_reporting_status", "sync", version=adcp_version)
+        assert validator is not None
+        validator.validate(raw)
+        assert raw["periods"][0]["schedule"] == {
+            "period_duration": "PT1H",
+            "alignment": "utc",
+            "delivery_sla": "PT1H",
+        }
+
+
 @pytest.mark.parametrize(
     "alignment,zone_name",
     [
