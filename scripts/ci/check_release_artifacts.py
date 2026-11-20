@@ -16,13 +16,13 @@ from pathlib import Path
 from scripts.normalize_pyproject_prerelease import pep440_prerelease
 
 
-def check_metadata(data: bytes, version: str) -> None:
+def check_metadata(data: bytes, version: str, name: str = "adcp") -> None:
     metadata = BytesParser(policy=policy.default).parsebytes(data)
-    if metadata.get_all("Name") != ["adcp"] or metadata.get_all("Version") != [version]:
-        raise ValueError("distribution metadata does not match the candidate SDK version")
+    if metadata.get_all("Name") != [name] or metadata.get_all("Version") != [version]:
+        raise ValueError("distribution metadata does not match the release package and version")
 
 
-def check_artifacts(directory: Path, version: str) -> None:
+def check_artifacts(directory: Path, version: str, name: str = "adcp") -> None:
     wheels, sdists = list(directory.glob("*.whl")), list(directory.glob("*.tar.gz"))
     if len(wheels) != 1 or len(sdists) != 1:
         raise ValueError("expected exactly one candidate wheel and source distribution")
@@ -30,7 +30,7 @@ def check_artifacts(directory: Path, version: str) -> None:
         names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
         if len(names) != 1:
             raise ValueError("wheel must contain exactly one METADATA record")
-        check_metadata(archive.read(names[0]), version)
+        check_metadata(archive.read(names[0]), version, name)
     with tarfile.open(sdists[0]) as archive:
         records = [
             member
@@ -42,7 +42,7 @@ def check_artifacts(directory: Path, version: str) -> None:
         stream = archive.extractfile(records[0])
         assert stream is not None
         with stream:
-            check_metadata(stream.read(), version)
+            check_metadata(stream.read(), version, name)
 
 
 def main() -> None:
