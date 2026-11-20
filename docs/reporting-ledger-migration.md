@@ -57,8 +57,9 @@ unchanged.
 
 A new ledger is created on the widened key. A ledger created by an earlier
 release (adcp-reporting-storage 0.1.x or 0.2.0b0, storage contract 1) is
-upgraded in two halves, **expand** and **contract**, so a rolling deploy works
-(see [Deploying the upgrade](#deploying-the-upgrade)).
+upgraded in two halves, **expand** and **contract**, so its contract-2 expansion
+can run beside published workers (see [Deploying the upgrade](#deploying-the-upgrade)).
+The contract-3 package-mode step requires those workers to stop before cutover.
 
 **Expand** (migration `0002`, which `create_schema()` and `python -m adcp
 migrate` both apply) is online-safe: processes of the earlier release keep
@@ -504,8 +505,12 @@ release starts.
 
 ## Frozen package mode (migration `0009`)
 
-Stop reporting workers before applying `0009 reporting_package_mode` with
-`python -m adcp migrate`. The migration adds nullable
+Stop every reporting worker before applying `0009 reporting_package_mode` on a
+retained ledger with `python -m adcp migrate --contract`. This applies even if
+an earlier release already widened the ledger key and migration `0007` needs
+no schema change. Plain `migrate` and `--dry-run` hold `0009` on retained
+ledgers, and worker boot through `create_schema()` cannot apply it. A fresh
+empty ledger can apply `0009` during ordinary migration. The migration adds nullable
 `reporting_obligations.package_reporting` without a default. `NULL` marks a
 retained obligation whose package mode cannot be proven and blocks new source
 acquisition or revision commits. There is no inferred backfill from

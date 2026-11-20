@@ -193,7 +193,7 @@ async def test_a_four_column_schema_is_expanded_then_contracted_losslessly() -> 
         assert unique == ["reporting_configurations_generation_key"]
         assert await needs_contract(pool)
         assert "0007" not in [item.version for item in await migrate(pool)]
-        assert [item.version for item in await migrate(pool, contract=True)] == ["0007"]
+        assert [item.version for item in await migrate(pool, contract=True)] == ["0007", "0009"]
         primary, unique = await keys(pool)
         assert primary.endswith("delivery_config_version, offering_id)")
         assert unique == [] and not await needs_contract(pool)

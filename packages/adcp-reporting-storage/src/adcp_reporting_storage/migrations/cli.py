@@ -40,8 +40,8 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument(
         "--contract",
         action="store_true",
-        help="Also apply the contract step of an expanded ledger. Run it only once every "
-        "earlier-release reporting process has stopped: they cannot write a contracted ledger.",
+        help="Apply contract and stopped-worker migrations on retained ledgers. Run it only "
+        "once every earlier-release reporting process has stopped.",
     )
     args = parser.parse_args(list(argv))
     if not args.dsn:
@@ -100,7 +100,9 @@ async def _run(dsn: str, *, status: bool, dry_run: bool, contract: bool = False)
             note = (
                 " (contract)"
                 if item.contract
-                else " (stopped-worker upgrade)" if item.stopped_worker else ""
+                else " (stopped-worker upgrade)"
+                if item.stopped_worker
+                else ""
             )
             print(f"{verb} {item.version} {item.name}{note}")
         held = [
@@ -112,6 +114,12 @@ async def _run(dsn: str, *, status: bool, dry_run: bool, contract: bool = False)
             item = held[0].migration
             print(
                 f"not applied {item.version} {item.name} (contract): run "
+                f'"{CONTRACT_COMMAND}" {CONTRACT_WHEN}'
+            )
+        elif held and held[0].migration.stopped_worker:
+            item = held[0].migration
+            print(
+                f"not applied {item.version} {item.name} (stopped-worker): run "
                 f'"{CONTRACT_COMMAND}" {CONTRACT_WHEN}'
             )
         elif not planned:
