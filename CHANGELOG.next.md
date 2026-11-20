@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.0.0-beta.21](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.20...v10.0.0-beta.21) (2026-11-20)
+
+
+### Bug Fixes
+
+* **reporting:** align source timezone days to local midnight ([b72a016](https://github.com/adcontextprotocol/adcp-client-python/commit/b72a016e5dc5d0f9dcad29ca426bce3079120778))
+* **reporting:** align source timezone days to local midnight ([353bf3d](https://github.com/adcontextprotocol/adcp-client-python/commit/353bf3de71bac280df3cdd94e265d425871c80fb))
+
 ## [10.0.0-beta.20](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.19...v10.0.0-beta.20) (2026-11-17)
 
 
