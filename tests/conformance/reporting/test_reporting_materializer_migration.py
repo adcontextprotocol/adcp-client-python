@@ -14,6 +14,7 @@ from adcp.reporting.ledger import LedgerConflictError, derive_period
 
 from ._durable_materializer_support import durable_case, durable_harness
 from ._generation_support import isolated_reporting_pool, obligation_for
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 
 SQL = files("adcp_reporting_storage.ledger").joinpath("reporting_materializer.sql").read_text()
@@ -61,6 +62,7 @@ async def test_populated_repeated_and_concurrent_install_preserves_all_old_objec
                         **REQUIRED_OBJECTS,
                         **waiver_objects,
                         **PROVISIONAL_OBJECTS,
+                        **PACKAGE_MODE_OBJECTS,
                     }
                 )
                 assert {

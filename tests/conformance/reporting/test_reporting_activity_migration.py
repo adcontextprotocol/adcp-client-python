@@ -30,6 +30,7 @@ from ._generation_support import (
     require_rolling_database,
     revision_for,
 )
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reliable_support import (
     Barrier,
@@ -68,7 +69,12 @@ async def test_required_manifest_is_identical_across_random_schemas_and_repeated
                 async with pool.connection() as conn:
                     objects = await schema_objects(conn)
                     assert len(WAIVER_OBJECTS) == 10
-                    assert objects == {**REQUIRED_OBJECTS, **WAIVER_OBJECTS, **PROVISIONAL_OBJECTS}
+                    assert objects == {
+                        **REQUIRED_OBJECTS,
+                        **WAIVER_OBJECTS,
+                        **PROVISIONAL_OBJECTS,
+                        **PACKAGE_MODE_OBJECTS,
+                    }
                     # Regenerating unchanged SQL must have byte-for-byte zero
                     # diff, including all function security/search_path flags.
                     required = {key: objects[key] for key in REQUIRED_OBJECTS}

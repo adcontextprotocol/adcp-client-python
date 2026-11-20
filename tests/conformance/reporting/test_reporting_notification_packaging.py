@@ -27,6 +27,7 @@ from ._generation_support import (
     obligation_for,
     revision_for,
 )
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS
 
@@ -572,6 +573,7 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
             ),
             "waiver_objects": WAIVER_OBJECTS,
             "provisional_objects": PROVISIONAL_OBJECTS,
+            "package_mode_objects": PACKAGE_MODE_OBJECTS,
         }
         for name, record in (
             ("config", config),
@@ -607,7 +609,8 @@ assert len(values["provisional_objects"]) == 27
 assert json.loads(files("adcp_reporting_storage.ledger").joinpath(
     "required_provisional_schema.json").read_text()) == values["provisional_objects"]
 expected_objects = {
-    **values["required_objects"], **values["waiver_objects"], **values["provisional_objects"]
+    **values["required_objects"], **values["waiver_objects"], **values["provisional_objects"],
+    **values["package_mode_objects"],
 }
 
 

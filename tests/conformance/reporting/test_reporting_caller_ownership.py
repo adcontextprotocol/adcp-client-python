@@ -352,6 +352,7 @@ async def test_maintenance_archive_backfill_preserves_evidence_and_never_replays
                     retained_snapshot.obligations[0].reporting_obligation_id
                     == obligation.reporting_obligation_id
                 )
+                assert retained_snapshot.obligations[0].package_reporting is None
                 assert (
                     retained_snapshot.revisions[0].reporting_revision_id
                     == revision.reporting_revision_id

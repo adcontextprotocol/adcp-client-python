@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import pytest
 from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
-from psycopg.errors import CheckViolation
 
 from adcp.reporting.ledger import LedgerConflictError
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_ledger import _configuration, _obligation, _revision
+
+psycopg = pytest.importorskip("psycopg")
 
 
 @pytest.mark.parametrize(
@@ -88,7 +89,7 @@ async def test_package_mode_is_immutable_in_postgres() -> None:
             _obligation(configuration, package_ids=("pkg-a",), package_reporting=True)
         )
         async with pool.connection() as connection:
-            with pytest.raises(CheckViolation) as refused:
+            with pytest.raises(psycopg.errors.CheckViolation) as refused:
                 async with connection.transaction():
                     await connection.execute(
                         "UPDATE reporting_obligations SET package_reporting=FALSE"

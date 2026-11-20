@@ -18,6 +18,7 @@ from ._generation_support import (
     obligation_for,
     revision_for,
 )
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reconciliation_support import Clock
 from .test_reporting_notification_migration import retained_physical_rows
@@ -47,6 +48,7 @@ async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
             for key, value in REQUIRED_STATUS_OBJECTS.items()
             if "reporting_issue_waiver_bindings" in key
         },
+        **PACKAGE_MODE_OBJECTS,
     }
     for package in ("materializer", "receipts"):
         expected_parent.update(
@@ -56,7 +58,7 @@ async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
                 .read_text()
             )
         )
-    assert len(expected_parent) == 772
+    assert len(expected_parent) == 775
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection, connection.transaction():
             for name in chain:
