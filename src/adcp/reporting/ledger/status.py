@@ -848,6 +848,8 @@ def _obligation_to_wire(
         "adjustment_count": 0,
         "issues": [issue.to_wire() for issue in issues],
     }
+    if obligation.schedule.period_timezone is not None:
+        payload["schedule"]["period_timezone"] = obligation.schedule.period_timezone
     if obligation.offering_id is not None:
         # 3.3 reporting-obligation.json: the subscription's resolved offering,
         # authoritative for the obligation's timing.
