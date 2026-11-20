@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.0.0-beta.22](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.21...v10.0.0-beta.22) (2026-11-20)
+
+
+### Bug Fixes
+
+* **reporting:** preserve period timezone in status schedules ([fa324dc](https://github.com/adcontextprotocol/adcp-client-python/commit/fa324dc0258209bd92fa9bb503ccb9d76716a7ab))
+* **reporting:** preserve period timezone in status schedules ([adb6abe](https://github.com/adcontextprotocol/adcp-client-python/commit/adb6abecfcd53981c84e21f909fa54856dfff261))
+
 ## [10.0.0-beta.21](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.20...v10.0.0-beta.21) (2026-11-20)
 
 
