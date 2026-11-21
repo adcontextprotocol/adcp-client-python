@@ -1766,6 +1766,29 @@ except WebhookChallengeError as exc:
     return {"errors": [exc.to_error()]}
 ```
 
+Passing `seller_agent_url` and `event_types` produces the AdCP 3.2 challenge.
+Calls written for adcp 9.6 that omit both still work on 9.x but emit a
+`DeprecationWarning`, and adcp 10.0 makes both arguments required:
+
+- `challenge_webhook_destination(...)` sends the old four-field challenge. With
+  `sender=` it is RFC 9421-signed. With only `authentication=`, it is sent with
+  legacy Bearer or HMAC-SHA256 headers instead, and a second warning says that
+  10.0 also requires an RFC 9421 `sender=`.
+- `WebhookSender.send_webhook_challenge(...)` sends the old four-field challenge
+  with the sender's own authentication. On a sender that doesn't sign with RFC
+  9421 (Bearer, HMAC-SHA256 or Standard Webhooks), that is its non-RFC 9421
+  authentication, and a second warning says 10.0 requires an RFC 9421 sender.
+- `create_webhook_challenge_payload(...)` returns the old four-field payload. It
+  only builds the payload; it doesn't send or sign anything.
+
+Passing the new arguments opts into the whole 3.2 contract, RFC 9421 signing
+included: `challenge_webhook_destination` then requires an RFC 9421 `sender=`,
+and `send_webhook_challenge` rejects a sender that doesn't sign with RFC 9421.
+Omitting only one of the two raises `TypeError`, as a missing required argument
+does.
+`send_webhook_challenge` and `create_webhook_challenge_payload` accept
+`authentication=` only together with the new arguments.
+
 If you only need to preflight a URL before deciding whether the subscription
 changed, use `validate_webhook_destination_url` directly:
 
