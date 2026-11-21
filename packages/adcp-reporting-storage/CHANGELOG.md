@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.5...adcp-reporting-storage-v0.1.0-beta.6) (2026-11-21)
+
+
+### Bug Fixes
+
+* **reporting:** keep snapshot finality source-owned ([e58a00f](https://github.com/adcontextprotocol/adcp-client-python/commit/e58a00ffbf26593bfe01bee8e012a7811b2d80d8))
+* **reporting:** keep snapshot finality source-owned ([1f85f4a](https://github.com/adcontextprotocol/adcp-client-python/commit/1f85f4a887f8f76a916ca7897d47616c010b3787))
+* **reporting:** suppress unchanged revisions and require stable close evidence ([881607b](https://github.com/adcontextprotocol/adcp-client-python/commit/881607bc43275d08b7d420482c1ea335306a66f7))
+* **reporting:** suppress unchanged revisions and require stable close evidence ([885af86](https://github.com/adcontextprotocol/adcp-client-python/commit/885af86b3881ef62cfbd1bd544dbf5c35351d549))
+
 ## [0.1.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.1.0-beta.4...adcp-reporting-storage-v0.1.0-beta.5) (2026-11-08)
 
 
