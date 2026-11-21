@@ -529,6 +529,7 @@ class ReportingObligationRecord:
     schedule: ReportingScheduleSpec
     coverage_status: Literal["full", "partial", "none", "unknown"] = "full"
     package_ids: tuple[str, ...] = ()
+    package_reporting: bool | None = False
     definition: ReportingDefinitionBinding | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     # None describes legacy evidence only. New writes must freeze a currency;
@@ -572,6 +573,14 @@ class ReportingObligationRecord:
                 )
         object.__setattr__(self, "media_buy_ids", tuple(self.media_buy_ids))
         object.__setattr__(self, "package_ids", tuple(self.package_ids))
+        if self.package_reporting is not None and type(self.package_reporting) is not bool:
+            raise ValueError("package_reporting must be a boolean or unknown")
+        if self.package_reporting is False and self.package_ids:
+            raise ValueError("a nonpackage obligation cannot freeze package IDs")
+        if self.package_reporting is True and self.package_ids != tuple(
+            sorted(set(self.package_ids))
+        ):
+            raise ValueError("package IDs must be sorted and unique")
         if _utc(self.scope_resolved_at) != _utc(self.period.end):
             raise ValueError(
                 "scope_resolved_at must equal the period end; the denominator froze there "

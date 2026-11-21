@@ -152,6 +152,7 @@ from adcp.reporting.ledger.store import (
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
     validate_managed_revision_rows,
+    validate_package_revision_rows,
     validate_revision_currency,
 )
 from adcp_reporting_storage.contract import STORAGE_CONTRACT, require_adcp_contract
@@ -1364,6 +1365,10 @@ class PgReportingLedgerStore:
                     "PERIOD_RETIRED",
                     "this period was retired; a retired obligation is never recreated",
                 )
+            if obligation.package_reporting is None:
+                raise LedgerConflictError(
+                    "PACKAGE_MODE_UNAVAILABLE", "a new obligation must freeze its package mode"
+                )
             require_frozen_currency(obligation.currency)
             try:
                 inserted = await (
@@ -1374,9 +1379,10 @@ class PgReportingLedgerStore:
                         "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                         "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                         "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                        "  schedule, definition, created_at, currency, consumer_id, offering_id)"
+                        "  schedule, definition, created_at, currency, consumer_id, offering_id,"
+                        "  package_reporting)"
                         " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s)"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s)"
                         " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
                         "ry_config_version, offering_id,"
                         "              period_start, period_end) DO NOTHING"
@@ -1410,6 +1416,7 @@ class PgReportingLedgerStore:
                             obligation.currency,
                             obligation.consumer_id,
                             obligation.offering_id or "",
+                            obligation.package_reporting,
                         ),
                     )
                 ).fetchone()
@@ -1635,6 +1642,7 @@ class PgReportingLedgerStore:
                     "PERIOD_RETIRED",
                     "this period is being retired; no revision may be added to it",
                 )
+            validate_package_revision_rows(_obligation_from_row(obligation), rows)
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)

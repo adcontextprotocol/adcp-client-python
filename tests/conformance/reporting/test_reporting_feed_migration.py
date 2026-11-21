@@ -15,6 +15,7 @@ from adcp.reporting.materializer import ReportingMaterializerLease
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._feed_support import feed_harness, feed_request, mixed_case, walk, without_feed
 from ._generation_support import isolated_reporting_pool
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._receipt_support import receipt_case, request_for
 from ._reconciliation_support import Clock
@@ -82,7 +83,7 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
             )
         assert len(parent_manifest) == 772
         assert {key: original[key] for key in parent_manifest} == parent_manifest
-        assert original == {**parent_manifest, **PROVISIONAL_OBJECTS}
+        assert original == {**parent_manifest, **PROVISIONAL_OBJECTS, **PACKAGE_MODE_OBJECTS}
         new = PgReportingFeedStore(pool=pool, notifications=notifications)
         with pytest.raises(ReportingFeedError) as error:
             await new.reporting_feed_ready()

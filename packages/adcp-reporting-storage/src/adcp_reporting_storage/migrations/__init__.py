@@ -6,7 +6,8 @@ its metadata:
 
 * ``-- adcp-migration: NNNN name`` names it;
 * ``-- adcp-upgrade: stopped-worker`` marks an upgrade that workers of earlier
-  releases cannot run beside: stop every reporting worker first;
+  releases cannot run beside: stop every reporting worker and request the
+  cutover with ``--contract`` on a retained ledger;
 * ``-- adcp-upgrade: contract`` marks the contract half of an expand/contract
   upgrade (below);
 * ``-- adcp-upgrade: additive`` marks a migration that only creates new
@@ -31,8 +32,8 @@ then adds the later ones (``0004`` onward), which only ``postgres_storage``
 and the notification stores need.
 
 **Expand/contract.** A ledger created by adcp-reporting-storage 0.1.x or
-0.2.0b0 (storage contract 1) is upgraded in two halves, so a rolling deploy
-works. ``0002`` and ``0006`` *expand* it: processes of the earlier release keep
+0.2.0b0 (storage contract 1) is upgraded in two halves. ``0002`` and ``0006``
+*expand* it: processes of the earlier release keep
 booting, reading and writing account-level generations beside this one, and a
 rollback keeps working. ``0007`` *contracts* it to exactly a new ledger's
 catalog, which reporting subscriptions need. The contract step runs only on
@@ -110,6 +111,13 @@ SELECT EXISTS (
                SELECT 1 FROM pg_attribute a
                WHERE a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
                  AND a.attname = 'offering_id'))))
+"""
+_PACKAGE_MODE_COLUMN = """
+SELECT EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'reporting_obligations'::regclass
+      AND attname = 'package_reporting' AND NOT attisdropped
+)
 """
 # PostgreSQL: a CHECK constraint was violated.
 _CHECK_VIOLATION = "23514"
@@ -278,6 +286,24 @@ async def needs_contract(connection: Any) -> bool:
     return bool(row and row[0])
 
 
+async def _needs_stopped_worker_ack(connection: Any) -> bool:
+    """A persisted ledger needs operator acknowledgement before package-mode migration."""
+    row = await (
+        await connection.execute(
+            "SELECT to_regclass(quote_ident(current_schema()) || '.reporting_obligations')"
+        )
+    ).fetchone()
+    if row is None or row[0] is None:
+        return False
+    column = await (await connection.execute(_PACKAGE_MODE_COLUMN)).fetchone()
+    if not column or not column[0]:
+        return True
+    populated = await (
+        await connection.execute("SELECT EXISTS (SELECT 1 FROM reporting_obligations)")
+    ).fetchone()
+    return bool(populated and populated[0])
+
+
 async def migration_status(connection: Any) -> list[MigrationStatus]:
     """Every shipped migration with its ``applied_at``, or ``None`` while pending.
 
@@ -303,11 +329,11 @@ async def migrate(pool: Any, *, dry_run: bool = False, contract: bool = False) -
     ``search_path`` selects the schema. Each migration commits on its own, so a
     failure leaves the earlier ones applied and the failed one pending.
 
-    The walk holds a contract step whose ledger is expanded (or is an earlier
-    release's, which this run expands) unless ``contract`` is set: pass it only
-    once every earlier-release reporting process has stopped. Past a held
-    contract step it applies only ``additive`` migrations, and stops at the
-    first one that is not.
+    The walk holds a contract step on an expanded ledger and a stopped-worker
+    migration on a retained ledger unless ``contract`` is set. Pass it only
+    once every earlier-release reporting process has stopped. A fresh empty
+    ledger can apply stopped-worker migrations without that acknowledgement.
+    Past a held contract step, the walk applies only ``additive`` migrations.
     """
     if hasattr(pool, "getconn"):  # a pool
         async with pool.connection() as connection:
@@ -318,12 +344,12 @@ async def migrate(pool: Any, *, dry_run: bool = False, contract: bool = False) -
 async def _migrate(connection: Any, *, dry_run: bool, contract: bool) -> list[Migration]:
     pending = await pending_migrations(connection)
     if dry_run:
-        if not contract and any(item.contract for item in pending):
-            async with connection.transaction():
-                expanded = await needs_contract(connection)
-            if expanded:
-                return _past_held_contract(pending)
-        return pending
+        async with connection.transaction():
+            hold_contract = not contract and await needs_contract(connection)
+            hold_stopped = not contract and await _needs_stopped_worker_ack(connection)
+        return _available_migrations(
+            pending, hold_contract=hold_contract, hold_stopped_worker=hold_stopped
+        )
     applied: list[Migration] = []
     held = False
     for migration in pending:
@@ -336,13 +362,21 @@ async def _migrate(connection: Any, *, dry_run: bool, contract: bool) -> list[Mi
                 # follows it is applied only when it is additive.
                 held = True
                 continue
+            if (
+                migration.stopped_worker
+                and not contract
+                and await _needs_stopped_worker_ack(connection)
+            ):
+                break
             if await _apply(connection, migration):
                 applied.append(migration)
     return applied
 
 
-def _past_held_contract(pending: Sequence[Migration]) -> list[Migration]:
-    """The plan when every pending contract step is held: up to the first, then additive only.
+def _available_migrations(
+    pending: Sequence[Migration], *, hold_contract: bool, hold_stopped_worker: bool
+) -> list[Migration]:
+    """The plan before any cutover that requires an operator acknowledgement.
 
     Mirrors :func:`_migrate` step for step: past the held contract step the
     walk stops at the first migration that is not additive, another contract
@@ -353,9 +387,11 @@ def _past_held_contract(pending: Sequence[Migration]) -> list[Migration]:
     for migration in pending:
         if held and not migration.additive:
             break
-        if migration.contract:
+        if migration.contract and hold_contract:
             held = True
             continue
+        if migration.stopped_worker and hold_stopped_worker:
+            break
         plan.append(migration)
     return plan
 
@@ -373,9 +409,8 @@ async def apply_pending(
     ``within`` bounds what the caller owns: migrations are applied in order
     and the walk stops at the first pending one that includes a file outside
     it (a later migration may depend on an earlier one, so none is skipped).
-    The rest stay pending for ``python -m adcp migrate``. The walk also stops
-    at a contract step that the ledger needs: a booting process never
-    contracts, since processes of the earlier release may still be running.
+    The rest stay pending for ``python -m adcp migrate``. A booting process
+    neither contracts an expanded ledger nor applies stopped-worker migrations.
     """
     await connection.execute(_LOCK)
     await connection.execute(_TABLE)
@@ -386,7 +421,7 @@ async def apply_pending(
             continue
         if within is not None and not set(migration.includes) <= within:
             break
-        if migration.contract and await needs_contract(connection):
+        if migration.stopped_worker or (migration.contract and await needs_contract(connection)):
             break
         if await _apply(connection, migration):
             result.append(migration)

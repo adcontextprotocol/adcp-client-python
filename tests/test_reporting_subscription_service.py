@@ -8,6 +8,7 @@ to status reads. Without the option it is unchanged.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any, cast
@@ -20,6 +21,7 @@ from adcp.reporting.ledger import (
     ReportingConfiguration,
     ReportingStatusCaller,
 )
+from adcp.reporting.ledger.package_roster import CompletePackageRoster
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service import (
     ReliableReportingConfigurationError,
@@ -27,6 +29,10 @@ from adcp.reporting.service import (
     ReportingAccountContext,
 )
 from adcp.reporting.service_subscriptions import ReportingSubscriptionServiceOptions
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
+)
 from adcp.reporting.subscriptions import (
     AuthorizedAccount,
     ReportingSubscriptionEngine,
@@ -84,13 +90,22 @@ class _ByBuySource:
 
     @property
     def capabilities(self):
-        return redacted_capabilities()
+        base = redacted_capabilities()
+        payload = base.model_dump(mode="json")
+        payload["offerings"] = [
+            offering.model_dump(mode="json", exclude_none=True) for offering in base.offerings
+        ]
+        for offering in payload["offerings"]:
+            offering["dimensions"].append({"name": "package", "support": "exact"})
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+        return ReportingSourceCapabilitiesV1.model_validate(payload)
 
     def fetch_slice(self, request):
         self.calls.append(request)
         return [
             {
                 "media_buy_id": item.media_buy_id,
+                "package_id": f"pkg-{item.media_buy_id}",
                 "campaign_id": "campaign-redacted-1",
                 "impressions": 10,
                 "spend": "1.25",
@@ -111,6 +126,14 @@ def _context(configuration: ReportingConfiguration) -> ReportingAccountContext:
         capability_offering=_capability_offering("gam"),
         publication_namespace="reporting-source:fixture",
     )
+
+
+def _package_context(configuration: ReportingConfiguration) -> ReportingAccountContext:
+    return replace(_context(configuration), requested_dimensions=("package",))
+
+
+async def _package_roster(configuration: ReportingConfiguration, period_end: datetime):
+    return CompletePackageRoster(tuple(f"pkg-{buy}" for buy in configuration.media_buy_ids))
 
 
 def _buy(media_buy_id: str, start: str, end: str) -> SubscriptionBuy:
@@ -159,14 +182,14 @@ class _Seller:
             **options,
         )
         self.service = ReliableReportingService.memory(
-            account_context=_context,
+            account_context=_package_context,
             caller_resolver=lambda _request, _context: ReportingStatusCaller(
                 ACCOUNT, self.caller.subject
             ),
             clock=self.clock,
             read_jitter_window=timedelta(0),
             reporting_subscriptions=self.options,
-            **(service_kwargs or {}),
+            **{"package_roster_resolver": _package_roster, **(service_kwargs or {})},
         )
         self.service.sources.register("gam", self.source)
         self._key = 0
@@ -386,7 +409,9 @@ async def test_construction_refuses_what_it_cannot_serve() -> None:
         unmapped.validate()
     with pytest.raises(TypeError, match="list_principals"):
         ReportingSubscriptionServiceOptions(
-            engine=seller.engine, list_principals=None, resolve_principal=lambda r, c: AGENCY  # type: ignore[arg-type]
+            engine=seller.engine,
+            list_principals=None,
+            resolve_principal=lambda r, c: AGENCY,  # type: ignore[arg-type]
         )
 
 

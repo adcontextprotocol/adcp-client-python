@@ -126,7 +126,7 @@ class _Offerings:
         *,
         offering_id: str = "REFERENCE_DAILY_V1",
         alignment: str = "utc",
-        dimensions: Sequence[str] = ("package",),
+        dimensions: Sequence[str] = (),
         delivery_sla: str = "PT6H",
         finality: Sequence[str] = ("snapshot",),
     ) -> dict[str, Any]:
@@ -145,7 +145,7 @@ class _Offerings:
     def hourly_pacing(
         *,
         offering_id: str = "REFERENCE_HOURLY_V1",
-        dimensions: Sequence[str] = ("package",),
+        dimensions: Sequence[str] = (),
         delivery_sla: str = "PT10M",
         finality: Sequence[str] = ("snapshot",),
     ) -> dict[str, Any]:

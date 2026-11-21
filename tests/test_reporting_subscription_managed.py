@@ -34,7 +34,7 @@ START = datetime(2026, 11, 1, 0, 0, tzinfo=timezone.utc)
 ACCOUNT = "account-redacted"
 AGENCY = "https://agency.example/agent"
 OTHER = "https://other.example/agent"
-OFFERING = {**_capability_offering("gam"), "standard_dimensions": ["package"]}
+OFFERING = {**_capability_offering("gam"), "standard_dimensions": []}
 SUBSCRIPTION = {
     "subscription_id": "analytics-hourly",
     "subscription_version": 1,
@@ -44,7 +44,6 @@ SUBSCRIPTION = {
         "feed_purpose": "analytics",
         "period_duration": "PT1H",
         "required_finality": "snapshot",
-        "dimensions": ["package"],
     },
     "reconciliation_mode": "delivery_only",
 }
@@ -193,7 +192,6 @@ async def test_capabilities_advertise_the_principal_layer_the_service_serves() -
     assert block["subscriptions"] == {
         "supported": True,
         "max_accounts": 10,
-        "dimensions": ["package"],
     }
     assert block["configuration_tasks"] == ["sync_principal", "sync_accounts"]
 

@@ -35,6 +35,7 @@ from ._generation_support import (
     require_rolling_database,
     revision_for,
 )
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reliable_support import (
     Barrier,
@@ -210,6 +211,7 @@ async def test_populated_repeated_c_manifest_preserves_every_a_b_object_and_row(
                     **REQUIRED_STATUS_OBJECTS,
                     **REQUIRED_STATUS_SELECTOR_OBJECTS,
                     **PROVISIONAL_OBJECTS,
+                    **PACKAGE_MODE_OBJECTS,
                 }
                 assert (
                     json.dumps(REQUIRED_STATUS_OBJECTS, sort_keys=True, indent=2) + "\n"

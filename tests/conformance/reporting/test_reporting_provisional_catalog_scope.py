@@ -17,6 +17,7 @@ from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 from adcp.reporting.ledger import LedgerConflictError
 
 from ._generation_support import isolated_reporting_pool
+from ._package_mode_catalog import PACKAGE_MODE_OBJECTS
 
 TABLES = ("reporting_provisional_acquisitions", "reporting_provisional_observations")
 FUNCTION = ("reporting_provisional_immutable", "")
@@ -59,6 +60,7 @@ async def test_exact_catalog_scope_preserves_full_contract_and_excludes_overload
             if "reporting_issue_waiver_bindings" in key
         },
         **PROVISIONAL_REQUIRED_OBJECTS,
+        **PACKAGE_MODE_OBJECTS,
     }
     for package in ("materializer", "receipts"):
         expected.update(
@@ -68,14 +70,14 @@ async def test_exact_catalog_scope_preserves_full_contract_and_excludes_overload
                 .read_text()
             )
         )
-    assert len(expected) == 799 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27
+    assert len(expected) == 802 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         await PgReportingReceiptStore(pool=pool).create_schema()
         async with pool.connection() as connection:
             full = CatalogProbe(connection)
             assert await schema_objects(full) == expected
             assert len(full.calls) == 6
-            assert sum(len(rows) for _, _, rows in full.calls) == 799
+            assert sum(len(rows) for _, _, rows in full.calls) == 802
             await connection.execute(
                 "CREATE TABLE reporting_unrelated_catalog_scope (value integer);"
                 " CREATE FUNCTION reporting_provisional_immutable(integer) RETURNS integer"

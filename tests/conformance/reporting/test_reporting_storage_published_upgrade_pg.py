@@ -11,18 +11,18 @@ checkout through both entry points and prove:
 
 * no retained evidence row changes beyond the added ``offering_id = ''``;
 * every record reads back and a restart rebinds the stored generations;
-* the upgrade is rolling-deploy safe (#1856): this checkout EXPANDS the
-  ledger, so processes of the published pair keep restarting, reading,
-  writing and running worker turns beside it, a rollback keeps working, and a
-  subscription generation is refused with a typed error until the contract
-  step, which leaves a catalog identical to a freshly migrated one;
+* the ledger EXPANDS through additive migration 0008 while processes of the
+  published pair keep restarting, reading, writing and running worker turns;
+  after those processes exit, the stopped-worker cutover applies 0007 and 0009
+  and leaves a catalog identical to a freshly migrated one;
 * the applied schema versions are recorded (``create_schema()`` records the
   ledger's own ``0001``–``0003``; ``migrate`` the rest, except the contract
   step, which needs ``contract=True``), re-running is a no-op, and concurrent
   boots serialize, old and new alike;
-* a ledger the published 0.2.0b1 already widened in place counts as contracted;
-* ``adcp==10.0.0b4`` with *this* storage, the pair a seller upgrades to,
-  upgrades a 0.2.0b0 ledger, where the published 0.2.0b0 fails.
+* a ledger the published 0.2.0b1 already widened in place holds 0009 until
+  the stopped-worker cutover, including during worker boot;
+* the published ``adcp==10.0.0b4`` and storage 0.2.0b0 pair reproduces its
+  offering-column failure; that SDK cannot pair with contract-3 storage.
 
 Requires ``ADCP_PG_TEST_URL`` and PyPI; skips otherwise.
 """
@@ -221,6 +221,10 @@ def assert_evidence_unchanged(before: dict[str, Any], after: dict[str, Any]) -> 
         table: [{**row, "offering_id": ""} if table in WIDENED else row for row in rows]
         for table, rows in before.items()
     }
+    if after["reporting_obligations"] and "package_reporting" in after["reporting_obligations"][0]:
+        expected["reporting_obligations"] = [
+            {**row, "package_reporting": None} for row in expected["reporting_obligations"]
+        ]
     for table, rows in _normalized(expected).items():
         assert _normalized({table: after[table]})[table] == rows, table
     for table in set(after) - set(before):
@@ -232,10 +236,14 @@ LEDGER_VERSIONS = ["0001", "0002", "0003"]
 
 
 def _shipped(*, contract: bool = True) -> list[str]:
-    """Every shipped version; ``contract=False`` leaves out the contract steps."""
+    """Every shipped version; ``contract=False`` lists the online expansion."""
     from adcp_reporting_storage.migrations import migrations
 
-    return [item.version for item in migrations() if contract or not item.contract]
+    return [
+        item.version
+        for item in migrations()
+        if contract or (not item.contract and not item.stopped_worker)
+    ]
 
 
 def _rest(*, contract: bool = True) -> list[str]:
@@ -244,6 +252,7 @@ def _rest(*, contract: bool = True) -> list[str]:
 
 #: The contract steps: applied to an expanded ledger only with ``contract=True``.
 CONTRACT_VERSIONS = ["0007"]
+STOPPED_WORKER_VERSIONS = ["0007", "0009"]
 #: Additive migrations after the contract step: applied even while it is held.
 ADDITIVE_AFTER_CONTRACT = ["0008"]
 #: The objects that exist only while a ledger is expanded (catalog lines).
@@ -339,6 +348,7 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
     from adcp_reporting_storage.migrations import migrate, needs_contract
 
+    from adcp.reporting import ReliableReportingConfigurationError
     from adcp.storage.postgres import postgres_storage
 
     storage, python = published
@@ -355,7 +365,6 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
         assert await _versions(pool) == LEDGER_VERSIONS
         after = await _image_here(pool)
         assert_evidence_unchanged(seeded["image"], after)
-        assert await _readback_here(pool) == seeded["readback"]
         upgraded = await _catalog(pool)
 
         await store.create_schema()  # re-runnable: nothing changes
@@ -369,9 +378,14 @@ async def test_create_schema_upgrades_a_published_ledger_in_place(
 
         applied = await migrate(pool)  # a pre-deploy job: never contracts
         assert [item.version for item in applied] == _rest(contract=False)
-        await postgres_storage(pool=pool).check_schema()  # the migrations-managed path agrees
-        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        with pytest.raises(ReliableReportingConfigurationError, match="pending: 0009"):
+            await postgres_storage(pool=pool).check_schema()
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
+        await postgres_storage(pool=pool).check_schema()
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
+        assert await _readback_here(pool) == seeded["readback"]
         contracted = await _full_catalog(pool)
     async with isolated_reporting_pool(autocommit=True) as fresh:
         await PgReportingLedgerStore(pool=fresh).create_schema()
@@ -391,7 +405,9 @@ async def test_migrate_upgrades_a_published_ledger_to_the_fresh_catalog(
         applied = await migrate(pool)
         assert [item.version for item in applied] == _shipped(contract=False)
         assert await migrate(pool) == []  # the contract step waits for --contract
-        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
         assert await migrate(pool, contract=True) == []
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
         assert await _readback_here(pool) == seeded["readback"]
@@ -401,10 +417,11 @@ async def test_migrate_upgrades_a_published_ledger_to_the_fresh_catalog(
         assert upgraded == await _full_catalog(fresh)
 
 
-async def test_restart_rebinds_stored_generations_and_closes_the_next_period(
+async def test_restart_rebinds_generations_and_keeps_unknown_package_mode_local(
     published: tuple[str, Path], workspace: Path
 ) -> None:
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
+    from adcp_reporting_storage.migrations import migrate
 
     from adcp.reporting.fixtures import redacted_capabilities
     from adcp.reporting.service import ReliableReportingService
@@ -415,6 +432,7 @@ async def test_restart_rebinds_stored_generations_and_closes_the_next_period(
     _, python = published
     async with isolated_reporting_pool(autocommit=True) as pool:
         seeded = await _seed(python, pool, workspace)
+        assert [item.version for item in await migrate(pool, contract=True)] == _shipped()
         service = ReliableReportingService(
             store=PgReportingLedgerStore(pool=pool, clock=lambda: RESTART_NOW),
             clock=lambda: RESTART_NOW,
@@ -424,38 +442,39 @@ async def test_restart_rebinds_stored_generations_and_closes_the_next_period(
             "gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)] * 8)
         )
         try:
-            await service.start()  # create_schema(): the in-place upgrade
+            await service.start()
             assert service.initialization_errors == {}
             turn = await service.run_worker(now=RESTART_NOW)
         finally:
             await service.close()
-        assert turn.configuration_errors == {}
+        assert not turn.configuration_errors
         assert set(turn.configurations) == SEEDED_KEYS
+        assert all(item.slices_failed for item in turn.configurations.values())
         store = PgReportingLedgerStore(pool=pool)
         for account in ACCOUNTS:
             configuration = seed._configuration(account)
-            # Periods 01:00 and 02:00 were seeded; the restart closes 03:00-04:00.
-            next_period = seed._obligation(configuration, 2).period
-            closed = await store.find_obligation(
-                account_id=account,
-                consumer_id="buyer-1",
-                delivery_config_id="gam-delivery",
-                delivery_config_version=1,
-                period_start=next_period.start,
-                period_end=next_period.end,
-            )
-            assert closed is not None, f"{account}: no obligation for the next period"
-            revisions = await store.list_revisions(
-                account_id=account, reporting_obligation_id=closed.reporting_obligation_id
-            )
-            assert [item.finality for item in revisions] == ["snapshot"]
+            for ordinal in range(2):
+                period = seed._obligation(configuration, ordinal).period
+                retained = await store.find_obligation(
+                    account_id=account,
+                    consumer_id="buyer-1",
+                    delivery_config_id="gam-delivery",
+                    delivery_config_version=1,
+                    period_start=period.start,
+                    period_end=period.end,
+                )
+                assert retained is not None
+                assert retained.package_reporting is None
+                revisions = await store.list_revisions(
+                    account_id=account, reporting_obligation_id=retained.reporting_obligation_id
+                )
+                assert [item.finality for item in revisions] == ["snapshot"]
         # The seeded evidence is untouched by the turn.
         after = await _image_here(pool)
         for table in ("reporting_revisions", "reporting_revision_rows"):
             seeded_rows = _normalized(seeded["image"])[table]
             assert set(seeded_rows) <= set(_normalized(after)[table]), table
-        # The turn may re-observe the seeded snapshot periods (new revisions)
-        # but every seeded revision still reads.
+        # Every seeded revision still reads after the worker turn.
         assert set(seeded["readback"]["revisions"]) <= set(
             (await _readback_here(pool))["revisions"]
         )
@@ -520,19 +539,21 @@ async def test_a_notifications_enabled_published_ledger_upgrades_through_every_m
         assert await _versions(pool) == _shipped(contract=False)
         assert await migrate(pool) == []
         assert _expand_only(await _catalog(pool)) == EXPANDED_LEDGER | EXPANDED_STATUS
-        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
         assert _expand_only(await _catalog(pool)) == set()
         assert_evidence_unchanged(seeded["image"], await _image_here(pool))
         assert await _readback_here(pool) == seeded["readback"]
 
 
-async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one(
+async def test_adcp_b4_cannot_pair_with_contract_3_storage(
     published: tuple[str, Path],
     b4_with_published_storage: Path,
     b4_with_this_storage: Path,
     workspace: Path,
 ) -> None:
-    """The reported failure, then the pair the fix ships: adcp 10.0.0b4 + this storage."""
+    """The installed SDK and storage must declare the same reporting contract."""
     storage, python = published
     if storage != "0.2.0b0":
         pytest.skip("the 10.0.0b4 pairing concerns the 0.2.0b0 ledger")
@@ -542,16 +563,27 @@ async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one
             _run, b4_with_published_storage, _settings(pool, "read"), cwd=workspace
         )
         assert "offering_id" in failed.get("error", ""), failed  # #1763, reproduced
-        upgraded = await asyncio.to_thread(
-            _run, b4_with_this_storage, _settings(pool, "upgrade"), cwd=workspace
+        incompatible = await asyncio.to_thread(
+            subprocess.run,
+            [
+                str(b4_with_this_storage),
+                "-I",
+                "-c",
+                "from adcp_reporting_storage.contract import require_adcp_contract;"
+                " require_adcp_contract()",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
-        assert "error" not in upgraded, upgraded["error"]
-        assert upgraded["readback"] == seeded["readback"]
-        assert_evidence_unchanged(seeded["image"], upgraded["image"])
-        assert await _versions(pool) == LEDGER_VERSIONS
+        assert incompatible.returncode != 0
+        assert "storage contract 2" in incompatible.stderr
+        assert "contract 3" in incompatible.stderr
+        assert await _versions(pool) == []
+        assert seeded["readback"]["obligations"]
 
 
-# -- rolling deploy: expand, old and new side by side, contract (#1856) ------
+# -- published workers through expansion, then stopped-worker cutover -------
 
 #: Worker-turn instants, one per pod round, so each round closes a new period.
 TURNS = [datetime(2026, 11, 1, hour, 30, tzinfo=timezone.utc) for hour in range(4, 12)]
@@ -584,44 +616,6 @@ async def _old_pod(
 def _all_ok(result: dict[str, Any]) -> None:
     failed = {step: outcome for step, outcome in result["steps"].items() if outcome != "ok"}
     assert result["steps"] and not failed, failed
-
-
-async def _new_pod(
-    pool: Any,
-    *,
-    notifications: bool,
-    ordinal: int,
-    now: datetime,
-    account: str,
-    reconciliation_account: str,
-) -> None:
-    """A pod of this checkout boots and does the same work, plus reconciliation writes."""
-    from adcp_reporting_storage import PgReportingReconciliationStore
-    from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
-
-    from tests.conformance.reporting import _published_ledger_seed as seed
-    from tests.conformance.reporting._reconciliation_support import scenario
-
-    store = PgReportingLedgerStore(pool=pool, notifications=notifications)
-    await seed.create_schema(pool, store, notifications=notifications)
-    configuration = seed._configuration(ACCOUNTS[0])
-    obligation = await store.commit_obligation(seed._obligation(configuration, ordinal))
-    await store.commit_revision(*seed._revision(obligation, f"rpr_{ACCOUNTS[0]}_{ordinal}"))
-    await store.put_configuration(seed._configuration(account))
-    turned = await seed.worker_turn(store, now)
-    assert [ACCOUNTS[0], "buyer-1", "gam-delivery", 1] in turned
-    # Destination binding, delivery, attempt, materialization and receipt: every
-    # reconciliation function an earlier release's boot re-creates.
-    recorder = PgReportingReconciliationStore(pool=pool, notifications=notifications)
-    await scenario(recorder, account_id=reconciliation_account)
-    if notifications:
-        from adcp_reporting_storage.outbox.status_pg import PgStatusNotificationStore
-
-        status = PgStatusNotificationStore(store)
-        for account_id in (ACCOUNTS[0], reconciliation_account):
-            await status.baseline(account_id=account_id)
-            await status.project_one(account_id=account_id)
-            assert await status.checkpoints(account_id=account_id)
 
 
 async def _read_here(pool: Any, *accounts: str) -> dict[str, Any]:
@@ -668,16 +662,14 @@ async def _fresh_catalog(*, notifications: bool) -> list[str]:
 
 
 @pytest.mark.parametrize("notifications", [False, True], ids=["ledger", "notifications"])
-async def test_a_rolling_deploy_runs_published_and_new_pods_side_by_side_until_contract(
+async def test_published_workers_run_during_expansion_then_stop_for_package_mode(
     published: tuple[str, Path], workspace: Path, notifications: bool
 ) -> None:
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
-    from adcp_reporting_storage.migrations import (
-        ReportingUpgradeNotContractedError,
-        migrate,
-        needs_contract,
-    )
+    from adcp_reporting_storage.migrations import migrate, needs_contract
 
+    from adcp.reporting import ReliableReportingConfigurationError
+    from adcp.reporting.ledger import ReportingStatusCaller
     from adcp.storage.postgres import postgres_storage
     from tests.conformance.reporting import _published_ledger_seed as seed
 
@@ -685,14 +677,15 @@ async def test_a_rolling_deploy_runs_published_and_new_pods_side_by_side_until_c
     async with isolated_reporting_pool(autocommit=True) as pool:
         # 1. The published pair's ledger.
         seeded = await _seed(python, pool, workspace, notifications=notifications)
-        # 2. The first new pod boots (and the pre-deploy job migrates): expanded.
+        # 2. The ledger expands while published workers can still run.
         await seed.create_schema(
             pool,
             PgReportingLedgerStore(pool=pool, notifications=notifications),
             notifications=notifications,
         )
         assert [item.version for item in await migrate(pool)] == _rest(contract=False)
-        await postgres_storage(pool=pool).check_schema()  # only the contract step pends
+        with pytest.raises(ReliableReportingConfigurationError, match="pending: 0009"):
+            await postgres_storage(pool=pool).check_schema()
         assert await needs_contract(pool)
         expanded = EXPANDED_LEDGER | (EXPANDED_STATUS if notifications else set())
         assert _expand_only(await _catalog(pool)) == expanded
@@ -708,93 +701,54 @@ async def test_a_rolling_deploy_runs_published_and_new_pods_side_by_side_until_c
         _all_ok(old)
         assert old["readback"] == seeded["readback"]
         assert [ACCOUNTS[0], "buyer-1", "gam-delivery", 1] in old["turn"]
-        # 4. A new pod reads everything, the published pod's rows too, and writes.
-        read = await _read_here(pool, *ACCOUNTS, "account-old-pod")
-        assert "account-old-pod" in read["configurations"]
-        assert set(seeded["readback"]["revisions"]) <= set(read["readback"]["revisions"])
-        await _new_pod(
-            pool,
-            notifications=notifications,
-            ordinal=3,
-            now=TURNS[1],
-            account="account-new-pod",
-            reconciliation_account="acct_new_pod",
-        )
-        # 5. A published pod restarts again (its boot re-creates its function
-        #    bodies), then new pods still write reconciliation and status records.
+        # 4. Published workers still restart, read, and write through 0008.
         again = await _old_pod(
             python,
             pool,
             workspace,
             notifications=notifications,
-            ordinal=4,
-            now=TURNS[2],
+            ordinal=3,
+            now=TURNS[1],
             account="account-old-pod-2",
         )
         _all_ok(again)
-        assert "account-new-pod" in [row[0] for row in again["turn"]]  # the new pod's generation
-        await _new_pod(
-            pool,
-            notifications=notifications,
-            ordinal=5,
-            now=TURNS[3],
-            account="account-new-pod-2",
-            reconciliation_account="acct_after_old_restart",
-        )
-        assert _expand_only(await _catalog(pool)) == expanded  # no boot moved the ledger
-        async with pool.connection() as connection:
-            recorded = await (
-                await connection.execute(
-                    "SELECT count(DISTINCT account_id) FROM reporting_reconciliation_records"
-                    " WHERE account_id IN ('acct_new_pod', 'acct_after_old_restart')"
-                )
-            ).fetchone()
-            assert recorded[0] == 2
-            if notifications:
-                events = await (
-                    await connection.execute(
-                        "SELECT count(*) FROM reporting_status_notification_events"
-                    )
-                ).fetchone()
-                assert events[0] > 0
-        # 6. A subscription generation before contract: a typed error naming the step.
+        assert _expand_only(await _catalog(pool)) == expanded
+        if notifications:
+            assert again["checkpoints"] > 0
+        before_cutover = await _image_here(pool)
+        # 5. The published processes have exited before the stopped-worker cutover.
         store = PgReportingLedgerStore(pool=pool, notifications=notifications)
-        with pytest.raises(ReportingUpgradeNotContractedError) as refused:
-            await store.put_configuration(_subscription_configuration(ACCOUNTS[0]))
-        assert refused.value.code == "REPORTING_UPGRADE_NOT_CONTRACTED"
-        assert "python -m adcp migrate --contract" in str(refused.value)
-        # 7. Every published process has stopped: contract.
-        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
         assert not await needs_contract(pool)
-        # 8. Exactly a new ledger's catalog; subscriptions now record.
+        await postgres_storage(pool=pool).check_schema()
+        # 6. Contract-3 workers read retained evidence and record subscriptions.
         assert await _full_catalog(pool) == await _fresh_catalog(notifications=notifications)
-        await seed.create_schema(pool, store, notifications=notifications)  # a new pod boots
+        read = await _read_here(pool, *ACCOUNTS, "account-old-pod", "account-old-pod-2")
+        assert "account-old-pod" in read["configurations"]
+        assert set(seeded["readback"]["revisions"]) <= set(read["readback"]["revisions"])
+        assert_evidence_unchanged(before_cutover, await _image_here(pool))
+        await seed.create_schema(pool, store, notifications=notifications)
         await store.put_configuration(_subscription_configuration(ACCOUNTS[0]))
-        await _new_pod(
-            pool,
-            notifications=notifications,
-            ordinal=6,
-            now=TURNS[4],
-            account="account-after-contract",
-            reconciliation_account="acct_after_contract",
+        assert _subscription_configuration(ACCOUNTS[0]) in await store.list_configurations(
+            caller=ReportingStatusCaller(account_id=ACCOUNTS[0], consumer_id="buyer-1")
         )
-        # 9. The published pair cannot run on the contracted ledger: its boot
+        # 7. The published pair cannot run on the contracted ledger: its boot
         #    refuses (with the caller-ownership message of #1831) and its writes fail.
-        late = await _old_pod(python, pool, workspace, notifications=notifications, ordinal=7)
+        late = await _old_pod(python, pool, workspace, notifications=notifications, ordinal=5)
         assert "caller ownership" in late["steps"]["create_schema"], late["steps"]
         assert "no unique or exclusion constraint" in late["steps"]["put_configuration"]
         assert late["steps"]["readback"] == "ok"  # reads still work
 
 
-@pytest.mark.parametrize("new_pod_first", [True, False], ids=["new-pod", "contract-directly"])
-async def test_status_tables_a_published_pod_creates_while_expanded_are_expanded_and_contracted(
-    published: tuple[str, Path], workspace: Path, new_pod_first: bool
+async def test_status_tables_created_during_expansion_survive_stopped_worker_cutover(
+    published: tuple[str, Path], workspace: Path
 ) -> None:
     """A published pod turns status notifications on only after the new release expanded.
 
     Its boot creates the status tables on its own six-column key, without
-    ``offering_id``. A later new pod with notifications, and the contract step
-    even without one, expand those tables first, so neither fails.
+    ``offering_id``. The stopped-worker cutover widens those tables.
     """
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
     from adcp_reporting_storage.migrations import migrate
@@ -810,30 +764,12 @@ async def test_status_tables_a_published_pod_creates_while_expanded_are_expanded
         old = await _old_pod(python, pool, workspace, notifications=True, ordinal=2, now=TURNS[0])
         _all_ok(old)
         assert old["checkpoints"] > 0
-        if new_pod_first:
-            await _new_pod(
-                pool,
-                notifications=True,
-                ordinal=3,
-                now=TURNS[1],
-                account="account-new-pod",
-                reconciliation_account="acct_new_pod",
-            )
-            assert _expand_only(await _catalog(pool)) == EXPANDED_LEDGER | EXPANDED_STATUS
-            again = await _old_pod(
-                python, pool, workspace, notifications=True, ordinal=4, now=TURNS[2]
-            )
-            _all_ok(again)
-        assert [item.version for item in await migrate(pool, contract=True)] == CONTRACT_VERSIONS
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
         assert await _full_catalog(pool) == await _fresh_catalog(notifications=True)
-        await _new_pod(
-            pool,
-            notifications=True,
-            ordinal=5,
-            now=TURNS[3],
-            account="account-after-contract",
-            reconciliation_account="acct_after_contract",
-        )
+        store = PgReportingLedgerStore(pool=pool, notifications=True)
+        await store.put_configuration(_subscription_configuration(ACCOUNTS[0]))
 
 
 async def test_a_rollback_before_contract_keeps_the_published_pair_working(
@@ -869,14 +805,10 @@ async def test_a_rollback_before_contract_keeps_the_published_pair_working(
             assert old["checkpoints"] > 0
         assert await _full_catalog(pool) == expanded  # the published boots changed nothing
         # Rolling forward again later still works.
-        await _new_pod(
-            pool,
-            notifications=True,
-            ordinal=4,
-            now=TURNS[2],
-            account="account-forward",
-            reconciliation_account="acct_forward",
-        )
+        assert [
+            item.version for item in await migrate(pool, contract=True)
+        ] == STOPPED_WORKER_VERSIONS
+        await store.put_configuration(_subscription_configuration(ACCOUNTS[0]))
 
 
 async def test_concurrent_new_and_published_boots_serialize_on_a_published_ledger(
@@ -973,10 +905,14 @@ def widened_in_place(workspace: Path) -> Path:
 
 
 async def test_a_ledger_the_published_0_2_0b1_widened_counts_as_contracted(
-    published: tuple[str, Path], widened_in_place: Path, workspace: Path
+    published: tuple[str, Path],
+    widened_in_place: Path,
+    workspace: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
     from adcp_reporting_storage.migrations import migrate, needs_contract
+    from adcp_reporting_storage.migrations.cli import _run as run_migration_cli
 
     from adcp.storage.postgres import postgres_storage
     from tests.conformance.reporting import _published_ledger_seed as seed
@@ -996,12 +932,33 @@ async def test_a_ledger_the_published_0_2_0b1_widened_counts_as_contracted(
         store = PgReportingLedgerStore(pool=pool, notifications=True)
         await seed.create_schema(pool, store, notifications=True)  # boots, does not re-expand
         assert await _catalog(pool) == before
-        # The contract step is recorded without --contract: it changes nothing here.
-        applied = [item.version for item in await migrate(pool)]
-        assert applied[-2:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
+        planned = [item.version for item in await migrate(pool, dry_run=True)]
+        assert planned[-2:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
+        assert "0009" not in planned
+        assert [item.version for item in await migrate(pool)] == planned
+        assert "0009" not in await _versions(pool)
+        await store.create_schema()
+        assert "0009" not in await _versions(pool)
+        async with pool.connection() as connection:
+            schema = (await (await connection.execute("SELECT current_schema()")).fetchone())[0]
+        base = os.environ["ADCP_PG_TEST_URL"]
+        dsn = f"{base}{'&' if '?' in base else '?'}options=-csearch_path%3D{schema}"
+        assert await run_migration_cli(dsn, status=False, dry_run=True) == 0
+        assert capsys.readouterr().out.strip() == (
+            "not applied 0009 reporting_package_mode (stopped-worker): run "
+            '"python -m adcp migrate --contract" once every earlier-release '
+            "reporting process has stopped"
+        )
+        assert await run_migration_cli(dsn, status=True, dry_run=False) == 0
+        assert "0009 reporting_package_mode: pending" in capsys.readouterr().out
+        # The published subprocess has exited before the operator applies 0009.
+        assert [item.version for item in await migrate(pool, contract=True)] == ["0009"]
         await postgres_storage(pool=pool).check_schema()
         after = await _catalog(pool)  # 0004 and 0005 add their own tables
         assert set(before) <= set(after) and _expand_only(after) == set()
+        migrated = await _image_here(pool)
+        assert_evidence_unchanged(upgraded["image"], migrated)
+        assert all(row["package_reporting"] is None for row in migrated["reporting_obligations"])
         await store.put_configuration(_subscription_configuration(ACCOUNTS[0]))
         assert_evidence_unchanged(seeded["image"], upgraded["image"])
 
@@ -1013,6 +970,7 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
     from adcp_reporting_storage.migrations import describe, migration_status
     from adcp_reporting_storage.migrations.cli import _run
 
+    from adcp.reporting import ReliableReportingConfigurationError
     from adcp.storage.postgres import postgres_storage
 
     storage, python = published
@@ -1042,24 +1000,26 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         assert "\napplied 0007" not in applied
         assert "applied 0008 reporting_issue_events\n" in applied
         assert "not applied 0007 reporting_contract_generation_keys (contract)" in applied
-        await postgres_storage(pool=pool).check_schema()  # starts: only the contract pends
+        with pytest.raises(ReliableReportingConfigurationError, match="pending: 0009"):
+            await postgres_storage(pool=pool).check_schema()
 
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out.strip().splitlines()
-        assert status[-3] == (
+        assert status[-4] == (
             "0007 reporting_contract_generation_keys: pending  [contract: run"
             f" {when}: python -m adcp migrate --contract]"
         )
-        assert status[-2].startswith("0008 reporting_issue_events: applied ")
-        assert status[-1] == (
-            f'up to date except the contract step: run "python -m adcp migrate --contract" {when}'
-        )
-        assert describe(await migration_status(pool))[-2] == status[-3]
+        assert status[-3].startswith("0008 reporting_issue_events: applied ")
+        assert status[-2].startswith("0009 reporting_package_mode: pending  [stopped-worker")
+        assert status[-1] == "2 pending"
+        assert describe(await migration_status(pool))[-1] == status[-2]
         _all_ok(await _old_pod(python, pool, workspace, notifications=False, ordinal=2))
 
         assert await _run(dsn, status=False, dry_run=False, contract=True) == 0
-        assert capsys.readouterr().out.strip() == (
-            "applied 0007 reporting_contract_generation_keys (contract)"
-        )
+        assert capsys.readouterr().out.strip().splitlines() == [
+            "applied 0007 reporting_contract_generation_keys (contract)",
+            "applied 0009 reporting_package_mode (stopped-worker upgrade)",
+        ]
+        await postgres_storage(pool=pool).check_schema()
         assert await _run(dsn, status=True, dry_run=False) == 0
         assert capsys.readouterr().out.strip().endswith("up to date")

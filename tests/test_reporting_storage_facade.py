@@ -125,8 +125,15 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
         "0006",
         "0007",
         "0008",
+        "0009",
     ]
-    widened, offerings, contract, events = shipped[1], shipped[5], shipped[6], shipped[7]
+    widened, offerings, contract, events, package_mode = (
+        shipped[1],
+        shipped[5],
+        shipped[6],
+        shipped[7],
+        shipped[8],
+    )
     assert widened.name == "reporting_subscription_generations"
     assert widened.includes == ("ledger/reporting_ledger_account_generations.sql",)
     assert offerings.name == "reporting_status_checkpoint_offerings"
@@ -134,7 +141,8 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     # Expand (#1856): rolling-deploy safe, so no upgrade needs stopped workers ...
     for item in (widened, offerings):
         assert "Rolling-deploy safe" in item.description
-    assert not any(item.stopped_worker for item in shipped)
+    assert not any(item.stopped_worker for item in shipped[:-1])
+    assert package_mode.name == "reporting_package_mode" and package_mode.stopped_worker
     # ... and the contract step runs only on request, once earlier releases stopped.
     assert contract.name == "reporting_contract_generation_keys" and contract.contract
     assert contract.includes == (
@@ -259,7 +267,7 @@ def test_storage_declares_the_contract_adcp_reads_with() -> None:
     import adcp_reporting_storage
     from adcp_reporting_storage.contract import STORAGE_CONTRACT, adcp_storage_contract
 
-    assert adcp_reporting_storage.STORAGE_CONTRACT == STORAGE_CONTRACT == 2
+    assert adcp_reporting_storage.STORAGE_CONTRACT == STORAGE_CONTRACT == 3
     assert adcp_storage_contract() == STORAGE_CONTRACT
     adcp_reporting_storage.require_adcp_contract()  # the workspace pair agrees
 
@@ -276,6 +284,12 @@ def test_storage_classifies_an_adcp_without_a_declared_contract_by_its_columns(
     from adcp.reporting.ledger import _record_rows
 
     monkeypatch.setitem(sys.modules, "adcp.reporting.ledger.storage_contract", None)
+    assert adcp_storage_contract() == 3
+    monkeypatch.setattr(
+        _record_rows,
+        "_OBLIGATION_COLUMNS",
+        _record_rows._OBLIGATION_COLUMNS.replace(", package_reporting", ""),
+    )
     assert adcp_storage_contract() == 2
     monkeypatch.setattr(
         _record_rows,
@@ -300,8 +314,8 @@ def test_a_postgres_store_refuses_an_adcp_of_another_contract(monkeypatch) -> No
     error = refused.value
     assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
     assert error.config_field == "adcp-reporting-storage"
-    assert "storage contract 1" in str(error) and "implements contract 2" in str(error)
-    assert "Install adcp 10.0.0b4 or later" in str(error)
-    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 3)
+    assert "storage contract 1" in str(error) and "implements contract 3" in str(error)
+    assert "Install an adcp release for storage contract 3" in str(error)
+    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 4)
     with pytest.raises(ReliableReportingConfigurationError, match="newer than"):
         PgReportingLedgerStore(pool=object())

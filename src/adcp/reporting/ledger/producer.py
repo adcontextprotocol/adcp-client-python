@@ -64,6 +64,12 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
     iso_duration_to_timedelta,
 )
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
+    _resolve_roster_until,
+)
 from adcp.reporting.ledger.provisional import (
     PendingProvisionalAcquisitionStore,
     ProvisionalAcquisition,
@@ -81,6 +87,7 @@ from adcp.reporting.ledger.store import (
     RestatementCheckpointStore,
     RetryScheduleEntry,
     RetryScheduleStore,
+    validate_package_revision_rows,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
@@ -396,6 +403,7 @@ class ReportingProducer:
         max_periods_per_turn: int = 64,
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
         revision_verifier: ReportingRevisionVerifier | None = None,
         retry_initial_delay: timedelta = timedelta(minutes=1),
         retry_max_delay: timedelta = timedelta(minutes=30),
@@ -432,6 +440,7 @@ class ReportingProducer:
             else FixedCurrencyResolver(offerings.currency)
         )
         self._revision_verifier = revision_verifier
+        self._package_roster_resolver = package_roster_resolver
         self._retry_initial_delay = retry_initial_delay
         self._retry_max_delay = retry_max_delay
         self._post_deadline_retry_interval = post_deadline_retry_interval
@@ -508,6 +517,7 @@ class ReportingProducer:
             leased = None
             with source_turn():
                 try:
+                    lease_started_at = asyncio.get_running_loop().time()
                     now = self._clock()
                     leased = await self._store.lease_period_close(
                         worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
@@ -515,7 +525,10 @@ class ReportingProducer:
                     turn = WorkerTurn(leased=leased)
                     if leased is None:
                         return turn
-                    await self._work_leased_configuration(leased, turn, now=now)
+                    roster_deadline = self._roster_deadline(started_at=lease_started_at)
+                    await self._work_leased_configuration(
+                        leased, turn, now=now, roster_deadline=roster_deadline
+                    )
                 except retryable:
                     # Store transactions have already exited/rolled back. A
                     # committed lease is released only under its original fence;
@@ -553,8 +566,17 @@ class ReportingProducer:
                     raise
             await asyncio.sleep(0.05 * (2**attempt))
 
+    def _roster_deadline(self, *, started_at: float | None = None) -> float:
+        budget = max(0.0, self._lease_seconds * 0.9)
+        return (asyncio.get_running_loop().time() if started_at is None else started_at) + budget
+
     async def _work_leased_configuration(
-        self, leased: LeasedConfiguration, turn: WorkerTurn, *, now: datetime
+        self,
+        leased: LeasedConfiguration,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+        roster_deadline: float,
     ) -> None:
         from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
 
@@ -573,7 +595,9 @@ class ReportingProducer:
             if configuration is None or configuration.quarantined:
                 return
             require_account_work(configuration.account_id)
-            await self._close_elapsed_periods(configuration, turn, now=now)
+            await self._close_elapsed_periods(
+                configuration, turn, now=now, roster_deadline=roster_deadline
+            )
             await self._acquire_pending(configuration, turn, now=now)
         except _SourceAuthorizationRevokedError:
             # Keep pending acquisitions retryable. Authorization may be
@@ -603,7 +627,9 @@ class ReportingProducer:
         with source_turn():
             try:
                 require_account_work(configuration.account_id)
-                await self._close_elapsed_periods(configuration, turn, now=boundary)
+                await self._close_elapsed_periods(
+                    configuration, turn, now=boundary, roster_deadline=self._roster_deadline()
+                )
                 await self._acquire_pending(configuration, turn, now=boundary)
             except _SourceAuthorizationRevokedError:
                 return turn
@@ -625,7 +651,9 @@ class ReportingProducer:
                 "REPORTING_GENERATION_QUARANTINED", "legacy generations cannot run"
             )
         turn = WorkerTurn()
-        return await self._close_elapsed_periods(configuration, turn, now=now or self._clock())
+        return await self._close_elapsed_periods(
+            configuration, turn, now=now or self._clock(), roster_deadline=self._roster_deadline()
+        )
 
     async def _close_elapsed_periods(
         self,
@@ -633,6 +661,7 @@ class ReportingProducer:
         turn: WorkerTurn,
         *,
         now: datetime,
+        roster_deadline: float,
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
@@ -659,6 +688,19 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
+            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            if "package" in self._offerings.requested_dimensions:
+                if self._package_roster_resolver is not None and configuration.media_buy_ids:
+                    roster = await _resolve_roster_until(
+                        self._package_roster_resolver,
+                        configuration,
+                        boundary.end,
+                        deadline=roster_deadline,
+                    )
+                else:
+                    roster = MissingHistoricalPackageRoster()
+                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                    raise TypeError("package roster resolver returned an unsupported result")
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -674,6 +716,11 @@ class ReportingProducer:
                 # the period it is being reported against.
                 scope_resolved_at=boundary.end,
                 media_buy_ids=configuration.media_buy_ids,
+                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
+                package_reporting="package" in self._offerings.requested_dimensions,
+                coverage_status=(
+                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=(
                     boundary.expected_at + configuration.automated_recovery_window
@@ -790,7 +837,10 @@ class ReportingProducer:
                         now=now,
                     )
             except (ReportingCurrencyError, LedgerConflictError) as error:
-                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                if isinstance(error, LedgerConflictError) and error.code not in {
+                    "OBSERVATION_CONFLICT",
+                    "PACKAGE_MODE_MISMATCH",
+                }:
                     raise
                 # Currency interpretation and competing observations are local
                 # slice failures. Let later periods make progress; a later turn
@@ -842,7 +892,10 @@ class ReportingProducer:
                         configuration, obligation, policy=policy, turn=turn, now=now
                     )
             except (ReportingCurrencyError, LedgerConflictError) as error:
-                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                if isinstance(error, LedgerConflictError) and error.code not in {
+                    "OBSERVATION_CONFLICT",
+                    "PACKAGE_MODE_MISMATCH",
+                }:
                     raise
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
@@ -882,13 +935,14 @@ class ReportingProducer:
                     "HISTORY_UNAVAILABLE",
                     "EMPTY_DENOMINATOR",
                     "OBSERVATION_CONFLICT",
+                    "PACKAGE_MODE_MISMATCH",
                 }:
                     raise
                 turn.slices_failed.append(identifier)
                 self._note_escalation(obligation, turn, now=now)
                 # Retain the existing corrupt-history parking check. A transient
                 # currency failure or observation conflict must not retire work.
-                finished = error.code != "OBSERVATION_CONFLICT" and (
+                finished = error.code not in {"OBSERVATION_CONFLICT", "PACKAGE_MODE_MISMATCH"} and (
                     policy is None or isinstance(error, LedgerConflictError)
                 )
             if finished:
@@ -1271,6 +1325,15 @@ class ReportingProducer:
             return None
         satisfied = current is not None and current.readable
         if satisfied and not restate:
+            return None
+        package_mode = "package" in self._offerings.requested_dimensions
+        if obligation.package_reporting is None or obligation.package_reporting != package_mode:
+            raise LedgerConflictError(
+                "PACKAGE_MODE_MISMATCH",
+                "the producer package mode differs from the frozen obligation",
+            )
+        if package_mode and obligation.coverage_status != "full":
+            turn.slices_failed.append(obligation.reporting_obligation_id)
             return None
         # Everything below needs the frozen code: the slice request carries it,
         # the manifest is checked against it, and the revision is written under
@@ -1844,6 +1907,27 @@ class ReportingProducer:
         """
         obligation = await self._stored_obligation(obligation)
         rows = subscription_rows(obligation, rows)
+        validate_package_revision_rows(obligation, rows)
+        if obligation.package_reporting:
+            requested_dimensions = tuple(
+                dimension for dimension in manifest.requested_dimensions if dimension != "package"
+            )
+            observed_grains: set[tuple[str, str, bytes]] = set()
+            for row in rows:
+                media_buy_id = row.get("media_buy_id")
+                package_id = row.get("package_id")
+                assert isinstance(media_buy_id, str) and isinstance(package_id, str)
+                grain = (
+                    media_buy_id,
+                    package_id,
+                    canonical_json_utf8_v1([row.get(name) for name in requested_dimensions]),
+                )
+                if grain in observed_grains:
+                    raise LedgerConflictError(
+                        "PACKAGE_ROW_DUPLICATE",
+                        "a source row repeats a package reporting grain",
+                    )
+                observed_grains.add(grain)
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:

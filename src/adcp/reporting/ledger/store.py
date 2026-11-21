@@ -1105,6 +1105,10 @@ class InMemoryReportingLedgerStore:
                     "REPORTING_GENERATION_QUARANTINED",
                     "establish a new owned generation after operator reconciliation",
                 )
+            if obligation.package_reporting is None:
+                raise LedgerConflictError(
+                    "PACKAGE_MODE_UNAVAILABLE", "a new obligation must freeze its package mode"
+                )
             require_frozen_currency(obligation.currency)
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
@@ -1230,6 +1234,7 @@ class InMemoryReportingLedgerStore:
                 raise LedgerConflictError(
                     "REPORTING_GENERATION_QUARANTINED", "legacy evidence is read-only"
                 )
+            validate_package_revision_rows(obligation, rows)
             validate_revision_currency(obligation, revision, rows)
             siblings = [
                 item
@@ -2421,6 +2426,39 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
             ),
         },
     }
+
+
+def validate_package_revision_rows(
+    obligation: ReportingObligationRecord, rows: Sequence[dict[str, Any]]
+) -> None:
+    """Bind package rows to the obligation's frozen flat roster."""
+    if obligation.package_reporting is None:
+        raise LedgerConflictError(
+            "PACKAGE_MODE_UNAVAILABLE", "the retained obligation has no frozen package mode"
+        )
+    if not obligation.package_reporting:
+        return
+    if obligation.coverage_status != "full":
+        raise LedgerConflictError(
+            "PACKAGE_ROSTER_UNAVAILABLE", "the frozen package roster is not complete"
+        )
+    frozen_packages = set(obligation.package_ids)
+    observed_packages: set[str] = set()
+    for row in rows:
+        media_buy_id = row.get("media_buy_id")
+        package_id = row.get("package_id")
+        if (
+            type(media_buy_id) is not str
+            or media_buy_id not in obligation.media_buy_ids
+            or type(package_id) is not str
+            or package_id not in frozen_packages
+        ):
+            raise LedgerConflictError(
+                "PACKAGE_ROW_OUTSIDE_ROSTER", "a source row is outside the frozen package roster"
+            )
+        observed_packages.add(package_id)
+    if observed_packages != frozen_packages:
+        raise LedgerConflictError("PACKAGE_ROW_MISSING", "a frozen package has no source row")
 
 
 def validate_revision_currency(

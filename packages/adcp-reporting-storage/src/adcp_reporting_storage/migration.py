@@ -771,6 +771,13 @@ async def backfill_legacy_reporting(
                         # Legacy evidence predates reporting subscriptions: it is
                         # all account-level generations.
                         selected.append(sql.SQL("''"))
+                    elif (
+                        table == "reporting_obligations"
+                        and column == "package_reporting"
+                        and column not in row
+                    ):
+                        # An archived obligation without mode evidence remains unknown.
+                        selected.append(sql.SQL("NULL"))
                     elif column in row:
                         selected.append(sql.Identifier(column))
                     else:
