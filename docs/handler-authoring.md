@@ -1498,6 +1498,53 @@ Buyer/governance-agent helpers live in `adcp.governance`:
 - `issue_governance_authorization()` and
   `verify_governance_authorization()` implement the compact-JWS profile and
   the shared deterministic conformance vectors.
+- `compute_plan_hash()` computes the `plan_hash` claim over one plan exactly
+  as supplied on `sync_plans`. `issue_governance_authorization(plan=...)`
+  calls it for you.
+
+### Hashing governance plans
+
+`plan_hash` is defined over the plan **as the buyer supplied it**. A parsed
+model is not a hash preimage, and neither is its `model_dump()`: parsing
+fills schema defaults (`budget.accounting_mode`, and `human_review_required`
+on schema versions that still default it) and normalizes values, so the
+dump hashes differently from the buyer's copy and every buyer-side or
+auditor check fails.
+
+The dispatcher therefore hands `sync_plans` and `check_governance` handlers
+the request as supplied on `context.raw_request`: a private copy taken
+after transport decoding but before skill middleware, pre-validation hooks,
+version conversion, unknown-field handling and model parsing. Persist that
+mapping and hash it:
+
+```python
+from adcp.governance import compute_plan_hash, issue_governance_authorization
+
+class MyGovernanceAgent(GovernanceHandler):
+    async def handle_sync_plans(self, request, context=None):
+        for plan in context.raw_request["plans"]:
+            # Store the plan as supplied; compute_plan_hash strips only the
+            # six bookkeeping fields the spec lists.
+            await plans.save(plan["plan_id"], plan, plan_hash=compute_plan_hash(plan))
+        ...
+
+    async def handle_check_governance(self, request, context=None):
+        plan = await plans.current(request.plan_id)  # the stored, as-supplied mapping
+        token = issue_governance_authorization(
+            plan=plan,
+            payload=context.raw_request["payload"],
+            ...,
+        )
+```
+
+`compute_plan_hash()` rejects a Pydantic model with a `TypeError` rather than
+hashing a value that cannot match. The dispatcher writes `raw_request` onto
+the context your `context_factory` returns, so the factory must build a fresh
+`ToolContext` per call; a shared instance would let one request read another
+buyer's plan. `raw_request` is `None` for other tools
+and when a handler is called directly without the dispatcher. The
+decisioning `CampaignGovernancePlatform` receives the same value on
+`ctx.raw_request`.
 
 ### Alternative A2A wire formats
 
