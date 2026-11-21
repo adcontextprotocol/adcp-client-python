@@ -41,6 +41,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from pydantic import BaseModel, TypeAdapter
 
 from adcp._deferred_adapters import deferred_adapter
+from adcp._unset import UNSET as _UNSET
 from adcp.signing.constants import WEBHOOK_ACCEPTED_ADCP_USES
 from adcp.signing.crypto import (
     ALG_ED25519,
@@ -1640,8 +1641,8 @@ class WebhookSender:
         url: str,
         account_id: str,
         subscriber_id: str,
-        seller_agent_url: str,
-        event_types: Sequence[str],
+        seller_agent_url: str = _UNSET,
+        event_types: Sequence[str] = _UNSET,
         authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
         challenge: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
@@ -1657,17 +1658,91 @@ class WebhookSender:
         Pair this low-level sender method with
         :func:`adcp.webhooks.challenge_webhook_destination` when you also
         want URL validation and response echo checking in one call.
+
+        Passing ``seller_agent_url`` and ``event_types`` sends the AdCP 3.2
+        challenge and requires an RFC 9421 sender. Omitting both is
+        deprecated: it emits a :class:`DeprecationWarning` and sends the
+        four-field adcp 9.6 challenge with this sender's own authentication.
+        On a sender that does not sign with RFC 9421 (Bearer, HMAC-SHA256 or
+        Standard Webhooks) that means its non-RFC 9421 authentication, with a
+        second :class:`DeprecationWarning`. adcp 10.0 requires both arguments
+        and an RFC 9421 sender.
         """
+
+        _check_challenge_fields_passed_together(
+            "WebhookSender.send_webhook_challenge",
+            seller_agent_url=seller_agent_url,
+            event_types=event_types,
+        )
+        if seller_agent_url is _UNSET:
+            return await self._send_v9_6_webhook_challenge(
+                url=url,
+                account_id=account_id,
+                subscriber_id=subscriber_id,
+                authentication=authentication,
+                challenge=challenge,
+                extra_headers=extra_headers,
+            )
 
         if not self.signs_with_rfc9421:
             raise ValueError("webhook challenges require RFC 9421 signing")
 
-        payload = create_webhook_challenge_payload(
+        payload = _build_webhook_challenge_payload(
             account_id=account_id,
             subscriber_id=subscriber_id,
             seller_agent_url=seller_agent_url,
             event_types=event_types,
             authentication=authentication,
+            challenge=challenge,
+        )
+        challenge_value = str(payload["challenge"])
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        return await self._send_bytes(
+            url=url,
+            body=body,
+            idempotency_key=challenge_value,
+            extra_headers=extra_headers,
+        )
+
+    async def _send_v9_6_webhook_challenge(
+        self,
+        *,
+        url: str,
+        account_id: str,
+        subscriber_id: str,
+        authentication: AdCPBaseModel | Mapping[str, Any] | None,
+        challenge: str | None,
+        extra_headers: Mapping[str, str] | None,
+    ) -> WebhookDeliveryResult:
+        """adcp 9.6 ``send_webhook_challenge`` behaviour, kept for 9.x callers.
+
+        Reached only when the caller omits ``seller_agent_url`` and
+        ``event_types``. Remove in 10.0, when those arguments become required.
+        """
+
+        if authentication is not None:
+            raise TypeError(
+                "WebhookSender.send_webhook_challenge() binds authentication only into "
+                "the AdCP 3.2 challenge; pass seller_agent_url and event_types too"
+            )
+        # Frames: warn helper -> this method -> send_webhook_challenge -> caller.
+        _warn_missing_challenge_fields("WebhookSender.send_webhook_challenge", stacklevel=4)
+        if not self.signs_with_rfc9421:
+            # Frames: warnings.warn -> this method -> send_webhook_challenge -> caller.
+            warnings.warn(
+                "WebhookSender.send_webhook_challenge() called on a sender that does "
+                "not sign with RFC 9421; sending the proof-of-control challenge with "
+                "this sender's non-RFC 9421 authentication. adcp 10.0 "
+                "requires an RFC 9421 sender: construct it with "
+                "WebhookSender.from_jwk(...) and pass the durable config's legacy "
+                "credentials as authentication=, together with seller_agent_url and "
+                "event_types.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+        payload = _legacy_webhook_challenge_payload(
+            account_id=account_id,
+            subscriber_id=subscriber_id,
             challenge=challenge,
         )
         challenge_value = str(payload["challenge"])
@@ -1883,11 +1958,18 @@ class WebhookSender:
 # bottom (after the classes are defined) to break the webhooks <-> webhook_sender
 # cycle — see the note next to the removed top-level import.
 from adcp.webhooks import (  # noqa: E402
+    _build_webhook_challenge_payload,
+    _check_challenge_fields_passed_together,
+    _legacy_webhook_challenge_payload,
+    _warn_missing_challenge_fields,
     create_mcp_webhook_payload,
     create_media_buy_delivery_webhook_payload,
-    create_webhook_challenge_payload,
     generate_webhook_idempotency_key,
     to_wire_dict,
+)
+from adcp.webhooks import (
+    # Unused here since the 3.2 split; kept importable from this module as in adcp 9.6.
+    create_webhook_challenge_payload as create_webhook_challenge_payload,
 )
 
 __all__ = [
