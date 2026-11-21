@@ -192,6 +192,32 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.2...v9.7.0) (2026-11-21)
+
+
+### Features
+
+* **governance:** compute plan_hash over the plan as supplied ([#1934](https://github.com/adcontextprotocol/adcp-client-python/issues/1934)) ([28b8170](https://github.com/adcontextprotocol/adcp-client-python/commit/28b8170da212d1f89bf4a1cdb6791204672413ad)), closes [#1852](https://github.com/adcontextprotocol/adcp-client-python/issues/1852)
+* **reporting:** resolve dynamic status account surfaces ([37a610a](https://github.com/adcontextprotocol/adcp-client-python/commit/37a610ad092eed89c432728cb0a81ba9ec8bd775))
+
+
+### Bug Fixes
+
+* **reporting:** bind generated handlers to status support ([628dc29](https://github.com/adcontextprotocol/adcp-client-python/commit/628dc29566e46e3891d0938355f2400fe6ecb1f5))
+* **reporting:** freeze status snapshots and sanitize resolver logs ([c23d376](https://github.com/adcontextprotocol/adcp-client-python/commit/c23d3761b256011eb90897a56e8f74ee42e6b6d2))
+* **reporting:** keep snapshot finality source-owned ([e58a00f](https://github.com/adcontextprotocol/adcp-client-python/commit/e58a00ffbf26593bfe01bee8e012a7811b2d80d8))
+* **reporting:** keep snapshot finality source-owned ([1f85f4a](https://github.com/adcontextprotocol/adcp-client-python/commit/1f85f4a887f8f76a916ca7897d47616c010b3787))
+* **reporting:** preserve static lifecycle and opt-in pinning ([499429c](https://github.com/adcontextprotocol/adcp-client-python/commit/499429ca002d6edba0490d6f1113e68c7ee2ee54))
+* **reporting:** refresh status lifecycle account iteration ([427fb5d](https://github.com/adcontextprotocol/adcp-client-python/commit/427fb5defc1eda4e9babd761f5d0b491884c3e33))
+* **reporting:** resolve dynamic status account readiness ([39a5a0a](https://github.com/adcontextprotocol/adcp-client-python/commit/39a5a0a7895f35bc8d85cf0b6272b4252bd767f6))
+* **reporting:** suppress unchanged revisions and require stable close evidence ([881607b](https://github.com/adcontextprotocol/adcp-client-python/commit/881607bc43275d08b7d420482c1ea335306a66f7))
+* **reporting:** suppress unchanged revisions and require stable close evidence ([885af86](https://github.com/adcontextprotocol/adcp-client-python/commit/885af86b3881ef62cfbd1bd544dbf5c35351d549))
+* **signing:** use public httpcore2 socket option type ([02e4362](https://github.com/adcontextprotocol/adcp-client-python/commit/02e436280ec28cb12aba105a57adb0c2fbbd4bf7))
+* **signing:** use public httpcore2 socket option type on main ([7389dc1](https://github.com/adcontextprotocol/adcp-client-python/commit/7389dc1b68077cd91b7e28b45de8c3cdabe3b785))
+* **webhooks:** comply with AdCP 3.2 challenge schema ([11ed387](https://github.com/adcontextprotocol/adcp-client-python/commit/11ed387bb5b958ac7a2d69e47082dd8845a0b8cf))
+* **webhooks:** comply with AdCP 3.2 challenge schema ([bedea16](https://github.com/adcontextprotocol/adcp-client-python/commit/bedea168d9c467cab5ca8fff13ea013d4df573cf))
+* **webhooks:** keep 3.2 challenge helpers backward compatible ([#1936](https://github.com/adcontextprotocol/adcp-client-python/issues/1936)) ([6a0fe06](https://github.com/adcontextprotocol/adcp-client-python/commit/6a0fe0686ede241f650480d714e2c3fe1c285901))
+
 ## [9.6.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.6.1...v9.6.2) (2026-11-09)
 
 
