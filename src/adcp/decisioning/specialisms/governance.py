@@ -120,6 +120,10 @@ class CampaignGovernancePlatform(Protocol, Generic[TMeta]):
         ``modification``, or ``delivery`` and never exposes the buyer's plan or
         original payload to the service.
 
+        Tokens bind hashes over supplied bytes: compute ``plan_hash`` over
+        the plan revision as supplied on ``sync_plans`` and the payload hash
+        over ``ctx.raw_request["payload"]``, never over ``req``'s dump.
+
         :raises adcp.decisioning.AdcpError: for buyer-fixable
             rejection (``PLAN_NOT_FOUND``, ``INVALID_REQUEST``).
             ``status: 'denied'`` on the response is the
@@ -139,6 +143,11 @@ class CampaignGovernancePlatform(Protocol, Generic[TMeta]):
         The agent tracks plan state across the campaign lifecycle
         (pending_approval → active → closed); transitions are emitted
         via ``ctx.publish_status_change(resource_type='plan', ...)``.
+
+        ``req`` is the parsed model with schema defaults filled in, so it is
+        not a ``plan_hash`` preimage. Persist each plan as supplied, from
+        ``ctx.raw_request["plans"][i]``, and hash that mapping with
+        :func:`adcp.governance.compute_plan_hash`.
         """
         ...
 

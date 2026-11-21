@@ -21,7 +21,8 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextvars import ContextVar
 from typing import Any, Literal
 
 from adcp.server._hooks import (
@@ -3263,6 +3264,28 @@ def _creative_capabilities_for_handler(handler: Any) -> Any:
     return getattr(handler, "_framework_adcp_capabilities", None)
 
 
+# Tools whose handlers receive the as-supplied request on
+# ``ToolContext.raw_request``: the spec defines hashes over these requests'
+# supplied bytes (``plan_hash`` over each ``sync_plans`` plan, and the governed
+# ``payload`` a ``check_governance`` token binds).
+_RAW_REQUEST_TOOLS = frozenset({"sync_plans", "check_governance"})
+
+# Set by the transports' skill-middleware composer
+# (``adcp.server.serve._dispatch_with_middleware``) to the request as it
+# arrived, before any middleware can rewrite the shared params dict in place.
+# ``call_tool`` prefers it over its own params when the tool name matches.
+_RAW_REQUEST_SNAPSHOT: ContextVar[tuple[str, dict[str, Any]] | None] = ContextVar(
+    "adcp_raw_request_snapshot", default=None
+)
+
+
+def _snapshot_raw_request(tool_name: str, params: Any) -> dict[str, Any] | None:
+    """Return a private deep copy of ``params`` when ``tool_name`` gets one."""
+    if tool_name not in _RAW_REQUEST_TOOLS or not isinstance(params, Mapping):
+        return None
+    return copy.deepcopy(dict(params))
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
@@ -3502,6 +3525,18 @@ def create_tool_caller(
         ctx = context if context is not None else ToolContext()
 
         raw_params = params  # Preserve original wire params for context echo.
+        # Governance hashes (plan_hash, authorized_payload_hash) are defined
+        # over the request as supplied. Hand the handler a private copy taken
+        # before skill middleware, hooks, conversion, unknown-field handling or
+        # model defaults touch it (#1852). Always assign so a reused context
+        # never carries a previous call's request.
+        transport_snapshot = _RAW_REQUEST_SNAPSHOT.get()
+        if transport_snapshot is not None and transport_snapshot[0] == method_name:
+            # Taken before skill middleware ran; copy again so the handler's
+            # copy is private even if middleware retried the call.
+            ctx.raw_request = copy.deepcopy(transport_snapshot[1])
+        else:
+            ctx.raw_request = _snapshot_raw_request(method_name, params)
 
         if frozen_reporting_feed and params.get("view") == "periods":
             from adcp.reporting.feed.errors import ReportingFeedError

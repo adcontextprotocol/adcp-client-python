@@ -43,8 +43,10 @@ from adcp.server.http_policy import HostOriginMiddleware, transport_security_set
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
+    _RAW_REQUEST_SNAPSHOT,
     SchemaMode,
     _resolve_handler_adcp_version,
+    _snapshot_raw_request,
     create_tool_caller,
     get_tools_for_handler,
 )
@@ -883,6 +885,42 @@ async def _dispatch_with_middleware(
     if not middleware:
         return await call_handler()
 
+    # Middleware receives the same params dict the handler later gets, so a
+    # middleware that edits it in place would leak into ``raw_request``.
+    # Snapshot governance requests before the chain runs (#1852).
+    raw_snapshot = _snapshot_raw_request(skill_name, params)
+    if raw_snapshot is not None:
+        snapshot_token = _RAW_REQUEST_SNAPSHOT.set((skill_name, raw_snapshot))
+        try:
+            return await _dispatch_middleware_chain(
+                middleware,
+                skill_name,
+                params,
+                context,
+                call_handler,
+                frozen_reporting_feed=frozen_reporting_feed,
+            )
+        finally:
+            _RAW_REQUEST_SNAPSHOT.reset(snapshot_token)
+    return await _dispatch_middleware_chain(
+        middleware,
+        skill_name,
+        params,
+        context,
+        call_handler,
+        frozen_reporting_feed=frozen_reporting_feed,
+    )
+
+
+async def _dispatch_middleware_chain(
+    middleware: Sequence[SkillMiddleware],
+    skill_name: str,
+    params: dict[str, Any],
+    context: ToolContext,
+    call_handler: Callable[[], Awaitable[Any]],
+    *,
+    frozen_reporting_feed: bool,
+) -> Any:
     receipt_request = None
     if skill_name == "sync_reporting_receipts":
         from adcp.exceptions import ADCPTaskError

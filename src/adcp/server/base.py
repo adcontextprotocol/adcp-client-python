@@ -7,6 +7,7 @@ Defines the ADCPHandler base class and utilities for building ADCP-compliant age
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
@@ -162,6 +163,24 @@ class ToolContext:
         ``get_adcp_capabilities`` resolves to the highest supported release.
         Handlers must answer in the latest shapes regardless of this value;
         the SDK converts the response down to this version.
+    :param raw_request: The request exactly as the buyer supplied it on the
+        wire (after transport decoding), captured before skill middleware,
+        pre-validation hooks, version conversion, unknown-field handling and
+        Pydantic parsing.
+        Populated for ``sync_plans`` and ``check_governance``; ``None``
+        for other tools and for direct handler calls that bypass the
+        dispatcher. Each call gets its own deep copy, so a handler may keep
+        or change it without affecting the dispatcher. Use it for any hash
+        the protocol defines over the supplied request: ``compute_plan_hash`` over
+        ``raw_request["plans"][i]`` and ``compute_governed_payload_hash``
+        over ``raw_request["payload"]``. The parsed request model is not a
+        hash preimage: parsing fills schema defaults (for example
+        ``budget.accounting_mode``) and normalizes values, so its
+        ``model_dump()`` hashes differently from what the buyer sent.
+        The dispatcher writes this field onto the context your
+        ``context_factory`` returns, so the factory must return a fresh
+        ``ToolContext`` for every call; a shared instance would let one
+        request read another buyer's plan. Keyword-only.
     """
 
     request_id: str | None = None
@@ -169,6 +188,11 @@ class ToolContext:
     tenant_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     resolved_adcp_version: str | None = None
+    # Keyword-only so positional construction of subclasses keeps its order;
+    # kept out of repr/eq because plans carry commercially sensitive data.
+    raw_request: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False, kw_only=True
+    )
 
 
 @dataclass

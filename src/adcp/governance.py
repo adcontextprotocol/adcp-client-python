@@ -926,6 +926,74 @@ def compute_governed_payload_hash(payload: Mapping[str, Any]) -> str:
     return b64url_encode(hashlib.sha256(rfc8785.dumps(business_payload)).digest())
 
 
+PLAN_HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
+    {
+        "version",
+        "status",
+        "syncedAt",
+        "revisionHistory",
+        "committedBudget",
+        "committedByType",
+    }
+)
+"""The closed set of top-level governance-agent bookkeeping fields removed
+from a plan before computing ``plan_hash``.
+
+The spec fixes this list; it must not be extended or shrunk. Every other
+field on the plan, including ``ext`` and fields this SDK does not model, is
+part of the preimage.
+"""
+
+
+def compute_plan_hash(plan: Mapping[str, Any]) -> str:
+    """Compute the ``plan_hash`` claim for one plan, exactly as supplied.
+
+    Implements the AdCP campaign-governance plan-binding profile::
+
+        plan_hash = base64url_no_pad(SHA-256(JCS(plan_payload)))
+
+    ``plan`` is a single element of the ``plans[]`` array as the buyer
+    supplied it on ``sync_plans`` (not the request envelope and not the
+    ``plans`` array). Only the top-level bookkeeping fields in
+    :data:`PLAN_HASH_EXCLUDED_FIELDS` are removed; everything else is
+    hashed as-is, so key order does not matter but omitted-versus-``null``,
+    array order, unknown fields, ``ext`` and Unicode form all do. Numbers are
+    serialized per RFC 8785 (ECMAScript number formatting), so ``1.0`` and
+    ``1`` hash the same.
+
+    Pass the raw mapping, never a parsed model or its ``model_dump()``.
+    Parsing applies schema defaults (``budget.accounting_mode``, and on some
+    schema versions ``human_review_required``) and drops or rewrites
+    fields, which changes the hash. Server handlers for ``sync_plans`` and
+    ``check_governance`` receive the as-supplied request on
+    :attr:`adcp.server.ToolContext.raw_request`; for ``sync_plans`` the plan
+    is ``context.raw_request["plans"][i]``.
+
+    To check a received ``plan_hash`` against this value, base64url-decode
+    both to the 32-byte digest and compare with :func:`hmac.compare_digest`;
+    the spec forbids comparing the encoded strings.
+
+    :param plan: The as-supplied plan object (any JSON-compatible mapping).
+    :returns: The unpadded base64url SHA-256 digest of the RFC 8785
+        canonical form of the plan minus the bookkeeping fields.
+    :raises TypeError: if ``plan`` is a Pydantic model or not a mapping.
+    :raises ValueError: if the plan contains a value RFC 8785 cannot
+        canonicalize: a non-JSON type, a non-finite float, or an integer
+        outside the I-JSON safe range (``rfc8785.CanonicalizationError``).
+    """
+    supplied: object = plan  # runtime callers are not bound by the annotation
+    if isinstance(supplied, BaseModel):
+        raise TypeError(
+            "compute_plan_hash needs the plan exactly as supplied on sync_plans; a parsed "
+            "model or its model_dump() carries schema defaults and is not a valid preimage. "
+            "Use the raw mapping, e.g. context.raw_request['plans'][i]."
+        )
+    if not isinstance(supplied, Mapping):
+        raise TypeError("compute_plan_hash expects a plan mapping")
+    preimage = {key: value for key, value in plan.items() if key not in PLAN_HASH_EXCLUDED_FIELDS}
+    return b64url_encode(hashlib.sha256(rfc8785.dumps(preimage)).digest())
+
+
 def compute_governance_outcome_hash(payload: Mapping[str, Any]) -> str:
     """Return the exact outcome replay identity, excluding retry metadata."""
     replay_payload = {
@@ -1008,7 +1076,8 @@ def issue_governance_authorization(
     alg: Literal["EdDSA", "ES256"],
     issuer: str,
     subject: str,
-    plan_hash: str,
+    plan_hash: str | None = None,
+    plan: Mapping[str, Any] | None = None,
     audience: str,
     caller: str,
     check_id: str,
@@ -1023,7 +1092,17 @@ def issue_governance_authorization(
     media_buy_id: str | None = None,
     extra_claims: Mapping[str, Any] | None = None,
 ) -> str:
-    """Issue a compact JWS for one exact governed downstream request."""
+    """Issue a compact JWS for one exact governed downstream request.
+
+    Supply exactly one of ``plan_hash`` (a precomputed claim value) or
+    ``plan`` (the evaluated plan exactly as supplied on ``sync_plans``,
+    hashed with :func:`compute_plan_hash`). ``payload`` must likewise be the
+    governed request as supplied, not a parsed model's dump.
+    """
+    if (plan_hash is None) == (plan is None):
+        raise TypeError("pass exactly one of plan_hash or plan")
+    if plan is not None:
+        plan_hash = compute_plan_hash(plan)
     for name, value in (
         ("key_id", key_id),
         ("issuer", issuer),
@@ -1513,6 +1592,7 @@ __all__ = [
     "NormalizedGovernanceConditions",
     "NormalizedGovernanceDenied",
     "NormalizedGovernanceVerdict",
+    "PLAN_HASH_EXCLUDED_FIELDS",
     "build_governance_commitment",
     "build_governance_execution_commitment",
     "build_governance_execution_request",
@@ -1521,6 +1601,7 @@ __all__ = [
     "build_governance_proposed_commitment",
     "compute_governed_payload_hash",
     "compute_governance_outcome_hash",
+    "compute_plan_hash",
     "enforce_governance_authorization",
     "get_governance_enforcement_tasks",
     "governance_request_check_type",

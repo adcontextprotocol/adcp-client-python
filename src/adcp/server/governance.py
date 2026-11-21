@@ -322,7 +322,13 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         request: SyncPlansRequest,
         context: TContext | None = None,
     ) -> SyncPlansResponse:
-        """Handle campaign governance plan sync."""
+        """Handle campaign governance plan sync.
+
+        ``request`` is the parsed model, with schema defaults filled in. Do
+        not hash it or its ``model_dump()``. Persist each plan as supplied,
+        from ``context.raw_request["plans"][i]``, and compute ``plan_hash``
+        with :func:`adcp.governance.compute_plan_hash` over that mapping.
+        """
         ...
 
     @abstractmethod
@@ -331,7 +337,13 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         request: CheckGovernanceRequest,
         context: TContext | None = None,
     ) -> CheckGovernanceResponse:
-        """Handle a governance check request."""
+        """Handle a governance check request.
+
+        When issuing a ``governance_context`` token, hash the plan revision
+        as it was supplied on ``sync_plans`` and the governed payload as
+        supplied here (``context.raw_request["payload"]``), not the parsed
+        ``request`` model.
+        """
         ...
 
     @abstractmethod
