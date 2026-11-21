@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -214,6 +214,236 @@ async def test_missing_historical_obligation_blocks_acquisition_after_mode_chang
     assert conflict.value.code == "PACKAGE_MODE_MISMATCH"
 
 
+@pytest.mark.parametrize("finality", ["snapshot", "official"])
+async def test_satisfied_retained_obligation_is_noop_with_unknown_package_mode(
+    finality: str,
+) -> None:
+    store = InMemoryReportingLedgerStore()
+    configuration = _configuration(required_finality=finality)
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration, package_reporting=False))
+    revision, rows = _revision(obligation, finality=finality)
+    await store.commit_revision(revision, rows=rows)
+    obligation = replace(obligation, package_reporting=None)
+    store._obligations[obligation.reporting_obligation_id] = obligation
+    producer = ReportingProducer(
+        source=_NoSource(),
+        offerings=ProducerOfferings(
+            official_offering_id="HOURLY_OFFICIAL_V1", requested_dimensions=("package",)
+        ),
+        store=store,
+    )
+
+    assert await producer.acquire_obligation(configuration, obligation) is None
+    if finality == "snapshot":
+        with pytest.raises(LedgerConflictError) as conflict:
+            await producer.acquire_obligation(configuration, obligation, restate=True)
+        assert conflict.value.code == "PACKAGE_MODE_MISMATCH"
+    assert await store.list_revisions(
+        account_id=obligation.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+    ) == (revision,)
+
+
+@pytest.mark.parametrize("satisfied", [False, True])
+async def test_worker_keeps_retained_package_mode_failure_local(satisfied: bool) -> None:
+    now = datetime(2026, 9, 1, 4, 30, tzinfo=timezone.utc)
+    store = InMemoryReportingLedgerStore()
+    configuration = _configuration(required_finality="snapshot")
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration, package_reporting=False))
+    if satisfied:
+        revision, rows = _revision(obligation, finality="snapshot")
+        await store.commit_revision(revision, rows=rows)
+    store._obligations[obligation.reporting_obligation_id] = replace(
+        obligation, package_reporting=None
+    )
+    producer = ReportingProducer(
+        source=_NoSource(),
+        offerings=ProducerOfferings(requested_dimensions=("package",)),
+        store=store,
+        clock=lambda: now,
+        max_periods_per_turn=1,
+    )
+
+    turn = await producer.run_worker()
+    assert turn.slices_failed == ([] if satisfied else [obligation.reporting_obligation_id])
+    assert turn.revisions_committed == []
+    assert len(
+        await store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+    ) == int(satisfied)
+
+
+@pytest.mark.parametrize("returns_after_cancel", [False, True])
+async def test_worker_roster_timeout_releases_lease_without_freezing_scope(
+    returns_after_cancel: bool,
+) -> None:
+    from adcp.reporting.ledger.package_roster import CompletePackageRoster
+
+    now = datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc)
+    store = InMemoryReportingLedgerStore()
+    configuration = _configuration()
+    await store.put_configuration(configuration)
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stalled_roster(config, period_end):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            if returns_after_cancel:
+                return CompletePackageRoster(("pkg-late",))
+            raise
+        finally:
+            cancelled.set()
+
+    producer = ReportingProducer(
+        source=_NoSource(),
+        offerings=ProducerOfferings(requested_dimensions=("package",)),
+        store=store,
+        clock=lambda: now,
+        lease_seconds=1.0,
+        package_roster_resolver=stalled_roster,
+    )
+    task = asyncio.create_task(producer.run_worker())
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=1.0)
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(asyncio.shield(task), timeout=3.0)
+        assert task.done()
+        await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    assert (
+        await store.find_obligation(
+            account_id=configuration.account_id,
+            consumer_id=configuration.consumer_id,
+            delivery_config_id=configuration.delivery_config_id,
+            delivery_config_version=configuration.delivery_config_version,
+            period_start=datetime(2026, 9, 1, 1, tzinfo=timezone.utc),
+            period_end=datetime(2026, 9, 1, 2, tzinfo=timezone.utc),
+        )
+        is None
+    )
+
+    async def complete_roster(config, period_end):
+        return CompletePackageRoster(("pkg-a",))
+
+    lease = await store.lease_period_close(worker_id="next-worker", now=now, lease_seconds=60)
+    assert lease is not None
+    await store.release_period_close(lease, worker_id="next-worker")
+    producer._package_roster_resolver = complete_roster
+    (obligation,) = await producer.close_elapsed_periods(configuration, now=now)
+    assert obligation.package_ids == ("pkg-a",)
+
+
+async def test_worker_roster_deadline_includes_lease_acquisition() -> None:
+    from adcp.reporting.ledger.package_roster import CompletePackageRoster
+
+    class SlowLeaseStore(InMemoryReportingLedgerStore):
+        async def lease_period_close(self, *, worker_id, now, lease_seconds):
+            await asyncio.sleep(0.4)
+            return await super().lease_period_close(
+                worker_id=worker_id, now=now, lease_seconds=lease_seconds
+            )
+
+    now = datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc)
+    store = SlowLeaseStore()
+    configuration = _configuration()
+    await store.put_configuration(configuration)
+
+    async def late_roster(config, period_end):
+        await asyncio.sleep(0.3)
+        return CompletePackageRoster(("pkg-late",))
+
+    producer = ReportingProducer(
+        source=_NoSource(),
+        offerings=ProducerOfferings(requested_dimensions=("package",)),
+        store=store,
+        clock=lambda: now,
+        lease_seconds=0.6,
+        package_roster_resolver=late_roster,
+    )
+    task = asyncio.create_task(producer.run_worker())
+    try:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(asyncio.shield(task), timeout=2.0)
+        assert task.done()
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    assert (
+        await store.find_obligation(
+            account_id=configuration.account_id,
+            consumer_id=configuration.consumer_id,
+            delivery_config_id=configuration.delivery_config_id,
+            delivery_config_version=configuration.delivery_config_version,
+            period_start=datetime(2026, 9, 1, 1, tzinfo=timezone.utc),
+            period_end=datetime(2026, 9, 1, 2, tzinfo=timezone.utc),
+        )
+        is None
+    )
+    assert (
+        await store.lease_period_close(worker_id="next-worker", now=now, lease_seconds=60)
+        is not None
+    )
+
+
+@pytest.mark.parametrize("returns_after_cancel", [False, True])
+async def test_worker_cancellation_during_roster_resolution_releases_lease(
+    returns_after_cancel: bool,
+) -> None:
+    from adcp.reporting.ledger.package_roster import CompletePackageRoster
+
+    store = InMemoryReportingLedgerStore()
+    configuration = _configuration()
+    await store.put_configuration(configuration)
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stalled_roster(config, period_end):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            if returns_after_cancel:
+                return CompletePackageRoster(("pkg-late",))
+            raise
+        finally:
+            cancelled.set()
+
+    producer = ReportingProducer(
+        source=_NoSource(),
+        offerings=ProducerOfferings(requested_dimensions=("package",)),
+        store=store,
+        clock=lambda: datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc),
+        package_roster_resolver=stalled_roster,
+    )
+    task = asyncio.create_task(producer.run_worker())
+    await asyncio.wait_for(entered.wait(), timeout=0.5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+    assert (
+        await store.lease_period_close(
+            worker_id="next-worker",
+            now=datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc),
+            lease_seconds=60,
+        )
+        is not None
+    )
+
+
 async def test_reclose_keeps_saved_roster_after_live_mapping_changes() -> None:
     from adcp.reporting.ledger.package_roster import CompletePackageRoster
 
@@ -278,6 +508,98 @@ async def test_subscription_planner_resolves_exact_period_buys() -> None:
     obligations = await store.list_generation_obligations(configuration.generation_key)
     assert obligations and all(o.package_ids == ("pkg-measured", "pkg-zero") for o in obligations)
     assert seen and all(buys == ("mb-1",) for buys, _end in seen)
+
+
+@pytest.mark.parametrize("returns_after_cancel", [False, True])
+async def test_subscription_roster_timeout_does_not_freeze_missing_history(
+    returns_after_cancel: bool,
+) -> None:
+    from adcp.reporting.ledger.package_roster import CompletePackageRoster
+
+    world = await _world_with(AGENCY, [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-02T04:00:00Z")])
+    store = InMemoryReportingLedgerStore(clock=lambda: at("2026-10-03T00:00:00Z"))
+    (owed,) = await world.engine.frozen_owed_sets(AGENCY, now=at("2026-10-03T00:00:00Z"))
+    cancelled = asyncio.Event()
+
+    async def stalled_roster(config, period_end):
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            if returns_after_cancel:
+                return CompletePackageRoster(("pkg-late",))
+            raise
+        finally:
+            cancelled.set()
+
+    planner = SubscriptionObligationPlanner(
+        store,
+        offerings=OFFERINGS,
+        currency="USD",
+        package_roster_resolver=stalled_roster,
+        package_roster_timeout=timedelta(milliseconds=100),
+    )
+    task = asyncio.create_task(planner.plan(owed))
+    try:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(asyncio.shield(task), 1.0)
+        assert task.done()
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+    (configuration,) = await store.list_configurations(
+        caller=ReportingStatusCaller("acct-1", AGENCY.subject)
+    )
+    assert await store.list_generation_obligations(configuration.generation_key) == ()
+
+    async def complete_roster(config, period_end):
+        return CompletePackageRoster(("pkg-a",))
+
+    planner._package_roster_resolver = complete_roster
+    result = await planner.plan(owed)
+    assert result.obligations_written
+
+
+@pytest.mark.parametrize("returns_after_cancel", [False, True])
+async def test_subscription_roster_cancellation_does_not_write_obligation(
+    returns_after_cancel: bool,
+) -> None:
+    from adcp.reporting.ledger.package_roster import CompletePackageRoster
+
+    world = await _world_with(AGENCY, [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-02T04:00:00Z")])
+    store = InMemoryReportingLedgerStore(clock=lambda: at("2026-10-03T00:00:00Z"))
+    (owed,) = await world.engine.frozen_owed_sets(AGENCY, now=at("2026-10-03T00:00:00Z"))
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stalled_roster(config, period_end):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            if returns_after_cancel:
+                return CompletePackageRoster(("pkg-late",))
+            raise
+        finally:
+            cancelled.set()
+
+    planner = SubscriptionObligationPlanner(
+        store,
+        offerings=OFFERINGS,
+        currency="USD",
+        package_roster_resolver=stalled_roster,
+    )
+    task = asyncio.create_task(planner.plan(owed))
+    await asyncio.wait_for(entered.wait(), timeout=0.5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+    (configuration,) = await store.list_configurations(
+        caller=ReportingStatusCaller("acct-1", AGENCY.subject)
+    )
+    assert await store.list_generation_obligations(configuration.generation_key) == ()
 
 
 def _package_capabilities() -> ReportingSourceCapabilitiesV1:

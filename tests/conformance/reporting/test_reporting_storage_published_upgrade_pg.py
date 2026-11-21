@@ -417,7 +417,7 @@ async def test_migrate_upgrades_a_published_ledger_to_the_fresh_catalog(
         assert upgraded == await _full_catalog(fresh)
 
 
-async def test_restart_rebinds_generations_and_refuses_unknown_package_mode(
+async def test_restart_rebinds_generations_and_keeps_unknown_package_mode_local(
     published: tuple[str, Path], workspace: Path
 ) -> None:
     from adcp_reporting_storage.ledger.pg import PgReportingLedgerStore
@@ -447,11 +447,9 @@ async def test_restart_rebinds_generations_and_refuses_unknown_package_mode(
             turn = await service.run_worker(now=RESTART_NOW)
         finally:
             await service.close()
-        assert {error.code for error in turn.configuration_errors.values()} == {
-            "PACKAGE_MODE_MISMATCH"
-        }
-        assert set(turn.configuration_errors) == SEEDED_KEYS
-        assert not turn.configurations
+        assert not turn.configuration_errors
+        assert set(turn.configurations) == SEEDED_KEYS
+        assert all(item.slices_failed for item in turn.configurations.values())
         store = PgReportingLedgerStore(pool=pool)
         for account in ACCOUNTS:
             configuration = seed._configuration(account)
@@ -476,8 +474,7 @@ async def test_restart_rebinds_generations_and_refuses_unknown_package_mode(
         for table in ("reporting_revisions", "reporting_revision_rows"):
             seeded_rows = _normalized(seeded["image"])[table]
             assert set(seeded_rows) <= set(_normalized(after)[table]), table
-        # The turn may re-observe the seeded snapshot periods (new revisions)
-        # but every seeded revision still reads.
+        # Every seeded revision still reads after the worker turn.
         assert set(seeded["readback"]["revisions"]) <= set(
             (await _readback_here(pool))["revisions"]
         )

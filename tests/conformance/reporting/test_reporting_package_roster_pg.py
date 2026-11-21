@@ -114,7 +114,8 @@ async def test_unmarked_retained_package_obligation_fails_closed() -> None:
             await connection.execute(
                 "ALTER TABLE reporting_obligations DROP COLUMN package_reporting CASCADE"
             )
-        await migrate(pool)
+        assert "0009" not in [item.version for item in await migrate(pool)]
+        assert "0009" in [item.version for item in await migrate(pool, contract=True)]
         retained = await store.get_obligation(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
