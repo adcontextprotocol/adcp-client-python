@@ -50,9 +50,12 @@ async def _resolve_roster_until(
     loop = asyncio.get_running_loop()
     task = asyncio.ensure_future(resolver(configuration, period_end))
     try:
-        roster = await asyncio.wait_for(
-            asyncio.shield(task), timeout=max(0.0, deadline - loop.time())
-        )
+        try:
+            roster = await asyncio.wait_for(
+                asyncio.shield(task), timeout=max(0.0, deadline - loop.time())
+            )
+        except asyncio.TimeoutError as error:
+            raise TimeoutError("package roster resolution exceeded its deadline") from error
         if loop.time() >= deadline:
             raise TimeoutError("package roster resolution exceeded its deadline")
         return roster

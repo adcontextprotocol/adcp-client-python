@@ -180,7 +180,7 @@ def test_an_unknown_upgrade_header_is_refused() -> None:
 
 def test_a_held_contract_step_lets_only_the_additive_migrations_after_it_through() -> None:
     pytest.importorskip("adcp_reporting_storage")
-    from adcp_reporting_storage.migrations import Migration, _past_held_contract
+    from adcp_reporting_storage.migrations import Migration, _available_migrations
 
     def step(version: str, *, contract: bool = False, additive: bool = False) -> Migration:
         return Migration(version, f"m{version}", False, (), "", "", contract, additive)
@@ -193,12 +193,23 @@ def test_a_held_contract_step_lets_only_the_additive_migrations_after_it_through
         step("0010", additive=True),
     ]
     # 0009 may depend on the contract, so the walk stops there; 0010 waits behind it.
-    assert [item.version for item in _past_held_contract(pending)] == ["0006", "0008"]
-    assert [item.version for item in _past_held_contract(pending[:2])] == ["0006"]
+    assert [
+        item.version
+        for item in _available_migrations(pending, hold_contract=True, hold_stopped_worker=False)
+    ] == ["0006", "0008"]
+    assert [
+        item.version
+        for item in _available_migrations(
+            pending[:2], hold_contract=True, hold_stopped_worker=False
+        )
+    ] == ["0006"]
     # A second contract step is not additive either: nothing after it is planned,
     # exactly as migrate() stops there.
     second = [*pending[:3], step("0009", contract=True), step("0010", additive=True)]
-    assert [item.version for item in _past_held_contract(second)] == ["0006", "0008"]
+    assert [
+        item.version
+        for item in _available_migrations(second, hold_contract=True, hold_stopped_worker=False)
+    ] == ["0006", "0008"]
 
 
 def test_only_the_uncontracted_check_is_the_contract_refusal() -> None:
