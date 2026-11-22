@@ -1,5 +1,16 @@
 # Changelog
 
+## [10.0.0-beta.23](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.22...v10.0.0-beta.23) (2026-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** the SDK no longer advertises or accepts AdCP 3.3-rc.0. get_supported_adcp_versions is 3.0, 3.1, 3.2, 3.3-rc.3 and 3.2-rc.7; an adcp_version pin of 3.3-rc.0 or 3.3.0-rc.0 raises ConfigurationError, and a peer that advertises only 3.3-rc.0 for the 3.3 line negotiates down to 3.2. Re-pin to 3.3-rc.3 or omit the pin. metric_id is removed from PerformanceStandard, CanonicalPerformanceStandard and RequiredPerformanceStandard, and the generated postal classes in adcp.types.domains.core.postal_area and postal_country_system are renumbered (PostalArea11-121 to PostalArea401-4021, System1/2/3/9 to System41/42/43/49, System11/12/13/19 to System51/52/53/59).
+
+### Features
+
+* **protocol:** adopt the signed AdCP 3.3.0-rc.3 bundle ([#1941](https://github.com/adcontextprotocol/adcp-client-python/issues/1941)) ([aa0d8bb](https://github.com/adcontextprotocol/adcp-client-python/commit/aa0d8bb4896bde20c81f6affc5e341873b81ebcb))
+
 ## [10.0.0-beta.22](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.21...v10.0.0-beta.22) (2026-11-22)
 
 
