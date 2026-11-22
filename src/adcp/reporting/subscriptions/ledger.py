@@ -28,9 +28,10 @@ Each generation holds an owed set, never a period grid:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -47,7 +48,17 @@ from adcp.reporting.ledger.models import (
     ReportingScheduleSpec,
     ReportingSubscriptionGeneration,
 )
-from adcp.reporting.ledger.store import ReportingLedgerStore, ReportingSubscriptionLedger
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
+    _resolve_roster_until,
+)
+from adcp.reporting.ledger.store import (
+    LedgerConflictError,
+    ReportingLedgerStore,
+    ReportingSubscriptionLedger,
+)
 from adcp.reporting.subscriptions._clock import parse_delivery_sla, utc_instant
 from adcp.reporting.subscriptions.coverage import OwedSubscriptionPeriod
 from adcp.reporting.subscriptions.resolution import SubscriptionOffering, _text, _value
@@ -174,7 +185,11 @@ class SubscriptionObligationPlanner:
         status_retention_days: int = 400,
         install: GenerationInstaller | None = None,
         commit: ObligationCommitter | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
+        package_roster_timeout: timedelta = timedelta(seconds=30),
     ) -> None:
+        if package_roster_timeout <= timedelta(0):
+            raise ValueError("package_roster_timeout must be positive")
         if not isinstance(store, ReportingSubscriptionLedger):
             raise TypeError(
                 "this ledger store cannot hold reporting-subscription owed sets; it needs "
@@ -189,6 +204,8 @@ class SubscriptionObligationPlanner:
         self._retention_days = status_retention_days
         self._install = install or self._put_configuration
         self._commit = commit or self._commit_obligation
+        self._package_roster_resolver = package_roster_resolver
+        self._package_roster_timeout = package_roster_timeout
 
     async def _put_configuration(
         self, configuration: ReportingConfiguration, version: Mapping[str, Any]
@@ -300,6 +317,38 @@ class SubscriptionObligationPlanner:
             if existing is not None:
                 continue  # immutable: never rewritten
             expected_at = end + parse_delivery_sla(offering.delivery_sla)
+            boundary = ReportingPeriodBoundary(
+                period_key=(
+                    f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}_{offering.period_duration}"
+                    + (STUB_PERIOD_KEY_SUFFIX if period.stub else "")
+                ),
+                start=start,
+                end=end,
+                source_timezone=period.source_timezone,
+                expected_at=expected_at,
+            )
+            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            if "package" in offering.dimensions:
+                if self._package_roster_resolver is not None:
+                    deadline = (
+                        asyncio.get_running_loop().time()
+                        + self._package_roster_timeout.total_seconds()
+                    )
+                    roster = await _resolve_roster_until(
+                        self._package_roster_resolver,
+                        replace(configuration, media_buy_ids=tuple(period.media_buy_ids)),
+                        boundary,
+                        deadline=deadline,
+                    )
+                else:
+                    roster = MissingHistoricalPackageRoster()
+                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                    raise TypeError("package roster resolver returned an unsupported result")
+                if isinstance(roster, MissingHistoricalPackageRoster) and not period.media_buy_ids:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE",
+                        "empty subscription buy scope requires complete package roster evidence",
+                    )
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=subscription_obligation_id(
                     account_id=owed.account_id,
@@ -317,18 +366,13 @@ class SubscriptionObligationPlanner:
                 report_definition_id=offering.report_definition_id,
                 reporting_profile=offering.reporting_profile,
                 feed_purpose=configuration.feed_purpose,
-                period=ReportingPeriodBoundary(
-                    period_key=(
-                        f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}_{offering.period_duration}"
-                        + (STUB_PERIOD_KEY_SUFFIX if period.stub else "")
-                    ),
-                    start=start,
-                    end=end,
-                    source_timezone=period.source_timezone,
-                    expected_at=expected_at,
-                ),
+                period=boundary,
                 scope_resolved_at=end,
                 media_buy_ids=tuple(period.media_buy_ids),
+                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
+                coverage_status=(
+                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=expected_at + self._window,
                 schedule=configuration.schedule,
