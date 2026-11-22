@@ -3239,6 +3239,14 @@ def fix_postal_union_arm_order() -> None:
     injected ``country`` that is incompatible with the retained fused system.
     The legacy arm forbids extra fields, so putting it first is safe: native
     payloads with ``country`` fall through to the native arm.
+
+    The arms are found by shape, not by name. datamodel-codegen numbers them
+    by traversal order across the whole schema tree, so an unrelated schema
+    that inlines ``postal-country-system.json`` shifts ``PostalArea1 |
+    PostalArea2`` to ``PostalArea40 | PostalArea41`` (adcp#9049). The arms are
+    then pinned back to ``PostalArea1`` (native) and ``PostalArea2`` (legacy):
+    ``aliases.PostalArea`` and the deprecated ``GeoPostalArea`` import them by
+    those names.
     """
     target = OUTPUT_DIR / "core" / "postal_area.py"
     if not target.exists():
@@ -3246,16 +3254,119 @@ def fix_postal_union_arm_order() -> None:
         return
 
     source = target.read_text()
-    old = "PostalArea1 | PostalArea2"
-    new = "PostalArea2 | PostalArea1"
-    replacements = source.count(old)
-    if replacements:
-        target.write_text(source.replace(old, new))
-        print(f"  core/postal_area.py: reordered {replacements} postal union annotation(s)")
-    elif new in source:
+    native_arm, legacy_arm = _postal_union_arms(ast.parse(source))
+    renames = {
+        old: new
+        for old, new in ((native_arm, _POSTAL_NATIVE_ARM), (legacy_arm, _POSTAL_LEGACY_ARM))
+        if old != new
+    }
+    if renames:
+        tree = ast.parse(source)
+        in_use = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} | {
+            node.name for node in tree.body if isinstance(node, ast.ClassDef)
+        }
+        clashes = sorted(new for new in renames.values() if new in in_use and new not in renames)
+        if clashes:
+            raise RuntimeError(
+                f"generated postal_area.py already uses {clashes!r}; cannot pin the "
+                f"postal union arms {native_arm!r} (native) and {legacy_arm!r} (legacy)"
+            )
+        source = _rename_code_names(source, renames)
+        print(
+            "  core/postal_area.py: pinned postal union arms "
+            + ", ".join(f"{old} -> {new}" for old, new in renames.items())
+        )
+    native_arm, legacy_arm = _POSTAL_NATIVE_ARM, _POSTAL_LEGACY_ARM
+    tree = ast.parse(source)
+
+    native_first = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.BinOp)
+        and isinstance(node.op, ast.BitOr)
+        and [arm.id if isinstance(arm, ast.Name) else None for arm in _flatten_union_arms(node)]
+        == [native_arm, legacy_arm]
+    ]
+    if not native_first:
+        if renames:
+            target.write_text(source)
         print("  postal area union already prefers the legacy arm")
-    else:
-        raise RuntimeError("generated postal_area.py has an unexpected outer union shape")
+        return
+
+    lines = source.splitlines(keepends=True)
+    reordered = ast.unparse(_rebuild_union([ast.Name(legacy_arm), ast.Name(native_arm)]))
+    for union in sorted(
+        native_first, key=lambda node: (node.lineno, node.col_offset), reverse=True
+    ):
+        assert union.end_lineno is not None and union.end_col_offset is not None
+        start = sum(len(line) for line in lines[: union.lineno - 1]) + union.col_offset
+        end = sum(len(line) for line in lines[: union.end_lineno - 1]) + union.end_col_offset
+        source = source[:start] + reordered + source[end:]
+        lines = source.splitlines(keepends=True)
+    target.write_text(source)
+    print(
+        f"  core/postal_area.py: reordered {len(native_first)} postal union annotation(s) "
+        f"to prefer legacy arm {legacy_arm} over native arm {native_arm}"
+    )
+
+
+#: The names the hand-written layer imports the postal union arms by.
+_POSTAL_NATIVE_ARM = "PostalArea1"
+_POSTAL_LEGACY_ARM = "PostalArea2"
+
+
+def _postal_union_arms(tree: ast.Module) -> tuple[str, str]:
+    """The ``(native, legacy)`` arm names of the outer ``PostalArea`` union."""
+    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+    outer = classes.get("PostalArea")
+    base = (
+        next((base for base in outer.bases if isinstance(base, ast.Subscript)), None)
+        if outer is not None
+        else None
+    )
+    arm_names = (
+        [arm.id if isinstance(arm, ast.Name) else None for arm in _flatten_union_arms(base.slice)]
+        if base is not None
+        else []
+    )
+    legacy = [
+        name
+        for name in arm_names
+        if name is not None and name in classes and _is_legacy_postal_arm(classes[name])
+    ]
+    if len(arm_names) != 2 or None in arm_names or len(legacy) != 1:
+        raise RuntimeError(
+            "generated postal_area.py has an unexpected outer union shape: "
+            f"arms={arm_names!r}, legacy={legacy!r}"
+        )
+    legacy_arm = legacy[0]
+    native_arm = next(name for name in arm_names if name != legacy_arm)
+    assert native_arm is not None
+    return native_arm, legacy_arm
+
+
+def _is_legacy_postal_arm(node: ast.ClassDef) -> bool:
+    """Whether ``node`` is postal-area's legacy arm.
+
+    That arm is a plain model whose ``system`` is the country-fused
+    ``legacy_postal_system`` enum and which declares no ``country``. The
+    native arm is a root union of per-country models that all carry one.
+    """
+    fields = {
+        stmt.target.id: stmt.annotation
+        for stmt in node.body
+        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+    }
+    system = fields.get("system")
+    return (
+        system is not None
+        and "country" not in fields
+        and "root" not in fields
+        and any(
+            isinstance(name, ast.Name) and name.id == "legacy_postal_system"
+            for name in ast.walk(system)
+        )
+    )
 
 
 def fix_postal_country_system_pairing() -> None:

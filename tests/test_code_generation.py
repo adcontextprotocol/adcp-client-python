@@ -935,19 +935,46 @@ def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, m
     assert "'US': ('zip', 'zip_plus_four')" in fixed
 
 
-def test_post_generate_prefers_legacy_postal_union_arm_idempotently(tmp_path, monkeypatch):
+def _postal_arm_stubs(native: str, legacy: str) -> str:
+    """Minimal stand-ins for postal-area's native root arm and legacy arm."""
+    return (
+        f"class {legacy}(AdCPBaseModel):\n"
+        "    system: Annotated[\n"
+        "        legacy_postal_system.CountryFusedPostalCodeSystem, Field(deprecated=True)\n"
+        "    ]\n"
+        "    values: list[str]\n\n\n"
+        f"class {native}(AdCPBaseModel):\n"
+        "    country: str = 'US'\n"
+        "    system: postal_system.PostalCodeSystem\n\n\n"
+    )
+
+
+_POSTAL_HEADER = (
+    "from typing import Annotated\n"
+    "from pydantic import Field, RootModel\n\n"
+    "from ..enums import legacy_postal_system, postal_system\n\n\n"
+)
+
+
+def _write_postal_area(tmp_path, monkeypatch, body: str):
     from scripts import post_generate_fixes
 
     generated_dir = tmp_path / "domains"
     target = generated_dir / "core" / "postal_area.py"
     target.parent.mkdir(parents=True)
-    target.write_text(
-        "from typing import Annotated\n"
-        "from pydantic import RootModel\n\n"
-        "class PostalArea(RootModel[PostalArea1 | PostalArea2]):\n"
-        "    root: Annotated[PostalArea1 | PostalArea2, object()]\n"
-    )
+    target.write_text(_POSTAL_HEADER + body)
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+    return post_generate_fixes, target
+
+
+def test_post_generate_prefers_legacy_postal_union_arm_idempotently(tmp_path, monkeypatch):
+    post_generate_fixes, target = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        _postal_arm_stubs("PostalArea1", "PostalArea2")
+        + "class PostalArea(RootModel[PostalArea1 | PostalArea2]):\n"
+        "    root: Annotated[PostalArea1 | PostalArea2, object()]\n",
+    )
 
     post_generate_fixes.fix_postal_union_arm_order()
     post_generate_fixes.fix_postal_union_arm_order()
@@ -955,6 +982,144 @@ def test_post_generate_prefers_legacy_postal_union_arm_idempotently(tmp_path, mo
     fixed = target.read_text()
     assert "PostalArea1 | PostalArea2" not in fixed
     assert fixed.count("PostalArea2 | PostalArea1") == 2
+
+
+def _renumbered_postal_body(native: str, legacy: str, union: str) -> str:
+    """A postal_area.py body with decoys that share a prefix with the 40/41 arms."""
+    return (
+        _postal_arm_stubs(native, legacy) + "class PostalArea410(AdCPBaseModel):\n"
+        "    country: str = 'GB'\n\n\n"
+        "class PostalArea4012(AdCPBaseModel):\n"
+        "    country: str = 'CA'\n\n\n"
+        "class PostalArea4013(AdCPBaseModel):\n"
+        "    country: str = 'DE'\n\n\n"
+        "class PostalAreaNative(RootModel[PostalArea4012 | PostalArea4013]):\n"
+        "    root: PostalArea4012 | PostalArea4013\n\n\n"
+        "class Decoy(AdCPBaseModel):\n"
+        f"    a: {native} | PostalArea410\n"
+        f"    b: PostalArea410 | {legacy}\n"
+        "    note: str = 'PostalArea40 stays in strings'  # PostalArea40 stays in comments\n"
+        "    described: str = Field(description='see PostalArea40 and PostalArea41')\n\n\n"
+        f"class PostalArea(RootModel[{union}]):\n"
+        f"    root: Annotated[{union}, Field(title='Postal Area')]\n"
+    )
+
+
+def test_post_generate_postal_union_arm_order_survives_renumbering(tmp_path, monkeypatch):
+    """adcp#9049 shifted the arms to PostalArea40/41; they are pinned back to 1/2."""
+    post_generate_fixes, target = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        _renumbered_postal_body("PostalArea40", "PostalArea41", "PostalArea40 | PostalArea41"),
+    )
+
+    post_generate_fixes.fix_postal_union_arm_order()
+
+    fixed = target.read_text()
+    # Same template with the pinned names: only identifiers move, never decoys or text.
+    assert fixed == _POSTAL_HEADER + _renumbered_postal_body(
+        "PostalArea1", "PostalArea2", "PostalArea2 | PostalArea1"
+    )
+    assert fixed.count("PostalArea2 | PostalArea1") == 2
+    assert "PostalArea410" in fixed and "PostalArea4012 | PostalArea4013" in fixed
+
+    post_generate_fixes.fix_postal_union_arm_order()
+    assert target.read_text() == fixed
+
+
+def test_post_generate_postal_legacy_arm_chosen_by_shape_not_number(tmp_path, monkeypatch):
+    post_generate_fixes, target = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        _postal_arm_stubs("PostalArea7", "PostalArea3")
+        + "class PostalArea(RootModel[PostalArea7 | PostalArea3]):\n"
+        "    root: Annotated[PostalArea7 | PostalArea3, object()]\n",
+    )
+
+    post_generate_fixes.fix_postal_union_arm_order()
+
+    assert target.read_text() == _POSTAL_HEADER + (
+        _postal_arm_stubs("PostalArea1", "PostalArea2")
+        + "class PostalArea(RootModel[PostalArea2 | PostalArea1]):\n"
+        "    root: Annotated[PostalArea2 | PostalArea1, object()]\n"
+    )
+
+
+def test_post_generate_postal_union_arm_order_pins_swapped_numbering(tmp_path, monkeypatch):
+    """Native numbered 2 and legacy numbered 1 are swapped in one simultaneous rename."""
+    post_generate_fixes, target = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        _postal_arm_stubs("PostalArea2", "PostalArea1")
+        + "class PostalArea(RootModel[PostalArea2 | PostalArea1]):\n"
+        "    root: Annotated[PostalArea2 | PostalArea1, object()]\n",
+    )
+
+    post_generate_fixes.fix_postal_union_arm_order()
+
+    fixed = target.read_text()
+    classes = {node.name: node for node in ast.parse(fixed).body if isinstance(node, ast.ClassDef)}
+    assert post_generate_fixes._is_legacy_postal_arm(classes["PostalArea2"])
+    assert not post_generate_fixes._is_legacy_postal_arm(classes["PostalArea1"])
+    assert fixed == _POSTAL_HEADER + (
+        _postal_arm_stubs("PostalArea1", "PostalArea2")
+        + "class PostalArea(RootModel[PostalArea2 | PostalArea1]):\n"
+        "    root: Annotated[PostalArea2 | PostalArea1, object()]\n"
+    )
+
+    post_generate_fixes.fix_postal_union_arm_order()
+    assert target.read_text() == fixed
+
+
+def test_post_generate_postal_union_arm_order_rejects_pin_clash(tmp_path, monkeypatch):
+    post_generate_fixes, target = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        _postal_arm_stubs("PostalArea40", "PostalArea41") + "class PostalArea1(AdCPBaseModel):\n"
+        "    unrelated: str\n\n\n"
+        "class PostalArea(RootModel[PostalArea40 | PostalArea41]):\n"
+        "    root: Annotated[PostalArea40 | PostalArea41, object()]\n",
+    )
+    before = target.read_text()
+
+    with pytest.raises(RuntimeError, match="cannot pin"):
+        post_generate_fixes.fix_postal_union_arm_order()
+    assert target.read_text() == before
+
+
+@pytest.mark.parametrize(
+    "arm_a, arm_b, union",
+    [
+        pytest.param(
+            "class PostalArea1(AdCPBaseModel):\n"
+            "    country: str = 'US'\n"
+            "    system: legacy_postal_system\n",
+            "class PostalArea2(AdCPBaseModel):\n"
+            "    country: str = 'GB'\n"
+            "    system: postal_system\n",
+            "PostalArea1 | PostalArea2",
+            id="neither-arm-is-legacy-shaped",
+        ),
+        pytest.param(
+            "class PostalArea1(AdCPBaseModel):\n    system: legacy_postal_system\n",
+            "class PostalArea2(AdCPBaseModel):\n    system: legacy_postal_system\n"
+            "class PostalArea3(AdCPBaseModel):\n    country: str = 'GB'\n",
+            "PostalArea1 | PostalArea2 | PostalArea3",
+            id="three-arm-union",
+        ),
+    ],
+)
+def test_post_generate_postal_union_arm_order_rejects_unexpected_shape(
+    tmp_path, monkeypatch, arm_a, arm_b, union
+):
+    post_generate_fixes, _ = _write_postal_area(
+        tmp_path,
+        monkeypatch,
+        f"{arm_a}\n\n{arm_b}\n\nclass PostalArea(RootModel[{union}]):\n    root: {union}\n",
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected outer union shape"):
+        post_generate_fixes.fix_postal_union_arm_order()
 
 
 def test_unwrap_rootmodel_unions_keeps_field_metadata_and_discriminator(tmp_path, monkeypatch):
