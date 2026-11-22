@@ -165,7 +165,7 @@ async def test_every_bound_column_swap_fails_before_any_external_effect(
     notification_harness, column
 ):
     h = notification_harness
-    obligation, _, _ = await seed(h)
+    obligation, first, _ = await seed(h)
     await h.worker().expand_one(account_id="acct_a")
     (row,) = await h.outbox.list_deliveries(account_id="acct_a")
     original = row.delivery
@@ -173,6 +173,7 @@ async def test_every_bound_column_swap_fails_before_any_external_effect(
     value = current + 1 if isinstance(current, int) else "swapped-value"
     if column == "notification_id":
         revision, rows = revision_for(obligation, suffix="another")
+        revision = replace(revision, supersedes_reporting_revision_id=first.reporting_revision_id)
         await h.reliable.store.commit_revision(revision, rows)
         value = next(
             event.notification_id

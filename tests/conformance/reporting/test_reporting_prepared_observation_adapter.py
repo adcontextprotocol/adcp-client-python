@@ -6,10 +6,102 @@ from datetime import timedelta
 
 import pytest
 
-from adcp.reporting.ledger import LedgerConflictError
+from adcp.reporting.ledger import LedgerConflictError, ReportingStabilizedPolicy
+from adcp.reporting.ledger.provisional import ProvisionalObservation, ProvisionalObservationStore
 
-from ._reliable_support import ScriptedSource, complete_fetch, configuration, reliable_factory
+from ._reliable_support import (
+    ScriptedSource,
+    _PreparedRevisionStore,
+    complete_fetch,
+    configuration,
+    reliable_factory,
+)
 from .test_reporting_evidence_currency_integration import frozen_slice
+
+
+class _PublisherWithProtocolStub(_PreparedRevisionStore, ProvisionalObservationStore):
+    pass
+
+
+class _PublisherWithNoncallableHistory(_PreparedRevisionStore):
+    list_provisional_observations = True
+
+
+class _PublisherWithHistory(_PreparedRevisionStore):
+    async def list_provisional_observations(
+        self, *, account_id: str, reporting_obligation_id: str, limit: int
+    ) -> tuple[ProvisionalObservation, ...]:
+        return await self.harness.store.list_provisional_observations(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id, limit=limit
+        )
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+@pytest.mark.parametrize(
+    "publisher",
+    [_PreparedRevisionStore, _PublisherWithProtocolStub, _PublisherWithNoncallableHistory],
+)
+async def test_stabilized_admission_requires_publisher_to_expose_history(
+    backend, publisher, monkeypatch
+) -> None:
+    async with reliable_factory(backend) as h:
+        config = configuration("eur", finality="official")
+        assert config.definition is not None
+        config = replace(
+            config,
+            definition=replace(
+                config.definition,
+                finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"),
+            ),
+        )
+        await h.store.put_configuration(config)
+        script = ScriptedSource(eur=[])
+        producer = h.producer(h.source(script.async_fetch))
+        monkeypatch.setattr(producer, "_store", publisher(h))
+        with pytest.raises(LedgerConflictError) as error:
+            await producer.close_elapsed_periods(config)
+
+        assert error.value.code == "PROVISIONAL_OBSERVATION_HISTORY_NOT_SUPPORTED"
+        assert script.requests == []
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_snapshot_publication_accepts_publisher_inheriting_history_stub(
+    backend, monkeypatch
+) -> None:
+    async with reliable_factory(backend) as h:
+        await h.store.put_configuration(configuration("eur"))
+        script = ScriptedSource(eur=[complete_fetch])
+        producer = h.producer(h.source(script.async_fetch))
+        monkeypatch.setattr(producer, "_store", _PublisherWithProtocolStub(h))
+
+        (revision_id,) = (await producer.run_worker()).revisions_committed
+
+        revision = await h.store.get_revision(account_id="eur", reporting_revision_id=revision_id)
+        assert revision is not None and revision.finality == "snapshot"
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+@pytest.mark.parametrize("explicit_wrapper", [False, True])
+async def test_observation_history_accepts_concrete_store_and_explicit_wrapper(
+    backend, explicit_wrapper, monkeypatch
+) -> None:
+    async with reliable_factory(backend) as h:
+        await h.store.put_configuration(configuration("eur"))
+        script = ScriptedSource(eur=[complete_fetch])
+        producer = h.producer(h.source(script.async_fetch), managed=explicit_wrapper)
+        if explicit_wrapper:
+            monkeypatch.setattr(producer, "_store", _PublisherWithHistory(h))
+
+        (revision_id,) = (await producer.run_worker()).revisions_committed
+        (request,) = script.requests
+        (observation,) = await producer._observation_history_store().list_provisional_observations(
+            account_id="eur",
+            reporting_obligation_id=request.identity.reporting_obligation_id,
+            limit=1,
+        )
+
+        assert observation.revision_id == revision_id
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])

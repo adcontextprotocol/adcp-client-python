@@ -5,21 +5,223 @@ import json
 import sqlite3
 from dataclasses import replace
 from datetime import timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
+from adcp.reporting.ledger import (
+    ProducerOfferings,
+    ReportingContractualCutoffPolicy,
+    ReportingProducer,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
+)
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer.contracts import ReportingWriterError, binding_fingerprint
 from adcp.reporting.materializer.work import ReportingMaterializerLease
 from adcp.reporting.production.configuration import ReportingConfigurationAdmission
+from adcp.reporting.production.offerings import ReportingProductionOffering
+from adcp.reporting.service import ReportingAdapterRegistry
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
+)
 from adcp.validation.schema_loader import get_named_validator
 
 from ._feed_support import feed_request, walk
 from ._generation_support import END
-from ._production_support import production_harness
+from ._production_support import Source, production_harness
 from ._production_transport import MountedProduction
 from ._receipt_transport import error_code
 from .test_reporting_production_bindings import source_documents
+from .test_reporting_production_settling import SettlingSource
+
+SOURCE_FINAL = ReportingSourceFinalPolicy("source-v1", "delivery.is_final")
+CUTOFF = ReportingContractualCutoffPolicy("cutoff-v1", "P2D")
+STABILIZED = ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+
+
+@pytest.mark.parametrize(
+    ("policy", "source_class", "finalities", "close", "official_route", "history", "accepted"),
+    [
+        (SOURCE_FINAL, "official", ["official"], False, True, True, True),
+        (CUTOFF, "snapshot", ["official"], False, False, True, True),
+        (CUTOFF, "snapshot", ["snapshot", "official"], False, False, True, True),
+        (STABILIZED, "snapshot", ["official"], False, False, True, True),
+        (
+            ReportingStabilizedPolicy("too-long", "PT0S", "P10000D"),
+            "snapshot",
+            ["official"],
+            False,
+            False,
+            True,
+            False,
+        ),
+        (STABILIZED, "snapshot", ["official"], False, False, False, False),
+        (STABILIZED, "snapshot", ["official"], False, False, "unlocked", False),
+        (CUTOFF, "snapshot", ["official"], False, False, "unlocked", False),
+        (SOURCE_FINAL, "official", ["official"], False, True, "unlocked", False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, True, "unlocked", False),
+        (CUTOFF, "snapshot", ["snapshot"], False, False, "unlocked", True),
+        (STABILIZED, "snapshot", ["official"], False, False, "verify_snapshot_origin", False),
+        (STABILIZED, "snapshot", ["official"], False, False, "get_provisional_acquisition", False),
+        (STABILIZED, "snapshot", ["official"], False, False, "get_stabilization_schedule", False),
+        (CUTOFF, "snapshot", ["official"], False, False, "verify_snapshot_origin", True),
+        (SOURCE_FINAL, "official", ["official"], False, True, "get_stabilization_schedule", True),
+        (STABILIZED, "snapshot", ["snapshot"], False, False, "get_stabilization_schedule", True),
+        (None, "official", ["official"], False, True, True, False),
+        (SOURCE_FINAL, "snapshot", ["official"], False, False, True, False),
+        (CUTOFF, "official", ["official"], False, True, True, False),
+        (None, "snapshot", ["snapshot"], True, True, True, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, False, True, False),
+        (SOURCE_FINAL, "snapshot", ["snapshot"], True, True, True, True),
+        (CUTOFF, "snapshot", ["snapshot"], True, False, True, True),
+    ],
+)
+async def test_production_offering_validates_selected_finality_policy(
+    policy, source_class, finalities, close, official_route, history, accepted, tmp_path
+):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        definition = replace(installed.verification_key.definition, finality_policy=policy)
+        key = replace(installed.verification_key, definition=definition)
+        if close:
+            source = SettlingSource(key, tmp_path / "selected")
+            official_id = source.official_source_id
+        else:
+            source = Source(key, tmp_path / "selected", official=source_class == "official")
+            official_id = source.source_id
+        config = replace(h.item.config, definition=definition, required_finality=finalities[-1])
+        source.bind_generation(config)
+        store = h.store
+        if isinstance(history, str) and history != "unlocked":
+            setattr(store, history, None)
+        if not history:
+            store = SimpleNamespace(
+                reserve_provisional_acquisition=h.store.reserve_provisional_acquisition,
+                get_provisional_observation=h.store.get_provisional_observation,
+                commit_provisional_observation=h.store.commit_provisional_observation,
+            )
+        if history == "unlocked":
+            store = SimpleNamespace(
+                **{
+                    name: getattr(h.store, name)
+                    for name in (
+                        "reserve_provisional_acquisition",
+                        "get_provisional_observation",
+                        "commit_provisional_observation",
+                        "list_provisional_observations",
+                        "get_restatement_checkpoint",
+                        "record_restatement_checkpoint",
+                    )
+                }
+            )
+        producer = ReportingProducer(
+            source=source,
+            store=store,
+            retry_store=h.store,
+            object_reader=source.reader,
+            offerings=ProducerOfferings(
+                official_offering_id=official_id if official_route else None,
+                snapshot_offering_id=source.source_id if source_class == "snapshot" else None,
+                publication_namespace=source.capabilities.offerings[0].publication_namespace,
+                source_scope=source.capabilities.source_scope,
+            ),
+        )
+        public = installed.offering.model_copy(update={"supported_finality": finalities})
+        if not accepted:
+            with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+                ReportingProductionOffering(public, producer, key, source.source_id)
+            return
+        offering = ReportingProductionOffering(public, producer, key, source.source_id)
+        offering.check_configuration(
+            config, h.item.binding, retention_days=h.item.writer.resource_retention_days
+        )
+        other = replace(config, definition=replace(definition, finality_policy=None))
+        source.bind_generation(other)
+        with pytest.raises(ReportingWriterError, match="BINDING_MISMATCH"):
+            offering.check_configuration(
+                other, h.item.binding, retention_days=h.item.writer.resource_retention_days
+            )
+
+
+@pytest.mark.parametrize("primary", ["snapshot", "official"])
+@pytest.mark.parametrize("required", ["snapshot", "official"])
+@pytest.mark.parametrize("unsupported", ["snapshot", "official"])
+async def test_dual_finality_source_final_admits_each_configured_route(
+    primary, required, unsupported, tmp_path
+):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        definition = replace(installed.verification_key.definition, finality_policy=SOURCE_FINAL)
+        key = replace(installed.verification_key, definition=definition)
+        source = SettlingSource(key, tmp_path / "selected")
+        routes = replace(
+            installed.producer._offerings,
+            snapshot_offering_id=source.source_id,
+            official_offering_id=source.official_source_id,
+        )
+        producer = ReportingProducer(
+            source=source, offerings=routes, store=h.store, object_reader=source.reader
+        )
+        config = replace(h.item.config, definition=definition, required_finality=required)
+        source.bind_generation(config)
+        public = installed.offering.model_copy(
+            update={"supported_finality": ["snapshot", "official"]}
+        )
+        offering = ReportingProductionOffering(public, producer, key, routes.offering_for(primary))
+        offering.check_configuration(
+            config, h.item.binding, retention_days=h.item.writer.resource_retention_days
+        )
+        capabilities = source.capabilities.model_dump(mode="json")
+        for item in capabilities["offerings"]:
+            if item["offering_id"] == routes.offering_for(unsupported):
+                item["formats"] = [
+                    {"media_type": "application/vnd.apache.parquet", "compression": "none"}
+                ]
+        capabilities["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(capabilities)
+        source.capabilities = ReportingSourceCapabilitiesV1.model_validate(capabilities)
+        with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+            offering.check_source(effective=True)
+
+
+@pytest.mark.parametrize("policy", [CUTOFF, SOURCE_FINAL])
+async def test_production_rechecks_inline_output_before_admission(policy, tmp_path):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        installed = h.production.offerings[0]
+        key = replace(
+            installed.verification_key,
+            definition=replace(installed.verification_key.definition, finality_policy=policy),
+        )
+        binding = Source(key, tmp_path / "selected", official=policy == SOURCE_FINAL)
+        adapter = SimpleNamespace(
+            capabilities=binding.capabilities,
+            fetch_slice=binding.fetch,
+            configuration_binding=binding.configuration_binding,
+        )
+        registered = ReportingAdapterRegistry(clock=lambda: END).register("adapter", adapter)
+        routes = replace(
+            installed.producer._offerings,
+            official_offering_id=binding.source_id if policy == SOURCE_FINAL else None,
+            snapshot_offering_id=binding.source_id if policy == CUTOFF else None,
+        )
+        producer = ReportingProducer(
+            source=registered.executor,
+            offerings=routes,
+            store=h.store,
+            object_reader=registered.object_reader,
+        )
+        public = installed.offering.model_copy(update={"supported_finality": ["official"]})
+        offering = ReportingProductionOffering(public, producer, key, binding.source_id)
+        raw = registered.executor.capabilities.model_dump(mode="json")
+        raw["offerings"][0]["formats"] = [
+            {"media_type": "application/x-ndjson", "compression": "gzip"}
+        ]
+        raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+        registered.executor._capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+        with pytest.raises(ReportingWriterError, match="UNSUPPORTED_VERIFICATION"):
+            offering.check_source(effective=True)
+        assert not binding.requests
 
 
 def wire_configuration(h):
@@ -40,6 +242,19 @@ def wire_configuration(h):
         "schedule": offering.configuration_schedule(config),
         "method": h.item.writer.configuration_binding(binding).wire(),
     }
+
+
+async def test_typed_official_finality_admission_requires_selected_policy(tmp_path):
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        config = replace(h.item.config, required_finality="official")
+        wire = {**wire_configuration(h), "required_finality": "official"}
+        with pytest.raises(ValueError, match="selected finality policy"):
+            ReportingConfigurationAdmission(
+                h.production.offerings[0].offering_id,
+                config,
+                h.item.binding,
+                configuration_wire=wire,
+            )
 
 
 def state_for(h, configuration):

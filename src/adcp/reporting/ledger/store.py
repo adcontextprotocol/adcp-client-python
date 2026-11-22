@@ -41,6 +41,7 @@ from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from itertools import islice
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 from uuid import uuid4
 
@@ -75,7 +76,11 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalPolicy,
+)
 
 if TYPE_CHECKING:
     from adcp.reporting.inline_source import ReportingSealStore
@@ -144,7 +149,7 @@ class LeasedConfiguration:
 
 @dataclass(frozen=True)
 class RestatementCheckpoint:
-    """Durable scheduling state for successful source observations.
+    """Durable scheduling state for consumed source acquisition ordinals.
 
     ``next_observation`` advances even when the source content is unchanged.
     Without that durable ordinal the next scheduled refresh would replay the
@@ -156,6 +161,8 @@ class RestatementCheckpoint:
     checked_at: datetime
     next_observation: int
     provisional_until: datetime | None = None
+    stabilization_policy: ProvisionalPolicy | None = None
+    next_stabilization_due_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if self.next_observation < 1:
@@ -163,6 +170,47 @@ class RestatementCheckpoint:
         _utc(self.checked_at)
         if self.provisional_until is not None:
             _utc(self.provisional_until)
+        if self.next_stabilization_due_at is not None:
+            _utc(self.next_stabilization_due_at)
+
+    def waiting_for_stabilization(self, now: datetime) -> bool:
+        return self.next_stabilization_due_at is not None and _utc(now) < _utc(
+            self.next_stabilization_due_at
+        )
+
+    @classmethod
+    def after_acquisition(
+        cls,
+        acquisition: ProvisionalAcquisition,
+        checked_at: datetime,
+        provisional_until: datetime | None,
+        previous: RestatementCheckpoint | None,
+        *,
+        retired_stabilized: bool = False,
+    ) -> RestatementCheckpoint:
+        """Consume the ordinal and carry any outstanding scheduled deadline across manual reads."""
+        policy = None
+        due = None
+        if acquisition.request().trigger == "manual_replay":
+            if previous is not None:
+                policy, due = previous.stabilization_policy, previous.next_stabilization_due_at
+                checked_at = previous.checked_at
+                provisional_until = previous.provisional_until
+            else:
+                provisional_until = None
+        elif retired_stabilized:
+            policy = acquisition.policy
+            if not acquisition.legacy_stabilized_close:
+                due = checked_at + policy.cadence
+        return cls(
+            acquisition.account_id,
+            acquisition.obligation_id,
+            checked_at,
+            acquisition.ordinal + 1,
+            provisional_until,
+            policy,
+            due,
+        )
 
 
 @runtime_checkable
@@ -421,6 +469,8 @@ class ReportingLedgerStore(Protocol):
 
         Enforces terminal officials, exact supersession, and idempotent replay
         of an identical ``reporting_revision_id``.
+        Stores supporting durable observations must atomically reject a new
+        ordinary revision while the obligation has a pending acquisition.
         """
         ...
 
@@ -706,8 +756,38 @@ def validate_retained_provisional_observation(
     rows: Sequence[dict[str, Any]],
     *,
     require_readable: bool = True,
+    require_origin: bool = False,
 ) -> None:
     """Validate an unchanged observation against immutable predecessor content."""
+    validate_snapshot_observation_binding(
+        revision,
+        observation,
+        require_publication=(
+            require_origin
+            or observation.acquisition.policy.until_stabilized
+            or observation.revision_publication_id is not None
+        ),
+    )
+    validate_snapshot_rows(revision, rows, require_readable=require_readable)
+
+
+def validate_snapshot_origin(revision: ReportingRevisionRecord, origin: str | None) -> None:
+    if origin is not None and revision.source_publication_id != origin:
+        raise LedgerConflictError(
+            "STABILIZATION_ORIGIN_CONFLICT",
+            "stabilization history contradicts the snapshot's exact source publication",
+        )
+
+
+def validate_snapshot_observation_binding(
+    revision: ReportingRevisionRecord,
+    observation: ProvisionalObservation,
+    *,
+    require_publication: bool = True,
+) -> None:
+    """An unchanged observation has its own publication and the retained snapshot's content."""
+    from adcp.reporting.source import deterministic_source_publication_id_v1
+
     manifest = json.loads(observation.manifest_json)
     if (
         revision.source_manifest_sha256 is None
@@ -716,6 +796,53 @@ def validate_retained_provisional_observation(
         raise LedgerConflictError(
             "REVISION_IMMUTABLE", "observation content differs from the snapshot predecessor"
         )
+    if not require_publication:
+        return
+    source_id = revision.source_publication_id
+    if source_id is not None and revision.reporting_revision_id == f"rpr_{source_id[4:44]}":
+        validate_snapshot_origin(revision, observation.snapshot_origin)
+    observation_source = manifest.get("publication_id")
+    request = observation.acquisition.request()
+    expected_publication = deterministic_source_publication_id_v1(
+        source_execution_key=request.identity.source_execution_key,
+        logical_slice_fingerprint=request.identity.logical_slice_fingerprint,
+        publication_class=request.publication_class,
+        revision_kind=request.revision_kind,
+        supersedes_publication_id=request.supersedes_publication_id,
+    )
+    if (
+        revision.reporting_revision_id != observation.revision_id
+        or source_id is None
+        or revision.reporting_revision_id != f"rpr_{source_id[4:44]}"
+        or observation_source != expected_publication
+        or (
+            observation_source != source_id
+            and (
+                observation.acquisition.predecessor_revision_id != observation.revision_id
+                or f"rpr_{observation_source[4:44]}" == observation.revision_id
+            )
+        )
+        or manifest.get("row_count") != revision.row_count
+        or tuple((t["name"], t["value"]) for t in manifest.get("control_totals", ()))
+        != revision.control_totals
+    ):
+        raise LedgerConflictError(
+            "REVISION_IMMUTABLE", "retained snapshot source publication differs"
+        )
+    validate_snapshot_origin(revision, observation.revision_publication_id)
+    if observation_source != source_id and observation.revision_publication_id is None:
+        raise LedgerConflictError(
+            "STABILIZATION_ORIGIN_UNAVAILABLE",
+            "stabilization history lacks the exact source publication of its referenced snapshot",
+        )
+
+
+def validate_snapshot_rows(
+    revision: ReportingRevisionRecord,
+    rows: Sequence[dict[str, Any]],
+    *,
+    require_readable: bool = True,
+) -> None:
     from adcp.reporting.ledger.producer import recompute_revision_content_sha256
 
     if len(rows) != revision.row_count:
@@ -728,18 +855,34 @@ def validate_retained_provisional_observation(
         raise LedgerConflictError("HISTORY_UNAVAILABLE", "snapshot predecessor is not readable")
 
 
-def provisional_observation_reuse_candidate(
-    acquisition: ProvisionalAcquisition,
+def validate_provisional_revision(
     observation: ProvisionalObservation,
     revision: ReportingRevisionRecord | None,
 ) -> bool:
-    """Whether a candidate can replace its unchanged predecessor if reuse becomes unsafe."""
-    return (
-        revision is not None
+    """Check the reserved output and identify a candidate for unchanged snapshot reuse."""
+    acquisition = observation.acquisition
+    if revision is None:
+        if acquisition.finality != "snapshot":
+            raise LedgerConflictError(
+                "OBSERVATION_CONFLICT", "official acquisition requires an official revision"
+            )
+        return False
+    reuse_candidate = (
+        revision.finality == "snapshot"
         and revision.reporting_revision_id != observation.revision_id
         and acquisition.predecessor_revision_id == observation.revision_id
         and revision.supersedes_reporting_revision_id == observation.revision_id
     )
+    if (
+        revision.finality != acquisition.finality
+        or revision.account_id != acquisition.account_id
+        or revision.reporting_obligation_id != acquisition.obligation_id
+        or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
+    ):
+        raise LedgerConflictError(
+            "OBSERVATION_CONFLICT", "observation revision differs from the reserved output"
+        )
+    return reuse_candidate
 
 
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
@@ -839,7 +982,10 @@ class InMemoryReportingLedgerStore:
         self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
         self._retry_schedules: dict[str, RetryScheduleEntry] = {}
         self._provisional_acquisitions: dict[tuple[str, str, int], ProvisionalAcquisition] = {}
-        self._provisional_observations: dict[tuple[str, str, int], ProvisionalObservation] = {}
+        self._provisional_observations: dict[
+            tuple[str, str],
+            dict[int, ProvisionalObservation],
+        ] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}
@@ -1198,9 +1344,17 @@ class InMemoryReportingLedgerStore:
                 for item in self._revisions.values()
                 if item.reporting_obligation_id == revision.reporting_obligation_id
             ]
-            if revision.finality == "official" and any(
-                item.finality == "official" for item in siblings
-            ):
+            checkpoint = self._restatement_checkpoints.get(revision.reporting_obligation_id)
+            ordinal = checkpoint.next_observation if checkpoint else len(siblings)
+            if (
+                revision.account_id,
+                revision.reporting_obligation_id,
+                ordinal,
+            ) in self._provisional_acquisitions:
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "a source acquisition is reserved"
+                )
+            if any(item.finality == "official" for item in siblings):
                 raise LedgerConflictError(
                     "OFFICIAL_REVISION_TERMINAL",
                     "an official revision already exists for this obligation; publish a later "
@@ -1208,6 +1362,10 @@ class InMemoryReportingLedgerStore:
                 )
             if revision.supersedes_reporting_revision_id:
                 self._require_current_leaf(revision, siblings)
+            elif revision.finality == "snapshot" and siblings:
+                raise LedgerConflictError(
+                    "SUPERSEDES_STALE", "the obligation already has a snapshot root"
+                )
             self._revisions[revision.reporting_revision_id] = revision
             self._revision_identity[revision.reporting_revision_id] = identity
             self._rows[revision.reporting_revision_id] = tuple(dict(row) for row in rows)
@@ -1320,12 +1478,75 @@ class InMemoryReportingLedgerStore:
     async def get_provisional_observation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ProvisionalObservation | None:
-        observations = [
-            value
-            for (account, obligation, _), value in self._provisional_observations.items()
-            if account == account_id and obligation == reporting_obligation_id
-        ]
-        return max(observations, key=lambda item: item.acquisition.ordinal, default=None)
+        history = await self.list_provisional_observations(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id, limit=1
+        )
+        return history[0] if history else None
+
+    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None:
+        owner = (revision.account_id, revision.reporting_obligation_id)
+        for prior in self._provisional_observations.get(owner, {}).values():
+            if prior.revision_id == revision.reporting_revision_id:
+                origin = prior.snapshot_origin
+                if origin is not None:
+                    validate_snapshot_origin(revision, origin)
+                    return
+
+    async def get_stabilization_schedule(
+        self, generation: ReportingConfigurationGenerationKey
+    ) -> ProvisionalPolicy | None:
+        latest: tuple[bool, datetime, int] | None = None
+        result = None
+        for (account, identifier, ordinal), acquisition in self._provisional_acquisitions.items():
+            obligation = self._obligations[identifier]
+            if obligation.generation_key != generation:
+                continue
+            observed = self._provisional_observations.get((account, identifier), {}).get(ordinal)
+            policy = acquisition.stabilization_schedule(
+                obligation.required_finality, pending=observed is None
+            )
+            if policy is None:
+                continue
+            checkpoint = self._restatement_checkpoints.get(identifier)
+            if (
+                observed is None
+                and checkpoint is not None
+                and ordinal != checkpoint.next_observation
+                and not (
+                    ordinal < checkpoint.next_observation
+                    and checkpoint.stabilization_policy == policy
+                )
+            ):
+                continue
+            at = (
+                observed.checked_at
+                if observed
+                else acquisition.request().period.source_read_cutoff_at
+            )
+            order = (observed is not None, at, ordinal)
+            if latest is None or order > latest:
+                latest, result = order, policy
+        return result
+
+    async def list_provisional_observations(
+        self,
+        *,
+        account_id: str,
+        reporting_obligation_id: str,
+        limit: int,
+        scheduled_snapshots_only: bool = False,
+    ) -> tuple[ProvisionalObservation, ...]:
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("observation history limit must be a positive integer")
+        observations = self._provisional_observations.get((account_id, reporting_obligation_id), {})
+        candidates = reversed(observations.values())
+        newest_first = list(
+            islice(
+                (o for o in candidates if not scheduled_snapshots_only or o.is_scheduled_snapshot),
+                min(limit, len(observations)),
+            )
+        )
+        return tuple(reversed(newest_first))
 
     async def commit_provisional_observation(
         self,
@@ -1334,24 +1555,18 @@ class InMemoryReportingLedgerStore:
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
-        key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        reuse_candidate = provisional_observation_reuse_candidate(
-            acquisition, observation, revision
-        )
-        if revision is not None and (
-            revision.account_id != acquisition.account_id
-            or revision.reporting_obligation_id != acquisition.obligation_id
-            or (revision.reporting_revision_id != observation.revision_id and not reuse_candidate)
-        ):
-            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        owner = (acquisition.account_id, acquisition.obligation_id)
+        key = (*owner, acquisition.ordinal)
+        reuse_candidate = validate_provisional_revision(observation, revision)
         async with self._mutation():
-            existing = self._provisional_observations.get(key)
+            existing = self._provisional_observations.get(owner, {}).get(acquisition.ordinal)
             obligation = self._obligations.get(acquisition.obligation_id)
             if obligation is None or not acquisition.binds(obligation):
                 raise LedgerConflictError(
                     "OBSERVATION_CONFLICT",
                     "observation replay differs: acquisition does not bind this obligation",
                 )
+            require_origin = acquisition.requires_snapshot_origin(obligation)
             if existing is not None:
                 if (
                     existing.acquisition != acquisition
@@ -1370,15 +1585,18 @@ class InMemoryReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                retained_revision = self._revisions[existing.revision_id]
+                validate_snapshot_origin(retained_revision, existing.revision_publication_id)
+                if require_origin and retained_revision.finality == "snapshot":
+                    await self.verify_snapshot_origin(retained_revision)
+                    validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # A matching observation identity does not make conflicting
                 # publication content an idempotent replay.
-                if revision is None or (
-                    reuse_candidate and existing.revision_id == observation.revision_id
-                ):
-                    validate_retained_provisional_observation(
-                        self._revisions[existing.revision_id], observation, rows
-                    )
-                    return self._revisions[existing.revision_id]
+                reused = reuse_candidate and existing.revision_id == observation.revision_id
+                if retained_revision.finality == "snapshot" or revision is None or reused:
+                    validate_retained_provisional_observation(retained_revision, existing, rows)
+                if revision is None or reused:
+                    return retained_revision
                 return await self.commit_revision(revision, rows)
             retained = self._provisional_acquisitions.get(key)
             if retained != acquisition:
@@ -1386,6 +1604,13 @@ class InMemoryReportingLedgerStore:
             checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            # Consume the reservation inside this transaction before its revision
+            # uses the ordinary commit path. Any publication failure rolls back both.
+            await self.record_restatement_checkpoint(
+                RestatementCheckpoint.after_acquisition(
+                    acquisition, observation.checked_at, observation.provisional_until, checkpoint
+                )
+            )
             if revision is None or reuse_candidate:
                 if acquisition.predecessor_revision_id != observation.revision_id:
                     raise LedgerConflictError(
@@ -1411,8 +1636,14 @@ class InMemoryReportingLedgerStore:
                     raise LedgerConflictError(
                         "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
                     )
+                if require_origin:
+                    await self.verify_snapshot_origin(committed)
                 validate_retained_provisional_observation(
-                    committed, observation, rows, require_readable=False
+                    committed,
+                    observation.bind_revision(committed, require_origin=require_origin),
+                    rows,
+                    require_readable=False,
+                    require_origin=require_origin,
                 )
                 if not committed.readable:
                     if revision is None:
@@ -1423,16 +1654,9 @@ class InMemoryReportingLedgerStore:
                     observation = replace(observation, revision_id=committed.reporting_revision_id)
             else:
                 committed = await self.commit_revision(revision, rows)
-            await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
-                )
-            )
-            self._provisional_observations[key] = observation
+            # The checkpoint enforces ascending ordinals for distinct observations.
+            observation = observation.bind_revision(committed, require_origin=require_origin)
+            self._provisional_observations.setdefault(owner, {})[acquisition.ordinal] = observation
             return committed
 
     async def get_restatement_checkpoint(

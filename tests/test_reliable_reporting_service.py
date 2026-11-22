@@ -12,24 +12,38 @@ import pytest
 
 from adcp.reporting.conformance import ReportingSourceConformanceError
 from adcp.reporting.fixtures import (
+    OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
     redacted_snapshot_request,
 )
+from adcp.reporting.inline_source import InlineFetchResult
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
+    ReportingContractualCutoffPolicy,
     ReportingDefinitionBinding,
+    ReportingFinalityPolicy,
+    ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
     ReportingStatusCaller,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
+from adcp.reporting.production.contracts import ReportingProductionSourceBinding
 from adcp.reporting.service import (
+    ProducerFactory,
     ReliableReportingConfigurationError,
     ReliableReportingService,
     ReliableReportingState,
     ReportingAccountContext,
+)
+from adcp.reporting.source import (
+    ReportingFinalityEvidenceV1,
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
 )
 from adcp.reporting.testing import (
     DeterministicReportingClock,
@@ -133,6 +147,693 @@ def _rows(impressions: int) -> list[dict[str, Any]]:
             "spend": "1.25",
         }
     ]
+
+
+def _finality_service(
+    configuration: ReportingConfiguration,
+    *,
+    snapshot: bool,
+    official: bool,
+    close: bool = False,
+    store: InMemoryReportingLedgerStore | None = None,
+    producer_factory: ProducerFactory = ReportingProducer,
+    results: tuple[InlineFetchResult | None, ...] = (),
+    clock: DeterministicReportingClock | None = None,
+    source_format: str | None = None,
+    cadence: str | None = None,
+    products: tuple[str, ...] = (),
+    adapter_type: type[ScriptedReportingAdapter] = ScriptedReportingAdapter,
+) -> ReliableReportingService:
+    public = _capability_offering("gam")
+    public["supported_finality"] = [configuration.required_finality]
+    context = replace(
+        _account_context(configuration),
+        snapshot_offering_id=SNAPSHOT_OFFERING_ID if snapshot else None,
+        official_offering_id=OFFICIAL_OFFERING_ID if official else None,
+        capability_offering=public,
+    )
+    raw = redacted_capabilities().model_dump(mode="json")
+    for offering in raw["offerings"]:
+        offering.update(
+            source_timezone="UTC", product_ids=products or [configuration.report_definition_id]
+        )
+        offering["windowing"]["minimum_window"] = "PT1H"
+    if close:
+        raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    if cadence is not None:
+        raw["offerings"][0].update(restatement_window="P1D", restatement_cadence=cadence)
+    raw["offerings"] = [
+        offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
+    ]
+    if source_format:
+        for offering in raw["offerings"]:
+            offering["formats"] = [{"media_type": source_format, "compression": "none"}]
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    adapter = adapter_type(ReportingSourceCapabilitiesV1.model_validate(raw), results)
+    service = ReliableReportingService(
+        store=store or InMemoryReportingLedgerStore(),
+        account_context=lambda _: context,
+        producer_factory=producer_factory,
+        clock=clock,
+    )
+    service.sources.register("gam", adapter, capability_offerings=[public])
+    return service
+
+
+@pytest.mark.parametrize("also_offers_definition", [False, True])
+async def test_registered_source_publishes_only_its_bound_product(
+    also_offers_definition: bool,
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        deactivated_at=NOW,
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("selected", "closed")
+        ),
+    )
+
+    class BoundAdapter(ScriptedReportingAdapter):
+        def configuration_binding(
+            self, configuration: ReportingConfiguration
+        ) -> ReportingProductionSourceBinding:
+            return ReportingProductionSourceBinding.for_configuration(
+                configuration,
+                capabilities_sha256=self.capabilities.capabilities_sha256,
+                media_buy_products=(("media-buy-redacted", "real-product"),),
+            )
+
+        def fetch_slice(self, request: Any) -> InlineFetchResult:
+            self.calls.append(request)
+            product = request.coverage.constituents[0].product_id
+            return InlineFetchResult(
+                rows=[{**_rows(12)[0], "product_id": product}],
+                finality_evidence=ReportingFinalityEvidenceV1(
+                    basis="provider_declared",
+                    evidence_ref="closed",
+                    observed_at=NOW + timedelta(days=1),
+                ),
+            )
+
+    service = _finality_service(
+        config,
+        snapshot=False,
+        official=True,
+        products=(
+            ("real-product", config.report_definition_id)
+            if also_offers_definition
+            else ("real-product",)
+        ),
+        adapter_type=BoundAdapter,
+        clock=DeterministicReportingClock(NOW + timedelta(days=3)),
+    )
+    await service.configure(config)
+    turn = await service.run_worker()
+    assert not turn.configuration_errors
+    adapter = service.sources.get("gam").adapter
+    assert isinstance(adapter, BoundAdapter)
+    assert {c.product_id for req in adapter.calls for c in req.coverage.constituents} == {
+        "real-product"
+    }
+    revisions = turn.configurations[config.generation_key].revisions_committed
+    assert len(revisions) == len(adapter.calls)
+    for revision_id in revisions:
+        page = await service.store.read_revision_rows(
+            account_id=config.account_id, reporting_revision_id=revision_id
+        )
+        assert [row["product_id"] for row in page.rows] == ["real-product"]
+
+
+@pytest.mark.parametrize("signal", [None, "delivery.other", "delivery.is_final"])
+async def test_registered_inline_adapter_supplies_explicit_source_final_evidence(
+    signal: str | None,
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        deactivated_at=NOW,
+        definition=replace(
+            DEFINITION,
+            finality_policy=ReportingSourceFinalPolicy("selected-v1", "delivery.is_final"),
+        ),
+    )
+    evidence_time = NOW + timedelta(days=1)
+    answer = InlineFetchResult(rows=_rows(12))
+    if signal is not None:
+        answer = replace(
+            answer,
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_job_terminal",
+                observed_at=evidence_time,
+                evidence_ref=signal,
+            ),
+        )
+    service = _finality_service(
+        config,
+        snapshot=False,
+        official=True,
+        results=(answer,),
+        clock=DeterministicReportingClock(NOW + timedelta(days=3)),
+    )
+    await service.configure(config)
+    turn = await service.run_worker(now=NOW + timedelta(days=3))
+    if signal != "delivery.is_final":
+        error = turn.configuration_errors[config.generation_key]
+        assert isinstance(error, LedgerConflictError) and error.code == "MANIFEST_MISMATCH"
+    else:
+        assert not turn.configuration_errors
+        identifier = turn.configurations[config.generation_key].revisions_committed[0]
+        revision = await service.store.get_revision(
+            account_id=config.account_id, reporting_revision_id=identifier
+        )
+        assert revision is not None and revision.finality_policy_id == "selected-v1"
+        assert revision.finalized_at == evidence_time
+
+
+@pytest.mark.parametrize(
+    ("policy", "source_class", "expected_offering"),
+    [
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "official",
+            OFFICIAL_OFFERING_ID,
+        ),
+        (ReportingSourceFinalPolicy("source-v1", "s" * 512), "official", OFFICIAL_OFFERING_ID),
+        (ReportingContractualCutoffPolicy("cutoff-v1", "P2D"), "snapshot", SNAPSHOT_OFFERING_ID),
+        (ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"), "snapshot", SNAPSHOT_OFFERING_ID),
+    ],
+)
+async def test_official_configuration_routes_by_selected_policy(
+    policy: ReportingFinalityPolicy, source_class: str, expected_offering: str
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    service = _finality_service(
+        config, snapshot=source_class == "snapshot", official=source_class == "official"
+    )
+    await service.configure(config)
+    offerings = service._bindings[config.generation_key].producer._offerings
+    assert offerings.offering_for(source_class) == expected_offering
+
+
+@pytest.mark.parametrize(("required", "close"), [("official", False), ("snapshot", True)])
+async def test_official_configuration_without_selected_policy_fails_before_obligation(
+    required: str, close: bool
+) -> None:
+    config = replace(_configuration(), required_finality=required)
+    service = _finality_service(config, snapshot=True, official=True, close=close)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="selected finality policy"):
+        await service.configure(config)
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+
+
+@pytest.mark.parametrize(
+    ("policy", "required", "snapshot", "official", "close"),
+    [
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "official",
+            True,
+            False,
+            False,
+        ),
+        (
+            ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+            "snapshot",
+            True,
+            False,
+            True,
+        ),
+        (ReportingContractualCutoffPolicy("cutoff-v1", "P2D"), "official", False, True, False),
+        (ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H"), "official", False, True, False),
+    ],
+)
+async def test_selected_policy_rejects_wrong_source_class(
+    policy, required, snapshot, official, close
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality=required,
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    service = _finality_service(config, snapshot=snapshot, official=official, close=close)
+    with pytest.raises(ReliableReportingConfigurationError, match="source offering"):
+        await service.configure(config)
+
+
+async def test_stabilized_official_configuration_requires_observation_storage() -> None:
+    class SnapshotStore(InMemoryReportingLedgerStore):
+        reserve_provisional_acquisition = None
+
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False, store=SnapshotStore())
+    with pytest.raises(ReliableReportingConfigurationError, match="observation"):
+        await service.configure(config)
+
+
+@pytest.mark.parametrize(
+    ("policy", "required", "close"),
+    [
+        (ReportingStabilizedPolicy("stable", "PT0S", "PT1H"), "official", False),
+        (ReportingSourceFinalPolicy("source", "delivery.final"), "official", False),
+        (ReportingContractualCutoffPolicy("cutoff", "PT1H"), "official", False),
+        (ReportingSourceFinalPolicy("source", "delivery.final"), "snapshot", True),
+    ],
+)
+async def test_official_admission_requires_publication_lock_before_persisting(
+    policy, required, close
+) -> None:
+    class UnlockedHistory(InMemoryReportingLedgerStore):
+        source_publication = None
+
+    config = replace(
+        _configuration(),
+        required_finality=required,
+        definition=replace(DEFINITION, finality_policy=policy),
+    )
+    store = UnlockedHistory()
+    service = _finality_service(config, snapshot=True, official=True, store=store, close=close)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="publication"):
+        await service.configure(config)
+    assert not await store.list_all_configurations()
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["verify_snapshot_origin", "get_provisional_acquisition", "get_stabilization_schedule"],
+)
+async def test_stabilized_admission_rejects_missing_evidence_api_before_reading_storage(
+    missing: str,
+) -> None:
+    class IncompletePublisher(InMemoryReportingLedgerStore):
+        async def get_stabilization_schedule(self, generation: Any) -> Any:
+            pytest.fail("admission opened an incomplete publisher")
+
+        async def open_snapshot(self, **kwargs: Any) -> Any:
+            pytest.fail("admission attempted an uninitialized ledger read")
+
+        async def create_schema(self) -> None:
+            pytest.fail("stabilized admission attempted schema initialization")
+
+    store = IncompletePublisher()
+    setattr(store, missing, None)
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False, store=store)
+    with pytest.raises(ReliableReportingConfigurationError, match=missing):
+        await service.configure(config)
+    assert not await store.list_all_configurations()
+
+
+@pytest.mark.parametrize("configure_before_init", [True, False])
+async def test_plain_snapshot_custom_publisher_needs_no_stabilization_apis(
+    configure_before_init: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SnapshotPublisher(InMemoryReportingLedgerStore):
+        get_stabilization_schedule = None
+        verify_snapshot_origin = None
+
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("optional", "PT0S", "PT6H")
+        ),
+    )
+    clock = DeterministicReportingClock(NOW)
+    result = InlineFetchResult(rows=_rows(10), data_through=config.deactivated_at)
+    store = SnapshotPublisher()
+    monkeypatch.setattr(store, "source_publication", None)
+    service = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        store=store,
+        clock=clock,
+        cadence="PT1H",
+        results=(result, result),
+    )
+    if not configure_before_init:
+        await service.initialize()
+    await service.configure(config)
+    await service.initialize()
+    assert config.generation_key in service._bindings
+    turn = await service.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    (identifier,) = turn.configurations[config.generation_key].obligations_committed
+    clock.advance(timedelta(hours=1))
+    turn = await service.run_worker()
+    assert not turn.configuration_errors
+    history = await service.store.list_provisional_observations(
+        account_id=config.account_id, reporting_obligation_id=identifier, limit=2
+    )
+    assert len(history) == 2 and history[0].revision_id == history[1].revision_id
+
+
+@pytest.mark.parametrize(
+    "missing,configure_before_init",
+    [
+        ("verify_snapshot_origin", False),
+        ("get_stabilization_schedule", False),
+        ("get_stabilization_schedule", True),
+    ],
+)
+async def test_recovered_snapshot_close_requires_evidence_after_live_lag_removal(
+    monkeypatch: pytest.MonkeyPatch,
+    missing: str,
+    configure_before_init: bool,
+) -> None:
+    clock = DeterministicReportingClock(NOW + timedelta(days=1))
+    store = InMemoryReportingLedgerStore(clock=clock)
+    config = replace(
+        _configuration(),
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT12H")
+        ),
+    )
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        close=True,
+        cadence="PT6H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await original.configure(config)
+    turn = await original.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    monkeypatch.setattr(store, missing, None)
+    recovered = _finality_service(
+        config, snapshot=True, official=False, cadence="PT1H", store=store, clock=clock
+    )
+    if configure_before_init:
+        await recovered.configure(config)
+        assert config.generation_key not in recovered._bindings
+    with pytest.raises(ReliableReportingConfigurationError, match=missing):
+        await recovered.initialize()
+    assert config.generation_key not in recovered._bindings
+
+
+@pytest.mark.parametrize("required", ["snapshot", "official"])
+async def test_stabilized_admission_reports_an_unregistered_snapshot_offering(required) -> None:
+    config = replace(
+        _configuration(),
+        required_finality=required,
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "PT1H")
+        ),
+    )
+    service = ReliableReportingService(
+        store=InMemoryReportingLedgerStore(),
+        account_context=lambda configuration: replace(
+            _account_context(configuration), snapshot_offering_id="retired"
+        ),
+    )
+    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
+    with pytest.raises(ReliableReportingConfigurationError, match="snapshot offering.*registered"):
+        await service.configure(config)
+
+
+async def test_initialize_recovers_frozen_stabilization_cadence_and_healthy_binding() -> None:
+    clock = DeterministicReportingClock(NOW + timedelta(days=1))
+    store = InMemoryReportingLedgerStore(clock=clock)
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "P30D")
+        ),
+    )
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        cadence="PT6H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await original.configure(config)
+    turn = await original.run_worker()
+    assert len(turn.configurations[config.generation_key].revisions_committed) == 1
+    healthy = replace(
+        config,
+        delivery_config_id="healthy",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("short", "PT0S", "PT6H")
+        ),
+    )
+    await store.put_configuration(healthy)
+    recovered = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        cadence="PT1H",
+        store=store,
+        clock=clock,
+        results=(InlineFetchResult(rows=_rows(10)),),
+    )
+    await recovered.initialize()
+    assert set(recovered._bindings) == {config.generation_key, healthy.generation_key}
+    assert not recovered.initialization_errors
+    restarted = recovered._bindings[config.generation_key].producer
+    (obligation_id,) = turn.configurations[config.generation_key].obligations_committed
+    owner = dict(account_id=config.account_id, reporting_obligation_id=obligation_id)
+    first = await store.get_provisional_observation(**owner)
+    assert first is not None
+    clock.advance(timedelta(hours=1))
+    await restarted.run_configuration(config)
+    assert await store.get_provisional_observation(**owner) == first
+    clock.advance(timedelta(hours=5))
+    await restarted.run_configuration(config)
+    second = await store.get_provisional_observation(**owner)
+    assert second is not None and second.checked_at == clock()
+    assert second.acquisition.policy.cadence == timedelta(hours=6)
+
+
+@pytest.mark.parametrize(
+    "reserved_only,configure_before_init", [(True, False), (True, True), (False, True)]
+)
+async def test_stabilization_startup_recovers_admitted_schedule(
+    reserved_only: bool, configure_before_init: bool
+) -> None:
+    clock = DeterministicReportingClock(NOW + timedelta(days=1))
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        activated_at=NOW.replace(hour=1, minute=0),
+        deactivated_at=NOW.replace(hour=2, minute=0),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable", "PT0S", "P30D")
+        ),
+    )
+    store = InMemoryReportingLedgerStore(clock=clock)
+    original = _finality_service(
+        config,
+        snapshot=True,
+        official=False,
+        cadence="PT6H",
+        clock=clock,
+        store=store,
+        results=(None,) if reserved_only else (InlineFetchResult(rows=_rows(10)),),
+    )
+    await original.configure(config)
+    await original.run_worker()
+    (obligation,) = store._obligations.values()
+    owner = dict(
+        account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    first = await store.get_provisional_acquisition(**owner, ordinal=0)
+    assert first is not None and first.policy.cadence == timedelta(hours=6)
+    assert (await store.get_provisional_observation(**owner) is None) == reserved_only
+    recovered = _finality_service(
+        config, snapshot=True, official=False, cadence="PT1H", clock=clock, store=store
+    )
+    if configure_before_init:
+        await recovered.configure(config)
+    await recovered.initialize()
+    assert config.generation_key in recovered._bindings
+    with pytest.raises(ReliableReportingConfigurationError, match="history"):
+        await recovered.configure(replace(config, delivery_config_version=2))
+
+
+async def test_stabilized_configuration_rejects_excessive_history_before_admission() -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("too-long", "PT0S", "P10000D")
+        ),
+    )
+    service = _finality_service(config, snapshot=True, official=False)
+    await service.initialize()
+    with pytest.raises(ReliableReportingConfigurationError, match="history"):
+        await service.configure(config)
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+
+
+@pytest.mark.parametrize("media_type", ["application/json", "application/vnd.apache.parquet"])
+async def test_service_refuses_an_unreadable_official_source_format_before_admission(
+    media_type: str,
+) -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("source", "closed")
+        ),
+    )
+    with pytest.raises(ValueError, match="source format"):
+        service = _finality_service(config, snapshot=False, official=True, source_format=media_type)
+        await service.configure(config)
+
+
+async def test_service_rejects_stabilized_configuration_without_history_before_persisting() -> None:
+    def producer_factory(**kwargs: Any) -> ReportingProducer:
+        store = kwargs.pop("store")
+        publisher = SimpleNamespace(
+            reserve_provisional_acquisition=store.reserve_provisional_acquisition,
+            get_provisional_observation=store.get_provisional_observation,
+            commit_provisional_observation=store.commit_provisional_observation,
+        )
+        return ReportingProducer(store=publisher, retry_store=store, **kwargs)
+
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingStabilizedPolicy("stable-v1", "P1D", "PT6H")
+        ),
+    )
+    service = _finality_service(
+        config, snapshot=True, official=False, producer_factory=producer_factory
+    )
+    await service.initialize()
+
+    with pytest.raises(ReliableReportingConfigurationError, match="observation"):
+        await service.configure(config)
+
+    state = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(config.account_id, config.consumer_id)
+    )
+    assert not state.configurations and not state.obligations
+    assert config.generation_key not in service._bindings
+
+
+async def test_official_configuration_requires_the_source_to_match_the_pinned_definition() -> None:
+    config = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION,
+            report_definition_sha256="f" * 64,
+            finality_policy=ReportingSourceFinalPolicy("source-v1", "delivery.is_final"),
+        ),
+    )
+    service = _finality_service(config, snapshot=False, official=True)
+    with pytest.raises(ReliableReportingConfigurationError, match="definition"):
+        await service.configure(config)
+
+
+@pytest.mark.parametrize("definition", [None, DEFINITION])
+async def test_legacy_official_configuration_recovers_with_a_retired_source_route(
+    definition: ReportingDefinitionBinding | None,
+) -> None:
+    store = InMemoryReportingLedgerStore()
+    legacy = replace(_configuration(), required_finality="official", definition=definition)
+    healthy = _configuration("freewheel")
+    for config in (legacy, healthy):
+        await store.put_configuration(config)
+    resolved = []
+
+    def resolve(config: ReportingConfiguration) -> ReportingAccountContext:
+        resolved.append(config.generation_key)
+        context = _account_context(config)
+        if config == legacy:
+            return replace(context, snapshot_offering_id=None, official_offering_id="retired")
+        return context
+
+    service = ReliableReportingService(store=store, account_context=resolve)
+    for route in ("gam", "freewheel"):
+        service.sources.register(route, ScriptedReportingAdapter(redacted_capabilities(), []))
+    await service.initialize()
+    assert resolved == [healthy.generation_key]
+    assert list(service._bindings) == [healthy.generation_key]
+    assert "selected finality policy" in str(service.initialization_errors[legacy.generation_key])
+    assert set(await store.list_all_configurations()) == {legacy, healthy}
+
+
+async def test_official_configuration_must_match_the_declared_public_definition() -> None:
+    definition = replace(
+        DEFINITION,
+        report_definition_sha256="f" * 64,
+        finality_policy=ReportingContractualCutoffPolicy("cutoff-v1", "P2D"),
+    )
+    config = replace(_configuration(), required_finality="official", definition=definition)
+    raw = redacted_capabilities().model_dump(mode="json")
+    contract = raw["offerings"][0]["contract"]
+    contract["report_definition_sha256"] = definition.report_definition_sha256
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    public = {**_capability_offering("gam"), "supported_finality": ["official"]}
+    context = replace(_account_context(config), capability_offering=public)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), []),
+        capability_offerings=[public],
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="public offering"):
+        await service.configure(config)
+
+
+async def test_snapshot_close_selected_policy_checks_the_initial_snapshot_definition() -> None:
+    config = replace(
+        _configuration(),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("source-v1", "delivery.is_final")
+        ),
+    )
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    raw["offerings"][0]["contract"]["report_definition_sha256"] = "f" * 64
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    context = replace(_account_context(config), official_offering_id=OFFICIAL_OFFERING_ID)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), [])
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="definition"):
+        await service.configure(config)
 
 
 async def test_service_routes_two_frozen_generations_and_resolves_each_once() -> None:

@@ -12,7 +12,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from adcp.types import GetAdcpCapabilitiesResponse, ReportingDeliveryCapabilities
-from tests.test_reporting_ledger import _OFFERING
+from tests.reporting_fixtures import REPORTING_OFFERING
 
 PROMISES = {
     "receipt_task": "sync_reporting_receipts",
@@ -25,7 +25,7 @@ PROMISES = {
 def capability(**fields):
     return {
         "supported": True,
-        "offerings": [_OFFERING],
+        "offerings": [REPORTING_OFFERING],
         "automated_recovery_window_seconds": 0,
         "status_retention_days": 7,
         **fields,

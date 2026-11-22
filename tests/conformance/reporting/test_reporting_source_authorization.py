@@ -14,7 +14,7 @@ from adcp.reporting.service import ReliableReportingService, ReportingAccountCon
 
 from ._generation_support import END, configuration, isolated_reporting_pool
 from ._materializer_support import reference_rows
-from ._production_support import production_harness
+from ._production_support import production_harness, reference_source_final
 from .test_reporting_production_lock_order import source_turn
 from .test_reporting_production_settling import SettlingSource, revisions
 
@@ -67,6 +67,7 @@ def harness(backend, path, *, source_factory=RevocableSource, **kwargs):
         source_publication=True,
         periods=1,
         source_factory=source_factory,
+        finality_policy=reference_source_final(),
         **kwargs,
     )
 

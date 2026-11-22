@@ -18,7 +18,7 @@ from adcp.reporting.ownership import page_revision_ownership
 from adcp.validation.schema_loader import get_validator
 
 from ._generation_support import END
-from ._production_support import production_harness
+from ._production_support import production_harness, reference_source_final
 from ._production_transport import MountedProduction
 from ._projection_support import drain
 from ._receipt_transport import error_code
@@ -80,6 +80,7 @@ async def test_production_official_receipts_adjustment_and_frozen_wire_cycle(
         count=3,
         source_publication=True,
         reconciled=True,
+        finality_policy=reference_source_final(),
         notifications=notifications,
         feedback=feedback,
     ) as h:

@@ -12,6 +12,7 @@ from adcp.reporting.fixtures import (
     OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
+    redacted_contract_identity,
 )
 from adcp.reporting.inline_source import (
     InlineFetchResult,
@@ -23,14 +24,19 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
+    ReportingFinalityPolicy,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.source import (
     ProvisionalSnapshotOfferingV1,
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
     reporting_source_capabilities_sha256_v1,
 )
@@ -72,6 +78,8 @@ def _capabilities(
         for item in base.offerings
     ]
     for offering in payload["offerings"]:
+        offering.update(source_timezone="UTC", product_ids=[DEFINITION_ID])
+        offering["windowing"]["minimum_window"] = "PT1H"
         if offering["offering_id"] == OFFICIAL_OFFERING_ID:
             # Policy fixtures make authoritative data ready independently of
             # the configured close cadence, just like the snapshot above.
@@ -105,6 +113,15 @@ class _MutableFetch:
                 }
             ],
             data_through=request.period.end,
+            finality_evidence=(
+                ReportingFinalityEvidenceV1(
+                    basis="provider_job_terminal",
+                    evidence_ref="settlement.job.complete",
+                    observed_at=request.period.source_read_cutoff_at,
+                )
+                if request.publication_class == "AUTHORITATIVE"
+                else None
+            ),
             provisional_until=(
                 self.provisional_until
                 if request.publication_class == "PROVISIONAL_SNAPSHOT"
@@ -117,6 +134,7 @@ async def _harness(
     capabilities: ReportingSourceCapabilitiesV1,
     *,
     store_factory: Any = None,
+    finality_policy: ReportingFinalityPolicy | None = None,
     read_jitter_window: timedelta = timedelta(0),
 ) -> tuple[
     ReportingProducer,
@@ -150,6 +168,16 @@ async def _harness(
         feed_purpose="analytics",
         schedule=SCHEDULE,
         required_finality="snapshot",
+        definition=(
+            ReportingDefinitionBinding(
+                **redacted_contract_identity.model_dump(
+                    exclude={"report_definition_id", "reporting_profile"}
+                ),
+                finality_policy=finality_policy,
+            )
+            if finality_policy is not None
+            else None
+        ),
         activated_at=ACTIVATED_AT,
         media_buy_ids=("media-buy-redacted",),
     )
@@ -159,6 +187,12 @@ async def _harness(
         offerings=ProducerOfferings(
             snapshot_offering_id=SNAPSHOT_OFFERING_ID,
             official_offering_id=OFFICIAL_OFFERING_ID,
+            snapshot_requests_official_close=any(
+                isinstance(offering, ProvisionalSnapshotOfferingV1)
+                and offering.offering_id == SNAPSHOT_OFFERING_ID
+                and offering.official_close_lag is not None
+                for offering in capabilities.offerings
+            ),
             publication_namespace="reporting-source:fixture",
             requested_metrics=("impressions", "spend"),
             source_scope=dict(capabilities.source_scope),
@@ -216,7 +250,6 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
         _capabilities(
             restatement_window="P3D",
             restatement_cadence="PT1H",
-            official_close_lag="P3D",
         )
     )
     first = await producer.run_worker()
@@ -230,7 +263,7 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
     unchanged = await producer.run_worker()
     assert unchanged.revisions_committed == []
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 1
+    assert [r.finality for r in await _revisions(store)] == ["snapshot"]
 
     # The successful observation advances both the cadence clock and execution
     # ordinal, so an immediate worker turn neither polls nor replays it.
@@ -250,7 +283,8 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
             restatement_window="P3D",
             restatement_cadence="PT1H",
             official_close_lag="P3D",
-        )
+        ),
+        finality_policy=ReportingStabilizedPolicy("settled-delivery", "P3D", "PT1H"),
     )
     await producer.run_worker()
     first = (await _revisions(store))[0]
@@ -264,6 +298,8 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
     assert snapshots[1].supersedes_reporting_revision_id == first.reporting_revision_id
 
     obligation = await _only_obligation(store)
+    clock[0] = obligation.period.end + timedelta(days=3, hours=-1)
+    assert not (await producer.run_worker()).revisions_committed
     clock[0] = obligation.period.end + timedelta(days=3)
     closed = await producer.run_worker()
     assert len(closed.revisions_committed) == 1
@@ -286,8 +322,7 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
 
     clock[0] += timedelta(days=1)
     await producer.run_worker()
-    assert fetch.calls[-1] == "AUTHORITATIVE"
-    assert len(fetch.calls) == 3
+    assert fetch.calls == ["PROVISIONAL_SNAPSHOT"] * 4
 
 
 async def test_slice_provisional_until_overrides_declared_window() -> None:
@@ -296,7 +331,10 @@ async def test_slice_provisional_until_overrides_declared_window() -> None:
             restatement_window="P3D",
             restatement_cadence="P1D",
             official_close_lag="P3D",
-        )
+        ),
+        finality_policy=ReportingSourceFinalPolicy(
+            "delivery-settlement", "settlement.job.complete"
+        ),
     )
     await producer.run_worker()
     obligation = await _only_obligation(store)
@@ -322,10 +360,10 @@ async def test_source_without_a_window_retains_its_final_default_read() -> None:
     producer, store, fetch, clock = await _harness(_capabilities(restatement_window=None))
     await producer.run_worker()
     obligation = await _only_obligation(store)
-    clock[0] = obligation.period.end + timedelta(days=10)
+    clock[0] = obligation.period.end + timedelta(days=120)
     await producer.run_worker()
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 1
+    assert [revision.finality for revision in await _revisions(store)] == ["snapshot"]
     checkpoint = await store.get_restatement_checkpoint(
         account_id=ACCOUNT,
         reporting_obligation_id=obligation.reporting_obligation_id,

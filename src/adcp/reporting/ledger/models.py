@@ -36,6 +36,12 @@ from adcp.reporting.evidence import (
     freeze_control_totals,
     principal_reference,
 )
+from adcp.reporting.ledger.finality import (
+    ReportingContractualCutoffPolicy,
+    ReportingFinalityPolicy,
+    ReportingSourceFinalPolicy,
+    ReportingStabilizedPolicy,
+)
 
 __all__ = [
     "ReportingCaller",
@@ -164,6 +170,7 @@ class ReportingDefinitionBinding:
     # buyer context. Tuples keep these declarations immutable after acceptance.
     monetary_metric_units: tuple[tuple[str, str], ...] = ()
     monetary_control_total_units: tuple[tuple[str, str], ...] = ()
+    finality_policy: ReportingFinalityPolicy | None = None
 
     def __post_init__(self) -> None:
         for field_name in ("monetary_metric_units", "monetary_control_total_units"):
@@ -173,14 +180,22 @@ class ReportingDefinitionBinding:
             if len(dict(units)) != len(units):
                 raise ValueError(f"duplicate names in {field_name}")
             object.__setattr__(self, field_name, units)
+        if self.finality_policy is not None and type(self.finality_policy) not in (
+            ReportingSourceFinalPolicy,
+            ReportingContractualCutoffPolicy,
+            ReportingStabilizedPolicy,
+        ):
+            raise ValueError("finality_policy must be a supported reporting finality policy")
 
     def to_storage(self) -> dict[str, Any]:
-        """Retain monetary semantics without changing AdCP wire records or old hashes."""
+        """Retain trusted definition metadata alongside the AdCP wire fields."""
         payload = self.to_wire()
         if self.monetary_metric_units:
             payload["monetary_metric_units"] = list(self.monetary_metric_units)
         if self.monetary_control_total_units:
             payload["monetary_control_total_units"] = list(self.monetary_control_total_units)
+        if self.finality_policy is not None:
+            payload["finality_policy"] = self.finality_policy.to_storage()
         return payload
 
     def to_wire(self) -> dict[str, Any]:

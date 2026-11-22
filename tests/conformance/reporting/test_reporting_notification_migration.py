@@ -12,13 +12,13 @@ from adcp_reporting_storage import PgReportingOutbox, PgReportingReconciliationS
 from adcp_reporting_storage.outbox._schema import schema_contract, validate_schema
 from adcp_reporting_storage.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
+from adcp.reporting.ledger import ReportingAdjustmentRecord
 from adcp.reporting.outbox import ReportingNotificationError
 
 from ._generation_support import (
     NOW,
     isolated_reporting_pool,
     require_rolling_database,
-    revision_for,
 )
 from ._reconciliation_support import scenario
 from ._reliable_support import Barrier
@@ -146,8 +146,19 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
         # Repeated installation neither rebuilds constraints nor changes MVCC rows.
         await store.create_schema()
         assert await retained_physical_rows(pool) == before
-        revision, rows = revision_for(s.obligation, suffix="post-upgrade")
-        await store.commit_revision(revision, rows)
+        await store.commit_adjustment(
+            ReportingAdjustmentRecord(
+                "post-upgrade",
+                s.obligation.account_id,
+                s.revision.reporting_revision_id,
+                "source_correction",
+                s.obligation.period.start,
+                s.obligation.period.end,
+                (("impressions", "-1"),),
+                NOW,
+                NOW,
+            )
+        )
         restarted = PgReportingOutbox(pool=pool, clock=lambda: NOW)
         assert len(await restarted.list_events(account_id="acct_a")) == 1
 
@@ -275,7 +286,7 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
             "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
             " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"
         ),
-        "DROP TABLE reporting_restatement_checkpoints",
+        "DROP TABLE reporting_restatement_checkpoints CASCADE",
         "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
         "DROP INDEX reporting_restatement_checkpoints_account_idx",
         (
