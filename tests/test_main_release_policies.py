@@ -482,6 +482,13 @@ def test_single_parent_commit_cannot_impersonate_github_merge(history: list[str]
         ),
         ("a" * 40, "fix(types)!: allow assignment-only creative syncs", False),
         ("5ce9ee4dc9daef34af143b84ff7d660489fef1be", BREAKING_SUBJECT, False),
+        (
+            "11ed387bb5b958ac7a2d69e47082dd8845a0b8cf",
+            "fix(webhooks)!: comply with AdCP 3.2 challenge schema",
+            True,
+        ),
+        ("a" * 40, "fix(webhooks)!: comply with AdCP 3.2 challenge schema", False),
+        ("11ed387bb5b958ac7a2d69e47082dd8845a0b8cf", BREAKING_SUBJECT, False),
     ],
 )
 def test_historical_footer_exception_requires_exact_commit_and_subject(

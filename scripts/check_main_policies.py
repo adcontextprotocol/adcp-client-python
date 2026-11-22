@@ -92,8 +92,10 @@ GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
 # The first two predate the guard; their breaking subjects and reviewed PR
 # migration notes retain the release signal. 5ce9ee4dc is #1546's GitHub merge
 # commit: its body carries only the PR title, while the merged commit 81c2a8b2b
-# carries the BREAKING CHANGE footer. No other commit, including one with the
-# same subject, inherits these historical exceptions.
+# carries the BREAKING CHANGE footer. 11ed387bb is #1897's GitHub merge commit
+# in the same shape; its merged commit bedea168d carries the footer, and #1936
+# made that change backward compatible before 9.7.0. No other commit, including
+# one with the same subject, inherits these historical exceptions.
 HISTORICAL_BREAKING_SUBJECTS = {
     "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac": (
         "fix(reporting)!: scope configuration generations by account (#1174)"
@@ -103,6 +105,9 @@ HISTORICAL_BREAKING_SUBJECTS = {
     ),
     "5ce9ee4dc9daef34af143b84ff7d660489fef1be": (
         "fix(types)!: allow assignment-only creative syncs"
+    ),
+    "11ed387bb5b958ac7a2d69e47082dd8845a0b8cf": (
+        "fix(webhooks)!: comply with AdCP 3.2 challenge schema"
     ),
 }
 
