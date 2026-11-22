@@ -32,8 +32,8 @@ from adcp.types import GetReportingStatusResponse
 from adcp.types.core import TaskResult, TaskStatus
 
 IDENTITY = PrincipalIdentity("https://agency.example/agent", "buyer_agent")
-#: The in-process client is served 3.3.0-rc.0, the pinned release.
-BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-rc.0")
+#: The in-process client is served 3.3.0-rc.3, the pinned release.
+BETA_3 = SimpleNamespace(resolved_adcp_version="3.3-rc.3")
 NY = "America/New_York"
 
 
@@ -108,7 +108,7 @@ class Seller:
 
 
 class Client:
-    """What an ADCPClient returns, backed by the in-process seller (served 3.3.0-rc.0)."""
+    """What an ADCPClient returns, backed by the in-process seller (served 3.3.0-rc.3)."""
 
     def __init__(self, seller: Seller) -> None:
         self.seller = seller

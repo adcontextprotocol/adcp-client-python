@@ -108,6 +108,15 @@ def _semantic(configuration: Mapping[str, Any]) -> dict[str, Any]:
     selector = dict(payload.get("selector") or {})
     if "dimensions" in selector:
         selector["dimensions"] = sorted(selector["dimensions"])
+    systems = selector.get("dimension_systems")
+    if isinstance(systems, Mapping) and "postal_area" in systems:
+        selector["dimension_systems"] = {
+            **systems,
+            "postal_area": sorted(
+                systems["postal_area"],
+                key=lambda item: (str(item.get("country")), str(item.get("system"))),
+            ),
+        }
     selector.setdefault("match", "exact" if "dimensions" in selector else "finest")
     payload["selector"] = selector
     return payload

@@ -2,8 +2,8 @@
 
 ``tests/fixtures/reporting_subscriptions/spec/`` vendors
 ``static/compliance/source/test-vectors/reporting-subscriptions/`` from the spec
-repository at :data:`SPEC_COMMIT` (3.3.0-beta.4: adcp#8718, #8717 and #8724),
-pinned below by SHA-256. Each
+repository at :data:`SPEC_COMMIT` (3.3.0-rc.3: adcp#8718, #8717, #8724 and
+the ``dimension_systems`` selector cases of #9049), pinned below by SHA-256. Each
 case gives the buyer-side input and either the exact owed rows, derived from
 the spec text its ``spec_refs`` cite and reproduced by an independent
 reference model, or the input error. Both SDKs must produce identical periods,
@@ -38,11 +38,11 @@ from adcp.reporting.subscriptions import (
 )
 
 SPEC = Path(__file__).parent / "fixtures" / "reporting_subscriptions" / "spec"
-#: adcontextprotocol/adcp commit the vendored files come from (3.3.0-beta.4; the
-#: 3.3.0-beta.5 bundle carries the same bytes).
-SPEC_COMMIT = "8ee1bfa2e9e722449ae836d7aab2f5ba5c037365"
+#: adcontextprotocol/adcp commit the vendored files come from: the signed
+#: 3.3.0-rc.3 source. The other four files are unchanged since 3.3.0-beta.4.
+SPEC_COMMIT = "6043df676d2176a19c8d69923a654234c83f70cb"
 PINNED = {
-    "vectors.json": "dc45a2131d57b255cc03ca1844c81fb3cec66a834dc0841e93bf8b9fef77d580",
+    "vectors.json": "6446d9b4015b9d7857936bf6680460f933aa210bb807a939cc3d1e692a408524",
     "case.schema.json": "afd4b40477ff9446e01053c9b9d5df8da7624f741549621423ed454d1d8c580c",
     "error-codes.json": "fb0556b2f49f5a9d268bbb58de469053fe442f9c7c02f2c208b5c16f4cef9145",
     "reason-codes.json": "4dde895f26665daef2c39b7cefc94a8a317a5562f504d81e90f5e03264d2b484",
@@ -264,7 +264,7 @@ def _wire_errors(validator, value) -> list[str]:
 
 
 def test_every_vector_wire_object_is_schema_valid() -> None:
-    """Each input's wire objects validate against the 3.3.0-rc.0 schemas.
+    """Each input's wire objects validate against the 3.3.0-rc.3 schemas.
 
     Subscriptions against ``core/reporting-subscription.json``, offerings
     (with ``available_from`` / ``withdrawn_at``) against
@@ -274,7 +274,7 @@ def test_every_vector_wire_object_is_schema_valid() -> None:
     """
     from adcp.validation import schema_loader
 
-    version = "3.3.0-rc.0"
+    version = "3.3.0-rc.3"
     subscription = schema_loader.get_named_validator(
         "core/reporting-subscription.json", version=version
     )
