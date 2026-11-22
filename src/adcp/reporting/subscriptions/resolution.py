@@ -17,6 +17,11 @@ Ties under ``exact`` and ``finest`` go to the lowest ``offering_id`` in byte
 order. ``match`` defaults to ``exact`` when ``dimensions`` is present and to
 ``finest`` when it is absent.
 
+A selector's ``dimension_systems`` (adcp#9049) narrows the candidates: an
+offering matches only when its ``dimension_systems.metro`` equals the
+selector's and its ``dimension_systems.postal_area`` includes every selector
+entry. An omitted key accepts any system for that dimension.
+
 Offerings publish the seller's mapping as ``standard_dimensions`` and
 ``unmapped_dimensions`` (adcp#8585), so
 :meth:`SubscriptionOffering.from_offering` reads them from the wire and a
@@ -42,7 +47,7 @@ from adcp.reporting.subscriptions._clock import (
 #: The 3.3 standard breakdown vocabulary (``enums/reporting-dimension.json``).
 #: It is extensible: a selector naming a value no offering maps matches nothing.
 STANDARD_REPORTING_DIMENSIONS: frozenset[str] = frozenset(
-    {"package", "creative", "country", "region", "metro"}
+    {"package", "creative", "country", "region", "metro", "postal_area"}
 )
 
 SubscriptionMatch = Literal["exact", "finest", "all"]
@@ -82,6 +87,24 @@ def _wire_instant(value: Any, name: str) -> datetime | None:
 
 def _optional_set(values: Any) -> frozenset[str] | None:
     return None if values is None else frozenset(_text(item) for item in values)
+
+
+def _dimension_systems(value: Any) -> tuple[str | None, frozenset[tuple[str, str]]]:
+    """A ``dimension_systems`` object as its metro system and postal pairs.
+
+    ``core/reporting-dimension-systems.json``: ``metro`` is one metro system,
+    ``postal_area`` a set of ``{country, system}`` pairings.
+    """
+    if value is None:
+        return None, frozenset()
+    metro = _value(value, "metro")
+    return (
+        None if metro is None else _text(metro),
+        frozenset(
+            (_text(_value(item, "country")), _text(_value(item, "system")))
+            for item in _value(value, "postal_area") or ()
+        ),
+    )
 
 
 def _byte_key(offering_id: str) -> bytes:
@@ -129,6 +152,10 @@ class SubscriptionOffering:
     #: not is refused (``missing_standard_dimensions``) only when it is a
     #: candidate for a selector.
     dimensions_published: bool = True
+    #: ``dimension_systems`` (adcp#9049): the metro system of a ``metro``
+    #: breakdown and the ``(country, system)`` pairs of a ``postal_area`` one.
+    metro_system: str | None = None
+    postal_systems: frozenset[tuple[str, str]] = frozenset()
 
     def __post_init__(self) -> None:
         if not self.offering_id:
@@ -153,6 +180,7 @@ class SubscriptionOffering:
         object.__setattr__(self, "supported_finality", frozenset(self.supported_finality))
         object.__setattr__(self, "dimensions", frozenset(self.dimensions))
         object.__setattr__(self, "unmapped_dimensions", frozenset(self.unmapped_dimensions))
+        object.__setattr__(self, "postal_systems", frozenset(self.postal_systems))
         overlap = self.dimensions & self.unmapped_dimensions
         if overlap:
             raise ValueError(f"dimensions are both mapped and unmapped: {sorted(overlap)}")
@@ -215,6 +243,7 @@ class SubscriptionOffering:
         anchor = schedule.get("period_anchor")
         method = offering.get("method") or {}
         profile = offering["reporting_profile"]
+        metro_system, postal_systems = _dimension_systems(offering.get("dimension_systems"))
         return cls(
             offering_id=str(offering["offering_id"]),
             report_definition_id=str(offering["report_definition_id"]),
@@ -250,7 +279,22 @@ class SubscriptionOffering:
                 if withdrawn_at is not None
                 else _wire_instant(offering.get("withdrawn_at"), "withdrawn_at")
             ),
+            metro_system=metro_system,
+            postal_systems=postal_systems,
         )
+
+    def reports_in(
+        self, metro_system: str | None, postal_systems: frozenset[tuple[str, str]]
+    ) -> bool:
+        """Whether the offering reports in a selector's ``dimension_systems``.
+
+        ``core/reporting-subscription.json`` ``selector.dimension_systems``:
+        the offering's metro system equals ``metro_system`` when one is named,
+        and its postal pairs include every one of ``postal_systems``.
+        """
+        return (
+            metro_system is None or self.metro_system == metro_system
+        ) and postal_systems <= self.postal_systems
 
     def available_at(self, instant: datetime) -> bool:
         return (self.available_from is None or self.available_from <= instant) and (
@@ -382,6 +426,10 @@ class SubscriptionSelector:
     #: ``destination_overrides[]`` (adcp#8619): ``(account_ids, operator_domains,
     #: destination_id)`` routes, in order.
     destination_overrides: tuple[tuple[frozenset[str] | None, frozenset[str] | None, str], ...] = ()
+    #: ``dimension_systems`` (adcp#9049): the metro system and the postal
+    #: ``(country, system)`` pairs a matching offering must report in.
+    metro_system: str | None = None
+    postal_systems: frozenset[tuple[str, str]] = frozenset()
 
     def destination_for(self, account_id: str, operator: str | None = None) -> str | None:
         """The ``destination_id`` an account's data goes to (adcp#8619).
@@ -423,6 +471,7 @@ class SubscriptionSelector:
         destination = _value(subscription, "destination")
         alignment = _value(selector, "alignment")
         period_timezone = _value(selector, "period_timezone")
+        metro_system, postal_systems = _dimension_systems(_value(selector, "dimension_systems"))
         return cls(
             feed_purpose=_text(_value(selector, "feed_purpose")),
             period_duration=_text(_value(selector, "period_duration")),
@@ -443,6 +492,8 @@ class SubscriptionSelector:
                 )
                 for item in _value(subscription, "destination_overrides") or ()
             ),
+            metro_system=metro_system,
+            postal_systems=postal_systems,
         )
 
 
@@ -489,7 +540,7 @@ def _is_candidate(
             f"offering {offering.offering_id!r} has no standard_dimensions. "
             "The seller must publish standard_dimensions on every offering.",
         )
-    return True
+    return offering.reports_in(selector.metro_system, selector.postal_systems)
 
 
 def resolve_subscription_offerings(

@@ -42,7 +42,7 @@ from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.webhooks import WebhookSender
 
 SCHEMAS = Path(__file__).resolve().parents[1] / "schemas" / "cache"
-PIN = "3.3-rc.0"
+PIN = "3.3-rc.3"
 AT = "2026-10-23T09:14:05Z"
 
 PROPOSALS: dict[str, Any] = {"outcome": "listed", "proposals": [], "opportunities": []}
@@ -329,7 +329,7 @@ def test_status_envelope_follows_each_prerelease_schema(tool: str) -> None:
         "3.3.0-beta.4",
         "3.3.0-beta.5",
         "3.3.0-beta.6",
-        "3.3.0-rc.0",
+        "3.3.0-rc.3",
     ],
 )
 def test_bundled_list_collections_examples_validate(bundle: str) -> None:
@@ -373,7 +373,7 @@ def test_proposal_created_preparation_binds_notification_id_to_proposal_id() -> 
 
 def test_every_account_anchored_notification_type_requires_the_acknowledgment() -> None:
     """Drift guard: the agent-level surface classifies every enum value."""
-    enum = json.loads((SCHEMAS / "3.3.0-rc.0" / "enums" / "notification-type.json").read_text())
+    enum = json.loads((SCHEMAS / "3.3.0-rc.3" / "enums" / "notification-type.json").read_text())
     caller_anchored = {"capabilities.changed", "principal.changed", "account_request.changed"}
     assert set(enum["enum"]) - caller_anchored - _MEDIA_BUY_NOTIFICATION_TYPES == set(
         _ACCOUNT_NOTIFICATION_TYPES

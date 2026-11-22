@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Geographic Targeting Level",
+  "description": "Geographic targeting granularity levels. Some levels (metro, postal_area) require a system specification.",
+  "type": "string",
+  "enum": [
+    "country",
+    "region",
+    "metro",
+    "postal_area"
+  ]
+}

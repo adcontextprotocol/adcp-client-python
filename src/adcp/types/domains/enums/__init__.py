@@ -16,7 +16,7 @@ schema module's ``from ...<domain> import <sibling>`` from re-entering a
 half-initialized module through this package (#1784).
 
 Auto-generated from the generated domain tree. DO NOT EDIT MANUALLY.
-Generation date: 2026-11-13 21:42:00 UTC
+Generation date: 2026-11-22 21:07:06 UTC
 """
 
 # ruff: noqa: E501, I001
@@ -148,6 +148,7 @@ if TYPE_CHECKING:
     from adcp.types.domains.enums.identifier_types import PropertyIdentifierTypes
     from adcp.types.domains.enums.impairment_offline_state import ImpairmentOfflineState
     from adcp.types.domains.enums.impairment_reason_code import ImpairmentReasonCode
+    from adcp.types.domains.enums.impression_estimation_basis import ImpressionEstimationBasis
     from adcp.types.domains.enums.indicator_type import IndicatorType
     from adcp.types.domains.enums.installment_status import InstallmentStatus
     from adcp.types.domains.enums.invoice_kind import InvoiceKind
@@ -400,6 +401,7 @@ __all__ = [
     "HttpMethod",
     "ImpairmentOfflineState",
     "ImpairmentReasonCode",
+    "ImpressionEstimationBasis",
     "IndicatorType",
     "InstallmentStatus",
     "InvoiceKind",
@@ -644,6 +646,7 @@ _DECLARED_IN = {
     "HttpMethod": "adcp.types.domains.enums.http_method",
     "ImpairmentOfflineState": "adcp.types.domains.enums.impairment_offline_state",
     "ImpairmentReasonCode": "adcp.types.domains.enums.impairment_reason_code",
+    "ImpressionEstimationBasis": "adcp.types.domains.enums.impression_estimation_basis",
     "IndicatorType": "adcp.types.domains.enums.indicator_type",
     "InstallmentStatus": "adcp.types.domains.enums.installment_status",
     "InvoiceKind": "adcp.types.domains.enums.invoice_kind",

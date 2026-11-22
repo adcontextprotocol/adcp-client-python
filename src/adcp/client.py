@@ -734,7 +734,7 @@ def _resolve_server_version(pin: str | None) -> str | None:
     normalized = resolve_bundle_key(pin)
     if normalized not in LEGACY_ADAPTER_VERSIONS:
         # A 3.x pin is a wire value: release precision, so a prerelease pin
-        # (3.3.0-rc.0) negotiates and is echoed as 3.3-rc.0, never as its
+        # (3.3.0-rc.3) negotiates and is echoed as 3.3-rc.3, never as its
         # bundle key.
         normalized = normalize_to_release_precision(pin)
     if normalized in LEGACY_ADAPTER_VERSIONS:
@@ -1136,7 +1136,7 @@ class ADCPClient:
         if not is_convertible_version(str(declared_peer)):
             # Historical prerelease pins keep their exact contract and gates;
             # minor-release translators must not guess prerelease semantics.
-            # The SDK's own served prerelease (3.3-rc.0) negotiates like its line.
+            # The SDK's own served prerelease (3.3-rc.3) negotiates like its line.
             return ConversionResult(self.adapter._enrich_outgoing_params(params))
         if self._server_version is not None:
             target = negotiate_version([self._server_version], maximum=maximum)

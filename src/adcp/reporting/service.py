@@ -2013,7 +2013,7 @@ class ReliableReportingService:
                     )
 
                     # Leave out compatibility aliases (3.2-rc.7), never the
-                    # packaged release, which can itself be a candidate (3.3-rc.0).
+                    # packaged release, which can itself be a candidate (3.3-rc.3).
                     adcp["supported_versions"] = [
                         item
                         for item in get_supported_adcp_versions()

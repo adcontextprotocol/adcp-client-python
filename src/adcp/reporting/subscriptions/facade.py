@@ -1131,6 +1131,10 @@ def _mismatches(
     wanted_dimensions = set(selector.get("dimensions") or ())
     if not wanted_dimensions <= set(offering.dimensions):
         failed.append("dimensions")
+    from adcp.reporting.subscriptions.resolution import _dimension_systems
+
+    if not offering.reports_in(*_dimension_systems(selector.get("dimension_systems"))):
+        failed.append("dimension_systems")
     return tuple(failed)
 
 

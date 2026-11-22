@@ -224,7 +224,7 @@ async def test_source_timezone_period_close_retry_keeps_the_same_identity(schedu
 
 
 async def test_source_timezone_period_status_preserves_its_schedule_calendar():
-    adcp_version = "3.3-rc.0"
+    adcp_version = "3.3-rc.3"
     start = datetime(2026, 9, 14, 18, 30, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
     async with reliable_factory("memory") as h:
