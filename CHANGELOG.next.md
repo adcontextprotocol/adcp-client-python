@@ -1,5 +1,19 @@
 # Changelog
 
+## [10.0.0-beta.22](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.21...v10.0.0-beta.22) (2026-11-22)
+
+
+### Features
+
+* **reporting:** freeze flat package coverage at period close ([beebb36](https://github.com/adcontextprotocol/adcp-client-python/commit/beebb368457856a2de2c6e9a0244b1863626e4fe))
+
+
+### Bug Fixes
+
+* **codegen:** find postal union arms by shape and pin their names ([#1939](https://github.com/adcontextprotocol/adcp-client-python/issues/1939)) ([1ce27d9](https://github.com/adcontextprotocol/adcp-client-python/commit/1ce27d929b5d14da5dc8438c7fedb75f54940390)), closes [#1935](https://github.com/adcontextprotocol/adcp-client-python/issues/1935)
+* **reporting:** preserve period timezone in status schedules ([fa324dc](https://github.com/adcontextprotocol/adcp-client-python/commit/fa324dc0258209bd92fa9bb503ccb9d76716a7ab))
+* **reporting:** preserve period timezone in status schedules ([adb6abe](https://github.com/adcontextprotocol/adcp-client-python/commit/adb6abecfcd53981c84e21f909fa54856dfff261))
+
 ## [10.0.0-beta.21](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.20...v10.0.0-beta.21) (2026-11-20)
 
 
