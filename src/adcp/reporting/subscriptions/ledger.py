@@ -207,6 +207,10 @@ class SubscriptionObligationPlanner:
         self._package_roster_resolver = package_roster_resolver
         self._package_roster_timeout = package_roster_timeout
 
+    def roster_deadline(self) -> float:
+        """Return the monotonic deadline for one subscription planning cycle."""
+        return asyncio.get_running_loop().time() + self._package_roster_timeout.total_seconds()
+
     async def _put_configuration(
         self, configuration: ReportingConfiguration, version: Mapping[str, Any]
     ) -> None:
@@ -272,7 +276,12 @@ class SubscriptionObligationPlanner:
         )
 
     async def plan(
-        self, owed: FrozenOwedSet, *, through: datetime | None = None
+        self,
+        owed: FrozenOwedSet,
+        *,
+        through: datetime | None = None,
+        roster_deadline: float | None = None,
+        stopping: Callable[[], bool] | None = None,
     ) -> SubscriptionPlanResult:
         """Install generations, write new obligations, then advance completeness.
 
@@ -287,9 +296,13 @@ class SubscriptionObligationPlanner:
         if through is not None:
             horizon = min(horizon, utc_instant(through, field="through"))
         through = horizon
+        if roster_deadline is None:
+            roster_deadline = self.roster_deadline()
         installed: dict[ReportingConfigurationGenerationKey, ReportingConfiguration] = {}
         written: list[str] = []
         for period in owed.periods:
+            if stopping is not None and stopping():
+                raise asyncio.CancelledError("subscription planning stopped")
             start, end = _parse(period.period_start), _parse(period.period_end)
             if end > through:
                 continue  # not frozen yet: its buys may still change
@@ -330,16 +343,14 @@ class SubscriptionObligationPlanner:
             roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
             if "package" in offering.dimensions:
                 if self._package_roster_resolver is not None:
-                    deadline = (
-                        asyncio.get_running_loop().time()
-                        + self._package_roster_timeout.total_seconds()
-                    )
                     roster = await _resolve_roster_until(
                         self._package_roster_resolver,
                         replace(configuration, media_buy_ids=tuple(period.media_buy_ids)),
                         boundary,
-                        deadline=deadline,
+                        deadline=roster_deadline,
                     )
+                    if stopping is not None and stopping():
+                        raise asyncio.CancelledError("subscription planning stopped")
                 else:
                     roster = MissingHistoricalPackageRoster()
                 if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
@@ -384,6 +395,8 @@ class SubscriptionObligationPlanner:
             )
             stored = await self._commit(configuration, obligation)
             written.append(stored.reporting_obligation_id)
+        if stopping is not None and stopping():
+            raise asyncio.CancelledError("subscription planning stopped")
         owned = [
             item.generation_key
             for item in await self._store.list_configurations(

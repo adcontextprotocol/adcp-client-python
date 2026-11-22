@@ -140,6 +140,7 @@ async def plan_subscription_cycle(
     stopping: Callable[[], bool],
 ) -> tuple[int, list[SubscriptionPlanningFailure]]:
     """Plan every listed principal's frozen owed sets, isolating each subscription."""
+    roster_deadline = planner.roster_deadline()
     principals = await _resolve(options.list_principals())
     if isinstance(principals, (str, bytes)) or not isinstance(principals, Sequence):
         raise TypeError("list_principals must return a sequence of PrincipalIdentity")
@@ -157,7 +158,9 @@ async def plan_subscription_cycle(
             if stopping():
                 break
             try:
-                result = await planner.plan(owed, through=now)
+                result = await planner.plan(
+                    owed, through=now, roster_deadline=roster_deadline, stopping=stopping
+                )
             except Exception as error:  # noqa: BLE001 - isolate one subscription
                 failures.append(
                     SubscriptionPlanningFailure(

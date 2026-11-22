@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -19,7 +21,12 @@ from adcp.reporting.ledger.package_roster import (
     MissingHistoricalPackageRoster,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
+from adcp.reporting.service_subscriptions import (
+    ReportingSubscriptionServiceOptions,
+    plan_subscription_cycle,
+)
 from adcp.reporting.subscriptions import SubscriptionObligationPlanner
+from adcp.reporting.subscriptions import ledger as subscription_ledger
 from adcp.types import SyncAccountsRequest
 from adcp.validation.schema_loader import get_named_validator
 from tests.test_reporting_ledger import CALLER, _configuration, _obligation
@@ -183,6 +190,94 @@ async def test_subscription_unresolved_empty_roster_does_not_advance_owed_set() 
     with pytest.raises(LedgerConflictError) as denied:
         await planner.plan(owed)
     assert denied.value.code == "HISTORY_UNAVAILABLE"
+    (configuration,) = await store.list_configurations(
+        caller=ReportingStatusCaller("acct-1", AGENCY.subject)
+    )
+    assert await store.list_generation_obligations(configuration.generation_key) == ()
+    assert await store.owed_set_through(configuration.generation_key) is None
+
+
+async def test_subscription_roster_periods_share_one_planning_deadline(monkeypatch) -> None:
+    world = await _world_with(AGENCY, [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-03T04:00:00Z")])
+    (owed,) = await world.engine.frozen_owed_sets(AGENCY, now=at("2026-10-04T00:00:00Z"))
+    owed = replace(owed, periods=owed.periods[:2])
+    assert len(owed.periods) == 2
+    store = InMemoryReportingLedgerStore()
+    deadlines: list[float] = []
+    resolve = subscription_ledger._resolve_roster_until
+
+    async def capture(resolver, configuration, period, *, deadline):
+        deadlines.append(deadline)
+        await asyncio.sleep(0.001)
+        return await resolve(resolver, configuration, period, deadline=deadline)
+
+    monkeypatch.setattr(subscription_ledger, "_resolve_roster_until", capture)
+
+    async def roster(configuration, period):
+        return CompletePackageRoster(("pkg-1",))
+
+    planner = SubscriptionObligationPlanner(
+        store,
+        offerings=OFFERINGS,
+        currency="USD",
+        package_roster_resolver=roster,
+        package_roster_timeout=timedelta(seconds=1),
+    )
+    await planner.plan(owed)
+    assert len(deadlines) == 2
+    assert deadlines[0] == deadlines[1]
+
+
+async def test_subscription_cycle_shares_roster_budget_across_owed_sets() -> None:
+    class Engine:
+        async def frozen_owed_sets(self, principal, *, now):
+            return (object(), object())
+
+        async def subscription_coverage(self, *args, **kwargs):
+            return ()
+
+    class Planner:
+        def __init__(self) -> None:
+            self.deadlines: list[float | None] = []
+
+        def roster_deadline(self) -> float:
+            return 123.0
+
+        async def plan(self, owed, *, through, roster_deadline=None, stopping=None):
+            self.deadlines.append(roster_deadline)
+            return SimpleNamespace(obligations_written=())
+
+    planner = Planner()
+    options = ReportingSubscriptionServiceOptions(
+        engine=Engine(),
+        list_principals=lambda: (AGENCY,),
+        resolve_principal=lambda request, context: AGENCY,
+    )
+    written, failures = await plan_subscription_cycle(
+        options, planner, now=at("2026-10-04T00:00:00Z"), stopping=lambda: False
+    )
+    assert written == 0 and not failures
+    assert planner.deadlines == [123.0, 123.0]
+
+
+async def test_subscription_stop_during_roster_does_not_advance_owed_set() -> None:
+    world = await _world_with(AGENCY, [buy("mb-1", "2026-10-01T04:00:00Z", "2026-10-03T04:00:00Z")])
+    (owed,) = await world.engine.frozen_owed_sets(AGENCY, now=at("2026-10-04T00:00:00Z"))
+    owed = replace(owed, periods=owed.periods[:2])
+    assert len(owed.periods) == 2
+    store = InMemoryReportingLedgerStore()
+    stopping = False
+
+    async def roster(configuration, period):
+        nonlocal stopping
+        stopping = True
+        return CompletePackageRoster(("pkg-1",))
+
+    planner = SubscriptionObligationPlanner(
+        store, offerings=OFFERINGS, currency="USD", package_roster_resolver=roster
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await planner.plan(owed, stopping=lambda: stopping)
     (configuration,) = await store.list_configurations(
         caller=ReportingStatusCaller("acct-1", AGENCY.subject)
     )
