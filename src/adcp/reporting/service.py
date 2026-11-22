@@ -49,6 +49,7 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
+from adcp.reporting.ledger.package_roster import PackageRosterResolver
 from adcp.reporting.ledger.producer import _advertised_reporting_delivery
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
@@ -511,6 +512,7 @@ class ReliableReportingService:
         worker_interval: timedelta | None = None,
         producer_factory: ProducerFactory = ReportingProducer,
         read_jitter_window: timedelta | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
         materialization_worker: ReportingBackgroundWorker | None = None,
         notification_worker: ReportingBackgroundWorker | None = None,
         notification_attempt_store: Any | None = None,
@@ -647,6 +649,7 @@ class ReliableReportingService:
         self._read_jitter_window = (
             timedelta(minutes=5) if read_jitter_window is None else read_jitter_window
         )
+        self._package_roster_resolver = package_roster_resolver
         if self._read_jitter_window < timedelta(0):
             raise ReliableReportingConfigurationError("read jitter window must be nonnegative")
         self._materialization_worker = materialization_worker
@@ -809,6 +812,7 @@ class ReliableReportingService:
                 automated_recovery_window=self._automated_recovery_window,
                 status_retention_days=self._status_retention_days,
                 install=self._install_subscription_generation,
+                package_roster_resolver=self._package_roster_resolver,
             )
         except TypeError as error:
             raise ReliableReportingConfigurationError(str(error)) from None
@@ -1015,6 +1019,7 @@ class ReliableReportingService:
                 status_retention_days=support.status_retention_days,
                 install=self._install_production_generation,
                 commit=self._commit_production_obligation,
+                package_roster_resolver=self._package_roster_resolver,
             )
         except TypeError as error:
             raise ReliableReportingConfigurationError(str(error)) from None
@@ -1203,6 +1208,11 @@ class ReliableReportingService:
             **(
                 {"read_jitter_window": self._read_jitter_window}
                 if self._pass_read_jitter_window
+                else {}
+            ),
+            **(
+                {"package_roster_resolver": self._package_roster_resolver}
+                if self._package_roster_resolver is not None
                 else {}
             ),
         )

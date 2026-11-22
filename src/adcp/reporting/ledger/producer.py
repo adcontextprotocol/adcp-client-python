@@ -64,6 +64,12 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
     iso_duration_to_timedelta,
 )
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
+    _resolve_roster_until,
+)
 from adcp.reporting.ledger.provisional import (
     PendingProvisionalAcquisitionStore,
     ProvisionalAcquisition,
@@ -396,6 +402,7 @@ class ReportingProducer:
         max_periods_per_turn: int = 64,
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
+        package_roster_resolver: PackageRosterResolver | None = None,
         revision_verifier: ReportingRevisionVerifier | None = None,
         retry_initial_delay: timedelta = timedelta(minutes=1),
         retry_max_delay: timedelta = timedelta(minutes=30),
@@ -432,6 +439,7 @@ class ReportingProducer:
             else FixedCurrencyResolver(offerings.currency)
         )
         self._revision_verifier = revision_verifier
+        self._package_roster_resolver = package_roster_resolver
         self._retry_initial_delay = retry_initial_delay
         self._retry_max_delay = retry_max_delay
         self._post_deadline_retry_interval = post_deadline_retry_interval
@@ -508,6 +516,7 @@ class ReportingProducer:
             leased = None
             with source_turn():
                 try:
+                    lease_started_at = asyncio.get_running_loop().time()
                     now = self._clock()
                     leased = await self._store.lease_period_close(
                         worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
@@ -515,7 +524,10 @@ class ReportingProducer:
                     turn = WorkerTurn(leased=leased)
                     if leased is None:
                         return turn
-                    await self._work_leased_configuration(leased, turn, now=now)
+                    roster_deadline = self._roster_deadline(started_at=lease_started_at)
+                    await self._work_leased_configuration(
+                        leased, turn, now=now, roster_deadline=roster_deadline
+                    )
                 except retryable:
                     # Store transactions have already exited/rolled back. A
                     # committed lease is released only under its original fence;
@@ -553,8 +565,17 @@ class ReportingProducer:
                     raise
             await asyncio.sleep(0.05 * (2**attempt))
 
+    def _roster_deadline(self, *, started_at: float | None = None) -> float:
+        budget = max(0.0, self._lease_seconds * 0.9)
+        return (asyncio.get_running_loop().time() if started_at is None else started_at) + budget
+
     async def _work_leased_configuration(
-        self, leased: LeasedConfiguration, turn: WorkerTurn, *, now: datetime
+        self,
+        leased: LeasedConfiguration,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+        roster_deadline: float,
     ) -> None:
         from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
 
@@ -573,7 +594,9 @@ class ReportingProducer:
             if configuration is None or configuration.quarantined:
                 return
             require_account_work(configuration.account_id)
-            await self._close_elapsed_periods(configuration, turn, now=now)
+            await self._close_elapsed_periods(
+                configuration, turn, now=now, roster_deadline=roster_deadline
+            )
             await self._acquire_pending(configuration, turn, now=now)
         except _SourceAuthorizationRevokedError:
             # Keep pending acquisitions retryable. Authorization may be
@@ -603,7 +626,9 @@ class ReportingProducer:
         with source_turn():
             try:
                 require_account_work(configuration.account_id)
-                await self._close_elapsed_periods(configuration, turn, now=boundary)
+                await self._close_elapsed_periods(
+                    configuration, turn, now=boundary, roster_deadline=self._roster_deadline()
+                )
                 await self._acquire_pending(configuration, turn, now=boundary)
             except _SourceAuthorizationRevokedError:
                 return turn
@@ -625,7 +650,9 @@ class ReportingProducer:
                 "REPORTING_GENERATION_QUARANTINED", "legacy generations cannot run"
             )
         turn = WorkerTurn()
-        return await self._close_elapsed_periods(configuration, turn, now=now or self._clock())
+        return await self._close_elapsed_periods(
+            configuration, turn, now=now or self._clock(), roster_deadline=self._roster_deadline()
+        )
 
     async def _close_elapsed_periods(
         self,
@@ -633,6 +660,7 @@ class ReportingProducer:
         turn: WorkerTurn,
         *,
         now: datetime,
+        roster_deadline: float,
     ) -> list[ReportingObligationRecord]:
         from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
 
@@ -640,6 +668,10 @@ class ReportingProducer:
             # A subscription's owed set is written by its planner, never filled
             # from a period grid.
             return []
+        if "package" in self._offerings.requested_dimensions and not configuration.media_buy_ids:
+            raise LedgerConflictError(
+                "HISTORY_UNAVAILABLE", "account package reporting requires an exact buy scope"
+            )
         progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
         after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
@@ -659,6 +691,19 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
+            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            if "package" in self._offerings.requested_dimensions:
+                if self._package_roster_resolver is not None:
+                    roster = await _resolve_roster_until(
+                        self._package_roster_resolver,
+                        configuration,
+                        boundary,
+                        deadline=roster_deadline,
+                    )
+                else:
+                    roster = MissingHistoricalPackageRoster()
+                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                    raise TypeError("package roster resolver returned an unsupported result")
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -674,6 +719,10 @@ class ReportingProducer:
                 # the period it is being reported against.
                 scope_resolved_at=boundary.end,
                 media_buy_ids=configuration.media_buy_ids,
+                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
+                coverage_status=(
+                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=(
                     boundary.expected_at + configuration.automated_recovery_window

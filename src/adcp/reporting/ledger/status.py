@@ -779,33 +779,72 @@ def _obligation_coverage(obligation: ReportingObligationRecord) -> dict[str, Any
 def _coverage_roll_up(
     obligations: Sequence[ReportingObligationRecord], *, as_of: datetime
 ) -> dict[str, Any]:
-    media_buy_ids = sorted(
-        {item for obligation in obligations for item in obligation.media_buy_ids}
+    buy_states: dict[str, set[str]] = {}
+    package_states: dict[str, set[str]] = {}
+    for obligation in obligations:
+        for media_buy_id in obligation.media_buy_ids:
+            buy_states.setdefault(media_buy_id, set()).add(obligation.coverage_status)
+        for package_id in obligation.package_ids:
+            package_states.setdefault(package_id, set()).add(obligation.coverage_status)
+    fully_covered_buys = sorted(
+        buy_id for buy_id, states in buy_states.items() if states == {"full"}
     )
-    package_ids = sorted({item for obligation in obligations for item in obligation.package_ids})
-    statuses = {obligation.coverage_status for obligation in obligations}
+    partially_covered_buys = sorted(
+        buy_id
+        for buy_id, states in buy_states.items()
+        if "partial" in states or ("full" in states and states != {"full"})
+    )
+    unsupported_buys = sorted(buy_id for buy_id, states in buy_states.items() if states == {"none"})
+    unknown_buys = sorted(
+        buy_id
+        for buy_id, states in buy_states.items()
+        if buy_id not in fully_covered_buys
+        and buy_id not in partially_covered_buys
+        and buy_id not in unsupported_buys
+    )
+    covered_packages = sorted(
+        package_id for package_id, states in package_states.items() if states == {"full"}
+    )
+    unsupported_packages = sorted(
+        package_id for package_id, states in package_states.items() if states == {"none"}
+    )
+    unknown_packages = sorted(
+        package_id
+        for package_id in package_states
+        if package_id not in covered_packages and package_id not in unsupported_packages
+    )
+    covered = bool(fully_covered_buys or partially_covered_buys or covered_packages)
+    incomplete = bool(
+        partially_covered_buys
+        or unsupported_buys
+        or unknown_buys
+        or unsupported_packages
+        or unknown_packages
+    )
     status = (
         "full"
-        if statuses <= {"full"}
-        else ("partial" if statuses.intersection({"full", "partial"}) else "none")
+        if not incomplete
+        else "partial"
+        if covered
+        else "unknown"
+        if unknown_buys or unknown_packages
+        else "none"
     )
-    if "unknown" in statuses:
-        status = "unknown"
     evaluated = (
         max(obligation.scope_resolved_at for obligation in obligations) if obligations else as_of
     )
     return {
         "status": status,
         "evaluated_at": _iso(evaluated),
-        "media_buy_ids": media_buy_ids,
-        "fully_covered_media_buy_ids": media_buy_ids if status == "full" else [],
-        "partially_covered_media_buy_ids": [],
-        "unsupported_media_buy_ids": [],
-        "unknown_media_buy_ids": [],
-        "package_ids": package_ids,
-        "covered_package_ids": package_ids if status == "full" else [],
-        "unsupported_package_ids": [],
-        "unknown_package_ids": [],
+        "media_buy_ids": sorted(buy_states),
+        "fully_covered_media_buy_ids": fully_covered_buys,
+        "partially_covered_media_buy_ids": partially_covered_buys,
+        "unsupported_media_buy_ids": unsupported_buys,
+        "unknown_media_buy_ids": unknown_buys,
+        "package_ids": sorted(package_states),
+        "covered_package_ids": covered_packages,
+        "unsupported_package_ids": unsupported_packages,
+        "unknown_package_ids": unknown_packages,
         "limitations": [],
     }
 
