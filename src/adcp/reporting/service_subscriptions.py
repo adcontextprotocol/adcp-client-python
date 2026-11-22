@@ -38,6 +38,7 @@ against it.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -141,25 +142,34 @@ async def plan_subscription_cycle(
 ) -> tuple[int, list[SubscriptionPlanningFailure]]:
     """Plan every listed principal's frozen owed sets, isolating each subscription."""
     roster_deadline = planner.roster_deadline()
+    loop = asyncio.get_running_loop()
     principals = await _resolve(options.list_principals())
     if isinstance(principals, (str, bytes)) or not isinstance(principals, Sequence):
         raise TypeError("list_principals must return a sequence of PrincipalIdentity")
     written = 0
     failures: list[SubscriptionPlanningFailure] = []
-    for principal in principals:
+    for principal_index, principal in enumerate(principals):
         if stopping():
             break
+        instant = loop.time()
+        principal_deadline = instant + max(0.0, roster_deadline - instant) / (
+            len(principals) - principal_index
+        )
         try:
-            owed_sets = await options.engine.frozen_owed_sets(principal, now=now)
+            owed_sets = tuple(await options.engine.frozen_owed_sets(principal, now=now))
         except Exception as error:  # noqa: BLE001 - isolate one principal
             failures.append(SubscriptionPlanningFailure(principal, error))
             continue
-        for owed in owed_sets:
+        for owed_index, owed in enumerate(owed_sets):
             if stopping():
                 break
+            instant = loop.time()
+            owed_deadline = instant + max(0.0, principal_deadline - instant) / (
+                len(owed_sets) - owed_index
+            )
             try:
                 result = await planner.plan(
-                    owed, through=now, roster_deadline=roster_deadline, stopping=stopping
+                    owed, through=now, roster_deadline=owed_deadline, stopping=stopping
                 )
             except Exception as error:  # noqa: BLE001 - isolate one subscription
                 failures.append(

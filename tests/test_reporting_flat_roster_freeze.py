@@ -32,7 +32,7 @@ from adcp.validation.schema_loader import get_named_validator
 from tests.test_reporting_ledger import CALLER, _configuration, _obligation
 from tests.test_reporting_scope_models import onboarding_request
 from tests.test_reporting_subscription_engine import OFFERINGS, at, buy
-from tests.test_reporting_subscription_ledger import AGENCY, _world_with
+from tests.test_reporting_subscription_ledger import AGENCY, OTHER, _world_with
 
 
 class _NoSource:
@@ -228,10 +228,10 @@ async def test_subscription_roster_periods_share_one_planning_deadline(monkeypat
     assert deadlines[0] == deadlines[1]
 
 
-async def test_subscription_cycle_shares_roster_budget_across_owed_sets() -> None:
+async def test_subscription_cycle_reserves_roster_budget_for_later_owed_sets() -> None:
     class Engine:
         async def frozen_owed_sets(self, principal, *, now):
-            return (object(), object())
+            return (object(), object()) if principal == AGENCY else (object(),)
 
         async def subscription_coverage(self, *args, **kwargs):
             return ()
@@ -239,9 +239,11 @@ async def test_subscription_cycle_shares_roster_budget_across_owed_sets() -> Non
     class Planner:
         def __init__(self) -> None:
             self.deadlines: list[float | None] = []
+            self.cycle_deadline: float | None = None
 
         def roster_deadline(self) -> float:
-            return 123.0
+            self.cycle_deadline = asyncio.get_running_loop().time() + 30
+            return self.cycle_deadline
 
         async def plan(self, owed, *, through, roster_deadline=None, stopping=None):
             self.deadlines.append(roster_deadline)
@@ -250,14 +252,18 @@ async def test_subscription_cycle_shares_roster_budget_across_owed_sets() -> Non
     planner = Planner()
     options = ReportingSubscriptionServiceOptions(
         engine=Engine(),
-        list_principals=lambda: (AGENCY,),
+        list_principals=lambda: (AGENCY, OTHER),
         resolve_principal=lambda request, context: AGENCY,
     )
     written, failures = await plan_subscription_cycle(
         options, planner, now=at("2026-10-04T00:00:00Z"), stopping=lambda: False
     )
     assert written == 0 and not failures
-    assert planner.deadlines == [123.0, 123.0]
+    assert planner.cycle_deadline is not None
+    assert len(planner.deadlines) == 3
+    assert all(deadline is not None for deadline in planner.deadlines)
+    assert planner.deadlines[0] < planner.deadlines[1] < planner.deadlines[2]
+    assert planner.deadlines[2] <= planner.cycle_deadline
 
 
 async def test_subscription_stop_during_roster_does_not_advance_owed_set() -> None:
