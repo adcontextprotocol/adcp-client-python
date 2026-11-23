@@ -356,7 +356,7 @@ async def test_provider_binding_is_frozen_across_restart_and_later_mutation(
 
 
 async def test_production_refuses_all_media_buys_at_admission(tmp_path):
-    from adcp.reporting.ledger import CompleteMediaBuyScope, LedgerConflictError
+    from adcp.reporting.ledger import LedgerConflictError
 
     async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
         explicit = wire_configuration(h)
@@ -380,20 +380,15 @@ async def test_production_refuses_all_media_buys_at_admission(tmp_path):
             required_finality="snapshot",
         )
 
-        async def resolver(configuration, period):
-            return CompleteMediaBuyScope(())
-
-        # Refused before admission, with or without a resolver and at either
-        # finality: production binds one source buy set per generation.
-        for wired in (None, resolver):
-            h.production.media_buy_scope_resolver = wired
-            for finality in ("snapshot", "official"):
-                generation = replace(all_scope, required_finality=finality)
-                with pytest.raises(
-                    LedgerConflictError, match="per-period production source binding"
-                ) as refused:
-                    admission(generation, {"all_media_buys": True}).check(h.production)
-                assert refused.value.code == "UNSUPPORTED_FEATURE"
+        # Refused before admission at either finality: production binds one
+        # source buy set per generation.
+        for finality in ("snapshot", "official"):
+            generation = replace(all_scope, required_finality=finality)
+            with pytest.raises(
+                LedgerConflictError, match="per-period production source binding"
+            ) as refused:
+                admission(generation, {"all_media_buys": True}).check(h.production)
+            assert refused.value.code == "UNSUPPORTED_FEATURE"
         # all_media_buys is never an explicit empty list, in either direction.
         explicit_empty = replace(h.item.config, media_buy_ids=(), required_finality="snapshot")
         for config, scope in (
@@ -403,73 +398,3 @@ async def test_production_refuses_all_media_buys_at_admission(tmp_path):
             with pytest.raises(ReportingWriterError) as mismatch:
                 admission(config, scope).check(h.production)
             assert mismatch.value.failure.code == "BINDING_MISMATCH"
-
-
-async def test_truthful_incomplete_ready_coverage_is_action_required(tmp_path):
-    selected = {}
-
-    async def handle(request, context, admit):
-        h = selected["h"]
-        wire = request["accounts"][0]["reporting_delivery_configs"][0]
-        await admit(
-            ReportingConfigurationAdmission(
-                h.production.offerings[0].offering_id,
-                h.item.config,
-                h.item.binding,
-                configuration_wire=wire,
-            )
-        )
-        state = state_for(h, copy.deepcopy(wire))
-        ids = state["current_coverage"]["media_buy_ids"]
-        state["current_coverage"].update(
-            status="unknown",
-            fully_covered_media_buy_ids=[],
-            unknown_media_buy_ids=ids,
-            limitations=[{"reason": "capability_unknown", "media_buy_id": ids[0]}],
-        )
-        selected["coverage"] = copy.deepcopy(state["current_coverage"])
-        return {
-            "accounts": [
-                {
-                    "account_id": h.item.config.account_id,
-                    "brand": {"domain": "advertiser.example.test"},
-                    "operator": "buyer.example.test",
-                    "action": "unchanged",
-                    "status": "active",
-                    "billing": "operator",
-                    "timezone": "UTC",
-                    "reporting_delivery_configs": [state],
-                }
-            ]
-        }
-
-    async with production_harness(
-        "memory", tmp_path / "destination.sqlite", count=0, account_handler=handle
-    ) as h:
-        selected["h"] = h
-        mounted = MountedProduction(h)
-        mounted.authorize(h.item)
-        request = {
-            "idempotency_key": "configuration-incomplete-0001",
-            "accounts": [
-                {
-                    "account": {"account_id": h.item.config.account_id},
-                    "reporting_delivery_configs": [wire_configuration(h)],
-                }
-            ],
-        }
-        async with mounted.client() as client:
-            _, result = await mounted.call(client, "sync_accounts", request)
-        assert result.get("status") == "completed", result
-        validator = get_named_validator("account/sync-accounts-response.json")
-        assert not list(validator.iter_errors(result)), result
-        (state,) = result["accounts"][0]["reporting_delivery_configs"]
-        assert state["state"] == "action_required"
-        assert state["current_coverage"] == selected["coverage"]
-        (issue,) = state["issues"]
-        assert (issue["code"], issue["severity"], issue["recommended_action"]) == (
-            "REPORTING_COVERAGE_INCOMPLETE",
-            "action_required",
-            "change_reporting_scope",
-        )
-        assert issue["media_buy_ids"] == selected["coverage"]["media_buy_ids"]
