@@ -6,5 +6,6 @@
 --
 -- Rolling-deploy safe, and applied even while the contract step (0007) waits:
 -- it depends on nothing 0007 changes, and processes of earlier releases never
--- read or write the columns.
--- include: ledger/reporting_all_media_buys.sql
+-- read or write the columns. The columns live in the idempotent ledger DDL, so
+-- create_schema() installs them on every boot too.
+-- include: ledger/reporting_ledger.sql

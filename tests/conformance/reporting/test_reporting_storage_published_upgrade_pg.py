@@ -215,10 +215,25 @@ def _normalized(image: dict[str, list[dict[str, Any]]]) -> dict[str, list[str]]:
     }
 
 
+#: Columns the all_media_buys upgrade (0009) adds, with the value every existing row takes.
+SCOPED = {
+    "reporting_configurations": {"media_buy_scope": "media_buy_ids"},
+    "reporting_obligations": {"coverage": None},
+}
+
+
 def assert_evidence_unchanged(before: dict[str, Any], after: dict[str, Any]) -> None:
-    """Every pre-upgrade row survives byte-for-byte, plus ``offering_id = ''`` where widened."""
+    """Every pre-upgrade row survives byte-for-byte, plus ``offering_id = ''`` where widened
+    and the defaults of the all_media_buys columns."""
     expected = {
-        table: [{**row, "offering_id": ""} if table in WIDENED else row for row in rows]
+        table: [
+            {
+                **row,
+                **({"offering_id": ""} if table in WIDENED else {}),
+                **SCOPED.get(table, {}),
+            }
+            for row in rows
+        ]
         for table, rows in before.items()
     }
     for table, rows in _normalized(expected).items():

@@ -80,7 +80,7 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
                     .read_text()
                 )
             )
-        assert len(parent_manifest) == 772
+        assert len(parent_manifest) == 776
         assert {key: original[key] for key in parent_manifest} == parent_manifest
         assert original == {**parent_manifest, **PROVISIONAL_OBJECTS}
         new = PgReportingFeedStore(pool=pool, notifications=notifications)

@@ -119,7 +119,7 @@ expand/contract pair:
 - **All-media-buys scope** (migration `0009`, additive): adds
   `reporting_configurations.media_buy_scope` (default `media_buy_ids`) and the
   nullable `reporting_obligations.coverage` (the per-buy coverage partition).
-  `create_schema()` installs both as well. Earlier-release processes never read
+  The columns live in the idempotent ledger DDL, so `create_schema()` installs them too. Earlier-release processes never read
   or write them and keep running beside them. Storage contract 3.
 
 `postgres_storage(...)` starts on a ledger whose only pending migration is the

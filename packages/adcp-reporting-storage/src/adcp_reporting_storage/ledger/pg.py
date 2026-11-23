@@ -150,7 +150,6 @@ from adcp.reporting.ledger.store import (
     encode_cursor,
     issue_is_retirable,
     reject_reserved_authoritative_party,
-    reject_unfrozen_media_buy_scope,
     validate_adjustment_currency,
     validate_managed_revision_rows,
     validate_revision_currency,
@@ -208,7 +207,6 @@ _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 _CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
 _RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
-_MEDIA_BUY_SCOPE_DDL_PATH = Path(__file__).parent / "reporting_all_media_buys.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -802,7 +800,6 @@ class PgReportingLedgerStore:
             _ACTIVITY_DDL_PATH,
             Path(__file__).with_name("reporting_provisional_observations.sql"),
             Path(__file__).with_name("reporting_caller_ownership.sql"),
-            _MEDIA_BUY_SCOPE_DDL_PATH,
         )
         # The versioned migrations made of this store's own DDL first (0001-0003),
         # recorded as applied, so a 0.1.0b4/0.2.0b0 ledger is upgraded in place
@@ -1082,7 +1079,10 @@ class PgReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
-        reject_unfrozen_media_buy_scope(configuration)
+        if configuration.media_buy_scope == "all_media_buys" and configuration.media_buy_ids:
+            raise LedgerConflictError(
+                "INVALID_REQUEST", "an all_media_buys generation has no fixed media_buy_ids"
+            )
         key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)

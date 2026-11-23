@@ -153,7 +153,7 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     assert events.includes == ("ledger/reporting_issue_events.sql",)
     # The configuration scope mode is one defaulted column: additive too.
     assert scope.name == "reporting_all_media_buys" and scope.additive
-    assert scope.includes == ("ledger/reporting_all_media_buys.sql",)
+    assert scope.includes == ("ledger/reporting_ledger.sql",)
     assert [item.version for item in shipped if item.additive] == ["0008", "0009"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves

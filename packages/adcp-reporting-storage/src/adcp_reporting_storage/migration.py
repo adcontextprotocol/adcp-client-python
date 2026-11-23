@@ -771,6 +771,12 @@ async def backfill_legacy_reporting(
                         # Legacy evidence predates reporting subscriptions: it is
                         # all account-level generations.
                         selected.append(sql.SQL("''"))
+                    elif column == "media_buy_scope" and column not in row:
+                        # Legacy generations name their buys exactly.
+                        selected.append(sql.SQL("'media_buy_ids'"))
+                    elif column == "coverage" and column not in row:
+                        # Legacy obligations retained only their coverage status.
+                        selected.append(sql.SQL("NULL"))
                     elif column in row:
                         selected.append(sql.Identifier(column))
                     else:
