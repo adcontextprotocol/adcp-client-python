@@ -34,6 +34,7 @@ from adcp.governance import (
 )
 from adcp.server import GovernanceHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
+from adcp.server.serve import create_mcp_server
 from adcp.signing.crypto import b64url_decode
 from adcp.types import SyncPlansRequest
 from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION
@@ -454,7 +455,52 @@ class _TransportGovernanceHandler(_RecordingGovernanceHandler):
     async def handle_sync_plans(self, request, context=None):  # type: ignore[no-untyped-def]
         assert context is not None
         self.seen = {"request": request, "raw": context.raw_request}
-        return {"plans": [{"plan_id": request.plans[0].plan_id, "status": "active", "version": 1}]}
+        return {
+            "plans": [
+                {"plan_id": plan.plan_id, "status": "active", "version": 1}
+                for plan in request.plans
+            ]
+        }
+
+
+@pytest.mark.asyncio
+async def test_public_mcp_preserves_raw_sync_plans_in_request_order() -> None:
+    handler = _TransportGovernanceHandler()
+    second = _with(plan_id="plan_second_2026", human_review_required=False)
+    params = _sync_plans_params(plans=[copy.deepcopy(MINIMAL_PLAN), second])
+    sent = copy.deepcopy(params)
+    expected = [(plan["plan_id"], compute_plan_hash(plan)) for plan in sent["plans"]]
+    assert expected[0][1] != expected[1][1]
+
+    result = await create_mcp_server(handler).call_tool("sync_plans", params)
+
+    assert not result.is_error, result.structured_content
+    raw = handler.seen["raw"]
+    assert raw == sent
+    parsed = handler.seen["request"].plans
+    assert [
+        (plan.plan_id, compute_plan_hash(raw_plan))
+        for plan, raw_plan in zip(parsed, raw["plans"], strict=True)
+    ] == expected
+    assert params == sent
+
+
+@pytest.mark.asyncio
+async def test_public_mcp_rejects_schema_invalid_second_plan_before_dispatch() -> None:
+    handler = _TransportGovernanceHandler()
+    second = _with(plan_id="plan_second_2026", human_review_required=None)
+    params = _sync_plans_params(plans=[copy.deepcopy(MINIMAL_PLAN), second])
+
+    result = await create_mcp_server(handler).call_tool("sync_plans", params)
+
+    assert result.is_error
+    assert result.structured_content is not None
+    error = result.structured_content["adcp_error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert [(issue["pointer"], issue["keyword"]) for issue in error["details"]["issues"]] == [
+        ("/plans/1/human_review_required", "type")
+    ]
+    assert handler.seen == {}
 
 
 async def _rewrite_objectives(skill_name, params, context, call_next):  # type: ignore[no-untyped-def]
