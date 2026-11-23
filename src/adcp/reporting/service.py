@@ -518,6 +518,7 @@ class ReliableReportingService:
         read_jitter_window: timedelta | None = None,
         package_roster_resolver: PackageRosterResolver | None = None,
         media_buy_scope_resolver: MediaBuyScopeResolver | None = None,
+        admit_all_media_buys: bool = False,
         materialization_worker: ReportingBackgroundWorker | None = None,
         notification_worker: ReportingBackgroundWorker | None = None,
         notification_attempt_store: Any | None = None,
@@ -656,6 +657,10 @@ class ReliableReportingService:
         )
         self._package_roster_resolver = package_roster_resolver
         self._media_buy_scope_resolver = media_buy_scope_resolver
+        # Off until every reporting process reads storage contract 3: an
+        # earlier-release process reads an all_media_buys generation as an
+        # exact empty scope and would commit proven zero-buy obligations.
+        self._admit_all_media_buys = admit_all_media_buys
         if self._read_jitter_window < timedelta(0):
             raise ReliableReportingConfigurationError("read jitter window must be nonnegative")
         self._materialization_worker = materialization_worker
@@ -1132,6 +1137,12 @@ class ReliableReportingService:
         if self._production is not None or self._production_options is not None:
             raise ReliableReportingConfigurationError(
                 "production requires typed sync_accounts admission"
+            )
+        if configuration.media_buy_scope == "all_media_buys" and not self._admit_all_media_buys:
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE",
+                "all_media_buys admission is off; enable admit_all_media_buys once every "
+                "reporting process reads storage contract 3",
             )
         reject_unsupported_media_buy_scope(
             configuration, resolver_wired=self._media_buy_scope_resolver is not None

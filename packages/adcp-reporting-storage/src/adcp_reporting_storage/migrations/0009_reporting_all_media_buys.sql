@@ -4,8 +4,9 @@
 -- each obligation's per-buy coverage partition. Two new columns and their
 -- checks, nothing else.
 --
--- Rolling-deploy safe, and applied even while the contract step (0007) waits:
--- it depends on nothing 0007 changes, and processes of earlier releases never
--- read or write the columns. The columns live in the idempotent ledger DDL, so
--- create_schema() installs them on every boot too.
+-- Applied even while the contract step (0007) waits: it depends on nothing
+-- 0007 changes. Earlier-release processes keep running beside it for
+-- exact-scope generations only; admit no all_media_buys generation until every
+-- process is on storage contract 3. The columns live in the idempotent ledger
+-- DDL, so create_schema() installs them on every boot too.
 -- include: ledger/reporting_ledger.sql

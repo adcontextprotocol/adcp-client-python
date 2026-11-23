@@ -335,8 +335,10 @@ ALTER TABLE reporting_configurations
 -- frozen with the obligation at its scope-resolution boundary. NULL on
 -- obligations that retained only coverage_status.
 --
--- Online-safe: defaulted or nullable columns and their checks. Processes of an
--- earlier release neither read nor write them and keep running beside them.
+-- Adding the columns and checks takes a brief ACCESS EXCLUSIVE lock on both
+-- tables and the checks scan existing rows. Earlier-release processes keep
+-- running beside them for exact-scope generations only: admit no
+-- all_media_buys generation until every process is on storage contract 3.
 DO $all_media_buys$
 BEGIN
     PERFORM pg_advisory_xact_lock(hashtext('adcp.reporting.schema'), hashtext(current_schema()));

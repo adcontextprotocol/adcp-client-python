@@ -423,14 +423,23 @@ async def _service(**kwargs):
 
 
 async def test_service_refuses_all_scope_without_a_resolver() -> None:
-    service = await _service()
-    with pytest.raises(LedgerConflictError) as refused:
+    service = await _service(admit_all_media_buys=True)
+    with pytest.raises(LedgerConflictError, match="scope resolver") as refused:
+        await service.configure(_all_scope())
+    assert refused.value.code == "UNSUPPORTED_FEATURE"
+
+
+async def test_a_wired_resolver_alone_does_not_admit_all_scope() -> None:
+    service = await _service(media_buy_scope_resolver=_Scope(CompleteMediaBuyScope(())))
+    with pytest.raises(LedgerConflictError, match="admit_all_media_buys") as refused:
         await service.configure(_all_scope())
     assert refused.value.code == "UNSUPPORTED_FEATURE"
 
 
 async def test_service_refuses_all_scope_at_official_finality() -> None:
-    service = await _service(media_buy_scope_resolver=_Scope(CompleteMediaBuyScope(())))
+    service = await _service(
+        media_buy_scope_resolver=_Scope(CompleteMediaBuyScope(())), admit_all_media_buys=True
+    )
     with pytest.raises(LedgerConflictError, match="attestation hook") as refused:
         await service.configure(_all_scope(required_finality="official"))
     assert refused.value.code == "UNSUPPORTED_FEATURE"
@@ -453,7 +462,9 @@ async def test_service_admits_snapshot_all_scope_with_a_resolver_and_wires_it() 
 
     scope = _Scope(CompleteMediaBuyScope(()))
     service = ReliableReportingService.memory(
-        account_context=_account_context, media_buy_scope_resolver=scope
+        account_context=_account_context,
+        media_buy_scope_resolver=scope,
+        admit_all_media_buys=True,
     )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
     configuration = replace(
