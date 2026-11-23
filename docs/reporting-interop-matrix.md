@@ -350,11 +350,11 @@ and visible canaries.
   different Managed Delivery API and cannot close a Core buyer cell. Rc.45
   includes the Core API and must retain its native result shape; availability
   alone does not close a real HTTP Core cell or any managed lane.
-- Accepted Python typed `sync_accounts` currently serializes an explicit
-  `media_buy_ids` reporting scope together with default
-  `all_media_buys: true`. The real production mount rejects the mutually
-  exclusive pair before onboarding. A manually seeded Core ledger does not
-  close that production-client lane.
+- Python typed `sync_accounts` serializes exactly one reporting scope
+  selector: an explicit `media_buy_ids` list, or `all_media_buys: true`
+  (an empty scope object is sent as `all_media_buys: true`). The model refuses
+  both selectors together. A manually seeded Core ledger still does not close
+  the production-client lane.
 - Accepted Python typed `get_media_buy_delivery` currently serializes both
   aggregate breakdown flags as false on an exact-revision request. The rc.4
   schema forbids either field in that mode, so a real produced revision is
