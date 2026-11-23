@@ -61,21 +61,46 @@ class ReportingScopeBuy:
     """One buy as the seller knew it at a period's cutoff.
 
     ``known_at`` is when the seller first knew the buy (confirmed or created).
-    ``start_time``/``end_time`` are its effective flight as of ``period.end``,
-    half-open like the period.
+    Its effective flight as of ``period.end`` is one or more half-open
+    intervals, like the period: pass ``start_time``/``end_time`` for a single
+    flight, or ``flights`` for package flights with gaps between them. With
+    ``flights``, ``start_time``/``end_time`` are filled with their envelope.
     """
 
     media_buy_id: str
     known_at: datetime
-    start_time: datetime
-    end_time: datetime
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    flights: tuple[tuple[datetime, datetime], ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.media_buy_id) is not str or not self.media_buy_id:
             raise ValueError("media_buy_id must be a nonempty string")
         _aware(self.known_at, "known_at")
-        if _aware(self.end_time, "end_time") < _aware(self.start_time, "start_time"):
-            raise ValueError("a buy's flight cannot end before it starts")
+        single = (self.start_time, self.end_time)
+        if self.flights:
+            if single != (None, None):
+                raise ValueError("pass either start_time/end_time or flights, not both")
+            flights = tuple((start, end) for start, end in self.flights)
+        elif None in single:
+            raise ValueError("a buy needs start_time and end_time, or flights")
+        else:
+            assert self.start_time is not None and self.end_time is not None
+            flights = ((self.start_time, self.end_time),)
+        for start, end in flights:
+            if _aware(end, "flight end") < _aware(start, "flight start"):
+                raise ValueError("a buy's flight cannot end before it starts")
+        object.__setattr__(self, "flights", flights)
+        object.__setattr__(self, "start_time", min(start for start, _ in flights))
+        object.__setattr__(self, "end_time", max(end for _, end in flights))
+
+    def overlaps(self, period: ReportingPeriodBoundary) -> bool:
+        """Whether any flight interval overlaps the half-open period."""
+        start, end = _aware(period.start, "period.start"), _aware(period.end, "period.end")
+        return any(
+            _aware(flight_start, "flight start") < end and _aware(flight_end, "flight end") > start
+            for flight_start, flight_end in self.flights
+        )
 
 
 def freeze_all_media_buys(
@@ -83,19 +108,18 @@ def freeze_all_media_buys(
 ) -> CompleteMediaBuyScope:
     """Freeze ``all_media_buys`` membership for one period.
 
-    A buy belongs to the period when the seller knew of it by ``period.end``
-    and its flight ``[start_time, end_time)`` overlaps ``[period.start,
-    period.end)``. Pass only buys the configuration's caller is authorized to
-    see on the configuration's account.
+    A buy belongs to the period when the seller knew of it at the period's
+    cutoff instant, ``known_at <= period.end`` (the spec's "known at that
+    instant"), and any of its flight intervals overlaps the half-open
+    ``[period.start, period.end)``. Pass only buys the configuration's caller
+    is authorized to see on the configuration's account.
     """
-    start, end = _aware(period.start, "period.start"), _aware(period.end, "period.end")
+    end = _aware(period.end, "period.end")
     return CompleteMediaBuyScope(
         tuple(
             buy.media_buy_id
             for buy in buys
-            if _aware(buy.known_at, "known_at") <= end
-            and _aware(buy.start_time, "start_time") < end
-            and _aware(buy.end_time, "end_time") > start
+            if _aware(buy.known_at, "known_at") <= end and buy.overlaps(period)
         )
     )
 

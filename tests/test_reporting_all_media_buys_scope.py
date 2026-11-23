@@ -108,6 +108,20 @@ def test_freeze_keeps_buys_overlapping_the_half_open_period_and_known_by_its_end
     assert freeze_all_media_buys([], period).media_buy_ids == ()
 
 
+def test_a_buy_with_gapped_flights_belongs_only_where_a_flight_overlaps() -> None:
+    gapped = ReportingScopeBuy("gapped", _at(0), flights=((_at(0), _at(1)), (_at(3), _at(4))))
+    assert (gapped.start_time, gapped.end_time) == (_at(0), _at(4))
+    assert freeze_all_media_buys([gapped], _period(_at(1), _at(2))).media_buy_ids == ()
+    assert freeze_all_media_buys([gapped], _period(_at(3), _at(4))).media_buy_ids == ("gapped",)
+    assert ReportingScopeBuy("one", _at(0), _at(0), _at(1)) == ReportingScopeBuy(
+        "one", _at(0), flights=((_at(0), _at(1)),)
+    )
+    with pytest.raises(ValueError):
+        ReportingScopeBuy("both", _at(0), _at(0), _at(1), flights=((_at(0), _at(1)),))
+    with pytest.raises(ValueError):
+        ReportingScopeBuy("neither", _at(0))
+
+
 def test_scope_buys_refuse_naive_times_and_inverted_flights() -> None:
     with pytest.raises(ValueError):
         ReportingScopeBuy("mb", datetime(2026, 9, 1), _at(0), _at(1))
