@@ -17,7 +17,6 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
     ReportingDestinationBinding,
 )
-from adcp.reporting.ledger.media_buy_scope import reject_unsupported_media_buy_scope
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.contracts import failure
@@ -61,15 +60,18 @@ class ReportingConfigurationAdmission:
         if raw.get("authoritative_party", "seller") != "seller":
             raise LedgerConflictError("UNSUPPORTED_FEATURE", "consumer authority is reserved")
         scope = raw["scope"]
-        # An exact generation freezes its explicit full media-buy denominator;
-        # an all_media_buys generation freezes each period's buys at close
-        # through the installed scope resolver. Neither may stand in for the
-        # other, and partial coverage is never admitted.
+        # An exact generation freezes its explicit full media-buy denominator.
+        # An all_media_buys generation freezes each period's buys at close,
+        # which the production source binding (one buy set per generation)
+        # cannot serve, so it is refused before anything is admitted. Neither
+        # scope may stand in for the other.
         if config.media_buy_scope == "all_media_buys":
             if scope != {"all_media_buys": True}:
                 raise failure("BINDING_MISMATCH")
-            reject_unsupported_media_buy_scope(
-                config, resolver_wired=support.media_buy_scope_resolver is not None
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE",
+                "all_media_buys is not supported in production yet: per-period production "
+                "source binding is not supported",
             )
         elif set(scope) != {"media_buy_ids"} or set(scope["media_buy_ids"]) != set(
             config.media_buy_ids
