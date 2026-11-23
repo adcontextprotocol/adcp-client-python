@@ -544,3 +544,42 @@ async def test_explicit_scope_without_a_roster_resolver_publishes_as_before() ->
         "unknown_package_ids": [],
         "limitations": [],
     }
+
+
+@pytest.mark.parametrize("admitted", [False, True])
+async def test_a_configure_override_cannot_bypass_the_opt_in(admitted: bool) -> None:
+    from adcp.reporting.fixtures import redacted_capabilities
+    from adcp.reporting.service import ReliableReportingService
+    from adcp.reporting.testing import ScriptedReportingAdapter
+    from tests.test_reliable_reporting_service import NOW, _account_context
+    from tests.test_reliable_reporting_service import _configuration as _service_configuration
+
+    class Seller(ReliableReportingService):
+        async def configure(self, configuration: ReportingConfiguration) -> None:
+            # An adopter override that never calls super().configure().
+            async with self._configuration_lock:
+                await self._configure(configuration)
+
+    scope = _Scope(CompleteMediaBuyScope(()))
+    service = Seller.memory(
+        account_context=_account_context,
+        clock=lambda: NOW,
+        media_buy_scope_resolver=scope,
+        admit_all_media_buys=admitted,
+    )
+    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
+    configuration = replace(
+        _service_configuration(), media_buy_ids=(), media_buy_scope="all_media_buys"
+    )
+    await service.configure(configuration)
+    await service.store.put_configuration(configuration)
+    turn = await service.run_worker(now=NOW)
+    obligations = await service.store.list_generation_obligations(configuration.generation_key)
+    if admitted:
+        assert configuration.generation_key not in turn.configuration_errors
+        assert obligations and all(item.media_buy_ids == () for item in obligations)
+    else:
+        error = turn.configuration_errors[configuration.generation_key]
+        assert isinstance(error, LedgerConflictError) and error.code == "UNSUPPORTED_FEATURE"
+        assert "admit_all_media_buys" in str(error)
+        assert obligations == () and scope.calls == []

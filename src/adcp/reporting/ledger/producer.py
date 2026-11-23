@@ -707,7 +707,8 @@ class ReportingProducer:
         if all_media_buys and self._media_buy_scope_resolver is None:
             raise LedgerConflictError(
                 "UNSUPPORTED_FEATURE",
-                "all_media_buys reporting requires a media buy scope resolver",
+                "all_media_buys reporting requires a media buy scope resolver; "
+                "ReliableReportingService wires it only with admit_all_media_buys=True",
             )
         if (
             "package" in self._offerings.requested_dimensions

@@ -1235,9 +1235,12 @@ class ReliableReportingService:
                 if self._package_roster_resolver is not None
                 else {}
             ),
+            # The opt-in is enforced here too, where every route to a producer
+            # passes (including a configure override that skips this class's
+            # checks): without it no producer can close an all_media_buys period.
             **(
                 {"media_buy_scope_resolver": self._media_buy_scope_resolver}
-                if self._media_buy_scope_resolver is not None
+                if self._media_buy_scope_resolver is not None and self._admit_all_media_buys
                 else {}
             ),
         )
