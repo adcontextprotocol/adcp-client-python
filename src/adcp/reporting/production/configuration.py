@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from adcp.decisioning.capabilities import Account as AccountCapabilities
 from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.coverage import ReportingCoverageRecord
 from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
     ReportingDestinationBinding,
@@ -139,6 +141,61 @@ async def _current_media_buy_ids(
             "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage is unproven"
         )
     return scope.media_buy_ids
+
+
+def _ready_coverage(coverage: Any, denominator: tuple[str, ...]) -> ReportingCoverageRecord:
+    """The ready state's truthful coverage partition over the generation's buys."""
+    try:
+        record = ReportingCoverageRecord.from_wire(coverage)
+    except (TypeError, KeyError, ValueError, AttributeError):
+        raise LedgerConflictError(
+            "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage differs"
+        ) from None
+    if set(record.media_buy_ids) != set(denominator):
+        raise LedgerConflictError(
+            "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage differs"
+        )
+    return record
+
+
+def _coverage_incomplete(
+    state: dict[str, Any],
+    value: ReportingConfigurationAdmission,
+    record: ReportingCoverageRecord,
+) -> None:
+    from adcp.reporting.ledger.health import issue_id_for
+
+    configuration = value.configuration
+    issue: dict[str, Any] = {
+        "issue_id": issue_id_for(
+            "configuration-coverage-incomplete-v1",
+            configuration.account_id,
+            configuration.consumer_id,
+            configuration.delivery_config_id,
+            configuration.delivery_config_version,
+        ),
+        "code": "REPORTING_COVERAGE_INCOMPLETE",
+        "severity": "action_required",
+        "responsible_party": "seller",
+        "recommended_action": "change_reporting_scope",
+        "delivery_config_id": configuration.delivery_config_id,
+        "delivery_config_version": configuration.delivery_config_version,
+        "feed_purpose": configuration.feed_purpose,
+    }
+    uncovered = sorted(
+        {
+            *record.partially_covered_media_buy_ids,
+            *record.unsupported_media_buy_ids,
+            *record.unknown_media_buy_ids,
+        }
+    )
+    if uncovered:
+        issue["media_buy_ids"] = uncovered
+    packages = sorted({*record.unsupported_package_ids, *record.unknown_package_ids})
+    if packages:
+        issue["package_ids"] = packages
+    state["state"] = "action_required"
+    state["issues"] = [issue]
 
 
 ConfigurationAdmission = Callable[[ReportingConfigurationAdmission], Awaitable[None]]
@@ -281,6 +338,11 @@ class ReportingProductionConfigurationTask:
             )
         if response.get("errors") or request.get("dry_run") is True:
             return dict(response)
+        # Validated states may be restated below; never mutate the task's own value.
+        response = deepcopy(dict(response))
+        incomplete: list[
+            tuple[dict[str, Any], ReportingConfigurationAdmission, ReportingCoverageRecord]
+        ] = []
         for account in response.get("accounts", ()):
             if account.get("action") == "failed":
                 continue
@@ -326,33 +388,13 @@ class ReportingProductionConfigurationTask:
                         raise LedgerConflictError(
                             "REPORTING_CONFIGURATION_UNADMITTED", "configuration lifecycle differs"
                         )
-                coverage = state.get("current_coverage")
-                covered = (
-                    await _current_media_buy_ids(support, value.configuration)
-                    if state["state"] == "ready"
-                    else value.configuration.media_buy_ids
-                )
-                if state["state"] == "ready" and (
-                    not isinstance(coverage, dict)
-                    or coverage["status"] != "full"
-                    or set(coverage["media_buy_ids"]) != set(covered)
-                    or set(coverage["fully_covered_media_buy_ids"]) != set(covered)
-                    or any(
-                        coverage[k]
-                        for k in (
-                            "partially_covered_media_buy_ids",
-                            "unsupported_media_buy_ids",
-                            "unknown_media_buy_ids",
-                            "unsupported_package_ids",
-                            "unknown_package_ids",
-                            "limitations",
-                        )
+                if state["state"] == "ready":
+                    record = _ready_coverage(
+                        state.get("current_coverage"),
+                        await _current_media_buy_ids(support, value.configuration),
                     )
-                    or set(coverage["package_ids"]) != set(coverage["covered_package_ids"])
-                ):
-                    raise LedgerConflictError(
-                        "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage differs"
-                    )
+                    if record.status != "full":
+                        incomplete.append((state, value, record))
                 if state["state"] == "inactive":
                     from adcp.reporting.ledger.models import derive_period, first_ordinal_after
 
@@ -389,4 +431,9 @@ class ReportingProductionConfigurationTask:
                     raise LedgerConflictError(
                         "REPORTING_CONFIGURATION_UNADMITTED", "configuration destination differs"
                     )
+        for state, value, record in incomplete:
+            # Every admitted generation requires full coverage. A truthful
+            # partial partition is not ready: it is action_required with the
+            # coverage issue, and keeps reporting the partition it found.
+            _coverage_incomplete(state, value, record)
         return dict(response)
