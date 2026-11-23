@@ -26,6 +26,7 @@ import hashlib
 import os
 import secrets
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -248,6 +249,69 @@ async def test_configuration_round_trips(store: PgReportingLedgerStore) -> None:
     assert loaded[0].schedule.period_duration == "PT1H"
     assert loaded[0].media_buy_ids == ("mb_1",)
     assert loaded[0].activated_at == configuration.activated_at
+
+
+async def test_all_media_buys_scope_round_trips_and_is_its_own_generation_content(
+    store: PgReportingLedgerStore,
+) -> None:
+    configuration = _configuration(
+        media_buy_ids=(), media_buy_scope="all_media_buys", required_finality="snapshot"
+    )
+    await store.put_configuration(configuration)
+    await store.put_configuration(configuration)  # exact replay is fine
+    assert await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer_pg")) == (
+        configuration,
+    )
+    # () never means "all": the explicit empty scope is different content.
+    with pytest.raises(LedgerConflictError, match="publish a new version"):
+        await store.put_configuration(replace(configuration, media_buy_scope="media_buy_ids"))
+    with pytest.raises(LedgerConflictError) as fixed:
+        await store.put_configuration(
+            replace(configuration, delivery_config_version=2, media_buy_ids=("mb_1",))
+        )
+    assert fixed.value.code == "INVALID_REQUEST"
+
+
+async def test_per_buy_coverage_round_trips_with_its_obligation(
+    store: PgReportingLedgerStore,
+) -> None:
+    from adcp.reporting.ledger import (
+        CompletePackageRoster,
+        MissingHistoricalPackageRoster,
+        PerMediaBuyPackageRoster,
+        UnsupportedMediaBuyRoster,
+        build_reporting_coverage,
+    )
+
+    configuration = _configuration(
+        media_buy_ids=(), media_buy_scope="all_media_buys", required_finality="snapshot"
+    )
+    await store.put_configuration(configuration)
+    boundary = _boundary()
+    coverage = build_reporting_coverage(
+        ("mb_a", "mb_b", "mb_c"),
+        PerMediaBuyPackageRoster(
+            {
+                "mb_a": CompletePackageRoster(("pkg_a",)),
+                "mb_b": MissingHistoricalPackageRoster(),
+                "mb_c": UnsupportedMediaBuyRoster("provider_limitation", ("pkg_c",)),
+            }
+        ),
+        boundary.end,
+    )
+    obligation = _obligation(
+        configuration,
+        media_buy_ids=coverage.media_buy_ids,
+        package_ids=coverage.package_ids,
+        coverage_status=coverage.status,
+        coverage=coverage,
+    )
+    await store.commit_obligation(obligation)
+    loaded = await store.get_obligation(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert loaded == obligation and loaded.coverage == coverage
+    assert loaded.coverage_status == "partial"
 
 
 async def test_a_configuration_generation_is_immutable(store: PgReportingLedgerStore) -> None:

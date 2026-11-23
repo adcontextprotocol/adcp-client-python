@@ -55,7 +55,13 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
+from adcp.reporting.ledger.coverage import build_reporting_coverage
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+from adcp.reporting.ledger.media_buy_scope import (
+    CompleteMediaBuyScope,
+    MediaBuyScopeResolver,
+    MissingHistoricalMediaBuyScope,
+)
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -68,6 +74,9 @@ from adcp.reporting.ledger.package_roster import (
     CompletePackageRoster,
     MissingHistoricalPackageRoster,
     PackageRosterResolver,
+    PackageRosterResult,
+    PerMediaBuyPackageRoster,
+    UnsupportedMediaBuyRoster,
     _resolve_roster_until,
 )
 from adcp.reporting.ledger.provisional import (
@@ -379,6 +388,24 @@ class WorkerTurn:
         )
 
 
+def _withheld(configuration: ReportingConfiguration, obligation: ReportingObligationRecord) -> bool:
+    """An account generation's obligation without full coverage publishes nothing.
+
+    Account configurations admit only ``coverage_requirement: full``. A
+    subscription's owed set keeps publishing over its recorded coverage.
+    """
+    return not configuration.owed_set and obligation.coverage_status != "full"
+
+
+def _zero_buy_snapshot(obligation: ReportingObligationRecord) -> bool:
+    """A proven zero-buy period whose generation requires only snapshot reporting."""
+    return (
+        not obligation.media_buy_ids
+        and obligation.coverage_status == "full"
+        and obligation.required_finality == "snapshot"
+    )
+
+
 @dataclass(frozen=True)
 class _SettlingPolicy:
     restatement_window: timedelta
@@ -403,6 +430,7 @@ class ReportingProducer:
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
         package_roster_resolver: PackageRosterResolver | None = None,
+        media_buy_scope_resolver: MediaBuyScopeResolver | None = None,
         revision_verifier: ReportingRevisionVerifier | None = None,
         retry_initial_delay: timedelta = timedelta(minutes=1),
         retry_max_delay: timedelta = timedelta(minutes=30),
@@ -440,6 +468,7 @@ class ReportingProducer:
         )
         self._revision_verifier = revision_verifier
         self._package_roster_resolver = package_roster_resolver
+        self._media_buy_scope_resolver = media_buy_scope_resolver
         self._retry_initial_delay = retry_initial_delay
         self._retry_max_delay = retry_max_delay
         self._post_deadline_retry_interval = post_deadline_retry_interval
@@ -668,7 +697,17 @@ class ReportingProducer:
             # A subscription's owed set is written by its planner, never filled
             # from a period grid.
             return []
-        if "package" in self._offerings.requested_dimensions and not configuration.media_buy_ids:
+        all_media_buys = configuration.media_buy_scope == "all_media_buys"
+        if all_media_buys and self._media_buy_scope_resolver is None:
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE",
+                "all_media_buys reporting requires a media buy scope resolver",
+            )
+        if (
+            "package" in self._offerings.requested_dimensions
+            and not all_media_buys
+            and not configuration.media_buy_ids
+        ):
             raise LedgerConflictError(
                 "HISTORY_UNAVAILABLE", "account package reporting requires an exact buy scope"
             )
@@ -691,19 +730,55 @@ class ReportingProducer:
                     )
                     after = boundary.end
                 continue
-            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
-            if "package" in self._offerings.requested_dimensions:
+            scoped = configuration
+            if all_media_buys:
+                assert self._media_buy_scope_resolver is not None
+                scope = await _resolve_roster_until(
+                    self._media_buy_scope_resolver,
+                    configuration,
+                    boundary,
+                    deadline=roster_deadline,
+                    what="media buy scope",
+                )
+                if isinstance(scope, MissingHistoricalMediaBuyScope):
+                    # Membership at the cutoff is unproven: commit nothing and
+                    # leave this and every later period open for a later turn.
+                    logger.warning(
+                        "reporting media buy scope unresolved account=%s config=%s@%s period=%s",
+                        configuration.account_id,
+                        configuration.delivery_config_id,
+                        configuration.delivery_config_version,
+                        boundary.period_key,
+                    )
+                    break
+                if not isinstance(scope, CompleteMediaBuyScope):
+                    raise TypeError("media buy scope resolver returned an unsupported result")
+                scoped = replace(configuration, media_buy_ids=scope.media_buy_ids)
+            roster: PackageRosterResult | None = None
+            # A proven zero-buy period owns no packages; there is nothing to roster.
+            if "package" in self._offerings.requested_dimensions and (
+                scoped.media_buy_ids or not all_media_buys
+            ):
                 if self._package_roster_resolver is not None:
                     roster = await _resolve_roster_until(
                         self._package_roster_resolver,
-                        configuration,
+                        scoped,
                         boundary,
                         deadline=roster_deadline,
                     )
                 else:
                     roster = MissingHistoricalPackageRoster()
-                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                if not isinstance(
+                    roster,
+                    (
+                        CompletePackageRoster,
+                        MissingHistoricalPackageRoster,
+                        UnsupportedMediaBuyRoster,
+                        PerMediaBuyPackageRoster,
+                    ),
+                ):
                     raise TypeError("package roster resolver returned an unsupported result")
+            coverage = build_reporting_coverage(scoped.media_buy_ids, roster, boundary.end)
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -718,11 +793,11 @@ class ReportingProducer:
                 # "now" would silently include a media buy that started after
                 # the period it is being reported against.
                 scope_resolved_at=boundary.end,
-                media_buy_ids=configuration.media_buy_ids,
-                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
-                coverage_status=(
-                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
-                ),
+                media_buy_ids=scoped.media_buy_ids,
+                package_ids=coverage.package_ids,
+                coverage_status=coverage.status,
+                # Full coverage is implied by its status; only a partition is retained.
+                coverage=None if coverage.status == "full" else coverage,
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=(
                     boundary.expected_at + configuration.automated_recovery_window
@@ -824,6 +899,8 @@ class ReportingProducer:
             )
             if obligation is None:
                 continue
+            if await self._close_without_source(configuration, obligation, turn, now=now):
+                continue
             if not await self._automatic_read_ready(configuration, obligation, now=now):
                 continue
             try:
@@ -879,6 +956,8 @@ class ReportingProducer:
             )
             if any(item.finality == "official" for item in revisions):
                 continue
+            if await self._close_without_source(configuration, obligation, turn, now=now):
+                continue
             if not await self._automatic_read_ready(configuration, obligation, now=now):
                 continue
             worked += 1
@@ -913,6 +992,11 @@ class ReportingProducer:
             )
             if obligation is None or obligation.generation_key != configuration.generation_key:
                 raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer history is unavailable")
+            if await self._close_without_source(configuration, obligation, turn, now=now):
+                await progress.finish_producer_acquisition(
+                    configuration, reporting_obligation_id=identifier
+                )
+                continue
             if not await self._automatic_read_ready(configuration, obligation, now=now):
                 # Waiting for the declared source window is not completion.
                 # Leave the durable work item available to a later turn.
@@ -944,6 +1028,84 @@ class ReportingProducer:
                 await progress.finish_producer_acquisition(
                     configuration, reporting_obligation_id=identifier
                 )
+
+    async def _close_without_source(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+    ) -> bool:
+        """Settle an obligation that never reads its source; ``True`` when it was one.
+
+        An account generation requires full coverage, so its obligation whose
+        frozen coverage is not full publishes no revision: the status
+        projection reports it as ``REPORTING_COVERAGE_INCOMPLETE``. A proven
+        zero-buy snapshot obligation closes with a zero-row snapshot.
+        """
+        if _withheld(configuration, obligation):
+            return True
+        if _zero_buy_snapshot(obligation):
+            await self._commit_zero_buy_snapshot(obligation, turn=turn, now=now)
+            return True
+        return False
+
+    async def _commit_zero_buy_snapshot(
+        self, obligation: ReportingObligationRecord, *, turn: WorkerTurn, now: datetime
+    ) -> ReportingRevisionRecord | None:
+        """Publish the zero-row snapshot of a proven zero-buy period, once.
+
+        The empty denominator was proven when the period closed, so there is
+        no source work: the revision is the explicit zero, with no rows and
+        zero totals. An official close is never minted this way.
+        """
+        if await self._store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        ):
+            return None
+        require_frozen_currency(obligation.currency)
+        revision_id = (
+            "rpr_"
+            + hashlib.sha256(
+                canonical_json_utf8_v1(["zero-buy-snapshot-v1", obligation.reporting_obligation_id])
+            ).hexdigest()[:40]
+        )
+        totals: tuple[tuple[str, str], ...] = ()
+        if self._revision_verifier is not None:
+            _, canonical = self._revision_verifier.canonicalize([])
+            totals = tuple((total.name, total.value) for total in canonical)
+        revision = ReportingRevisionRecord(
+            reporting_revision_id=revision_id,
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            finality="snapshot",
+            revision_content_sha256=revision_content_sha256(
+                reporting_revision_id=revision_id,
+                row_count=0,
+                control_totals=totals,
+                reporting_rows=[],
+            ),
+            row_count=0,
+            control_totals=totals,
+            observed_at=now,
+            data_through=obligation.period.end,
+            created_at=now,
+        )
+        if self._revision_verifier is not None:
+            from adcp.reporting.materializer.publication import verified_publication
+
+            revision = verified_publication(self._revision_verifier, obligation, revision, [])
+        staging = self._store if isinstance(self._store, ReportingRowStagingStore) else None
+        staged = staging is not None and bool(await staging.stage_revision_rows(revision, []))
+        try:
+            committed = await self._store.commit_revision(revision, [])
+        finally:
+            if staged and staging is not None:
+                staging.discard_staged_revision_rows(revision)
+        turn.revisions_committed.append(committed.reporting_revision_id)
+        return committed
 
     async def _automatic_read_ready(
         self,
@@ -1267,6 +1429,10 @@ class ReportingProducer:
         obligation = await self._stored_obligation(obligation)
         turn = turn or WorkerTurn()
         now = now or self._clock()
+        if _withheld(configuration, obligation):
+            return None
+        if _zero_buy_snapshot(obligation):
+            return await self._commit_zero_buy_snapshot(obligation, turn=turn, now=now)
         finality = target_finality or obligation.required_finality
         if not manual_replay and await self._retry_not_before(obligation, turn, now=now):
             retry_offering_id: str | None = None

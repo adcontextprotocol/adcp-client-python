@@ -80,6 +80,11 @@ from adcp.reporting.ledger.consumer_status import (
     project_consumer_mismatch,
     stale_received_grace_deadline,
 )
+from adcp.reporting.ledger.coverage import (
+    ReportingCoverageLimitation,
+    ReportingCoverageRecord,
+    build_reporting_coverage,
+)
 from adcp.reporting.ledger.delivery import (
     InMemoryReportingReconciliationStore,
     ReportingDestinationStore,
@@ -138,6 +143,14 @@ from adcp.reporting.ledger.issue_events import (
     issue_event_id,
     supports_issue_events,
 )
+from adcp.reporting.ledger.media_buy_scope import (
+    CompleteMediaBuyScope,
+    MediaBuyScopeResolver,
+    MissingHistoricalMediaBuyScope,
+    ReportingScopeBuy,
+    freeze_all_media_buys,
+    reject_unsupported_media_buy_scope,
+)
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
@@ -163,6 +176,13 @@ from adcp.reporting.ledger.models import (
     ReportingSubscriptionGeneration,
     derive_period,
     iso_duration_to_timedelta,
+)
+from adcp.reporting.ledger.package_roster import (
+    CompletePackageRoster,
+    MissingHistoricalPackageRoster,
+    PackageRosterResolver,
+    PerMediaBuyPackageRoster,
+    UnsupportedMediaBuyRoster,
 )
 from adcp.reporting.ledger.producer import (
     CurrencyResolver,
@@ -226,6 +246,20 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "CompleteMediaBuyScope",
+    "CompletePackageRoster",
+    "MediaBuyScopeResolver",
+    "MissingHistoricalMediaBuyScope",
+    "MissingHistoricalPackageRoster",
+    "PackageRosterResolver",
+    "PerMediaBuyPackageRoster",
+    "ReportingCoverageLimitation",
+    "ReportingCoverageRecord",
+    "ReportingScopeBuy",
+    "UnsupportedMediaBuyRoster",
+    "build_reporting_coverage",
+    "freeze_all_media_buys",
+    "reject_unsupported_media_buy_scope",
     "ReportingCaller",
     "ReportingIssueEventLease",
     "ReportingIssueEventStore",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.capabilities import Account as AccountCapabilities
@@ -14,6 +15,7 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingDeliveryPrincipal,
     ReportingDestinationBinding,
 )
+from adcp.reporting.ledger.media_buy_scope import reject_unsupported_media_buy_scope
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.contracts import failure
@@ -56,6 +58,21 @@ class ReportingConfigurationAdmission:
         reject_reserved_authoritative_party(config)
         if raw.get("authoritative_party", "seller") != "seller":
             raise LedgerConflictError("UNSUPPORTED_FEATURE", "consumer authority is reserved")
+        scope = raw["scope"]
+        # An exact generation freezes its explicit full media-buy denominator;
+        # an all_media_buys generation freezes each period's buys at close
+        # through the installed scope resolver. Neither may stand in for the
+        # other, and partial coverage is never admitted.
+        if config.media_buy_scope == "all_media_buys":
+            if scope != {"all_media_buys": True}:
+                raise failure("BINDING_MISMATCH")
+            reject_unsupported_media_buy_scope(
+                config, resolver_wired=support.media_buy_scope_resolver is not None
+            )
+        elif set(scope) != {"media_buy_ids"} or set(scope["media_buy_ids"]) != set(
+            config.media_buy_ids
+        ):
+            raise failure("BINDING_MISMATCH")
         offering = support._configuration_offering(config, binding, offering_id=self.offering_id)
         schedule = offering.configuration_schedule(config)
         supplied_schedule = dict(raw["schedule"])
@@ -64,10 +81,6 @@ class ReportingConfigurationAdmission:
                 supplied_schedule["period_anchor"]
             ).isoformat()
             schedule["period_anchor"] = aware_timestamp(schedule["period_anchor"]).isoformat()
-        scope = raw["scope"]
-        # This producer freezes an explicit full media-buy denominator. An
-        # application's dynamic all-buy or partial-coverage implementation must
-        # not be represented as this installed exact-generation contract.
         if (
             raw["delivery_config_id"] != config.delivery_config_id
             or raw["delivery_config_version"] != config.delivery_config_version
@@ -77,8 +90,6 @@ class ReportingConfigurationAdmission:
             or raw["reporting_profile"] != config.reporting_profile
             or raw["required_finality"] != config.required_finality
             or raw["reconciliation_mode"] != binding.reconciliation_mode
-            or set(scope) != {"media_buy_ids"}
-            or set(scope["media_buy_ids"]) != set(config.media_buy_ids)
             or raw["coverage_requirement"] != "full"
             or supplied_schedule != schedule
             or raw.get("method") != support._destination_binding(binding, offering).wire()
@@ -89,6 +100,45 @@ class ReportingConfigurationAdmission:
             )
         ):
             raise failure("BINDING_MISMATCH")
+
+
+async def _current_media_buy_ids(
+    support: ReportingProductionSupport, configuration: ReportingConfiguration
+) -> tuple[str, ...]:
+    """The buys a ready state's ``current_coverage`` must cover now.
+
+    An exact generation covers its fixed list. An all_media_buys generation
+    covers what the installed scope resolver proves for the current period.
+    """
+    if configuration.media_buy_scope != "all_media_buys":
+        return configuration.media_buy_ids
+    from adcp.reporting.ledger.media_buy_scope import CompleteMediaBuyScope
+    from adcp.reporting.ledger.models import derive_period, first_ordinal_after
+
+    resolver = support.media_buy_scope_resolver
+    if resolver is None:
+        raise LedgerConflictError(
+            "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage is unavailable"
+        )
+    now = datetime.now(timezone.utc)
+    ordinal = first_ordinal_after(
+        configuration.schedule, account_timezone=configuration.account_timezone, activated_at=now
+    )
+    period = derive_period(
+        configuration.schedule, account_timezone=configuration.account_timezone, ordinal=ordinal
+    )
+    if period.start != now:
+        period = derive_period(
+            configuration.schedule,
+            account_timezone=configuration.account_timezone,
+            ordinal=ordinal - 1,
+        )
+    scope = await resolver(configuration, period)
+    if not isinstance(scope, CompleteMediaBuyScope):
+        raise LedgerConflictError(
+            "REPORTING_CONFIGURATION_UNADMITTED", "configuration coverage is unproven"
+        )
+    return scope.media_buy_ids
 
 
 ConfigurationAdmission = Callable[[ReportingConfigurationAdmission], Awaitable[None]]
@@ -277,12 +327,16 @@ class ReportingProductionConfigurationTask:
                             "REPORTING_CONFIGURATION_UNADMITTED", "configuration lifecycle differs"
                         )
                 coverage = state.get("current_coverage")
+                covered = (
+                    await _current_media_buy_ids(support, value.configuration)
+                    if state["state"] == "ready"
+                    else value.configuration.media_buy_ids
+                )
                 if state["state"] == "ready" and (
                     not isinstance(coverage, dict)
                     or coverage["status"] != "full"
-                    or set(coverage["media_buy_ids"]) != set(value.configuration.media_buy_ids)
-                    or set(coverage["fully_covered_media_buy_ids"])
-                    != set(value.configuration.media_buy_ids)
+                    or set(coverage["media_buy_ids"]) != set(covered)
+                    or set(coverage["fully_covered_media_buy_ids"]) != set(covered)
                     or any(
                         coverage[k]
                         for k in (

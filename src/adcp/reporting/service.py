@@ -49,6 +49,10 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
+from adcp.reporting.ledger.media_buy_scope import (
+    MediaBuyScopeResolver,
+    reject_unsupported_media_buy_scope,
+)
 from adcp.reporting.ledger.package_roster import PackageRosterResolver
 from adcp.reporting.ledger.producer import _advertised_reporting_delivery
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
@@ -513,6 +517,7 @@ class ReliableReportingService:
         producer_factory: ProducerFactory = ReportingProducer,
         read_jitter_window: timedelta | None = None,
         package_roster_resolver: PackageRosterResolver | None = None,
+        media_buy_scope_resolver: MediaBuyScopeResolver | None = None,
         materialization_worker: ReportingBackgroundWorker | None = None,
         notification_worker: ReportingBackgroundWorker | None = None,
         notification_attempt_store: Any | None = None,
@@ -650,6 +655,7 @@ class ReliableReportingService:
             timedelta(minutes=5) if read_jitter_window is None else read_jitter_window
         )
         self._package_roster_resolver = package_roster_resolver
+        self._media_buy_scope_resolver = media_buy_scope_resolver
         if self._read_jitter_window < timedelta(0):
             raise ReliableReportingConfigurationError("read jitter window must be nonnegative")
         self._materialization_worker = materialization_worker
@@ -1127,6 +1133,9 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "production requires typed sync_accounts admission"
             )
+        reject_unsupported_media_buy_scope(
+            configuration, resolver_wired=self._media_buy_scope_resolver is not None
+        )
 
         async def configure() -> None:
             async with self._configuration_lock:
@@ -1213,6 +1222,11 @@ class ReliableReportingService:
             **(
                 {"package_roster_resolver": self._package_roster_resolver}
                 if self._package_roster_resolver is not None
+                else {}
+            ),
+            **(
+                {"media_buy_scope_resolver": self._media_buy_scope_resolver}
+                if self._media_buy_scope_resolver is not None
                 else {}
             ),
         )

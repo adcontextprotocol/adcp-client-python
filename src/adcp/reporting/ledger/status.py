@@ -757,6 +757,8 @@ def _obligation_coverage(obligation: ReportingObligationRecord) -> dict[str, Any
     at the period boundary, and a coverage claim carrying a later evaluation
     instant is describing a scope that did not exist when the period closed.
     """
+    if obligation.coverage is not None:
+        return obligation.coverage.to_wire()
     media_buy_ids = list(obligation.media_buy_ids)
     package_ids = list(obligation.package_ids)
     full = obligation.coverage_status == "full"
@@ -781,11 +783,17 @@ def _coverage_roll_up(
 ) -> dict[str, Any]:
     buy_states: dict[str, set[str]] = {}
     package_states: dict[str, set[str]] = {}
+    limitations: dict[tuple[str, str, tuple[str, ...]], dict[str, Any]] = {}
     for obligation in obligations:
-        for media_buy_id in obligation.media_buy_ids:
-            buy_states.setdefault(media_buy_id, set()).add(obligation.coverage_status)
-        for package_id in obligation.package_ids:
-            package_states.setdefault(package_id, set()).add(obligation.coverage_status)
+        buys, packages = _item_states(obligation)
+        for media_buy_id, state in buys.items():
+            buy_states.setdefault(media_buy_id, set()).add(state)
+        for package_id, state in packages.items():
+            package_states.setdefault(package_id, set()).add(state)
+        if obligation.coverage is not None:
+            for item in obligation.coverage.limitations:
+                key = (item.media_buy_id, item.reason, item.package_ids)
+                limitations[key] = item.to_wire()
     fully_covered_buys = sorted(
         buy_id for buy_id, states in buy_states.items() if states == {"full"}
     )
@@ -824,11 +832,7 @@ def _coverage_roll_up(
     status = (
         "full"
         if not incomplete
-        else "partial"
-        if covered
-        else "unknown"
-        if unknown_buys or unknown_packages
-        else "none"
+        else "partial" if covered else "unknown" if unknown_buys or unknown_packages else "none"
     )
     evaluated = (
         max(obligation.scope_resolved_at for obligation in obligations) if obligations else as_of
@@ -845,8 +849,32 @@ def _coverage_roll_up(
         "covered_package_ids": covered_packages,
         "unsupported_package_ids": unsupported_packages,
         "unknown_package_ids": unknown_packages,
-        "limitations": [],
+        "limitations": [limitations[key] for key in sorted(limitations)],
     }
+
+
+def _item_states(
+    obligation: ReportingObligationRecord,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Each buy's and package's coverage state in one obligation."""
+    coverage = obligation.coverage
+    if coverage is None:
+        return (
+            {buy: obligation.coverage_status for buy in obligation.media_buy_ids},
+            {package: obligation.coverage_status for package in obligation.package_ids},
+        )
+    buys = {
+        **{buy: "full" for buy in coverage.fully_covered_media_buy_ids},
+        **{buy: "partial" for buy in coverage.partially_covered_media_buy_ids},
+        **{buy: "none" for buy in coverage.unsupported_media_buy_ids},
+        **{buy: "unknown" for buy in coverage.unknown_media_buy_ids},
+    }
+    packages = {
+        **{package: "full" for package in coverage.covered_package_ids},
+        **{package: "none" for package in coverage.unsupported_package_ids},
+        **{package: "unknown" for package in coverage.unknown_package_ids},
+    }
+    return buys, packages
 
 
 def _obligation_to_wire(

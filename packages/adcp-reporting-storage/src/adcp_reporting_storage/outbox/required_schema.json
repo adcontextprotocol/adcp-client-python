@@ -103,6 +103,10 @@
     "enabled": true,
     "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
   },
+  "column:reporting_configurations.media_buy_scope": {
+    "enabled": true,
+    "fingerprint": "ce6dcd9843bba2b28001a4e07cbc6bd7274481dd89a9f92be249e4b9d0dd5db9"
+  },
   "column:reporting_configurations.offering_id": {
     "enabled": true,
     "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
@@ -490,6 +494,10 @@
   "column:reporting_obligations.consumer_id": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_obligations.coverage": {
+    "enabled": true,
+    "fingerprint": "1f539b84d6adb1a8577add320aabb81fdd5c614ad01b46c7b77eb55b995a6556"
   },
   "column:reporting_obligations.coverage_status": {
     "enabled": true,
@@ -999,6 +1007,10 @@
     "enabled": true,
     "fingerprint": "9cf309cbfbca6b2d8395ccb46194e071919c7c838c98bf72df1ea6f0ac368b64"
   },
+  "constraint:reporting_configurations.reporting_configurations_media_buy_scope_check": {
+    "enabled": true,
+    "fingerprint": "37dc3b6b6fbb7d3fcfc507dc9b5a7b2cfe6e52b5f951005e0dfcab4a7ef80c1e"
+  },
   "constraint:reporting_configurations.reporting_configurations_pkey": {
     "enabled": true,
     "fingerprint": "32ac40fcb53b3780f37f76b062d5a06465e786ee5007f31748b6c964b7b0d20f"
@@ -1106,6 +1118,10 @@
   "constraint:reporting_notification_expansions.reporting_notification_expansions_state_check": {
     "enabled": true,
     "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
+  },
+  "constraint:reporting_obligations.reporting_obligations_coverage_check": {
+    "enabled": true,
+    "fingerprint": "b1f4797f203ce009e3c98997129586dc2f3f9e5fc2f6048d9c8941a69a79cef7"
   },
   "constraint:reporting_obligations.reporting_obligations_currency_code": {
     "enabled": true,

@@ -125,8 +125,10 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
         "0006",
         "0007",
         "0008",
+        "0009",
     ]
     widened, offerings, contract, events = shipped[1], shipped[5], shipped[6], shipped[7]
+    scope = shipped[8]
     assert widened.name == "reporting_subscription_generations"
     assert widened.includes == ("ledger/reporting_ledger_account_generations.sql",)
     assert offerings.name == "reporting_status_checkpoint_offerings"
@@ -149,7 +151,10 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     # The issue-event outbox (#1258) is additive: applied even while 0007 waits.
     assert events.name == "reporting_issue_events" and events.additive and not events.contract
     assert events.includes == ("ledger/reporting_issue_events.sql",)
-    assert [item.version for item in shipped if item.additive] == ["0008"]
+    # The configuration scope mode is one defaulted column: additive too.
+    assert scope.name == "reporting_all_media_buys" and scope.additive
+    assert scope.includes == ("ledger/reporting_all_media_buys.sql",)
+    assert [item.version for item in shipped if item.additive] == ["0008", "0009"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves
     lines = describe([MigrationStatus(item, None) for item in shipped])
@@ -259,7 +264,7 @@ def test_storage_declares_the_contract_adcp_reads_with() -> None:
     import adcp_reporting_storage
     from adcp_reporting_storage.contract import STORAGE_CONTRACT, adcp_storage_contract
 
-    assert adcp_reporting_storage.STORAGE_CONTRACT == STORAGE_CONTRACT == 2
+    assert adcp_reporting_storage.STORAGE_CONTRACT == STORAGE_CONTRACT == 3
     assert adcp_storage_contract() == STORAGE_CONTRACT
     adcp_reporting_storage.require_adcp_contract()  # the workspace pair agrees
 
@@ -300,8 +305,9 @@ def test_a_postgres_store_refuses_an_adcp_of_another_contract(monkeypatch) -> No
     error = refused.value
     assert error.code == "REPORTING_SCHEMA_BEHIND" and error.recovery == "correctable"
     assert error.config_field == "adcp-reporting-storage"
-    assert "storage contract 1" in str(error) and "implements contract 2" in str(error)
-    assert "Install adcp 10.0.0b4 or later" in str(error)
-    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 3)
+    assert "storage contract 1" in str(error) and "implements contract 3" in str(error)
+    assert "Install adcp 10.0.0b24 or later" in str(error)
+    assert "adcp-reporting-storage 0.2.0b0 with this adcp" in str(error)
+    monkeypatch.setattr(contract, "adcp_storage_contract", lambda: 4)
     with pytest.raises(ReliableReportingConfigurationError, match="newer than"):
         PgReportingLedgerStore(pool=object())

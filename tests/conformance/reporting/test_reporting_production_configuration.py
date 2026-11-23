@@ -353,3 +353,56 @@ async def test_provider_binding_is_frozen_across_restart_and_later_mutation(
                     restarted.production.offerings[0].source_offering_id,
                 )
             assert await source_documents(restarted) == source
+
+
+async def test_all_media_buys_admission_needs_a_resolver_and_snapshot_finality(tmp_path):
+    from adcp.reporting.ledger import CompleteMediaBuyScope, LedgerConflictError
+
+    async with production_harness("memory", tmp_path / "destination.sqlite", count=0) as h:
+        explicit = wire_configuration(h)
+
+        def admission(config, scope):
+            wire = {**explicit, "scope": scope, "required_finality": config.required_finality}
+            return ReportingConfigurationAdmission(
+                h.production.offerings[0].offering_id,
+                config,
+                h.item.binding,
+                configuration_wire=wire,
+            )
+
+        # Explicit media_buy_ids admit as before, with no resolver wired.
+        config = h.item.config
+        admission(config, {"media_buy_ids": list(config.media_buy_ids)}).check(h.production)
+        all_scope = replace(
+            h.item.config,
+            media_buy_ids=(),
+            media_buy_scope="all_media_buys",
+            required_finality="snapshot",
+        )
+        with pytest.raises(LedgerConflictError) as refused:
+            admission(all_scope, {"all_media_buys": True}).check(h.production)
+        assert refused.value.code == "UNSUPPORTED_FEATURE"
+
+        async def resolver(configuration, period):
+            return CompleteMediaBuyScope(())
+
+        h.production.media_buy_scope_resolver = resolver
+        # With a resolver the scope gate admits snapshot all_media_buys. The
+        # production source binding still freezes one buy set per generation,
+        # so this harness's source (bound to its explicit buys) refuses it.
+        with pytest.raises(ReportingWriterError) as unbound:
+            admission(all_scope, {"all_media_buys": True}).check(h.production)
+        assert unbound.value.failure.code == "BINDING_MISMATCH"
+        official = replace(all_scope, required_finality="official")
+        with pytest.raises(LedgerConflictError, match="attestation hook") as refused:
+            admission(official, {"all_media_buys": True}).check(h.production)
+        assert refused.value.code == "UNSUPPORTED_FEATURE"
+        # all_media_buys is never an explicit empty list, in either direction.
+        explicit_empty = replace(h.item.config, media_buy_ids=(), required_finality="snapshot")
+        for config, scope in (
+            (explicit_empty, {"all_media_buys": True}),
+            (all_scope, {"media_buy_ids": list(h.item.config.media_buy_ids)}),
+        ):
+            with pytest.raises(ReportingWriterError) as mismatch:
+                admission(config, scope).check(h.production)
+            assert mismatch.value.failure.code == "BINDING_MISMATCH"

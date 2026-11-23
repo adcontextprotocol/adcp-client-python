@@ -37,6 +37,7 @@ from typing import Any
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import validate_currency
+from adcp.reporting.ledger.coverage import build_reporting_coverage
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.models import (
     STUB_PERIOD_KEY_SUFFIX,
@@ -52,6 +53,9 @@ from adcp.reporting.ledger.package_roster import (
     CompletePackageRoster,
     MissingHistoricalPackageRoster,
     PackageRosterResolver,
+    PackageRosterResult,
+    PerMediaBuyPackageRoster,
+    UnsupportedMediaBuyRoster,
     _resolve_roster_until,
 )
 from adcp.reporting.ledger.store import (
@@ -340,7 +344,7 @@ class SubscriptionObligationPlanner:
                 source_timezone=period.source_timezone,
                 expected_at=expected_at,
             )
-            roster: CompletePackageRoster | MissingHistoricalPackageRoster | None = None
+            roster: PackageRosterResult | None = None
             if "package" in offering.dimensions:
                 if self._package_roster_resolver is not None:
                     roster = await _resolve_roster_until(
@@ -353,13 +357,22 @@ class SubscriptionObligationPlanner:
                         raise asyncio.CancelledError("subscription planning stopped")
                 else:
                     roster = MissingHistoricalPackageRoster()
-                if not isinstance(roster, (CompletePackageRoster, MissingHistoricalPackageRoster)):
+                if not isinstance(
+                    roster,
+                    (
+                        CompletePackageRoster,
+                        MissingHistoricalPackageRoster,
+                        UnsupportedMediaBuyRoster,
+                        PerMediaBuyPackageRoster,
+                    ),
+                ):
                     raise TypeError("package roster resolver returned an unsupported result")
                 if isinstance(roster, MissingHistoricalPackageRoster) and not period.media_buy_ids:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE",
                         "empty subscription buy scope requires complete package roster evidence",
                     )
+            coverage = build_reporting_coverage(period.media_buy_ids, roster, end)
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=subscription_obligation_id(
                     account_id=owed.account_id,
@@ -380,10 +393,10 @@ class SubscriptionObligationPlanner:
                 period=boundary,
                 scope_resolved_at=end,
                 media_buy_ids=tuple(period.media_buy_ids),
-                package_ids=roster.package_ids if isinstance(roster, CompletePackageRoster) else (),
-                coverage_status=(
-                    "unknown" if isinstance(roster, MissingHistoricalPackageRoster) else "full"
-                ),
+                package_ids=coverage.package_ids,
+                coverage_status=coverage.status,
+                # Full coverage is implied by its status; only a partition is retained.
+                coverage=None if coverage.status == "full" else coverage,
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=expected_at + self._window,
                 schedule=configuration.schedule,

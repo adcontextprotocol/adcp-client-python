@@ -1,0 +1,10 @@
+-- adcp-migration: 0009 reporting_all_media_buys
+-- adcp-upgrade: additive
+-- Reporting scope all_media_buys: the configuration's media-buy scope mode and
+-- each obligation's per-buy coverage partition. Two new columns and their
+-- checks, nothing else.
+--
+-- Rolling-deploy safe, and applied even while the contract step (0007) waits:
+-- it depends on nothing 0007 changes, and processes of earlier releases never
+-- read or write the columns.
+-- include: ledger/reporting_all_media_buys.sql

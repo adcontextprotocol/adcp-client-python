@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
+from adcp.reporting.ledger.media_buy_scope import MediaBuyScopeResolver
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer.contracts import (
@@ -176,6 +177,7 @@ class ReportingProductionSupport:
         adcp_version: str | None = None,
         source_registry: ReportingProductionSourceRegistry | None = None,
         maintenance_seconds: float | None = 300.0,
+        media_buy_scope_resolver: MediaBuyScopeResolver | None = None,
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
@@ -215,6 +217,10 @@ class ReportingProductionSupport:
                 raise ValueError("production requires an exact source registry")
             source_registry.freeze(offerings)
         self.source_registry = source_registry
+        #: Admits ``scope: {all_media_buys: true}`` generations at snapshot
+        #: finality and proves their ready-state coverage. Without it they are
+        #: refused with UNSUPPORTED_FEATURE.
+        self.media_buy_scope_resolver = media_buy_scope_resolver
         self._service_lifecycle: _ServiceLifecycle | None = None
         self.automated_recovery_window, self.status_retention_days = (
             automated_recovery_window,

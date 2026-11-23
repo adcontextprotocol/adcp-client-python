@@ -11,9 +11,12 @@ bumped together whenever the shared layout changes:
 * **1** — the SDK 9 layout and adcp 10.0.0b0–b3: a configuration generation is
   ``(account_id, consumer_id, delivery_config_id, delivery_config_version)``.
   Implemented by adcp-reporting-storage 0.1.0b4 and 0.2.0b0.
-* **2** — adcp 10.0.0b4 and later: ``offering_id`` on configurations,
+* **2** — adcp 10.0.0b4 through 10.0.0b23: ``offering_id`` on configurations,
   obligations and consumer statuses (AdCP 3.3 reporting subscriptions).
-  Implemented by adcp-reporting-storage 0.2.0b1 and later.
+  Implemented by adcp-reporting-storage 0.2.0b1 through 0.2.0b4.
+* **3** — ``media_buy_scope`` on configurations (reporting scope
+  ``all_media_buys``; schema migration ``0009``). Implemented by
+  adcp-reporting-storage 0.2.0b5 and later.
 
 :func:`require_storage_contract` runs at service startup and when
 ``postgres_storage`` is built, so an incompatible pair is refused once, with
@@ -38,12 +41,12 @@ __all__ = [
 ]
 
 #: The storage contract this adcp reads the reporting ledger with.
-REPORTING_STORAGE_CONTRACT = 2
+REPORTING_STORAGE_CONTRACT = 3
 
 #: The distribution that implements the contract for PostgreSQL.
 STORAGE_DISTRIBUTION = "adcp-reporting-storage"
 #: Its first release of the current contract.
-STORAGE_RELEASE = "0.2.0b1"
+STORAGE_RELEASE = "0.2.0b5"
 
 
 def storage_contract_fingerprint() -> str:

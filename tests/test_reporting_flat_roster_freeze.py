@@ -130,19 +130,31 @@ async def test_account_producer_refuses_unresolved_buy_scope_before_progress() -
     scope = request.accounts[0].reporting_delivery_configs[0].scope
     assert scope.all_media_buys is True and scope.media_buy_ids is None
     store = ProgressStore()
-    configuration = replace(_configuration(), media_buy_ids=tuple(scope.media_buy_ids or ()))
-    await store.put_configuration(configuration)
+    # all_media_buys is its own persisted scope mode, never an explicit empty list.
+    configuration = replace(
+        _configuration(required_finality="snapshot"),
+        media_buy_ids=(),
+        media_buy_scope="all_media_buys",
+    )
+    explicit_empty = replace(
+        _configuration(), delivery_config_id="explicit_empty", media_buy_ids=()
+    )
     producer = ReportingProducer(
         source=_NoSource(),
         offerings=ProducerOfferings(requested_dimensions=("package",)),
         store=store,
     )
-    with pytest.raises(LedgerConflictError) as denied:
-        await producer.close_elapsed_periods(
-            configuration, now=datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc)
-        )
-    assert denied.value.code == "HISTORY_UNAVAILABLE"
-    assert await store.list_generation_obligations(configuration.generation_key) == ()
+    for generation, code in (
+        (configuration, "UNSUPPORTED_FEATURE"),  # no media buy scope resolver is wired
+        (explicit_empty, "HISTORY_UNAVAILABLE"),
+    ):
+        await store.put_configuration(generation)
+        with pytest.raises(LedgerConflictError) as denied:
+            await producer.close_elapsed_periods(
+                generation, now=datetime(2026, 9, 1, 2, 30, tzinfo=timezone.utc)
+            )
+        assert denied.value.code == code
+        assert await store.list_generation_obligations(generation.generation_key) == ()
     assert store.closed_through is None
 
 
