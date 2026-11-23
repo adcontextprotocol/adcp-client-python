@@ -58,6 +58,30 @@ delivery.
   persist them when read, or record a receipt or status statement naming the
   revision.
 
+## Reporting scope `all_media_buys` and zero-buy snapshots
+
+- **Zero-buy snapshot obligations now publish a zero-row snapshot.** An
+  obligation with an empty buy set, full coverage and
+  `required_finality: snapshot` used to fail acquisition with
+  `EMPTY_DENOMINATOR` every turn. The producer now commits a zero-row snapshot
+  revision for it without calling the source. This covers an adopter-built
+  configuration with explicit `media_buy_ids=()` and an empty period of a
+  reporting subscription's owed set, including obligations already open when
+  you upgrade: their first turn on the new release publishes the zero-row
+  snapshot. At `required_finality: official` nothing changes; the obligation
+  still fails closed with `EMPTY_DENOMINATOR`.
+- **`all_media_buys` generations.** `ReportingConfiguration.media_buy_scope`
+  can be `all_media_buys`; the producer freezes each period's buys at close
+  through `media_buy_scope_resolver`. `ReliableReportingService` admits such a
+  generation only with a resolver, at snapshot finality, and with
+  `admit_all_media_buys=True`. Production admission refuses it. Set the opt-in
+  only after every reporting process reads storage contract 3 (see the
+  [ledger migration notes](reporting-ledger-migration.md#all-media-buys-scope-migration-0009)).
+- **Per-buy coverage.** A package roster resolver may return
+  `PerMediaBuyPackageRoster`. Its incomplete coverage is reported per buy, and
+  an account obligation with such coverage publishes no revision. An exact
+  scope with a whole-configuration roster, or none, behaves as before.
+
 ## Protocol-shape control totals
 
 New Core revisions bind `{name, value, value_type[, unit]}` control totals in
