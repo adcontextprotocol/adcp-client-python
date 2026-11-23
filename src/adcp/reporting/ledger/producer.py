@@ -389,12 +389,18 @@ class WorkerTurn:
 
 
 def _withheld(configuration: ReportingConfiguration, obligation: ReportingObligationRecord) -> bool:
-    """An account generation's obligation without full coverage publishes nothing.
+    """An account obligation with a retained incomplete partition publishes nothing.
 
-    Account configurations admit only ``coverage_requirement: full``. A
-    subscription's owed set keeps publishing over its recorded coverage.
+    Account configurations admit only ``coverage_requirement: full``. The
+    partition is retained for per-buy roster evidence and for all_media_buys
+    generations; a status-only obligation (a whole-configuration roster on an
+    exact scope) and a subscription's owed set publish as they always have.
     """
-    return not configuration.owed_set and obligation.coverage_status != "full"
+    return (
+        not configuration.owed_set
+        and obligation.coverage is not None
+        and obligation.coverage_status != "full"
+    )
 
 
 def _zero_buy_snapshot(obligation: ReportingObligationRecord) -> bool:
@@ -796,8 +802,18 @@ class ReportingProducer:
                 media_buy_ids=scoped.media_buy_ids,
                 package_ids=coverage.package_ids,
                 coverage_status=coverage.status,
-                # Full coverage is implied by its status; only a partition is retained.
-                coverage=None if coverage.status == "full" else coverage,
+                # A whole-configuration roster on an exact scope keeps the
+                # status-only coverage it always had. A per-buy roster, or an
+                # all_media_buys generation, retains its incomplete partition.
+                coverage=(
+                    coverage
+                    if coverage.status != "full"
+                    and (
+                        all_media_buys
+                        or isinstance(roster, (PerMediaBuyPackageRoster, UnsupportedMediaBuyRoster))
+                    )
+                    else None
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=(
                     boundary.expected_at + configuration.automated_recovery_window

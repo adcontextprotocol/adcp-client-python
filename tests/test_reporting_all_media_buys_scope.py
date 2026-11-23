@@ -448,3 +448,39 @@ async def test_service_admits_snapshot_all_scope_with_a_resolver_and_wires_it() 
     await service.configure(configuration)
     binding = service._bindings[configuration.generation_key]
     assert binding.producer._media_buy_scope_resolver is scope
+
+
+async def test_explicit_scope_without_a_roster_resolver_publishes_as_before() -> None:
+    """Explicit media_buy_ids, package dimension, no roster resolver: unchanged behaviour."""
+    store = InMemoryReportingLedgerStore(clock=lambda: FIRST_CLOSE)
+    configuration = _configuration(required_finality="snapshot")
+    await store.put_configuration(configuration)
+    source = FailingSource()
+    producer = _producer(
+        store,
+        source=source,
+        offerings=ProducerOfferings(
+            snapshot_offering_id=SNAPSHOT_OFFERING_ID, requested_dimensions=("package",)
+        ),
+    )
+    (obligation,) = await producer.close_elapsed_periods(configuration, now=FIRST_CLOSE)
+    assert (obligation.coverage_status, obligation.coverage) == ("unknown", None)
+    assert obligation.package_ids == ()
+    await producer.acquire_obligation(configuration, obligation, now=FIRST_CLOSE)
+    assert source.calls == 1  # the source is read and its result published, as before
+    view = await ReportingStatusHandler(store).handle({"view": "periods"}, caller=CALLER)
+    (period,) = view["periods"]
+    assert period["coverage"] == {
+        "status": "unknown",
+        "evaluated_at": "2026-09-01T02:00:00Z",
+        "media_buy_ids": ["mb_1"],
+        "fully_covered_media_buy_ids": [],
+        "partially_covered_media_buy_ids": [],
+        "unsupported_media_buy_ids": [],
+        "unknown_media_buy_ids": ["mb_1"],
+        "package_ids": [],
+        "covered_package_ids": [],
+        "unsupported_package_ids": [],
+        "unknown_package_ids": [],
+        "limitations": [],
+    }

@@ -395,8 +395,14 @@ class SubscriptionObligationPlanner:
                 media_buy_ids=tuple(period.media_buy_ids),
                 package_ids=coverage.package_ids,
                 coverage_status=coverage.status,
-                # Full coverage is implied by its status; only a partition is retained.
-                coverage=None if coverage.status == "full" else coverage,
+                # Only per-buy roster evidence retains a partition; a
+                # whole-configuration roster keeps its status-only coverage.
+                coverage=(
+                    coverage
+                    if coverage.status != "full"
+                    and isinstance(roster, (PerMediaBuyPackageRoster, UnsupportedMediaBuyRoster))
+                    else None
+                ),
                 required_finality=configuration.required_finality,
                 automated_recovery_deadline_at=expected_at + self._window,
                 schedule=configuration.schedule,
