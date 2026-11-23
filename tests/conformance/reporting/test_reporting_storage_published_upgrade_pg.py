@@ -224,14 +224,19 @@ SCOPED = {
 
 def assert_evidence_unchanged(before: dict[str, Any], after: dict[str, Any]) -> None:
     """Every pre-upgrade row survives byte-for-byte, plus ``offering_id = ''`` where widened
-    and the defaults of the all_media_buys columns."""
+    and, once installed, the defaults of the all_media_buys columns."""
+
+    def scoped(table: str) -> dict[str, Any]:
+        installed = after.get(table) or [{}]
+        return {
+            column: value
+            for column, value in SCOPED.get(table, {}).items()
+            if column in installed[0]
+        }
+
     expected = {
         table: [
-            {
-                **row,
-                **({"offering_id": ""} if table in WIDENED else {}),
-                **SCOPED.get(table, {}),
-            }
+            {**row, **({"offering_id": ""} if table in WIDENED else {}), **scoped(table)}
             for row in rows
         ]
         for table, rows in before.items()
@@ -260,7 +265,7 @@ def _rest(*, contract: bool = True) -> list[str]:
 #: The contract steps: applied to an expanded ledger only with ``contract=True``.
 CONTRACT_VERSIONS = ["0007"]
 #: Additive migrations after the contract step: applied even while it is held.
-ADDITIVE_AFTER_CONTRACT = ["0008"]
+ADDITIVE_AFTER_CONTRACT = ["0008", "0009"]
 #: The objects that exist only while a ledger is expanded (catalog lines).
 EXPANDED_LEDGER = {
     "constraint reporting_configurations reporting_configurations_generation_key",
@@ -547,7 +552,7 @@ async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one
     b4_with_this_storage: Path,
     workspace: Path,
 ) -> None:
-    """The reported failure, then the pair the fix ships: adcp 10.0.0b4 + this storage."""
+    """The reported failure; this storage (contract 3) then refuses adcp 10.0.0b4 (contract 2)."""
     storage, python = published
     if storage != "0.2.0b0":
         pytest.skip("the 10.0.0b4 pairing concerns the 0.2.0b0 ledger")
@@ -557,13 +562,14 @@ async def test_adcp_b4_fails_on_the_published_storage_and_upgrades_with_this_one
             _run, b4_with_published_storage, _settings(pool, "read"), cwd=workspace
         )
         assert "offering_id" in failed.get("error", ""), failed  # #1763, reproduced
-        upgraded = await asyncio.to_thread(
-            _run, b4_with_this_storage, _settings(pool, "upgrade"), cwd=workspace
-        )
-        assert "error" not in upgraded, upgraded["error"]
-        assert upgraded["readback"] == seeded["readback"]
-        assert_evidence_unchanged(seeded["image"], upgraded["image"])
-        assert await _versions(pool) == LEDGER_VERSIONS
+        versions = await _versions(pool)
+        with pytest.raises(AssertionError, match="implements contract 3"):
+            await asyncio.to_thread(
+                _run, b4_with_this_storage, _settings(pool, "upgrade"), cwd=workspace
+            )
+        # Refused at store construction, before any DDL or write.
+        assert await _image_here(pool) == seeded["image"]
+        assert await _versions(pool) == versions
 
 
 # -- rolling deploy: expand, old and new side by side, contract (#1856) ------
@@ -1010,10 +1016,19 @@ async def test_a_ledger_the_published_0_2_0b1_widened_counts_as_contracted(
         assert _expand_only(before) == set()
         store = PgReportingLedgerStore(pool=pool, notifications=True)
         await seed.create_schema(pool, store, notifications=True)  # boots, does not re-expand
-        assert await _catalog(pool) == before
+        booted = await _catalog(pool)
+        # The boot adds only the all_media_buys columns and their checks.
+        assert set(before) <= set(booted)
+        assert all(
+            "media_buy_scope" in line
+            or "reporting_obligations.coverage" in line
+            or "coverage_check" in line
+            for line in set(booted) - set(before)
+        ), sorted(set(booted) - set(before))
+        before = booted
         # The contract step is recorded without --contract: it changes nothing here.
         applied = [item.version for item in await migrate(pool)]
-        assert applied[-2:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
+        assert applied[-3:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
         await postgres_storage(pool=pool).check_schema()
         after = await _catalog(pool)  # 0004 and 0005 add their own tables
         assert set(before) <= set(after) and _expand_only(after) == set()
@@ -1046,6 +1061,7 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         assert "would apply 0006 reporting_status_checkpoint_offerings\n" in planned
         assert "would apply 0007" not in planned  # held
         assert "would apply 0008 reporting_issue_events\n" in planned  # additive: not held
+        assert "would apply 0009 reporting_all_media_buys\n" in planned
         assert (
             "not applied 0007 reporting_contract_generation_keys (contract): run"
             f' "python -m adcp migrate --contract" {when}'
@@ -1056,20 +1072,22 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         assert "applied 0002 reporting_subscription_generations\n" in applied
         assert "\napplied 0007" not in applied
         assert "applied 0008 reporting_issue_events\n" in applied
+        assert "applied 0009 reporting_all_media_buys\n" in applied
         assert "not applied 0007 reporting_contract_generation_keys (contract)" in applied
         await postgres_storage(pool=pool).check_schema()  # starts: only the contract pends
 
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out.strip().splitlines()
-        assert status[-3] == (
+        assert status[-4] == (
             "0007 reporting_contract_generation_keys: pending  [contract: run"
             f" {when}: python -m adcp migrate --contract]"
         )
-        assert status[-2].startswith("0008 reporting_issue_events: applied ")
+        assert status[-3].startswith("0008 reporting_issue_events: applied ")
+        assert status[-2].startswith("0009 reporting_all_media_buys: applied ")
         assert status[-1] == (
             f'up to date except the contract step: run "python -m adcp migrate --contract" {when}'
         )
-        assert describe(await migration_status(pool))[-2] == status[-3]
+        assert describe(await migration_status(pool))[-3] == status[-4]
         _all_ok(await _old_pod(python, pool, workspace, notifications=False, ordinal=2))
 
         assert await _run(dsn, status=False, dry_run=False, contract=True) == 0
