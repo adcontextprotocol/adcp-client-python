@@ -252,6 +252,36 @@ async def test_unresolved_scope_keeps_the_period_open_without_progress() -> None
     assert store.closed_through == _at(3)
 
 
+def _first_period() -> ReportingPeriodBoundary:
+    from adcp.reporting.ledger.models import derive_period, first_ordinal_after
+
+    configuration = _all_scope()
+    return derive_period(
+        configuration.schedule,
+        account_timezone="UTC",
+        ordinal=first_ordinal_after(
+            configuration.schedule, account_timezone="UTC", activated_at=_at(0, 20)
+        ),
+    )
+
+
+async def test_unresolved_scope_escalates_once_past_its_recovery_deadline() -> None:
+    store = InMemoryReportingLedgerStore()
+    configuration = _all_scope()
+    await store.put_configuration(configuration)
+    scope = _Scope(MissingHistoricalMediaBuyScope("buy edited after cutoff"))
+    producer = _producer(store, media_buy_scope_resolver=scope)
+    period = _first_period()
+    # [01:00, 02:00) is expected at 03:00 and recovers automatically until 09:00.
+    assert period.expected_at + configuration.automated_recovery_window == _at(9)
+    before = await producer.run_configuration(configuration, now=_at(8, 59))
+    assert before.escalated == [] and before.obligations_committed == []
+    after = await producer.run_configuration(configuration, now=_at(9))
+    assert after.escalated == [ReportingProducer._obligation_id(configuration, period)]
+    assert after.obligations_committed == []
+    assert await store.list_generation_obligations(configuration.generation_key) == ()
+
+
 async def test_zero_buy_period_publishes_a_zero_row_snapshot_without_the_source() -> None:
     store = InMemoryReportingLedgerStore(clock=lambda: FIRST_CLOSE)
     configuration = _all_scope()
@@ -402,8 +432,13 @@ async def test_a_per_buy_roster_must_name_exactly_the_frozen_buys() -> None:
         media_buy_scope_resolver=_Scope(CompleteMediaBuyScope(("mb_a", "mb_b"))),
         package_roster_resolver=roster,
     )
-    with pytest.raises(ValueError, match="exactly the frozen media buys"):
-        await producer.close_elapsed_periods(configuration, now=FIRST_CLOSE)
+    # A roster that contradicts the frozen buys is the resolver's contract to
+    # fix: the period stays open, and escalates once its recovery deadline passes.
+    early = await producer.run_configuration(configuration, now=FIRST_CLOSE)
+    assert early.obligations_committed == [] and early.escalated == []
+    late = await producer.run_configuration(configuration, now=_at(9, 30))
+    assert late.obligations_committed == []
+    assert late.escalated == [ReportingProducer._obligation_id(configuration, _first_period())]
     assert await store.list_generation_obligations(configuration.generation_key) == ()
 
 

@@ -749,12 +749,8 @@ class ReportingProducer:
                 if isinstance(scope, MissingHistoricalMediaBuyScope):
                     # Membership at the cutoff is unproven: commit nothing and
                     # leave this and every later period open for a later turn.
-                    logger.warning(
-                        "reporting media buy scope unresolved account=%s config=%s@%s period=%s",
-                        configuration.account_id,
-                        configuration.delivery_config_id,
-                        configuration.delivery_config_version,
-                        boundary.period_key,
+                    self._note_unclosed_period(
+                        configuration, boundary, turn, now=now, why="media buy scope unresolved"
                     )
                     break
                 if not isinstance(scope, CompleteMediaBuyScope):
@@ -784,7 +780,20 @@ class ReportingProducer:
                     ),
                 ):
                     raise TypeError("package roster resolver returned an unsupported result")
-            coverage = build_reporting_coverage(scoped.media_buy_ids, roster, boundary.end)
+            try:
+                coverage = build_reporting_coverage(scoped.media_buy_ids, roster, boundary.end)
+            except ValueError:
+                # The roster contradicts the frozen buys (other keys, or a
+                # package both covered and unsupported). It is the resolver's
+                # contract to fix; the period stays open like an unresolved one.
+                self._note_unclosed_period(
+                    configuration,
+                    boundary,
+                    turn,
+                    now=now,
+                    why="package roster resolver broke its contract",
+                )
+                break
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -1992,6 +2001,34 @@ class ReportingProducer:
                 "operator reconciliation and a new configuration generation are required",
             )
         return acquisition
+
+    def _note_unclosed_period(
+        self,
+        configuration: ReportingConfiguration,
+        boundary: ReportingPeriodBoundary,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+        why: str,
+    ) -> None:
+        """Surface a period that cannot be closed yet; it stays uncommitted.
+
+        Past the period's automated recovery deadline the would-be obligation's
+        identifier joins ``turn.escalated``, the same signal an obligation that
+        ran out of automated recovery raises, so a supervisor alerts instead of
+        the period waiting silently forever.
+        """
+        logger.warning(
+            "reporting period not closed account=%s config=%s@%s period=%s reason=%s",
+            configuration.account_id,
+            configuration.delivery_config_id,
+            configuration.delivery_config_version,
+            boundary.period_key,
+            why,
+        )
+        deadline = boundary.expected_at + configuration.automated_recovery_window
+        if _utc(now) >= _utc(deadline):
+            turn.escalated.append(self._obligation_id(configuration, boundary))
 
     def _note_escalation(
         self,
