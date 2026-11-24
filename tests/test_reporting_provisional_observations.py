@@ -303,7 +303,7 @@ async def test_source_boundary_shortens_or_extends_fallback(make_harness, offset
     clock[0] = first.next_due_at
     await producer.run_worker()
     assert len(fetch.calls) == 2
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == (1 if offset == timedelta(minutes=30) else 2)
 
 
 async def test_final_read_at_boundary_and_overdue_restart_never_promote(make_harness):
@@ -315,7 +315,7 @@ async def test_final_read_at_boundary_and_overdue_restart_never_promote(make_har
     final = await latest(store)
     assert final.next_due_at is None
     assert len(fetch.calls) == 2
-    assert len(await _revisions(store)) == 2
+    assert len(await _revisions(store)) == 1
     assert all(item.finality == "snapshot" for item in await _revisions(store))
     await producer.run_worker()
     assert len(fetch.calls) == 2

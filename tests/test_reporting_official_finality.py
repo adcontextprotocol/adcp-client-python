@@ -56,11 +56,13 @@ from adcp.reporting.ledger.provisional import (
 from adcp.reporting.service import ReliableReportingConfigurationError, ReliableReportingService
 from adcp.reporting.source import (
     ReportingFinalityEvidenceV1,
+    ReportingSourceCapabilitiesV1,
     ReportingSourceExecutorResult,
     SourceBatchManifestV1,
     coverage_denominator_fingerprint_v1,
     encode_source_batch_manifest_v1,
     publication_content_fingerprint_v1,
+    reporting_source_capabilities_sha256_v1,
     source_batch_manifest_reference_v1,
     source_batch_object_set_sha256_v1,
 )
@@ -2195,6 +2197,34 @@ async def test_new_period_checks_an_authoritative_close_with_an_ordinary_predece
     with pytest.raises(LedgerConflictError, match="publication lock"):
         await producer.close_elapsed_periods(config)
     assert calls == before
+
+
+async def test_source_final_closes_a_snapshot_before_its_restatement_window(store_factory: Any) -> None:
+    raw = _closing_capabilities().model_dump(mode="json")
+    raw["offerings"][0]["restatement_window"] = "P400D"
+    raw["offerings"][1]["source_local_ready_time"] = "00:00"
+    raw["offerings"][1]["expected_availability_lag"] = "PT0S"
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_factory,
+        capabilities=capabilities,
+        finality_policy=ReportingSourceFinalPolicy("source", "delivery.is_final"),
+    )
+    clock[0] = END + timedelta(hours=1)
+    first = await producer.run_configuration(config, now=clock[0])
+    assert len(first.revisions_committed) == 1
+    clock[0] += timedelta(days=1)
+    await producer.run_configuration(config, now=clock[0])
+    history = await store.list_revisions(
+        account_id=config.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+    )
+    assert [item.finality for item in history] == ["snapshot", "official"]
+    official = history[-1]
+    assert official.finality == "official"
+    assert official.finality_policy_id == "source"
+    assert len(calls) >= 2
 
 
 @pytest.mark.parametrize(
