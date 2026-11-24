@@ -55,7 +55,7 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
-from adcp.reporting.ledger.coverage import build_reporting_coverage
+from adcp.reporting.ledger.coverage import _covered_subset_publishable, build_reporting_coverage
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.media_buy_scope import (
     CompleteMediaBuyScope,
@@ -391,16 +391,49 @@ class WorkerTurn:
 def _withheld(configuration: ReportingConfiguration, obligation: ReportingObligationRecord) -> bool:
     """An account obligation with a retained incomplete partition publishes nothing.
 
-    Account configurations admit only ``coverage_requirement: full``. The
-    partition is retained for per-buy roster evidence and for all_media_buys
-    generations; a status-only obligation (a whole-configuration roster on an
-    exact scope) and a subscription's owed set publish as they always have.
+    Unless its generation is ``allow_partial`` and the period is publishable
+    over its fully covered buys (:func:`_covered_subset_publishable`). The
+    partition is retained for per-buy roster evidence, for all_media_buys
+    generations and for ``allow_partial`` generations; a status-only obligation
+    (a whole-configuration roster on an exact ``full`` scope) and a
+    subscription's owed set publish as they always have.
     """
     return (
         not configuration.owed_set
         and obligation.coverage is not None
         and obligation.coverage_status != "full"
+        and not _covered_subset_publishable(configuration.coverage_requirement, obligation.coverage)
     )
+
+
+def _require_covered_rows(
+    obligation: ReportingObligationRecord, rows: Sequence[dict[str, Any]]
+) -> None:
+    """An ``allow_partial`` revision's rows cover only its covered denominator.
+
+    ``reporting-revision.json``: rows, ``row_count``, control totals and the
+    content digest cover only ``coverage.covered_package_ids``. Every row must
+    name a fully covered ``media_buy_id`` or a covered ``package_id``, and every
+    buy or package it names must be covered; a row that names neither cannot be
+    attributed to the covered subset. Called only for a period
+    :func:`~adcp.reporting.ledger.coverage._covered_subset_publishable` admits.
+    """
+    coverage = obligation.coverage
+    assert coverage is not None
+    buys = frozenset(coverage.fully_covered_media_buy_ids)
+    packages = frozenset(coverage.covered_package_ids)
+    for row in rows:
+        buy = row.get("media_buy_id")
+        package = row.get("package_id")
+        if (
+            (buy is None and package is None)
+            or (buy is not None and buy not in buys)
+            or (package is not None and package not in packages)
+        ):
+            raise LedgerConflictError(
+                "ROW_COVERAGE_MISMATCH",
+                "a partial-coverage row must name only covered media buys and packages",
+            )
 
 
 def _zero_buy_snapshot(obligation: ReportingObligationRecord) -> bool:
@@ -812,14 +845,16 @@ class ReportingProducer:
                 media_buy_ids=scoped.media_buy_ids,
                 package_ids=coverage.package_ids,
                 coverage_status=coverage.status,
-                # A whole-configuration roster on an exact scope keeps the
-                # status-only coverage it always had. A per-buy roster, or an
-                # all_media_buys generation, retains its incomplete partition.
+                # A whole-configuration roster on an exact full scope keeps the
+                # status-only coverage it always had. A per-buy roster, an
+                # all_media_buys generation, or an allow_partial generation
+                # (which publishes over it) retains its incomplete partition.
                 coverage=(
                     coverage
                     if coverage.status != "full"
                     and (
                         all_media_buys
+                        or configuration.coverage_requirement == "allow_partial"
                         or isinstance(roster, (PerMediaBuyPackageRoster, UnsupportedMediaBuyRoster))
                     )
                     else None
@@ -1065,10 +1100,11 @@ class ReportingProducer:
     ) -> bool:
         """Settle an obligation that never reads its source; ``True`` when it was one.
 
-        An account generation requires full coverage, so its obligation whose
-        frozen coverage is not full publishes no revision: the status
-        projection reports it as ``REPORTING_COVERAGE_INCOMPLETE``. A proven
-        zero-buy snapshot obligation closes with a zero-row snapshot.
+        An account obligation whose frozen coverage is not full publishes no
+        revision, unless its ``allow_partial`` generation can publish the
+        covered subset: the status projection reports a withheld one as
+        ``REPORTING_COVERAGE_INCOMPLETE``. A proven zero-buy snapshot obligation
+        closes with a zero-row snapshot.
         """
         if _withheld(configuration, obligation):
             return True
@@ -1660,6 +1696,8 @@ class ReportingProducer:
             )
         self._validate_manifest_currency(obligation, manifest)
         rows = await self._read_rows(request, manifest)
+        if _covered_subset_publishable(configuration.coverage_requirement, obligation.coverage):
+            _require_covered_rows(obligation, rows)
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         # Every successful scheduled read, even unchanged content, reaches the
@@ -2413,7 +2451,7 @@ class ReportingProducer:
                     product_id=obligation.report_definition_id,
                     media_buy_id=media_buy_id,
                 )
-                for media_buy_id in obligation.media_buy_ids
+                for media_buy_id in _source_media_buy_ids(configuration, obligation)
             ]
         )
         if not resolved_constituents:
@@ -2481,6 +2519,22 @@ class ReportingProducer:
             currency=require_frozen_currency(obligation.currency),
             deadline_at=_utc(now) + self._offerings.slice_timeout,
         )
+
+
+def _source_media_buy_ids(
+    configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+) -> tuple[str, ...]:
+    """The buys a slice asks the source for: an ``allow_partial`` period's covered ones.
+
+    Every other obligation asks for its whole frozen denominator, as before.
+    A publishable ``allow_partial`` period asks for its fully covered buys so
+    the revision never carries an uncovered buy's delivery. The logical slice
+    identity still names the whole denominator.
+    """
+    if _covered_subset_publishable(configuration.coverage_requirement, obligation.coverage):
+        assert obligation.coverage is not None
+        return obligation.coverage.fully_covered_media_buy_ids
+    return obligation.media_buy_ids
 
 
 def _logical_slice_fingerprint(obligation: ReportingObligationRecord, offering_id: str) -> str:

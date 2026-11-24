@@ -356,7 +356,9 @@ suppress a newly projected disagreement. No consumer evidence is rewritten.
 
 Every delayed/action-required projection includes an authoritative published
 issue of matching severity. `REPORTING_COVERAGE_INCOMPLETE` represents partial,
-none or unknown coverage; `HISTORY_UNAVAILABLE` represents requested history
+none or unknown coverage. The one exception is an `allow_partial` generation's
+partial period: it publishes over its covered buys and is not raised.
+`HISTORY_UNAVAILABLE` represents requested history
 older than retention. Both are returned by `get_reporting_status`. Healthy,
 waiting and complete scopes have no published issues. Readability considers the
 selected current required leaf, so an older readable snapshot cannot hide an

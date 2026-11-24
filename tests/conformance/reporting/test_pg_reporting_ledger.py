@@ -272,6 +272,35 @@ async def test_all_media_buys_scope_round_trips_and_is_its_own_generation_conten
     assert fixed.value.code == "INVALID_REQUEST"
 
 
+async def test_allow_partial_rides_in_the_stored_schedule_without_a_contract_change(
+    store: PgReportingLedgerStore,
+) -> None:
+    full = _configuration(
+        media_buy_ids=(), media_buy_scope="all_media_buys", required_finality="snapshot"
+    )
+    partial = replace(full, delivery_config_version=2, coverage_requirement="allow_partial")
+    await store.put_configuration(full)
+    await store.put_configuration(partial)
+    await store.put_configuration(partial)  # exact replay is fine
+    assert await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer_pg")) == (
+        full,
+        partial,
+    )
+    async with store._pool.connection() as connection:  # noqa: SLF001
+        rows = await (
+            await connection.execute(
+                "SELECT delivery_config_version, schedule FROM reporting_configurations"
+                " WHERE account_id = %s ORDER BY delivery_config_version",
+                (ACCOUNT,),
+            )
+        ).fetchall()
+    # A full generation's stored bytes are unchanged; only allow_partial is written.
+    assert "coverage_requirement" not in rows[0][1]
+    assert rows[1][1]["coverage_requirement"] == "allow_partial"
+    with pytest.raises(LedgerConflictError, match="publish a new version"):
+        await store.put_configuration(replace(partial, coverage_requirement="full"))
+
+
 async def test_per_buy_coverage_round_trips_with_its_obligation(
     store: PgReportingLedgerStore,
 ) -> None:
