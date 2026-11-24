@@ -21,8 +21,9 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
+import re
 from collections.abc import Callable, Iterable, Sequence
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from adcp._idempotency import is_mutating
 from adcp.server._hooks import (
@@ -45,23 +46,30 @@ from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfi
 from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 from adcp.validation.schema_loader import (
     get_mcp_schema,
+    get_schema_url,
     get_validator,
     list_validator_keys,
 )
 
 logger = logging.getLogger(__name__)
 
-SchemaMode = Literal["compact", "defs", "inline"]
-"""Shape used for Pydantic-derived MCP input discovery schemas.
+SchemaMode = Literal["lean", "compact", "defs", "inline"]
+"""Shape of the MCP ``tools/list`` input schemas.
 
+``lean`` (the default) is ``compact`` with every optional object or array root
+field reduced to its type and description (a field some branch of the root
+rules requires keeps its schema), every description cut to its first
+sentence, and the published schema's URL in ``x-adcp-schema``. It keeps a
+typical sales agent's ``tools/list`` under AdCP's 128 KiB discovery target.
 ``compact`` keeps every top-level request field, required nested fields, and a
 small discovery floor while pruning optional nested detail. It retains only
-reachable local references. ``defs`` keeps the complete Pydantic schema with
-local references, and ``inline`` preserves the historical fully expanded
-shape for clients that do not resolve references.
+reachable local references. ``defs`` keeps the complete schema with local
+references, and ``inline`` preserves the historical fully expanded shape for
+clients that do not resolve references. The server validates every request
+against the exact bundled contract whatever the mode.
 """
 
-_SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
+_SCHEMA_MODES: frozenset[str] = frozenset({"lean", "compact", "defs", "inline"})
 _SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset({"const", "default", "examples"})
 #: Subschemas whose meaning inverts under compaction. Pruning only ever
 #: *loosens* a subschema (an optional nested field is dropped and re-admitted
@@ -2918,16 +2926,169 @@ def _compact_wire_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return _drop_unreachable_defs(_prune_to_required_fields(_simplify_wire_schema(schema)))
 
 
+#: Root keywords whose arms can make a root field required.
+_ROOT_RULE_KEYS: tuple[str, ...] = ("allOf", "anyOf", "oneOf", "if", "then", "else")
+#: End of a description's first sentence: terminal punctuation followed by the
+#: start of another sentence, or by the end of the text.
+_SENTENCE_END = re.compile(r"[.!?](?=\s+[A-Z]|\s*$)")
+
+
+def _required_somewhere(
+    schema: Any, defs: dict[str, Any], *, _seen: frozenset[str] = frozenset()
+) -> set[str]:
+    """Root field names that ``schema`` or some branch of its root rules requires.
+
+    Reads ``required``, the targets of ``dependentRequired`` and array-valued
+    ``dependencies``, every arm of a root ``allOf`` / ``anyOf`` / ``oneOf``,
+    and both arms of a conditional, following local references. ``packages``
+    on ``create_media_buy`` is optional at the root but required by one arm
+    of its ``anyOf``, so it counts.
+    """
+    names: set[str] = set()
+    if not isinstance(schema, dict):
+        return names
+    required = schema.get("required")
+    if isinstance(required, list):
+        names.update(name for name in required if isinstance(name, str))
+    for key in ("dependentRequired", "dependencies"):
+        dependents = schema.get(key)
+        if isinstance(dependents, dict):
+            for targets in dependents.values():
+                if isinstance(targets, list):
+                    names.update(name for name in targets if isinstance(name, str))
+    ref = schema.get("$ref")
+    if isinstance(ref, str):
+        target = _local_definition_name(ref, whole=True)
+        if target is not None and target not in _seen and target in defs:
+            names |= _required_somewhere(defs[target], defs, _seen=_seen | {target})
+    for key in _ROOT_RULE_KEYS:
+        rule = schema.get(key)
+        for branch in rule if isinstance(rule, list) else [rule]:
+            names |= _required_somewhere(branch, defs, _seen=_seen)
+    return names
+
+
+def _resolved_definition(schema: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
+    """``schema``'s local ``$ref`` target when it is a bare reference, else itself."""
+    ref = schema.get("$ref")
+    target = _local_definition_name(ref, whole=True) if isinstance(ref, str) else None
+    definition = defs.get(target) if target is not None else None
+    return definition if isinstance(definition, dict) else schema
+
+
+def _is_scalar_list_schema(schema: Any, defs: dict[str, Any]) -> bool:
+    """An array whose items are scalars (``product_ids``, ``buyer_refs``)."""
+    if not isinstance(schema, dict):
+        return False
+    resolved = _resolved_definition(schema, defs)
+    kind = resolved.get("type")
+    if kind != "array" and not (isinstance(kind, list) and "array" in kind):
+        return False
+    return _is_scalar_discovery_schema(resolved.get("items"), defs)
+
+
+def _lean_root_field(schema: dict[str, Any], defs: dict[str, Any]) -> Any:
+    """An optional root field reduced to its JSON type and description."""
+    resolved = _resolved_definition(schema, defs)
+    lean: dict[str, Any] = {}
+    kind = schema.get("type", resolved.get("type"))
+    if isinstance(kind, (str, list)):
+        lean["type"] = kind
+    description = schema.get("description", resolved.get("description"))
+    if isinstance(description, str):
+        lean["description"] = description
+    return lean or True
+
+
+def _first_sentence(text: str) -> str:
+    match = _SENTENCE_END.search(text)
+    return text[: match.end()] if match is not None else text
+
+
+#: Annotations a lean schema leaves out; none of them affects validation.
+_LEAN_DROPPED_ANNOTATIONS: frozenset[str] = frozenset({"title", "examples", "$comment"})
+
+
+def _lean_annotations(node: Any, *, names: bool = False) -> Any:
+    """Cut every ``description`` to its first sentence and drop other prose.
+
+    ``title``, ``examples`` and ``$comment`` are removed (the Pydantic path
+    still carries them). Property names (keys of :data:`_SCHEMA_MAP_KEYS`)
+    are names, not keywords, and literal values are instances; neither is
+    touched.
+    """
+    if isinstance(node, dict):
+        result: dict[str, Any] = {}
+        for key, value in node.items():
+            if not names:
+                if key in _LEAN_DROPPED_ANNOTATIONS:
+                    continue
+                if key == "description" and isinstance(value, str):
+                    result[key] = _first_sentence(value)
+                    continue
+                if key in _SCHEMA_LITERAL_KEYS or key == "enum":
+                    result[key] = value
+                    continue
+            result[key] = _lean_annotations(value, names=not names and key in _SCHEMA_MAP_KEYS)
+        return result
+    if isinstance(node, list):
+        return [_lean_annotations(item) for item in node]
+    return node
+
+
+def _lean_input_schema(
+    schema: dict[str, Any],
+    schema_url: str | None,
+    *,
+    also_keep: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    """Bound a compact input schema to AdCP's discovery-size target.
+
+    Every root field keeps its name. A required field, a field some branch of
+    the root rules requires, and a scalar or scalar-list field keep their
+    schema; every other root field keeps only its JSON type and description,
+    so the definitions only it reached drop out. Descriptions are cut to
+    their first sentence, and ``title``, ``examples`` and ``$comment`` are
+    dropped. The result only loosens the compact schema: every
+    request the exact contract accepts still validates against it, and the
+    server validates against the exact contract. ``x-adcp-schema`` names the
+    published schema for a client that wants the full shape. ``also_keep``
+    names further root fields to keep whole.
+    """
+    raw_defs = schema.get("$defs")
+    defs = raw_defs if isinstance(raw_defs, dict) else {}
+    keep = _required_somewhere(schema, defs) | also_keep
+    result = dict(schema)
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        result["properties"] = {
+            name: (
+                field
+                if name in keep
+                or not isinstance(field, dict)
+                or _is_scalar_discovery_schema(field, defs)
+                or _is_scalar_list_schema(field, defs)
+                else _lean_root_field(field, defs)
+            )
+            for name, field in properties.items()
+        }
+    if schema_url is not None:
+        result["x-adcp-schema"] = schema_url
+    return cast(dict[str, Any], _lean_annotations(_drop_unreachable_defs(result)))
+
+
 def _versioned_discovery_schema(
     tool_name: str,
     direction: Literal["request", "sync"],
     version: str,
     *,
     compact: bool,
+    lean: bool = False,
 ) -> dict[str, Any] | None:
     """The bundled wire schema a pinned server advertises, compact on request.
 
-    Both shapes are memoized with the loader state for ``version`` — see
+    ``lean`` applies :func:`_lean_input_schema` on top of compaction. Every
+    shape is memoized with the loader state for ``version`` — see
     :func:`adcp.validation.schema_loader.get_derived_mcp_schema` — so a
     per-request caller (the pre-auth agent-card route) pays the transform
     once, and a loader reset discards it with everything else.
@@ -2936,6 +3097,15 @@ def _versioned_discovery_schema(
         return get_mcp_schema(tool_name, direction, version=version)
     from adcp.validation.schema_loader import get_derived_mcp_schema
 
+    if lean:
+        schema_url = get_schema_url(tool_name, direction, version=version)
+        return get_derived_mcp_schema(
+            tool_name,
+            direction,
+            version=version,
+            derivation="lean",
+            derive=lambda schema: _lean_input_schema(_compact_wire_schema(schema), schema_url),
+        )
     return get_derived_mcp_schema(
         tool_name,
         direction,
@@ -2943,6 +3113,34 @@ def _versioned_discovery_schema(
         derivation="compact",
         derive=_compact_wire_schema,
     )
+
+
+#: Lean input schemas of the unpinned (current-model) surface, per tool. The
+#: compact registry they derive from is built once per process.
+_LEAN_SCHEMAS: dict[str, dict[str, Any]] = {}
+
+
+def _unpinned_lean_input_schema(name: str, compact: dict[str, Any]) -> dict[str, Any]:
+    """:func:`_lean_input_schema` of a current-model compact input schema.
+
+    A Pydantic request model does not carry the wire schema's root rules
+    (``create_media_buy`` requires ``packages`` in one ``anyOf`` arm), so the
+    packaged release's wire schema also says which root fields to keep whole.
+    """
+    cached = _LEAN_SCHEMAS.get(name)
+    if cached is None:
+        # The compact wire schema, so both paths keep the same root fields.
+        wire = get_mcp_schema(name, "request")
+        also_keep: frozenset[str] = frozenset()
+        if isinstance(wire, dict):
+            compact_wire = _compact_wire_schema(wire)
+            wire_defs = compact_wire.get("$defs")
+            also_keep = frozenset(
+                _required_somewhere(compact_wire, wire_defs if isinstance(wire_defs, dict) else {})
+            )
+        cached = _lean_input_schema(compact, get_schema_url(name, "request"), also_keep=also_keep)
+        _LEAN_SCHEMAS[name] = cached
+    return copy.deepcopy(cached)
 
 
 #: Non-compact schemas, memoized per (kind, mode, tool). The compact path
@@ -2983,7 +3181,8 @@ def get_tools_for_handler(
     *,
     advertise_all: bool = False,
     adcp_version: str | None = None,
-    schema_mode: SchemaMode = "compact",
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     _include_schemas: bool = True,
 ) -> list[dict[str, Any]]:
     """Return tool definitions the handler will actually answer.
@@ -3023,19 +3222,31 @@ def get_tools_for_handler(
             ``supported_versions`` here when it has no pin of its own, so
             discovery describes the release its handlers run on. Class-only
             introspection retains the current generated model surface.
-        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
-            (default) keeps every root request field, required nested fields,
-            scalar optionals, and protected mutation surfaces; ``"defs"``
-            keeps the complete schema with local references, and ``"inline"``
-            preserves the historical fully expanded schema. Both non-default
-            modes regenerate input *and* output schemas on every call with no
-            memoization — seconds per construction for a 13-tool handler —
-            where ``"compact"`` reads the memoized registry.
-            A version-pinned handler (an ``adcp_version`` pin, or the newest
-            of its ``supported_versions``) advertises the bundled wire schemas
-            of that release: compacted by the same rules under ``"compact"``,
-            and exact — complete local ``$defs`` — under ``"defs"`` and
-            ``"inline"``.
+        schema_mode: Input discovery shape (see :data:`SchemaMode`).
+            ``"lean"`` (default) is ``"compact"`` with optional object and
+            array root fields reduced to their type and description (a field
+            some branch of the root rules requires keeps its schema),
+            descriptions cut to their first sentence, and the published
+            schema URL in ``x-adcp-schema``; it keeps a typical sales agent's
+            ``tools/list`` under AdCP's 128 KiB discovery target.
+            ``"compact"`` keeps every root request field, required nested
+            fields, scalar optionals, and protected mutation surfaces;
+            ``"defs"`` keeps the complete schema with local references, and
+            ``"inline"`` preserves the historical fully expanded schema.
+            ``"defs"`` and ``"inline"`` regenerate input *and* output schemas
+            on every call with no memoization — seconds per construction for
+            a 13-tool handler — where ``"lean"`` and ``"compact"`` read
+            memoized registries. A version-pinned handler (an
+            ``adcp_version`` pin, or the newest of its ``supported_versions``)
+            advertises the bundled wire schemas of that release: reduced by
+            the same rules under ``"lean"`` and ``"compact"``, and exact —
+            complete local ``$defs`` — under ``"defs"`` and ``"inline"``.
+        advertise_output_schemas: Include each tool's ``outputSchema``.
+            Off by default: MCP makes it optional, AdCP asks agents not to
+            publish response schemas in ``tools/list``, and it was nearly
+            half of a sales agent's listing. Results still travel as
+            ``structuredContent`` either way. Under ``"lean"`` an advertised
+            output schema has the ``"compact"`` shape.
 
     Returns:
         Filtered list of tool definitions.
@@ -3108,13 +3319,22 @@ def get_tools_for_handler(
         # startup compact. Public definitions remain ordinary independently
         # mutable JSON values, matching the pre-memoization behavior.
         definitions = [_copy_json_without_aliases(tool) for tool in selected]
-        if schema_mode != "compact":
+        if schema_mode == "lean":
+            for definition in definitions:
+                compact_input = definition.get("inputSchema")
+                if isinstance(compact_input, dict):
+                    definition["inputSchema"] = _unpinned_lean_input_schema(
+                        definition["name"], compact_input
+                    )
+        elif schema_mode != "compact":
             names = [definition["name"] for definition in definitions]
             alternate_inputs = _alternate_schemas("input", names, schema_mode)
             # Outputs follow the same mode. They used to be inlined
             # unconditionally, which is what made a 13-tool seller advertise a
             # 24 MB tools/list while its input schemas were 15 KB each.
-            alternate_outputs = _alternate_schemas("output", names, schema_mode)
+            alternate_outputs = (
+                _alternate_schemas("output", names, schema_mode) if advertise_output_schemas else {}
+            )
             for definition in definitions:
                 alternate = alternate_inputs.get(definition["name"])
                 if alternate is not None:
@@ -3138,6 +3358,8 @@ def get_tools_for_handler(
 
                 definition["inputSchema"] = feed_schema("request")
                 definition["outputSchema"] = feed_schema("sync")
+            if not advertise_output_schemas:
+                definition.pop("outputSchema", None)
         return definitions
 
     if not list_validator_keys(version=resolved_version):
@@ -3150,12 +3372,12 @@ def get_tools_for_handler(
     # also removes tools absent from that release (for example, the compact
     # 3.2 lifecycle on a 3.1 endpoint) instead of leaking the process-global
     # current-model surface into tools/list.
-    compact = schema_mode == "compact"
+    compact = schema_mode in {"lean", "compact"}
     versioned: list[dict[str, Any]] = []
     for tool in selected:
         name = tool["name"]
         input_schema = _versioned_discovery_schema(
-            name, "request", resolved_version, compact=compact
+            name, "request", resolved_version, compact=compact, lean=schema_mode == "lean"
         )
         if input_schema is None:
             continue
@@ -3172,7 +3394,8 @@ def get_tools_for_handler(
             from adcp.reporting.receipts.wire import receipt_schema
 
             definition["inputSchema"] = receipt_schema("request", version=resolved_version)
-            definition["outputSchema"] = receipt_schema("sync", version=resolved_version)
+            if advertise_output_schemas:
+                definition["outputSchema"] = receipt_schema("sync", version=resolved_version)
             versioned.append(definition)
             continue
         if (
@@ -3182,16 +3405,19 @@ def get_tools_for_handler(
             from adcp.reporting.feed.request import feed_schema
 
             definition["inputSchema"] = feed_schema("request", version=resolved_version)
-            definition["outputSchema"] = feed_schema("sync", version=resolved_version)
+            if advertise_output_schemas:
+                definition["outputSchema"] = feed_schema("sync", version=resolved_version)
             versioned.append(definition)
             continue
         definition["inputSchema"] = input_schema
-        output_schema = _versioned_discovery_schema(name, "sync", resolved_version, compact=compact)
+        output_schema = (
+            _versioned_discovery_schema(name, "sync", resolved_version, compact=compact)
+            if advertise_output_schemas
+            else None
+        )
         if output_schema is not None:
             output_schema.setdefault("type", "object")
             definition["outputSchema"] = output_schema
-        else:
-            definition.pop("outputSchema", None)
         versioned.append(definition)
     return versioned
 
@@ -4507,7 +4733,8 @@ class MCPToolSet:
         response_enhancer: ResponseEnhancer | None = None,
         supported_versions: Sequence[str] | None = None,
         adcp_version: str | None = None,
-        schema_mode: SchemaMode = "compact",
+        schema_mode: SchemaMode = "lean",
+        advertise_output_schemas: bool = False,
     ):
         """Create tool set from handler.
 
@@ -4527,8 +4754,10 @@ class MCPToolSet:
             response_enhancer: Optional server-wide :data:`ResponseEnhancer`
                 applied to every successful response. See
                 :func:`create_tool_caller`.
-            schema_mode: Pydantic-derived input discovery shape. See
+            schema_mode: Input discovery shape. See
                 :func:`get_tools_for_handler`.
+            advertise_output_schemas: Include each tool's ``outputSchema``
+                in ``tool_definitions``. See :func:`get_tools_for_handler`.
         """
         self.handler = handler
         resolved_adcp_version = _resolve_handler_adcp_version(handler, adcp_version)
@@ -4545,6 +4774,7 @@ class MCPToolSet:
             advertise_all=advertise_all,
             adcp_version=default_adcp_version(resolved_adcp_version, supported_versions),
             schema_mode=schema_mode,
+            advertise_output_schemas=advertise_output_schemas,
         )
         # Adopters who wire ``tool_definitions`` into their own
         # ``@server.list_tools()`` never reach ``create_mcp_server``, so this
@@ -4610,7 +4840,8 @@ def create_mcp_tools(
     response_enhancer: ResponseEnhancer | None = None,
     supported_versions: Sequence[str] | None = None,
     adcp_version: str | None = None,
-    schema_mode: SchemaMode = "compact",
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -4655,10 +4886,14 @@ def create_mcp_tools(
         adcp_version: Trusted server protocol pin for version-scoped
             ``tools/list`` schemas. Decorator-built handlers carry this pin
             automatically; class-based handlers can pass it here.
-        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
-            is bounded and complete at the request root; use ``"defs"`` for
-            the full referenced schema or ``"inline"`` for legacy clients
-            that do not resolve local JSON Schema references.
+        schema_mode: Input discovery shape. ``"lean"`` (default) keeps
+            ``tools/list`` under AdCP's 128 KiB target; ``"compact"`` keeps
+            each optional root field's bounded schema; use ``"defs"`` for the
+            full referenced schema or ``"inline"`` for legacy clients that
+            do not resolve local JSON Schema references. See
+            :func:`get_tools_for_handler`.
+        advertise_output_schemas: Include each tool's ``outputSchema``.
+            Off by default; see :func:`get_tools_for_handler`.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
@@ -4672,4 +4907,5 @@ def create_mcp_tools(
         supported_versions=supported_versions,
         adcp_version=adcp_version,
         schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
     )

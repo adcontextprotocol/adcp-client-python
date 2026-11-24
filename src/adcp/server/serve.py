@@ -336,6 +336,8 @@ class ServeConfig:
     middleware: Sequence[SkillMiddleware] | None = None
     asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None
     advertise_all: bool = False
+    schema_mode: SchemaMode = "lean"
+    advertise_output_schemas: bool = False
     max_request_size: int | None = None
     validation: ValidationHookConfig | None = None
     pre_validation_hooks: PreValidationHooks | None = None
@@ -771,9 +773,9 @@ def warn_if_discovery_payload_is_oversized(
     warnings.warn(
         f"mcp server tools/list is {size} bytes and {members} JSON members across "
         f"{len(tool_defs)} tools. {verdict}\n\n"
-        f"{advice}, and keep schema_mode at its default 'compact' — "
-        "'inline' expands every shared subtree once per reference and is "
-        "what makes this payload large.",
+        f"{advice}, keep schema_mode at its default 'lean' and "
+        "advertise_output_schemas off — 'inline' expands every shared "
+        "subtree once per reference and is what makes this payload large.",
         UserWarning,
         stacklevel=stacklevel,
     )
@@ -1024,6 +1026,8 @@ def serve(
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     stateless_http: bool = False,
@@ -1152,6 +1156,13 @@ def serve(
             advertised surface. Turn on for spec-compliance storyboards
             or when you want to signal ``not_supported`` on a specific
             tool to clients.
+        schema_mode: MCP ``tools/list`` input schema shape; ``"lean"``
+            (default) keeps a sales agent's listing under AdCP's 128 KiB
+            discovery target, ``"compact"`` keeps each optional root
+            field's bounded schema. See :func:`create_mcp_server`.
+        advertise_output_schemas: Advertise each tool's ``outputSchema``
+            in ``tools/list``. Off by default; results are
+            ``structuredContent`` either way. See :func:`create_mcp_server`.
         max_request_size: Maximum request body size in bytes. Defaults
             to 10 MB. Set higher for sellers that legitimately transmit
             very large creative asset payloads; set lower for stricter
@@ -1415,6 +1426,8 @@ def serve(
         unauthenticated_routes = config.unauthenticated_routes
         message_parser = config.message_parser
         advertise_all = config.advertise_all
+        schema_mode = config.schema_mode
+        advertise_output_schemas = config.advertise_output_schemas
         max_request_size = config.max_request_size
         streaming_responses = config.streaming_responses
         stateless_http = config.stateless_http
@@ -1568,6 +1581,8 @@ def serve(
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             advertise_all=advertise_all,
+            schema_mode=schema_mode,
+            advertise_output_schemas=advertise_output_schemas,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             stateless_http=stateless_http,
@@ -1606,6 +1621,8 @@ def serve(
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
             advertise_all=advertise_all,
+            schema_mode=schema_mode,
+            advertise_output_schemas=advertise_output_schemas,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             stateless_http=stateless_http,
@@ -2023,6 +2040,8 @@ def _serve_mcp(
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     stateless_http: bool = False,
@@ -2053,6 +2072,8 @@ def _serve_mcp(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
         session_idle_timeout=session_idle_timeout,
@@ -2401,6 +2422,8 @@ def _build_mcp_and_a2a_app(
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     stateless_http: bool = False,
@@ -2454,6 +2477,8 @@ def _build_mcp_and_a2a_app(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
         session_idle_timeout=session_idle_timeout,
@@ -2634,6 +2659,8 @@ def _serve_mcp_and_a2a(
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     stateless_http: bool = False,
@@ -2702,6 +2729,8 @@ def _serve_mcp_and_a2a(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
@@ -2819,7 +2848,8 @@ def create_mcp_server(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
-    schema_mode: SchemaMode = "compact",
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
@@ -2877,11 +2907,20 @@ def create_mcp_server(
             :func:`~adcp.server.get_tools_for_handler` for semantics;
             use ``True`` for spec-compliance storyboards or when you
             deliberately want to expose a ``not_supported`` tool.
-        schema_mode: Pydantic-derived MCP input discovery shape.
-            ``"compact"`` (default) keeps every root request field while
-            bounding nested detail; ``"defs"`` keeps the complete referenced
-            schema; ``"inline"`` preserves the historical fully expanded
-            shape for clients that do not resolve local JSON Schema references.
+        schema_mode: MCP ``tools/list`` input schema shape.
+            ``"lean"`` (default) keeps a typical sales agent's listing under
+            AdCP's 128 KiB discovery target: optional object and array root
+            fields keep only their type and description, descriptions keep
+            their first sentence, and ``x-adcp-schema`` names the published
+            schema. ``"compact"`` keeps each root field's bounded schema;
+            ``"defs"`` keeps the complete referenced schema; ``"inline"``
+            preserves the historical fully expanded shape for clients that
+            do not resolve local JSON Schema references. Requests are
+            validated against the exact contract in every mode.
+        advertise_output_schemas: Advertise each tool's ``outputSchema`` in
+            ``tools/list``. Off by default (AdCP asks agents not to publish
+            response schemas there); results are ``structuredContent``
+            either way.
         host: Network interface to bind to. Defaults to the ``ADCP_HOST``
             environment variable, then ``"0.0.0.0"`` (all interfaces).
             Use ``"127.0.0.1"`` for local-only development.
@@ -3038,6 +3077,7 @@ def create_mcp_server(
         middleware=middleware,
         advertise_all=advertise_all,
         schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
@@ -3287,7 +3327,8 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
-    schema_mode: SchemaMode = "compact",
+    schema_mode: SchemaMode = "lean",
+    advertise_output_schemas: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
@@ -3310,6 +3351,7 @@ def _register_handler_tools(
         advertise_all=advertise_all,
         adcp_version=default_adcp_version(resolved_adcp_version, supported_versions),
         schema_mode=schema_mode,
+        advertise_output_schemas=advertise_output_schemas,
     )
     registered: list[str] = []
     for tool_def in tool_defs:
@@ -3344,6 +3386,7 @@ def _register_handler_tools(
             context_factory=context_factory,
             middleware=middleware_tuple,
             output_schema=output_schema,
+            advertise_output_schema=advertise_output_schemas,
             response_enhancer=response_enhancer,
             mcp_result_text=mcp_result_text,
         )
@@ -3362,6 +3405,31 @@ def _register_handler_tools(
     )
 
 
+_UNLISTED_OUTPUT_SCHEMA_TOOL: type[Any] | None = None
+
+
+def _unlisted_output_schema_tool_class() -> type[Any]:
+    """An MCP ``Tool`` that lists no ``outputSchema`` yet returns structured results.
+
+    ``tools/list`` reads ``Tool.output_schema``; result conversion reads
+    ``fn_metadata.output_schema``, and drops ``structuredContent`` when it is
+    ``None``. Hiding the schema at the ``Tool`` keeps AdCP results structured
+    while the listing stays small (#1909), as the TypeScript SDK's framework
+    tools already do.
+    """
+    global _UNLISTED_OUTPUT_SCHEMA_TOOL
+    if _UNLISTED_OUTPUT_SCHEMA_TOOL is None:
+        from mcp.server.mcpserver.tools import Tool
+
+        class _UnlistedOutputSchemaTool(Tool):
+            @property
+            def output_schema(self) -> dict[str, Any] | None:
+                return None
+
+        _UNLISTED_OUTPUT_SCHEMA_TOOL = _UnlistedOutputSchemaTool
+    return _UNLISTED_OUTPUT_SCHEMA_TOOL
+
+
 def _register_tool(
     mcp: Any,
     name: str,
@@ -3373,6 +3441,7 @@ def _register_tool(
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
     output_schema: dict[str, Any] | None = None,
+    advertise_output_schema: bool = True,
     response_enhancer: ResponseEnhancer | None = None,
 ) -> None:
     """Register a single ADCP tool on an MCP server.
@@ -3380,7 +3449,9 @@ def _register_tool(
     Creates a Tool with a permissive arg model that accepts any fields,
     then overrides the advertised schema with the Pydantic-generated one.
     This ensures MCP clients see the correct schema while the handler
-    receives all parameters as a plain dict.
+    receives all parameters as a plain dict. With
+    ``advertise_output_schema=False`` the tool lists no ``outputSchema``
+    but still returns its result as ``structuredContent``.
     """
     from mcp.server.mcpserver.tools import Tool
     from mcp.server.mcpserver.utilities.func_metadata import ArgModelBase, FuncMetadata
@@ -3547,7 +3618,8 @@ def _register_tool(
         return result_dict  # type: ignore[no-any-return]
 
     # Create tool from function (gives us proper fn_metadata scaffolding)
-    tool = Tool.from_function(fn, name=name, description=description, structured_output=True)
+    tool_class = Tool if advertise_output_schema else _unlisted_output_schema_tool_class()
+    tool = tool_class.from_function(fn, name=name, description=description, structured_output=True)
 
     # Override the advertised schema with the Pydantic-generated one
     tool.parameters = input_schema
