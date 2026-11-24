@@ -470,6 +470,7 @@ async def test_configure_without_a_version_is_taken_as_the_sdk_release() -> None
     assert len(service._bindings) == 1
 
 
+@pytest.mark.filterwarnings("ignore:Reliable Reporting cannot tell")
 async def test_strict_policy_refuses_an_undeclared_offering_at_3_2() -> None:
     service, _ = _service({"gam": False}, undeclared_report_definitions="withhold_from_pre_3_3")
     configuration = _config("gam", one_two=False)
@@ -497,7 +498,10 @@ async def test_strict_policy_withholds_undeclared_offerings_from_3_2_capabilitie
         await service.close()
 
 
-async def test_installed_reporting_call_carries_field_and_details_to_the_wire() -> None:
+@pytest.mark.parametrize("decisioning", [False, True], ids=["handler", "decisioning"])
+async def test_installed_reporting_call_carries_field_and_details_to_the_wire(
+    decisioning: bool,
+) -> None:
     from adcp.reporting._errors import installed_reporting_call
 
     service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2"})
@@ -507,16 +511,27 @@ async def test_installed_reporting_call_carries_field_and_details_to_the_wire() 
         await service.configure(configuration, adcp_version=CALLER_32)
 
     with pytest.raises(Exception) as caught:
-        await installed_reporting_call("sync_accounts", sync_accounts)
+        await installed_reporting_call("sync_accounts", sync_accounts, decisioning=decisioning)
+    expected_details = {
+        "offering_id": "GAM_SNAPSHOT_V1",
+        "delivery_config_id": "gam-delivery",
+    }
+    if decisioning:
+        from adcp.decisioning import AdcpError
+
+        error = caught.value
+        assert isinstance(error, AdcpError)
+        assert error.code == "UNSUPPORTED_FEATURE"
+        assert error.field == "reporting_delivery_configs"
+        assert error.details == expected_details
+        assert "serves AdCP 3.3 callers only" in str(error)
+        return
     errors = getattr(caught.value, "errors", None)
     assert errors, caught.value
     (wire,) = errors
     assert wire.code == "UNSUPPORTED_FEATURE"
     assert wire.field == "reporting_delivery_configs"
-    assert wire.details == {
-        "offering_id": "GAM_SNAPSHOT_V1",
-        "delivery_config_id": "gam-delivery",
-    }
+    assert wire.details == expected_details
     assert "serves AdCP 3.3 callers only" in wire.message
 
 
@@ -753,3 +768,353 @@ async def test_production_with_a_1_1_definition_serves_3_2_callers_unchanged(
             {}, ToolContext(caller_identity="buyer", resolved_adcp_version=CALLER_32)
         )
         assert old["media_buy"]["reporting_delivery"]["offerings"]
+
+
+# ------------------------------------------- application-declared base blocks
+
+
+def _base_block() -> dict[str, Any]:
+    """A reporting block the application declared on its own, with 1.1 and 1.2 offerings."""
+    return {
+        "supported": True,
+        "offerings": [
+            _offering("BASE_ONE_ONE", SHA_11),
+            _offering("BASE_ONE_TWO", SHA_12),
+        ],
+    }
+
+
+def _seller_declaring(block: dict[str, Any]) -> ADCPHandler:
+    class Seller(ADCPHandler):
+        async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
+            return {
+                "supported_protocols": ["media_buy"],
+                "media_buy": {"reporting_delivery": block},
+                "experimental_features": ["media_buy.reporting_delivery"],
+            }
+
+    return Seller()
+
+
+def _only_ones(block: dict[str, Any], *keep: str) -> dict[str, Any]:
+    return {**block, "offerings": [o for o in block["offerings"] if o["offering_id"] in keep]}
+
+
+async def _installed_capabilities(service: Any, application: Any, version: str) -> Any:
+    from adcp.server.base import ToolContext
+
+    installed = service.install(application)
+    return await installed.get_adcp_capabilities(
+        {}, ToolContext(caller_identity="buyer", resolved_adcp_version=version)
+    )
+
+
+async def test_installed_handler_drops_an_application_declared_1_2_block_below_3_3() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2", SHA_11: "1.1"})
+    block = _only_ones(_base_block(), "BASE_ONE_TWO")
+    old = await _installed_capabilities(service, _seller_declaring(block), CALLER_32)
+    assert "reporting_delivery" not in (old.get("media_buy") or {})
+    assert "media_buy.reporting_delivery" not in old.get("experimental_features", [])
+
+
+async def test_installed_handler_keeps_an_application_declared_block_at_3_3() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2", SHA_11: "1.1"})
+    new = await _installed_capabilities(
+        service, _seller_declaring(_only_ones(_base_block(), "BASE_ONE_TWO")), CALLER_33
+    )
+    assert new["media_buy"]["reporting_delivery"]["offerings"]
+    assert "media_buy.reporting_delivery" in new["experimental_features"]
+
+
+async def test_installed_handler_keeps_only_the_1_1_offering_of_a_mixed_base_block() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2", SHA_11: "1.1"})
+    old = await _installed_capabilities(service, _seller_declaring(_base_block()), CALLER_32)
+    assert _ids(old["media_buy"]["reporting_delivery"]) == ["BASE_ONE_ONE"]
+    assert "media_buy.reporting_delivery" in old["experimental_features"]
+
+
+async def test_inject_capabilities_leaves_a_block_without_1_2_offerings_untouched() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2", SHA_11: "1.1"})
+    block = _only_ones(_base_block(), "BASE_ONE_ONE")
+    payload = {"media_buy": {"reporting_delivery": block}}
+    assert service.inject_capabilities(payload, adcp_version=CALLER_32) == {
+        "media_buy": {"reporting_delivery": block}
+    }
+
+
+def _decisioning_platform(block: dict[str, Any]) -> Any:
+    from adcp.decisioning.capabilities import MediaBuy
+    from adcp.types import ReportingDeliveryCapabilities
+    from tests.test_lazy_platform_router import _SyncSalesPlatform
+
+    class Platform(_SyncSalesPlatform):
+        capabilities = replace(
+            _SyncSalesPlatform.capabilities,
+            media_buy=MediaBuy(
+                reporting_delivery=ReportingDeliveryCapabilities.model_validate(block)
+            ),
+        )
+
+    return Platform("reporting")
+
+
+async def _decisioning_capabilities(
+    service: ReliableReportingService, block: dict[str, Any], version: str
+) -> Any:
+    from adcp.decisioning.serve import create_adcp_server_from_platform
+    from adcp.server.base import ToolContext
+
+    handler, executor, _ = create_adcp_server_from_platform(
+        service.install(_decisioning_platform(block)), validate_at_init=False
+    )
+    try:
+        return await handler.get_adcp_capabilities(
+            {}, ToolContext(caller_identity="buyer", resolved_adcp_version=version)
+        )
+    finally:
+        executor.shutdown(wait=True)
+
+
+def _decisioning_block(service: ReliableReportingService, *offering_ids: str) -> dict[str, Any]:
+    """A complete valid block (the service's own) re-labelled with BASE_* offerings."""
+    import copy
+
+    block = copy.deepcopy(service.capability_block())
+    template = block["offerings"][0]
+    shas = {"ONE_ONE": SHA_11, "ONE_TWO": SHA_12}
+    block["offerings"] = [
+        {**template, "offering_id": f"BASE_{item}", "report_definition_sha256": shas[item]}
+        for item in offering_ids
+    ]
+    block.pop("reliability_statistics", None)
+    return block
+
+
+async def test_decisioning_handler_drops_a_declared_1_2_block_below_3_3() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2"})
+    old = await _decisioning_capabilities(
+        service, _decisioning_block(service, "ONE_TWO"), CALLER_32
+    )
+    assert "reporting_delivery" not in (old.get("media_buy") or {})
+    assert "media_buy.reporting_delivery" not in old.get("experimental_features", [])
+
+
+async def test_decisioning_handler_keeps_a_declared_block_at_3_3() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2"})
+    new = await _decisioning_capabilities(
+        service, _decisioning_block(service, "ONE_TWO"), CALLER_33
+    )
+    assert new["media_buy"]["reporting_delivery"]["offerings"]
+
+
+async def test_decisioning_handler_keeps_only_the_1_1_offering_of_a_mixed_block() -> None:
+    service, _ = _service({"gam": True}, report_definition_versions={SHA_12: "1.2", SHA_11: "1.1"})
+    old = await _decisioning_capabilities(
+        service, _decisioning_block(service, "ONE_ONE", "ONE_TWO"), CALLER_32
+    )
+    assert _ids(old["media_buy"]["reporting_delivery"]) == ["BASE_ONE_ONE"]
+
+
+# ----------------------------------------- the warning after recovery and binding
+
+
+def _undeclared_service() -> ReliableReportingService:
+    """A source with no offerings of its own; account contexts advertise the 1.2 one."""
+
+    def resolve(configuration: ReportingConfiguration) -> ReportingAccountContext:
+        route = configuration.delivery_config_id.removesuffix("-delivery")
+        return replace(
+            _account_context(configuration),
+            capability_offering=_offering_wire(route, one_two=True),
+        )
+
+    service = ReliableReportingService.memory(account_context=resolve)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(_capabilities_with_definition(SHA_12), [_rows(1)])
+    )
+    return service
+
+
+def _definition_warnings(recorded: Any) -> list[str]:
+    return [str(w.message) for w in recorded if "cannot tell" in str(w.message)]
+
+
+async def test_recovered_context_offering_is_warned_about_once() -> None:
+    service = _undeclared_service()
+    await service.store.put_configuration(_config("gam", one_two=True))
+    try:
+        with pytest.warns(UserWarning, match="cannot tell") as recorded:
+            await service.start()
+        (message,) = _definition_warnings(recorded)
+        assert "GAM_SNAPSHOT_V1" in message and SHA_12 in message
+        with warnings.catch_warnings(record=True) as later:
+            warnings.simplefilter("always")
+            service.validate()
+            await service.configure(_config("gam", one_two=True))
+        assert _definition_warnings(later) == []
+    finally:
+        await service.close()
+
+
+async def test_a_configuration_added_after_startup_warns_about_its_offering_once() -> None:
+    service = _undeclared_service()
+    try:
+        with warnings.catch_warnings(record=True) as startup:
+            warnings.simplefilter("always")
+            await service.start()
+        assert _definition_warnings(startup) == []
+        with pytest.warns(UserWarning, match="cannot tell") as recorded:
+            await service.configure(_config("gam", one_two=True))
+        (message,) = _definition_warnings(recorded)
+        assert "GAM_SNAPSHOT_V1" in message and SHA_12 in message
+        with warnings.catch_warnings(record=True) as later:
+            warnings.simplefilter("always")
+            service.validate()
+            await service.configure(
+                replace(_config("gam", one_two=True), delivery_config_version="2")
+            )
+        assert _definition_warnings(later) == []
+    finally:
+        await service.close()
+
+
+async def test_a_declared_digest_is_never_warned_about_after_recovery() -> None:
+    service = ReliableReportingService.memory(
+        account_context=lambda c: replace(
+            _account_context(c), capability_offering=_offering_wire("gam", one_two=True)
+        ),
+        report_definition_versions={SHA_12: "1.2"},
+    )
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(_capabilities_with_definition(SHA_12), [_rows(1)])
+    )
+    await service.store.put_configuration(_config("gam", one_two=True))
+    try:
+        with warnings.catch_warnings(record=True) as recorded:
+            warnings.simplefilter("always")
+            await service.start()
+            await service.configure(_config("gam", one_two=True), adcp_version=CALLER_33)
+        assert _definition_warnings(recorded) == []
+    finally:
+        await service.close()
+
+
+# ------------------------------------------ the service's map reaches production
+
+
+def _reference_verifier_edited(edit: Any) -> Any:
+    """The reference verifier over its definition document after ``edit`` changed it."""
+    from adcp.reporting.materializer import ReportingRevisionVerifier
+    from adcp.reporting.materializer.reference import reference_verifier
+
+    def build(capability: Any = None) -> Any:
+        base = reference_verifier(capability)
+        document = json.loads(base.definition_bytes)
+        edit(document)
+        raw = json.dumps(document, indent=2).encode()
+        key = replace(
+            base.key,
+            definition=replace(
+                base.key.definition, report_definition_sha256=hashlib.sha256(raw).hexdigest()
+            ),
+        )
+        return ReportingRevisionVerifier(key, raw, base.schema_bytes, base.canonicalization_bytes)
+
+    return build
+
+
+def _with_service_options(monkeypatch: pytest.MonkeyPatch, **options: Any) -> None:
+    """Make the factory harness build its service with the given declarations."""
+    original = ReliableReportingService.memory.__func__  # type: ignore[attr-defined]
+
+    def memory(cls: Any, **kwargs: Any) -> Any:
+        return original(cls, **kwargs, **options)
+
+    monkeypatch.setattr(ReliableReportingService, "memory", classmethod(memory))
+
+
+def _use_verifier(monkeypatch: pytest.MonkeyPatch, build: Any) -> None:
+    from tests.conformance.reporting import test_reporting_production_service_factory as factory
+
+    monkeypatch.setattr(factory, "reference_verifier", build)
+
+
+async def test_production_graph_refuses_a_declaration_its_verifier_bytes_contradict(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from adcp.reporting.materializer.reference import reference_verifier
+    from tests.conformance.reporting.test_reporting_production_service_factory import (
+        factory_harness,
+    )
+
+    verifier_11 = reference_verifier()
+    sha_11 = verifier_11.key.definition.report_definition_sha256
+    assert json.loads(verifier_11.definition_bytes)["contract_version"] == "1.1"
+    _with_service_options(monkeypatch, report_definition_versions={sha_11: "1.2"})
+
+    with pytest.raises(ReliableReportingConfigurationError, match="declares 1.2") as caught:
+        async with factory_harness("memory", tmp_path / "contradiction.sqlite"):
+            pytest.fail("a contradicted declaration must not reach READY")  # pragma: no cover
+    assert "contract_version 1.1" in str(caught.value)
+
+
+async def test_production_graph_agreeing_declaration_reaches_ready(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from adcp.reporting.materializer.reference import reference_verifier
+    from tests.conformance.reporting.test_reporting_production_service_factory import (
+        factory_harness,
+    )
+
+    sha_11 = reference_verifier().key.definition.report_definition_sha256
+    _with_service_options(monkeypatch, report_definition_versions={sha_11: "1.1"})
+    async with factory_harness("memory", tmp_path / "agreeing.sqlite") as h:
+        assert h.production.definition_versions is h.service._definition_versions
+        assert h.service._definition_versions.known() == {sha_11: "1.1"}
+
+
+@pytest.mark.filterwarnings("ignore:Reliable Reporting cannot tell")
+async def test_production_verifier_without_contract_version_follows_the_service_policy(
+    monkeypatch: pytest.MonkeyPatch, declared_memory_store: None, tmp_path: Any
+) -> None:
+    from adcp.server.base import ToolContext
+    from tests.conformance.reporting.test_reporting_production_service_factory import (
+        factory_harness,
+    )
+
+    _use_verifier(monkeypatch, _reference_verifier_edited(lambda d: d.pop("contract_version")))
+    _with_service_options(monkeypatch, undeclared_report_definitions="withhold_from_pre_3_3")
+    async with factory_harness("memory", tmp_path / "undeclared.sqlite") as h:
+        sha256 = h.production.offerings[0].wire()["report_definition_sha256"]
+        assert h.service._definition_versions.version(sha256) is None
+        handler = h.production.handler
+
+        def capabilities(version: str) -> Any:
+            return handler.get_adcp_capabilities(
+                {}, ToolContext(caller_identity="buyer", resolved_adcp_version=version)
+            )
+
+        old = await capabilities(CALLER_32)
+        assert "reporting_delivery" not in (old.get("media_buy") or {})
+        assert "media_buy.reporting_delivery" not in old.get("experimental_features", [])
+        new = await capabilities(CALLER_33)
+        assert [o["offering_id"] for o in new["media_buy"]["reporting_delivery"]["offerings"]] == [
+            "managed-adapter"
+        ]
+
+
+async def test_production_verifier_without_contract_version_is_served_by_default(
+    monkeypatch: pytest.MonkeyPatch, declared_memory_store: None, tmp_path: Any
+) -> None:
+    from adcp.server.base import ToolContext
+    from tests.conformance.reporting.test_reporting_production_service_factory import (
+        factory_harness,
+    )
+
+    _use_verifier(monkeypatch, _reference_verifier_edited(lambda d: d.pop("contract_version")))
+    with pytest.warns(UserWarning, match="cannot tell"):
+        async with factory_harness("memory", tmp_path / "default.sqlite") as h:
+            old = await h.production.handler.get_adcp_capabilities(
+                {}, ToolContext(caller_identity="buyer", resolved_adcp_version=CALLER_32)
+            )
+    assert old["media_buy"]["reporting_delivery"]["offerings"]
