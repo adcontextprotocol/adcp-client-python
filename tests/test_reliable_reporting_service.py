@@ -154,6 +154,7 @@ def _account_binding(
     for offering in raw["offerings"]:
         offering["offering_id"] = f"{offering['offering_id']}_{label}"
         offering["source_timezone"] = "UTC"
+        offering["product_ids"] = [configuration.report_definition_id]
         offering["contract"]["report_definition_uri"] = definition.report_definition_uri
         offering["contract"]["report_definition_sha256"] = definition.report_definition_sha256
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
@@ -473,6 +474,44 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
     assert configuration.generation_key in service._bindings
 
 
+async def test_decisioning_capabilities_include_only_the_resolved_account_offering() -> None:
+    from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform, SingletonAccounts
+    from adcp.decisioning.capabilities import Account, SupportedProtocol
+    from adcp.decisioning.serve import create_adcp_server_from_platform
+    from adcp.server import AccountAwareToolContext
+
+    first, first_context, _first_source, first_public = _account_binding("a")
+    second, second_context, _second_source, second_public = _account_binding("b")
+    contexts = {first.account_id: first_context, second.account_id: second_context}
+    service = ReliableReportingService.memory(account_context=lambda item: contexts[item.account_id])
+    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
+    await service.configure(first)
+    await service.configure(second)
+
+    class Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            supported_protocols=[SupportedProtocol.media_buy], account=Account(supported_billing=["agent"])
+        )
+        accounts = SingletonAccounts(account_id=first.account_id)
+
+    handler, executor, _registry = create_adcp_server_from_platform(
+        service.install(Seller()), validate_at_init=False, auto_emit_completion_webhooks=False
+    )
+    try:
+        response = await handler.get_adcp_capabilities(
+            {}, AccountAwareToolContext(account_id=first.account_id)
+        )
+    finally:
+        executor.shutdown(wait=True)
+        await service.close()
+
+    offering_ids = {
+        item["offering_id"] for item in response["media_buy"]["reporting_delivery"]["offerings"]
+    }
+    assert first_public["offering_id"] in offering_ids
+    assert second_public["offering_id"] not in offering_ids
+
+
 @pytest.mark.parametrize(
     "mismatch",
     [
@@ -484,6 +523,7 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
         "window",
         "requested_metric",
         "requested_dimension",
+        "product",
         "source_timezone",
         "adapter_build",
         "checksum",
@@ -557,7 +597,7 @@ async def test_account_capability_mismatch_is_rejected_before_binding(mismatch: 
             context,
             capability_offering={**public, "supported_finality": ["snapshot", "official"]},
         )
-    elif mismatch in {"format", "window", "source_timezone", "adapter_build"}:
+    elif mismatch in {"format", "window", "source_timezone", "adapter_build", "product"}:
         raw = capabilities.model_dump(mode="json")
         if mismatch == "format":
             raw["offerings"][0]["formats"] = [
@@ -567,6 +607,8 @@ async def test_account_capability_mismatch_is_rejected_before_binding(mismatch: 
             raw["offerings"][0]["windowing"]["minimum_window"] = "P1D"
         elif mismatch == "source_timezone":
             raw["offerings"][0]["source_timezone"] = "America/New_York"
+        elif mismatch == "product":
+            raw["offerings"][0]["product_ids"] = ["another-product"]
         else:
             raw["adapter_build"]["adapter_version"] = "another-build"
         raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
