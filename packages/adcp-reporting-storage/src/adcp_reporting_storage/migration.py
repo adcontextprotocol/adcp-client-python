@@ -251,6 +251,13 @@ def _replacement_steps(sql: Any, *, owned: bool) -> _Steps:
     row_typed = [name for name, typed in functions if typed]
     if row_typed:
         yield _drop_functions(sql, row_typed)
+    # The provisional history view depends on ledger tables; RESTRICT protects
+    # any application object that depends on the view.
+    yield _Statement(
+        sql.SQL("DROP VIEW IF EXISTS {} RESTRICT").format(
+            sql.Identifier(current, "adcp_reporting_provisional_history")
+        )
+    )
     if tables:
         yield _Statement(
             sql.SQL("DROP TABLE {} RESTRICT").format(
