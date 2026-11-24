@@ -377,3 +377,255 @@ async def test_provisioned_account_resolves_by_id_and_natural_key_per_principal(
             _ctx("buyer-b"),
         )
     assert error.value.code == "ACCOUNT_NOT_FOUND"
+
+
+# -- buyer: swap review fixes ------------------------------------------------
+
+VERSION = "3.3-rc.3"
+IDEM = "00000000-0000-4000-8000-000000000001"
+BRAND = KEY["brand"]
+OTHER_BRAND = {"domain": "other.example"}
+PERIOD = {"start": "2026-12-01T00:00:00Z", "end": "2026-12-02T00:00:00Z"}
+AGENT = {
+    "url": "https://governance.example/mcp",
+    "authentication": {"schemes": ["Bearer"], "credentials": "c" * 32},
+}
+
+
+def _valid(task, payload, version=VERSION):
+    from adcp.validation.schema_validator import validate_request
+
+    outcome = validate_request(task, payload, version=version)
+    assert outcome.valid, [(i.pointer, i.message) for i in outcome.issues]
+
+
+def _brand_source_requests():
+    from adcp.types import BuyProductsRequest, ListProductsRequest, RequestProposalsRequest
+
+    return {
+        "request_proposals": RequestProposalsRequest.model_validate(
+            {"idempotency_key": IDEM, "brief": "launch", "account": KEY}
+        ),
+        "buy_products": BuyProductsRequest.model_validate(
+            {
+                "idempotency_key": IDEM,
+                "account": KEY,
+                "feed_version": "f1",
+                "start_time": "2026-12-01T00:00:00Z",
+                "end_time": "2026-12-31T00:00:00Z",
+                "purchases": [{"product_id": "p1", "pricing_option_id": "po1"}],
+            }
+        ),
+        "list_products": ListProductsRequest.model_validate(
+            {"account": KEY, "criteria": {"catalog": {"type": "product", "catalog_id": "c"}}}
+        ),
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", ["request_proposals", "buy_products", "list_products"])
+async def test_brand_source_tasks_move_account_brand_to_top_level(task):
+    client = await provisioned()
+    await getattr(client, task)(_brand_source_requests()[task])
+    wire = sent(client, task)
+    assert wire["account"] == REF
+    assert wire["brand"] == BRAND
+    _valid(task, wire)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", ["request_proposals", "buy_products", "list_products"])
+async def test_brand_source_tasks_keep_caller_supplied_brand(task):
+    client = await provisioned()
+    request = _brand_source_requests()[task].model_copy(update={"brand": OTHER_BRAND})
+    await getattr(client, task)(request)
+    wire = sent(client, task)
+    assert wire["account"] == REF
+    assert wire["brand"] == OTHER_BRAND
+
+
+@pytest.mark.asyncio
+async def test_get_products_gains_no_brand():
+    client = await provisioned()
+    await _call(client, "get_products")
+    assert "brand" not in sent(client, "get_products")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", ["request_proposals", "buy_products", "list_products"])
+async def test_3_2_seller_gets_no_added_brand(task):
+    client = await provisioned(versions=("3.2",))
+    await getattr(client, task)(_brand_source_requests()[task])
+    wire = sent(client, task)
+    assert wire["account"]["operator"] == KEY["operator"]
+    assert "account_id" not in wire["account"]
+    assert "brand" not in wire
+
+
+# -- buyer: governed payloads keep the authored account ----------------------
+
+
+def _approved_create_media_buy() -> dict:
+    return {
+        "idempotency_key": IDEM,
+        "adcp_version": VERSION,
+        "account": KEY,
+        "brand": BRAND,
+        "start_time": "2026-12-01T00:00:00Z",
+        "end_time": "2026-12-31T00:00:00Z",
+        "packages": [{"product_id": "p1", "pricing_option_id": "po1", "budget": 1000}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_governed_request_keeps_natural_key_and_verifies():
+    from adcp.governance import (
+        InMemoryGovernanceReplayStore,
+        build_governance_commitment,
+        compute_governed_payload_hash,
+        issue_governance_authorization,
+        verify_governance_authorization,
+    )
+    from adcp.signing import StaticJwksResolver, private_key_from_jwk
+    from tests.test_governance_authorization import VECTORS
+
+    key = dict(VECTORS["signed_jws"]["test_key"])
+    key["d"] = key.pop("_private_d_for_test_only")
+    commitment = build_governance_commitment(1000, "USD")
+    # The authorization binds the payload as approved, adcp_version included.
+    approved = CreateMediaBuyRequest.model_validate(_approved_create_media_buy()).model_dump(
+        mode="json", exclude_none=True
+    )
+    token = issue_governance_authorization(
+        private_key=private_key_from_jwk(key),
+        key_id=key["kid"],
+        alg="EdDSA",
+        issuer="https://gov.example/governance",
+        subject="opaque-action",
+        plan_hash="opaque-plan-hash",
+        audience="https://seller.example/sales",
+        caller="https://buyer.example",
+        check_id="check-1",
+        task="create_media_buy",
+        payload=approved,
+        authorized_commitment=commitment,
+        issued_at=1_000,
+        expires_at=1_900,
+        jti="token-1",
+    )
+    client = await provisioned()
+    await client.create_media_buy(
+        CreateMediaBuyRequest.model_validate(
+            {**_approved_create_media_buy(), "governance_context": token}
+        )
+    )
+    wire = sent(client, "create_media_buy")
+    _valid("create_media_buy", wire)
+    assert wire["account"] == approved["account"]
+    assert "account_id" not in wire["account"]
+    assert compute_governed_payload_hash(wire) == compute_governed_payload_hash(approved)
+
+    jwks = StaticJwksResolver(
+        {"keys": [{name: value for name, value in key.items() if name != "d"}]}
+    )
+
+    async def verify(payload):
+        return await verify_governance_authorization(
+            token=token,
+            expected_issuer="https://gov.example/governance",
+            expected_audience="https://seller.example/sales",
+            authenticated_caller="https://buyer.example",
+            expected_task="create_media_buy",
+            payload=payload,
+            actual_commitment=commitment,
+            jwks=jwks,
+            replay_store=InMemoryGovernanceReplayStore(),
+            now=lambda: 1_000,
+        )
+
+    assert (await verify(wire)).ok
+    # The control: had the account been swapped, the real verifier would refuse.
+    swapped = {**wire, "account": REF}
+    refusal = await verify(swapped)
+    assert not refusal.ok
+    assert refusal.error == "governance_token_not_applicable"
+
+
+# -- buyer: per-item account references --------------------------------------
+
+
+def _usage_request(*accounts):
+    from adcp.types import ReportUsageRequest
+
+    return ReportUsageRequest.model_validate(
+        {
+            "idempotency_key": IDEM,
+            "reporting_period": PERIOD,
+            "usage": [
+                {"account": account, "vendor_cost": 1, "currency": "USD"} for account in accounts
+            ],
+        }
+    )
+
+
+def _governance_request(*accounts):
+    from adcp.types import SyncGovernanceRequest
+
+    return SyncGovernanceRequest.model_validate(
+        {
+            "idempotency_key": IDEM,
+            "accounts": [
+                {"account": account, "governance_agents": [AGENT]} for account in accounts
+            ],
+        }
+    )
+
+
+_PER_ITEM = {
+    "report_usage": (_usage_request, "usage"),
+    "sync_governance": (_governance_request, "accounts"),
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", sorted(_PER_ITEM))
+async def test_per_item_accounts_swap_at_3_3(task):
+    build, collection = _PER_ITEM[task]
+    client = await provisioned()
+    await getattr(client, task)(build(KEY))
+    wire = sent(client, task)
+    assert wire[collection][0]["account"] == REF
+    _valid(task, wire)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", sorted(_PER_ITEM))
+async def test_per_item_accounts_keep_natural_key_at_3_2(task):
+    build, collection = _PER_ITEM[task]
+    client = await provisioned(versions=("3.2",))
+    await getattr(client, task)(build(KEY))
+    account = sent(client, task)[collection][0]["account"]
+    assert "account_id" not in account
+    assert account["operator"] == KEY["operator"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", sorted(_PER_ITEM))
+async def test_per_item_accounts_keep_natural_key_in_natural_key_mode(task):
+    build, collection = _PER_ITEM[task]
+    client = await provisioned(account_reference_mode="natural_key")
+    await getattr(client, task)(build(KEY))
+    account = sent(client, task)[collection][0]["account"]
+    assert "account_id" not in account
+    assert account["operator"] == KEY["operator"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task", sorted(_PER_ITEM))
+async def test_per_item_account_already_carrying_account_id_is_untouched(task):
+    build, collection = _PER_ITEM[task]
+    client = await provisioned()
+    await getattr(client, task)(build({"account_id": "caller-handle"}, KEY))
+    items = sent(client, task)[collection]
+    assert items[0]["account"] == {"account_id": "caller-handle"}
+    assert items[1]["account"] == REF
