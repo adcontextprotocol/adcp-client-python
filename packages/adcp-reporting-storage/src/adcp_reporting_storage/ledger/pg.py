@@ -92,6 +92,8 @@ _BOUND_CONNECTION: ContextVar[tuple[object, object, Any] | None] = ContextVar(
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
+from adcp.reporting.ledger import provisional as provisional_models
+from adcp.reporting.ledger import store as ledger_store
 from adcp.reporting.ledger._record_rows import (
     _ADJUSTMENT_COLUMNS,
     _CONFIGURATION_COLUMNS,
@@ -137,11 +139,7 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
-from adcp.reporting.ledger.provisional import (
-    ProvisionalAcquisition,
-    ProvisionalObservation,
-    ProvisionalPolicy,
-)
+from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
@@ -156,10 +154,7 @@ from adcp.reporting.ledger.store import (
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
     validate_managed_revision_rows,
-    validate_provisional_revision,
-    validate_retained_provisional_observation,
     validate_revision_currency,
-    validate_snapshot_origin,
 )
 from adcp_reporting_storage.contract import STORAGE_CONTRACT, require_adcp_contract
 from adcp_reporting_storage.ledger.row_storage import (
@@ -217,8 +212,10 @@ _RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
 _PROVISIONAL_HISTORY_TABLES = (
     "reporting_provisional_acquisitions",
     "reporting_provisional_observations",
+    "adcp_reporting_reused_observations",
 )
 _STABILIZATION_TABLE = "adcp_reporting_stabilization_checkpoints"
+_PROVISIONAL_HISTORY_VIEW = "adcp_reporting_provisional_history"
 _BIGINT_MAX = 2**63 - 1
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
@@ -812,6 +809,7 @@ class PgReportingLedgerStore:
             _NOTIFICATIONS_DDL_PATH,
             _ACTIVITY_DDL_PATH,
             Path(__file__).with_name("reporting_provisional_observations.sql"),
+            Path(__file__).with_name("reporting_provisional_reuse.sql"),
             Path(__file__).with_name("reporting_caller_ownership.sql"),
         )
         # The versioned migrations made of this store's own DDL first (0001-0003),
@@ -846,6 +844,13 @@ class PgReportingLedgerStore:
         from adcp_reporting_storage.outbox._schema import validate_provisional_schema
 
         await validate_provisional_schema(connection)
+        tables = await self._provisional_tables(connection)
+        for name in ("adcp_reporting_reused_observations", _PROVISIONAL_HISTORY_VIEW):
+            if name not in tables:
+                raise LedgerConflictError(
+                    "PROVISIONAL_SCHEMA_UNREADY",
+                    f"provisional_schema_unready:missing:object:{name}",
+                )
 
     @staticmethod
     async def _provisional_tables(connection: Any) -> set[str]:
@@ -853,6 +858,7 @@ class PgReportingLedgerStore:
         names = [
             "reporting_restatement_checkpoints",
             _STABILIZATION_TABLE,
+            _PROVISIONAL_HISTORY_VIEW,
             *_PROVISIONAL_HISTORY_TABLES,
         ]
         rows = await (
@@ -2057,7 +2063,7 @@ class PgReportingLedgerStore:
                     " IS DISTINCT FROM reporting_revision_id"
                     " THEN payload #>> '{manifest,publication_id}' END,"
                     " payload->>'revision_publication_id') AS origin, ordinal"
-                    " FROM reporting_provisional_observations WHERE account_id=%s"
+                    " FROM adcp_reporting_provisional_history WHERE account_id=%s"
                     " AND reporting_obligation_id=%s AND reporting_revision_id=%s) refs"
                     " WHERE origin IS NOT NULL ORDER BY ordinal LIMIT 1",
                     (
@@ -2068,11 +2074,11 @@ class PgReportingLedgerStore:
                 )
             ).fetchone()
         if witness is not None:
-            validate_snapshot_origin(revision, witness[0])
+            ledger_store.validate_snapshot_origin(revision, witness[0])
 
     async def get_stabilization_schedule(
         self, generation: ReportingConfigurationGenerationKey
-    ) -> ProvisionalPolicy | None:
+    ) -> provisional_models.ProvisionalPolicy | None:
         async with self._connection() as connection:
             # configure() can precede schema creation on a brand-new installation.
             tables = await self._provisional_tables(connection)
@@ -2085,7 +2091,7 @@ class PgReportingLedgerStore:
                     "SELECT a.payload->'policy' FROM reporting_obligations o"  # noqa: S608  # nosec B608
                     " JOIN reporting_provisional_acquisitions a"
                     " USING(account_id, reporting_obligation_id)"
-                    " LEFT JOIN reporting_provisional_observations h"
+                    " LEFT JOIN adcp_reporting_provisional_history h"
                     " USING(account_id, reporting_obligation_id, ordinal)"
                     " LEFT JOIN reporting_restatement_checkpoints c"
                     " USING(account_id, reporting_obligation_id)"
@@ -2116,7 +2122,7 @@ class PgReportingLedgerStore:
                     ),
                 )
             ).fetchone()
-        return ProvisionalPolicy.from_wire(row[0]) if row is not None else None
+        return provisional_models.ProvisionalPolicy.from_wire(row[0]) if row is not None else None
 
     async def list_provisional_observations(
         self,
@@ -2132,7 +2138,7 @@ class PgReportingLedgerStore:
             await self._require_provisional_schema(connection)
             rows = await (
                 await connection.execute(
-                    "SELECT payload FROM reporting_provisional_observations"
+                    "SELECT payload FROM adcp_reporting_provisional_history"
                     " WHERE account_id=%s AND reporting_obligation_id=%s"
                     " AND (NOT %s OR ("
                     " payload #>> '{acquisition,request,trigger}' = 'scheduled_poll'"
@@ -2158,7 +2164,7 @@ class PgReportingLedgerStore:
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        reuse_candidate = validate_provisional_revision(observation, revision)
+        reuse_candidate = ledger_store.validate_provisional_revision(observation, revision)
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, acquisition.account_id)
             await self._require_provisional_schema(connection)
@@ -2174,7 +2180,7 @@ class PgReportingLedgerStore:
             require_origin = acquisition.requires_snapshot_origin(obligation)
             existing = await (
                 await connection.execute(
-                    "SELECT reporting_revision_id,payload FROM reporting_provisional_observations"
+                    "SELECT reporting_revision_id,payload FROM adcp_reporting_provisional_history"
                     " WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=%s",
                     key,
                 )
@@ -2193,17 +2199,19 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
-                validate_snapshot_origin(
+                ledger_store.validate_snapshot_origin(
                     retained_revision, retained_observation.revision_publication_id
                 )
                 if require_origin and retained_revision.finality == "snapshot":
                     await self.verify_snapshot_origin(retained_revision)
-                    validate_snapshot_origin(retained_revision, observation.revision_publication_id)
+                    ledger_store.validate_snapshot_origin(
+                        retained_revision, observation.revision_publication_id
+                    )
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
                 reused = reuse_candidate and existing[0] == observation.revision_id
                 if retained_revision.finality == "snapshot" or revision is None or reused:
-                    validate_retained_provisional_observation(
+                    ledger_store.validate_retained_provisional_observation(
                         retained_revision, retained_observation, rows
                     )
                 if revision is None or reused:
@@ -2263,7 +2271,7 @@ class PgReportingLedgerStore:
                     )
                 if require_origin:
                     await self.verify_snapshot_origin(committed)
-                validate_retained_provisional_observation(
+                ledger_store.validate_retained_provisional_observation(
                     committed,
                     observation.bind_revision(committed, require_origin=require_origin),
                     rows,
@@ -2280,10 +2288,18 @@ class PgReportingLedgerStore:
             else:
                 committed = await self.commit_revision(revision, rows)
             observation = observation.bind_revision(committed, require_origin=require_origin)
+            from psycopg import sql
+
+            observation_table = (
+                "adcp_reporting_reused_observations"
+                if revision is None or reuse_candidate
+                else "reporting_provisional_observations"
+            )
             await connection.execute(
-                "INSERT INTO reporting_provisional_observations"
-                " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
-                " VALUES (%s,%s,%s,%s,%s::jsonb)",
+                sql.SQL(
+                    "INSERT INTO {} (account_id,reporting_obligation_id,ordinal,"
+                    "reporting_revision_id,payload) VALUES (%s,%s,%s,%s,%s::jsonb)"
+                ).format(sql.Identifier(observation_table)),
                 (*key, committed.reporting_revision_id, _json(observation.to_wire())),
             )
             return committed
@@ -2366,7 +2382,9 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
-            stabilization_policy=ProvisionalPolicy.from_wire(row[5]) if row[5] else None,
+            stabilization_policy=provisional_models.ProvisionalPolicy.from_wire(row[5])
+            if row[5]
+            else None,
             next_stabilization_due_at=_utc(row[6]) if row[6] else None,
         )
 

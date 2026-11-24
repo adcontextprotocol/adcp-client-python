@@ -1165,6 +1165,31 @@ async def test_stabilized_retires_base_shaped_derived_official_reservation(
     assert sorted(r.finality for r in await store.list_revisions(**owner)) == (
         ["official", "snapshot"] if unchanged == "PT12H" else ["snapshot"]
     )
+    if isinstance(store, PgReportingLedgerStore):
+        async with store._pool.connection() as connection:
+            retained = await (
+                await connection.execute(
+                    "SELECT (SELECT count(*) FROM reporting_provisional_observations"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s),"
+                    " (SELECT count(*) FROM adcp_reporting_reused_observations"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s)",
+                    (
+                        config.account_id,
+                        obligation.reporting_obligation_id,
+                        config.account_id,
+                        obligation.reporting_obligation_id,
+                    ),
+                )
+            ).fetchone()
+            unique_revision = await (
+                await connection.execute(
+                    "SELECT 1 FROM pg_constraint WHERE conrelid="
+                    " 'reporting_provisional_observations'::regclass"
+                    " AND conname='reporting_provisional_observations_reporting_revision_id_key'"
+                )
+            ).fetchone()
+        assert retained == (1, 2)
+        assert unique_revision == (1,)
 
 
 async def test_stabilization_cannot_rebind_a_contradictory_snapshot_origin(
@@ -2199,7 +2224,9 @@ async def test_new_period_checks_an_authoritative_close_with_an_ordinary_predece
     assert calls == before
 
 
-async def test_source_final_closes_a_snapshot_before_its_restatement_window(store_factory: Any) -> None:
+async def test_source_final_closes_a_snapshot_before_its_restatement_window(
+    store_factory: Any,
+) -> None:
     raw = _closing_capabilities().model_dump(mode="json")
     raw["offerings"][0]["restatement_window"] = "P400D"
     raw["offerings"][1]["source_local_ready_time"] = "00:00"

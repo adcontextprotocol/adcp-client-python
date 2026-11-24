@@ -225,7 +225,11 @@ async def test_a_retained_pair_hashed_revision_stores_rows_only_and_verifies_its
         walked, _ = await walk(store, obligation.account_id, revision.reporting_revision_id, 500)
         assert walked == rows
 
-        forged = replace(revision, reporting_revision_id="rpr_forged")
+        forged = replace(
+            revision,
+            reporting_revision_id="rpr_forged",
+            supersedes_reporting_revision_id=revision.reporting_revision_id,
+        )
         with pytest.raises(LedgerConflictError) as conflict:
             await store.commit_revision(forged, rows)
         assert conflict.value.code == "REVISION_CONTENT_MISMATCH"
@@ -515,7 +519,8 @@ async def test_the_database_enforces_immutability_and_body_digests() -> None:
         async with pool.connection() as connection:
             with pytest.raises(errors.CheckViolation):
                 await connection.execute(
-                    "INSERT INTO adcp_reporting_chunk_bodies (account_id, obligation_id, sha256, body)"
+                    "INSERT INTO adcp_reporting_chunk_bodies"
+                    " (account_id, obligation_id, sha256, body)"
                     " VALUES ('a', 'o', %s, %s)",
                     ("c" * 64, b"{}\n"),
                 )
@@ -523,7 +528,8 @@ async def test_the_database_enforces_immutability_and_body_digests() -> None:
             with pytest.raises(errors.ForeignKeyViolation):
                 await connection.execute(
                     "INSERT INTO adcp_reporting_row_chunks (row_set_id, chunk_index, account_id,"
-                    " obligation_id, first_ordinal, row_count, canonical_size_bytes, sha256, segments)"
+                    " obligation_id, first_ordinal, row_count, canonical_size_bytes,"
+                    " sha256, segments)"
                     " VALUES (%s, 5, 'acct_other', %s, 0, 1, 3, %s, '[]')",
                     (revision.reporting_revision_id, obligation.reporting_obligation_id, "d" * 64),
                 )
@@ -591,9 +597,7 @@ async def test_the_packaged_catalog_manifest_matches_a_clean_migration() -> None
     assert installed == packaged, "run scripts/generate_row_storage_catalog.py"
 
 
-async def test_a_full_verified_read_proves_the_binding_under_the_algorithm_it_was_written_with() -> (
-    None
-):
+async def test_full_verified_read_binds_rows_with_the_recorded_algorithm() -> None:
     async with isolated_reporting_pool() as pool:
         store = PgReportingLedgerStore(pool=pool, row_storage=True)
         await store.create_schema()
