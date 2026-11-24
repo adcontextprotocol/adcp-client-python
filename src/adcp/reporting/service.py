@@ -2373,7 +2373,8 @@ class ReliableReportingService:
         declarations.extend(
             binding.context.capability_offering
             for binding in self._bindings.values()
-            if account_id is None or binding.configuration.account_id == account_id
+            if (account_id is None and binding.context.source_capabilities is None)
+            or (account_id is not None and binding.configuration.account_id == account_id)
         )
         for declaration in declarations:
             offering = ReportingDeliveryOffering.model_validate(_thaw(declaration)).model_dump(
