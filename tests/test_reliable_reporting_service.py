@@ -153,6 +153,7 @@ def _account_binding(
     raw["capability_version"] = f"fixture-{label}"
     for offering in raw["offerings"]:
         offering["offering_id"] = f"{offering['offering_id']}_{label}"
+        offering["source_timezone"] = "UTC"
         offering["contract"]["report_definition_uri"] = definition.report_definition_uri
         offering["contract"]["report_definition_sha256"] = definition.report_definition_sha256
     raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
@@ -342,6 +343,7 @@ async def test_service_routes_two_frozen_generations_and_resolves_each_once() ->
 async def test_account_capabilities_bind_distinct_offerings_with_shared_source_storage() -> None:
     first, first_context, first_capabilities, first_public = _account_binding("c")
     second, second_context, second_capabilities, _ = _account_binding("d")
+    second = replace(second, automated_recovery_window=timedelta(days=2), status_retention_days=100)
     contexts = {first.account_id: first_context, second.account_id: second_context}
     service = ReliableReportingService.memory(
         account_context=lambda configuration: contexts[configuration.account_id]
@@ -368,6 +370,11 @@ async def test_account_capabilities_bind_distinct_offerings_with_shared_source_s
         item["offering_id"]
         for item in service.capability_block(account_id=second.account_id)["offerings"]
     ] == [second_context.capability_offering["offering_id"]]
+    first_block = service.capability_block(account_id=first.account_id)
+    assert first_block["automated_recovery_window_seconds"] == int(
+        first.automated_recovery_window.total_seconds()
+    )
+    assert first_block["status_retention_days"] == first.status_retention_days
     assert service.capability_block() == {}
 
 
@@ -383,6 +390,30 @@ async def test_account_capability_rejects_a_conflicting_registered_offering_id()
 
     with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
         await service.configure(configuration)
+
+
+async def test_account_capability_rejects_reusing_an_offering_id_for_another_generation() -> None:
+    first, context, capabilities, public = _account_binding("c")
+    revised_context = replace(
+        context,
+        capability_offering={**public, "standard_dimensions": ["country"]},
+    )
+    second = replace(
+        first,
+        delivery_config_version=2,
+        account_binding_sha256=revised_context.binding_sha256(),
+    )
+    contexts = {1: context, 2: revised_context}
+    service = ReliableReportingService.memory(
+        account_context=lambda configuration: contexts[configuration.delivery_config_version]
+    )
+    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    await service.configure(first)
+
+    with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
+        await service.configure(second)
+    assert first.generation_key in service._pending_bindings
+    assert second.generation_key not in service._pending_bindings
 
 
 async def test_account_capabilities_keep_the_registered_source_authority() -> None:
@@ -412,6 +443,7 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
     configuration = replace(
         configuration,
         required_finality="official",
+        schedule=replace(configuration.schedule, period_duration="P1D"),
         definition=replace(
             configuration.definition,
             finality_policy=ReportingSourceFinalPolicy("declared-close", "delivery.is_final"),
@@ -421,7 +453,11 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
         context,
         snapshot_offering_id=None,
         official_offering_id=capabilities.offerings[1].offering_id,
-        capability_offering={**public, "supported_finality": ["official"]},
+        capability_offering={
+            **public,
+            "schedule": {**public["schedule"], "period_duration": "P1D"},
+            "supported_finality": ["official"],
+        },
     )
     configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
     service = ReliableReportingService.memory(account_context=lambda _: context)
@@ -445,6 +481,10 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
         "public_contract",
         "source_class",
         "format",
+        "window",
+        "requested_metric",
+        "requested_dimension",
+        "source_timezone",
         "adapter_build",
         "checksum",
         "publication_namespace",
@@ -471,6 +511,10 @@ async def test_account_capability_mismatch_is_rejected_before_binding(mismatch: 
         )
     elif mismatch == "source_class":
         context = replace(context, snapshot_offering_id=capabilities.offerings[1].offering_id)
+    elif mismatch == "requested_metric":
+        context = replace(context, requested_metrics=("impressions", "clicks"))
+    elif mismatch == "requested_dimension":
+        context = replace(context, requested_dimensions=("missing_dimension",))
     elif mismatch == "publication_namespace":
         context = replace(context, publication_namespace="reporting-source:other")
     elif mismatch == "schedule":
@@ -513,12 +557,16 @@ async def test_account_capability_mismatch_is_rejected_before_binding(mismatch: 
             context,
             capability_offering={**public, "supported_finality": ["snapshot", "official"]},
         )
-    elif mismatch in {"format", "adapter_build"}:
+    elif mismatch in {"format", "window", "source_timezone", "adapter_build"}:
         raw = capabilities.model_dump(mode="json")
         if mismatch == "format":
             raw["offerings"][0]["formats"] = [
                 {"media_type": "application/x-ndjson", "compression": "gzip"}
             ]
+        elif mismatch == "window":
+            raw["offerings"][0]["windowing"]["minimum_window"] = "P1D"
+        elif mismatch == "source_timezone":
+            raw["offerings"][0]["source_timezone"] = "America/New_York"
         else:
             raw["adapter_build"]["adapter_version"] = "another-build"
         raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)

@@ -320,8 +320,11 @@ binds that declaration to the registered inline adapter's fetch function,
 staging store, replay seals, currency rules, and production authority. Its
 `adapter_build` must identify the registered adapter. The context's
 `source_scope`, selected source offering, pinned report definition, and public
-`capability_offering` must agree with the declaration. A custom source executor
-cannot be rebound this way.
+`capability_offering` must agree with the declaration. Admission also checks
+the configured period against the source window, requested metrics and
+dimensions, and the source timezone. An offering ID cannot describe different
+public contracts for the same account. A custom source executor cannot be
+rebound this way.
 
 The trusted account resolver must reproduce the same declaration when a stored
 generation is recovered. Derive it from the generation's pinned definition and

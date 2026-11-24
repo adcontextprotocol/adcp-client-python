@@ -89,6 +89,7 @@ from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
+    iso_duration_milliseconds_v1,
 )
 from adcp.types import ReportingDeliveryOffering
 
@@ -217,6 +218,49 @@ def _matches_public_contract(
             (profile, "schema_ref_policy", contract.schema_ref_policy),
         )
     )
+
+
+def _validate_account_source_requirements(
+    configuration: ReportingConfiguration,
+    context: ReportingAccountContext,
+    offerings: Sequence[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1],
+) -> None:
+    """Reject account declarations that cannot serve any configured period."""
+    try:
+        period_ms = iso_duration_milliseconds_v1(configuration.schedule.period_duration)
+        source_timezone = configuration.schedule.timezone_name(context.account_timezone)
+    except ValueError as error:
+        raise ReliableReportingConfigurationError(
+            "reporting schedule cannot be served by the account source"
+        ) from error
+    for offering in offerings:
+        if offering.source_timezone is not None and offering.source_timezone != source_timezone:
+            raise ReliableReportingConfigurationError(
+                "account source timezone does not match the reporting schedule"
+            )
+        minimum_ms = iso_duration_milliseconds_v1(offering.windowing.minimum_window)
+        maximum_ms = iso_duration_milliseconds_v1(offering.windowing.maximum_window)
+        provider_maximum_ms = (
+            offering.provider_execution.maximum_window_days_per_request * 24 + 2
+        ) * 3_600_000
+        if not minimum_ms <= period_ms <= maximum_ms or period_ms > provider_maximum_ms:
+            raise ReliableReportingConfigurationError(
+                "reporting period is outside the account source window bounds"
+            )
+        requestable_metrics = {
+            metric.name for metric in offering.metrics if metric.support in {"exact", "partial"}
+        }
+        if not set(context.requested_metrics).issubset(requestable_metrics):
+            raise ReliableReportingConfigurationError(
+                "requested metrics are unavailable in the account source offering"
+            )
+        exact_dimensions = {
+            dimension.name for dimension in offering.dimensions if dimension.support == "exact"
+        }
+        if not set(context.requested_dimensions).issubset(exact_dimensions):
+            raise ReliableReportingConfigurationError(
+                "requested dimensions are unavailable in the account source offering"
+            )
 
 
 async def _resolve(value: Any) -> Any:
@@ -1675,6 +1719,8 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering contract does not match the pinned report definition"
                 )
+        if context.source_capabilities is not None:
+            _validate_account_source_requirements(configuration, context, selected)
         if configuration.required_finality == "snapshot" and snapshot is None:
             raise ReliableReportingConfigurationError(
                 "snapshot configuration requires a matching snapshot source offering"
@@ -1807,10 +1853,23 @@ class ReliableReportingService:
                         "account capability advertises unavailable finality"
                     )
                 offering_id = str(public["offering_id"])
-                if any(
-                    item["offering_id"] == offering_id and _thaw(item) != public
+                declarations = [
+                    item
                     for name in self.sources.names
                     for item in self.sources.get(name).capability_offerings
+                ]
+                declarations.extend(
+                    binding.context.capability_offering
+                    for binding in (*self._bindings.values(), *self._pending_bindings.values())
+                    if binding.configuration.account_id == configuration.account_id
+                )
+                if any(
+                    item["offering_id"] == offering_id
+                    and ReportingDeliveryOffering.model_validate(_thaw(item)).model_dump(
+                        mode="json", exclude_none=True
+                    )
+                    != public
+                    for item in declarations
                 ):
                     raise ReliableReportingConfigurationError(
                         f"capability offering {offering_id!r} has conflicting declarations"
@@ -2466,7 +2525,11 @@ class ReliableReportingService:
             offerings[offering_id] = offering
         if not offerings:
             return {}
-        configurations = [binding.configuration for binding in self._bindings.values()]
+        configurations = [
+            binding.configuration
+            for binding in self._bindings.values()
+            if account_id is None or binding.configuration.account_id == account_id
+        ]
         payload = _advertised_reporting_delivery(
             escalation=self._escalation,
             consumer_status_task=self._consumer_status_enabled,
