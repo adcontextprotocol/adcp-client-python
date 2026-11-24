@@ -133,6 +133,43 @@ def _account_context(configuration: ReportingConfiguration) -> ReportingAccountC
     )
 
 
+def _account_binding(
+    label: str,
+) -> tuple[
+    ReportingConfiguration,
+    ReportingAccountContext,
+    ReportingSourceCapabilitiesV1,
+    dict[str, Any],
+]:
+    definition = replace(
+        DEFINITION,
+        report_definition_uri=f"https://contracts.example.test/reporting/{label}",
+        report_definition_sha256=label * 64,
+    )
+    configuration = replace(_configuration(account_id=f"account-{label}"), definition=definition)
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["source_scope"]["source_account_id"] = configuration.account_id
+    raw["capability_version"] = f"fixture-{label}"
+    for offering in raw["offerings"]:
+        offering["offering_id"] = f"{offering['offering_id']}_{label}"
+        offering["contract"]["report_definition_uri"] = definition.report_definition_uri
+        offering["contract"]["report_definition_sha256"] = definition.report_definition_sha256
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+    public = _capability_offering("gam")
+    public["offering_id"] = f"GAM_SNAPSHOT_{label}"
+    public["report_definition_uri"] = definition.report_definition_uri
+    public["report_definition_sha256"] = definition.report_definition_sha256
+    context = replace(
+        _account_context(configuration),
+        source_scope=capabilities.source_scope,
+        snapshot_offering_id=capabilities.offerings[0].offering_id,
+        capability_offering=public,
+        source_capabilities=capabilities,
+    )
+    return configuration, context, capabilities, public
+
+
 def _rows(impressions: int) -> list[dict[str, Any]]:
     return [
         {
@@ -288,6 +325,30 @@ async def test_service_routes_two_frozen_generations_and_resolves_each_once() ->
     assert len(gam.calls) == len(freewheel.calls) == 1
     assert gam.calls[0].identity.delivery_config_id == "gam-delivery"
     assert freewheel.calls[0].identity.delivery_config_id == "freewheel-delivery"
+
+
+async def test_account_capabilities_bind_distinct_offerings_with_shared_source_storage() -> None:
+    first, first_context, first_capabilities, first_public = _account_binding("c")
+    second, second_context, second_capabilities, _ = _account_binding("d")
+    contexts = {first.account_id: first_context, second.account_id: second_context}
+    service = ReliableReportingService.memory(
+        account_context=lambda configuration: contexts[configuration.account_id]
+    )
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(first_capabilities, [_rows(10), _rows(20)]),
+        capability_offerings=[first_public],
+    )
+
+    await service.configure(first)
+    await service.configure(second)
+
+    first_source = service._bindings[first.generation_key].producer._source
+    second_source = service._bindings[second.generation_key].producer._source
+    assert first_source.capabilities == first_capabilities
+    assert second_source.capabilities == second_capabilities
+    assert first_source._staging is second_source._staging
+    assert first_source._seals is second_source._seals
 
 
 @pytest.mark.parametrize("window", [None, timedelta(0), timedelta(minutes=2)])

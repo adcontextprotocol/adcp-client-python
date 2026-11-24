@@ -256,6 +256,7 @@ class ReportingAccountContext:
     requested_metrics: tuple[str, ...] = ("impressions", "spend")
     requested_dimensions: tuple[str, ...] = ()
     capability_offering: Mapping[str, Any] = field(default_factory=dict)
+    source_capabilities: ReportingSourceCapabilitiesV1 | None = None
     publication_namespace: str = "reporting-source:default"
     slice_timeout: timedelta = timedelta(minutes=10)
 
@@ -464,6 +465,43 @@ class ReportingAdapterRegistry:
             raise ReliableReportingConfigurationError(
                 f"configuration names unregistered reporting adapter {name!r}"
             ) from error
+
+    def bind_capabilities(
+        self,
+        registration: AdapterRegistration,
+        capabilities: ReportingSourceCapabilitiesV1,
+    ) -> AdapterRegistration:
+        """Bind account capabilities to the registered source and its shared stores."""
+        source = registration.executor
+        if not isinstance(capabilities, ReportingSourceCapabilitiesV1):
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities must be a checksummed declaration"
+            )
+        if not isinstance(source, InlineReportingSource) or type(source) not in (
+            InlineReportingSource,
+            _AuthorizedInlineSource,
+        ):
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities require a registered inline source"
+            )
+        source_type = type(source)
+        bound = source_type(
+            capabilities=capabilities,
+            fetch=source._fetch,
+            staging=source._staging,
+            seals=source._seals,
+            constituent_of=source._constituent_of,
+            staged_commit_prefix=source._staged_commit_prefix,
+            include_exception_detail=source.include_exception_detail,
+            monetary_metrics=source._monetary,
+            clock=source._clock,
+            **(
+                {"configuration_binding": source._configuration_binding}
+                if isinstance(source, _AuthorizedInlineSource)
+                else {}
+            ),
+        )
+        return replace(registration, executor=bound)
 
     def freeze(self) -> None:
         self._frozen = True
@@ -1311,6 +1349,10 @@ class ReliableReportingService:
                     "resolved account timezone does not match the configuration timezone"
                 )
             registration = self.sources.get(context.adapter)
+            if context.source_capabilities is not None:
+                registration = self.sources.bind_capabilities(
+                    registration, context.source_capabilities
+                )
         except Exception as error:
             if retrying:
                 raise _AccountContextResolutionError(error, permanent=True) from error
@@ -1649,7 +1691,7 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "advertised capability offering does not support the required finality"
             )
-        if registration.capability_offerings:
+        if registration.capability_offerings and context.source_capabilities is None:
             public = ReportingDeliveryOffering.model_validate(
                 _thaw(context.capability_offering)
             ).model_dump(mode="json", exclude_none=True)
