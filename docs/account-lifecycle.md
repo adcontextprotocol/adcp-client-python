@@ -70,7 +70,7 @@ match outcome:
     case AccountRejected(errors=errors):
         print(errors)
 
-# The provisioned natural key is retained on subsequent requests.
+# Once provisioned, the key goes out as {"account_id": ...} to an AdCP 3.3 seller.
 priced = await client.get_products(
     GetProductsRequest(buying_mode="wholesale", account=key), account_policy="strict",
 )
@@ -145,9 +145,31 @@ For sellers declaring `require_operator_auth: true`, discover an explicit
 Natural-key provisioning and strict natural references are rejected. Optional
 discovery in `auto` mode still omits the account and carries its brand, allowing
 public browsing. Explicit IDs pass through, including IDs
-supplied out of band. Buyer-declared sellers may return an ID from provisioning;
-the SDK continues sending the natural key because accepting that handle is
-optional for those sellers.
+supplied out of band.
+
+### Account IDs after provisioning
+
+In AdCP 3.3 an account is its `account_id`. Every seller MUST return it from
+`sync_accounts` once the account is resolved, accept `{"account_id": ...}` on
+every account-scoped task, and never change it. The natural key as a reference
+after provisioning is deprecated and planned for removal in 4.0. So once the
+registry holds an `account_id` for a natural key (from `ensure`, or from a
+`sync_accounts` or `list_accounts` result the client observed), the client sends
+`{"account_id": ...}` in place of that key on every account-scoped task
+negotiated at AdCP 3.3 or later. It does not check `account.stable_account_id`:
+3.3 deprecates that flag because the guarantee always holds.
+
+- Write requests with the natural key as before; the swap happens on the wire
+  copy, after the account policy's preflight, so the spend gate and
+  `ACCOUNT_NOT_FOUND` invalidation still work from your key.
+- A seller negotiated at 3.2 or earlier keeps getting the natural key it
+  provisioned, since accepting an `account_id` was optional before 3.3.
+- `sync_accounts` entries and `list_accounts` filters keep your reference. The
+  natural key stays the way to open an account and to look up its ID.
+- `ADCPClient(account_reference_mode="natural_key")` sends every reference as
+  written, for a seller that does not yet accept `account_id` as 3.3 requires.
+
+This applies under every `account_policy`, including `"off"`.
 
 Buyer-side `ensure` requires `sync_accounts`. Sellers that only provision
 lazily through resource or spend commitments need explicit `sync_accounts`
@@ -187,6 +209,7 @@ from adcp.decisioning import NaturalKeyAccounts
 
 store = NaturalKeyAccounts(
     loader=load_provisioned_account,
+    loader_by_id=load_account_by_id,
     upsert_request=sync_account_request,
 )
 ```
@@ -198,26 +221,22 @@ receives the full `SyncAccountsRequest` and `ctx=ResolveContext`; it handles
 billing, dry runs, persistence, and returns `SyncAccountsResultRow` entries.
 Discovery never calls the provisioning callback.
 
-AdCP 3.3 sellers SHOULD return `account_id` from `sync_accounts`, and a seller
-that accepts it on every account-scoped task and never changes it declares
-`account.stable_account_id`. Pass `loader_by_id` to resolve
-`{"account_id": ...}` references:
-
-```python
-store = NaturalKeyAccounts(
-    loader=load_provisioned_account,
-    loader_by_id=load_account_by_id,
-    upsert_request=sync_account_request,
-)
-```
-
-`loader_by_id` receives `(account_id, auth_info)`. Like `loader`, it must
+AdCP 3.3 makes an account's `account_id` its identity. Every seller MUST return
+it on every non-failed `sync_accounts` result once the account is resolved,
+accept `{"account_id": ...}` wherever it accepts an account reference, and never
+change it. So `loader_by_id` is required (in SDK 9 the store resolved only
+natural keys). It receives `(account_id, auth_info)`. Like `loader`, it must
 search only accounts the caller may operate, so an id never resolves across
 principals, and it returns `None` on a miss. Both references must reach the
 same account: return the `Account` whose `id` is the `account_id` your
 `upsert_request` returned, and never change it. The store treats an account
-with any other `id` as a miss. Without `loader_by_id`, an `account_id`
-reference returns `ACCOUNT_NOT_FOUND`.
+with any other `id` as a miss.
+
+The framework declares `account.stable_account_id: true` in
+`get_adcp_capabilities` for callers at AdCP 3.3 or later whenever the
+capabilities carry an `account` block. 3.3 deprecates the flag, since the
+guarantee is universal, but sellers SHOULD declare it while it exists. Set
+`Account(stable_account_id=...)` yourself only to override that default.
 
 Custom stores may implement `AccountStoreResolveForTask.resolve_for_task(ref,
 ctx)`. The framework prefers that hook and provides `ctx.tool_name`,

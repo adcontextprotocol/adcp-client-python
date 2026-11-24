@@ -44,12 +44,29 @@ if TYPE_CHECKING:
 AccountPolicy = Literal["off", "auto", "strict"]
 """Natural-key account policy for client task calls.
 
-``off`` sends account references unchanged, as 8.0 did, and is the 8.x default.
+``off`` skips registry preflight, as 8.0 did, and is the 8.x default.
 ``auto`` and ``strict`` opt in to registry-aware preflight; ``auto`` becomes
-the default in the next major release.
+the default in the next major release. The policy does not choose the wire
+form of a provisioned reference; :data:`AccountReferenceMode` does.
 """
 
 ACCOUNT_POLICIES: frozenset[str] = frozenset({"off", "auto", "strict"})
+
+AccountReferenceMode = Literal["auto", "natural_key"]
+"""How the client references an account the registry knows the ``account_id`` of.
+
+``auto`` (the default) sends ``{"account_id": ...}`` in place of the natural
+key on account-scoped tasks negotiated at AdCP 3.3 or later, where every
+seller MUST accept it; an older seller keeps getting the natural key it
+provisioned. ``natural_key`` always sends the natural key the caller wrote.
+``sync_accounts`` entries and ``list_accounts`` filters always keep the
+caller's reference.
+"""
+
+ACCOUNT_REFERENCE_MODES: frozenset[str] = frozenset({"auto", "natural_key"})
+
+#: The first release in which every seller MUST accept ``{"account_id": ...}``.
+_ACCOUNT_ID_REFERENCE_MIN_ADCP_VERSION = "3.3-beta.0"
 
 _PUBLIC_DISCOVERY_TASKS = frozenset(
     {
@@ -187,14 +204,14 @@ _SELLER_REVIEW = {"waiting_on": "seller", "kind": "review", "message": "The sell
 
 def _requests_supported(caps: Any) -> bool:
     """Whether the seller advertises ``account.requests`` (request_account)."""
-    requests = getattr(getattr(caps, "account", None), "requests", None)
-    if requests is None:
+    declared = getattr(getattr(caps, "account", None), "requests", None)
+    if declared is None:
         return False
-    supported = getattr(requests, "supported", None)
-    if supported is None and hasattr(requests, "root"):
-        supported = getattr(requests.root, "supported", None)
-    if supported is None and isinstance(requests, Mapping):
-        supported = requests.get("supported")
+    supported = getattr(declared, "supported", None)
+    if supported is None and hasattr(declared, "root"):
+        supported = getattr(declared.root, "supported", None)
+    if supported is None and isinstance(declared, Mapping):
+        supported = declared.get("supported")
     return supported is True
 
 
@@ -239,9 +256,9 @@ def _request_outcome(
             account=account,
             # adcp#8620: money terms ride on the resolved account; an updated
             # money change says when it takes effect.
-            resolution=None
-            if resolution is None
-            else str(getattr(resolution, "value", resolution)),
+            resolution=(
+                None if resolution is None else str(getattr(resolution, "value", resolution))
+            ),
             effective_at=None if effective_at is None else str(effective_at),
             not_carried_over=tuple(
                 str(getattr(item, "value", item)) for item in wire.get("not_carried_over") or ()
@@ -327,12 +344,16 @@ class AccountRegistry:
     async def preserve_wire_keys(
         self, operation: str, params: dict[str, Any], *, version: str
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-        """Keep previously reduced account addresses stable across seller upgrades.
+        """Address provisioned accounts the way the negotiated seller accepts them.
 
-        Full application keys remain the storage address. A seller upgrading its
-        schemas does not reconcile an existing account's identity, so subsequent
-        requests must retain the natural key used to provision it. Diagnostics
-        contain paths and versions only, never account identifiers.
+        At AdCP 3.3 and later, a natural key the registry holds an
+        ``account_id`` for goes out as ``{"account_id": ...}``, unless the
+        client's ``account_reference_mode`` is ``natural_key``. Otherwise,
+        full application keys remain the storage address: a seller upgrading
+        its schemas does not reconcile an existing account's identity, so
+        subsequent requests retain the natural key used to provision it.
+        Diagnostics contain paths and versions only, never account
+        identifiers.
         """
         from adcp._version import (
             is_adcp_version_at_least,
@@ -340,6 +361,12 @@ class AccountRegistry:
             resolve_adcp_version_alias,
         )
 
+        normalized = resolve_adcp_version_alias(normalize_to_release_precision(version))
+        by_account_id = (
+            getattr(self._client, "account_reference_mode", "auto") == "auto"
+            and operation not in {"sync_accounts", "list_accounts"}
+            and is_adcp_version_at_least(normalized, _ACCOUNT_ID_REFERENCE_MIN_ADCP_VERSION)
+        )
         result = deepcopy(params)
         pending: list[dict[str, Any]] = []
         references: list[tuple[dict[str, Any], str]] = []
@@ -358,6 +385,13 @@ class AccountRegistry:
                 record = await self.get(reference)
             except ValueError:
                 continue
+            if by_account_id and record is not None and record.account_id:
+                # Every 3.3 seller accepts the id it returned and never changes
+                # it; the natural key as a reference after provisioning is
+                # deprecated (adcp#7850, adcp#8474).
+                reference.clear()
+                reference["account_id"] = record.account_id
+                continue
             if record is None or record.wire_key is None:
                 continue
             # Only identity dimensions are replaced. Keep provisioning options
@@ -374,7 +408,6 @@ class AccountRegistry:
                 else:
                     brand.pop(name, None)
             reference["brand"] = brand
-            normalized = resolve_adcp_version_alias(normalize_to_release_precision(version))
             if is_adcp_version_at_least(normalized, "3.2"):
                 pending.append(
                     {
@@ -1071,9 +1104,7 @@ class AccountRegistry:
                     pending_action=(
                         (row.get("setup") or previous.pending_action)
                         if previous is not None and status == "pending_approval"
-                        else row.get("setup")
-                        if status == "pending_approval"
-                        else None
+                        else row.get("setup") if status == "pending_approval" else None
                     ),
                 ),
             )
@@ -1092,7 +1123,9 @@ class AccountRegistry:
         ref = getattr(request, "account", None)
         wire = _payload(ref)
         # Explicit IDs are already seller-assigned handles and may be supplied
-        # out of band. Never infer that a returned handle replaces a natural key.
+        # out of band. A natural key is swapped for its id only at send time,
+        # once the negotiated release guarantees the seller accepts it
+        # (preserve_wire_keys).
         if wire.get("account_id"):
             return request
         caps = self._client.capabilities

@@ -49,6 +49,7 @@
       "AccountReference": "union[core.account_ref:AccountReference1,core.account_ref:AccountReference2]",
       "AccountReferenceById": "core.account_ref:AccountReference1",
       "AccountReferenceByNaturalKey": "core.account_ref:AccountReference2",
+      "AccountReferenceMode": "union[value:'auto',value:'natural_key']",
       "AccountRegistry": "adcp.accounts",
       "AccountRejected": "adcp.account_outcomes",
       "AccountRequestError": "adcp.exceptions",

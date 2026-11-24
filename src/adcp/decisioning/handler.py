@@ -345,18 +345,40 @@ def _is_adcp_32_or_newer(version: str | None) -> bool:
 #: The first release that defines ``request_account`` and ``account.requests``.
 _ACCOUNT_REQUESTS_MIN_ADCP_VERSION = "3.3.0-beta.0"
 _ACCOUNT_REQUESTS_FEATURE = "account.requests"
+#: The first release that defines ``account.stable_account_id``.
+_STABLE_ACCOUNT_ID_MIN_ADCP_VERSION = "3.3.0-beta.0"
+
+
+def _served_at_least(version: str | None, minimum: str) -> bool:
+    """Whether a response served at ``version`` is at least ``minimum``."""
+    if version is None:
+        return False
+    try:
+        return is_adcp_version_at_least(resolve_adcp_version_alias(version.strip()), minimum)
+    except ValueError:
+        return False
 
 
 def _serves_account_requests(version: str | None) -> bool:
     """Whether a response served at ``version`` may carry ``account.requests``."""
-    if version is None:
-        return False
-    try:
-        return is_adcp_version_at_least(
-            resolve_adcp_version_alias(version.strip()), _ACCOUNT_REQUESTS_MIN_ADCP_VERSION
-        )
-    except ValueError:
-        return False
+    return _served_at_least(version, _ACCOUNT_REQUESTS_MIN_ADCP_VERSION)
+
+
+def _project_stable_account_id(response: dict[str, Any], version: str | None) -> None:
+    """Declare ``account.stable_account_id: true`` unless the seller declared it.
+
+    AdCP 3.3 makes the guarantee universal: every seller returns ``account_id``
+    from ``sync_accounts``, accepts it on every account-scoped task and never
+    changes it. The flag is deprecated, but sellers SHOULD declare it while it
+    exists. A caller before 3.3 has no such field and never sees it.
+    """
+    account = response.get("account")
+    if not isinstance(account, dict):
+        return
+    if _served_at_least(version, _STABLE_ACCOUNT_ID_MIN_ADCP_VERSION):
+        account.setdefault("stable_account_id", True)
+    else:
+        account.pop("stable_account_id", None)
 
 
 def _validate_account_requests_config(platform: Any) -> None:
@@ -2411,10 +2433,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # alongside, which the flat field can't supply.
         if caps.supported_billing and caps.account is None:
             response["account"] = {"supported_billing": list(caps.supported_billing)}
-        self._project_account_requests(
-            response,
-            (context.resolved_adcp_version if context is not None else None) or self._adcp_version,
-        )
+        served_version = (
+            context.resolved_adcp_version if context is not None else None
+        ) or self._adcp_version
+        self._project_account_requests(response, served_version)
+        _project_stable_account_id(response, served_version)
         if caps.pricing_models and caps.media_buy is None and "media_buy" in supported_protocols:
             # Spec requires uniqueItems on supported_pricing_models;
             # dedupe via dict.fromkeys to preserve declaration order.

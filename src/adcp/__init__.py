@@ -114,6 +114,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
     "adcp.accounts": (
         "AccountPolicy",
         "AccountRecord",
+        "AccountReferenceMode",
         "AccountRegistry",
         "AccountStorage",
         "InMemoryAccountStorage",
@@ -1060,6 +1061,7 @@ __all__ = [
     # Client classes
     "AccountPolicy",
     "AccountRecord",
+    "AccountReferenceMode",
     "AccountRegistry",
     "AccountStorage",
     "InMemoryAccountStorage",
@@ -1884,6 +1886,7 @@ if TYPE_CHECKING:
     from adcp.accounts import (
         AccountPolicy,
         AccountRecord,
+        AccountReferenceMode,
         AccountRegistry,
         AccountStorage,
         InMemoryAccountStorage,
