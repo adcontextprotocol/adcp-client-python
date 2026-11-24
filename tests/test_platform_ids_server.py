@@ -216,7 +216,6 @@ async def _terminal_status(
     )
 
 
-LEGACY_PROJECTION = {"seller_id": "p1"}
 DUAL_PROJECTION = {"platform_id": "p1", "seller_id": "p1"}
 
 
@@ -286,18 +285,21 @@ async def _run_handoff(rows: list[dict[str, Any]], *, resolved: str | None, appl
     "returned", [{"platform_id": "p1"}, {"seller_id": "p1"}], ids=["pid", "sid"]
 )
 @pytest.mark.parametrize(
-    ("resolved", "applied", "expected"),
+    ("resolved", "applied"),
     [
-        (BUYER_LEGACY, None, LEGACY_PROJECTION),
-        ("3.0", None, LEGACY_PROJECTION),
-        (BUYER_DUAL, None, DUAL_PROJECTION),
-        (None, BUYER_LEGACY, LEGACY_PROJECTION),
-        (None, None, DUAL_PROJECTION),
+        (BUYER_LEGACY, None),
+        ("3.0", None),
+        (BUYER_DUAL, None),
+        (None, BUYER_LEGACY),
+        (None, None),
     ],
 )
-async def test_project_handoff_projects_for_the_callers_release(
-    returned: dict[str, Any], resolved: str | None, applied: str | None, expected: dict[str, Any]
+async def test_project_handoff_stores_both_names_whatever_the_callers_release(
+    returned: dict[str, Any], resolved: str | None, applied: str | None
 ) -> None:
+    # The stored artifact serves every later reader, so it is not narrowed to
+    # the release the submitting caller negotiated.
+    expected = DUAL_PROJECTION
     record = await _run_handoff(_audience_rows(returned), resolved=resolved, applied=applied)
     assert record["state"] == "completed"
     assert _ids(record["result"]["audiences"][0]) == expected
@@ -312,3 +314,133 @@ async def test_project_handoff_mismatch_fails_with_internal_error(resolved: str)
     assert record["error"]["code"] == "INTERNAL_ERROR"
     assert "/audiences/0" in record["error"]["message"]
     assert not record.get("result")
+
+
+# ---- WorkflowHandoff: externally completed through the registry ----
+
+
+class _WorkflowAudienceSeller(_AudienceSeller):
+    def sync_audiences(self, audiences: Any, ctx: Any) -> Any:
+        return ctx.handoff_to_workflow(lambda task_ctx: None)
+
+
+@pytest.fixture
+def workflow_server():
+    made: list[Any] = []
+
+    def _make() -> tuple[Any, Any, Any]:
+        registry = InMemoryTaskRegistry()
+        handler, executor, _ = create_adcp_server_from_platform(
+            _WorkflowAudienceSeller([]), registry=registry, validate_at_init=False
+        )
+        made.append(executor)
+        return (
+            create_tool_caller(handler, "sync_audiences"),
+            create_tool_caller(handler, "get_task_status"),
+            registry,
+        )
+
+    yield _make
+    for executor in made:
+        executor.shutdown(wait=True)
+
+
+@pytest.mark.parametrize(
+    "returned", [{"seller_id": "p1"}, {"platform_id": "p1"}], ids=["sid", "pid"]
+)
+async def test_workflow_handoff_external_completion_carries_both_names(
+    workflow_server: Any, returned: dict[str, Any]
+) -> None:
+    caller, status_caller, registry = workflow_server()
+    submitted = await caller({**AUDIENCE_REQUEST, "adcp_version": BUYER_DUAL})
+    assert submitted["status"] == "submitted"
+    task_id = submitted["task_id"]
+
+    await registry.complete(task_id, {"audiences": _audience_rows(returned)})
+
+    status = await status_caller(
+        {"adcp_version": BUYER_DUAL, "task_id": task_id, "include_result": True}
+    )
+    assert status["status"] == "completed"
+    assert _ids(status["result"]["audiences"][0]) == DUAL_PROJECTION
+
+
+async def test_workflow_handoff_conflicting_completion_raises(workflow_server: Any) -> None:
+    caller, status_caller, registry = workflow_server()
+    submitted = await caller({**AUDIENCE_REQUEST, "adcp_version": BUYER_DUAL})
+    task_id = submitted["task_id"]
+
+    with pytest.raises(ValueError, match="/audiences/0"):
+        await registry.complete(
+            task_id, {"audiences": _audience_rows({"platform_id": "a", "seller_id": "b"})}
+        )
+
+    status = await status_caller({"adcp_version": BUYER_DUAL, "task_id": task_id})
+    assert status["status"] == "submitted"
+
+
+# ---- InMemoryTaskRegistry.complete: the persistence boundary ----
+
+
+async def _issued(registry: InMemoryTaskRegistry, task_type: str) -> str:
+    return await registry.issue(task_type=task_type, account_id="acct_1")
+
+
+@pytest.mark.parametrize(
+    "returned", [{"seller_id": "p1"}, {"platform_id": "p1"}], ids=["sid", "pid"]
+)
+async def test_registry_complete_stores_both_names(returned: dict[str, Any]) -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "sync_audiences")
+    await registry.complete(task_id, {"audiences": _audience_rows(returned)})
+    record = await registry.get(task_id)
+    assert record["state"] == "completed"
+    assert _ids(record["result"]["audiences"][0]) == DUAL_PROJECTION
+
+
+async def test_registry_complete_stores_both_names_for_event_sources() -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "sync_event_sources")
+    await registry.complete(task_id, {"event_sources": _event_rows({"seller_id": "p1"})})
+    record = await registry.get(task_id)
+    assert _ids(record["result"]["event_sources"][0]) == DUAL_PROJECTION
+
+
+async def test_registry_complete_does_not_mutate_the_callers_result() -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "sync_audiences")
+    result = {"audiences": _audience_rows({"seller_id": "p1"})}
+    await registry.complete(task_id, result)
+    assert "platform_id" not in result["audiences"][0]
+
+
+async def test_registry_complete_mismatch_raises_and_stays_non_terminal() -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "sync_audiences")
+    with pytest.raises(ValueError, match="/audiences/0"):
+        await registry.complete(
+            task_id, {"audiences": _audience_rows({"platform_id": "a", "seller_id": "b"})}
+        )
+    record = await registry.get(task_id)
+    assert record["state"] not in {"completed", "failed"}
+    assert not record.get("result")
+
+
+async def test_registry_complete_recompletion_is_idempotent() -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "sync_audiences")
+    result = {"audiences": _audience_rows({"seller_id": "p1"})}
+    await registry.complete(task_id, result)
+    await registry.complete(task_id, result)
+    await registry.complete(task_id, {"audiences": _audience_rows(DUAL_PROJECTION)})
+    with pytest.raises(ValueError, match="different result"):
+        await registry.complete(task_id, {"audiences": _audience_rows({"seller_id": "other"})})
+
+
+async def test_registry_complete_leaves_other_task_types_untouched() -> None:
+    registry = InMemoryTaskRegistry()
+    task_id = await _issued(registry, "get_products")
+    result = {"audiences": [{"audience_id": "a1", "seller_id": "p1"}]}
+    await registry.complete(task_id, result)
+    record = await registry.get(task_id)
+    assert record["result"] == result

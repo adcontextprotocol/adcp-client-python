@@ -1259,6 +1259,61 @@ async def test_registry_strips_credentials_before_terminal_update() -> None:
     conn.transaction.assert_called_once_with()
 
 
+def _pg_registry(conn: AsyncMock) -> Any:
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+
+    with patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True):
+        return PgTaskRegistry(pool=_pool(conn))
+
+
+def _audiences(*rows: dict[str, Any]) -> dict[str, Any]:
+    return {"audiences": [{"audience_id": "a1", "action": "created", **row} for row in rows]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("returned", [{"seller_id": "p1"}, {"platform_id": "p1"}])
+async def test_registry_emits_both_platform_id_names_before_terminal_update(
+    returned: dict[str, Any],
+) -> None:
+    conn = _connection(
+        ("sync_audiences",),
+        ("task_1", "acct_1", "sync_audiences", None, None),
+    )
+    registry = _pg_registry(conn)
+
+    await registry.complete("task_1", _audiences(returned))
+
+    persisted = json.loads(conn.execute.await_args_list[1].args[1][0])
+    row = persisted["audiences"][0]
+    assert row["platform_id"] == row["seller_id"] == "p1"
+
+
+@pytest.mark.asyncio
+async def test_registry_platform_id_mismatch_raises_before_terminal_update() -> None:
+    conn = _connection(("sync_audiences",))
+    registry = _pg_registry(conn)
+
+    with pytest.raises(ValueError, match="/audiences/0"):
+        await registry.complete("task_1", _audiences({"platform_id": "a", "seller_id": "b"}))
+
+    assert conn.execute.await_count == 1  # task-type lookup only; nothing was stored
+
+
+@pytest.mark.asyncio
+async def test_registry_recompletion_compares_the_dual_emitted_result() -> None:
+    stored = _audiences({"platform_id": "p1", "seller_id": "p1"})
+    conn = _connection(("sync_audiences",), None, ("completed", stored, "sync_audiences"))
+    registry = _pg_registry(conn)
+
+    # A legacy-only retry of an already dual-emitted completion is idempotent.
+    await registry.complete("task_1", _audiences({"seller_id": "p1"}))
+
+    conn = _connection(("sync_audiences",), None, ("completed", stored, "sync_audiences"))
+    registry = _pg_registry(conn)
+    with pytest.raises(ValueError, match="different result"):
+        await registry.complete("task_1", _audiences({"seller_id": "other"}))
+
+
 def test_registry_rejects_outbox_on_different_pool() -> None:
     from adcp.decisioning.pg.task_registry import PgTaskRegistry
 

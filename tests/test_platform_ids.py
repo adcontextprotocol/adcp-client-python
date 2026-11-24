@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 import adcp
-from adcp.platform_ids import _dual_emit_platform_ids, platform_id_of
+from adcp.platform_ids import _dual_emit_platform_ids, _dual_emitted, platform_id_of
 
 # ---- platform_id_of ----
 
@@ -136,3 +136,49 @@ def test_dual_emit_leaves_unrelated_input_alone() -> None:
 @pytest.mark.parametrize("payload", [{}, {"audiences": None}, {"audiences": "x"}, [], None, "s"])
 def test_dual_emit_tolerates_missing_or_malformed_array(payload: Any) -> None:
     _dual_emit_platform_ids("sync_audiences", payload, adcp_version="3.3-rc.3")
+
+
+# ---- _dual_emitted: the stored-artifact projection ----
+
+
+@pytest.mark.parametrize(
+    ("task", "key"), [("sync_event_sources", "event_sources"), ("sync_audiences", "audiences")]
+)
+@pytest.mark.parametrize("returned", [{"seller_id": "p1"}, {"platform_id": "p1"}])
+def test_dual_emitted_returns_a_copy_with_both_names(
+    task: str, key: str, returned: dict[str, Any]
+) -> None:
+    original = {key: [dict(returned)], "extra": {"n": 1}}
+    result = _dual_emitted(task, original)
+    assert result[key][0]["platform_id"] == result[key][0]["seller_id"] == "p1"
+    assert result["extra"] == {"n": 1}
+    assert original == {key: [returned], "extra": {"n": 1}}
+    assert result is not original
+    assert result[key] is not original[key]
+
+
+@pytest.mark.parametrize(
+    ("task", "result"),
+    [
+        ("get_products", {"audiences": [{"seller_id": "p1"}]}),
+        ("create_media_buy", {"event_sources": [{"platform_id": "p1"}]}),
+        ("sync_audiences", ["not", "a", "dict"]),
+        ("sync_audiences", None),
+        ("sync_audiences", "text"),
+    ],
+)
+def test_dual_emitted_leaves_other_tasks_and_non_dicts_unchanged(task: str, result: Any) -> None:
+    assert _dual_emitted(task, result) is result
+
+
+@pytest.mark.parametrize(
+    ("task", "key", "row_key"),
+    [("sync_event_sources", "event_sources", "e1"), ("sync_audiences", "audiences", "a1")],
+)
+def test_dual_emitted_mismatch_raises_and_leaves_input_alone(
+    task: str, key: str, row_key: str
+) -> None:
+    original = {key: [{"platform_id": "a", "seller_id": "b"}]}
+    with pytest.raises(ValueError, match=f"/{key}/0"):
+        _dual_emitted(task, original)
+    assert original == {key: [{"platform_id": "a", "seller_id": "b"}]}
