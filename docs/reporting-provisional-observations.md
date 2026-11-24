@@ -54,6 +54,9 @@ one policy from the pinned report definition into
 configuring an explicit snapshot-to-official close. To migrate unfinished
 official work with no policy, configure a new generation with the selected
 policy. Retained revisions and exact replays keep their original evidence.
+The adopter verifies the definition's exact bytes against its SHA-256 and
+copies the policy's ID, basis, and parameters; Core trusts that projection and
+does not fetch the definition URI during admission.
 
 During a rolling deployment, upgrade every process that reads configuration
 or obligation definitions before any writer persists a definition containing
