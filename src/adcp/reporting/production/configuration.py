@@ -182,10 +182,9 @@ class ReportingProductionConfigurationTask:
                         "UNSUPPORTED_FEATURE",
                         support.definition_versions.refusal_message(offering),
                         field="reporting_delivery_configs",
-                        details={
-                            "offering_id": config["offering_id"],
-                            "delivery_config_id": config["delivery_config_id"],
-                        },
+                        # The server's own offering id, never request text:
+                        # details reach the caller's model context.
+                        details={"offering_id": offering["offering_id"]},
                     )
         admitted: dict[tuple[str, str, str, int], ReportingConfigurationAdmission] = {}
 

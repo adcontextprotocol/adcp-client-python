@@ -1210,10 +1210,8 @@ class ReliableReportingService:
             "UNSUPPORTED_FEATURE",
             self._definition_versions.refusal_message(public),
             field="reporting_delivery_configs",
-            details={
-                "offering_id": offering_id,
-                "delivery_config_id": configuration.delivery_config_id,
-            },
+            # Server-held values only: details reach the caller's model context.
+            details={"offering_id": offering_id},
         )
 
     async def _configure(

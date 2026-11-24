@@ -180,7 +180,7 @@ With the versions known, for a buyer below 3.3 the service:
   when no offering remains);
 * refuses a configuration naming a `1.2` offering with `UNSUPPORTED_FEATURE`,
   `field: "reporting_delivery_configs"` and
-  `details: {offering_id, delivery_config_id}`. Pass the buyer's release to
+  `details: {offering_id}`. Pass the buyer's release to
   `configure(configuration, adcp_version=context.resolved_adcp_version)` from
   your `sync_accounts`; production graphs check it themselves.
 

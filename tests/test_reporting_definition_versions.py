@@ -441,7 +441,6 @@ async def test_configure_refuses_a_1_2_offering_below_3_3_and_binds_nothing() ->
     assert error.field == "reporting_delivery_configs"
     assert error.details == {
         "offering_id": "GAM_SNAPSHOT_V1",
-        "delivery_config_id": "gam-delivery",
     }
     assert str(error) == (
         'Reporting offering "GAM_SNAPSHOT_V1" serves AdCP 3.3 callers only: its report '
@@ -480,7 +479,6 @@ async def test_strict_policy_refuses_an_undeclared_offering_at_3_2() -> None:
     assert "undeclared" in str(caught.value)
     assert caught.value.details == {
         "offering_id": "GAM_SNAPSHOT_V1",
-        "delivery_config_id": "gam-delivery",
     }
     assert service._bindings == {}
     await service.configure(configuration, adcp_version=CALLER_33)
@@ -514,7 +512,6 @@ async def test_installed_reporting_call_carries_field_and_details_to_the_wire(
         await installed_reporting_call("sync_accounts", sync_accounts, decisioning=decisioning)
     expected_details = {
         "offering_id": "GAM_SNAPSHOT_V1",
-        "delivery_config_id": "gam-delivery",
     }
     if decisioning:
         from adcp.decisioning import AdcpError
@@ -739,7 +736,6 @@ async def test_production_sync_accounts_refuses_a_1_2_offering_below_3_3(
         assert wire.field == "reporting_delivery_configs"
         assert wire.details == {
             "offering_id": "managed-fixture",
-            "delivery_config_id": h.item.config.delivery_config_id,
         }
         assert "serves AdCP 3.3 callers only" in wire.message
 
