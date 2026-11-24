@@ -91,10 +91,9 @@ so that merges in either direction never change the other line's release flow:
   The storage line started with a storage-only commit ending in
   `Release-As: 0.2.0-beta.0`; keep storage changes out of a root `Release-As:`
   commit, or the storage package takes that version too. On `next` the storage
-  package's `adcp` range is `adcp>=9.0.0,<11`: the workspace must still install
-  while `pyproject.toml` carries `main`'s version (the release PR bumps it), and
-  PEP 440 treats `10.0.0b0` as inside `<11`. When a merge from `main` moves the
-  floor, take `main`'s floor and keep `<11`. At ratification the range narrows
+  package's `adcp` floor is the first `adcp` release of the storage contract it
+  implements (`adcp>=10.0.0b24,<11` for contract 3), and its ceiling stays
+  `<11`. At ratification the range narrows
   to `adcp>=10.0.0,<11` and the storage line continues from `main`.
 - The companion gate (`scripts/check_companion_releases.py`, #1605, #1763)
   runs for every publish of either package, from `main` and from `next`. An
@@ -105,10 +104,26 @@ so that merges in either direction never change the other line's release flow:
   differ (`adcp.reporting.ledger.storage_contract` versus
   `adcp_reporting_storage.contract`) and round-trips ledger records on a
   PostgreSQL service. A storage publish is gated the same way against the
-  oldest and the newest published `adcp` its own requirement accepts. So when
-  the contract changes, order the releases: publish the storage release that
-  implements the new contract (its floor is the first `adcp` of that
-  contract) before the `adcp` release that declares it.
+  oldest and the newest published `adcp` its own requirement accepts.
+- A storage contract bump (#1947) changes both packages in one commit, so
+  neither can publish first: the new `adcp` has no published storage of its
+  contract, and the new storage's floor is that unpublished `adcp`. The storage
+  gate covers this. While the storage floor is newer than every `adcp` on
+  PyPI, it smokes the storage wheel with the `adcp` wheel built from the same
+  release commit, and refuses unless that wheel's version is the floor. Release
+  in this order:
+  1. Raise the storage floor to the first `adcp` version that declares the new
+     contract, normally in the PR that bumps the contract. Raising it after
+     the `adcp` release PR merges also works, as long as no later `adcp`
+     release merges first.
+  2. Merge the `adcp` release PR. Its publish fails at the companion gate (no
+     published storage implements the new contract); leave that run.
+  3. Merge the storage release PR before any later `adcp` release PR, so the
+     storage release commit still carries the floor's `adcp` version. Its
+     publish smokes the storage wheel with that commit's `adcp` wheel and
+     publishes the storage release.
+  4. Re-run the failed `adcp` publish (`gh run rerun <run-id> --failed`). The
+     gate now finds the published storage of its contract and smokes the pair.
 
 One-time setup: add `next` to the `release-publish` environment's deployment
 branches (GitHub Settings → Environments). The PyPI Trusted Publisher needs no

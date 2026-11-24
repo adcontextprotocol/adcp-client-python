@@ -238,6 +238,144 @@ def test_a_companion_with_no_published_adcp_in_range_is_refused(tmp_path: Path) 
     )
 
 
+# -- a storage contract bump releases both packages from one commit (#1947) ----
+
+
+def _adcp_wheel(path: Path, version: str, name: str = "adcp") -> Path:
+    with zipfile.ZipFile(path, "w") as wheel:
+        wheel.writestr(
+            f"{name.replace('-', '_')}-{version}.dist-info/METADATA",
+            f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n",
+        )
+    return path
+
+
+def _storage_gate(dist: Path, *extra: str) -> list[str]:
+    return ["--package", "adcp-reporting-storage", "--dist", str(dist), *extra]
+
+
+def test_an_unpublished_floor_is_smoked_with_the_same_commit_adcp(tmp_path: Path) -> None:
+    """Storage 0.2.0b5 floors at adcp 10.0.0b24, which waits on that storage."""
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b24-py3-none-any.whl", "10.0.0b24")
+    fetch = _fetch({}, adcp={"10.0.0b4": False, "10.0.0b23": False})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist, "--adcp-dist", str(adcp)), fetch=fetch, run=runner) == 0
+    assert runner.smoked() == 1
+    assert runner.installed() == [str(adcp), f"{dist}[pg]"]
+
+
+def test_an_unpublished_floor_whose_same_commit_smoke_fails_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b24-py3-none-any.whl", "10.0.0b24")
+    fetch = _fetch({}, adcp={"10.0.0b23": False})
+    args = _storage_gate(dist, "--adcp-dist", str(adcp))
+    assert gate.main(args, fetch=fetch, run=_Runner(1)) == 1
+    assert "built from this release commit" in capsys.readouterr().err
+
+
+def test_an_unpublished_floor_without_a_same_commit_adcp_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    fetch = _fetch({}, adcp={"10.0.0b23": False})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist), fetch=fetch, run=runner) == 1
+    assert runner.commands == []
+    assert "adcp 10.0.0b24" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("filename", "version", "name"),
+    [
+        ("adcp-10.0.0b25-py3-none-any.whl", "10.0.0b25", "adcp"),
+        ("adcp-10.0.0b23-py3-none-any.whl", "10.0.0b23", "adcp"),
+        (
+            "adcp_reporting_storage-10.0.0b24-py3-none-any.whl",
+            "10.0.0b24",
+            "adcp-reporting-storage",
+        ),
+    ],
+    ids=["newer-commit", "older-commit", "not-adcp"],
+)
+def test_a_same_commit_wheel_that_is_not_the_floor_is_refused(
+    tmp_path: Path, filename: str, version: str, name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / filename, version, name)
+    fetch = _fetch({}, adcp={"10.0.0b23": False})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist, "--adcp-dist", str(adcp)), fetch=fetch, run=runner) == 1
+    assert runner.commands == []
+    assert "is not published" in capsys.readouterr().err
+
+
+def test_a_yanked_floor_is_not_released_again(tmp_path: Path) -> None:
+    """A yanked floor is on PyPI already: the same commit cannot publish it."""
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b24-py3-none-any.whl", "10.0.0b24")
+    fetch = _fetch({}, adcp={"10.0.0b23": False, "10.0.0b24": True})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist, "--adcp-dist", str(adcp)), fetch=fetch, run=runner) == 1
+    assert runner.commands == []
+
+
+def test_a_floor_below_a_published_adcp_takes_the_published_check(tmp_path: Path) -> None:
+    """Only a floor newer than every adcp on PyPI waits on the same-commit wheel."""
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b26-py3-none-any.whl", "10.0.0b26")
+    fetch = _fetch({}, adcp={"10.0.0b23": False, "10.0.0b25": False})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist, "--adcp-dist", str(adcp)), fetch=fetch, run=runner) == 0
+    installs = [c for c in runner.commands if "install" in c]
+    assert [c[-2] for c in installs] == ["adcp==10.0.0b25"]
+
+
+def test_a_published_floor_ignores_the_same_commit_wheel(tmp_path: Path) -> None:
+    """Once the floor is on PyPI the gate is the oldest/newest published check, as before."""
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b6-py3-none-any.whl", "adcp<11,>=10.0.0b24"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b26-py3-none-any.whl", "10.0.0b26")
+    fetch = _fetch({}, adcp={"10.0.0b23": False, "10.0.0b24": False, "10.0.0b25": False})
+    runner = _Runner()
+    assert gate.main(_storage_gate(dist, "--adcp-dist", str(adcp)), fetch=fetch, run=runner) == 0
+    installs = [c for c in runner.commands if "install" in c]
+    assert [c[-2] for c in installs] == ["adcp==10.0.0b24", "adcp==10.0.0b25"]
+
+
+def test_a_published_floor_that_fails_is_still_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dist = _storage_wheel(
+        tmp_path / "adcp_reporting_storage-0.2.0b5-py3-none-any.whl", "adcp<11,>=10.0.0b4"
+    )
+    adcp = _adcp_wheel(tmp_path / "adcp-10.0.0b24-py3-none-any.whl", "10.0.0b24")
+    fetch = _fetch({}, adcp={"10.0.0b4": False, "10.0.0b23": False})
+    args = _storage_gate(dist, "--adcp-dist", str(adcp))
+    assert gate.main(args, fetch=fetch, run=_Runner(1)) == 1
+    assert "Raise the floor" in capsys.readouterr().err
+
+
+def test_the_same_commit_wheel_is_only_for_a_companion(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        gate.main(["10.0.0b24", "--adcp-dist", str(tmp_path / "adcp.whl")])
+
+
 def test_the_companion_package_requires_a_built_distribution() -> None:
     with pytest.raises(SystemExit):
         gate.main(["--package", "adcp-reporting-storage"])

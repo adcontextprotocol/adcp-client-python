@@ -99,6 +99,10 @@ jobs:
             python -m build
           else
             python -m build --outdir dist/ packages/adcp-reporting-storage
+            # The adcp wheel of this same release commit, for the companion
+            # gate below when the storage floor is not on PyPI yet (a storage
+            # contract bump, #1947). Outside dist/: only storage is published.
+            python -m build --wheel --outdir "$RUNNER_TEMP/adcp-dist" .
           fi
           python -m twine check dist/*
       # Every release, on main and on next, needs a published companion it
@@ -111,7 +115,10 @@ jobs:
       # records on the PostgreSQL service above. For adcp the companion is the
       # newest published adcp-reporting-storage its range admits; for
       # adcp-reporting-storage it is the oldest and the newest published adcp
-      # its own requirement accepts.
+      # its own requirement accepts. On a storage contract bump the storage
+      # floor is the adcp release of this same commit, not yet on PyPI: the
+      # gate then smokes the storage wheel with the adcp wheel built above,
+      # after checking that wheel is the floor (#1947).
       - name: Require a companion release the built distribution works with
         env:
           PACKAGE: ${{ inputs.package }}
@@ -122,7 +129,8 @@ jobs:
             version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
             python scripts/check_companion_releases.py "$version" --dist dist/adcp-*.whl
           else
-            python scripts/check_companion_releases.py --package "$PACKAGE" --dist dist/adcp_reporting_storage-*.whl
+            python scripts/check_companion_releases.py --package "$PACKAGE" --dist dist/adcp_reporting_storage-*.whl \
+              --adcp-dist "$RUNNER_TEMP"/adcp-dist/adcp-*.whl
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
