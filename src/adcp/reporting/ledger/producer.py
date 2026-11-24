@@ -4267,10 +4267,7 @@ class ReportingProducer:
         if (
             finality == "snapshot"
             and supersedes
-            and (
-                suppress_untracked_unchanged
-                or (acquisition is not None and selected_policy is not None)
-            )
+            and (suppress_untracked_unchanged or acquisition is not None)
         ):
             predecessor = await self._store.get_revision(
                 account_id=obligation.account_id,
