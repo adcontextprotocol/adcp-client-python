@@ -530,7 +530,7 @@ async def test_first_undetermined_domain_in_input_order_is_reported() -> None:
     assert result.unverified == [] and reverse.unverified == []
 
 
-async def test_undetermined_claims_continue_on_a_second_call() -> None:
+async def test_disjoint_single_domain_claims_progress_when_resubmitted() -> None:
     props = [site(f"p{i}", f"pub{i}.com") for i in range(3)]
     documents: dict[str, dict[str, Any] | Exception] = {
         f"pub{i}.com": inline_file(props[i]) for i in range(3)
@@ -626,3 +626,103 @@ async def test_publisher_with_its_own_file_is_not_overridden_by_its_ads_txt() ->
         [claim], source_domain="network.com", agent_url=AGENT, fetcher=http_fetcher(routes)
     )
     assert reasons(result) == {"b": ("b.com", "not_vouched")}
+
+
+def test_positional_construction_keeps_the_field_order() -> None:
+    bundle = app("app", "com.network.app")
+    result = CrossDomainVerification([], [], [bundle])
+    assert result.domainless == [bundle]
+    assert result.undetermined == []
+
+
+async def test_documented_recipe_keeps_site_plus_app_unconfirmed() -> None:
+    """The check vouches for domain claims only, so the recipe must not feed it
+    a property that also carries a bundle identifier."""
+    site_app = {
+        **site("site-app", "example.org"),
+        "identifiers": [
+            {"type": "domain", "value": "example.org"},
+            {"type": "bundle_id", "value": "com.victim.app"},
+        ],
+    }
+    other = site("other", "other.com")
+    document = bare_file(site_app, other)
+
+    gated = resolve_properties_for_agent(
+        document, AGENT, mode="permissive", publisher_domain="example.org"
+    )
+    assert gated == []
+    everything = resolve_properties_for_agent(
+        document, AGENT, mode="permissive", allow_any_domain=True
+    )
+    excluded = [p for p in everything if p not in gated]
+    domain_only = [
+        p
+        for p in excluded
+        if p.get("identifiers") and all(i.get("type") == "domain" for i in p["identifiers"])
+    ]
+    calls: list[str] = []
+    check = await verify_cross_domain_properties(
+        domain_only,
+        source_domain="example.org",
+        agent_url=AGENT,
+        fetcher=fetcher_for({"other.com": inline_file(other)}, calls),
+    )
+    unconfirmed = [p for p in excluded if p not in domain_only]
+    assert domain_only == [other]
+    assert unconfirmed == [site_app]
+    assert check.verified == [other]
+    assert site_app not in check.verified and calls == ["other.com"]
+
+    # Why the recipe filters: the check alone would pass the property on its domain.
+    direct_calls: list[str] = []
+    direct = await verify_cross_domain_properties(
+        [site_app],
+        source_domain="example.org",
+        agent_url=AGENT,
+        fetcher=fetcher_for({}, direct_calls),
+    )
+    assert direct.verified == [site_app]
+    assert direct_calls == []
+
+
+async def test_budget_restarts_at_the_first_domains_on_every_call() -> None:
+    claim = site("both", "b.com", "c.com")
+    documents: dict[str, dict[str, Any] | Exception] = {
+        "b.com": inline_file(claim),
+        "c.com": inline_file(claim),
+    }
+    calls: list[str] = []
+    inner = fetcher_for(documents, calls)
+    cache: dict[str, dict[str, Any]] = {}
+
+    async def caching(domain: str) -> dict[str, Any]:
+        if domain not in cache:
+            cache[domain] = await inner(domain)
+        return cache[domain]
+
+    for _ in range(2):
+        result = await verify_cross_domain_properties(
+            [claim], source_domain="network.com", agent_url=AGENT, fetcher=caching, max_domains=1
+        )
+        assert result.verified == []
+        assert undetermined(result) == {"both": ("c.com", "domain_limit")}
+    assert calls == ["b.com"]
+
+
+async def test_resubmitting_undetermined_retries_the_failing_domain_first() -> None:
+    b_claim = site("b", "b.com")
+    c_claim = site("c", "c.com")
+    documents: dict[str, dict[str, Any] | Exception] = {
+        "b.com": RuntimeError("down"),
+        "c.com": inline_file(c_claim),
+    }
+    calls: list[str] = []
+    first = await verify([b_claim, c_claim], documents, calls, max_domains=1)
+    assert undetermined(first) == {"b": ("b.com", "fetch_failed"), "c": ("c.com", "domain_limit")}
+    second = await verify([u.prop for u in first.undetermined], documents, calls, max_domains=1)
+    assert calls == ["b.com", "b.com"]
+    assert undetermined(second) == {"b": ("b.com", "fetch_failed"), "c": ("c.com", "domain_limit")}
+    # A slice naming at most max_domains publishers makes progress.
+    sliced = await verify([c_claim], documents, calls, max_domains=1)
+    assert sliced.verified == [c_claim]
