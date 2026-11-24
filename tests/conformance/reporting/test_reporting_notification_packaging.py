@@ -611,7 +611,7 @@ from adcp_reporting_storage.outbox._schema import schema_objects
 
 values = json.load(sys.stdin)
 assert len(values["waiver_objects"]) == 10
-assert len(values["provisional_objects"]) == 27
+assert len(values["provisional_objects"]) == 25
 assert json.loads(files("adcp_reporting_storage.ledger").joinpath(
     "required_provisional_schema.json").read_text()) == values["provisional_objects"]
 expected_objects = {
