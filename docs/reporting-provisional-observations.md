@@ -33,12 +33,10 @@ reuse, installed-package checks and independent integration review. Follow the
 - Snapshot-only reporting retains one final inclusive read at the boundary,
   including after downtime. Valid new source evidence may extend that boundary.
   Expiry does not create an official revision.
-- Setting `official_close_lag` opts a snapshot offering into an explicit
-  snapshot-to-official route. This requires a declared `restatement_window`
-  and a selected definition policy. For `source_final` and
-  `contractual_cutoff`, the lag can delay the source attempt. For
-  `stabilized`, the SDK promotes the snapshot when its scheduled observations
-  satisfy the selected policy, independently of the lag value.
+- Existing explicitly configured official-close behavior remains in force.
+  `official_close_lag` still requires an explicitly declared `restatement_window`
+  and an official offering. The SDK fallback does not opt an adapter into
+  automatic official publication.
 
 The durable acquisition freezes the source request, predecessor revision and
 observation ordinal. A retry renews only `deadline_at`, the execution budget for
@@ -46,73 +44,13 @@ that attempt. It retains the execution key, run ID, cutoff, scope and remaining
 request fields even after the original deadline expires. Once reserved, a
 successful retry completes that observation before a later acquisition starts.
 
-## Selecting official finality
-
-For a new generation with `required_finality: official`, the adopter copies
-one policy from the pinned report definition into
-`ReportingDefinitionBinding.finality_policy`. Use the same selection when
-configuring an explicit snapshot-to-official close. To migrate unfinished
-official work with no policy, configure a new generation with the selected
-policy. Retained revisions and exact replays keep their original evidence.
-The adopter verifies the definition's exact bytes against its SHA-256 and
-copies the policy's ID, basis, and parameters; Core trusts that projection and
-does not fetch the definition URI during admission.
-
-During a rolling deployment, upgrade every process that reads configuration
-or obligation definitions before any writer persists a definition containing
-`finality_policy`. Earlier readers reject the additional definition field.
-
-- A `source_final` policy uses the authoritative offering. Its
-  `provider_declared` or `provider_job_terminal` evidence must carry the exact
-  selected signal and the upstream finalization time.
-- A `contractual_cutoff` policy uses the snapshot offering. Its full, verified
-  observation must reach the declared period-end cutoff.
-- A `stabilized` policy uses full-period batch, constituent and metric
-  watermarks from durable scheduled snapshots. A poll may arrive after its
-  due time within the same cadence slot. Missing the entire slot restarts the
-  unchanged interval. A manual publication that changes the active snapshot
-  also restarts the interval at the next scheduled observation. Only scheduled
-  observations can establish the interval.
-
-`stable_since` is a source observation and `official_close_lag` is scheduling
-metadata. Snapshot-only generations need no selection and remain snapshots
-regardless of elapsed time. After an official close the producer accepts exact
-replay. Later corrections use adjustments.
-
-Custom Core ledgers that publish official revisions must implement
-`ReportingSourcePublicationStore.source_publication(account_id)` with a lock
-shared across all publishers for that account. Stabilization additionally
-requires durable reservations, bounded scheduled history, checkpoints, exact
-snapshot origins and generation schedule recovery. An ordinary snapshot route
-can keep using its snapshot publisher when the definition lists an unused
-finality policy. Each scheduled read checks the winner of its own atomic reservation.
-
-When a definition carries an unused finality policy, a Core producer without
-observation or checkpoint support can call `close_elapsed_periods` and then
-`acquire_obligation` for the first snapshot of the period it just created.
-If a manual or scheduled first snapshot encounters a retryable fetch failure,
-the same producer can resume the frozen request with a fresh deadline. It
-checks the recorded slice retry and any shared backoff before dispatch. An
-interrupted staged read, caller cancellation, or an unconfirmed inline storage
-operation also preserves the execution identity so the source can replay an
-existing seal. Only a scheduled read for that obligation can claim the retry.
-The ledger rejects a competing reservation or a
-second snapshot root during the atomic revision commit. With a selected policy
-and no account publication lock, additional reads and later periods need durable
-evidence ruling out a competing close. Recovery checks immutable official
-revisions as well as retained observations and reservations when the stabilization
-lookup returns no schedule.
-
 ## Persistence and compatibility
 
-`PgReportingLedgerStore.create_schema()` installs
-`reporting_provisional_acquisitions` and `reporting_provisional_observations`
-for immutable reservations and observations. The existing restatement checkpoint
-tracks progress. Its stabilization policy and next due time live in
-`adcp_reporting_stabilization_checkpoints`, keyed to the checkpoint's obligation,
-ordinal and timestamp. An older writer can advance the checkpoint without
-inheriting the previous policy or deadline. The in-memory store has the same
-atomic operations. Custom producer stores must implement
+`PgReportingLedgerStore.create_schema()` installs two additive private tables:
+`reporting_provisional_acquisitions` and `reporting_provisional_observations`.
+They retain immutable reservation and observation metadata. The existing
+restatement checkpoint remains the progress cursor. The in-memory store has the
+same atomic operations. Custom producer stores must implement
 `ProvisionalObservationStore` from `adcp.reporting.ledger.provisional` together
 with `RestatementCheckpointStore`.
 
