@@ -1629,6 +1629,23 @@ class ReportingProducer:
             if isinstance(selected, ReportingStabilizedPolicy)
             else self.acquire_obligation
         )
+
+        async def close_official() -> bool:
+            await acquire(
+                configuration,
+                obligation,
+                restate=True,
+                turn=turn,
+                now=now,
+                target_finality="official",
+                track_settling=True,
+            )
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            return any(item.finality == "official" for item in revisions)
+
         explicit_close = (
             policy.official_close_lag is not None
             and self._offerings.offering_for(_source_finality(obligation, "official")) is not None
@@ -1684,6 +1701,13 @@ class ReportingProducer:
             # A tracked manual retry advances the durable ordinal only. The
             # first automatic source read keeps its configured phase and window.
             checkpoint = None
+        if (
+            isinstance(selected, ReportingSourceFinalPolicy)
+            and explicit_close
+            and _utc(now) >= self._source_available_at(obligation, target_finality="official")
+        ):
+            if await close_official():
+                return True
         settles_at = _utc(obligation.period.end) + policy.restatement_window
         if scheduled is not None:
             settles_at = _utc(scheduled.provisional_until)
@@ -1736,22 +1760,9 @@ class ReportingProducer:
             self._source_available_at(obligation, target_finality="official"),
         )
         if _utc(now) >= closes_at:
-            await acquire(
-                configuration,
-                obligation,
-                restate=True,
-                turn=turn,
-                now=now,
-                target_finality="official",
-                track_settling=True,
-            )
             # An attempted close can still return not-ready. Retire only after
             # the authoritative revision was actually committed.
-            revisions = await self._store.list_revisions(
-                account_id=obligation.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-            )
-            return any(item.finality == "official" for item in revisions)
+            return await close_official()
         return False
 
     async def acquire_obligation(
