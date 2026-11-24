@@ -360,7 +360,9 @@ def test_handler_definitions_do_not_expose_memoized_schema_aliases(monkeypatch) 
     )
     monkeypatch.setattr(mcp_tools, "_ensure_pydantic_schemas_applied", lambda tool_names: None)
 
-    definitions = mcp_tools.get_tools_for_handler(SchemaMutationSafetyHandler())
+    definitions = mcp_tools.get_tools_for_handler(
+        SchemaMutationSafetyHandler(), schema_mode="compact"
+    )
     schema = next(
         definition["inputSchema"]
         for definition in definitions

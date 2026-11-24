@@ -526,7 +526,9 @@ async def test_actual_inventory_and_fallback_schemas_bound_positions_without_mut
         assert Draft7Validator(tool["outputSchema"], format_checker=FormatChecker()).is_valid(page)
     assert feed_schema("request") == before_schema
     # Public definitions are copies, not aliases into memoized upstream state.
-    definitions = get_tools_for_handler(mounted.handler)
+    definitions = get_tools_for_handler(
+        mounted.handler, schema_mode="compact", advertise_output_schemas=True
+    )
     for definition in definitions:
         if definition["name"] == "get_reporting_status":
             definition["inputSchema"]["properties"]["changes_after"]["maxLength"] = 1
@@ -603,7 +605,9 @@ async def test_model_generation_fallback_still_mounts_bound_feed_schema_without_
         _, response = await mounted.mcp(client, feed_request(s))
         assert response["pagination"]["total_count"] == 6
     core_tool = next(
-        t for t in get_tools_for_handler(CoreOnly()) if t["name"] == "get_reporting_status"
+        t
+        for t in get_tools_for_handler(CoreOnly(), schema_mode="compact")
+        if t["name"] == "get_reporting_status"
     )
     assert core_tool["inputSchema"] == stub
 

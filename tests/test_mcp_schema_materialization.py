@@ -84,7 +84,9 @@ def mutable_ids(value: Any) -> set[int]:
 
 
 def public_definitions(version: str) -> list[dict[str, Any]]:
-    return mcp_tools.get_tools_for_handler(PinnedSchemaHandler(version))
+    return mcp_tools.get_tools_for_handler(
+        PinnedSchemaHandler(version), schema_mode="compact", advertise_output_schemas=True
+    )
 
 
 def count_materializations(monkeypatch):
@@ -225,7 +227,9 @@ def test_pinned_schemas_do_not_copy_superseded_current_models(monkeypatch):
 
 
 def test_current_model_fallback_retains_exact_definitions_and_mutation_isolation():
-    first = mcp_tools.get_tools_for_handler(SchemaHandler())
+    first = mcp_tools.get_tools_for_handler(
+        SchemaHandler(), schema_mode="compact", advertise_output_schemas=True
+    )
     names = {definition["name"] for definition in first}
     expected = [t for t in mcp_tools.ADCP_TOOL_DEFINITIONS if t["name"] in names]
     assert canonical(first) == canonical(expected)
@@ -233,7 +237,9 @@ def test_current_model_fallback_retains_exact_definitions_and_mutation_isolation
     for definition in first:
         mutable_ids(definition)
         definition["inputSchema"].clear()
-    repeated = mcp_tools.get_tools_for_handler(SchemaHandler())
+    repeated = mcp_tools.get_tools_for_handler(
+        SchemaHandler(), schema_mode="compact", advertise_output_schemas=True
+    )
     assert canonical(repeated) == snapshot
 
 
@@ -255,7 +261,13 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
     expected["inputSchema"]["properties"]["brief"] = {"type": "array"}
     expected["outputSchema"].clear()
     handler = PinnedSchemaHandler(version)
-    mcp = create_mcp_server(handler, stateless_http=True, allowed_hosts=["test"])
+    mcp = create_mcp_server(
+        handler,
+        stateless_http=True,
+        allowed_hosts=["test"],
+        schema_mode="compact",
+        advertise_output_schemas=True,
+    )
     mcp.settings.json_response = True
     app = mcp.streamable_http_app()
     headers = {"accept": "application/json, text/event-stream"}

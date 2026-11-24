@@ -132,7 +132,13 @@ def test_oversized_discovery_warns_at_startup() -> None:
         pass
 
     with pytest.warns(UserWarning, match="will REJECT this tools/list"):
-        create_mcp_server(_Everything(), name="everything", advertise_all=True)
+        create_mcp_server(
+            _Everything(),
+            name="everything",
+            advertise_all=True,
+            schema_mode="compact",
+            advertise_output_schemas=True,
+        )
 
 
 def test_a_right_sized_seller_boots_silently() -> None:
@@ -200,7 +206,12 @@ async def test_advertised_output_schemas_still_describe_real_responses(
     seller = _sa.DemoSeller()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        tools = {t["name"]: t for t in get_tools_for_handler(seller)}
+        tools = {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                seller, schema_mode="compact", advertise_output_schemas=True
+            )
+        }
     schema = tools[tool_name]["outputSchema"]
 
     response = await getattr(seller, tool_name)({**params, "adcp_version": "3.2.0"})
@@ -261,9 +272,17 @@ def test_non_default_schema_modes_reach_output_schemas_too() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         inline = {
-            t["name"]: t for t in get_tools_for_handler(_sa.DemoSeller(), schema_mode="inline")
+            t["name"]: t
+            for t in get_tools_for_handler(
+                _sa.DemoSeller(), schema_mode="inline", advertise_output_schemas=True
+            )
         }
-        defs = {t["name"]: t for t in get_tools_for_handler(_sa.DemoSeller(), schema_mode="defs")}
+        defs = {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                _sa.DemoSeller(), schema_mode="defs", advertise_output_schemas=True
+            )
+        }
 
     inline_output = json.dumps(inline["create_media_buy"]["outputSchema"])
     assert '"$ref"' not in inline_output
@@ -274,9 +293,12 @@ def test_non_default_schema_modes_reach_output_schemas_too() -> None:
     defs_output = defs["create_media_buy"]["outputSchema"]
     assert "$defs" in defs_output
     compact_output = json.dumps(
-        {t["name"]: t for t in get_tools_for_handler(_sa.DemoSeller())}["create_media_buy"][
-            "outputSchema"
-        ]
+        {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                _sa.DemoSeller(), schema_mode="compact", advertise_output_schemas=True
+            )
+        }["create_media_buy"]["outputSchema"]
     )
     assert len(compact_output) < len(json.dumps(defs_output)) < len(inline_output)
 
@@ -289,7 +311,9 @@ def test_advertised_schemas_have_no_dangling_references() -> None:
     """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        tools = get_tools_for_handler(_sa.DemoSeller())
+        tools = get_tools_for_handler(
+            _sa.DemoSeller(), schema_mode="compact", advertise_output_schemas=True
+        ) + get_tools_for_handler(_sa.DemoSeller())
 
     for tool in tools:
         for key in ("inputSchema", "outputSchema"):
@@ -444,8 +468,12 @@ def test_pinned_compact_is_a_fraction_of_the_exact_bundled_schema() -> None:
     """``defs`` keeps the exact wire contract; ``compact`` is the default for a reason."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        compact = get_tools_for_handler(_IssueSeller())
-        exact = get_tools_for_handler(_IssueSeller(), schema_mode="defs")
+        compact = get_tools_for_handler(
+            _IssueSeller(), schema_mode="compact", advertise_output_schemas=True
+        )
+        exact = get_tools_for_handler(
+            _IssueSeller(), schema_mode="defs", advertise_output_schemas=True
+        )
     assert {t["name"] for t in compact} == {t["name"] for t in exact}
     assert _members(compact) * 4 < _members(exact)
     assert _discovery_payload_bytes(compact) * 3 < _discovery_payload_bytes(exact)
@@ -458,8 +486,18 @@ def test_pinned_compaction_keeps_the_root_contract() -> None:
     """Every root field, its description, and the root rules survive."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        compact = {t["name"]: t for t in get_tools_for_handler(_IssueSeller())}
-        exact = {t["name"]: t for t in get_tools_for_handler(_IssueSeller(), schema_mode="defs")}
+        compact = {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                _IssueSeller(), schema_mode="compact", advertise_output_schemas=True
+            )
+        }
+        exact = {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                _IssueSeller(), schema_mode="defs", advertise_output_schemas=True
+            )
+        }
     for name, tool in compact.items():
         for key in ("inputSchema", "outputSchema"):
             if key not in tool:
@@ -512,10 +550,17 @@ async def test_pinned_compact_output_schemas_accept_what_the_exact_schema_accept
     seller = _sa.DemoSeller()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        compact = {t["name"]: t for t in get_tools_for_handler(seller, adcp_version="3.2")}
+        compact = {
+            t["name"]: t
+            for t in get_tools_for_handler(
+                seller, adcp_version="3.2", schema_mode="compact", advertise_output_schemas=True
+            )
+        }
         exact = {
             t["name"]: t
-            for t in get_tools_for_handler(seller, adcp_version="3.2", schema_mode="defs")
+            for t in get_tools_for_handler(
+                seller, adcp_version="3.2", schema_mode="defs", advertise_output_schemas=True
+            )
         }
     compact_schema = compact[tool_name]["outputSchema"]
     exact_schema = exact[tool_name]["outputSchema"]

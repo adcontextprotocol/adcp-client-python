@@ -128,6 +128,10 @@ class MountedReceipts:
 
     @asynccontextmanager
     async def client(self, **options):
+        # These mounts assert the exact compact request rules and the response
+        # schema, neither of which the lean, output-free default lists.
+        options.setdefault("schema_mode", "compact")
+        options.setdefault("advertise_output_schemas", True)
         app = _build_mcp_and_a2a_app(
             self.handler,
             name="receipt-ingress",
