@@ -488,7 +488,14 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                     task_type, strip_credentials_from_wire_result(task_type, result)
                 )
                 if state == "completed":
-                    if existing_result == safe_result:
+                    # A result an earlier SDK stored may carry one platform ID
+                    # name; compare it as it is now projected, without rewriting
+                    # the stored artifact.
+                    try:
+                        stored = _dual_emitted(task_type, existing_result)
+                    except ValueError:
+                        stored = existing_result
+                    if stored == safe_result:
                         return None  # idempotent
                     raise ValueError(f"Task {task_id!r} already completed with a different result")
                 raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
