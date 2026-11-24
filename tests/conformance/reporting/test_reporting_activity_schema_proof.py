@@ -33,8 +33,8 @@ from adcp.reporting.outbox import (
     ReportingStatusSupport,
 )
 from adcp.types import ReportingDeliveryCapabilities
+from tests.reporting_offering import HOURLY_SNAPSHOT_OFFERING as _OFFERING
 from tests.test_decisioning_capabilities_projection import _SalesPlatform
-from tests.test_reporting_ledger import _OFFERING
 
 from ._reliable_support import NotificationHarness, reliable_factory
 from .test_reporting_webhook_activity import worker_for
