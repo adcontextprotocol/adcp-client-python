@@ -1249,8 +1249,11 @@ def _self_contained_schema(
 _SCHEMA_NAME_MAP_KEYWORDS: frozenset[str] = frozenset(
     {"properties", "patternProperties", "$defs", "definitions", "dependentSchemas", "dependencies"}
 )
-#: Keywords whose value is an instance rather than a schema; copied untouched.
-_SCHEMA_LITERAL_KEYWORDS: frozenset[str] = frozenset({"const", "default", "enum"})
+#: Keywords whose value is not a schema (an instance, or ``dependentRequired``'s
+#: map of property names to name lists); copied untouched.
+_SCHEMA_LITERAL_KEYWORDS: frozenset[str] = frozenset(
+    {"const", "default", "enum", "dependentRequired"}
+)
 
 
 def _strip_schema_annotations(
