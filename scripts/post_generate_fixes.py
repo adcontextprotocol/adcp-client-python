@@ -4549,13 +4549,18 @@ def fix_protocol_envelope_status_default() -> None:
     synchronous response models in-process historically omitted it, so give the
     generated base envelope a default while server serialization still emits it.
 
-    Contract for SDK 10.x (#1678): parsing a response does not require
-    ``status``. Pydantic validates construction and parsing with one
-    validator, so a required field would also break
-    ``GetProductsResponse(products=[])``, and a 10.x buyer still parses 3.0 to
-    3.2 sellers whose ``list_products`` / ``decline_proposals`` carry no
-    ``status``. An absent ``status`` reads as ``completed``. Requiring it under
-    strict response validation is an 11.0 candidate.
+    Contract for SDK 10.x (#1678): the generated synchronous response models
+    and ``validate_response`` (with the client's response hooks) do not
+    require ``status``; an absent one reads as ``completed``. Pydantic
+    validates construction and parsing with one validator, so a required
+    field would also break ``GetProductsResponse(products=[])``, and a 10.x
+    buyer still parses 3.0 to 3.2 sellers whose ``list_products`` /
+    ``decline_proposals`` carry no ``status``. Task-status arms keep their own
+    status (a submitted model reads ``submitted``), and the version-scoped
+    exact-schema models (``adcp.types.v31`` / ``v32``,
+    ``schema_model_for_version``) validate against the bundled schema and
+    still require it. Requiring it under strict response validation is an
+    11.0 candidate.
     """
     target = OUTPUT_DIR / "core" / "protocol_envelope.py"
     if not target.exists():

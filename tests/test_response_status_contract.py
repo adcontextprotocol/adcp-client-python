@@ -2,9 +2,9 @@
 
 An absent ``status`` reads as ``completed``: ``ProtocolEnvelope.status`` defaults to
 ``TaskStatus.completed`` in the generated models, and ``validate_response`` accepts a
-sync body with no ``status`` key. The server always emits ``status``; this pins only
-the lenient read side recorded in MIGRATION_v9_to_v10.md ("Parsing a response does not
-require ``status``").
+sync body with no ``status`` key. The server supplies ``status`` wherever the served
+release's response requires it; this pins only the lenient read side recorded in
+MIGRATION_v9_to_v10.md ("Parsing a response does not require ``status``").
 """
 
 from __future__ import annotations
