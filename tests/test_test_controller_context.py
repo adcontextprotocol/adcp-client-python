@@ -483,7 +483,9 @@ async def test_controller_http_request_context(
     metadata: dict[str, RequestMetadata] = {}
     resolved_principals: list[str] = []
 
-    class Handler(ADCPHandler):
+    # advertised_tools registers the class name globally; a name no other
+    # test uses keeps xdist workers from colliding on it.
+    class ControllerRequestContextHandler(ADCPHandler):
         advertised_tools = {"get_products"}
 
         async def get_products(
@@ -528,7 +530,7 @@ async def test_controller_http_request_context(
         return Account(id="fixture-account", mode="sandbox", _mode_explicit=True)
 
     mcp = create_mcp_server(
-        Handler(),
+        ControllerRequestContextHandler(),
         name="test-agent",
         context_factory=build_context,
         allowed_hosts=["localhost"],
