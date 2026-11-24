@@ -59,14 +59,20 @@ AccountReferenceMode = Literal["auto", "natural_key"]
 key on account-scoped tasks negotiated at AdCP 3.3 or later, where every
 seller MUST accept it; an older seller keeps getting the natural key it
 provisioned. ``natural_key`` always sends the natural key the caller wrote.
-``sync_accounts`` entries and ``list_accounts`` filters always keep the
-caller's reference.
+``sync_accounts`` entries, ``list_accounts`` filters and requests carrying a
+``governance_context`` (whose authorization binds the payload as written)
+always keep the caller's reference.
 """
 
 ACCOUNT_REFERENCE_MODES: frozenset[str] = frozenset({"auto", "natural_key"})
 
 #: The first release in which every seller MUST accept ``{"account_id": ...}``.
 _ACCOUNT_ID_REFERENCE_MIN_ADCP_VERSION = "3.3-beta.0"
+#: Tasks whose natural-key ``account`` is the request's brand source and must
+#: not be combined with top-level ``brand``; an id-only account needs one.
+_ACCOUNT_BRAND_SOURCE_TASKS = frozenset({"buy_products", "list_products", "request_proposals"})
+#: Tasks that reference accounts per item, by the array holding the items.
+_ITEM_ACCOUNT_REFERENCES = {"report_usage": "usage", "sync_governance": "accounts"}
 
 _PUBLIC_DISCOVERY_TASKS = frozenset(
     {
@@ -362,23 +368,35 @@ class AccountRegistry:
         )
 
         normalized = resolve_adcp_version_alias(normalize_to_release_precision(version))
+        result = deepcopy(params)
         by_account_id = (
             getattr(self._client, "account_reference_mode", "auto") == "auto"
             and operation not in {"sync_accounts", "list_accounts"}
             and is_adcp_version_at_least(normalized, _ACCOUNT_ID_REFERENCE_MIN_ADCP_VERSION)
+            # A governance authorization binds the hash of the exact payload it
+            # approved (compute_governed_payload_hash), so the reference goes
+            # out as authored; the natural key stays valid throughout 3.x.
+            and not result.get("governance_context")
         )
-        result = deepcopy(params)
         pending: list[dict[str, Any]] = []
-        references: list[tuple[dict[str, Any], str]] = []
+        # (reference, pointer, keeps wire-key continuity)
+        references: list[tuple[dict[str, Any], str, bool]] = []
         if isinstance(result.get("account"), dict):
-            references.append((result["account"], "/account"))
+            references.append((result["account"], "/account", True))
         if operation == "sync_accounts":
             references.extend(
-                (entry, f"/accounts/{index}")
+                (entry, f"/accounts/{index}", True)
                 for index, entry in enumerate(result.get("accounts") or [])
                 if isinstance(entry, dict)
             )
-        for reference, pointer in references:
+        collection = _ITEM_ACCOUNT_REFERENCES.get(operation)
+        if by_account_id and collection is not None:
+            references.extend(
+                (item["account"], f"/{collection}/{index}/account", False)
+                for index, item in enumerate(result.get(collection) or [])
+                if isinstance(item, dict) and isinstance(item.get("account"), dict)
+            )
+        for reference, pointer, continuity in references:
             if reference.get("account_id"):
                 continue
             try:
@@ -389,10 +407,19 @@ class AccountRegistry:
                 # Every 3.3 seller accepts the id it returned and never changes
                 # it; the natural key as a reference after provisioning is
                 # deprecated (adcp#7850, adcp#8474).
+                if (
+                    pointer == "/account"
+                    and operation in _ACCOUNT_BRAND_SOURCE_TASKS
+                    and "brand" not in result
+                    and isinstance(reference.get("brand"), dict)
+                ):
+                    # The natural-key account was this task's brand source; an
+                    # id-only account is not, so the brand moves to the top level.
+                    result["brand"] = deepcopy(reference["brand"])
                 reference.clear()
                 reference["account_id"] = record.account_id
                 continue
-            if record is None or record.wire_key is None:
+            if not continuity or record is None or record.wire_key is None:
                 continue
             # Only identity dimensions are replaced. Keep provisioning options
             # and mutable display metadata supplied by this request.

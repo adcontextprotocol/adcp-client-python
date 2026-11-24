@@ -164,8 +164,16 @@ negotiated at AdCP 3.3 or later. It does not check `account.stable_account_id`:
   `ACCOUNT_NOT_FOUND` invalidation still work from your key.
 - A seller negotiated at 3.2 or earlier keeps getting the natural key it
   provisioned, since accepting an `account_id` was optional before 3.3.
+- Per-item references swap too: `report_usage` `usage[].account` and
+  `sync_governance` `accounts[].account`.
+- `request_proposals`, `buy_products` and `list_products` use a natural-key
+  account as the request's brand source. When it becomes an id, its `brand`
+  moves to top-level `brand`, unless you set one.
 - `sync_accounts` entries and `list_accounts` filters keep your reference. The
   natural key stays the way to open an account and to look up its ID.
+- A request carrying `governance_context` keeps your reference. The governance
+  authorization binds the hash of the payload as approved, so the SDK never
+  rewrites it.
 - `ADCPClient(account_reference_mode="natural_key")` sends every reference as
   written, for a seller that does not yet accept `account_id` as 3.3 requires.
 
