@@ -1024,6 +1024,7 @@ class InMemoryReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
+        reject_unfrozen_media_buy_scope(configuration)
         async with self._mutation():
             key = configuration.generation_key
             existing = self._configurations.get(key)
@@ -2351,6 +2352,18 @@ class InMemoryReportingLedgerStore:
                 del self._leases[key]
 
 
+def reject_unfrozen_media_buy_scope(configuration: ReportingConfiguration) -> None:
+    """Refuse an ``all_media_buys`` generation that also names fixed buys.
+
+    Its buys are frozen per period at close; a stored list would be a second,
+    contradictory denominator.
+    """
+    if configuration.media_buy_scope == "all_media_buys" and configuration.media_buy_ids:
+        raise LedgerConflictError(
+            "INVALID_REQUEST", "an all_media_buys generation has no fixed media_buy_ids"
+        )
+
+
 def reject_reserved_authoritative_party(configuration: ReportingConfiguration) -> None:
     """Refuse ``authoritative_party: consumer`` before the generation is stored.
 
@@ -2409,6 +2422,13 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
         **(
             {"subscription": configuration.subscription.to_storage()}
             if configuration.subscription is not None
+            else {}
+        ),
+        # Only an all_media_buys generation carries it, so exact-scope
+        # generations keep their content digest and never collide with it.
+        **(
+            {"media_buy_scope": configuration.media_buy_scope}
+            if configuration.media_buy_scope != "media_buy_ids"
             else {}
         ),
         "schedule": {

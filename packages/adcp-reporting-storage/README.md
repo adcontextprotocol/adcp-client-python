@@ -74,7 +74,8 @@ Install `adcp>=10.0.0b7` with this release.
 |---|---|---|
 | 0.1.0b4+ (SDK 9 line) | 1 | `>=9.0.0,<10` |
 | 0.2.0b0 | 1 | `>=9.0.0,<11` (**do not pair with 10.0.0b4+**: 10.0.0b4 and b5 install beside it and fail, b7+ refuse it, [#1763](https://github.com/adcontextprotocol/adcp-client-python/issues/1763)) |
-| 0.2.0b1+ | 2 | `>=10.0.0b4,<11` |
+| 0.2.0b1–0.2.0b4 | 2 | `>=10.0.0b4,<11` |
+| 0.2.0b5+ | 3 | first adcp of contract 3 (10.0.0b24) |
 
 `adcp` never imports this package; a test in the main repository enforces that.
 
@@ -115,6 +116,17 @@ expand/contract pair:
   while the contract step waits. It is one new table and its indexes, so
   earlier-release processes keep running beside it; they record no issue
   events for their own transitions.
+- **All-media-buys scope** (migration `0009`, additive): adds
+  `reporting_configurations.media_buy_scope` (default `media_buy_ids`) and the
+  nullable `reporting_obligations.coverage` (the per-buy coverage partition).
+  The columns live in the idempotent ledger DDL, so `create_schema()` installs
+  them too. Storage contract 3. Earlier-release processes keep running beside
+  the columns for exact-scope generations only. **Do not admit any
+  `all_media_buys` generation until every reporting process is on storage
+  contract 3**: an earlier-release process reads such a generation as an exact
+  empty scope and permanently commits zero-buy obligations for it.
+  `ReliableReportingService` refuses `all_media_buys` until you pass
+  `admit_all_media_buys=True`; set it only after the fleet is upgraded.
 
 `postgres_storage(...)` starts on a ledger whose only pending migration is the
 contract step. A new ledger is created contracted. A ledger that 0.2.0b1 or

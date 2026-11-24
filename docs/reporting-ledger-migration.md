@@ -152,6 +152,38 @@ nothing on a schema without status notifications. A foreign key outside the
 SDK that references `reporting_status_scope_checkpoints` refuses the upgrade
 instead of being dropped.
 
+### All-media-buys scope (migration `0009`)
+
+Migration `0009 reporting_all_media_buys` (header `-- adcp-upgrade: additive`)
+adds two columns and their checks, and moves the storage contract to `3`:
+
+- `reporting_configurations.media_buy_scope`, `media_buy_ids` (the default, so
+  every existing generation keeps its meaning) or `all_media_buys`. An
+  `all_media_buys` generation stores `media_buy_ids = []` and freezes each
+  period's buys when the producer closes it. The mode is part of the
+  generation's content hash; exact-scope generations keep their digest.
+- `reporting_obligations.coverage`, the `core/reporting-coverage.json`
+  partition frozen with an obligation whose coverage is not full. `NULL` on
+  every existing obligation, whose coverage stays derived from
+  `coverage_status`.
+
+Both `PgReportingLedgerStore.create_schema()` and `python -m adcp migrate`
+install it, including while the contract step (`0007`) waits. Adding the
+columns and their checks takes a brief `ACCESS EXCLUSIVE` lock on both tables,
+and the checks scan existing rows. Pair adcp and adcp-reporting-storage of
+contract 3; either side refuses the other contract at startup.
+
+Processes of an earlier release keep running beside the columns for
+exact-scope generations only. **Do not admit any `all_media_buys` generation
+until every reporting process is on storage contract 3.** An earlier-release
+process does not read `media_buy_scope`: it sees an `all_media_buys`
+generation as an exact empty scope and permanently commits zero-buy
+obligations for it, which the new release then publishes as zero-row
+snapshots. The SDK cannot see other processes, so this is the operator's
+gate: `ReliableReportingService` refuses `all_media_buys` with
+`UNSUPPORTED_FEATURE` until it is built with `admit_all_media_buys=True`. Set it
+only after the last earlier-release process has stopped.
+
 ### Issue-lifecycle events (migration `0008`)
 
 `python -m adcp migrate` (migration `0008 reporting_issue_events`, header

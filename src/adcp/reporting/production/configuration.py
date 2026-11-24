@@ -56,6 +56,24 @@ class ReportingConfigurationAdmission:
         reject_reserved_authoritative_party(config)
         if raw.get("authoritative_party", "seller") != "seller":
             raise LedgerConflictError("UNSUPPORTED_FEATURE", "consumer authority is reserved")
+        scope = raw["scope"]
+        # An exact generation freezes its explicit full media-buy denominator.
+        # An all_media_buys generation freezes each period's buys at close,
+        # which the production source binding (one buy set per generation)
+        # cannot serve, so it is refused before anything is admitted. Neither
+        # scope may stand in for the other.
+        if config.media_buy_scope == "all_media_buys":
+            if scope != {"all_media_buys": True}:
+                raise failure("BINDING_MISMATCH")
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE",
+                "all_media_buys is not supported in production yet: per-period production "
+                "source binding is not supported",
+            )
+        elif set(scope) != {"media_buy_ids"} or set(scope["media_buy_ids"]) != set(
+            config.media_buy_ids
+        ):
+            raise failure("BINDING_MISMATCH")
         offering = support._configuration_offering(config, binding, offering_id=self.offering_id)
         schedule = offering.configuration_schedule(config)
         supplied_schedule = dict(raw["schedule"])
@@ -64,10 +82,6 @@ class ReportingConfigurationAdmission:
                 supplied_schedule["period_anchor"]
             ).isoformat()
             schedule["period_anchor"] = aware_timestamp(schedule["period_anchor"]).isoformat()
-        scope = raw["scope"]
-        # This producer freezes an explicit full media-buy denominator. An
-        # application's dynamic all-buy or partial-coverage implementation must
-        # not be represented as this installed exact-generation contract.
         if (
             raw["delivery_config_id"] != config.delivery_config_id
             or raw["delivery_config_version"] != config.delivery_config_version
@@ -77,8 +91,6 @@ class ReportingConfigurationAdmission:
             or raw["reporting_profile"] != config.reporting_profile
             or raw["required_finality"] != config.required_finality
             or raw["reconciliation_mode"] != binding.reconciliation_mode
-            or set(scope) != {"media_buy_ids"}
-            or set(scope["media_buy_ids"]) != set(config.media_buy_ids)
             or raw["coverage_requirement"] != "full"
             or supplied_schedule != schedule
             or raw.get("method") != support._destination_binding(binding, offering).wire()

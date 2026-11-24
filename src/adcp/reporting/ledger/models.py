@@ -36,6 +36,7 @@ from adcp.reporting.evidence import (
     freeze_control_totals,
     principal_reference,
 )
+from adcp.reporting.ledger.coverage import ReportingCoverageRecord
 
 __all__ = [
     "ReportingCaller",
@@ -470,6 +471,14 @@ class ReportingConfiguration:
     #: Set for a reporting subscription's generation (an owed set); see
     #: :class:`ReportingSubscriptionGeneration`.
     subscription: ReportingSubscriptionGeneration | None = None
+    #: ``media_buy_ids`` reports exactly :attr:`media_buy_ids`, where ``()`` is
+    #: a proven zero-buy scope. ``all_media_buys`` has no fixed list: each
+    #: period's buy set is frozen at its close by the producer's
+    #: :data:`~adcp.reporting.ledger.media_buy_scope.MediaBuyScopeResolver`.
+    #: A stored ``all_media_buys`` generation has ``media_buy_ids == ()``; the
+    #: producer hands the package roster resolver a per-period copy carrying
+    #: that period's frozen buys.
+    media_buy_scope: Literal["media_buy_ids", "all_media_buys"] = "media_buy_ids"
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
@@ -481,6 +490,10 @@ class ReportingConfiguration:
             raise ValueError(
                 "a subscription generation's delivery_config_id is its subscription_id"
             )
+        if self.media_buy_scope not in ("media_buy_ids", "all_media_buys"):
+            raise ValueError("media_buy_scope must be media_buy_ids or all_media_buys")
+        if self.media_buy_scope == "all_media_buys" and self.subscription is not None:
+            raise ValueError("a subscription owed set has no all_media_buys scope")
 
     @property
     def owed_set(self) -> bool:
@@ -537,6 +550,11 @@ class ReportingObligationRecord:
     #: The resolved offering of a reporting subscription's obligation; ``None``
     #: for account-level configurations. Authoritative for its timing.
     offering_id: str | None = None
+    #: The per-buy coverage partition frozen with the obligation. ``None`` when
+    #: :attr:`coverage_status` alone describes it (full coverage, or evidence
+    #: that retained only a status): the wire coverage then applies that status
+    #: to every buy and package.
+    coverage: ReportingCoverageRecord | None = None
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
@@ -579,6 +597,17 @@ class ReportingObligationRecord:
             )
         if _utc(self.automated_recovery_deadline_at) < _utc(self.period.expected_at):
             raise ValueError("the automated recovery deadline cannot precede expected_at")
+        coverage = self.coverage
+        if coverage is not None and (
+            coverage.evaluated_at != _utc(self.scope_resolved_at)
+            or coverage.media_buy_ids != tuple(sorted(set(self.media_buy_ids)))
+            or coverage.package_ids != tuple(sorted(set(self.package_ids)))
+            or coverage.status != self.coverage_status
+        ):
+            raise ValueError(
+                "obligation coverage must be evaluated at scope_resolved_at over exactly its "
+                "media buys and packages, with the obligation's coverage status"
+            )
 
 
 @dataclass(frozen=True)

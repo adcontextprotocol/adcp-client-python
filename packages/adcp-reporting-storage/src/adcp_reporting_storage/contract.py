@@ -10,9 +10,12 @@ integer on each side, bumped together whenever the shared layout changes:
 * **1** — the SDK 9 layout and adcp 10.0.0b0–b3: a configuration generation is
   ``(account_id, consumer_id, delivery_config_id, delivery_config_version)``.
   Shipped by adcp-reporting-storage 0.1.0b4 and 0.2.0b0.
-* **2** — adcp 10.0.0b4 and later: ``offering_id`` on configurations,
+* **2** — adcp 10.0.0b4 through 10.0.0b23: ``offering_id`` on configurations,
   obligations and consumer statuses (AdCP 3.3 reporting subscriptions; schema
-  migration ``0002``). Shipped by adcp-reporting-storage 0.2.0b1 and later.
+  migration ``0002``). Shipped by adcp-reporting-storage 0.2.0b1 through 0.2.0b4.
+* **3** — ``media_buy_scope`` on configurations (reporting scope
+  ``all_media_buys``; schema migration ``0009``). Shipped by
+  adcp-reporting-storage 0.2.0b5 and later.
 
 :func:`require_adcp_contract` runs when a PostgreSQL ledger store is built, so
 an incompatible pair fails at startup with the pair named and the fix spelled
@@ -27,7 +30,11 @@ from importlib.metadata import PackageNotFoundError, version
 __all__ = ["STORAGE_CONTRACT", "adcp_storage_contract", "require_adcp_contract"]
 
 #: The reporting storage contract this distribution's DDL and stores implement.
-STORAGE_CONTRACT = 2
+STORAGE_CONTRACT = 3
+#: The first adcp release that reads the ledger with :data:`STORAGE_CONTRACT`.
+_FIRST_ADCP = "10.0.0b24"
+#: The last adcp-reporting-storage release of each earlier contract.
+_LAST_STORAGE = {1: "0.2.0b0", 2: "0.2.0b4"}
 
 
 def adcp_storage_contract() -> int:
@@ -72,12 +79,14 @@ def require_adcp_contract() -> None:
     if expected > STORAGE_CONTRACT:
         fix = (
             f"Install the adcp-reporting-storage release that implements contract {expected} "
-            f"(newer than {storage_version}), or adcp 10.0.0b4–10.0.0b5 with this one."
+            f"(newer than {storage_version}), or adcp {_FIRST_ADCP} or later of storage "
+            f"contract {STORAGE_CONTRACT} with this one."
         )
     else:
         fix = (
-            f"Install adcp 10.0.0b4 or later (storage contract {STORAGE_CONTRACT}), or "
-            "adcp-reporting-storage 0.2.0b0 with this adcp."
+            f"Install adcp {_FIRST_ADCP} or later (storage contract {STORAGE_CONTRACT}), or "
+            f"adcp-reporting-storage {_LAST_STORAGE.get(expected, 'of that contract')} "
+            "with this adcp."
         )
     message = (
         f"adcp {adcp_version} reads the reporting ledger with storage contract {expected}, "

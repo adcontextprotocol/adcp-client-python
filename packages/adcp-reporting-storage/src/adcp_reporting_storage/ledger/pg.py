@@ -1079,6 +1079,10 @@ class PgReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
+        if configuration.media_buy_scope == "all_media_buys" and configuration.media_buy_ids:
+            raise LedgerConflictError(
+                "INVALID_REQUEST", "an all_media_buys generation has no fixed media_buy_ids"
+            )
         key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
@@ -1091,9 +1095,10 @@ class PgReportingLedgerStore:
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 "  automated_recovery_seconds, status_retention_days, definition,"
-                "  authoritative_party, content_sha256, consumer_id, quarantined, offering_id)"
+                "  authoritative_party, content_sha256, consumer_id, quarantined, offering_id,"
+                "  media_buy_scope)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
-                "         %s::jsonb, %s, %s, %s, %s, %s)"
+                "         %s::jsonb, %s, %s, %s, %s, %s, %s)"
                 " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
                 "ry_config_version, offering_id) DO NOTHING"
                 " RETURNING delivery_config_id",
@@ -1118,6 +1123,7 @@ class PgReportingLedgerStore:
                     configuration.consumer_id,
                     configuration.quarantined,
                     key.offering_id or "",
+                    configuration.media_buy_scope,
                 ),
             )
             inserted = await inserted_cursor.fetchone()
@@ -1374,9 +1380,11 @@ class PgReportingLedgerStore:
                         "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                         "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                         "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                        "  schedule, definition, created_at, currency, consumer_id, offering_id)"
+                        "  schedule, definition, created_at, currency, consumer_id, offering_id,"
+                        "  coverage)"
                         " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s)"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
+                        "         %s::jsonb)"
                         " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
                         "ry_config_version, offering_id,"
                         "              period_start, period_end) DO NOTHING"
@@ -1410,6 +1418,11 @@ class PgReportingLedgerStore:
                             obligation.currency,
                             obligation.consumer_id,
                             obligation.offering_id or "",
+                            (
+                                _json(obligation.coverage.to_wire())
+                                if obligation.coverage is not None
+                                else None
+                            ),
                         ),
                     )
                 ).fetchone()

@@ -19,7 +19,10 @@ from adcp.reporting.ledger.storage_contract import (
 #: The shared column lists, pinned per contract. Changing a list in
 #: ``_record_rows`` changes the fingerprint: bump REPORTING_STORAGE_CONTRACT,
 #: ship the matching adcp-reporting-storage DDL and migration, and re-pin.
-FINGERPRINTS = {2: "e6cb6454085a8fdc004f564f3882bcfe1a67fd9e622d72a36ba1f9d6ccd12af1"}
+FINGERPRINTS = {
+    2: "e6cb6454085a8fdc004f564f3882bcfe1a67fd9e622d72a36ba1f9d6ccd12af1",
+    3: "ca78bd2475be646a93df5ac562cc162f87602c873aa0ade4917fb9e1757d0837",
+}
 
 
 def test_the_column_lists_are_pinned_to_the_contract_number() -> None:
@@ -55,7 +58,7 @@ class _Custom:
 
 @pytest.mark.parametrize(
     ("store", "expected"),
-    [(_Declared(), 2), (_Older(), 1), (_Newer(), 3), (_Undeclared(), 1), (_Custom(), None)],
+    [(_Declared(), 3), (_Older(), 2), (_Newer(), 4), (_Undeclared(), 1), (_Custom(), None)],
     ids=["declared", "older", "newer", "undeclared-storage-release", "custom"],
 )
 def test_a_store_is_classified_by_declaration_or_provenance(
@@ -79,12 +82,12 @@ def test_a_storage_release_of_an_older_contract_is_refused_with_the_fix() -> Non
     message = str(error)
     assert f"storage contract {REPORTING_STORAGE_CONTRACT}" in message
     assert "implements contract 1" in message
-    assert "Install adcp-reporting-storage>=0.2.0b1" in message
+    assert "Install adcp-reporting-storage>=0.2.0b5" in message
     assert 'run "python -m adcp migrate"' in message and "create_schema()" in message
 
 
 def test_a_storage_release_of_a_newer_contract_is_refused_too() -> None:
-    with pytest.raises(ReliableReportingConfigurationError, match="implements contract 3"):
+    with pytest.raises(ReliableReportingConfigurationError, match="implements contract 4"):
         require_storage_contract(_Newer())
 
 

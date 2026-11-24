@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
+from adcp.reporting.ledger.coverage import ReportingCoverageRecord
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -36,17 +37,19 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at, currency, consumer_id, offering_id"
+    " package_ids, schedule, definition, created_at, currency, consumer_id, offering_id,"
+    " coverage"
 )
 
 #: ``offering_id`` is '' for an account-level generation and the resolved
 #: offering for a reporting subscription's generation (AdCP 3.3).
+#: ``media_buy_scope`` is ``media_buy_ids`` or ``all_media_buys``.
 _CONFIGURATION_COLUMNS = (
     "delivery_config_id, delivery_config_version, account_id,"
     " report_definition_id, reporting_profile, feed_purpose, required_finality,"
     " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
     " automated_recovery_seconds, status_retention_days, definition,"
-    " authoritative_party, consumer_id, quarantined, offering_id"
+    " authoritative_party, consumer_id, quarantined, offering_id, media_buy_scope"
 )
 
 
@@ -153,6 +156,11 @@ def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, A
             if configuration.subscription is not None
             else {}
         ),
+        **(
+            {"media_buy_scope": configuration.media_buy_scope}
+            if configuration.media_buy_scope != "media_buy_ids"
+            else {}
+        ),
     }
 
 
@@ -186,6 +194,7 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
             if (offering := _offering(row, 18)) is not None
             else None
         ),
+        media_buy_scope=(row[19] if len(row) > 19 and row[19] else "media_buy_ids"),
     )
 
 
@@ -217,6 +226,9 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         currency=row[21],
         consumer_id=row[22],
         offering_id=_offering(row, 23),
+        coverage=(
+            ReportingCoverageRecord.from_wire(row[24]) if len(row) > 24 and row[24] else None
+        ),
     )
 
 
