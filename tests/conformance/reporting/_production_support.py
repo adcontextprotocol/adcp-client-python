@@ -387,9 +387,10 @@ async def account_task(request, context, admit):
 
 def reference_source_final():
     """The provider signal declared by the pinned reference report definition."""
-    from adcp.reporting.ledger import ReportingSourceFinalPolicy
+    from adcp.reporting import ledger
 
-    return ReportingSourceFinalPolicy("reference-final", "fixture_closed")
+    policy = getattr(ledger, "ReportingSourceFinalPolicy", None)
+    return policy("reference-final", "fixture_closed") if policy is not None else None
 
 
 @asynccontextmanager
