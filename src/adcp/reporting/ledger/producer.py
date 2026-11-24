@@ -4264,10 +4264,27 @@ class ReportingProducer:
         # never inside it, so a slow store cannot hold the account lock.
         staging = self._store if isinstance(self._store, ReportingRowStagingStore) else None
         retained = None
+        default_terminal_read = False
         if (
             finality == "snapshot"
             and supersedes
-            and (suppress_untracked_unchanged or acquisition is not None)
+            and acquisition is not None
+            and selected_policy is None
+        ):
+            source_offering = self._source.capabilities.offering(manifest.offering_id)
+            default_terminal_read = (
+                isinstance(source_offering, ProvisionalSnapshotOfferingV1)
+                and source_offering.restatement_window is None
+                and acquisition.observation_deadlines(now, manifest)[1] is None
+            )
+        if (
+            finality == "snapshot"
+            and supersedes
+            and (
+                suppress_untracked_unchanged
+                or (acquisition is not None and selected_policy is not None)
+                or default_terminal_read
+            )
         ):
             predecessor = await self._store.get_revision(
                 account_id=obligation.account_id,

@@ -427,6 +427,21 @@ async def test_source_without_a_window_retains_its_final_default_read() -> None:
     assert len(fetch.calls) == 2
 
 
+async def test_source_without_a_window_keeps_unchanged_observations_before_expiry() -> None:
+    producer, store, fetch, clock = await _harness(_capabilities(restatement_window=None))
+    await producer.run_worker()
+    obligation = await _only_obligation(store)
+    clock[0] = obligation.period.end + timedelta(hours=1, minutes=10)
+
+    await producer.run_worker()
+
+    assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
+    assert [revision.finality for revision in await _revisions(store)] == [
+        "snapshot",
+        "snapshot",
+    ]
+
+
 def test_settling_options_require_a_declared_window_and_safe_cadence() -> None:
     snapshot = redacted_capabilities().offering(SNAPSHOT_OFFERING_ID)
     assert isinstance(snapshot, ProvisionalSnapshotOfferingV1)
