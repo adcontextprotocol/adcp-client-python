@@ -1701,11 +1701,12 @@ class ReportingProducer:
             # A tracked manual retry advances the durable ordinal only. The
             # first automatic source read keeps its configured phase and window.
             checkpoint = None
-        if (
+        source_close_attempted = (
             isinstance(selected, ReportingSourceFinalPolicy)
             and explicit_close
             and _utc(now) >= self._source_available_at(obligation, target_finality="official")
-        ):
+        )
+        if source_close_attempted:
             if await close_official():
                 return True
         settles_at = _utc(obligation.period.end) + policy.restatement_window
@@ -1759,7 +1760,7 @@ class ReportingProducer:
             _utc(obligation.period.end) + policy.official_close_lag,
             self._source_available_at(obligation, target_finality="official"),
         )
-        if _utc(now) >= closes_at:
+        if _utc(now) >= closes_at and not source_close_attempted:
             # An attempted close can still return not-ready. Retire only after
             # the authoritative revision was actually committed.
             return await close_official()
