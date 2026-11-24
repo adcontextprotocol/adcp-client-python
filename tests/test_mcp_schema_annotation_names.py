@@ -164,6 +164,19 @@ def test_annotation_keywords_are_still_removed() -> None:
     }
 
 
+def test_root_property_named_title_survives_root_title_keyword_dropped() -> None:
+    schema = {
+        "type": "object",
+        "title": "Root",
+        "properties": {"title": {"type": "string", "title": "T", "description": "kept"}},
+    }
+
+    out = _strip_schema_annotations(schema)
+
+    assert "title" not in {k for k in out if k != "properties"}
+    assert out["properties"]["title"] == {"type": "string", "description": "kept"}
+
+
 # -- integration --------------------------------------------------------------
 
 
@@ -236,3 +249,26 @@ def test_served_get_products_output_schema_accepts_product_description() -> None
     ]
 
     assert errors == []
+
+
+def test_served_list_products_output_schema_accepts_product_description() -> None:
+    # Unlike ``get_products``, the ``list_products`` output schema is the
+    # compact sync schema, where #1900 dropped ``description`` from a closed
+    # product and made this valid response fail.
+    tools = mcp_tools.get_tools_for_handler(ADCPHandler(), advertise_all=True, adcp_version="3.2")
+    tool = next(t for t in tools if t["name"] == "list_products")
+    output_schema = tool["outputSchema"]
+
+    product_def = output_schema["$defs"][CANONICAL_PRODUCT]
+    assert product_def["properties"]["description"] == {"type": "string"}
+    assert product_def["additionalProperties"] is False
+
+    response = {
+        "outcome": "listed",
+        "products": [_PRODUCT],
+        "feed_version": "v1",
+        "cache_scope": "public",
+    }
+    validator = validator_for(output_schema)(output_schema)
+
+    assert [e.message for e in validator.iter_errors(response)] == []
