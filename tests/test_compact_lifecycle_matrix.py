@@ -263,6 +263,9 @@ async def test_native_compact_mcp_roundtrip_preserves_response_envelopes() -> No
         _NativeCompactEnvelopeHandler(),
         name="native-compact-envelopes",
         validation=ValidationHookConfig(requests="off", responses="strict"),
+        # The MCP client validates structuredContent only against a listed outputSchema.
+        schema_mode="compact",
+        advertise_output_schemas=True,
     )
 
     expected_responses = {

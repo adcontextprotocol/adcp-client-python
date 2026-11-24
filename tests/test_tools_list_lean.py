@@ -133,6 +133,19 @@ def test_lean_is_far_smaller_than_the_previous_default(version: str | None) -> N
     assert lean * 3 < previous
 
 
+@pytest.mark.parametrize("version", VERSIONS)
+def test_every_lean_root_property_is_an_object_schema(version: str | None) -> None:
+    """MCP clients such as the TypeScript SDK refuse a boolean root property.
+
+    The storyboard runner's ``@adcp/sdk`` client rejected ``tools/list`` as
+    invalid when a reduced root field (``bidding``) was the schema ``true``.
+    """
+    tools = get_tools_for_handler(ADCPHandler, advertise_all=True, adcp_version=version)
+    for tool in tools:
+        for name, schema in (tool["inputSchema"].get("properties") or {}).items():
+            assert isinstance(schema, dict), (tool["name"], name, schema)
+
+
 # ----------------------------------------------------------------------
 # (b) Keep rules
 # ----------------------------------------------------------------------
@@ -470,7 +483,7 @@ def test_lean_still_rejects_a_request_missing_a_required_field(version: str | No
 # ----------------------------------------------------------------------
 
 
-class _Seller(ADCPHandler):
+class _LeanToolsListSeller(ADCPHandler):
     advertised_tools = {"get_products"}
 
     async def get_products(self, params: dict[str, Any], context: ToolContext | None = None):
@@ -511,7 +524,7 @@ async def _session(client: httpx.AsyncClient) -> None:
 
 
 async def _list_and_call(**kwargs: Any) -> tuple[dict[str, Any], dict[str, Any]]:
-    mcp = create_mcp_server(_Seller(), name="lean-e2e", **kwargs)
+    mcp = create_mcp_server(_LeanToolsListSeller(), name="lean-e2e", **kwargs)
     mcp.settings.stateless_http = True
     mcp.settings.json_response = True
     mcp.settings.transport_security.allowed_hosts = ["localhost", "127.0.0.1"]
@@ -569,8 +582,8 @@ async def test_opting_in_lists_output_schema_and_leaves_structured_content_uncha
 
 
 def test_mcp_tool_set_threads_both_options() -> None:
-    default = MCPToolSet(_Seller())
-    opted = MCPToolSet(_Seller(), schema_mode="compact", advertise_output_schemas=True)
+    default = MCPToolSet(_LeanToolsListSeller())
+    opted = MCPToolSet(_LeanToolsListSeller(), schema_mode="compact", advertise_output_schemas=True)
 
     assert all("outputSchema" not in d for d in default.tool_definitions)
     assert any("outputSchema" in d for d in opted.tool_definitions)
@@ -607,7 +620,7 @@ def test_serve_defaults_are_lean_and_output_free(
     calls = _capture_create_mcp_server(monkeypatch)
 
     with pytest.raises(_CapturedError):
-        _serve_mod.serve(_Seller(), transport=transport)  # type: ignore[arg-type]
+        _serve_mod.serve(_LeanToolsListSeller(), transport=transport)  # type: ignore[arg-type]
 
     assert calls[0]["schema_mode"] == "lean"
     assert calls[0]["advertise_output_schemas"] is False
@@ -621,7 +634,7 @@ def test_serve_kwargs_reach_create_mcp_server(
 
     with pytest.raises(_CapturedError):
         _serve_mod.serve(
-            _Seller(),
+            _LeanToolsListSeller(),
             transport=transport,  # type: ignore[arg-type]
             schema_mode="compact",
             advertise_output_schemas=True,
@@ -639,7 +652,7 @@ def test_serve_config_reaches_create_mcp_server(
     cfg = ServeConfig(transport=transport, schema_mode="defs", advertise_output_schemas=True)  # type: ignore[arg-type]
 
     with pytest.raises(_CapturedError):
-        _serve_mod.serve(_Seller(), config=cfg)
+        _serve_mod.serve(_LeanToolsListSeller(), config=cfg)
 
     assert calls[0]["schema_mode"] == "defs"
     assert calls[0]["advertise_output_schemas"] is True
@@ -658,7 +671,7 @@ def test_serve_passes_options_to_the_transport_helpers(transport: str) -> None:
 
     with patch.object(_serve_mod, helper) as mock:
         _serve_mod.serve(
-            _Seller(),
+            _LeanToolsListSeller(),
             transport=transport,  # type: ignore[arg-type]
             schema_mode="compact",
             advertise_output_schemas=True,
@@ -738,7 +751,7 @@ def _size(value: Any) -> int:
 
 @pytest.mark.asyncio
 async def test_controller_inherits_the_lean_default_from_the_server() -> None:
-    mcp = create_mcp_server(_Seller())
+    mcp = create_mcp_server(_LeanToolsListSeller())
     register_test_controller(mcp, _Store())
 
     tool = await _controller_tool(mcp)
@@ -750,7 +763,9 @@ async def test_controller_inherits_the_lean_default_from_the_server() -> None:
 
 @pytest.mark.asyncio
 async def test_controller_inherits_the_servers_opt_out() -> None:
-    mcp = create_mcp_server(_Seller(), schema_mode="compact", advertise_output_schemas=True)
+    mcp = create_mcp_server(
+        _LeanToolsListSeller(), schema_mode="compact", advertise_output_schemas=True
+    )
     register_test_controller(mcp, _Store())
 
     tool = await _controller_tool(mcp)
@@ -762,7 +777,7 @@ async def test_controller_inherits_the_servers_opt_out() -> None:
 
 @pytest.mark.asyncio
 async def test_explicit_controller_kwargs_override_the_servers_settings() -> None:
-    mcp = create_mcp_server(_Seller())
+    mcp = create_mcp_server(_LeanToolsListSeller())
     register_test_controller(mcp, _Store(), schema_mode="inline", advertise_output_schemas=True)
 
     tool = await _controller_tool(mcp)
@@ -773,7 +788,7 @@ async def test_explicit_controller_kwargs_override_the_servers_settings() -> Non
     assert _size(tool.input_schema) > 100 * 1024
 
     compact_server = create_mcp_server(
-        _Seller(), schema_mode="compact", advertise_output_schemas=True
+        _LeanToolsListSeller(), schema_mode="compact", advertise_output_schemas=True
     )
     register_test_controller(
         compact_server, _Store(), schema_mode="lean", advertise_output_schemas=False
@@ -784,7 +799,7 @@ async def test_explicit_controller_kwargs_override_the_servers_settings() -> Non
 
 
 def test_controller_rejects_an_unknown_schema_mode() -> None:
-    mcp = create_mcp_server(_Seller())
+    mcp = create_mcp_server(_LeanToolsListSeller())
 
     with pytest.raises(ValueError):
         register_test_controller(mcp, _Store(), schema_mode="bogus")  # type: ignore[arg-type]
@@ -793,7 +808,7 @@ def test_controller_rejects_an_unknown_schema_mode() -> None:
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_sandbox")
 async def test_a_lean_listed_controller_still_validates_calls_exactly() -> None:
-    mcp = create_mcp_server(_Seller())
+    mcp = create_mcp_server(_LeanToolsListSeller())
     register_test_controller(mcp, _Store())
     assert (await _controller_tool(mcp)).output_schema is None
     call = mcp._tool_manager._tools["comply_test_controller"].fn
@@ -830,7 +845,7 @@ def test_serve_threads_the_settings_to_the_test_controller(
 
     with pytest.raises(_CapturedError):
         _serve_mod.serve(
-            _Seller(),
+            _LeanToolsListSeller(),
             transport=transport,  # type: ignore[arg-type]
             test_controller=store,
             schema_mode="compact",
@@ -863,7 +878,7 @@ def test_serve_defaults_reach_the_test_controller_as_lean(
 
     with pytest.raises(_CapturedError):
         _serve_mod.serve(
-            _Seller(),
+            _LeanToolsListSeller(),
             transport=transport,  # type: ignore[arg-type]
             test_controller=_Store(),
         )

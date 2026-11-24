@@ -2987,8 +2987,13 @@ def _is_scalar_list_schema(schema: Any, defs: dict[str, Any]) -> bool:
     return _is_scalar_discovery_schema(resolved.get("items"), defs)
 
 
-def _lean_root_field(schema: dict[str, Any], defs: dict[str, Any]) -> Any:
-    """An optional root field reduced to its JSON type and description."""
+def _lean_root_field(schema: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
+    """An optional root field reduced to its JSON type and description.
+
+    Always an object, never the boolean schema ``true``: MCP clients such as
+    the TypeScript SDK refuse a ``tools/list`` whose root ``properties`` hold
+    a boolean.
+    """
     resolved = _resolved_definition(schema, defs)
     lean: dict[str, Any] = {}
     kind = schema.get("type", resolved.get("type"))
@@ -2997,7 +3002,7 @@ def _lean_root_field(schema: dict[str, Any], defs: dict[str, Any]) -> Any:
     description = schema.get("description", resolved.get("description"))
     if isinstance(description, str):
         lean["description"] = description
-    return lean or True
+    return lean
 
 
 def _first_sentence(text: str) -> str:
