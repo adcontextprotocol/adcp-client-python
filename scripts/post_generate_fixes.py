@@ -4548,6 +4548,14 @@ def fix_protocol_envelope_status_default() -> None:
     AdCP 3.1 requires ``status`` on the wire. SDK users constructing typed
     synchronous response models in-process historically omitted it, so give the
     generated base envelope a default while server serialization still emits it.
+
+    Contract for SDK 10.x (#1678): parsing a response does not require
+    ``status``. Pydantic validates construction and parsing with one
+    validator, so a required field would also break
+    ``GetProductsResponse(products=[])``, and a 10.x buyer still parses 3.0 to
+    3.2 sellers whose ``list_products`` / ``decline_proposals`` carry no
+    ``status``. An absent ``status`` reads as ``completed``. Requiring it under
+    strict response validation is an 11.0 candidate.
     """
     target = OUTPUT_DIR / "core" / "protocol_envelope.py"
     if not target.exists():

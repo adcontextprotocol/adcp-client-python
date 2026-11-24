@@ -460,6 +460,12 @@ def _normalize_response_for_validation(
     protocol envelope too. ``cache_scope`` is deliberately not inferred here:
     response-only validation lacks the request account context needed to
     distinguish public wholesale feeds from account overlays.
+
+    An absent ``status`` reads as ``completed``, in every validation mode,
+    as the generated models default it: SDK 10.x does not require ``status``
+    to parse a response (#1678). A submitted, working or input-required body
+    that omits it is checked against the synchronous shape, not its task
+    shape. Requiring ``status`` under strict validation is an 11.0 candidate.
     """
     if not isinstance(payload, dict):
         return payload
