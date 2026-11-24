@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from dataclasses import replace
+from datetime import timedelta
 from importlib.resources import files
 
 import pytest
@@ -124,7 +126,7 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         await foundation(pool)
         old = PgReportingReconciliationStore(pool=pool, clock=lambda: NOW)
-        s = await scenario(old)
+        s = await scenario(old, finality="snapshot", billing=False)
         await old.commit_materialization(s.outcome)
         await old.record_revision_receipt(s.receipt)
         await old.ensure_issue_opened(
@@ -147,6 +149,11 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
         await store.create_schema()
         assert await retained_physical_rows(pool) == before
         revision, rows = revision_for(s.obligation, suffix="post-upgrade")
+        revision = replace(
+            revision,
+            supersedes_reporting_revision_id=s.revision.reporting_revision_id,
+            created_at=s.revision.created_at + timedelta(seconds=1),
+        )
         await store.commit_revision(revision, rows)
         restarted = PgReportingOutbox(pool=pool, clock=lambda: NOW)
         assert len(await restarted.list_events(account_id="acct_a")) == 1
@@ -275,7 +282,7 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
             "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
             " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"
         ),
-        "DROP TABLE reporting_restatement_checkpoints",
+        "DROP TABLE reporting_restatement_checkpoints CASCADE",
         "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
         "DROP INDEX reporting_restatement_checkpoints_account_idx",
         (

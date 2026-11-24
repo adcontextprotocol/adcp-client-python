@@ -45,7 +45,7 @@ nothing and is applied and recorded without the request. ``postgres_storage``
 starts on a ledger whose only pending migration is a contract step.
 
 A migration after a waiting contract step is applied only when it is
-``additive`` (``0008``, the issue-event outbox); the walk stops at the first
+``additive`` (``0008``–``0010``); the walk stops at the first
 one that is not, since it may depend on the contract. An additive migration
 is therefore applied, and recorded, before the contract step it follows.
 """

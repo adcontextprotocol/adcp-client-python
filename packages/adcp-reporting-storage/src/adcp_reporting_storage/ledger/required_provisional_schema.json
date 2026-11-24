@@ -67,6 +67,10 @@
     "enabled": true,
     "fingerprint": "6e0009dfd0c8c76adc077b6f9e8bc866b476342946a107c8cba342ee3c6ec602"
   },
+  "constraint:reporting_provisional_observations.reporting_provisional_observations_reporting_revision_id_key": {
+    "enabled": true,
+    "fingerprint": "dface19184e3b1196ac3f05865ce9fd2c1fde32593a604fd8e59e0e7b37525e7"
+  },
   "function:reporting_provisional_immutable()": {
     "enabled": true,
     "fingerprint": "5f46da14407d6b8acab20bf770940bcae96698b27a941eab2d1f4aa5c271484b"
@@ -82,6 +86,10 @@
   "index:reporting_provisional_observations.reporting_provisional_observations_pkey": {
     "enabled": true,
     "fingerprint": "cc1a138288cf600afcffe140e7001d4e44d1a762ba2b6feeea6c5615c2e1c204"
+  },
+  "index:reporting_provisional_observations.reporting_provisional_observations_reporting_revision_id_key": {
+    "enabled": true,
+    "fingerprint": "423b8e84d59c9f7c8a580f1b8f97058e964b191a9c4a2dfd0e1e95e00b1872c2"
   },
   "table:reporting_provisional_acquisitions": {
     "enabled": true,

@@ -265,7 +265,7 @@ def _rest(*, contract: bool = True) -> list[str]:
 #: The contract steps: applied to an expanded ledger only with ``contract=True``.
 CONTRACT_VERSIONS = ["0007"]
 #: Additive migrations after the contract step: applied even while it is held.
-ADDITIVE_AFTER_CONTRACT = ["0008", "0009"]
+ADDITIVE_AFTER_CONTRACT = ["0008", "0009", "0010"]
 #: The objects that exist only while a ledger is expanded (catalog lines).
 EXPANDED_LEDGER = {
     "constraint reporting_configurations reporting_configurations_generation_key",

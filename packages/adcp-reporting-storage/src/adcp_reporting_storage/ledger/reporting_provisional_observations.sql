@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS reporting_provisional_observations (
     account_id TEXT COLLATE "C" NOT NULL,
     reporting_obligation_id TEXT COLLATE "C" NOT NULL,
     ordinal BIGINT NOT NULL,
-    reporting_revision_id TEXT COLLATE "C" NOT NULL,
+    reporting_revision_id TEXT COLLATE "C" NOT NULL UNIQUE,
     payload JSONB NOT NULL,
     PRIMARY KEY (account_id, reporting_obligation_id, ordinal),
     CONSTRAINT provisional_observation_revision_fk
@@ -31,9 +31,6 @@ CREATE TABLE IF NOT EXISTS reporting_provisional_observations (
         REFERENCES reporting_provisional_acquisitions
             (account_id, reporting_obligation_id, ordinal)
 );
-
-ALTER TABLE reporting_provisional_observations
-    DROP CONSTRAINT IF EXISTS reporting_provisional_observations_reporting_revision_id_key;
 
 CREATE OR REPLACE FUNCTION reporting_provisional_immutable()
 RETURNS trigger LANGUAGE plpgsql AS $$
