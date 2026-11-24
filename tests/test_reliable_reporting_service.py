@@ -26,6 +26,7 @@ from adcp.reporting.ledger import (
     ReportingDefinitionBinding,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     ReportingStatusCaller,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
@@ -167,7 +168,18 @@ def _account_binding(
         capability_offering=public,
         source_capabilities=capabilities,
     )
+    configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
     return configuration, context, capabilities, public
+
+
+def _capabilities_with_digest(
+    capabilities: ReportingSourceCapabilitiesV1, digest: str
+) -> ReportingSourceCapabilitiesV1:
+    raw = capabilities.model_dump(mode="json")
+    for offering in raw["offerings"]:
+        offering["contract"]["report_definition_sha256"] = digest
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    return ReportingSourceCapabilitiesV1.model_validate(raw)
 
 
 def _rows(impressions: int) -> list[dict[str, Any]]:
@@ -337,7 +349,6 @@ async def test_account_capabilities_bind_distinct_offerings_with_shared_source_s
     service.sources.register(
         "gam",
         ScriptedReportingAdapter(first_capabilities, [_rows(10), _rows(20)]),
-        capability_offerings=[first_public],
     )
 
     await service.configure(first)
@@ -349,6 +360,239 @@ async def test_account_capabilities_bind_distinct_offerings_with_shared_source_s
     assert second_source.capabilities == second_capabilities
     assert first_source._staging is second_source._staging
     assert first_source._seals is second_source._seals
+    assert [
+        item["offering_id"]
+        for item in service.capability_block(account_id=first.account_id)["offerings"]
+    ] == [first_public["offering_id"]]
+    assert [
+        item["offering_id"]
+        for item in service.capability_block(account_id=second.account_id)["offerings"]
+    ] == [second_context.capability_offering["offering_id"]]
+    assert service.capability_block() == {}
+
+
+async def test_account_capability_rejects_a_conflicting_registered_offering_id() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    conflicting = {**public, "report_definition_sha256": "e" * 64}
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(_capabilities_with_digest(capabilities, "e" * 64), []),
+        capability_offerings=[conflicting],
+    )
+
+    with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
+        await service.configure(configuration)
+
+
+async def test_account_capabilities_keep_the_registered_source_authority() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+
+    class AuthorizedAdapter(ScriptedReportingAdapter):
+        def __init__(self) -> None:
+            super().__init__(capabilities, [])
+            self.checked: list[ReportingConfigurationGenerationKey] = []
+
+        def configuration_binding(self, item: ReportingConfiguration) -> None:
+            self.checked.append(item.generation_key)
+            return None
+
+    adapter = AuthorizedAdapter()
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register("gam", adapter, capability_offerings=[public])
+    await service.configure(configuration)
+
+    source = service._bindings[configuration.generation_key].producer._source
+    assert source.configuration_binding(configuration) is None
+    assert adapter.checked == [configuration.generation_key]
+
+
+async def test_account_capabilities_bind_a_selected_official_source() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    configuration = replace(
+        configuration,
+        required_finality="official",
+        definition=replace(
+            configuration.definition,
+            finality_policy=ReportingSourceFinalPolicy("declared-close", "delivery.is_final"),
+        ),
+    )
+    context = replace(
+        context,
+        snapshot_offering_id=None,
+        official_offering_id=capabilities.offerings[1].offering_id,
+        capability_offering={**public, "supported_finality": ["official"]},
+    )
+    configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(capabilities, []),
+    )
+
+    await service.configure(configuration)
+
+    source = service._bindings[configuration.generation_key].producer._source
+    assert source.capabilities.capabilities_sha256 == capabilities.capabilities_sha256
+    assert configuration.generation_key in service._bindings
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    [
+        "source_scope",
+        "definition",
+        "public_contract",
+        "source_class",
+        "format",
+        "adapter_build",
+        "checksum",
+        "publication_namespace",
+        "schedule",
+        "period_timezone",
+        "period_anchor",
+        "managed_method",
+        "reconciliation_mode",
+        "unsupported_finality",
+    ],
+)
+async def test_account_capability_mismatch_is_rejected_before_binding(mismatch: str) -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    if mismatch == "source_scope":
+        context = replace(context, source_scope={"source_account_id": "another-account"})
+    elif mismatch == "definition":
+        context = replace(
+            context, source_capabilities=_capabilities_with_digest(capabilities, "e" * 64)
+        )
+    elif mismatch == "public_contract":
+        context = replace(
+            context,
+            capability_offering={**public, "report_definition_sha256": "e" * 64},
+        )
+    elif mismatch == "source_class":
+        context = replace(context, snapshot_offering_id=capabilities.offerings[1].offering_id)
+    elif mismatch == "publication_namespace":
+        context = replace(context, publication_namespace="reporting-source:other")
+    elif mismatch == "schedule":
+        context = replace(
+            context,
+            capability_offering={
+                **public,
+                "schedule": {**public["schedule"], "delivery_sla": "PT15M"},
+            },
+        )
+    elif mismatch in {"period_timezone", "period_anchor"}:
+        field_name = "period_timezone" if mismatch == "period_timezone" else "period_anchor"
+        field_value = "Europe/Berlin" if mismatch == "period_timezone" else "2026-11-01T00:00:00Z"
+        context = replace(
+            context,
+            capability_offering={
+                **public,
+                "schedule": {**public["schedule"], field_name: field_value},
+            },
+        )
+    elif mismatch == "managed_method":
+        context = replace(
+            context,
+            capability_offering={
+                **public,
+                "method": {
+                    "pattern": "file_transfer",
+                    "transport": "https",
+                    "orchestration": "producer_managed",
+                    "destination_modes": ["existing"],
+                },
+            },
+        )
+    elif mismatch == "reconciliation_mode":
+        context = replace(
+            context, capability_offering={**public, "reconciliation_mode": "consumer_receipt"}
+        )
+    elif mismatch == "unsupported_finality":
+        context = replace(
+            context,
+            capability_offering={**public, "supported_finality": ["snapshot", "official"]},
+        )
+    elif mismatch in {"format", "adapter_build"}:
+        raw = capabilities.model_dump(mode="json")
+        if mismatch == "format":
+            raw["offerings"][0]["formats"] = [
+                {"media_type": "application/x-ndjson", "compression": "gzip"}
+            ]
+        else:
+            raw["adapter_build"]["adapter_version"] = "another-build"
+        raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+        context = replace(
+            context, source_capabilities=ReportingSourceCapabilitiesV1.model_validate(raw)
+        )
+    else:
+        context = replace(
+            context,
+            source_capabilities=capabilities.model_copy(
+                update={"capability_version": "edited-without-checksum"}
+            ),
+        )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(capabilities, []),
+        capability_offerings=[public],
+    )
+    configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
+
+    with pytest.raises(ReliableReportingConfigurationError):
+        await service.configure(configuration)
+
+    assert configuration.generation_key not in service._bindings
+    assert configuration.generation_key not in service._pending_bindings
+
+
+async def test_account_capabilities_recover_the_original_generation_contract() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
+    store = InMemoryReportingLedgerStore()
+
+    def service_for(resolved: ReportingAccountContext) -> ReliableReportingService:
+        service = ReliableReportingService(store=store, account_context=lambda _: resolved)
+        service.sources.register(
+            "gam",
+            ScriptedReportingAdapter(capabilities, []),
+            capability_offerings=[public],
+        )
+        return service
+
+    original = service_for(context)
+    await original.configure(configuration)
+    await original.initialize()
+
+    recovered = service_for(context)
+    await recovered.initialize()
+    source = recovered._bindings[configuration.generation_key].producer._source
+    assert source.capabilities.capabilities_sha256 == capabilities.capabilities_sha256
+
+    changed = replace(
+        context,
+        source_capabilities=_capabilities_with_digest(capabilities, "e" * 64),
+        capability_offering={**public, "report_definition_sha256": "e" * 64},
+    )
+    with pytest.raises(ReliableReportingConfigurationError):
+        await service_for(changed).initialize()
+
+    raw = capabilities.model_dump(mode="json")
+    raw["offerings"][0]["fastest_safe_cadence"] = "PT48M"
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    changed_source = replace(
+        context, source_capabilities=ReportingSourceCapabilitiesV1.model_validate(raw)
+    )
+    with pytest.raises(ReliableReportingConfigurationError):
+        await service_for(changed_source).initialize()
+
+    changed_public = replace(
+        context, capability_offering={**public, "standard_dimensions": ["campaign_id"]}
+    )
+    with pytest.raises(ReliableReportingConfigurationError):
+        await service_for(changed_public).initialize()
+    assert await store.list_all_configurations() == (configuration,)
 
 
 @pytest.mark.parametrize("window", [None, timedelta(0), timedelta(minutes=2)])
@@ -453,7 +697,9 @@ async def test_install_preserves_handlers_and_intercepts_only_exact_reads() -> N
     assert await seller.get_media_buy_delivery({}) == {"legacy": True}
     exact = await seller.get_media_buy_delivery({"reporting_revision_id": revision_id})
     assert exact["reporting_revision_binding"]["reporting_revision_id"] == revision_id
-    capabilities = await seller.get_adcp_capabilities({})
+    capabilities = await seller.get_adcp_capabilities(
+        {}, SimpleNamespace(account_id="account-redacted")
+    )
     assert capabilities["media_buy"]["reporting_delivery"]["supported"] is True
     tools = {item["name"] for item in get_tools_for_handler(seller, _include_schemas=False)}
     assert {"get_products", "get_reporting_status", "get_media_buy_delivery"} <= tools
@@ -468,11 +714,11 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
     )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
     await service.configure(_configuration())
-    assert service.capability_block()["offerings"]
+    assert service.capability_block(account_id="account-redacted")["offerings"]
     await service.initialize()
-    assert service.capability_block()["offerings"]
+    assert service.capability_block(account_id="account-redacted")["offerings"]
     await service.start()
-    block = service.capability_block()
+    block = service.capability_block(account_id="account-redacted")
 
     assert block["managed_delivery"] is False
     assert block["reconciled_billing"] is False

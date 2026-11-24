@@ -138,6 +138,16 @@ def _definition_from_payload(payload: dict[str, Any] | None) -> ReportingDefinit
     return ReportingDefinitionBinding(**fields, finality_policy=policy)
 
 
+def _configuration_definition(
+    payload: dict[str, Any] | None,
+) -> tuple[ReportingDefinitionBinding | None, str | None]:
+    if not payload:
+        return None, None
+    fields = dict(payload)
+    binding_sha256 = fields.pop("_account_binding_sha256", None)
+    return _definition_from_payload(fields), binding_sha256
+
+
 def _schedule_from_payload(payload: dict[str, Any]) -> ReportingScheduleSpec:
     anchor = payload.get("period_anchor")
     return ReportingScheduleSpec(
@@ -150,6 +160,13 @@ def _schedule_from_payload(payload: dict[str, Any]) -> ReportingScheduleSpec:
 
 
 def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
+    definition = _definition_payload(configuration.definition)
+    if configuration.account_binding_sha256 is not None:
+        assert definition is not None
+        definition = {
+            **definition,
+            "_account_binding_sha256": configuration.account_binding_sha256,
+        }
     return {
         "account_id": configuration.account_id,
         "report_definition_id": configuration.report_definition_id,
@@ -164,7 +181,7 @@ def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, A
             **_schedule_payload(configuration.schedule),
             **_coverage_requirement_terms(configuration),
         },
-        "definition": _definition_payload(configuration.definition),
+        "definition": definition,
         # Only a subscription generation carries it, so account generations
         # keep their content digest.
         **(
@@ -186,6 +203,7 @@ def _offering(row: Sequence[Any], index: int) -> str | None:
 
 
 def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
+    definition, account_binding_sha256 = _configuration_definition(row[14])
     return ReportingConfiguration(
         delivery_config_id=row[0],
         delivery_config_version=row[1],
@@ -201,7 +219,8 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
         deactivated_at=_utc(row[11]) if row[11] else None,
         automated_recovery_window=timedelta(seconds=float(row[12])),
         status_retention_days=row[13],
-        definition=_definition_from_payload(row[14]),
+        definition=definition,
+        account_binding_sha256=account_binding_sha256,
         authoritative_party=row[15],
         consumer_id=row[16],
         quarantined=row[17],
