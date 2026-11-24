@@ -420,6 +420,8 @@ async def production_harness(
 ):
     from contextlib import AsyncExitStack
 
+    if reconciled and finality_policy is None:
+        finality_policy = reference_source_final()
     async with AsyncExitStack() as stack:
         clock = ManualClock(datetime.now(timezone.utc))
         pool = existing_pool

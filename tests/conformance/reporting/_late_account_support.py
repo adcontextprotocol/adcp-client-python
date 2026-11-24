@@ -10,8 +10,9 @@ import rfc8785
 from adcp.reporting.inline_source import InlineFetchResult
 from adcp.reporting.materializer import ReportingRevisionVerifier, reference_verifier
 from adcp.reporting.materializer.contracts import failure
+from adcp.reporting.source import ReportingFinalityEvidenceV1
 
-from ._production_support import Source, SQLiteDestination
+from ._production_support import Source, SQLiteDestination, reference_source_final
 
 ACCOUNTS = {"usd": ("USD", 503), "eur": ("EUR", 3)}
 
@@ -34,9 +35,19 @@ class AccountSource(Source):
     async def fetch(self, request):
         account = str(request.identity.account_id)
         self.requests.append(request)
-        return InlineFetchResult(
+        result = InlineFetchResult(
             rows_for(account), data_through=request.period.end, currency=ACCOUNTS[account][0]
         )
+        if request.publication_class == "AUTHORITATIVE":
+            return replace(
+                result,
+                finality_evidence=ReportingFinalityEvidenceV1(
+                    basis="provider_declared",
+                    observed_at=self.clock(),
+                    evidence_ref=self.finality_policy.source_signal,
+                ),
+            )
+        return result
 
 
 class CurrencyDestination(SQLiteDestination):
@@ -53,10 +64,20 @@ class CurrencyDestination(SQLiteDestination):
         return provider.resolve(request, phase=phase, context=context)
 
 
+def _with_source_finality(verifier: ReportingRevisionVerifier) -> ReportingRevisionVerifier:
+    return replace(
+        verifier,
+        key=replace(
+            verifier.key,
+            definition=replace(verifier.key.definition, finality_policy=reference_source_final()),
+        ),
+    )
+
+
 def verifier_for(currency, capability):
     base = reference_verifier(capability)
     if currency == "USD":
-        return base
+        return _with_source_finality(base)
     assert currency == "EUR"
     definition = json.loads(base.definition_bytes)
     definition["report_definition_id"] = "reference-report-eur-v1"
@@ -100,4 +121,4 @@ def verifier_for(currency, capability):
             canonicalization_sha256=hashlib.sha256(contract_bytes).hexdigest(),
         ),
     )
-    return ReportingRevisionVerifier(key, definition_bytes, schema_bytes, contract_bytes)
+    return _with_source_finality(ReportingRevisionVerifier(key, definition_bytes, schema_bytes, contract_bytes))
