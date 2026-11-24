@@ -1699,7 +1699,10 @@ class ReliableReportingService:
                 )
             selected.append(official)
         for offering in selected:
-            if offering.publication_namespace != context.publication_namespace:
+            if (
+                context.source_capabilities is not None
+                and offering.publication_namespace != context.publication_namespace
+            ):
                 raise ReliableReportingConfigurationError(
                     "source offering publication namespace does not match the account context"
                 )
@@ -2510,12 +2513,11 @@ class ReliableReportingService:
             for name in self.sources.names
             for item in self.sources.get(name).capability_offerings
         ]
-        if account_id is not None:
-            declarations.extend(
-                binding.context.capability_offering
-                for binding in self._bindings.values()
-                if binding.configuration.account_id == account_id
-            )
+        declarations.extend(
+            binding.context.capability_offering
+            for binding in self._bindings.values()
+            if account_id is None or binding.configuration.account_id == account_id
+        )
         for declaration in declarations:
             offering = ReportingDeliveryOffering.model_validate(_thaw(declaration)).model_dump(
                 mode="json", exclude_none=True
