@@ -1243,12 +1243,29 @@ def _self_contained_schema(
     return rewritten_root
 
 
+#: Keywords whose value maps *names* to schemas. The names are data, not
+#: keywords: a product has a property literally called ``description``, and
+#: stripping it would leave a closed object refusing a valid response.
+_SCHEMA_NAME_MAP_KEYWORDS: frozenset[str] = frozenset(
+    {"properties", "patternProperties", "$defs", "definitions", "dependentSchemas", "dependencies"}
+)
+#: Keywords whose value is an instance rather than a schema; copied untouched.
+_SCHEMA_LITERAL_KEYWORDS: frozenset[str] = frozenset({"const", "default", "enum"})
+
+
 def _strip_schema_annotations(
     value: Any,
     *,
     preserve_description: bool = True,
     preserve_direct_properties: bool = True,
 ) -> Any:
+    """Drop annotation keywords from a schema, keeping every property name.
+
+    Root fields keep their ``description`` (what a reader of ``tools/list``
+    acts on); nested schemas lose theirs. The keys of
+    :data:`_SCHEMA_NAME_MAP_KEYWORDS` are names, never keywords, and the
+    values of :data:`_SCHEMA_LITERAL_KEYWORDS` are instances, never schemas.
+    """
     if isinstance(value, list):
         return [
             _strip_schema_annotations(
@@ -1267,11 +1284,14 @@ def _strip_schema_annotations(
     for key, item in value.items():
         if key in omitted:
             continue
-        if key == "properties" and preserve_direct_properties and isinstance(item, dict):
+        if key in _SCHEMA_LITERAL_KEYWORDS:
+            stripped[key] = item
+        elif key in _SCHEMA_NAME_MAP_KEYWORDS and isinstance(item, dict):
+            keep_description = key == "properties" and preserve_direct_properties
             stripped[key] = {
                 name: _strip_schema_annotations(
                     schema,
-                    preserve_description=True,
+                    preserve_description=keep_description,
                     preserve_direct_properties=False,
                 )
                 for name, schema in item.items()
