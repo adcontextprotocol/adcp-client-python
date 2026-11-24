@@ -612,7 +612,7 @@ class ReliableReportingService:
         self._definition_versions = ReportDefinitionVersions(
             report_definition_versions, undeclared=undeclared_report_definitions
         )
-        self._definition_versions_warned = False
+        self._warned_definitions: set[str] = set()
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -808,6 +808,8 @@ class ReliableReportingService:
             owned_resources=(*owned_resources, ReportingServiceResource(close=production.aclose)),
         )
         service._production = production
+        # The graph read its definitions' versions when it was built.
+        service._definition_versions = production.definition_versions
         production._service_lifecycle = service._lifecycle
         return service
 
@@ -1015,6 +1017,7 @@ class ReliableReportingService:
             authorize_subscription_delivery=(
                 subscriptions.engine.authorizes_delivery if subscriptions is not None else None
             ),
+            definition_versions=self._definition_versions,
         )
         self._production._service_lifecycle = self._lifecycle
         if subscriptions is not None:
@@ -1309,6 +1312,8 @@ class ReliableReportingService:
             ),
         )
         binding = _Binding(configuration=configuration, context=context, producer=producer)
+        if context.capability_offering:
+            self._warn_undeclared_definitions([_thaw(context.capability_offering)])
         if persist:
             if self._initialized:
                 await self.store.put_configuration(configuration)
@@ -1521,6 +1526,7 @@ class ReliableReportingService:
                         raise ReliableReportingConfigurationError(
                             "consumer_receipt offerings require reconciled billing"
                         )
+        self._record_production_definitions()
         self._warn_undeclared_definitions()
 
     def _validate_subscriptions(self) -> None:
@@ -1614,6 +1620,8 @@ class ReliableReportingService:
                 if callable(enumerate_configurations):
                     for configuration in await enumerate_configurations():
                         await self._recover_configuration(configuration)
+                # Recovered account contexts can advertise offerings of their own.
+                self._warn_undeclared_definitions()
             self.sources.freeze()
             if self._production is not None:
                 await self._production.start()
@@ -2021,8 +2029,13 @@ class ReliableReportingService:
         return served_reporting_delivery(block, self._definition_versions, adcp_version)
 
     def _record_production_definitions(self) -> None:
-        """Take the versions production verifiers read from definition bytes."""
+        """Take the versions production verifiers read from definition bytes.
+
+        A declaration the bytes contradict raises; ``validate()`` runs this.
+        """
         if self._production is not None:
+            if self._production.definition_versions is self._definition_versions:
+                return
             for sha256, version in self._production.definition_versions.known().items():
                 self._definition_versions.record(
                     sha256, version, source="its production verifier's definition bytes"
@@ -2058,22 +2071,25 @@ class ReliableReportingService:
                 f"report definitions; offerings {unservable} serve AdCP 3.3 callers only"
             )
 
-    def _warn_undeclared_definitions(self) -> None:
-        """Name, once, every advertised offering whose definition version is unknown."""
-        if self._definition_versions_warned:
-            return
-        self._definition_versions_warned = True
-        try:
-            self._record_production_definitions()
-            block = self._capability_block()
-        # A conflicting declaration is reported where the block is served.
-        except ReliableReportingConfigurationError:
-            return
-        offerings = block.get("offerings") if isinstance(block, Mapping) else None
-        if isinstance(offerings, list):
-            self._definition_versions.warn_undeclared(
-                item for item in offerings if isinstance(item, Mapping)
-            )
+    def _warn_undeclared_definitions(
+        self, offerings: Sequence[Mapping[str, Any]] | None = None
+    ) -> None:
+        """Name, once each, advertised offerings whose definition version is unknown.
+
+        Runs at validation, after startup recovery, and for each newly bound
+        account context, so offerings first seen there are named too.
+        """
+        if offerings is None:
+            try:
+                block = self._capability_block()
+            # A conflicting offering declaration is reported where it is served.
+            except ReliableReportingConfigurationError:
+                return
+            listed = block.get("offerings") if isinstance(block, Mapping) else None
+            offerings = [item for item in listed or () if isinstance(item, Mapping)]
+        self._warned_definitions.update(
+            self._definition_versions.warn_undeclared(offerings, skip=self._warned_definitions)
+        )
 
     def _capability_block(self) -> dict[str, Any]:
         if self._production is not None:
@@ -2131,6 +2147,38 @@ class ReliableReportingService:
             payload["receipt_task"] = "sync_reporting_receipts"
         return payload
 
+    def _served_base_block(
+        self, payload: dict[str, Any], adcp_version: str | None
+    ) -> dict[str, Any]:
+        """Filter a reporting block the base response declared on its own.
+
+        When this service contributes no block for ``adcp_version`` (none
+        installed, or every one withheld), a block the application or its
+        ``DecisioningCapabilities`` declared still reaches the buyer, so its
+        offerings get the same version rule; with none left, the block and its
+        experimental feature are removed.
+        """
+        media_buy = payload.get("media_buy")
+        existing = media_buy.get("reporting_delivery") if isinstance(media_buy, Mapping) else None
+        if not isinstance(existing, Mapping):
+            return payload
+        self._record_production_definitions()
+        served = served_reporting_delivery(existing, self._definition_versions, adcp_version)
+        if served == dict(existing):
+            return payload
+        media_buy = dict(media_buy) if isinstance(media_buy, Mapping) else {}
+        if served:
+            media_buy["reporting_delivery"] = served
+        else:
+            media_buy.pop("reporting_delivery", None)
+            experimental = payload.get("experimental_features")
+            if isinstance(experimental, list):
+                payload["experimental_features"] = [
+                    item for item in experimental if item != "media_buy.reporting_delivery"
+                ]
+        payload["media_buy"] = media_buy
+        return payload
+
     def inject_capabilities(
         self, response: Any, *, adcp_version: str | None = None
     ) -> dict[str, Any]:
@@ -2138,7 +2186,7 @@ class ReliableReportingService:
         payload = _wire(response)
         block = self.capability_block(adcp_version=adcp_version)
         if not block:
-            return payload
+            return self._served_base_block(payload, adcp_version)
         media_buy = dict(payload.get("media_buy") or {})
         media_buy["reporting_delivery"] = block
         payload["media_buy"] = media_buy

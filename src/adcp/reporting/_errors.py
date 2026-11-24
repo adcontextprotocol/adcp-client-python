@@ -210,5 +210,11 @@ async def installed_reporting_call(
         from adcp.decisioning import AdcpError
 
         assert wire.recovery is not None
-        raise AdcpError(wire.code, message=wire.message, recovery=wire.recovery.value) from cause
+        raise AdcpError(
+            wire.code,
+            message=wire.message,
+            recovery=wire.recovery.value,
+            field=wire.field,
+            details=dict(wire.details) if wire.details else None,
+        ) from cause
     raise ADCPTaskError(operation=task, errors=[wire]) from cause

@@ -167,15 +167,23 @@ class ReportDefinitionVersions:
             return self.undeclared == "assume_pre_1_2"
         return version != "1.2"
 
-    def warn_undeclared(self, offerings: Iterable[Mapping[str, Any]]) -> list[str]:
-        """Warn once about every advertised offering whose version is unknown.
+    def warn_undeclared(
+        self, offerings: Iterable[Mapping[str, Any]], *, skip: Iterable[str] = ()
+    ) -> list[str]:
+        """Warn about every advertised offering whose version is unknown.
 
-        Returns the undeclared definition digests (empty when all are known).
+        Digests in ``skip`` (already warned about) are left out. Returns the
+        digests warned about now (empty when all are known or skipped).
         """
+        skipped = {digest.strip().lower() for digest in skip}
         undeclared: dict[str, tuple[str, str]] = {}
         for offering in offerings:
             sha256 = offering.get("report_definition_sha256")
-            if not isinstance(sha256, str) or self.version(sha256) is not None:
+            if (
+                not isinstance(sha256, str)
+                or self.version(sha256) is not None
+                or sha256.strip().lower() in skipped
+            ):
                 continue
             undeclared.setdefault(
                 sha256.strip().lower(),
@@ -251,11 +259,12 @@ def _sha256_key(sha256: Any) -> str:
     return key
 
 
+# ReportDefinitionVersions and served_reporting_delivery are SDK internals
+# shared by the service and the production graph; adopters configure them
+# through ReliableReportingService options.
 __all__ = [
     "ReportDefinitionContractVersion",
-    "ReportDefinitionVersions",
     "UndeclaredReportDefinitions",
     "caller_accepts_1_2",
     "definition_contract_version",
-    "served_reporting_delivery",
 ]

@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from adcp.reporting._source_authorization import source_turn
+from adcp.reporting.definition_versions import ReportDefinitionVersions
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
@@ -176,6 +177,7 @@ class ReportingProductionSupport:
         adcp_version: str | None = None,
         source_registry: ReportingProductionSourceRegistry | None = None,
         maintenance_seconds: float | None = 300.0,
+        definition_versions: ReportDefinitionVersions | None = None,
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
@@ -256,11 +258,15 @@ class ReportingProductionSupport:
         self._schema_epoch = 0
         self._schema_positive: tuple[int, int] | None = None
         self._protocol_version = self.handler.get_adcp_version()
-        from adcp.reporting.definition_versions import ReportDefinitionVersions, caller_accepts_1_2
+        from adcp.reporting.definition_versions import caller_accepts_1_2
 
         #: Each offering's report-definition contract_version, read from the
-        #: bytes its verifier proves against the pinned sha256.
-        self.definition_versions = ReportDefinitionVersions()
+        #: bytes its verifier proves against the pinned sha256, merged into the
+        #: owning service's declarations and policy when it has one. A
+        #: declaration the bytes contradict fails here.
+        self.definition_versions = (
+            definition_versions if definition_versions is not None else ReportDefinitionVersions()
+        )
         self.definition_versions.record_verified(
             self.materializer.io.registry, (o.verification_key for o in offerings)
         )
