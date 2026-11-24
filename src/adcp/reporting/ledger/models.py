@@ -23,6 +23,7 @@ Four facts define the model:
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
@@ -500,10 +501,16 @@ class ReportingConfiguration:
     #: rows cover only ``covered_package_ids``. A ``none`` or ``unknown``
     #: period publishes nothing under either requirement.
     coverage_requirement: Literal["full", "allow_partial"] = "full"
+    account_binding_sha256: str | None = None
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
         consumer_reference(self.consumer_id)
+        if self.account_binding_sha256 is not None:
+            if not re.fullmatch(r"[0-9a-f]{64}", self.account_binding_sha256):
+                raise ValueError("account_binding_sha256 must be a lowercase SHA-256 digest")
+            if self.definition is None:
+                raise ValueError("account_binding_sha256 requires a pinned report definition")
         if (
             self.subscription is not None
             and self.subscription.subscription_id != self.delivery_config_id

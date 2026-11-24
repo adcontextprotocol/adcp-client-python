@@ -266,3 +266,83 @@ and the [conformance tests](../tests/conformance/reporting/test_inline_cell_avai
 Run `run_reporting_source_replay_conformance` against your adapter and staging
 store to verify that the same execution key returns the original sealed
 evidence even if source measurements or availability later change.
+
+## Official source evidence
+
+For a new generation with `required_finality: official`, copy one policy from
+the pinned report definition into `ReportingDefinitionBinding.finality_policy`.
+The adopter verifies the exact definition bytes against its advertised SHA-256
+and selects a policy whose ID, basis, and parameters match those bytes. Core
+accepts this as a trusted definition projection; it does not fetch the URI at
+admission. An explicit snapshot-to-official
+offering also needs a selection. Snapshot-only offerings need no policy. Their
+final scheduled read still produces a snapshot, even after prolonged downtime.
+
+| Selected basis | Source offering | Required evidence |
+| --- | --- | --- |
+| `source_final` | Authoritative | Return `provider_declared` or `provider_job_terminal` evidence with the exact selected `source_signal` in `evidence_ref`. The provider's timestamp becomes `finalized_at`. |
+| `contractual_cutoff` | Snapshot | Read and verify complete staged content at or after period end plus `duration_after_period_end`. The source observation and read cutoff must reach that boundary and the available data must cover the period end. |
+| `stabilized` | Snapshot | The SDK checks verified content from consecutive scheduled observations at the frozen cadence against `minimum_age` and `unchanged_for`. |
+
+For example, if the definition declares the signal `warehouse.close.completed`,
+an adapter can return the timestamp of the completed upstream job.
+
+```python
+from adcp.reporting.inline_source import InlineFetchResult
+from adcp.reporting.source import ReportingFinalityEvidenceV1
+
+return InlineFetchResult(
+    rows=rows,
+    data_through=period_end,
+    finality_evidence=ReportingFinalityEvidenceV1(
+        basis="provider_job_terminal",
+        evidence_ref="warehouse.close.completed",
+        observed_at=job.completed_at,
+    ),
+)
+```
+
+`stable_since` records source evidence. Setting `official_close_lag` opts a
+snapshot offering into an explicit close. For `source_final` and
+`contractual_cutoff`, the lag can delay the source attempt. For `stabilized`,
+the SDK promotes the snapshot when the scheduled observations satisfy
+`minimum_age` and `unchanged_for`, independently of the lag value. A custom Core
+ledger that admits official work must implement
+`ReportingSourcePublicationStore.source_publication(account_id)` and serialize
+publication for that account across workers. Exact reads and replays retain
+the original policy fields of previously published official revisions.
+
+## Account source offerings
+
+`ReportingAccountContext.source_capabilities` may supply the checksummed
+`effective_account` declaration for one configuration generation. The service
+binds that declaration to the registered inline adapter's fetch function,
+staging store, replay seals, currency rules, and production authority. Its
+`adapter_build` must identify the registered adapter. The context's
+`source_scope`, selected source offering, pinned report definition, and public
+`capability_offering` must agree with the declaration. A custom source executor
+cannot be rebound this way.
+
+The trusted account resolver must reproduce the same declaration when a stored
+generation is recovered. Derive it from the generation's pinned definition and
+the seller rule that applied to that generation. A tenant rule edit requires a
+separate configuration generation and distinct offering identity; it cannot
+rewrite a retained generation's source contract. Advertise the account's
+public offering to its authenticated caller before admitting the configuration.
+The service's static registered offerings can cover first boot, while account
+offerings bind each generation without changing the frozen source registry.
+
+Set `ReportingConfiguration.account_binding_sha256` to
+`ReportingAccountContext.binding_sha256()` before admission. The digest covers
+the account, source scope, selected source offerings, source capability checksum,
+public offering, schedule context, currency, and publication namespace. It is
+stored with the pinned definition and checked on restart. An edited rule or
+offering must create another configuration generation. Deploy readers that
+understand this definition metadata before a writer persists account bindings.
+
+`capability_block(account_id=...)` and `inject_capabilities(..., account_id=...)`
+include only that account's bound offerings plus globally registered offerings.
+Without an account ID they include globally registered offerings only. The
+installed handler takes the account ID from its trusted context. An adopter
+whose capability response is generated outside this handler must pass its
+authenticated account ID when injecting the reporting block.
