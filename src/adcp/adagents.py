@@ -2188,7 +2188,13 @@ def resolve_properties_for_agent(
     trusted, since the file is not attested. Properties identified by a
     bundle ID, store ID or venue are dropped, because a domain cannot vouch
     for them. ``allow_any_domain=True`` instead keeps the SDK 9 behavior of
-    returning every top-level property; use it only for diagnostics.
+    returning every top-level property, none of them checked against the
+    fetched domain. To see what the gate excludes (for example, to mark
+    unconfirmed inventory instead of dropping it), resolve both ways and
+    take the difference; :func:`properties_for_publisher_domain` and
+    :func:`verify_cross_domain_properties` then say which excluded
+    properties are the fetched domain's own and which another publisher
+    vouches for.
 
     Args:
         adagents_data: Parsed adagents.json data
@@ -2440,10 +2446,16 @@ AdagentsFetcher: TypeAlias = Callable[[str], Awaitable[dict[str, Any]]]
 
 @dataclass(frozen=True)
 class UnverifiedProperty:
-    """A cross-domain claim that could not be verified.
+    """A cross-domain claim that was not verified, and why.
 
-    ``domain`` is the publisher domain that did not vouch for the claim, or
-    the raw value that is not a usable hostname (``invalid_domain``).
+    ``domain`` is the publisher domain the verdict is about, or the raw
+    value that is not a usable hostname (``invalid_domain``). ``reason`` is
+    ``not_vouched`` or ``invalid_domain`` in
+    :attr:`CrossDomainVerification.unverified` (the named publisher's file
+    loaded and did not authorize the claim, or the claim names no usable
+    hostname), and ``fetch_failed`` or ``domain_limit`` in
+    :attr:`CrossDomainVerification.undetermined` (the file could not be
+    checked).
     """
 
     prop: dict[str, Any]
@@ -2455,15 +2467,26 @@ class UnverifiedProperty:
 class CrossDomainVerification:
     """Result of :func:`verify_cross_domain_properties`.
 
+    Every input property lands in exactly one list, each in input order.
+    What to do with each list is the caller's decision.
+
     ``verified``: properties on the source domain (or its subdomains) and
-    cross-domain claims every named publisher vouched for, in input order.
-    ``unverified``: cross-domain claims to drop, with the reason.
+    cross-domain claims every named publisher vouched for.
+    ``unverified``: cross-domain claims a named publisher did not vouch for
+    (its file loaded and does not authorize the claim: ``not_vouched``), or
+    that name a value that is not a usable hostname (``invalid_domain``).
+    Checking again does not change the answer until a file changes.
+    ``undetermined``: cross-domain claims that could not be checked: a
+    named publisher's file did not load (``fetch_failed``), or the call's
+    ``max_domains`` budget ran out first (``domain_limit``). No publisher
+    refused them; pass them to a later call to check them.
     ``domainless``: properties naming no domain at all, which no publisher
-    domain can vouch for; the caller decides.
+    domain can vouch for.
     """
 
     verified: list[dict[str, Any]] = field(default_factory=list)
     unverified: list[UnverifiedProperty] = field(default_factory=list)
+    undetermined: list[UnverifiedProperty] = field(default_factory=list)
     domainless: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -2536,7 +2559,7 @@ async def verify_cross_domain_properties(
     max_domains: int = 50,
     max_concurrency: int = 10,
 ) -> CrossDomainVerification:
-    """Keep only the cross-domain claims the named publishers vouch for.
+    """Sort cross-domain claims by whether the named publishers vouch for them.
 
     ``properties`` were resolved for ``agent_url`` from the adagents.json
     fetched for ``source_domain`` (``A``). A property on ``A`` or one of
@@ -2552,13 +2575,24 @@ async def verify_cross_domain_properties(
     ads.txt ``MANAGERDOMAIN``. A domain identifier is vouched for by its
     registrable domain (``shop.b.example`` by ``b.example``).
 
-    The check fails closed. A property naming several other publishers
-    needs each of them to vouch for the whole property. A fetch that fails
-    for any reason, a value that is not a hostname, and a bare entry in
-    ``B``'s file vouch for nothing. At most ``max_domains`` distinct
-    publisher domains are fetched (a hostile file cannot fan the sync out
-    to arbitrary hosts); claims beyond that are ``domain_limit``.
+    Only ``verified`` is vouched for. A property naming several other
+    publishers needs each of them to vouch for the whole property; a bare
+    entry in ``B``'s file vouches for nothing. A publisher whose file loaded
+    and does not authorize the claim, or a value that is not a hostname,
+    puts the property in ``unverified``. A fetch that fails for any reason,
+    or a domain beyond the ``max_domains`` budget, puts it in
+    ``undetermined`` instead: nobody refused it, so it can be checked
+    again. A property with both kinds of failure is ``unverified``.
     Properties that name no domain are returned in ``domainless``.
+
+    At most ``max_domains`` distinct publisher domains are fetched per call
+    (a hostile file cannot fan the check out to arbitrary hosts), taken in
+    input order. A network's file can name thousands of publishers, so for
+    large files: run the check outside the request or sync path, pass a
+    ``fetcher`` that caches documents by domain across calls, and treat
+    ``domain_limit`` as "not yet". Passing
+    ``[u.prop for u in result.undetermined]`` to the next call continues
+    with the domains the budget did not reach.
 
     Args:
         properties: Properties resolved for ``agent_url`` from ``A``'s document.
@@ -2611,29 +2645,41 @@ async def verify_cross_domain_properties(
             result.domainless.append(prop)
             continue
         if isinstance(verdict, list):
-            verdict = _first_failure(prop, verdict, fetched)
+            verdict = _failure(prop, verdict, fetched)
         if verdict is None:
             result.verified.append(prop)
+        elif verdict.reason in _UNDETERMINED_REASONS:
+            result.undetermined.append(verdict)
         else:
             result.unverified.append(verdict)
     return result
 
 
-def _first_failure(
+#: Reasons that mean the claim was not checked, rather than refused.
+_UNDETERMINED_REASONS: frozenset[str] = frozenset({"fetch_failed", "domain_limit"})
+
+
+def _failure(
     prop: dict[str, Any],
     domains: list[str],
     fetched: dict[str, list[dict[str, Any]] | None],
 ) -> UnverifiedProperty | None:
-    """The first publisher domain that does not vouch for ``prop``, if any."""
+    """Why ``prop`` is not vouched for, or None when every domain vouches.
+
+    A publisher that refuses the claim decides it, whatever the others
+    say; otherwise the first domain that could not be checked is reported.
+    """
+    undetermined: UnverifiedProperty | None = None
     for domain in domains:
         if domain not in fetched:
-            return UnverifiedProperty(prop, domain, "domain_limit")
+            undetermined = undetermined or UnverifiedProperty(prop, domain, "domain_limit")
+            continue
         authorized = fetched[domain]
         if authorized is None:
-            return UnverifiedProperty(prop, domain, "fetch_failed")
-        if not _claim_covered(prop, authorized):
+            undetermined = undetermined or UnverifiedProperty(prop, domain, "fetch_failed")
+        elif not _claim_covered(prop, authorized):
             return UnverifiedProperty(prop, domain, "not_vouched")
-    return None
+    return undetermined
 
 
 def _claim_covered(prop: dict[str, Any], authorized: list[dict[str, Any]]) -> bool:
