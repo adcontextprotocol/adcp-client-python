@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.24](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.23...v10.0.0-beta.24) (2026-11-24)
+
+
+### Features
+
+* **reporting:** support reporting scope all_media_buys for sellers ([#1945](https://github.com/adcontextprotocol/adcp-client-python/issues/1945)) ([f386ba7](https://github.com/adcontextprotocol/adcp-client-python/commit/f386ba7fdf35ad7d321e4957059a66ed1f20caf8))
+
 ## [10.0.0-beta.23](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.22...v10.0.0-beta.23) (2026-11-22)
 
 
