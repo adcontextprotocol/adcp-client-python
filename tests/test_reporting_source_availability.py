@@ -12,6 +12,8 @@ from adcp.reporting.fixtures import (
     OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
+    redacted_completed_result,
+    redacted_contract_identity,
 )
 from adcp.reporting.inline_source import (
     InlineFetchResult,
@@ -23,25 +25,41 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
     ReportingConfiguration,
+    ReportingContractualCutoffPolicy,
+    ReportingDefinitionBinding,
+    ReportingFinalityPolicy,
     ReportingObligationRecord,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     WorkerTurn,
 )
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
+    ProvisionalSnapshotOfferingV1,
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
+    ReportingSourceExecutorResult,
+    ReportingSourceSliceRequestV1,
+    ReportingSourceStagedObjectReader,
+    SourceBatchManifestV1,
+    encode_source_batch_manifest_v1,
     reporting_source_capabilities_sha256_v1,
+    source_batch_manifest_reference_v1,
 )
 from tests.test_reporting_producer_retry import FailingSource
 
 END = datetime(2026, 11, 2, tzinfo=timezone.utc)
+PROVIDER_ROW = '{"campaign_id":"campaign-redacted-1","impressions":10}\n'
 
 
 def _capabilities(*, official: bool = False, **changes: Any) -> ReportingSourceCapabilitiesV1:
     payload = redacted_capabilities().model_dump(mode="json")
     identifier = OFFICIAL_OFFERING_ID if official else SNAPSHOT_OFFERING_ID
     for offering in payload["offerings"]:
+        offering.update(
+            source_timezone="UTC", product_ids=["fixture-product", "PAID_MEDIA_DAILY_V1"]
+        )
         if offering["offering_id"] == identifier:
             offering.update(expected_availability_lag="PT1H", worst_case_availability_lag="PT6H")
             offering.update(changes)
@@ -101,12 +119,59 @@ class ProgressStore(InMemoryReportingLedgerStore):
         self.finished.append(reporting_obligation_id)
 
 
+class EvidenceSource:
+    """A provider with an explicit authoritative signal and generation-pinned staged rows."""
+
+    def __init__(
+        self,
+        capabilities: ReportingSourceCapabilitiesV1,
+        clock: list[datetime],
+        calls: list[datetime],
+    ) -> None:
+        self.capabilities = capabilities
+        self.clock = clock
+        self.calls = calls
+        self.requests: list[ReportingSourceSliceRequestV1] = []
+        self.signal: str | None = "delivery.is_final"
+        self.basis = "provider_declared"
+        self.read_delay = timedelta(0)
+        self.manifest: SourceBatchManifestV1
+        self.reader: ReportingSourceStagedObjectReader
+
+    async def execute(
+        self, request: ReportingSourceSliceRequestV1, **kwargs: Any
+    ) -> ReportingSourceExecutorResult:
+        self.calls.append(self.clock[0])
+        self.requests.append(request)
+        result, self.manifest, self.reader = redacted_completed_result(
+            request, observed_at=self.clock[0], page_bodies=[PROVIDER_ROW]
+        )
+        if request.publication_class == "AUTHORITATIVE":
+            evidence = ReportingFinalityEvidenceV1.model_validate(
+                {"basis": self.basis, "evidence_ref": self.signal, "observed_at": self.clock[0]}
+            )
+            self.manifest = self.manifest.model_copy(update={"finality_evidence": evidence})
+            raw = encode_source_batch_manifest_v1(self.manifest)
+            return ReportingSourceExecutorResult.completed(
+                request=request,
+                manifest=source_batch_manifest_reference_v1("manifest-redacted-v1", raw),
+                manifest_bytes=raw,
+            )
+        return result
+
+    async def read(self, **kwargs: Any) -> bytes:
+        rows = await self.reader.read(**kwargs)
+        self.clock[0] += self.read_delay
+        return rows
+
+
 async def _harness(
     store_class: Any = InMemoryReportingLedgerStore,
     *,
     official: bool = False,
     delivery_sla: str = "PT6H",
     capabilities: ReportingSourceCapabilitiesV1 | None = None,
+    finality_policy: ReportingFinalityPolicy | None = None,
     read_jitter_window: timedelta = timedelta(0),
     **changes: Any,
 ) -> tuple[Any, ...]:
@@ -143,6 +208,16 @@ async def _harness(
             period_duration="P1D", delivery_sla=delivery_sla, alignment="utc"
         ),
         required_finality="official" if official else "snapshot",
+        definition=(
+            ReportingDefinitionBinding(
+                **redacted_contract_identity.model_dump(
+                    exclude={"report_definition_id", "reporting_profile"}
+                ),
+                finality_policy=finality_policy,
+            )
+            if finality_policy is not None
+            else None
+        ),
         automated_recovery_window=timedelta(0),
         activated_at=END - timedelta(days=1, minutes=10),
         media_buy_ids=("media-buy-redacted",),
@@ -151,14 +226,21 @@ async def _harness(
     offerings = ProducerOfferings(
         snapshot_offering_id=SNAPSHOT_OFFERING_ID,
         official_offering_id=OFFICIAL_OFFERING_ID,
+        snapshot_requests_official_close=any(
+            isinstance(offering, ProvisionalSnapshotOfferingV1)
+            and offering.offering_id == SNAPSHOT_OFFERING_ID
+            and offering.official_close_lag is not None
+            for offering in capabilities.offerings
+        ),
         source_scope=dict(capabilities.source_scope),
         publication_namespace="reporting-source:fixture",
     )
+    provider = EvidenceSource(capabilities, clock, calls) if finality_policy is not None else None
     producer = ReportingProducer(
-        source=source,
+        source=provider or source,
         offerings=offerings,
         store=store,
-        object_reader=staging,
+        object_reader=provider or staging,
         clock=lambda: clock[0],
         read_jitter_window=read_jitter_window,
     )
@@ -191,7 +273,9 @@ async def test_snapshot_official_close_waits_for_the_authoritative_offering(
     store_class: Any, pending_lookup: bool
 ) -> None:
     producer, store, configuration, obligation, calls, clock = await _harness(
-        store_class, capabilities=_closing_capabilities()
+        store_class,
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
     )
     if not pending_lookup:
         # Custom stores can keep the original observation contract.
@@ -227,7 +311,9 @@ async def test_snapshot_official_close_waits_for_the_authoritative_offering(
 async def test_official_close_uses_its_own_worst_case_window(retryable: bool) -> None:
     capabilities = _closing_capabilities()
     producer, _, configuration, obligation, _, clock = await _harness(
-        delivery_sla="PT10M", capabilities=capabilities
+        delivery_sla="PT10M",
+        capabilities=capabilities,
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
     )
     clock[0] = END + timedelta(hours=1)
     await producer.run_configuration(configuration, now=clock[0])
@@ -295,6 +381,25 @@ async def test_zero_lag_keeps_immediate_acquisition() -> None:
     assert len(turn.revisions_committed) == 1
 
 
+@pytest.mark.parametrize("store_class", [InMemoryReportingLedgerStore, ProgressStore])
+async def test_contractual_cutoff_waits_for_snapshot_availability(store_class: Any) -> None:
+    producer, store, config, obligation, calls, clock = await _harness(
+        store_class,
+        official=True,
+        capabilities=_closing_capabilities(),
+        finality_policy=ReportingContractualCutoffPolicy("half-hour", "PT30M"),
+    )
+    clock[0] = END + timedelta(minutes=59)
+    assert not (await producer.run_configuration(config)).revisions_committed
+    assert not calls
+    if isinstance(store, ProgressStore):
+        assert obligation.reporting_obligation_id in store.pending
+    clock[0] = END + timedelta(hours=1)
+    assert len((await producer.run_configuration(config)).revisions_committed) == 1
+    assert calls == [clock[0]]
+    assert producer._source.requests[0].offering_id == SNAPSHOT_OFFERING_ID
+
+
 @pytest.mark.parametrize(
     ("period_end", "days_after", "ready_time", "expected"),
     [
@@ -319,6 +424,8 @@ async def test_authoritative_local_readiness_is_conservative_across_clock_change
     producer, _, _, obligation, _, _ = await _harness(
         official=True,
         expected_availability_lag="PT0S",
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
+        source_timezone="America/New_York",
         days_after_period_end=days_after,
         source_local_ready_time=ready_time,
     )
@@ -340,6 +447,7 @@ async def test_authoritative_readiness_uses_period_timezone_when_offering_omits_
     producer, _, _, obligation, _, _ = await _harness(
         official=True,
         source_timezone=None,
+        finality_policy=ReportingSourceFinalPolicy("delivery-v1", "delivery.is_final"),
         days_after_period_end=1,
         source_local_ready_time="06:00",
     )

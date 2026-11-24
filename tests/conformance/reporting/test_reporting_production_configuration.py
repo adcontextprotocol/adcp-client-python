@@ -22,7 +22,7 @@ from adcp.validation.schema_loader import get_named_validator
 
 from ._feed_support import feed_request, walk
 from ._generation_support import END
-from ._production_support import Source, production_harness
+from ._production_support import Source, production_harness, reference_source_final
 from ._production_transport import MountedProduction
 from ._receipt_transport import error_code
 from .test_reporting_production_bindings import source_documents
@@ -384,6 +384,14 @@ async def test_production_refuses_all_media_buys_at_admission(tmp_path):
         # source buy set per generation.
         for finality in ("snapshot", "official"):
             generation = replace(all_scope, required_finality=finality)
+            if finality == "official":
+                generation = replace(
+                    generation,
+                    definition=replace(
+                        generation.definition,
+                        finality_policy=reference_source_final(),
+                    ),
+                )
             with pytest.raises(
                 LedgerConflictError, match="per-period production source binding"
             ) as refused:

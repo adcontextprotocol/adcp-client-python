@@ -102,6 +102,7 @@ from adcp.reporting.source import (
     SourceBatchManifestV1,
     SourceBatchObjectV1,
     SourceControlTotalV1,
+    SourceFormatV1,
     _validate_metric_applicability,
     deterministic_source_publication_id_v1,
     encode_source_batch_manifest_v1,
@@ -283,6 +284,9 @@ class InlineFetchResult:
     this slice. It is retained in the manifest so a durable producer can keep
     scheduling correctly after a restart.
     """
+
+    finality_evidence: ReportingFinalityEvidenceV1 | None = field(default=None, kw_only=True)
+    """Explicit provider evidence for this publication, including its observed time and signal."""
 
     cell_availability: Mapping[str, Mapping[str, MetricEvidence]] | None = field(
         default=None, kw_only=True
@@ -714,6 +718,9 @@ class InlineReportingSource:
                 f"{sorted(unsupported)} declare evidenced manifests, which would require "
                 "per-call provider evidence this adapter cannot truthfully produce"
             )
+        for offering in capabilities.offerings:
+            if not self.supports_output_format(offering.formats):
+                raise ValueError("inline source formats must include uncompressed NDJSON")
         self._capabilities = capabilities
         self._fetch = fetch
         self._staging = staging or InMemoryStagingStore()
@@ -732,6 +739,14 @@ class InlineReportingSource:
     @property
     def capabilities(self) -> ReportingSourceCapabilitiesV1:
         return self._capabilities
+
+    @staticmethod
+    def supports_output_format(formats: Sequence[SourceFormatV1]) -> bool:
+        """The inline writer stages one uncompressed NDJSON object."""
+        return any(
+            fmt.media_type == "application/x-ndjson" and fmt.compression == "none"
+            for fmt in formats
+        )
 
     @property
     def staging(self) -> ReportingStagingStore:
@@ -1021,6 +1036,7 @@ class InlineReportingSource:
                 control_totals=control_totals,
                 warnings=warnings,
                 provisional_until=result.provisional_until,
+                finality_evidence=result.finality_evidence,
             )
 
             manifest_bytes = encode_source_batch_manifest_v1(manifest)
@@ -1196,6 +1212,7 @@ class InlineReportingSource:
         control_totals: list[SourceControlTotalV1],
         warnings: list[str],
         provisional_until: datetime | None,
+        finality_evidence: ReportingFinalityEvidenceV1 | None,
     ) -> SourceBatchManifestV1:
         coverage = SourceBatchCoverageV1(
             denominator_fingerprint=request.coverage.denominator_fingerprint,
@@ -1226,7 +1243,8 @@ class InlineReportingSource:
             "period": request.period,
             "revision_kind": request.revision_kind,
             "supersedes_publication_id": request.supersedes_publication_id,
-            "finality_evidence": ReportingFinalityEvidenceV1(
+            "finality_evidence": finality_evidence
+            or ReportingFinalityEvidenceV1(
                 basis=(
                     "provisional_observation"
                     if request.publication_class == "PROVISIONAL_SNAPSHOT"

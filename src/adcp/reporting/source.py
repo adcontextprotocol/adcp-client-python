@@ -183,6 +183,7 @@ Fingerprint = Annotated[str, StringConstraints(pattern=_FINGERPRINT_PATTERN)]
 OpaqueReference = Annotated[str, StringConstraints(pattern=_OPAQUE_REFERENCE_PATTERN)]
 Identifier = Annotated[str, StringConstraints(pattern=_IDENTIFIER_PATTERN)]
 ExternalId = Annotated[str, StringConstraints(min_length=1, max_length=255)]
+EvidenceRef = Annotated[str, StringConstraints(min_length=1, max_length=512)]
 MetricName = Annotated[str, StringConstraints(pattern=_METRIC_NAME_PATTERN)]
 Grain = Annotated[str, StringConstraints(pattern=_GRAIN_PATTERN)]
 EvidenceReason = Annotated[str, StringConstraints(pattern=_EVIDENCE_REASON_PATTERN)]
@@ -284,7 +285,7 @@ def iso_duration_milliseconds_v1(value: str) -> int:
     months and years are deliberately absent because their length depends on a
     calendar the source and the producer may not share.
     """
-    match = _ISO_DURATION_RE.match(value)
+    match = _ISO_DURATION_RE.fullmatch(value)
     if match is None:
         raise ValueError(f"{value!r} is not a supported reporting duration")
     days, hours, minutes, seconds, fraction = (
@@ -1005,7 +1006,11 @@ class ReportingFinalityEvidenceV1(_Frozen):
         "elapsed_settlement_window",
     ]
     observed_at: datetime
-    evidence_ref: ExternalId | None = None
+    evidence_ref: EvidenceRef | None = None
+    stable_since: datetime | None = Field(
+        default=None,
+        description="Source evidence timestamp preserved without deriving SDK finality policy",
+    )
     provisional_until: datetime | None = None
 
     @model_validator(mode="after")
@@ -1457,7 +1462,8 @@ class SourceBatchManifestV1(_Frozen):
         for cell in self.metric_availability:
             if cell.data_through is not None:
                 self._require_bounded_watermark(cell.data_through, "metric")
-        self._validate_authoritative_full_window(end)
+        if self.publication_class == "AUTHORITATIVE" and self.coverage.status == "full":
+            self.require_full_period_watermarks()
 
     def _require_bounded_watermark(self, value: datetime, label: str) -> None:
         moment = _aware(value, f"{label} data_through")
@@ -1475,12 +1481,9 @@ class SourceBatchManifestV1(_Frozen):
                 "the batch watermark or the requested source cutoff"
             )
 
-    def _validate_authoritative_full_window(self, end: datetime) -> None:
-        # Full official coverage is the strongest claim in the contract: it
-        # says the period is closed and complete. Data that never reached the
-        # period boundary stays delayed/stale/partial instead.
-        if self.publication_class != "AUTHORITATIVE" or self.coverage.status != "full":
-            return
+    def require_full_period_watermarks(self) -> None:
+        """Verify completeness of the batch and each available constituent and metric."""
+        end = _aware(self.period.end, "period.end")
         if _aware(self.data_through, "data_through") != end:
             raise ValueError("full authoritative coverage must prove the complete reporting window")
         for item in self.coverage.constituents:

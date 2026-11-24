@@ -15,6 +15,7 @@ from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingProducer,
+    ReportingSourceFinalPolicy,
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
@@ -35,13 +36,55 @@ from tests.test_reporting_settling import (
 )
 
 
+async def test_published_postgres_schema_upgrades_finality_evidence() -> None:
+    from adcp_reporting_storage.migrations import migrate, pending_migrations
+    from adcp_reporting_storage.storage import postgres_storage
+
+    from adcp.reporting import ReliableReportingConfigurationError
+
+    async with isolated_reporting_pool() as pool:
+        await PgReportingLedgerStore(pool=pool).create_schema()
+        await migrate(pool, contract=True)
+        async with pool.connection() as connection:
+            async with connection.transaction():
+                await connection.execute("DROP TABLE adcp_reporting_stabilization_checkpoints")
+                await connection.execute(
+                    "ALTER TABLE reporting_provisional_observations ADD CONSTRAINT "
+                    "reporting_provisional_observations_reporting_revision_id_key "
+                    "UNIQUE (reporting_revision_id)"
+                )
+                await connection.execute("DELETE FROM adcp_schema_migrations WHERE version='0010'")
+
+        storage = postgres_storage(pool=pool)
+        with pytest.raises(ReliableReportingConfigurationError, match="0010"):
+            await storage.check_schema()
+        assert [item.version for item in await pending_migrations(pool)] == ["0010"]
+        assert [item.version for item in await migrate(pool)] == ["0010"]
+        await storage.check_schema()
+        async with pool.connection() as connection:
+            table = await (
+                await connection.execute(
+                    "SELECT to_regclass('adcp_reporting_stabilization_checkpoints')"
+                )
+            ).fetchone()
+            constraint = await (
+                await connection.execute(
+                    "SELECT 1 FROM pg_constraint WHERE conname="
+                    "'reporting_provisional_observations_reporting_revision_id_key'"
+                )
+            ).fetchone()
+        assert table is not None and table[0] is not None
+        assert constraint is None
+
+
 @pytest.fixture(params=["memory", "postgres"])
 async def make_harness(request):
     if request.param == "memory":
 
-        async def build(capabilities):
+        async def build(capabilities, *, finality_policy=None):
             return await _harness(
                 capabilities,
+                finality_policy=finality_policy,
                 store_factory=lambda clock: InMemoryReportingLedgerStore(
                     clock=clock, notifications=True
                 ),
@@ -51,9 +94,10 @@ async def make_harness(request):
     else:
         async with isolated_reporting_pool() as pool:
 
-            async def build(capabilities):
+            async def build(capabilities, *, finality_policy=None):
                 return await _harness(
                     capabilities,
+                    finality_policy=finality_policy,
                     store_factory=lambda clock: PgReportingLedgerStore(
                         pool=pool, clock=clock, notifications=True
                     ),
@@ -744,7 +788,8 @@ async def test_notification_failure_rolls_back_revision_checkpoint_and_history(
 
 async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_harness):
     producer, store, fetch, clock = await make_harness(
-        _capabilities(restatement_window="PT3H", official_close_lag="PT4H")
+        _capabilities(restatement_window="PT3H", official_close_lag="PT4H"),
+        finality_policy=ReportingSourceFinalPolicy("close-v1", "fixture_closed"),
     )
     await producer.run_worker()
     source = producer._source
@@ -763,10 +808,10 @@ async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_har
     await producer.run_worker()
     assert requests[1].identity == requests[0].identity
     assert requests[1].publication_class == "PROVISIONAL_SNAPSHOT"
-    assert [revision.finality for revision in await _revisions(store)] == ["snapshot", "snapshot"]
+    assert [revision.finality for revision in await _revisions(store)] == ["snapshot"]
     await producer.run_worker()
     history = await _revisions(store)
-    assert sorted(revision.finality for revision in history) == ["official", "snapshot", "snapshot"]
+    assert sorted(revision.finality for revision in history) == ["official", "snapshot"]
     official = next(revision for revision in history if revision.finality == "official")
     assert (await latest(store)).revision_id == official.reporting_revision_id
     assert (await latest(store)).acquisition.ordinal == 2
@@ -784,7 +829,10 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
             offering.update(expected_availability_lag="PT8H", worst_case_availability_lag="PT12H")
     payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     capabilities = ReportingSourceCapabilitiesV1.model_validate(payload)
-    producer, store, _, clock = await make_harness(capabilities)
+    producer, store, _, clock = await make_harness(
+        capabilities,
+        finality_policy=ReportingSourceFinalPolicy("close-v1", "fixture_closed"),
+    )
     await producer.run_worker()
     source = producer._source
     original_fetch = source._fetch
@@ -830,7 +878,7 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
     if pending_lookup:
         assert requests[1].identity == requests[0].identity
         assert requests[1].publication_class == "PROVISIONAL_SNAPSHOT"
-    assert len(await _revisions(store)) == (2 if pending_lookup else 1)
+    assert len(await _revisions(store)) == 1
     await restarted.run_worker()
     assert len(requests) == (2 if pending_lookup else 1)
     # Waiting for the next offering must not freeze an early source cutoff.
@@ -852,7 +900,7 @@ async def test_restart_retries_frozen_snapshot_before_authoritative_readiness(
         await restarted.run_worker()
     assert requests[-1].publication_class == "AUTHORITATIVE"
     assert requests[-1].period.source_read_cutoff_at == clock[0]
-    assert len(await _revisions(store)) == 3
+    assert len(await _revisions(store)) == 2
 
 
 async def test_empty_successful_reads_still_append_observations(make_harness):

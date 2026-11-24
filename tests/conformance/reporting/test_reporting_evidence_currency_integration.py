@@ -35,9 +35,12 @@ from adcp.reporting.ledger import (
     ReportingObligationDeliveryRecord,
     ReportingObligationRecord,
     ReportingProducer,
+    ReportingSourceFinalPolicy,
 )
+from adcp.reporting.ledger.finality import manifest_finality_proof
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
+    ReportingFinalityEvidenceV1,
     ReportingSourceCoverageRequestV1,
     ReportingSourceSliceRequestV1,
     coverage_denominator_fingerprint_v1,
@@ -841,10 +844,27 @@ async def test_zero_row_snapshot_and_official_publications_coexist_in_the_record
             },
         )
 
-    script = ScriptedSource(eur=[zero, complete_fetch])
+    def closed(req: ReportingSourceSliceRequestV1) -> InlineFetchResult:
+        return replace(
+            complete_fetch(req),
+            finality_evidence=ReportingFinalityEvidenceV1(
+                basis="provider_declared", evidence_ref="delivery.closed", observed_at=h.clock()
+            ),
+        )
+
+    script = ScriptedSource(eur=[zero, closed])
     source = h.source(script.async_fetch)
     producer = h.producer(source)
+    producer._store.source_publication = h.store.source_publication
     config = configuration("eur")
+    assert config.definition is not None
+    config = replace(
+        config,
+        definition=replace(
+            config.definition,
+            finality_policy=ReportingSourceFinalPolicy("closed-delivery", "delivery.closed"),
+        ),
+    )
     await h.store.put_configuration(config)
     await drain_until_idle(producer, h.clock)
     request = script.requests[0]
@@ -867,13 +887,20 @@ async def test_zero_row_snapshot_and_official_publications_coexist_in_the_record
     h.clock.advance(timedelta(hours=1))
     official_request = producer._build_slice(
         config,
-        replace(obligation, required_finality="official"),
+        obligation,
         OFFICIAL_OFFERING_ID,
+        finality="official",
+        observation=1,
         now=h.clock(),
     )
     result = await source.execute(official_request, cancel=asyncio.Event())
     official = await h.commit_slice(
-        producer, obligation, official_request, result, finality="official"
+        producer,
+        obligation,
+        official_request,
+        result,
+        finality="official",
+        finality_proof=manifest_finality_proof(obligation, verified(result), h.clock()),
     )
     assert official.finality == "official" and official.supersedes_reporting_revision_id is None
     official_records = await publication_records(h, obligation, official, suffix="official")

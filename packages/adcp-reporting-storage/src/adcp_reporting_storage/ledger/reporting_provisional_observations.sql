@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS reporting_provisional_observations (
     account_id TEXT COLLATE "C" NOT NULL,
     reporting_obligation_id TEXT COLLATE "C" NOT NULL,
     ordinal BIGINT NOT NULL,
-    reporting_revision_id TEXT COLLATE "C" NOT NULL UNIQUE,
+    reporting_revision_id TEXT COLLATE "C" NOT NULL,
     payload JSONB NOT NULL,
     PRIMARY KEY (account_id, reporting_obligation_id, ordinal),
     CONSTRAINT provisional_observation_revision_fk
@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS reporting_provisional_observations (
         REFERENCES reporting_provisional_acquisitions
             (account_id, reporting_obligation_id, ordinal)
 );
+
+ALTER TABLE reporting_provisional_observations
+    DROP CONSTRAINT IF EXISTS reporting_provisional_observations_reporting_revision_id_key;
 
 CREATE OR REPLACE FUNCTION reporting_provisional_immutable()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -49,3 +52,14 @@ DROP TRIGGER IF EXISTS reporting_provisional_observation_immutable
 CREATE TRIGGER reporting_provisional_observation_immutable
     BEFORE UPDATE OR DELETE ON reporting_provisional_observations
     FOR EACH ROW EXECUTE FUNCTION reporting_provisional_immutable();
+
+-- Keep the historical reporting_* checkpoint catalog stable during rolling upgrades.
+-- The ordinal and clock bind this optional policy to the exact checkpoint that wrote it.
+CREATE TABLE IF NOT EXISTS adcp_reporting_stabilization_checkpoints (
+    reporting_obligation_id TEXT COLLATE "C" PRIMARY KEY
+        REFERENCES reporting_restatement_checkpoints (reporting_obligation_id) ON DELETE CASCADE,
+    next_observation BIGINT NOT NULL,
+    checked_at TIMESTAMPTZ NOT NULL,
+    stabilization_policy JSONB,
+    next_stabilization_due_at TIMESTAMPTZ
+);

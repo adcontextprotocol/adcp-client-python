@@ -64,7 +64,11 @@ def scope_id(scope: ReportingDeliveryScope) -> str:
 
 
 def verification_key_id(key: ReportingVerificationKey) -> str:
-    return hashlib.sha256(canonical_json_utf8_v1(ledger_asdict(key))).hexdigest()
+    payload = ledger_asdict(key)
+    if key.definition.finality_policy is None:
+        # Preserve persisted materializer references for keys without a selected policy.
+        del payload["definition"]["finality_policy"]
+    return hashlib.sha256(canonical_json_utf8_v1(payload)).hexdigest()
 
 
 def key_for(
