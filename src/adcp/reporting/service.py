@@ -228,6 +228,10 @@ def _validate_account_source_requirements(
             "reporting schedule cannot be served by the account source"
         ) from error
     for offering in offerings:
+        if configuration.report_definition_id not in offering.product_ids:
+            raise ReliableReportingConfigurationError(
+                "report definition is outside the account source offering products"
+            )
         if offering.source_timezone is not None and offering.source_timezone != source_timezone:
             raise ReliableReportingConfigurationError(
                 "account source timezone does not match the reporting schedule"
