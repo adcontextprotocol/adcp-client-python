@@ -156,8 +156,8 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     assert scope.name == "reporting_all_media_buys" and scope.additive
     assert scope.includes == ("ledger/reporting_ledger.sql",)
     assert shipped[9].name == "reporting_finality_evidence"
-    assert not shipped[9].contract and not shipped[9].stopped_worker
-    assert [item.version for item in shipped if item.additive] == ["0008", "0009"]
+    assert shipped[9].additive and not shipped[9].contract and not shipped[9].stopped_worker
+    assert [item.version for item in shipped if item.additive] == ["0008", "0009", "0010"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves
     lines = describe([MigrationStatus(item, None) for item in shipped])
