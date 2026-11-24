@@ -82,6 +82,7 @@ from adcp.decisioning.webhook_emit import (
     emit_terminal_completion_webhook,
 )
 from adcp.exceptions import ADCPTaskError
+from adcp.platform_ids import _dual_emit_platform_ids
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -2529,6 +2530,18 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
+        # AdCP 3.3 dual emission of platform IDs (#1639). The terminal
+        # artifact reaches tasks/get and the completion webhook as stored, so
+        # project it here for the caller's release, as the sync path does.
+        try:
+            _dual_emit_platform_ids(
+                method_name,
+                persisted,
+                adcp_version=ctx.resolved_adcp_version or ctx.application_adcp_version,
+            )
+        except ValueError as exc:
+            await _fail(AdcpError("INTERNAL_ERROR", message=str(exc), recovery="terminal"))
+            return
         # ``request.context`` is echoed into ``result`` at ``tasks/get``
         # projection time (``project_task``), from
         # ``TaskRecord.request_context`` captured at ``registry.issue()``;
