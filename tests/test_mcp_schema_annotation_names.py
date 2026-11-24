@@ -11,9 +11,11 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from jsonschema import Draft7Validator, Draft201909Validator
 from jsonschema.validators import validator_for
 
 from adcp.server import ADCPHandler, mcp_tools
+from adcp.server.mcp_tools import _compact_wire_schema, _simplify_wire_schema
 from adcp.validation import get_mcp_schema
 from adcp.validation import schema_loader as loader
 from adcp.validation.schema_loader import _strip_schema_annotations
@@ -65,7 +67,9 @@ def test_nested_properties_named_like_annotations_survive() -> None:
     assert out["properties"]["product"]["additionalProperties"] is False
 
 
-@pytest.mark.parametrize("keyword", ["patternProperties", "$defs", "definitions"])
+@pytest.mark.parametrize(
+    "keyword", ["patternProperties", "$defs", "definitions", "dependentSchemas"]
+)
 def test_name_map_keywords_keep_annotation_named_keys(keyword: str) -> None:
     schema = {
         "type": "object",
@@ -162,6 +166,57 @@ def test_annotation_keywords_are_still_removed() -> None:
         "description": "kept at the root's direct property",
         "properties": {"inner": {"type": "string"}},
     }
+
+
+_DEPENDENT_REQUIRED = {"description": ["title"]}
+_DEPENDENT_REQUIRED_SCHEMAS: dict[str, dict[str, Any]] = {
+    "direct": {"type": "object", "dependentRequired": _DEPENDENT_REQUIRED},
+    "via_defs": {
+        "type": "object",
+        "properties": {"holder": {"$ref": "#/$defs/dep"}},
+        "$defs": {"dep": {"type": "object", "dependentRequired": _DEPENDENT_REQUIRED}},
+    },
+}
+_TRANSFORMS = {
+    "strip": _strip_schema_annotations,
+    "simplify": _simplify_wire_schema,
+    "compact": _compact_wire_schema,
+}
+
+
+@pytest.mark.parametrize("transform", _TRANSFORMS)
+@pytest.mark.parametrize("shape", _DEPENDENT_REQUIRED_SCHEMAS)
+def test_dependent_required_trigger_named_like_annotation_survives(
+    shape: str, transform: str
+) -> None:
+    schema = _DEPENDENT_REQUIRED_SCHEMAS[shape]
+    invalid = {"description": "x"} if shape == "direct" else {"holder": {"description": "x"}}
+    before = list(Draft201909Validator(schema).iter_errors(invalid))
+    assert before, "fixture must reject the instance before the transform"
+
+    out = _TRANSFORMS[transform](schema)
+
+    holder = out if shape == "direct" else out["$defs"]["dep"]
+    assert holder["dependentRequired"] == _DEPENDENT_REQUIRED
+    assert list(Draft201909Validator(out).iter_errors(invalid))
+    assert not list(
+        Draft201909Validator(out).iter_errors(
+            {"description": "x", "title": "y"}
+            if shape == "direct"
+            else {"holder": {"description": "x", "title": "y"}}
+        )
+    )
+
+
+def test_array_valued_dependencies_keep_annotation_named_keys() -> None:
+    schema = {"type": "object", "dependencies": {"description": ["title"]}}
+    invalid = {"description": "x"}
+    assert list(Draft7Validator(schema).iter_errors(invalid))
+
+    out = _strip_schema_annotations(schema)
+
+    assert out["dependencies"] == {"description": ["title"]}
+    assert list(Draft7Validator(out).iter_errors(invalid))
 
 
 def test_root_property_named_title_survives_root_title_keyword_dropped() -> None:
