@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.0.0-beta.25](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.24...v10.0.0-beta.25) (2026-11-24)
+
+
+### Features
+
+* **reporting:** publish allow_partial periods over the covered denominator ([#1963](https://github.com/adcontextprotocol/adcp-client-python/issues/1963)) ([ab27a72](https://github.com/adcontextprotocol/adcp-client-python/commit/ab27a72e6c9315362d4c34af6206fbabbe5e50c7)), closes [#1961](https://github.com/adcontextprotocol/adcp-client-python/issues/1961)
+
+
+### Bug Fixes
+
+* **release:** let a storage contract bump pass the companion gate ([#1948](https://github.com/adcontextprotocol/adcp-client-python/issues/1948)) ([58116d6](https://github.com/adcontextprotocol/adcp-client-python/commit/58116d6e5fcf2f6687e40c02a8bf8981d7bc98a1)), closes [#1947](https://github.com/adcontextprotocol/adcp-client-python/issues/1947)
+
 ## [10.0.0-beta.24](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.23...v10.0.0-beta.24) (2026-11-24)
 
 
