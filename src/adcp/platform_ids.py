@@ -13,6 +13,7 @@ identifies the seller. Requests keep using ``event_source_id`` and
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any
 
 __all__ = ["platform_id_of"]
@@ -83,3 +84,19 @@ def _dual_emit_platform_ids(task: str, payload: Any, *, adcp_version: str | None
             row["platform_id"] = value
         else:
             row.pop("platform_id", None)
+
+
+def _dual_emitted(task: str, result: Any) -> Any:
+    """A stored task artifact with both platform ID names, as a copy.
+
+    Task registries persist a terminal artifact once and serve it to every
+    later reader (``tasks/get``, the completion webhook) whatever release
+    each negotiated, so it carries both names. Returns ``result`` itself for
+    any other task. Raises :class:`ValueError` on a mismatch, like
+    :func:`_dual_emit_platform_ids`.
+    """
+    if task not in _RESULT_ARRAYS or not isinstance(result, dict):
+        return result
+    copied = deepcopy(result)
+    _dual_emit_platform_ids(task, copied, adcp_version=None)
+    return copied

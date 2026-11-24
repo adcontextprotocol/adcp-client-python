@@ -82,7 +82,7 @@ from adcp.decisioning.webhook_emit import (
     emit_terminal_completion_webhook,
 )
 from adcp.exceptions import ADCPTaskError
-from adcp.platform_ids import _dual_emit_platform_ids
+from adcp.platform_ids import _dual_emitted
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -2530,15 +2530,14 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
-        # AdCP 3.3 dual emission of platform IDs (#1639). The terminal
-        # artifact reaches tasks/get and the completion webhook as stored, so
-        # project it here for the caller's release, as the sync path does.
+        # AdCP 3.3 dual emission of platform IDs (#1639). The stored terminal
+        # artifact serves every later reader (tasks/get, the completion
+        # webhook) whatever release each negotiated, so it carries both names.
+        # The registries apply the same rule to complete() calls made outside
+        # this path (WorkflowHandoff); checking here fails the task instead of
+        # raising from registry.complete.
         try:
-            _dual_emit_platform_ids(
-                method_name,
-                persisted,
-                adcp_version=ctx.resolved_adcp_version or ctx.application_adcp_version,
-            )
+            persisted = _dual_emitted(method_name, persisted)
         except ValueError as exc:
             await _fail(AdcpError("INTERNAL_ERROR", message=str(exc), recovery="terminal"))
             return

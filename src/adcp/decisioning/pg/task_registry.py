@@ -72,6 +72,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.decisioning.task_registry import TaskWebhookAuthentication, _TaskLifecycleObservers
+from adcp.platform_ids import _dual_emitted
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -455,8 +456,11 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             async with conn.transaction():
                 type_cursor = await conn.execute(self._sql_get_task_type, (task_id,))
                 type_row = await type_cursor.fetchone()
+                # Both platform ID names, as InMemoryTaskRegistry.complete does.
                 safe_result = (
-                    strip_credentials_from_wire_result(type_row[0], result)
+                    _dual_emitted(
+                        type_row[0], strip_credentials_from_wire_result(type_row[0], result)
+                    )
                     if type_row is not None
                     else result
                 )
@@ -480,7 +484,9 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                 if row is None:
                     raise ValueError(f"Task {task_id!r} not found")
                 state, existing_result, task_type = row
-                safe_result = strip_credentials_from_wire_result(task_type, result)
+                safe_result = _dual_emitted(
+                    task_type, strip_credentials_from_wire_result(task_type, result)
+                )
                 if state == "completed":
                     if existing_result == safe_result:
                         return None  # idempotent
