@@ -499,7 +499,7 @@ async def test_distinct_concurrent_writes_take_dense_unique_feed_sequences(
 ) -> None:
     """Order-independent records for one principal must not collide or lose a sequence."""
     store, clock = reconciliation_store
-    s = await scenario(store)
+    s = await scenario(store, billing=False, finality="snapshot")
     clock.now = END + timedelta(seconds=60)
     await store.commit_materialization(s.outcome)
     rows = (
@@ -508,11 +508,13 @@ async def test_distinct_concurrent_writes_take_dense_unique_feed_sequences(
         )
     ).rows
     attempts = []
+    predecessor = s.revision
     for index in range(4):
         identifier = f"concurrent-revision-{index}"
         revision = replace(
             s.revision,
             reporting_revision_id=identifier,
+            supersedes_reporting_revision_id=predecessor.reporting_revision_id,
             finality="snapshot",
             finality_basis=None,
             finality_policy_id=None,
@@ -525,7 +527,7 @@ async def test_distinct_concurrent_writes_take_dense_unique_feed_sequences(
                 control_total_evidence=s.revision.managed_control_totals,
             ),
         )
-        await store.commit_revision(revision, rows)
+        predecessor = await store.commit_revision(revision, rows)
         # Each attempt is the first for its own revision, so validity does not
         # depend on which of them the store happens to serialize first.
         attempts.append(

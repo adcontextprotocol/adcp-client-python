@@ -126,6 +126,7 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
         "0007",
         "0008",
         "0009",
+        "0010",
     ]
     widened, offerings, contract, events = shipped[1], shipped[5], shipped[6], shipped[7]
     scope = shipped[8]
@@ -154,6 +155,8 @@ def test_migrations_are_numbered_files_with_their_upgrade_notes() -> None:
     # The configuration scope mode is one defaulted column: additive too.
     assert scope.name == "reporting_all_media_buys" and scope.additive
     assert scope.includes == ("ledger/reporting_ledger.sql",)
+    assert shipped[9].name == "reporting_finality_evidence"
+    assert not shipped[9].contract and not shipped[9].stopped_worker
     assert [item.version for item in shipped if item.additive] == ["0008", "0009"]
     for item in shipped:
         assert item.statements(), item.version  # every include resolves

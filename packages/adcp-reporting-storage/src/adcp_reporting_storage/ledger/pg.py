@@ -137,7 +137,11 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
-from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalPolicy,
+)
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
@@ -152,7 +156,10 @@ from adcp.reporting.ledger.store import (
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
     validate_managed_revision_rows,
+    validate_provisional_revision,
+    validate_retained_provisional_observation,
     validate_revision_currency,
+    validate_snapshot_origin,
 )
 from adcp_reporting_storage.contract import STORAGE_CONTRACT, require_adcp_contract
 from adcp_reporting_storage.ledger.row_storage import (
@@ -207,6 +214,12 @@ _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 _CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
 _RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
+_PROVISIONAL_HISTORY_TABLES = (
+    "reporting_provisional_acquisitions",
+    "reporting_provisional_observations",
+)
+_STABILIZATION_TABLE = "adcp_reporting_stabilization_checkpoints"
+_BIGINT_MAX = 2**63 - 1
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -833,6 +846,48 @@ class PgReportingLedgerStore:
         from adcp_reporting_storage.outbox._schema import validate_provisional_schema
 
         await validate_provisional_schema(connection)
+
+    @staticmethod
+    async def _provisional_tables(connection: Any) -> set[str]:
+        """Resolve the same tables as the ledger statements and reject split schemas."""
+        names = [
+            "reporting_restatement_checkpoints",
+            _STABILIZATION_TABLE,
+            *_PROVISIONAL_HISTORY_TABLES,
+        ]
+        rows = await (
+            await connection.execute(
+                "SELECT c.relname, c.relnamespace = ("
+                " SELECT ledger.relnamespace FROM pg_catalog.pg_class ledger"
+                " WHERE ledger.relname='reporting_obligations'"
+                " AND pg_catalog.pg_table_is_visible(ledger.oid))"
+                " FROM unnest(%s::text[]) AS requested(name)"
+                " JOIN pg_catalog.pg_class c ON c.relname=requested.name"
+                " AND pg_catalog.pg_table_is_visible(c.oid)",
+                (names,),
+            )
+        ).fetchall()
+        for name, in_ledger in rows:
+            if not in_ledger:
+                raise LedgerConflictError(
+                    "PROVISIONAL_SCHEMA_UNREADY",
+                    f"provisional_schema_unready:outside_ledger:{name}",
+                )
+        return {name for name, _ in rows}
+
+    @staticmethod
+    def _stabilization_checkpoint_join(tables: set[str]) -> str:
+        """Join private policy metadata when reading a checkpoint on either schema version."""
+        if _STABILIZATION_TABLE in tables:
+            return (
+                " LEFT JOIN adcp_reporting_stabilization_checkpoints s"
+                " ON s.reporting_obligation_id=c.reporting_obligation_id"
+                " AND s.next_observation=c.next_observation AND s.checked_at=c.checked_at"
+            )
+        return (
+            " CROSS JOIN (SELECT NULL::jsonb AS stabilization_policy,"
+            " NULL::timestamptz AS next_stabilization_due_at) s"
+        )
 
     async def _notification_now(self, connection: Any) -> datetime:
         from adcp_reporting_storage.outbox.pg import database_now
@@ -1649,8 +1704,51 @@ class PgReportingLedgerStore:
                     "this period is being retired; no revision may be added to it",
                 )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
+            tables = await self._provisional_tables(connection)
+            if not tables.isdisjoint(_PROVISIONAL_HISTORY_TABLES):
+                pending = await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_provisional_acquisitions a"
+                        " LEFT JOIN reporting_restatement_checkpoints c"
+                        " USING (account_id, reporting_obligation_id)"
+                        " WHERE a.account_id=%s AND a.reporting_obligation_id=%s"
+                        " AND a.ordinal >= COALESCE(c.next_observation, 0) LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+                if pending is not None:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "a source acquisition is reserved"
+                    )
+            if (
+                revision.finality == "snapshot"
+                and await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions WHERE account_id=%s"
+                        " AND reporting_obligation_id=%s AND finality='official' LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+            ):
+                raise LedgerConflictError(
+                    "OFFICIAL_REVISION_TERMINAL",
+                    "a new snapshot cannot follow the official revision",
+                )
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
+            elif (
+                revision.finality == "snapshot"
+                and await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions WHERE account_id=%s"
+                        " AND reporting_obligation_id=%s LIMIT 1",
+                        (revision.account_id, revision.reporting_obligation_id),
+                    )
+                ).fetchone()
+            ):
+                raise LedgerConflictError(
+                    "SUPERSEDES_STALE", "the obligation already has a snapshot root"
+                )
             write_error = None
             try:
                 await connection.execute(
@@ -1865,6 +1963,7 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str, ordinal: int
     ) -> ProvisionalAcquisition | None:
         async with self._connection() as connection:
+            await self._provisional_tables(connection)
             row = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_acquisitions"
@@ -1943,32 +2042,123 @@ class PgReportingLedgerStore:
     async def get_provisional_observation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ProvisionalObservation | None:
+        history = await self.list_provisional_observations(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id, limit=1
+        )
+        return history[0] if history else None
+
+    async def verify_snapshot_origin(self, revision: ReportingRevisionRecord) -> None:
+        async with self._connection() as connection:
+            await self._provisional_tables(connection)
+            witness = await (
+                await connection.execute(
+                    "SELECT origin FROM (SELECT COALESCE("
+                    " CASE WHEN payload #>> '{acquisition,predecessor_revision_id}'"
+                    " IS DISTINCT FROM reporting_revision_id"
+                    " THEN payload #>> '{manifest,publication_id}' END,"
+                    " payload->>'revision_publication_id') AS origin, ordinal"
+                    " FROM reporting_provisional_observations WHERE account_id=%s"
+                    " AND reporting_obligation_id=%s AND reporting_revision_id=%s) refs"
+                    " WHERE origin IS NOT NULL ORDER BY ordinal LIMIT 1",
+                    (
+                        revision.account_id,
+                        revision.reporting_obligation_id,
+                        revision.reporting_revision_id,
+                    ),
+                )
+            ).fetchone()
+        if witness is not None:
+            validate_snapshot_origin(revision, witness[0])
+
+    async def get_stabilization_schedule(
+        self, generation: ReportingConfigurationGenerationKey
+    ) -> ProvisionalPolicy | None:
+        async with self._connection() as connection:
+            # configure() can precede schema creation on a brand-new installation.
+            tables = await self._provisional_tables(connection)
+            if tables.isdisjoint(_PROVISIONAL_HISTORY_TABLES):
+                return None
+            await self._require_provisional_schema(connection)
+            policy_join = self._stabilization_checkpoint_join(tables)
+            row = await (
+                await connection.execute(
+                    "SELECT a.payload->'policy' FROM reporting_obligations o"  # noqa: S608  # nosec B608
+                    " JOIN reporting_provisional_acquisitions a"
+                    " USING(account_id, reporting_obligation_id)"
+                    " LEFT JOIN reporting_provisional_observations h"
+                    " USING(account_id, reporting_obligation_id, ordinal)"
+                    " LEFT JOIN reporting_restatement_checkpoints c"
+                    " USING(account_id, reporting_obligation_id)"
+                    f"{policy_join}"
+                    " WHERE o.account_id=%s AND o.consumer_id=%s AND o.delivery_config_id=%s"
+                    " AND o.delivery_config_version=%s"
+                    " AND a.payload #>> '{request,trigger}' = 'scheduled_poll'"
+                    " AND a.payload #>> '{request,publication_class}'"
+                    " = 'PROVISIONAL_SNAPSHOT'"
+                    " AND (a.payload->>'output_finality' IS NULL OR (h.ordinal IS NULL"
+                    " AND a.payload->>'output_finality'='official'"
+                    " AND a.payload #>> '{policy,until_stabilized}' IS DISTINCT FROM 'true'))"
+                    " AND (h.ordinal IS NOT NULL OR c.next_observation IS NULL"
+                    " OR c.next_observation=a.ordinal OR (c.next_observation>a.ordinal"
+                    " AND s.stabilization_policy=a.payload->'policy'))"
+                    " AND (o.required_finality='official'"
+                    " OR a.payload #>> '{policy,until_stabilized}' = 'true'"
+                    " OR a.payload #>> '{policy,official_close_lag_us}' IS NOT NULL)"
+                    " ORDER BY (h.ordinal IS NOT NULL) DESC,"
+                    " COALESCE(h.payload->>'checked_at',"
+                    " a.payload #>> '{request,period,source_read_cutoff_at}')::timestamptz DESC,"
+                    " a.ordinal DESC LIMIT 1",
+                    (
+                        generation.account_id,
+                        generation.consumer_id,
+                        generation.delivery_config_id,
+                        generation.delivery_config_version,
+                    ),
+                )
+            ).fetchone()
+        return ProvisionalPolicy.from_wire(row[0]) if row is not None else None
+
+    async def list_provisional_observations(
+        self,
+        *,
+        account_id: str,
+        reporting_obligation_id: str,
+        limit: int,
+        scheduled_snapshots_only: bool = False,
+    ) -> tuple[ProvisionalObservation, ...]:
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("observation history limit must be a positive integer")
         async with self._connection() as connection:
             await self._require_provisional_schema(connection)
-            row = await (
+            rows = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_observations"
                     " WHERE account_id=%s AND reporting_obligation_id=%s"
-                    " ORDER BY ordinal DESC LIMIT 1",
-                    (account_id, reporting_obligation_id),
+                    " AND (NOT %s OR ("
+                    " payload #>> '{acquisition,request,trigger}' = 'scheduled_poll'"
+                    " AND payload #>> '{acquisition,request,publication_class}'"
+                    " = 'PROVISIONAL_SNAPSHOT'"
+                    " AND payload #>> '{acquisition,output_finality}' IS NULL))"
+                    " ORDER BY ordinal DESC LIMIT %s",
+                    (
+                        account_id,
+                        reporting_obligation_id,
+                        scheduled_snapshots_only,
+                        min(limit, _BIGINT_MAX),
+                    ),
                 )
-            ).fetchone()
-        return ProvisionalObservation.from_wire(row[0]) if row else None
+            ).fetchall()
+        return tuple(ProvisionalObservation.from_wire(row[0]) for row in reversed(rows))
 
     async def commit_provisional_observation(
         self,
         observation: ProvisionalObservation,
-        revision: ReportingRevisionRecord,
+        revision: ReportingRevisionRecord | None,
         rows: Sequence[dict[str, Any]],
     ) -> ReportingRevisionRecord:
         acquisition = observation.acquisition
         key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
-        if (
-            revision.account_id != acquisition.account_id
-            or revision.reporting_obligation_id != acquisition.obligation_id
-            or revision.reporting_revision_id != observation.revision_id
-        ):
-            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        reuse_candidate = validate_provisional_revision(observation, revision)
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, acquisition.account_id)
             await self._require_provisional_schema(connection)
@@ -1981,6 +2171,7 @@ class PgReportingLedgerStore:
                     "OBSERVATION_CONFLICT",
                     "observation replay differs: acquisition does not bind this obligation",
                 )
+            require_origin = acquisition.requires_snapshot_origin(obligation)
             existing = await (
                 await connection.execute(
                     "SELECT reporting_revision_id,payload FROM reporting_provisional_observations"
@@ -2002,8 +2193,21 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
+                validate_snapshot_origin(
+                    retained_revision, retained_observation.revision_publication_id
+                )
+                if require_origin and retained_revision.finality == "snapshot":
+                    await self.verify_snapshot_origin(retained_revision)
+                    validate_snapshot_origin(retained_revision, observation.revision_publication_id)
                 # Reuse the immutable publication replay checks while holding
                 # the observation's account lock and transaction.
+                reused = reuse_candidate and existing[0] == observation.revision_id
+                if retained_revision.finality == "snapshot" or revision is None or reused:
+                    validate_retained_provisional_observation(
+                        retained_revision, retained_observation, rows
+                    )
+                if revision is None or reused:
+                    return retained_revision
                 return await self.commit_revision(revision, rows)
             reserved = await (
                 await connection.execute(
@@ -2020,21 +2224,67 @@ class PgReportingLedgerStore:
             )
             if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
-            committed = await self.commit_revision(revision, rows)
+            # Consume the reservation under the account lock. Failure of the
+            # ordinary revision write also rolls this checkpoint back.
             await self.record_restatement_checkpoint(
-                RestatementCheckpoint(
-                    acquisition.account_id,
-                    acquisition.obligation_id,
-                    observation.checked_at,
-                    acquisition.ordinal + 1,
-                    observation.provisional_until,
+                RestatementCheckpoint.after_acquisition(
+                    acquisition, observation.checked_at, observation.provisional_until, checkpoint
                 )
             )
+            if revision is None or reuse_candidate:
+                if acquisition.predecessor_revision_id != observation.revision_id:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor differs"
+                    )
+                committed = await self.get_revision(
+                    account_id=acquisition.account_id,
+                    reporting_revision_id=observation.revision_id,
+                )
+                if (
+                    committed is None
+                    or committed.finality != "snapshot"
+                    or committed.reporting_obligation_id != acquisition.obligation_id
+                ):
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "snapshot predecessor is missing"
+                    )
+                current = await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_revisions"
+                        " WHERE account_id=%s AND reporting_obligation_id=%s"
+                        " AND finality='snapshot' AND supersedes_reporting_revision_id=%s"
+                        " LIMIT 1",
+                        (*key[:2], observation.revision_id),
+                    )
+                ).fetchone()
+                if current is not None:
+                    raise LedgerConflictError(
+                        "OBSERVATION_CONFLICT", "snapshot predecessor is no longer current"
+                    )
+                if require_origin:
+                    await self.verify_snapshot_origin(committed)
+                validate_retained_provisional_observation(
+                    committed,
+                    observation.bind_revision(committed, require_origin=require_origin),
+                    rows,
+                    require_readable=False,
+                    require_origin=require_origin,
+                )
+                if not committed.readable:
+                    if revision is None:
+                        raise LedgerConflictError(
+                            "HISTORY_UNAVAILABLE", "snapshot predecessor is not readable"
+                        )
+                    committed = await self.commit_revision(revision, rows)
+                    observation = replace(observation, revision_id=committed.reporting_revision_id)
+            else:
+                committed = await self.commit_revision(revision, rows)
+            observation = observation.bind_revision(committed, require_origin=require_origin)
             await connection.execute(
                 "INSERT INTO reporting_provisional_observations"
                 " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
                 " VALUES (%s,%s,%s,%s,%s::jsonb)",
-                (*key, revision.reporting_revision_id, _json(observation.to_wire())),
+                (*key, committed.reporting_revision_id, _json(observation.to_wire())),
             )
             return committed
 
@@ -2096,12 +2346,15 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str
     ) -> RestatementCheckpoint | None:
         async with self._connection() as connection:
+            tables = await self._provisional_tables(connection)
+            policy_join = self._stabilization_checkpoint_join(tables)
             row = await (
                 await connection.execute(
-                    "SELECT account_id, reporting_obligation_id, checked_at,"
-                    " next_observation, provisional_until"
-                    " FROM reporting_restatement_checkpoints"
-                    " WHERE account_id = %s AND reporting_obligation_id = %s",
+                    "SELECT c.account_id, c.reporting_obligation_id, c.checked_at,"  # noqa: S608  # nosec B608
+                    " c.next_observation, c.provisional_until, s.stabilization_policy,"
+                    " s.next_stabilization_due_at"
+                    f" FROM reporting_restatement_checkpoints c{policy_join}"
+                    " WHERE c.account_id = %s AND c.reporting_obligation_id = %s",
                     (account_id, reporting_obligation_id),
                 )
             ).fetchone()
@@ -2113,12 +2366,15 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
+            stabilization_policy=ProvisionalPolicy.from_wire(row[5]) if row[5] else None,
+            next_stabilization_due_at=_utc(row[6]) if row[6] else None,
         )
 
     async def record_restatement_checkpoint(
         self, checkpoint: RestatementCheckpoint
     ) -> RestatementCheckpoint:
-        async with self._connection() as connection:
+        async with self._connection() as connection, connection.transaction():
+            await self._provisional_tables(connection)
             obligation = await (
                 await connection.execute(
                     "SELECT 1 FROM reporting_obligations"
@@ -2159,6 +2415,31 @@ class PgReportingLedgerStore:
                     ),
                 )
             ).fetchone()
+            if row and (
+                checkpoint.stabilization_policy is not None
+                or checkpoint.next_stabilization_due_at is not None
+            ):
+                await connection.execute(
+                    "INSERT INTO adcp_reporting_stabilization_checkpoints"
+                    " (reporting_obligation_id, next_observation, checked_at,"
+                    " stabilization_policy, next_stabilization_due_at)"
+                    " VALUES (%s, %s, %s, %s::jsonb, %s)"
+                    " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
+                    " next_observation=EXCLUDED.next_observation, checked_at=EXCLUDED.checked_at,"
+                    " stabilization_policy=EXCLUDED.stabilization_policy,"
+                    " next_stabilization_due_at=EXCLUDED.next_stabilization_due_at",
+                    (
+                        checkpoint.reporting_obligation_id,
+                        checkpoint.next_observation,
+                        checkpoint.checked_at,
+                        (
+                            json.dumps(checkpoint.stabilization_policy.to_wire())
+                            if checkpoint.stabilization_policy is not None
+                            else None
+                        ),
+                        checkpoint.next_stabilization_due_at,
+                    ),
+                )
         if row is None:
             stored = await self.get_restatement_checkpoint(
                 account_id=checkpoint.account_id,
@@ -2176,6 +2457,12 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
+            stabilization_policy=checkpoint.stabilization_policy,
+            next_stabilization_due_at=(
+                _utc(checkpoint.next_stabilization_due_at)
+                if checkpoint.next_stabilization_due_at is not None
+                else None
+            ),
         )
 
     async def get_revision(

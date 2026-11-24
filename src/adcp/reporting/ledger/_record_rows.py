@@ -18,6 +18,7 @@ from typing import Any
 
 from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
 from adcp.reporting.ledger.coverage import ReportingCoverageRecord
+from adcp.reporting.ledger.finality import reporting_finality_policy_from_storage
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -128,7 +129,13 @@ def _definition_payload(
 
 
 def _definition_from_payload(payload: dict[str, Any] | None) -> ReportingDefinitionBinding | None:
-    return ReportingDefinitionBinding(**payload) if payload else None
+    if not payload:
+        return None
+    fields = dict(payload)
+    policy = None
+    if "finality_policy" in fields:
+        policy = reporting_finality_policy_from_storage(fields.pop("finality_policy"))
+    return ReportingDefinitionBinding(**fields, finality_policy=policy)
 
 
 def _schedule_from_payload(payload: dict[str, Any]) -> ReportingScheduleSpec:

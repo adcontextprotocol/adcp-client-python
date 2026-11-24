@@ -493,7 +493,7 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
     from adcp.reporting.ledger import ReportingRevisionReceiptRecord
     from adcp.reporting.ledger.delivery import receipt_to_wire
 
-    from ._production_support import production_harness
+    from ._production_support import production_harness, reference_source_final
     from ._production_transport import MountedProduction
     from ._projection_support import drain
     from .test_reporting_production_lifecycle import observed_now
@@ -505,6 +505,7 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
         count=3,
         source_publication=True,
         reconciled=reconciled,
+        finality_policy=reference_source_final() if reconciled else None,
         adcp_version=version,
     ) as h:
         support, item = h.production, h.item

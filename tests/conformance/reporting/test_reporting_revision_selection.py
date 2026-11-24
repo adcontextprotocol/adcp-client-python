@@ -11,11 +11,13 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     LedgerConflictError,
     ProducerOfferings,
+    ReportingContractualCutoffPolicy,
     ReportingProducer,
     current_required_revision,
     project_obligation_health,
     select_reporting_revision,
 )
+from adcp.reporting.ledger.finality import manifest_finality_proof
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import (
     ReportingStatusSnapshot,
@@ -28,7 +30,7 @@ from adcp.reporting.outbox import ReportingStatusScope
 from adcp.reporting.revision_selection import RevisionHistoryEntry
 
 from ._generation_support import NOW, UncalledSource, configuration, obligation_for, revision_for
-from ._reliable_support import complete_fetch, reliable_factory
+from ._reliable_support import complete_fetch, reliable_factory, verified
 from ._reliable_support import configuration as reliable_configuration
 from .test_reporting_notification_outbox import statement
 
@@ -241,28 +243,42 @@ def test_unreadable_official_never_falls_back_to_materialized_snapshot():
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
-async def test_snapshot_restatement_after_an_official_close_keeps_one_chain(backend):
-    """A retained official close must never be mistaken for the snapshot leaf.
-
-    Whole-history selection answers "what does this obligation currently
-    publish", and a unique official wins that outright. Reusing that answer to
-    choose ``supersedes`` roots the next restatement at ``None``, so the
-    obligation ends up with two snapshot roots -- ``disconnected_snapshot_history``
-    over immutable rows, which every selector caller then parks for a repair
-    nothing in the SDK can perform.
-    """
+async def test_official_close_preserves_the_snapshot_chain_and_rejects_restatement(backend):
     async with reliable_factory(backend) as h:
         config = reliable_configuration("eur")
+        config = replace(
+            config,
+            definition=replace(
+                config.definition,
+                finality_policy=ReportingContractualCutoffPolicy("period-close", "PT0S"),
+            ),
+        )
         await h.store.put_configuration(config)
         producer = h.producer(h.source(complete_fetch), managed=False)
         (obligation,) = await producer.close_elapsed_periods(config)
 
         async def commit(observation, finality):
             request = producer._build_slice(  # noqa: SLF001 - the suite's slice fixture
-                config, obligation, SNAPSHOT_OFFERING_ID, now=h.clock(), observation=observation
+                config,
+                obligation,
+                SNAPSHOT_OFFERING_ID,
+                finality=finality,
+                now=h.clock(),
+                observation=observation,
             )
             result = await producer._source.execute(request, cancel=asyncio.Event())  # noqa: SLF001
-            return await h.commit_slice(producer, obligation, request, result, finality=finality)
+            return await h.commit_slice(
+                producer,
+                obligation,
+                request,
+                result,
+                finality=finality,
+                finality_proof=(
+                    manifest_finality_proof(obligation, verified(result), h.clock())
+                    if finality == "official"
+                    else None
+                ),
+            )
 
         first = await commit(0, "snapshot")
         second = await commit(1, "snapshot")
@@ -271,13 +287,20 @@ async def test_snapshot_restatement_after_an_official_close_keeps_one_chain(back
         assert second.supersedes_reporting_revision_id == first.reporting_revision_id
         assert official.supersedes_reporting_revision_id is None
 
-        restated = await commit(3, "snapshot")
-        assert restated.supersedes_reporting_revision_id == second.reporting_revision_id
+        with pytest.raises(LedgerConflictError) as error:
+            await commit(3, "snapshot")
+        assert error.value.code == "OFFICIAL_REVISION_TERMINAL"
+        assert await commit(1, "snapshot") == second
 
         history = await h.store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
+        assert {revision.reporting_revision_id for revision in history} == {
+            first.reporting_revision_id,
+            second.reporting_revision_id,
+            official.reporting_revision_id,
+        }
         selection = select_reporting_revision(
             history,
             account_id=obligation.account_id,
