@@ -46,7 +46,7 @@ class CatalogProbe:
             assert parameters == (oids,)
         assert self.calls[5][1] == FUNCTION
         assert [(row[0], row[1]) for row in self.calls[5][2]] == [FUNCTION]
-        assert [len(rows) for _, _, rows in self.calls] == [2, 10, 8, 4, 2, 1]
+        assert [len(rows) for _, _, rows in self.calls] == [2, 10, 7, 3, 2, 1]
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
@@ -68,14 +68,14 @@ async def test_exact_catalog_scope_preserves_full_contract_and_excludes_overload
                 .read_text()
             )
         )
-    assert len(expected) == 803 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27
+    assert len(expected) == 801 and len(PROVISIONAL_REQUIRED_OBJECTS) == 25
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         await PgReportingReceiptStore(pool=pool).create_schema()
         async with pool.connection() as connection:
             full = CatalogProbe(connection)
             assert await schema_objects(full) == expected
             assert len(full.calls) == 6
-            assert sum(len(rows) for _, _, rows in full.calls) == 803
+            assert sum(len(rows) for _, _, rows in full.calls) == 801
             await connection.execute(
                 "CREATE TABLE reporting_unrelated_catalog_scope (value integer);"
                 " CREATE FUNCTION reporting_provisional_immutable(integer) RETURNS integer"
