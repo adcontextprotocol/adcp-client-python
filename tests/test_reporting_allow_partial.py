@@ -132,7 +132,7 @@ async def _period_view(store) -> dict[str, Any]:
 
 
 def test_full_generations_keep_their_exact_stored_bytes_and_digests() -> None:
-    explicit = _configuration()
+    explicit = _configuration(definition=None)
     all_scope = _all_scope()
     assert explicit.coverage_requirement == all_scope.coverage_requirement == "full"
     for configuration in (explicit, all_scope):
