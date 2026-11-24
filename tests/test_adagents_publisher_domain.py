@@ -297,6 +297,10 @@ def reasons(result: CrossDomainVerification) -> dict[str, tuple[str, str]]:
     return {u.prop["property_id"]: (u.domain, u.reason) for u in result.unverified}
 
 
+def undetermined(result: CrossDomainVerification) -> dict[str, tuple[str, str]]:
+    return {u.prop["property_id"]: (u.domain, u.reason) for u in result.undetermined}
+
+
 async def test_own_domain_claims_need_no_fetch() -> None:
     calls: list[str] = []
     props = [
@@ -306,7 +310,8 @@ async def test_own_domain_claims_need_no_fetch() -> None:
     ]
     result = await verify(props, {}, calls)
     assert result.verified == props
-    assert result.unverified == [] and result.domainless == [] and calls == []
+    assert result.unverified == [] and result.undetermined == []
+    assert result.domainless == [] and calls == []
 
 
 async def test_claim_vouched_by_the_named_publishers_own_file() -> None:
@@ -385,7 +390,8 @@ async def test_every_named_publisher_must_vouch() -> None:
     claim = site("both", "b.com", "c.com")
     documents: dict[str, dict[str, Any] | Exception] = {"b.com": inline_file(claim)}
     result = await verify([claim], documents)
-    assert reasons(result) == {"both": ("c.com", "fetch_failed")}
+    assert result.verified == [] and reasons(result) == {}
+    assert undetermined(result) == {"both": ("c.com", "fetch_failed")}
     documents["c.com"] = inline_file(claim)
     assert (await verify([claim], documents)).verified == [claim]
 
@@ -401,12 +407,14 @@ async def test_every_named_publisher_must_vouch() -> None:
 )
 async def test_any_fetch_failure_vouches_for_nothing(failure: Exception) -> None:
     result = await verify([site("b", "b.com")], {"b.com": failure})
-    assert reasons(result) == {"b": ("b.com", "fetch_failed")}
+    assert result.verified == [] and reasons(result) == {}
+    assert undetermined(result) == {"b": ("b.com", "fetch_failed")}
 
 
 async def test_malformed_vouching_document_vouches_for_nothing() -> None:
     result = await verify([site("b", "b.com")], {"b.com": {"not": "adagents"}})
-    assert reasons(result) == {"b": ("b.com", "fetch_failed")}
+    assert result.verified == [] and reasons(result) == {}
+    assert undetermined(result) == {"b": ("b.com", "fetch_failed")}
 
 
 async def test_unusable_domain_values_fail_closed() -> None:
@@ -443,7 +451,9 @@ async def test_fetch_fanout_is_bounded() -> None:
     result = await verify(props, documents, calls, max_domains=2)
     assert calls == ["pub0.com", "pub1.com"]
     assert result.verified == props[:2]
-    assert [u.reason for u in result.unverified] == ["domain_limit"] * 3
+    assert result.unverified == []
+    assert [u.reason for u in result.undetermined] == ["domain_limit"] * 3
+    assert [u.prop for u in result.undetermined] == props[2:]
     with pytest.raises(ValueError):
         await verify(props, documents, max_domains=0)
 
@@ -456,7 +466,93 @@ async def test_domainless_properties_are_reported_separately_and_order_is_kept()
     assert result.verified == [vouched, own]
     assert result.domainless == [bundle]
     assert isinstance(result.unverified, list) and not result.unverified
+    assert isinstance(result.undetermined, list) and not result.undetermined
     assert UnverifiedProperty(own, "x", "not_vouched").prop is own
+
+
+async def test_every_input_lands_in_exactly_one_list_in_input_order() -> None:
+    vouched = site("vouched", "b.com")
+    own = site("own", "network.com")
+    refused = site("refused", "c.com")
+    bundle = app("app", "com.network.app")
+    bad = site("bad", "10.0.0.1")
+    failed = site("failed", "d.com")
+    limited = site("limited", "e.com")
+    unchecked = [vouched, own, refused, bundle, bad, failed, limited]
+    documents: dict[str, dict[str, Any] | Exception] = {
+        "b.com": inline_file(vouched),
+        "c.com": inline_file(site("x", "c.com"), agent="https://other.agent.com"),
+        "d.com": RuntimeError("boom"),
+    }
+    # b, c, d fit the budget; e is the fourth domain and is not reached.
+    result = await verify(unchecked, documents, max_domains=3)
+    assert result.verified == [vouched, own]
+    assert reasons(result) == {
+        "refused": ("c.com", "not_vouched"),
+        "bad": ("10.0.0.1", "invalid_domain"),
+    }
+    assert [u.prop for u in result.unverified] == [refused, bad]
+    assert [u.prop for u in result.undetermined] == [failed, limited]
+    assert undetermined(result) == {
+        "failed": ("d.com", "fetch_failed"),
+        "limited": ("e.com", "domain_limit"),
+    }
+    assert result.domainless == [bundle]
+    placed = (
+        result.verified
+        + [u.prop for u in result.unverified]
+        + [u.prop for u in result.undetermined]
+        + result.domainless
+    )
+    assert len(placed) == len(unchecked)
+    assert sorted(p["property_id"] for p in placed) == sorted(p["property_id"] for p in unchecked)
+
+
+@pytest.mark.parametrize("order", [("b.com", "c.com"), ("c.com", "b.com")])
+async def test_a_refusing_publisher_decides_over_one_that_failed(order: tuple[str, str]) -> None:
+    claim = site("both", *order)
+    documents: dict[str, dict[str, Any] | Exception] = {
+        "b.com": RuntimeError("fetch fails"),
+        "c.com": inline_file(site("x", "c.com"), agent="https://other.agent.com"),
+    }
+    result = await verify([claim], documents)
+    assert reasons(result) == {"both": ("c.com", "not_vouched")}
+    assert result.undetermined == [] and result.verified == []
+
+
+async def test_first_undetermined_domain_in_input_order_is_reported() -> None:
+    claim = site("both", "b.com", "c.com")
+    documents: dict[str, dict[str, Any] | Exception] = {"b.com": RuntimeError("down")}
+    result = await verify([claim], documents)
+    assert undetermined(result) == {"both": ("b.com", "fetch_failed")}
+    reverse = await verify([site("both", "c.com", "b.com")], documents)
+    assert undetermined(reverse) == {"both": ("c.com", "fetch_failed")}
+    assert result.unverified == [] and reverse.unverified == []
+
+
+async def test_undetermined_claims_continue_on_a_second_call() -> None:
+    props = [site(f"p{i}", f"pub{i}.com") for i in range(3)]
+    documents: dict[str, dict[str, Any] | Exception] = {
+        f"pub{i}.com": inline_file(props[i]) for i in range(3)
+    }
+    first_calls: list[str] = []
+    first = await verify(props, documents, first_calls, max_domains=2)
+    assert first.verified == props[:2]
+    assert undetermined(first) == {"p2": ("pub2.com", "domain_limit")}
+    assert first.unverified == []
+    second_calls: list[str] = []
+    second = await verify(
+        [u.prop for u in first.undetermined], documents, second_calls, max_domains=2
+    )
+    assert second.verified == [props[2]]
+    assert second.undetermined == [] and second.unverified == []
+    assert second_calls == ["pub2.com"]
+
+
+def test_undetermined_defaults_to_an_empty_list() -> None:
+    result = CrossDomainVerification()
+    assert result.undetermined == []
+    assert result.undetermined is not CrossDomainVerification().undetermined
 
 
 # Delegation runs through fetch_adagents, which follows the named publisher's
