@@ -1128,7 +1128,7 @@ _PUBLISHED_SCHEMA_BASE = "https://adcontextprotocol.org/schemas"
 
 def get_schema_url(
     tool_name: str,
-    direction: Direction,
+    direction: Literal["request", "sync"],
     *,
     version: str | None = None,
 ) -> str | None:

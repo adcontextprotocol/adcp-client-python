@@ -3040,6 +3040,9 @@ def create_mcp_server(
     )
     mcp: Any = MCPServer(name, instructions=instructions)
     mcp._adcp_supported_versions = supported_versions
+    # register_test_controller lists the controller the same way.
+    mcp._adcp_schema_mode = schema_mode
+    mcp._adcp_advertise_output_schemas = advertise_output_schemas
     mcp._adcp_default_version = (
         _resolve_handler_adcp_version(handler, None) or DEFAULT_UNNEGOTIATED_ADCP_VERSION
     )

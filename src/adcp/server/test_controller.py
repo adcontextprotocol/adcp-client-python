@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from adcp.decisioning.context import AuthInfo
     from adcp.server.base import ToolContext
+    from adcp.server.mcp_tools import SchemaMode
     from adcp.server.serve import ContextFactory
 
 
@@ -1666,12 +1667,36 @@ async def _handle_test_controller(
     return dict(result)
 
 
+def _advertised_controller_schema(schema: dict[str, Any], schema_mode: str) -> dict[str, Any]:
+    """The controller's request schema as ``tools/list`` shows it under ``schema_mode``."""
+    from adcp.server.mcp_tools import (
+        _SCHEMA_MODES,
+        _compact_wire_schema,
+        _lean_input_schema,
+    )
+    from adcp.validation.schema_loader import get_schema_url
+
+    if schema_mode not in _SCHEMA_MODES:
+        raise ValueError(
+            f"schema_mode must be one of {sorted(_SCHEMA_MODES)!r}, got {schema_mode!r}"
+        )
+    if schema_mode == "compact":
+        return _compact_wire_schema(schema)
+    if schema_mode == "lean":
+        return _lean_input_schema(
+            _compact_wire_schema(schema), get_schema_url("comply_test_controller", "request")
+        )
+    return schema
+
+
 def register_test_controller(
     mcp: Any,
     store: TestControllerStore,
     *,
     context_factory: ContextFactory | None = None,
     account_resolver: _AccountResolver | None = None,
+    schema_mode: SchemaMode | None = None,
+    advertise_output_schemas: bool | None = None,
 ) -> None:
     """Register the comply_test_controller tool on an MCP server.
 
@@ -1710,6 +1735,14 @@ def register_test_controller(
             servers can set ``ADCP_SANDBOX=1`` instead.
 
             See ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
+        schema_mode: How ``tools/list`` shows the controller's request
+            schema, as for every other tool (see
+            :func:`~adcp.server.create_mcp_server`). Defaults to the server's
+            own setting when it was built by ``create_mcp_server``, else
+            ``"lean"``. Calls are validated against the exact bundled schema
+            in every mode.
+        advertise_output_schemas: List the controller's ``outputSchema``.
+            Defaults to the server's own setting, else ``False``.
 
     Example:
         from adcp.server.test_controller import TestControllerStore, register_test_controller
@@ -1743,6 +1776,10 @@ def register_test_controller(
     controller_schema = get_mcp_schema("comply_test_controller", "request")
     if controller_schema is None:
         raise RuntimeError("bundled comply_test_controller request schema is unavailable")
+    mode = schema_mode if schema_mode is not None else getattr(mcp, "_adcp_schema_mode", "lean")
+    if advertise_output_schemas is None:
+        advertise_output_schemas = bool(getattr(mcp, "_adcp_advertise_output_schemas", False))
+    advertised_schema = _advertised_controller_schema(controller_schema, str(mode))
 
     async def comply_test_controller(**kwargs: Any) -> dict[str, Any]:
         version = enforce_selected_version(
@@ -1770,16 +1807,19 @@ def register_test_controller(
             validate_schema=True,
         )
 
-    tool = Tool.from_function(
+    from adcp.server.serve import _unlisted_output_schema_tool_class
+
+    tool_class = Tool if advertise_output_schemas else _unlisted_output_schema_tool_class()
+    tool = tool_class.from_function(
         comply_test_controller,
         name="comply_test_controller",
         description="Compliance test controller. Sandbox only, not for production use.",
     )
 
-    # Advertise the same canonical, self-contained schema enforced above.
-    # Scenario-specific conditionals therefore evolve with the bundled AdCP
-    # schema instead of a second hand-maintained dispatcher contract.
-    tool.parameters = controller_schema
+    # Advertise the canonical bundled schema enforced above, reduced like every
+    # other tool's. Scenario-specific conditionals therefore evolve with the
+    # bundled AdCP schema instead of a second hand-maintained contract.
+    tool.parameters = advertised_schema
 
     # Override fn_metadata with a permissive model
     class _ControllerArgs(ArgModelBase):
