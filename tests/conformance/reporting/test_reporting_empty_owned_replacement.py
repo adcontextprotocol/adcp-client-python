@@ -8,6 +8,7 @@ import pytest
 from adcp_reporting_storage.migration import (
     ReportingOwnershipMigrationError,
     replace_empty_legacy_reporting,
+    replace_empty_legacy_reporting_sync,
     replace_empty_owned_reporting,
     replace_empty_owned_reporting_sync,
 )
@@ -181,6 +182,47 @@ def test_external_dependency_refuses_rollback():
                 replace_empty_owned_reporting_sync(connection)
             assert surface(connection) == owned
             assert connection.execute(FUNCTIONS).fetchone()[0] > 0
+
+
+@pytest.mark.parametrize("owned", [True, False])
+def test_provisional_history_view_allows_empty_replacement(owned: bool) -> None:
+    require_driver("psycopg")
+    with isolated_schema() as schema:
+        create_owned_schema(schema)
+        with connect(schema, autocommit=True) as connection:
+            assert connection.execute(
+                "SELECT relkind FROM pg_class"
+                " WHERE oid='adcp_reporting_provisional_history'::regclass"
+            ).fetchone() == ("v",)
+            if owned:
+                replace_empty_owned_reporting_sync(connection)
+            else:
+                connection.execute(
+                    "ALTER TABLE reporting_configurations DROP COLUMN consumer_id CASCADE"
+                )
+                replace_empty_legacy_reporting_sync(connection)
+            assert surface(connection) == 0
+            assert connection.execute(
+                "SELECT to_regclass('adcp_reporting_provisional_history')"
+            ).fetchone() == (None,)
+
+
+def test_external_provisional_history_dependency_refuses_replacement() -> None:
+    require_driver("psycopg")
+    with isolated_schema() as schema:
+        create_owned_schema(schema)
+        with connect(schema, autocommit=True) as connection:
+            connection.execute(
+                "CREATE VIEW application_view AS"
+                " SELECT account_id FROM adcp_reporting_provisional_history"
+            )
+            before = surface(connection)
+            with pytest.raises(ReportingOwnershipMigrationError, match="external dependencies"):
+                replace_empty_owned_reporting_sync(connection)
+            assert surface(connection) == before
+            assert connection.execute(
+                "SELECT to_regclass('adcp_reporting_provisional_history') IS NOT NULL"
+            ).fetchone() == (True,)
 
 
 def test_rollback_waits_for_writer_then_refuses_committed_rows():
