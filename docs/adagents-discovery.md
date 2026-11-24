@@ -67,8 +67,13 @@ selectors are unaffected. `allow_any_domain=True` keeps the unfiltered SDK 9
 result, none of it checked against the fetched domain.
 
 To mark what the gate excludes instead of losing it silently, resolve both
-ways and take the difference, then sort the excluded properties with the
-helpers below:
+ways and take the difference. The excluded properties are not authorized. A
+property identified only by domains can be checked with
+`verify_cross_domain_properties` (below), which asks the publishers it names
+whether they vouch for it. A property carrying a bundle, store or venue
+identifier stays unconfirmed: the gate refused it because a domain cannot
+vouch for those identifiers, and the cross-domain check does not vouch for
+them either.
 
 ```python
 gated = resolve_properties_for_agent(
@@ -78,9 +83,15 @@ everything = resolve_properties_for_agent(
     document, agent_url, mode="permissive", allow_any_domain=True
 )
 excluded = [p for p in everything if p not in gated]
+domain_only = [
+    p
+    for p in excluded
+    if p.get("identifiers") and all(i.get("type") == "domain" for i in p["identifiers"])
+]
 check = await verify_cross_domain_properties(
-    excluded, source_domain="example.org", agent_url=agent_url
+    domain_only, source_domain="example.org", agent_url=agent_url
 )
+unconfirmed = [p for p in excluded if p not in domain_only]  # never restore these
 ```
 
 ## Verifying cross-domain claims
@@ -110,12 +121,21 @@ with each to the caller:
 `domain` and the `reason`. Only `verified` is vouched for: a property naming
 several publishers needs each to vouch for all of it, a bare entry in `B`'s
 file vouches for nothing, and a property one publisher refuses is
-`unverified` even if another publisher's file failed to load.
+`unverified` even if another publisher's file failed to load. Only domain
+claims are checked; a bundle, store or venue identifier on a verified
+property is as trustworthy as the resolution that produced it.
 
 A network's adagents.json can name thousands of publishers, and at most
-`max_domains` (default 50) distinct domains are fetched per call, in input
-order. For a large file, run the check outside the sync path, pass a
-`fetcher=` that caches documents by domain across calls (it receives a domain
-and returns the parsed document), and treat `domain_limit` as "not yet":
-passing `[u.prop for u in result.undetermined]` to the next call continues
-with the domains the budget did not reach.
+`max_domains` (default 50) distinct domains are fetched per call: the first
+ones named, in input order, whether or not your fetcher serves them from a
+cache. Calling again with the same claims fetches the same domains again. For
+a large file:
+
+- run the check outside the sync path;
+- pass a `fetcher=` that caches documents by domain (it receives a domain and
+  returns the parsed document);
+- treat `domain_limit` as "not checked yet", and call with slices whose claims
+  name at most `max_domains` distinct publishers between them. A single
+  property naming more than `max_domains` publishers needs a larger budget;
+- retry `fetch_failed` claims on their own schedule, so a publisher whose file
+  keeps failing does not use up every call's budget.

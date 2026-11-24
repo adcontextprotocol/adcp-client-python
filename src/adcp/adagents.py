@@ -2191,10 +2191,12 @@ def resolve_properties_for_agent(
     returning every top-level property, none of them checked against the
     fetched domain. To see what the gate excludes (for example, to mark
     unconfirmed inventory instead of dropping it), resolve both ways and
-    take the difference; :func:`properties_for_publisher_domain` and
-    :func:`verify_cross_domain_properties` then say which excluded
-    properties are the fetched domain's own and which another publisher
-    vouches for.
+    take the difference. The excluded properties are not authorized: a
+    property identified only by domains can be passed to
+    :func:`verify_cross_domain_properties` to learn whether the publishers
+    it names vouch for it, but a bundle, store or venue identifier stays
+    unconfirmed whatever that check returns, because it vouches for domain
+    claims only.
 
     Args:
         adagents_data: Parsed adagents.json data
@@ -2486,8 +2488,8 @@ class CrossDomainVerification:
 
     verified: list[dict[str, Any]] = field(default_factory=list)
     unverified: list[UnverifiedProperty] = field(default_factory=list)
-    undetermined: list[UnverifiedProperty] = field(default_factory=list)
     domainless: list[dict[str, Any]] = field(default_factory=list)
+    undetermined: list[UnverifiedProperty] = field(default_factory=list)
 
 
 def _vouching_domains(prop: dict[str, Any], source: str) -> list[str] | str | None:
@@ -2585,14 +2587,22 @@ async def verify_cross_domain_properties(
     again. A property with both kinds of failure is ``unverified``.
     Properties that name no domain are returned in ``domainless``.
 
+    Only domain claims are checked. A bundle, store or venue identifier on
+    a ``verified`` property is as trustworthy as the resolution that
+    produced the property, no more.
+
     At most ``max_domains`` distinct publisher domains are fetched per call
-    (a hostile file cannot fan the check out to arbitrary hosts), taken in
-    input order. A network's file can name thousands of publishers, so for
+    (a hostile file cannot fan the check out to arbitrary hosts): the first
+    ones named, in input order, counted whether or not ``fetcher`` serves
+    them from a cache. Calling again with the same claims fetches the same
+    domains again. A network's file can name thousands of publishers, so for
     large files: run the check outside the request or sync path, pass a
-    ``fetcher`` that caches documents by domain across calls, and treat
-    ``domain_limit`` as "not yet". Passing
-    ``[u.prop for u in result.undetermined]`` to the next call continues
-    with the domains the budget did not reach.
+    ``fetcher`` that caches documents by domain, and treat ``domain_limit``
+    as "not checked yet". To get through such a file, call with slices whose
+    claims name at most ``max_domains`` distinct publishers between them; a
+    single property naming more than ``max_domains`` publishers needs a
+    larger budget. Retry ``fetch_failed`` claims on their own schedule, so a
+    publisher whose file keeps failing does not use up every call's budget.
 
     Args:
         properties: Properties resolved for ``agent_url`` from ``A``'s document.

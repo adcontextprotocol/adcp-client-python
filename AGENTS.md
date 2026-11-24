@@ -284,7 +284,7 @@ the two results to see what it excludes). Use
 agent_url=...)` before trusting claims about another publisher's domain; its
 `CrossDomainVerification` result separates `verified`, `unverified` (a
 publisher refused the claim), `undetermined` (a fetch failed or the
-`max_domains` budget ran out; check again later) and `domainless`
+`max_domains` budget ran out; not checked yet) and `domainless`
 properties. All three helpers are exported from `adcp`. See
 `docs/adagents-discovery.md`.
 
