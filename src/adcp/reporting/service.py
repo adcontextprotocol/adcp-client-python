@@ -2082,8 +2082,9 @@ class ReliableReportingService:
         if offerings is None:
             try:
                 block = self._capability_block()
-            # A conflicting offering declaration is reported where it is served.
-            except ReliableReportingConfigurationError:
+            # The warning is advisory: an offering that cannot be projected is
+            # reported where the block is served, never by failing startup.
+            except Exception:  # noqa: BLE001
                 return
             listed = block.get("offerings") if isinstance(block, Mapping) else None
             offerings = [item for item in listed or () if isinstance(item, Mapping)]
