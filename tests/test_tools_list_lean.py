@@ -37,6 +37,7 @@ from adcp.server.mcp_tools import (
     _lean_input_schema,
     get_tools_for_handler,
 )
+from adcp.server.test_controller import TestControllerStore, register_test_controller
 from adcp.validation.schema_loader import get_schema_url
 
 _serve_mod = importlib.import_module("adcp.server.serve")
@@ -707,3 +708,189 @@ def test_compact_mode_with_outputs_matches_the_registry_definitions() -> None:
 def test_unknown_schema_mode_still_raises() -> None:
     with pytest.raises(ValueError):
         get_tools_for_handler(ADCPHandler, advertise_all=True, schema_mode="bogus")  # type: ignore[arg-type]
+
+
+# ----------------------------------------------------------------------
+# comply_test_controller under the lean discovery defaults
+# ----------------------------------------------------------------------
+
+_CONTROLLER_URL_SUFFIX = "compliance/comply-test-controller-request.json"
+
+
+class _Store(TestControllerStore):
+    async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
+        return {"previous_state": "active", "current_state": status}
+
+
+@pytest.fixture
+def _sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
+
+async def _controller_tool(mcp: Any) -> Any:
+    tools = {t.name: t for t in await mcp.list_tools()}
+    return tools["comply_test_controller"]
+
+
+def _size(value: Any) -> int:
+    return len(json.dumps(value, default=str, separators=(",", ":")))
+
+
+@pytest.mark.asyncio
+async def test_controller_inherits_the_lean_default_from_the_server() -> None:
+    mcp = create_mcp_server(_Seller())
+    register_test_controller(mcp, _Store())
+
+    tool = await _controller_tool(mcp)
+
+    assert tool.output_schema is None
+    assert tool.input_schema["x-adcp-schema"].endswith(_CONTROLLER_URL_SUFFIX)
+    assert _size(tool.input_schema) < 5 * 1024
+
+
+@pytest.mark.asyncio
+async def test_controller_inherits_the_servers_opt_out() -> None:
+    mcp = create_mcp_server(_Seller(), schema_mode="compact", advertise_output_schemas=True)
+    register_test_controller(mcp, _Store())
+
+    tool = await _controller_tool(mcp)
+
+    assert tool.output_schema
+    assert "x-adcp-schema" not in tool.input_schema
+    assert _size(tool.input_schema) > 5 * 1024
+
+
+@pytest.mark.asyncio
+async def test_explicit_controller_kwargs_override_the_servers_settings() -> None:
+    mcp = create_mcp_server(_Seller())
+    register_test_controller(mcp, _Store(), schema_mode="inline", advertise_output_schemas=True)
+
+    tool = await _controller_tool(mcp)
+
+    assert tool.output_schema
+    assert "x-adcp-schema" not in tool.input_schema
+    # The exact schema is the large one.
+    assert _size(tool.input_schema) > 100 * 1024
+
+    compact_server = create_mcp_server(
+        _Seller(), schema_mode="compact", advertise_output_schemas=True
+    )
+    register_test_controller(
+        compact_server, _Store(), schema_mode="lean", advertise_output_schemas=False
+    )
+    lean = await _controller_tool(compact_server)
+    assert lean.output_schema is None
+    assert lean.input_schema["x-adcp-schema"].endswith(_CONTROLLER_URL_SUFFIX)
+
+
+def test_controller_rejects_an_unknown_schema_mode() -> None:
+    mcp = create_mcp_server(_Seller())
+
+    with pytest.raises(ValueError):
+        register_test_controller(mcp, _Store(), schema_mode="bogus")  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_sandbox")
+async def test_a_lean_listed_controller_still_validates_calls_exactly() -> None:
+    mcp = create_mcp_server(_Seller())
+    register_test_controller(mcp, _Store())
+    assert (await _controller_tool(mcp)).output_schema is None
+    call = mcp._tool_manager._tools["comply_test_controller"].fn
+    account = {"sandbox": True}
+
+    ok = await call(
+        account=account,
+        scenario="force_account_status",
+        params={"account_id": "acc-1", "status": "suspended"},
+    )
+    unknown = await call(account=account, scenario="no_such_scenario")
+    missing = await call(account=account, scenario="force_account_status", params={})
+
+    assert ok["success"] is True and ok["current_state"] == "suspended"
+    assert unknown["success"] is False and unknown["error"] == "UNKNOWN_SCENARIO"
+    assert missing["success"] is False and missing["error"] == "INVALID_PARAMS"
+    assert "account_id" in missing["error_detail"] and "status" in missing["error_detail"]
+
+
+@pytest.mark.parametrize("transport", ["streamable-http", "both"])
+def test_serve_threads_the_settings_to_the_test_controller(
+    monkeypatch: pytest.MonkeyPatch, transport: str
+) -> None:
+    from adcp.server import test_controller as controller_mod
+
+    seen: list[Any] = []
+
+    def stub(mcp: Any, store: Any, **kwargs: Any) -> None:
+        seen.append((mcp, store, kwargs))
+        raise _CapturedError
+
+    monkeypatch.setattr(controller_mod, "register_test_controller", stub)
+    store = _Store()
+
+    with pytest.raises(_CapturedError):
+        _serve_mod.serve(
+            _Seller(),
+            transport=transport,  # type: ignore[arg-type]
+            test_controller=store,
+            schema_mode="compact",
+            advertise_output_schemas=True,
+        )
+
+    mcp, received_store, kwargs = seen[0]
+    assert received_store is store
+    # register_test_controller reads the server's own settings when it is not
+    # given explicit ones, so the server must carry what serve() was given.
+    assert kwargs.get("schema_mode", mcp._adcp_schema_mode) == "compact"
+    assert kwargs.get("advertise_output_schemas", mcp._adcp_advertise_output_schemas) is True
+    assert mcp._adcp_schema_mode == "compact"
+    assert mcp._adcp_advertise_output_schemas is True
+
+
+@pytest.mark.parametrize("transport", ["streamable-http", "both"])
+def test_serve_defaults_reach_the_test_controller_as_lean(
+    monkeypatch: pytest.MonkeyPatch, transport: str
+) -> None:
+    from adcp.server import test_controller as controller_mod
+
+    seen: list[Any] = []
+
+    def stub(mcp: Any, store: Any, **kwargs: Any) -> None:
+        seen.append((mcp, kwargs))
+        raise _CapturedError
+
+    monkeypatch.setattr(controller_mod, "register_test_controller", stub)
+
+    with pytest.raises(_CapturedError):
+        _serve_mod.serve(
+            _Seller(),
+            transport=transport,  # type: ignore[arg-type]
+            test_controller=_Store(),
+        )
+
+    mcp, kwargs = seen[0]
+    assert kwargs.get("schema_mode", mcp._adcp_schema_mode) == "lean"
+    assert kwargs.get("advertise_output_schemas", mcp._adcp_advertise_output_schemas) is False
+
+
+@pytest.mark.asyncio
+async def test_a_mounted_sales_catalog_with_the_controller_stays_small() -> None:
+    bare = create_mcp_server(ADCPHandler(), advertise_all=True)
+    mounted = create_mcp_server(ADCPHandler(), advertise_all=True)
+    register_test_controller(mounted, _Store())
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        keep = {*SALES_PAGE, "comply_test_controller"}
+        without = [t for t in await bare.list_tools() if t.name in keep]
+        tools = [t for t in await mounted.list_tools() if t.name in keep]
+
+    assert {t.name for t in tools} == keep
+    assert all(t.output_schema is None for t in tools)
+
+    def wire(listed: list[Any]) -> int:
+        return _size([t.model_dump(by_alias=True, exclude_none=True) for t in listed])
+
+    assert wire(tools) < PAGE_BUDGET
+    # The controller costs a couple of KB, not another schema's worth.
+    assert wire(tools) - wire(without) < 5 * 1024
