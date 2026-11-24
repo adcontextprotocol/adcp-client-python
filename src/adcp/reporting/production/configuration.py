@@ -163,6 +163,8 @@ class ReportingProductionConfigurationTask:
         validator = get_named_validator("account/sync-accounts-request.json")
         if validator is None or next(validator.iter_errors(request), None) is not None:
             raise LedgerConflictError("INVALID_REQUEST", "account request is invalid")
+        adcp_version = context.resolved_adcp_version if context is not None else None
+        offerings = {offering.offering_id: offering.wire() for offering in support.offerings}
         for entry in request["accounts"]:
             configurations = entry.get("reporting_delivery_configs", ())
             keys = [(c["delivery_config_id"], c["delivery_config_version"]) for c in configurations]
@@ -170,6 +172,21 @@ class ReportingProductionConfigurationTask:
                 raise LedgerConflictError(
                     "INVALID_REQUEST", "configuration generations must be unique"
                 )
+            for config in configurations:
+                # A caller below AdCP 3.3 cannot accept a 1.2 report definition.
+                offering = offerings.get(config["offering_id"])
+                if offering is not None and not support.definition_versions.serves(
+                    offering, adcp_version
+                ):
+                    raise LedgerConflictError(
+                        "UNSUPPORTED_FEATURE",
+                        support.definition_versions.refusal_message(offering),
+                        field="reporting_delivery_configs",
+                        details={
+                            "offering_id": config["offering_id"],
+                            "delivery_config_id": config["delivery_config_id"],
+                        },
+                    )
         admitted: dict[tuple[str, str, str, int], ReportingConfigurationAdmission] = {}
 
         async def admit(value: ReportingConfigurationAdmission) -> None:

@@ -256,6 +256,26 @@ class ReportingProductionSupport:
         self._schema_epoch = 0
         self._schema_positive: tuple[int, int] | None = None
         self._protocol_version = self.handler.get_adcp_version()
+        from adcp.reporting.definition_versions import ReportDefinitionVersions, caller_accepts_1_2
+
+        #: Each offering's report-definition contract_version, read from the
+        #: bytes its verifier proves against the pinned sha256.
+        self.definition_versions = ReportDefinitionVersions()
+        self.definition_versions.record_verified(
+            self.materializer.io.registry, (o.verification_key for o in offerings)
+        )
+        if not caller_accepts_1_2(self._protocol_version):
+            unservable = sorted(
+                o.offering_id
+                for o in offerings
+                if self.definition_versions.version(o.wire()["report_definition_sha256"]) == "1.2"
+            )
+            if unservable:
+                raise ValueError(
+                    f"production is pinned to AdCP {self._protocol_version}, whose callers "
+                    f"accept only 1.0 and 1.1 report definitions; offerings {unservable} use "
+                    "a 1.2 definition"
+                )
         self._components = self._component_ids()
         self._methods = self._handler_methods()
         self.store.production_support = weakref.ref(self)

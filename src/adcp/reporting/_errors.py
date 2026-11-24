@@ -114,7 +114,13 @@ class ReliableReportingConfigurationError(ValueError):
         )
 
 
-def reporting_error(code: str, message: str, *, field: str | None = None) -> Error:
+def reporting_error(
+    code: str,
+    message: str,
+    *,
+    field: str | None = None,
+    details: Mapping[str, str | int | float | bool | None] | None = None,
+) -> Error:
     """Preserve the domain code and use the SDK's normative recovery defaults."""
     if code == "REVISION_NOT_FOUND":
         # A store-internal code for an unknown or retired revision. The protocol's
@@ -136,7 +142,13 @@ def reporting_error(code: str, message: str, *, field: str | None = None) -> Err
         elif code in _REPORTING_TRANSIENT:
             recovery = "transient"
     return Error.model_validate(
-        adcp_error(code, message, recovery=recovery, field=field)["errors"][0]
+        adcp_error(
+            code,
+            message,
+            recovery=recovery,
+            field=field,
+            details=dict(details) if details is not None else None,
+        )["errors"][0]
     )
 
 
@@ -159,7 +171,12 @@ async def installed_reporting_call(
         )
         cause = error
     except LedgerConflictError as error:
-        wire = reporting_error(error.code, str(error), field=getattr(error, "field", None))
+        wire = reporting_error(
+            error.code,
+            str(error),
+            field=getattr(error, "field", None),
+            details=getattr(error, "details", None),
+        )
         cause = error
     except ReliableReportingConfigurationError as error:
         code, message = {

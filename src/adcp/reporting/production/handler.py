@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -56,8 +56,17 @@ def _request(value: Any) -> dict[str, Any]:
     )
 
 
-def _task_error(task: str, code: str, message: str, *, field: str | None = None) -> ADCPTaskError:
-    return ADCPTaskError(operation=task, errors=[reporting_error(code, message, field=field)])
+def _task_error(
+    task: str,
+    code: str,
+    message: str,
+    *,
+    field: str | None = None,
+    details: Mapping[str, str | int | float | bool | None] | None = None,
+) -> ADCPTaskError:
+    return ADCPTaskError(
+        operation=task, errors=[reporting_error(code, message, field=field, details=details)]
+    )
 
 
 _Method = TypeVar("_Method", bound=Callable[..., Any])
@@ -304,8 +313,15 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 dict.fromkeys([*base.get("supported_protocols", ()), "media_buy"])
             )
         response["account"] = self.production.configuration_task.account_capabilities()
+        from adcp.reporting.definition_versions import served_reporting_delivery
+
         declaration = self.production._declared_capabilities()
-        reporting = declaration["reporting_delivery"]
+        # A caller below AdCP 3.3 is not offered a 1.2 report definition.
+        reporting = served_reporting_delivery(
+            declaration["reporting_delivery"],
+            self.production.definition_versions,
+            context.resolved_adcp_version if context is not None else None,
+        )
         if reporting:
             response["media_buy"] = {
                 **response.get("media_buy", {}),
@@ -330,6 +346,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         params: SyncAccountsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
+        field: str | None = None
+        details: Mapping[str, str | int | float | bool | None] | None = None
         try:
             self.production._assert_components()
             return await self.production.configuration_task.execute(
@@ -337,6 +355,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             )
         except LedgerConflictError as error:
             code, message = error.code, str(error)
+            field, details = error.field, error.details
         except ReportingReceiptError as error:
             code, message = error.code, str(error)
         except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
@@ -346,7 +365,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 "REPORTING_CONFIGURATION_UNAVAILABLE",
                 "reporting configuration is unavailable",
             )
-        raise _task_error("sync_accounts", code, message)
+        raise _task_error("sync_accounts", code, message, field=field, details=details)
 
     @_admitted
     async def sync_reporting_status(
