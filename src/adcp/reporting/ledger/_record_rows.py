@@ -30,7 +30,11 @@ from adcp.reporting.ledger.models import (
     ReportingScheduleSpec,
     ReportingSubscriptionGeneration,
 )
-from adcp.reporting.ledger.store import _utc, managed_revision_metadata
+from adcp.reporting.ledger.store import (
+    _coverage_requirement_terms,
+    _utc,
+    managed_revision_metadata,
+)
 
 _OBLIGATION_COLUMNS = (
     "reporting_obligation_id, account_id, delivery_config_id, delivery_config_version,"
@@ -147,7 +151,12 @@ def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, A
         "required_finality": configuration.required_finality,
         "account_timezone": configuration.account_timezone,
         "media_buy_ids": sorted(configuration.media_buy_ids),
-        "schedule": _schedule_payload(configuration.schedule),
+        # ``coverage_requirement`` rides in the stored schedule document; see
+        # :func:`~adcp.reporting.ledger.store._coverage_requirement_terms`.
+        "schedule": {
+            **_schedule_payload(configuration.schedule),
+            **_coverage_requirement_terms(configuration),
+        },
         "definition": _definition_payload(configuration.definition),
         # Only a subscription generation carries it, so account generations
         # keep their content digest.
@@ -195,6 +204,7 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
             else None
         ),
         media_buy_scope=(row[19] if len(row) > 19 and row[19] else "media_buy_ids"),
+        coverage_requirement=row[8].get("coverage_requirement", "full"),
     )
 
 

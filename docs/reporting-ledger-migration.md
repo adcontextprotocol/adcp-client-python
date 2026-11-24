@@ -184,6 +184,32 @@ gate: `ReliableReportingService` refuses `all_media_buys` with
 `UNSUPPORTED_FEATURE` until it is built with `admit_all_media_buys=True`. Set it
 only after the last earlier-release process has stopped.
 
+### Partial publication (`coverage_requirement: allow_partial`, no migration)
+
+`ReportingConfiguration.coverage_requirement` is `full` (the default) or
+`allow_partial`. It needs no migration and leaves the storage contract
+unchanged. The PostgreSQL store retains it as a `coverage_requirement` member
+of the generation's existing `schedule` document, written only for
+`allow_partial`. Every `full` generation keeps its exact stored bytes and
+content hash.
+
+Under `allow_partial`, a period whose frozen coverage is `partial` publishes
+over its fully covered buys:
+
+- The source is asked for those buys only.
+- Every committed row must name a covered `media_buy_id` or `package_id`.
+  Otherwise the publication fails with `ROW_COVERAGE_MISMATCH`.
+- The revision and the obligation keep the `partial` coverage.
+- The status projection does not raise `REPORTING_COVERAGE_INCOMPLETE` for that
+  period.
+
+`none` and `unknown` periods publish nothing under either requirement, and a
+`full` generation behaves exactly as before.
+
+A process from an earlier release ignores the member and treats the generation
+as `full`. That release withholds a partial period, which is the fail-closed
+outcome. The withheld obligation publishes once a current process acquires it.
+
 ### Issue-lifecycle events (migration `0008`)
 
 `python -m adcp migrate` (migration `0008 reporting_issue_events`, header
