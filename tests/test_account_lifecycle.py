@@ -555,7 +555,13 @@ async def test_natural_resolver_only_sees_synced_complete_keys(executor):
             )
         ]
 
-    handler = make_handler(NaturalKeyAccounts(loader, upsert_request=provision), executor=executor)
+    def loader_by_id(account_id, auth):
+        return next((a for a in persisted.values() if a.id == account_id), None)
+
+    handler = make_handler(
+        NaturalKeyAccounts(loader, upsert_request=provision, loader_by_id=loader_by_id),
+        executor=executor,
+    )
     with pytest.raises(AdcpError) as error:
         await handler.get_products(GetProductsRequest(buying_mode="wholesale", account=KEY))
     assert error.value.code == "ACCOUNT_NOT_FOUND"
@@ -876,7 +882,6 @@ def _stable_id_store():
 @pytest.mark.asyncio
 async def test_account_id_and_natural_key_resolve_to_the_same_account():
     store, provision = _stable_id_store()
-    assert store.resolves_account_ids is True
     owner = _auth("buyer-a")
     provision(
         SyncAccountsRequest.model_validate(
@@ -921,13 +926,9 @@ async def test_account_id_loader_returning_another_account_is_a_miss():
     assert error.value.code == "ACCOUNT_NOT_FOUND"
 
 
-@pytest.mark.asyncio
-async def test_account_id_is_not_found_without_loader_by_id():
-    store = NaturalKeyAccounts(lambda key, auth: pytest.fail("natural loader must not run"))
-    assert store.resolves_account_ids is False
-    with pytest.raises(AdcpError) as error:
-        await store.resolve({"account_id": "acc_1"}, None)
-    assert error.value.code == "ACCOUNT_NOT_FOUND"
+def test_loader_by_id_is_required():
+    with pytest.raises(TypeError):
+        NaturalKeyAccounts(lambda key, auth: None)  # type: ignore[call-arg]
 
 
 @pytest.mark.asyncio
