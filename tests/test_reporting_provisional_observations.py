@@ -788,7 +788,11 @@ async def test_notification_failure_rolls_back_revision_checkpoint_and_history(
 
 async def test_reserved_snapshot_retry_survives_explicit_close_boundary(make_harness):
     producer, store, fetch, clock = await make_harness(
-        _capabilities(restatement_window="PT3H", official_close_lag="PT4H"),
+        _capabilities(
+            restatement_window="PT3H",
+            official_close_lag="PT4H",
+            official_availability_lag="PT4H",
+        ),
         finality_policy=ReportingSourceFinalPolicy("close-v1", "fixture_closed"),
     )
     await producer.run_worker()

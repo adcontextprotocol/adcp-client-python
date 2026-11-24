@@ -52,6 +52,7 @@ def _capabilities(
     restatement_window: str | None,
     restatement_cadence: str | None = None,
     official_close_lag: str | None = None,
+    official_availability_lag: str = "PT0S",
 ) -> ReportingSourceCapabilitiesV1:
     base = redacted_capabilities()
     snapshot = base.offering(SNAPSHOT_OFFERING_ID)
@@ -83,8 +84,8 @@ def _capabilities(
             # Policy fixtures make authoritative data ready independently of
             # the configured close cadence, just like the snapshot above.
             offering.update(
-                expected_availability_lag="PT0S",
-                worst_case_availability_lag="PT0S",
+                expected_availability_lag=official_availability_lag,
+                worst_case_availability_lag=official_availability_lag,
                 source_timezone="UTC",
                 days_after_period_end=0,
                 source_local_ready_time="00:00",
@@ -305,6 +306,7 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
             restatement_window="P3D",
             restatement_cadence="PT1H",
             official_close_lag="P3D",
+            official_availability_lag="P3D",
         ),
         finality_policy=SOURCE_FINAL_POLICY,
     )
@@ -339,6 +341,7 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
             restatement_window="P3D",
             restatement_cadence="PT1H",
             official_close_lag="P3D",
+            official_availability_lag="P3D",
         ),
         finality_policy=SOURCE_FINAL_POLICY,
     )
@@ -387,6 +390,7 @@ async def test_slice_provisional_until_overrides_declared_window() -> None:
             restatement_window="P3D",
             restatement_cadence="P1D",
             official_close_lag="P3D",
+            official_availability_lag="P4D",
         ),
         finality_policy=SOURCE_FINAL_POLICY,
     )

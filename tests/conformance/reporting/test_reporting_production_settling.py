@@ -32,7 +32,9 @@ class SettlingSource(Source):
         if close_officially:
             official = Source(key, path.with_name("official-contract"), rows, official=True)
             self.official_source_id = official.source_id
-            raw["offerings"].append(official.capabilities.offerings[0].model_dump(mode="json"))
+            official_offering = official.capabilities.offerings[0].model_dump(mode="json")
+            official_offering["source_local_ready_time"] = "05:00"
+            raw["offerings"].append(official_offering)
         raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
         self.capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
         self.official_ready = False
