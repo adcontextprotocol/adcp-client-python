@@ -68,7 +68,7 @@ alongside the spec; they line up.
 - **`adcp.supported_versions`** — exact releases you serve. Boot validation
   rejects entries outside the SDK's accepted wire set or without installed
   request and response validators. The SDK includes `"3.2-rc.7"` as a
-  compatibility alias for `"3.2"`, and `"3.3-rc.0"` as one for `"3.3-rc.3"`. For a 3.2-only seller, declare
+  compatibility alias for `"3.2"`. For a 3.2-only seller, declare
   `Adcp(major_versions=[3], supported_versions=["3.2"], idempotency={"supported": False})`;
   the deprecated
   `list_creative_formats_legacy` method is then optional even with
