@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from adcp.reporting._source_authorization import source_turn
+from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
@@ -47,12 +48,14 @@ from adcp.reporting.production.offerings import ReportingProductionOffering
 from adcp.reporting.production.source_registry import (
     ReportingProductionSourceContext,
     ReportingProductionSourceRegistry,
+    _profile,
 )
 from adcp.reporting.production.store import (
     ReportingProductionProjection,
     ReportingProductionStore,
 )
 from adcp.reporting.receipts.handler import ReceiptAccountResolver
+from adcp.reporting.source import AuthoritativeOfferingV1, ProvisionalSnapshotOfferingV1
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgentRegistry
@@ -191,7 +194,6 @@ class ReportingProductionSupport:
             or type(offerings) is not tuple
             or not offerings
             or any(type(o) is not ReportingProductionOffering for o in offerings)
-            or len({o.offering_id for o in offerings}) != len(offerings)
             or type(status_retention_days) is not int
             or not 1 <= status_retention_days <= 36500
             or automated_recovery_window <= timedelta(0)
@@ -203,6 +205,105 @@ class ReportingProductionSupport:
             raise ValueError(
                 "production support requires exact SDK components and bounded promises"
             )
+        groups: dict[str, list[ReportingProductionOffering]] = {}
+        routes: dict[int, tuple[ReportingProductionOffering, ReportingProductionOffering]] = {}
+        for offering in offerings:
+            groups.setdefault(offering.offering_id, []).append(offering)
+        for group in groups.values():
+            if len(group) == 1:
+                offering = group[0]
+                profile = offering.producer._offerings
+                if (
+                    set(offering.wire()["supported_finality"]) == {"snapshot", "official"}
+                    and (profile.snapshot_offering_id is None)
+                    != (profile.official_offering_id is None)
+                    and offering.verification_key.definition.finality_policy is not None
+                    and offering.verification_key.definition.finality_policy.basis == "source_final"
+                ):
+                    raise ValueError("shared offering requires snapshot and authoritative sources")
+                continue
+            sources = [o.check_source().offering(o.source_offering_id) for o in group]
+            if (
+                len(group) != 2
+                or any(o.wire() != group[0].wire() for o in group)
+                or set(group[0].wire()["supported_finality"]) != {"snapshot", "official"}
+                or sum(isinstance(s, ProvisionalSnapshotOfferingV1) for s in sources) != 1
+                or sum(isinstance(s, AuthoritativeOfferingV1) for s in sources) != 1
+                or sources[0].contract != sources[1].contract
+                or sources[0].offering_id == sources[1].offering_id
+            ):
+                raise ValueError(
+                    "shared offering requires one snapshot and one authoritative source"
+                )
+            snapshot = next(
+                item
+                for item, source in zip(group, sources)
+                if isinstance(source, ProvisionalSnapshotOfferingV1)
+            )
+            official = next(
+                item
+                for item, source in zip(group, sources)
+                if isinstance(source, AuthoritativeOfferingV1)
+            )
+            snapshot_profile = snapshot.producer._offerings
+            official_profile = official.producer._offerings
+            if snapshot_profile.currency != official_profile.currency:
+                raise ValueError("shared sources require matching currency")
+            snapshot_source = next(
+                s for s in sources if isinstance(s, ProvisionalSnapshotOfferingV1)
+            )
+            official_source = next(s for s in sources if isinstance(s, AuthoritativeOfferingV1))
+            if snapshot_source.official_close_lag is not None:
+                if (
+                    snapshot_profile.requested_metrics != official_profile.requested_metrics
+                    or snapshot_profile.requested_dimensions
+                    != official_profile.requested_dimensions
+                ):
+                    raise ValueError("automatic close requires matching reporting fields")
+                metrics = {
+                    m.name for m in official_source.metrics if m.support in {"exact", "partial"}
+                }
+                dimensions = {d.name for d in official_source.dimensions if d.support == "exact"}
+                profile = snapshot.producer._offerings
+                if not set(profile.requested_metrics).issubset(metrics) or not set(
+                    profile.requested_dimensions
+                ).issubset(dimensions):
+                    raise ValueError("authoritative source cannot serve the snapshot generation")
+            route = (
+                official.producer._source,
+                official.producer._object_reader,
+                official.producer._offerings,
+            )
+            existing = snapshot.producer._source_routes
+            prior = routes.get(id(snapshot.producer))
+            if (
+                existing
+                and (
+                    set(existing) != {official.source_offering_id}
+                    or any(
+                        current is not expected
+                        for current, expected in zip(existing[official.source_offering_id], route)
+                    )
+                )
+            ) or (
+                prior is not None
+                and (
+                    prior[1].source_offering_id != official.source_offering_id
+                    or any(
+                        current is not expected
+                        for current, expected in zip(
+                            (
+                                prior[1].producer._source,
+                                prior[1].producer._object_reader,
+                                prior[1].producer._offerings,
+                            ),
+                            route,
+                        )
+                    )
+                )
+            ):
+                raise ValueError("one producer cannot route to multiple authoritative sources")
+            routes[id(snapshot.producer)] = (snapshot, official)
         assert isinstance(store, ReportingProductionStore)
         self.store: ReportingProductionStore = store
         previous = self.store.production_support
@@ -210,6 +311,7 @@ class ReportingProductionSupport:
             raise ReportingNotificationError("reporting_production_owner_conflict")
         self.materializer, self.projection = materializer, projection
         self.offerings, self.configuration_task = offerings, configuration_task
+        self._shared_offering_ids = frozenset(k for k, group in groups.items() if len(group) > 1)
         if source_registry is not None:
             if type(source_registry) is not ReportingProductionSourceRegistry:
                 raise ValueError("production requires an exact source registry")
@@ -256,6 +358,7 @@ class ReportingProductionSupport:
         self._schema_epoch = 0
         self._schema_positive: tuple[int, int] | None = None
         self._protocol_version = self.handler.get_adcp_version()
+        self._source_route_identities = self._route_identities()
         self._components = self._component_ids()
         self._methods = self._handler_methods()
         self.store.production_support = weakref.ref(self)
@@ -267,7 +370,7 @@ class ReportingProductionSupport:
         assert isinstance(writer, ReportingProductionDestination)
         declaration: dict[str, Any] = {
             "reporting_delivery": declared_reporting_delivery(
-                offerings=[o.wire() for o in self.offerings],
+                offerings=[group[0].wire() for group in groups.values()],
                 destination=writer,
                 durable=self.store.durable,
                 escalation=self.projection.escalation or ReportingDeliveryEscalation(),
@@ -281,6 +384,13 @@ class ReportingProductionSupport:
             declaration["webhook_signing"] = signing_capabilities(self)
             declaration["identity"] = signing_identity(self)
         self._declaration = json.dumps(declaration)
+        for snapshot, official in routes.values():
+            snapshot.producer._source_routes[official.source_offering_id] = (
+                official.producer._source,
+                official.producer._object_reader,
+                official.producer._offerings,
+            )
+        self._source_route_identities = self._route_identities()
 
     def _declared_capabilities(self) -> dict[str, Any]:
         """Detached promises captured when the concrete graph was registered."""
@@ -318,6 +428,21 @@ class ReportingProductionSupport:
                 self.source_registry,
                 *self.offerings,
                 *self.notification_workers,
+            )
+        )
+
+    def _route_identities(self) -> tuple[tuple[int, str, int, int, bytes], ...]:
+        return tuple(
+            (
+                id(offering.producer),
+                source_id,
+                id(source),
+                id(reader),
+                canonical_json_utf8_v1(_profile(profile)),
+            )
+            for offering in self.offerings
+            for source_id, (source, reader, profile) in sorted(
+                offering.producer._source_routes.items()
             )
         )
 
@@ -368,6 +493,7 @@ class ReportingProductionSupport:
                 and (self._notification_task is None or self._notification_task.done())
             )
             or self._components != self._component_ids()
+            or self._source_route_identities != self._route_identities()
             or self._methods != self._handler_methods()
             or type(self.handler._adcp_version) is not str
             or self.handler._adcp_version != self._protocol_version
@@ -394,6 +520,19 @@ class ReportingProductionSupport:
             raise ReportingNotificationError("reporting_production_component_unready")
 
     def _offering_ready(self, offering: ReportingProductionOffering) -> bool:
+        if not self._offering_component_ready(offering):
+            return False
+        for source_id in offering.producer._source_routes:
+            peers = [
+                item
+                for item in self.offerings
+                if item.offering_id == offering.offering_id and item.source_offering_id == source_id
+            ]
+            if len(peers) != 1 or not self._offering_component_ready(peers[0]):
+                return False
+        return True
+
+    def _offering_component_ready(self, offering: ReportingProductionOffering) -> bool:
         try:
             if (
                 offering.producer.store is not self.store
@@ -453,6 +592,8 @@ class ReportingProductionSupport:
                 producer_key is not None and offering._producer_key != producer_key
             ):
                 continue
+            if not self._matches_finality(offering, configuration):
+                continue
             if not self._offering_ready(offering):
                 continue
             try:
@@ -471,6 +612,14 @@ class ReportingProductionSupport:
         ):
             raise failure("BINDING_MISMATCH")
         return matches[0]
+
+    def _matches_finality(
+        self, offering: ReportingProductionOffering, configuration: ReportingConfiguration
+    ) -> bool:
+        return offering.offering_id not in self._shared_offering_ids or (
+            offering.producer._offerings.offering_for(configuration.required_finality)
+            == offering.source_offering_id
+        )
 
     def _subscription_offering(
         self,
@@ -492,7 +641,13 @@ class ReportingProductionSupport:
         wanted = configuration.subscription.offering_id if configuration.subscription else None
         if wanted is None or (offering_id is not None and offering_id != wanted):
             raise failure("BINDING_MISMATCH")
-        matches = [o for o in self.offerings if o.offering_id == wanted and self._offering_ready(o)]
+        matches = [
+            o
+            for o in self.offerings
+            if o.offering_id == wanted
+            and self._matches_finality(o, configuration)
+            and self._offering_ready(o)
+        ]
         if len(matches) != 1:
             raise failure("BINDING_MISMATCH")
         offering = matches[0]
@@ -900,12 +1055,23 @@ class ReportingProductionSupport:
             # It must still hold after an awaited first scan or invalidation.
             self._assert_components()
             offerings = [o for o in self.offerings if self._offering_ready(o)]
+            ready_ids = {id(o) for o in offerings}
+            offerings = [
+                o
+                for o in offerings
+                if o.offering_id not in self._shared_offering_ids
+                or all(
+                    id(other) in ready_ids
+                    for other in self.offerings
+                    if other.offering_id == o.offering_id
+                )
+            ]
             if not offerings:
                 return {}
             writer = self.materializer.writer
             assert isinstance(writer, ReportingProductionDestination)
             payload.update(
-                offerings=[o.wire() for o in offerings],
+                offerings=list({o.offering_id: o.wire() for o in offerings}.values()),
                 managed_delivery=True,
                 resource_retention_days=writer.resource_retention_days,
                 authorization_revocation_seconds=writer.authorization_revocation_seconds,

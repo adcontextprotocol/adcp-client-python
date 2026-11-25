@@ -452,3 +452,201 @@ async def test_subscription_rows_carry_account_id_and_account_rows_are_unchanged
     with pytest.raises(LedgerConflictError) as refused:
         subscription_rows(_Owed(), [{"account_id": "another-account"}])  # type: ignore[arg-type]
     assert refused.value.code == "ROW_ACCOUNT_MISMATCH"
+
+
+@pytest.mark.parametrize("finality,index", [("snapshot", 0), ("official", 1)])
+@pytest.mark.parametrize("account_scoped", [False, True])
+@pytest.mark.parametrize("automatic_close", [False, True])
+async def test_subscription_shared_offering_routes_its_finality(
+    finality: str, index: int, account_scoped: bool, automatic_close: bool
+) -> None:
+    from dataclasses import replace
+
+    from adcp.reporting.inline_source import InlineFetchResult
+    from adcp.reporting.ledger import ReportingSourceFinalPolicy
+    from adcp.reporting.source import (
+        ReportingFinalityEvidenceV1,
+        ReportingSourceCapabilitiesV1,
+        reporting_source_capabilities_sha256_v1,
+    )
+
+    if automatic_close and finality == "official":
+        pytest.skip("automatic close applies to snapshot generations")
+
+    seller = _Seller(principals=(AGENCY,))
+    seller.engine._offerings = (
+        replace(HOURLY, supported_finality=frozenset({"snapshot", "official"})),
+    )
+    definition = replace(
+        DEFINITION, finality_policy=ReportingSourceFinalPolicy("final", "is_final")
+    )
+    seller.options = replace(seller.options, definitions={OFFERING_ID: definition})
+    public = {**_capability_offering("gam"), "supported_finality": ["snapshot", "official"]}
+    raw = redacted_capabilities().model_dump(mode="json")
+    if automatic_close:
+        raw["offerings"][0].update(official_close_lag="PT0S", restatement_window="PT1H")
+    for item in raw["offerings"]:
+        item["windowing"]["minimum_window"] = "PT1H"
+        item["source_timezone"] = "UTC"
+        item["product_ids"] = ["PAID_MEDIA_DAILY_V1"]
+        if item["publication_class"] == "AUTHORITATIVE":
+            item["source_local_ready_time"] = "00:00"
+            item["days_after_period_end"] = 0
+        item["expected_availability_lag"] = "PT0S"
+        item["worst_case_availability_lag"] = "PT0S"
+    sources = []
+    for offering in raw["offerings"]:
+        payload = {**raw, "offerings": [offering]}
+        if (
+            automatic_close
+            and not account_scoped
+            and offering["publication_class"] == "AUTHORITATIVE"
+        ):
+            payload["source_scope"] = {**raw["source_scope"], "adapter": "official"}
+            payload["offerings"][0]["publication_namespace"] = "reporting-source:official"
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+
+        class Source(_ByBuySource):
+            def __init__(self, capabilities):
+                super().__init__()
+                self._capabilities = capabilities
+
+            @property
+            def capabilities(self):
+                return self._capabilities
+
+            def fetch_slice(self, request):
+                rows = super().fetch_slice(request)
+                if request.publication_class == "AUTHORITATIVE":
+                    return InlineFetchResult(
+                        rows,
+                        data_through=request.period.end,
+                        finality_evidence=ReportingFinalityEvidenceV1(
+                            basis="provider_declared", observed_at=NOW, evidence_ref="is_final"
+                        ),
+                    )
+                return rows
+
+        sources.append(Source(ReportingSourceCapabilitiesV1.model_validate(payload)))
+
+    if account_scoped:
+        raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+        combined = ReportingSourceCapabilitiesV1.model_validate(raw)
+        sources = [Source(combined)]
+
+    def context(configuration):
+        from adcp.reporting.fixtures import OFFICIAL_OFFERING_ID
+
+        if account_scoped:
+            return replace(
+                _context(configuration),
+                capability_offering=public,
+                snapshot_offering_id=None,
+                official_offering_id=None,
+                source_capabilities=combined,
+            )
+        return replace(
+            _context(configuration),
+            capability_offering=public,
+            official_offering_id=OFFICIAL_OFFERING_ID,
+        )
+
+    seller.service = ReliableReportingService.memory(
+        account_context=context,
+        clock=seller.clock,
+        read_jitter_window=timedelta(0),
+        reporting_subscriptions=seller.options,
+    )
+    seller.service.sources.register(
+        "gam", sources[0], capability_offerings=[] if account_scoped else [public]
+    )
+    if not account_scoped:
+        seller.service.sources.register("official", sources[1], capability_offerings=[public])
+    seller.host.accounts[ACCOUNT] = AuthorizedAccount(
+        ACCOUNT, timezone="UTC", authorized_at=datetime(2026, 10, 1, tzinfo=timezone.utc)
+    )
+    seller.host.buys[ACCOUNT] = [
+        _buy("media-buy-a1", "2026-11-01T01:00:00Z", "2026-11-01T03:00:00Z")
+    ]
+    subscription = {
+        **SUBSCRIPTION,
+        "selector": {**SUBSCRIPTION["selector"], "required_finality": finality},
+    }
+    response = await seller.principals.sync_principal(
+        AGENCY,
+        {
+            "idempotency_key": "shared-finality-000001",
+            "configuration": {"reporting_subscriptions": [subscription]},
+        },
+    )
+    assert response.result.kind == "applied", response
+    await seller.engine.reconcile(AGENCY)
+    seller.engine_clock.set("2026-11-01T03:30:00Z")
+    turn = await seller.service.run_worker(now=NOW)
+    assert not turn.subscription_errors
+    offerings = seller.service.capability_block(account_id=ACCOUNT)["offerings"]
+    assert len(offerings) == 1
+    assert set(offerings[0]["supported_finality"]) == {"snapshot", "official"}
+    assert not turn.configuration_errors, [
+        (repr(e), repr(e.__cause__)) for e in turn.configuration_errors.values()
+    ]
+    assert sum(len(item.revisions_committed) for item in turn.configurations.values()) == 2
+    for key in turn.configurations:
+        for obligation in await seller.service.store.list_generation_obligations(key):
+            revisions = await seller.service.store.list_revisions(
+                account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+            )
+            assert [revision.finality for revision in revisions] == [finality]
+    if account_scoped:
+        index = 0
+        (stored,) = await seller.service.store.list_all_configurations()
+        assert stored.account_binding_sha256 == context(stored).binding_sha256()
+    else:
+        assert sources[1 - index].calls == []
+    assert len(sources[index].calls) == 2
+    assert all(
+        request.publication_class
+        == ("PROVISIONAL_SNAPSHOT" if finality == "snapshot" else "AUTHORITATIVE")
+        for request in sources[index].calls
+    )
+    if automatic_close:
+        store = seller.service.store
+        await seller.service.close()
+        recovered = ReliableReportingService(
+            store=store,
+            account_context=context,
+            clock=seller.clock,
+            read_jitter_window=timedelta(0),
+            reporting_subscriptions=seller.options,
+        )
+        recovered.sources.register(
+            "gam", sources[0], capability_offerings=[] if account_scoped else [public]
+        )
+        if not account_scoped:
+            recovered.sources.register("official", sources[1], capability_offerings=[public])
+        seller.service = recovered
+        await recovered.initialize()
+        seller.clock.advance(timedelta(hours=2))
+        close = await seller.service.run_worker(now=NOW + timedelta(hours=2))
+        assert not close.configuration_errors
+        official_source = sources[0 if account_scoped else 1]
+        assert any(
+            request.publication_class == "AUTHORITATIVE" for request in official_source.calls
+        )
+        if not account_scoped:
+            request = next(
+                item for item in official_source.calls if item.publication_class == "AUTHORITATIVE"
+            )
+            assert request.identity.source_scope["adapter"] == "official"
+            assert request.publication_namespace == "reporting-source:official"
+        finalities = []
+        for key in turn.configurations:
+            for obligation in await seller.service.store.list_generation_obligations(key):
+                finalities.extend(
+                    revision.finality
+                    for revision in await seller.service.store.list_revisions(
+                        account_id=ACCOUNT,
+                        reporting_obligation_id=obligation.reporting_obligation_id,
+                    )
+                )
+        assert "official" in finalities

@@ -176,6 +176,31 @@ class ReportingProductionOffering:
                 raise failure("UNSUPPORTED_VERIFICATION") from None
 
         finalities = self.wire()["supported_finality"]
+        profile = self.producer._offerings
+        policy = self.verification_key.definition.finality_policy
+        if (
+            set(finalities) == {"snapshot", "official"}
+            and (profile.snapshot_offering_id is None) != (profile.official_offering_id is None)
+            and policy is not None
+            and finality_policy_source_class(policy) == "official"
+        ):
+            source_class = "snapshot" if profile.snapshot_offering_id is not None else "official"
+            source = configured_source(source_class)
+            if (
+                source.offering_id != self.source_offering_id
+                or (
+                    source_class == "snapshot"
+                    and not isinstance(source, ProvisionalSnapshotOfferingV1)
+                )
+                or (source_class == "official" and not isinstance(source, AuthoritativeOfferingV1))
+                or not _supports_official_source_formats(source)
+            ):
+                raise failure("UNSUPPORTED_VERIFICATION")
+            try:
+                self.producer._official_publication_lock()
+            except LedgerConflictError:
+                raise failure("UNSUPPORTED_VERIFICATION") from None
+            return (source,)
         snapshot = None
         if "snapshot" in finalities:
             candidate = configured_source("snapshot")
@@ -188,7 +213,6 @@ class ReportingProductionOffering:
             if snapshot.official_close_lag is None:
                 return (snapshot,)
 
-        policy = self.verification_key.definition.finality_policy
         if policy is None:
             raise failure("UNSUPPORTED_VERIFICATION")
         try:

@@ -72,6 +72,7 @@ class ReportingProductionSourceRegistry:
     def __init__(self, *, account_context: ReportingContextResolver) -> None:
         self._resolve = account_context
         self._entries: dict[str, _Registration] = {}
+        self._offerings: dict[str, tuple[ReportingProductionOffering, ...]] = {}
         self._frozen = False
 
     def register(self, adapter: str, producer: ReportingProducer) -> None:
@@ -86,8 +87,13 @@ class ReportingProductionSourceRegistry:
         )
 
     def freeze(self, offerings: tuple[ReportingProductionOffering, ...]) -> None:
+        self._offerings = {}
         for offering in offerings:
             self._registration(offering)
+            self._offerings[offering.offering_id] = (
+                *self._offerings.get(offering.offering_id, ()),
+                offering,
+            )
         if any(
             not any(entry.producer is offering.producer for offering in offerings)
             for entry in self._entries.values()
@@ -134,13 +140,55 @@ class ReportingProductionSourceRegistry:
         if inspect.isawaitable(context):
             context = await context
         expected = self._expected(configuration, offering, capabilities)
+        profile = (
+            _profile(context.producer_offerings())
+            if type(context) is ReportingAccountContext
+            else None
+        )
+        shared = self._offerings.get(offering.offering_id, ())
+        shared_context = False
+        if profile is not None and len(shared) == 2:
+            source_ids = {
+                finality: next(
+                    item.source_offering_id
+                    for item in shared
+                    if item.producer._offerings.offering_for(finality) == item.source_offering_id
+                )
+                for finality in ("snapshot", "official")
+            }
+            declared = next(
+                (item for item in shared if self._registration(item).adapter == context.adapter),
+                None,
+            )
+            supplied_profile = {k: v for k, v in profile.items() if not k.endswith("_offering_id")}
+            declared_profile = (
+                {
+                    k: v
+                    for k, v in json.loads(self._registration(declared).profile).items()
+                    if not k.endswith("_offering_id")
+                }
+                if declared is not None
+                else None
+            )
+            selected_profile = json.loads(self._registration(offering).profile)
+            if (
+                declared is not None
+                and supplied_profile == declared_profile
+                and all(
+                    supplied_profile[key] == selected_profile[key]
+                    for key in ("currency", "requested_metrics", "requested_dimensions")
+                )
+                and context.snapshot_offering_id == source_ids["snapshot"]
+                and context.official_offering_id == source_ids["official"]
+            ):
+                shared_context = True
+                profile = selected_profile
         if (
             type(context) is not ReportingAccountContext
             or context.account_id != configuration.account_id
             or context.account_timezone != configuration.account_timezone
-            or context.adapter != expected["adapter"]
-            or canonical_json_utf8_v1(_profile(context.producer_offerings()))
-            != self._registration(offering).profile
+            or (context.adapter != expected["adapter"] and not shared_context)
+            or canonical_json_utf8_v1(profile) != self._registration(offering).profile
             or (
                 context.capability_offering
                 and canonical_json_utf8_v1(_thaw(context.capability_offering))

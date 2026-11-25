@@ -401,6 +401,10 @@ async def production_harness(
     notifications=False,
     count=503,
     second_source=False,
+    shared_finality=False,
+    different_source_scope=False,
+    official_missing_metric=False,
+    official_currency=None,
     source_publication=False,
     notification_delivery=False,
     periods=None,
@@ -621,18 +625,45 @@ async def production_harness(
                 "reporting_profile": profile,
                 "schedule": offering_schedule
                 or {"period_duration": "PT1H", "alignment": "utc", "delivery_sla": "PT1H"},
-                "supported_finality": [config.required_finality],
+                "supported_finality": (
+                    ["snapshot", "official"] if shared_finality else [config.required_finality]
+                ),
                 "reconciliation_mode": binding.reconciliation_mode,
                 "method": writer.delivery_methods[0].wire(),
             }
         )
         admitted = ReportingProductionOffering(offering, producer, key, source.source_id)
         offerings = (admitted,)
-        if second_source:
-            other = Source(key, path.with_name("other-source"))
+        if second_source or shared_finality:
+            other = Source(key, path.with_name("other-source"), rows, official=shared_finality)
+            if different_source_scope or official_missing_metric:
+                raw = other.capabilities.model_dump(mode="json")
+                if different_source_scope:
+                    raw["source_scope"]["adapter"] = "official"
+                    raw["offerings"][0]["publication_namespace"] = "reporting-source:official"
+                if official_missing_metric:
+                    raw["offerings"][0]["metrics"] = [
+                        metric
+                        for metric in raw["offerings"][0]["metrics"]
+                        if metric["name"] != "spend"
+                    ]
+                raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+                other.capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+                other.inline._capabilities = other.capabilities
             other_producer = ReportingProducer(
                 source=other,
-                offerings=producer._offerings,
+                offerings=(
+                    replace(
+                        producer._offerings,
+                        snapshot_offering_id=None,
+                        official_offering_id=other.source_id,
+                        currency=official_currency or producer._offerings.currency,
+                        source_scope=other.capabilities.source_scope,
+                        publication_namespace=other.capabilities.offerings[0].publication_namespace,
+                    )
+                    if shared_finality
+                    else producer._offerings
+                ),
                 store=store,
                 escalation=escalation,
                 clock=lambda: END,
@@ -642,7 +673,11 @@ async def production_harness(
             )
             offerings += (
                 ReportingProductionOffering(
-                    offering.model_copy(update={"offering_id": "managed-other"}),
+                    (
+                        offering
+                        if shared_finality
+                        else offering.model_copy(update={"offering_id": "managed-other"})
+                    ),
                     other_producer,
                     key,
                     other.source_id,

@@ -121,6 +121,21 @@ for generation in await load_active_reporting_configurations():
 platform = reporting.install(platform)  # use the returned instance
 ```
 
+For a delivery offering that supports both `snapshot` and `official`, register
+one snapshot source and one authoritative source with the same public offering
+and identical report contracts. The source IDs remain distinct. A subscription
+selects the source using its advertised offering and required finality; the
+offering appears once in capabilities. Each source must meet the offering's SLA.
+
+For account-scoped sources, supply `source_capabilities` and the shared
+`capability_offering` in `ReportingAccountContext`. When both source IDs are
+omitted, the SDK selects the unique matching source of each class from the
+account's checksummed capabilities. For account configurations, persist the
+resulting `binding_sha256()` with the generation; subscription planning records
+it automatically. Resolve the same context on recovery.
+Official finality still requires the definition's finality policy and source
+evidence.
+
 Start and close the service in your application's lifespan. Capabilities appear
 after `start()`, including on a database with no reporting
 generations. Core defaults advertise a six-hour automated recovery window and

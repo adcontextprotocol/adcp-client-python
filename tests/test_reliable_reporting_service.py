@@ -483,14 +483,17 @@ async def test_decisioning_capabilities_include_only_the_resolved_account_offeri
     first, first_context, _first_source, first_public = _account_binding("a")
     second, second_context, _second_source, second_public = _account_binding("b")
     contexts = {first.account_id: first_context, second.account_id: second_context}
-    service = ReliableReportingService.memory(account_context=lambda item: contexts[item.account_id])
+    service = ReliableReportingService.memory(
+        account_context=lambda item: contexts[item.account_id]
+    )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
     await service.configure(first)
     await service.configure(second)
 
     class Seller(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
-            supported_protocols=[SupportedProtocol.media_buy], account=Account(supported_billing=["agent"])
+            supported_protocols=[SupportedProtocol.media_buy],
+            account=Account(supported_billing=["agent"]),
         )
         accounts = SingletonAccounts(account_id=first.account_id)
 
@@ -1241,3 +1244,387 @@ async def test_unconfigured_service_declares_nothing_in_any_lifecycle_state():
     assert service.capability_block() == {}
     await service.close()
     assert service.capability_block() == {}
+
+
+def test_shared_offering_refuses_two_snapshot_sources() -> None:
+    public = {**_capability_offering("gam"), "supported_finality": ["snapshot", "official"]}
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"] = [raw["offerings"][0]]
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    first = ReportingSourceCapabilitiesV1.model_validate(raw)
+    raw["offerings"][0]["offering_id"] = "SECOND_SNAPSHOT"
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    second = ReportingSourceCapabilitiesV1.model_validate(raw)
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.sources.register(
+        "one", ScriptedReportingAdapter(first, []), capability_offerings=[public]
+    )
+    with pytest.raises(ReliableReportingConfigurationError):
+        service.sources.register(
+            "two", ScriptedReportingAdapter(second, []), capability_offerings=[public]
+        )
+
+
+def test_shared_offering_on_one_adapter_checks_both_source_slas() -> None:
+    public = {**_capability_offering("gam"), "supported_finality": ["snapshot", "official"]}
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(redacted_capabilities(), []), capability_offerings=[public]
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="schedule"):
+        service.capability_block()
+
+
+@pytest.mark.parametrize("finality", ["snapshot", "official"])
+async def test_shared_account_offering_recovery_selects_same_source(finality: str) -> None:
+    configuration, context, capabilities, public = _account_binding("d")
+    raw = capabilities.model_dump(mode="json")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+    public = {
+        **public,
+        "offering_id": "SHARED_DAILY",
+        "supported_finality": ["snapshot", "official"],
+        "schedule": {**public["schedule"], "delivery_sla": "P7D"},
+    }
+    context = replace(
+        context,
+        source_capabilities=capabilities,
+        capability_offering=public,
+        official_offering_id=capabilities.offerings[1].offering_id,
+    )
+    configuration = replace(
+        configuration,
+        required_finality=finality,
+        schedule=replace(configuration.schedule, delivery_sla="P7D"),
+        definition=replace(
+            configuration.definition,
+            finality_policy=ReportingSourceFinalPolicy("policy", "is_final"),
+        ),
+        account_binding_sha256=context.binding_sha256(),
+    )
+    store = InMemoryReportingLedgerStore()
+
+    def service() -> ReliableReportingService:
+        result = ReliableReportingService(store=store, account_context=lambda _: context)
+        result.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+        return result
+
+    first = service()
+    await first.configure(configuration)
+    await first.initialize()
+    expected = capabilities.offerings[0 if finality == "snapshot" else 1].offering_id
+    assert (
+        first._bindings[configuration.generation_key].producer._offerings.offering_for(finality)
+        == expected
+    )
+    recovered = service()
+    await recovered.initialize()
+    assert (
+        recovered._bindings[configuration.generation_key].producer._offerings.offering_for(finality)
+        == expected
+    )
+
+
+@pytest.mark.parametrize("finality", ["snapshot", "official"])
+async def test_shared_subscription_recovers_selected_registered_source(finality: str) -> None:
+    from adcp.reporting.ledger.models import ReportingSubscriptionGeneration
+
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    public = {
+        **_capability_offering("gam"),
+        "supported_finality": ["snapshot", "official"],
+        "schedule": {**_capability_offering("gam")["schedule"], "delivery_sla": "P7D"},
+    }
+    sources = []
+    for offering in raw["offerings"]:
+        payload = {**raw, "offerings": [offering]}
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+        sources.append(ReportingSourceCapabilitiesV1.model_validate(payload))
+    config = replace(
+        _configuration(),
+        required_finality=finality,
+        schedule=replace(SCHEDULE, delivery_sla="P7D"),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("policy", "is_final")
+        ),
+        subscription=ReportingSubscriptionGeneration("gam-delivery", public["offering_id"]),
+        activated_at=None,
+    )
+    context = replace(
+        _account_context(config),
+        capability_offering=public,
+        official_offering_id=OFFICIAL_OFFERING_ID,
+    )
+    store = InMemoryReportingLedgerStore()
+
+    def service() -> ReliableReportingService:
+        result = ReliableReportingService(store=store, account_context=lambda _: context)
+        result.sources.register(
+            "gam", ScriptedReportingAdapter(sources[0], []), capability_offerings=[public]
+        )
+        result.sources.register(
+            "official", ScriptedReportingAdapter(sources[1], []), capability_offerings=[public]
+        )
+        return result
+
+    first = service()
+    await first.configure(config)
+    await first.initialize()
+    expected = SNAPSHOT_OFFERING_ID if finality == "snapshot" else OFFICIAL_OFFERING_ID
+    assert (
+        first._bindings[config.generation_key].producer._offerings.offering_for(finality)
+        == expected
+    )
+    recovered = service()
+    await recovered.initialize()
+    assert (
+        recovered._bindings[config.generation_key].producer._offerings.offering_for(finality)
+        == expected
+    )
+
+
+@pytest.mark.parametrize("case", ["contract", "snapshot_sla", "official_sla"])
+def test_shared_offering_rejects_incompatible_sources(case: str) -> None:
+    public = {
+        **_capability_offering("gam"),
+        "supported_finality": ["snapshot", "official"],
+        "schedule": {**_capability_offering("gam")["schedule"], "delivery_sla": "P7D"},
+    }
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    if case == "contract":
+        raw["offerings"][1]["contract"]["report_definition_sha256"] = "c" * 64
+    else:
+        raw["offerings"][0 if case == "snapshot_sla" else 1]["worst_case_availability_lag"] = "P8D"
+    sources = []
+    for offering in raw["offerings"]:
+        payload = {**raw, "offerings": [offering]}
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+        sources.append(ReportingSourceCapabilitiesV1.model_validate(payload))
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.sources.register(
+        "one", ScriptedReportingAdapter(sources[0], []), capability_offerings=[public]
+    )
+    with pytest.raises(ReliableReportingConfigurationError):
+        service.sources.register(
+            "two", ScriptedReportingAdapter(sources[1], []), capability_offerings=[public]
+        )
+
+
+async def test_subscription_account_binding_is_frozen_at_admission() -> None:
+    from adcp.reporting.ledger.models import ReportingSubscriptionGeneration
+
+    config, context, capabilities, public = _account_binding("d")
+    config = replace(
+        config,
+        activated_at=None,
+        account_binding_sha256=None,
+        subscription=ReportingSubscriptionGeneration("gam-delivery", public["offering_id"]),
+    )
+    store = InMemoryReportingLedgerStore()
+    service = ReliableReportingService(store=store, account_context=lambda _: context)
+    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    await service._install_subscription_generation(config, {})
+    await service.initialize()
+    (stored,) = await store.list_all_configurations()
+    assert stored.account_binding_sha256 == context.binding_sha256()
+    await service._install_subscription_generation(config, {})
+    changed = replace(context, currency="EUR")
+    restarted = ReliableReportingService(store=store, account_context=lambda _: changed)
+    restarted.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    with pytest.raises(ReliableReportingConfigurationError, match="account binding"):
+        await restarted.initialize()
+
+
+def test_shared_account_offering_derives_both_source_ids() -> None:
+    _, context, capabilities, public = _account_binding("d")
+    public = {**public, "supported_finality": ["snapshot", "official"]}
+    resolved = replace(
+        context,
+        capability_offering=public,
+        snapshot_offering_id=None,
+        official_offering_id=None,
+    )
+    assert resolved.snapshot_offering_id == capabilities.offerings[0].offering_id
+    assert resolved.official_offering_id == capabilities.offerings[1].offering_id
+
+
+@pytest.mark.parametrize("case", ["missing", "duplicate", "contract"])
+def test_shared_account_offering_refuses_ambiguous_sources(case: str) -> None:
+    _, context, capabilities, public = _account_binding("d")
+    raw = capabilities.model_dump(mode="json")
+    if case == "missing":
+        raw["offerings"] = raw["offerings"][:1]
+    elif case == "duplicate":
+        duplicate = {**raw["offerings"][0], "offering_id": "OTHER_SNAPSHOT"}
+        raw["offerings"].append(duplicate)
+    else:
+        raw["offerings"][1]["contract"]["report_definition_sha256"] = "e" * 64
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    with pytest.raises(ReliableReportingConfigurationError):
+        replace(
+            context,
+            capability_offering={**public, "supported_finality": ["snapshot", "official"]},
+            snapshot_offering_id=None,
+            official_offering_id=None,
+            source_capabilities=ReportingSourceCapabilitiesV1.model_validate(raw),
+        )
+
+
+async def test_direct_account_offering_preserves_snapshot_based_official_policy() -> None:
+    configuration, context, capabilities, public = _account_binding("d")
+    raw = capabilities.model_dump(mode="json")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
+    context = replace(
+        context,
+        source_capabilities=capabilities,
+        official_offering_id=capabilities.offerings[1].offering_id,
+        capability_offering={
+            **public,
+            "supported_finality": ["snapshot", "official"],
+            "schedule": {**public["schedule"], "delivery_sla": "P7D"},
+        },
+    )
+    configuration = replace(
+        configuration,
+        required_finality="official",
+        schedule=replace(configuration.schedule, delivery_sla="P7D"),
+        definition=replace(
+            configuration.definition,
+            finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT1H"),
+        ),
+        account_binding_sha256=context.binding_sha256(),
+    )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    await service.configure(configuration)
+
+
+async def test_single_snapshot_offering_keeps_cutoff_finality() -> None:
+    public = {**_capability_offering("gam"), "supported_finality": ["snapshot", "official"]}
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"] = raw["offerings"][:1]
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    context = replace(_account_context(_configuration()), capability_offering=public)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(raw), []),
+        capability_offerings=[public],
+    )
+    assert service.capability_block()["offerings"][0]["supported_finality"] == [
+        "snapshot",
+        "official",
+    ]
+    configuration = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION, finality_policy=ReportingContractualCutoffPolicy("cutoff", "PT1H")
+        ),
+    )
+    await service.configure(configuration)
+
+
+async def test_subscription_rejects_a_different_advertised_account_offering() -> None:
+    from adcp.reporting.ledger.models import ReportingSubscriptionGeneration
+
+    config, context, capabilities, public = _account_binding("d")
+    config = replace(
+        config,
+        activated_at=None,
+        account_binding_sha256=None,
+        subscription=ReportingSubscriptionGeneration("gam-delivery", "OTHER_OFFERING"),
+    )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    with pytest.raises(ReliableReportingConfigurationError, match="subscription offering"):
+        await service._install_subscription_generation(config, {})
+
+
+async def test_shared_subscription_close_refuses_unavailable_official_metric() -> None:
+    from adcp.reporting.ledger.models import ReportingSubscriptionGeneration
+
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][0].update(official_close_lag="PT0S", restatement_window="PT1H")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    raw["offerings"][1]["metrics"] = [
+        metric for metric in raw["offerings"][1]["metrics"] if metric["name"] != "spend"
+    ]
+    sources = []
+    for offering in raw["offerings"]:
+        offering["source_timezone"] = "UTC"
+        offering["product_ids"] = ["PAID_MEDIA_DAILY_V1"]
+        payload = {**raw, "offerings": [offering]}
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+        sources.append(ReportingSourceCapabilitiesV1.model_validate(payload))
+    public = {
+        **_capability_offering("gam"),
+        "supported_finality": ["snapshot", "official"],
+        "schedule": {**_capability_offering("gam")["schedule"], "delivery_sla": "P7D"},
+    }
+    config = replace(
+        _configuration(),
+        activated_at=None,
+        schedule=replace(SCHEDULE, delivery_sla="P7D"),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("policy", "is_final")
+        ),
+        subscription=ReportingSubscriptionGeneration("gam-delivery", public["offering_id"]),
+    )
+    context = replace(_account_context(config), capability_offering=public)
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(sources[0], []), capability_offerings=[public]
+    )
+    service.sources.register(
+        "official", ScriptedReportingAdapter(sources[1], []), capability_offerings=[public]
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="requested metrics"):
+        await service.configure(config)
+
+
+async def test_direct_snapshot_close_routes_its_named_authoritative_source() -> None:
+    raw = redacted_capabilities().model_dump(mode="json")
+    raw["offerings"][0].update(official_close_lag="PT0S", restatement_window="PT1H")
+    raw["offerings"][1]["windowing"]["minimum_window"] = "PT1H"
+    sources = []
+    for offering in raw["offerings"]:
+        offering["source_timezone"] = "UTC"
+        offering["product_ids"] = ["PAID_MEDIA_DAILY_V1"]
+        payload = {**raw, "offerings": [offering]}
+        payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+        sources.append(ReportingSourceCapabilitiesV1.model_validate(payload))
+    public = {
+        **_capability_offering("gam"),
+        "supported_finality": ["snapshot", "official"],
+        "schedule": {**_capability_offering("gam")["schedule"], "delivery_sla": "P7D"},
+    }
+    config = replace(
+        _configuration(),
+        schedule=replace(SCHEDULE, delivery_sla="P7D"),
+        definition=replace(
+            DEFINITION, finality_policy=ReportingSourceFinalPolicy("policy", "is_final")
+        ),
+    )
+    context = replace(
+        _account_context(config),
+        capability_offering=public,
+        official_offering_id=OFFICIAL_OFFERING_ID,
+    )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    snapshot = service.sources.register(
+        "gam", ScriptedReportingAdapter(sources[0], []), capability_offerings=[public]
+    )
+    official = service.sources.register(
+        "official", ScriptedReportingAdapter(sources[1], []), capability_offerings=[public]
+    )
+    await service.configure(config)
+    producer = service._bindings[config.generation_key].producer
+    assert producer._source is snapshot.executor
+    assert producer._source_for(OFFICIAL_OFFERING_ID) is official.executor

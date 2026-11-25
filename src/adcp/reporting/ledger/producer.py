@@ -611,6 +611,12 @@ class ReportingProducer:
         self._offerings = offerings
         self._store = store
         self._object_reader = object_reader
+        self._source_routes: dict[
+            str,
+            tuple[
+                ReportingSourceExecutor, ReportingSourceStagedObjectReader | None, ProducerOfferings
+            ],
+        ] = {}
         self._escalation = escalation or ReportingDeliveryEscalation()
         self._worker_id = worker_id
         self._lease_seconds = lease_seconds
@@ -636,6 +642,31 @@ class ReportingProducer:
             tuple[ReportingConfigurationGenerationKey, str],
             Literal["ready", "attempted"] | _FirstCoreDelivery,
         ] = {}
+
+    def _source_for(self, offering_id: str) -> ReportingSourceExecutor:
+        route = self._source_routes.get(offering_id)
+        return route[0] if route is not None else self._source
+
+    def _reader_for(self, offering_id: str) -> ReportingSourceStagedObjectReader | None:
+        route = self._source_routes.get(offering_id)
+        return route[1] if route is not None else self._object_reader
+
+    def _profile_for(self, offering_id: str) -> ProducerOfferings:
+        route = self._source_routes.get(offering_id)
+        return route[2] if route is not None else self._offerings
+
+    def _offering_for(self, finality: str) -> str | None:
+        configured = self._offerings.offering_for(finality)
+        if configured is not None:
+            return configured
+        return next(
+            (
+                source_id
+                for source_id, (_, _, profile) in self._source_routes.items()
+                if profile.offering_for(finality) == source_id
+            ),
+            None,
+        )
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -971,7 +1002,11 @@ class ReportingProducer:
             ):
                 self._stabilization_store()
                 offering_id = self._offerings.snapshot_offering_id
-                offering = self._source.capabilities.offering(offering_id) if offering_id else None
+                offering = (
+                    self._source_for(offering_id).capabilities.offering(offering_id)
+                    if offering_id
+                    else None
+                )
                 if not isinstance(offering, ProvisionalSnapshotOfferingV1):
                     raise LedgerConflictError(
                         "SNAPSHOT_OFFERING_REQUIRED",
@@ -1415,9 +1450,7 @@ class ReportingProducer:
                 obligation.report_definition_id,
                 _utc(obligation.period.start).isoformat(),
                 _utc(obligation.period.end).isoformat(),
-                self._offerings.offering_for(
-                    _source_finality(obligation, obligation.required_finality)
-                ),
+                self._offering_for(_source_finality(obligation, obligation.required_finality)),
             ]
         )
         offset = int.from_bytes(hashlib.sha256(seed).digest(), "big") % (microseconds + 1)
@@ -1436,9 +1469,7 @@ class ReportingProducer:
         policy = obligation.definition.finality_policy if obligation.definition else None
         cutoff = end
         if offering_id is None:
-            offering_id = self._offerings.offering_for(
-                _source_finality(obligation, output_finality)
-            )
+            offering_id = self._offering_for(_source_finality(obligation, output_finality))
             if output_finality == "official" and isinstance(
                 policy, ReportingContractualCutoffPolicy
             ):
@@ -1446,7 +1477,7 @@ class ReportingProducer:
         if offering_id is None:
             # The acquisition path reports the existing missing-offering error.
             return cutoff
-        offering = self._source.capabilities.offering(offering_id)
+        offering = self._source_for(offering_id).capabilities.offering(offering_id)
         lag = (
             offering.worst_case_availability_lag
             if worst_case
@@ -1485,7 +1516,7 @@ class ReportingProducer:
             and not isinstance(selected, ReportingStabilizedPolicy)
         ) or offering_id is None:
             return None
-        offering = self._source.capabilities.offering(offering_id)
+        offering = self._source_for(offering_id).capabilities.offering(offering_id)
         if not isinstance(offering, ProvisionalSnapshotOfferingV1):
             return None
         frozen = self._recovered_stabilization.get(configuration.generation_key)
@@ -1580,7 +1611,7 @@ class ReportingProducer:
 
         explicit_close = (
             policy.official_close_lag is not None
-            and self._offerings.offering_for(_source_finality(obligation, "official")) is not None
+            and self._offering_for(_source_finality(obligation, "official")) is not None
         )
         ordinal = checkpoint.next_observation if checkpoint is not None else len(revisions)
         pending = await self._pending_acquisition(obligation, ordinal=ordinal)
@@ -1735,11 +1766,12 @@ class ReportingProducer:
             admit_tracked_stabilization=True,
         )
 
-    def _retry_keys(self, obligation: ReportingObligationRecord) -> tuple[str, str, str]:
+    def _retry_keys(
+        self, obligation: ReportingObligationRecord, offering_id: str | None = None
+    ) -> tuple[str, str, str]:
+        profile = self._profile_for(offering_id) if offering_id is not None else self._offerings
         source = hashlib.sha256(
-            canonical_json_utf8_v1(
-                [self._offerings.publication_namespace, self._offerings.source_scope]
-            )
+            canonical_json_utf8_v1([profile.publication_namespace, profile.source_scope])
         ).hexdigest()
         return (
             f"slice:{obligation.account_id}:{obligation.reporting_obligation_id}",
@@ -1766,9 +1798,14 @@ class ReportingProducer:
         turn.earliest_retry_at = min(candidates, key=_utc) if candidates else None
 
     async def _retry_not_before(
-        self, obligation: ReportingObligationRecord, turn: WorkerTurn, *, now: datetime
+        self,
+        obligation: ReportingObligationRecord,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+        offering_id: str | None = None,
     ) -> bool:
-        keys = self._retry_keys(obligation)
+        keys = self._retry_keys(obligation, offering_id)
         schedules = [await self._get_retry(key) for key in keys]
         deferred = [
             entry
@@ -1797,13 +1834,14 @@ class ReportingProducer:
         blocked: bool = False,
         replayed: bool = False,
         first_core_delivery: _FirstCoreDelivery | None = None,
+        offering_id: str | None = None,
     ) -> None:
         # Dispatch ``now`` can be synthetic in tests and integrations. A slow
         # source may finish long after it, so anchor the cooldown at completion.
         completed_at = max(_utc(now), _utc(self._clock()))
         if first_core_delivery is not None and blocked:
             first_core_delivery.state = "consumed"
-        keys = self._retry_keys(obligation)
+        keys = self._retry_keys(obligation, offering_id)
         shared = keys[1 if scope == "account" else 2]
         affected = keys[:1] if scope == "slice" else ((shared,) if blocked else (keys[0], shared))
         turn._retry_keys_by_obligation[obligation.reporting_obligation_id] = keys
@@ -1871,9 +1909,14 @@ class ReportingProducer:
         self._refresh_retry(turn, now=completed_at)
 
     async def _clear_retry(
-        self, obligation: ReportingObligationRecord, *, turn: WorkerTurn, now: datetime
+        self,
+        obligation: ReportingObligationRecord,
+        *,
+        turn: WorkerTurn,
+        now: datetime,
+        offering_id: str | None = None,
     ) -> None:
-        for key in self._retry_keys(obligation):
+        for key in self._retry_keys(obligation, offering_id):
             prior = await self._get_retry(key)
             if prior is not None and prior.attempt:
                 stored = await self._record_retry(
@@ -1910,14 +1953,15 @@ class ReportingProducer:
         )
 
         require_account_work(configuration.account_id)
-        if isinstance(self._source, ReportingProductionSource):
+        source = self._source_for(offering_id)
+        if isinstance(source, ReportingProductionSource):
             try:
-                binding = self._source.configuration_binding(configuration)
+                binding = source.configuration_binding(configuration)
                 if binding is None:
                     source_revoked(configuration.account_id)
                 if type(binding) is not ReportingProductionSourceBinding:
                     raise failure("BINDING_MISMATCH")
-                binding.check(configuration, self._source.capabilities, offering_id)
+                binding.check(configuration, source.capabilities, offering_id)
                 pool = binding.constituents()
                 if admitted_constituents is not None:
                     if configuration.owed_set:
@@ -1949,7 +1993,7 @@ class ReportingProducer:
     ) -> AsyncIterator[InlineSealPublisher | None]:
         from adcp.reporting.production.contracts import ReportingProductionSource
 
-        if not isinstance(self._source, ReportingProductionSource):
+        if not isinstance(self._source_for(offering_id), ReportingProductionSource):
             yield None
             return
         store = self._optional_publication_store()
@@ -1984,7 +2028,7 @@ class ReportingProducer:
                 self._check_source_authorization(
                     configuration, request.offering_id, admitted_constituents
                 )
-                return await self._source.execute(request, cancel=cancel)
+                return await self._source_for(request.offering_id).execute(request, cancel=cancel)
         except InlineStorageError as error:
             return _InlineStorageFailure(error.code)
 
@@ -2007,7 +2051,7 @@ class ReportingProducer:
             )
         else:
             lock = self._optional_publication_store()
-        if not isinstance(self._source, ReportingProductionSource):
+        if not isinstance(self._source_for(manifest.offering_id), ReportingProductionSource):
             if lock is not None:
                 async with lock.source_publication(obligation.account_id):
                     yield
@@ -2142,7 +2186,8 @@ class ReportingProducer:
         require_staged: bool = False,
     ) -> list[dict[str, Any]]:
         """Materialize the manifest's staged rows into the revision's frozen rows."""
-        if self._object_reader is None:
+        reader = self._reader_for(request.offering_id)
+        if reader is None:
             if require_staged:
                 raise LedgerConflictError(
                     "STAGED_OBJECT_UNAVAILABLE",
@@ -2152,7 +2197,7 @@ class ReportingProducer:
         rows: list[dict[str, Any]] = []
         cancel = asyncio.Event()
         for staged in manifest.objects:
-            payload = await self._object_reader.read(
+            payload = await reader.read(
                 object_ref=staged.object_ref,
                 object_generation=staged.object_generation,
                 account_id=request.identity.account_id,
@@ -2413,7 +2458,9 @@ class ReportingProducer:
         A direct manual snapshot uses a fresh invocation ID so an interrupted
         invocation cannot replay stale data or affect the scheduled cadence.
         """
-        offering = self._source.capabilities.offering(offering_id)
+        source = self._source_for(offering_id)
+        profile = self._profile_for(offering_id)
+        offering = source.capabilities.offering(offering_id)
         resolved_constituents: list[ReportingConstituent] = (
             list(constituents)
             if constituents is not None
@@ -2463,11 +2510,11 @@ class ReportingProducer:
                 source_execution_key=source_execution_key,
                 run_id=_source_run_id(now),
                 logical_slice_fingerprint=_logical_slice_fingerprint(obligation, offering_id),
-                source_scope=dict(self._offerings.source_scope),
+                source_scope=dict(profile.source_scope),
             ),
-            adapter_build=self._source.capabilities.adapter_build,
+            adapter_build=source.capabilities.adapter_build,
             offering_id=offering_id,
-            publication_namespace=self._offerings.publication_namespace,
+            publication_namespace=profile.publication_namespace,
             publication_class=publication_class,
             contract=offering.contract,
             period=ReportingSourcePeriodV1(
@@ -2483,8 +2530,10 @@ class ReportingProducer:
                 # readable through its own boundary, and reading past *now*
                 # would ask the source about a future it cannot answer for.
                 source_read_cutoff_at=max(_utc(now), _utc(obligation.period.end)),
-                grain=self._source.capabilities.offering(offering_id).grain,
-                windowing=self._source.capabilities.offering(offering_id).windowing,
+                grain=self._source_for(offering_id).capabilities.offering(offering_id).grain,
+                windowing=self._source_for(offering_id)
+                .capabilities.offering(offering_id)
+                .windowing,
             ),
             revision_kind="authoritative" if publication_class == "AUTHORITATIVE" else "snapshot",
             trigger=trigger,
@@ -2496,7 +2545,7 @@ class ReportingProducer:
             requested_metrics=list(self._offerings.requested_metrics),
             requested_dimensions=list(self._offerings.requested_dimensions),
             currency=require_frozen_currency(obligation.currency),
-            deadline_at=_utc(now) + self._offerings.slice_timeout,
+            deadline_at=_utc(now) + profile.slice_timeout,
         )
 
     def _stabilization_requested(self, configuration: ReportingConfiguration) -> bool:
@@ -3103,8 +3152,28 @@ class ReportingProducer:
                 manual=manual_replay or (restate and not track_settling),
                 track_manual=track_settling,
             )
-        if not manual_replay and await self._retry_not_before(obligation, turn, now=now):
-            retry_offering_id: str | None = None
+        retry_offering_id = self._offering_for(_source_finality(obligation, finality))
+        if self._source_routes and track_settling:
+            checkpoint = await self._restatement_store().get_restatement_checkpoint(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            ordinal = (
+                checkpoint.next_observation
+                if checkpoint is not None
+                else len(
+                    await self._store.list_revisions(
+                        account_id=obligation.account_id,
+                        reporting_obligation_id=obligation.reporting_obligation_id,
+                    )
+                )
+            )
+            pending_retry = await self._pending_acquisition(obligation, ordinal=ordinal)
+            if pending_retry is not None:
+                retry_offering_id = pending_retry.request().offering_id
+        if not manual_replay and await self._retry_not_before(
+            obligation, turn, now=now, offering_id=retry_offering_id
+        ):
             if track_settling:
                 checkpoint = await self._restatement_store().get_restatement_checkpoint(
                     account_id=obligation.account_id,
@@ -3273,7 +3342,7 @@ class ReportingProducer:
         require_frozen_currency(obligation.currency)
 
         source_finality = _source_finality(obligation, finality)
-        offering_id = self._offerings.offering_for(source_finality)
+        offering_id = self._offering_for(source_finality)
         if offering_id is None:
             raise LedgerConflictError(
                 "NO_OFFERING_FOR_FINALITY",
@@ -3292,7 +3361,10 @@ class ReportingProducer:
                 observation = await self._cutoff_observation_ordinal(obligation, observation)
         if first_core is not None and first_core.request is not None:
             request = first_core.request.model_copy(
-                update={"deadline_at": _utc(now) + self._offerings.slice_timeout}
+                update={
+                    "deadline_at": _utc(now)
+                    + self._profile_for(first_core.request.offering_id).slice_timeout
+                }
             )
         else:
             request = self._build_slice(
@@ -3336,14 +3408,17 @@ class ReportingProducer:
                     configuration, obligation, acquisition, now
                 )
                 return None
-            request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
+            retained = acquisition.request()
+            request = acquisition.request(
+                deadline_at=_utc(now) + self._profile_for(retained.offering_id).slice_timeout
+            )
             finality = acquisition.finality
             if acquisition.output_finality and _utc(now) < _utc(
                 request.period.source_read_cutoff_at
             ):
                 return None
         request = request.model_copy(deep=True)
-        full_authority = self._requires_source_authority(obligation)
+        full_authority = self._requires_source_authority(obligation, request.offering_id)
         if full_authority:
             self._source_authority(obligation, request)
         cancel = asyncio.Event()
@@ -3358,7 +3433,7 @@ class ReportingProducer:
         try:
             result = await asyncio.wait_for(
                 asyncio.shield(execution),
-                timeout=self._offerings.slice_timeout.total_seconds(),
+                timeout=self._profile_for(request.offering_id).slice_timeout.total_seconds(),
             )
         except asyncio.CancelledError:
             cancel.set()
@@ -3377,6 +3452,7 @@ class ReportingProducer:
                 now=now,
                 replayed=manual_replay,
                 first_core_delivery=first_core,
+                offering_id=request.offering_id,
             )
             self._note_escalation(
                 obligation,
@@ -3415,6 +3491,7 @@ class ReportingProducer:
                 blocked=error.retry == "terminal",
                 replayed=manual_replay,
                 first_core_delivery=first_core,
+                offering_id=request.offering_id,
             )
             self._note_escalation(
                 obligation,
@@ -3483,7 +3560,11 @@ class ReportingProducer:
                 # Retire its execution identity only after staged verification.
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 await self._schedule_retry(
-                    obligation, turn, now=published_at, replayed=manual_replay
+                    obligation,
+                    turn,
+                    now=published_at,
+                    replayed=manual_replay,
+                    offering_id=request.offering_id,
                 )
                 await self._retire_acquisition(
                     obligation,
@@ -3541,11 +3622,14 @@ class ReportingProducer:
                         turn,
                         now=published_at,
                         retry_after_seconds=acquisition.policy.cadence.total_seconds(),
+                        offering_id=request.offering_id,
                     )
             raise
         if first_core is not None:
             first_core.state = "consumed"
-        await self._clear_retry(obligation, turn=turn, now=published_at)
+        await self._clear_retry(
+            obligation, turn=turn, now=published_at, offering_id=request.offering_id
+        )
         return committed
 
     @staticmethod
@@ -3845,7 +3929,7 @@ class ReportingProducer:
             frozen=frozen_policy,
             scheduled_ordinal=ordinal if request.trigger == "scheduled_poll" else None,
         )
-        if self._requires_source_authority(obligation):
+        if self._requires_source_authority(obligation, request.offering_id):
             self._source_authority(obligation, request)
             self._check_source_authorization(
                 configuration, request.offering_id, tuple(request.coverage.constituents)
@@ -3886,11 +3970,13 @@ class ReportingProducer:
         )
         return acquisition
 
-    def _requires_source_authority(self, obligation: ReportingObligationRecord) -> bool:
+    def _requires_source_authority(
+        self, obligation: ReportingObligationRecord, offering_id: str
+    ) -> bool:
         from adcp.reporting.production.contracts import ReportingProductionSource
 
         return bool(obligation.definition and obligation.definition.finality_policy) or isinstance(
-            self._source, ReportingProductionSource
+            self._source_for(offering_id), ReportingProductionSource
         )
 
     def _source_authority(
@@ -3903,7 +3989,9 @@ class ReportingProducer:
 
         self._validate_definition_binding(obligation, request.contract)
         try:
-            offering = _validate_request_against_capabilities(self._source.capabilities, request)
+            offering = _validate_request_against_capabilities(
+                self._source_for(request.offering_id).capabilities, request
+            )
         except ReportingSourceConformanceError as error:
             raise LedgerConflictError(
                 "MANIFEST_MISMATCH", "request contradicts its declared source authority"
@@ -3962,8 +4050,10 @@ class ReportingProducer:
         try:
             offering = (
                 self._source_authority(obligation, request)
-                if self._requires_source_authority(obligation)
-                else self._source.capabilities.offering(request.offering_id)
+                if self._requires_source_authority(obligation, request.offering_id)
+                else self._source_for(request.offering_id).capabilities.offering(
+                    request.offering_id
+                )
             )
             _validate_manifest_against_request(offering, request, manifest)
         except ReportingSourceConformanceError as error:
@@ -4030,7 +4120,9 @@ class ReportingProducer:
         self._validate_manifest_currency(obligation, manifest)
         if any(cell.status == "unsupported" for cell in manifest.metric_availability):
             try:
-                offering = self._source.capabilities.offering(manifest.offering_id)
+                offering = self._source_for(manifest.offering_id).capabilities.offering(
+                    manifest.offering_id
+                )
                 _validate_metric_applicability(offering.metrics, manifest.metric_availability)
             except (KeyError, ValueError):
                 raise LedgerConflictError(
@@ -4167,9 +4259,7 @@ class ReportingProducer:
                 "FINALITY_POLICY_UNPROVEN", "official finality requires policy proof"
             )
         else:
-            if manifest.offering_id != self._offerings.offering_for(
-                _source_finality(obligation, "official")
-            ):
+            if manifest.offering_id != self._offering_for(_source_finality(obligation, "official")):
                 raise LedgerConflictError(
                     "MANIFEST_MISMATCH", "official proof must use the selected source offering"
                 )
@@ -4283,7 +4373,9 @@ class ReportingProducer:
             and acquisition is not None
             and selected_policy is None
         ):
-            source_offering = self._source.capabilities.offering(manifest.offering_id)
+            source_offering = self._source_for(manifest.offering_id).capabilities.offering(
+                manifest.offering_id
+            )
             default_terminal_read = (
                 isinstance(source_offering, ProvisionalSnapshotOfferingV1)
                 and source_offering.restatement_window is None
@@ -4635,8 +4727,7 @@ class ReportingProducer:
                         "the manifest contradicts the retained source finality",
                     ) from error
                 if (
-                    manifest.offering_id
-                    != self._offerings.offering_for(finality_policy_source_class(policy))
+                    manifest.offering_id != self._offering_for(finality_policy_source_class(policy))
                     or proof.finality_policy_id != retained.finality_policy_id
                     or proof.basis != retained.finality_basis
                     or proof.finalized_at != retained.finalized_at

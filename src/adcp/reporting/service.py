@@ -320,6 +320,30 @@ class ReportingAccountContext:
             raise ReliableReportingConfigurationError(
                 f"unknown account_timezone {self.account_timezone!r}"
             ) from error
+        if (
+            self.snapshot_offering_id is None
+            and self.official_offering_id is None
+            and self.source_capabilities is not None
+            and set(self.capability_offering.get("supported_finality", ()))
+            == {"snapshot", "official"}
+        ):
+            matching = [
+                source
+                for source in self.source_capabilities.offerings
+                if _matches_public_contract(source.contract, self.capability_offering)
+            ]
+            snapshots = [s for s in matching if isinstance(s, ProvisionalSnapshotOfferingV1)]
+            officials = [s for s in matching if isinstance(s, AuthoritativeOfferingV1)]
+            if (
+                len(snapshots) != 1
+                or len(officials) != 1
+                or snapshots[0].contract != officials[0].contract
+            ):
+                raise ReliableReportingConfigurationError(
+                    "shared offering requires one snapshot and one authoritative source"
+                )
+            object.__setattr__(self, "snapshot_offering_id", snapshots[0].offering_id)
+            object.__setattr__(self, "official_offering_id", officials[0].offering_id)
         if self.snapshot_offering_id is None and self.official_offering_id is None:
             raise ReliableReportingConfigurationError(
                 "at least one snapshot or official source offering is required"
@@ -511,6 +535,13 @@ class ReportingAdapterRegistry:
                     f"capability offering {offering_id!r} has conflicting declarations"
                 )
             declared[offering_id] = public
+            if len(public["supported_finality"]) == 2 and not any(
+                _matches_public_contract(source.contract, public)
+                for source in executor.capabilities.offerings
+            ):
+                raise ReliableReportingConfigurationError(
+                    "shared offering has no matching source contract"
+                )
             for finality in public["supported_finality"]:
                 matching = [
                     source
@@ -520,13 +551,70 @@ class ReportingAdapterRegistry:
                     if (finality == "official" or isinstance(source, ProvisionalSnapshotOfferingV1))
                     and _matches_public_contract(source.contract, public)
                 ]
-                if not matching:
+                if not matching and len(public["supported_finality"]) != 2:
                     raise ReliableReportingConfigurationError(
                         f"capability offering {public['offering_id']!r} has no matching "
                         f"{finality} source contract on adapter {name!r}"
                     )
+        for public in registration.capability_offerings:
+            peers = [
+                item for item in self._registrations.values() if public in item.capability_offerings
+            ]
+            if peers and len(public["supported_finality"]) == 2:
+                self._shared_sources(public, (*peers, registration))
         self._registrations[name] = registration
         return registration
+
+    def _shared_sources(
+        self, public: Mapping[str, Any], registrations: Sequence[AdapterRegistration]
+    ) -> dict[
+        str, tuple[AdapterRegistration, ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1]
+    ]:
+        matches: dict[
+            str, tuple[AdapterRegistration, ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1]
+        ] = {}
+        for registration in registrations:
+            for source in registration.executor.capabilities.offerings:
+                if not _matches_public_contract(source.contract, public):
+                    continue
+                finality = (
+                    "snapshot" if isinstance(source, ProvisionalSnapshotOfferingV1) else "official"
+                )
+                if finality in matches:
+                    raise ReliableReportingConfigurationError(
+                        "shared offering has duplicate source finality"
+                    )
+                matches[finality] = (registration, source)
+        if set(matches) != {"snapshot", "official"}:
+            raise ReliableReportingConfigurationError(
+                "shared offering requires snapshot and official sources"
+            )
+        snapshot, official = matches["snapshot"][1], matches["official"][1]
+        if snapshot.contract != official.contract or snapshot.offering_id == official.offering_id:
+            raise ReliableReportingConfigurationError(
+                "shared offering sources must have distinct IDs and identical contracts"
+            )
+        schedule = public["schedule"]
+        duration = iso_duration_milliseconds_v1(schedule["period_duration"])
+        sla = iso_duration_milliseconds_v1(schedule["delivery_sla"])
+        for _, source in matches.values():
+            if (
+                sla < iso_duration_milliseconds_v1(source.worst_case_availability_lag)
+                or not iso_duration_milliseconds_v1(source.windowing.minimum_window)
+                <= duration
+                <= iso_duration_milliseconds_v1(source.windowing.maximum_window)
+                or isinstance(source, ProvisionalSnapshotOfferingV1)
+                and duration < iso_duration_milliseconds_v1(source.fastest_safe_cadence)
+                or (
+                    schedule["alignment"] == "source_timezone"
+                    and source.source_timezone is not None
+                    and schedule.get("period_timezone") != source.source_timezone
+                )
+            ):
+                raise ReliableReportingConfigurationError(
+                    "shared offering schedule cannot be met by its source"
+                )
+        return matches
 
     def get(self, name: str) -> AdapterRegistration:
         try:
@@ -535,6 +623,24 @@ class ReportingAdapterRegistry:
             raise ReliableReportingConfigurationError(
                 f"configuration names unregistered reporting adapter {name!r}"
             ) from error
+
+    def _validate_shared_offerings(self) -> None:
+        groups: dict[str, tuple[Mapping[str, Any], list[AdapterRegistration]]] = {}
+        for registration in self._registrations.values():
+            for public in registration.capability_offerings:
+                if set(public["supported_finality"]) == {"snapshot", "official"}:
+                    _, registrations = groups.setdefault(str(public["offering_id"]), (public, []))
+                    registrations.append(registration)
+        for public, registrations in groups.values():
+            if len(registrations) == 1:
+                matching = [
+                    source
+                    for source in registrations[0].executor.capabilities.offerings
+                    if _matches_public_contract(source.contract, public)
+                ]
+                if len(matching) == 1 and isinstance(matching[0], ProvisionalSnapshotOfferingV1):
+                    continue
+            self._shared_sources(public, registrations)
 
     def bind_capabilities(
         self,
@@ -1016,7 +1122,8 @@ class ReliableReportingService:
                 for name in self.sources.names
                 for item in self.sources.get(name).capability_offerings
             ]
-        self._subscriptions = managed.compose([_thaw(item) for item in offerings])
+        distinct = {str(item["offering_id"]): _thaw(item) for item in offerings}
+        self._subscriptions = managed.compose(list(distinct.values()))
         if self._production_options is None:
             self._build_subscription_planner()
 
@@ -1215,7 +1322,11 @@ class ReliableReportingService:
     def _production_offering(self, configuration: ReportingConfiguration) -> Any:
         assert self._production is not None and configuration.subscription is not None
         wanted = configuration.subscription.offering_id
-        matches = [o for o in self._production.offerings if o.offering_id == wanted]
+        matches = [
+            o
+            for o in self._production.offerings
+            if o.offering_id == wanted and self._production._matches_finality(o, configuration)
+        ]
         if len(matches) != 1:
             raise ReliableReportingConfigurationError(
                 f"offering {wanted!r} is not a production offering"
@@ -1340,7 +1451,10 @@ class ReliableReportingService:
         key = configuration.generation_key
         existing = self._bindings.get(key) or self._pending_bindings.get(key)
         if existing is not None:
-            if existing.configuration != configuration:
+            expected = existing.configuration
+            if configuration.owed_set and configuration.account_binding_sha256 is None:
+                expected = replace(expected, account_binding_sha256=None)
+            if expected != configuration:
                 raise ReliableReportingConfigurationError(
                     f"configuration {key.delivery_config_id}@{key.delivery_config_version} "
                     f"for account {key.account_id!r} is already frozen with other facts"
@@ -1361,9 +1475,18 @@ class ReliableReportingService:
                     error, permanent=isinstance(error, _MissingFinalityPolicyError)
                 ) from error
             raise
+        source_routes: dict[str, tuple[AdapterRegistration, Any]] = {}
         try:
             if not isinstance(context, ReportingAccountContext):
                 raise TypeError("account_context must resolve ReportingAccountContext")
+            if (
+                configuration.owed_set
+                and configuration.account_binding_sha256 is None
+                and context.source_capabilities is not None
+            ):
+                configuration = replace(
+                    configuration, account_binding_sha256=context.binding_sha256()
+                )
             if context.account_id != configuration.account_id:
                 raise ReliableReportingConfigurationError(
                     "resolved account context does not match the configuration account"
@@ -1377,6 +1500,78 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "resolved account timezone does not match the configuration timezone"
                 )
+            if configuration.subscription is not None and context.source_capabilities is None:
+                public = ReportingDeliveryOffering.model_validate(
+                    _thaw(context.capability_offering)
+                ).model_dump(mode="json", exclude_none=True)
+                registrations = [
+                    self.sources.get(name)
+                    for name in self.sources.names
+                    if any(
+                        _thaw(item) == public
+                        for item in self.sources.get(name).capability_offerings
+                    )
+                ]
+                if len(registrations) > 1:
+                    if public["offering_id"] != configuration.subscription.offering_id:
+                        raise ReliableReportingConfigurationError(
+                            "subscription offering does not match its account context"
+                        )
+                    sources = self.sources._shared_sources(public, registrations)
+                    registration, selected = sources[configuration.required_finality]
+                    if (
+                        configuration.required_finality == "snapshot"
+                        and isinstance(selected, ProvisionalSnapshotOfferingV1)
+                        and selected.official_close_lag is not None
+                    ):
+                        alternate, official = sources["official"]
+                        source_routes[official.offering_id] = (alternate, official)
+                    context = replace(
+                        context,
+                        adapter=registration.name,
+                        snapshot_offering_id=(
+                            selected.offering_id
+                            if configuration.required_finality == "snapshot"
+                            else None
+                        ),
+                        official_offering_id=(
+                            selected.offering_id
+                            if configuration.required_finality == "official"
+                            else next(iter(source_routes), None)
+                        ),
+                    )
+            if (
+                configuration.subscription is None
+                and context.source_capabilities is None
+                and context.snapshot_offering_id is not None
+                and context.official_offering_id is not None
+            ):
+                public = ReportingDeliveryOffering.model_validate(
+                    _thaw(context.capability_offering)
+                ).model_dump(mode="json", exclude_none=True)
+                registrations = [
+                    self.sources.get(name)
+                    for name in self.sources.names
+                    if any(
+                        _thaw(item) == public
+                        for item in self.sources.get(name).capability_offerings
+                    )
+                ]
+                if len(registrations) > 1:
+                    sources = self.sources._shared_sources(public, registrations)
+                    snapshot_registration, snapshot_source = sources["snapshot"]
+                    official_registration, official_source = sources["official"]
+                    if (
+                        snapshot_registration.name == context.adapter
+                        and snapshot_source.offering_id == context.snapshot_offering_id
+                        and isinstance(snapshot_source, ProvisionalSnapshotOfferingV1)
+                        and snapshot_source.official_close_lag is not None
+                        and official_source.offering_id == context.official_offering_id
+                    ):
+                        source_routes[official_source.offering_id] = (
+                            official_registration,
+                            official_source,
+                        )
             registration = self.sources.get(context.adapter)
             if context.source_capabilities is not None:
                 registration = self.sources.bind_capabilities(
@@ -1451,6 +1646,18 @@ class ReliableReportingService:
                 else {}
             ),
         )
+        for source_id, (alternate, declared_source) in source_routes.items():
+            producer._source_routes[source_id] = (
+                alternate.executor,
+                alternate.object_reader,
+                replace(
+                    offerings,
+                    snapshot_offering_id=None,
+                    official_offering_id=source_id,
+                    source_scope=dict(alternate.executor.capabilities.source_scope),
+                    publication_namespace=declared_source.publication_namespace,
+                ),
+            )
         try:
             frozen = None
             if configuration.definition and isinstance(
@@ -1459,7 +1666,9 @@ class ReliableReportingService:
                 frozen = await producer._recover_stabilization_schedule(
                     configuration, required=producer._stabilization_requested(configuration)
                 )
-            policy = self._validate_offerings(configuration, context, registration, frozen=frozen)
+            policy = self._validate_offerings(
+                configuration, context, registration, producer=producer, frozen=frozen
+            )
             if isinstance(policy, ReportingStabilizedPolicy):
                 producer._stabilization_store()
             elif policy is not None:
@@ -1596,6 +1805,7 @@ class ReliableReportingService:
         context: ReportingAccountContext,
         registration: AdapterRegistration,
         *,
+        producer: ReportingProducer,
         frozen: ProvisionalPolicy | None = None,
     ) -> ReportingFinalityPolicy | None:
         capabilities = registration.executor.capabilities
@@ -1621,7 +1831,9 @@ class ReliableReportingService:
             selected.append(snapshot)
         if context.official_offering_id is not None:
             try:
-                official = capabilities.offering(context.official_offering_id)
+                official = producer._source_for(context.official_offering_id).capabilities.offering(
+                    context.official_offering_id
+                )
             except KeyError as error:
                 raise ReliableReportingConfigurationError(
                     f"official offering {context.official_offering_id!r} is not registered"
@@ -1639,9 +1851,10 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering publication namespace does not match the account context"
                 )
-            if isinstance(
-                registration.executor, InlineReportingSource
-            ) and not registration.executor.supports_output_format(offering.formats):
+            executor = producer._source_for(offering.offering_id)
+            if isinstance(executor, InlineReportingSource) and not executor.supports_output_format(
+                offering.formats
+            ):
                 raise ReliableReportingConfigurationError(
                     "inline source formats must include uncompressed NDJSON"
                 )
@@ -1659,7 +1872,7 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering contract does not match the pinned report definition"
                 )
-        if context.source_capabilities is not None:
+        if context.source_capabilities is not None or producer._source_routes:
             _validate_account_source_requirements(configuration, context, selected)
         if configuration.required_finality == "snapshot" and snapshot is None:
             raise ReliableReportingConfigurationError(
@@ -1670,12 +1883,38 @@ class ReliableReportingService:
             frozen is not None
             or configuration.required_finality == "official"
             or (snapshot is not None and snapshot.official_close_lag is not None)
+            or (
+                (
+                    configuration.subscription is not None
+                    or (
+                        configuration.definition is not None
+                        and configuration.definition.finality_policy is not None
+                        and finality_policy_source_class(configuration.definition.finality_policy)
+                        == "official"
+                    )
+                )
+                and context.source_capabilities is not None
+                and snapshot is not None
+                and official is not None
+                and "official" in context.capability_offering.get("supported_finality", ())
+            )
         ):
             definition = configuration.definition
             if definition is None or definition.finality_policy is None:
                 raise _MissingFinalityPolicyError()
             policy = definition.finality_policy
             source_class = finality_policy_source_class(policy)
+            if (
+                configuration.subscription is not None
+                and snapshot is not None
+                and official is not None
+                and set(context.capability_offering.get("supported_finality", ()))
+                == {"snapshot", "official"}
+                and source_class != "official"
+            ):
+                raise ReliableReportingConfigurationError(
+                    "shared offering official finality requires an authoritative source policy"
+                )
             source = official if source_class == "official" else snapshot
             if source is None:
                 raise ReliableReportingConfigurationError(
@@ -1718,6 +1957,12 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "capability_offering must contain the advertised offering_id"
             )
+        if configuration.subscription is not None and (
+            configuration.subscription.offering_id != declared_id
+        ):
+            raise ReliableReportingConfigurationError(
+                "subscription offering does not match its account context"
+            )
         if context.capability_offering.get("feed_purpose") != configuration.feed_purpose:
             raise ReliableReportingConfigurationError(
                 "advertised capability offering feed_purpose does not match the configuration"
@@ -1752,6 +1997,25 @@ class ReliableReportingService:
             if context.source_capabilities is not None:
                 schedule = public["schedule"]
                 configured_schedule = configuration.schedule
+                if (
+                    configuration.subscription is not None
+                    and snapshot is not None
+                    and official is not None
+                    and set(public["supported_finality"]) == {"snapshot", "official"}
+                ):
+                    if snapshot.contract != official.contract:
+                        raise ReliableReportingConfigurationError(
+                            "shared offering sources must have identical contracts"
+                        )
+                    sla = iso_duration_milliseconds_v1(schedule["delivery_sla"])
+                    duration = iso_duration_milliseconds_v1(schedule["period_duration"])
+                    if any(
+                        sla < iso_duration_milliseconds_v1(source.worst_case_availability_lag)
+                        for source in (snapshot, official)
+                    ) or duration < iso_duration_milliseconds_v1(snapshot.fastest_safe_cadence):
+                        raise ReliableReportingConfigurationError(
+                            "shared offering delivery SLA cannot be met by its source"
+                        )
                 if any(
                     schedule.get(name) != getattr(configured_schedule, name)
                     for name in ("period_duration", "delivery_sla", "alignment")
@@ -1824,6 +2088,7 @@ class ReliableReportingService:
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
+        self.sources._validate_shared_offerings()
         self._compose_managed()
         self._compose_production()
         if self._production is not None and self._production_options is None and self.sources.names:
@@ -2341,6 +2606,7 @@ class ReliableReportingService:
         ``adcp_version`` is the release the response is served at; it decides
         which reporting-subscription fields appear when subscriptions are served.
         """
+        self.sources._validate_shared_offerings()
         self._compose_managed()
         block = self._capability_block(account_id=account_id)
         if self._subscriptions is None or not block:
