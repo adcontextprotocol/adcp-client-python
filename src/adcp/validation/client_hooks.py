@@ -36,6 +36,11 @@ class UnknownFieldPolicy(str, Enum):
     IGNORE = "ignore"
 
 
+#: Default :attr:`ValidationHookConfig.server_response_max_nodes`: ten times
+#: the untrusted-input cap.
+DEFAULT_SERVER_RESPONSE_MAX_NODES = 100_000
+
+
 @dataclass(frozen=True)
 class ValidationHookConfig:
     """Per-side client validation modes.
@@ -72,6 +77,23 @@ class ValidationHookConfig:
     #: Server-side policy for unsupported top-level tool arguments.
     #: ``None`` preserves existing permissive behavior.
     unknown_fields: UnknownFieldPolicy | Literal["reject", "strip", "ignore"] | None = None
+    #: Server-side budget, in JSON nodes, for validating the server's *own*
+    #: outbound responses. A response under it is validated in full. A
+    #: response at or over it is sent without schema validation and logged
+    #: at ERROR (``extra={"adcp_validation": "response_over_budget"}``); it is
+    #: never refused for size alone. ``None`` validates every response in
+    #: full whatever its size. Full validation costs roughly 15 µs per node
+    #: on the event loop, so the default bounds that at about 1.5 s.
+    #:
+    #: Requests and client-side response parsing keep the fixed
+    #: :data:`~adcp.validation.DEFAULT_MAX_PAYLOAD_NODES` cap: both parse
+    #: input from a peer that may be hostile.
+    server_response_max_nodes: int | None = DEFAULT_SERVER_RESPONSE_MAX_NODES
+
+    def __post_init__(self) -> None:
+        budget = self.server_response_max_nodes
+        if budget is not None and (type(budget) is not int or budget < 1):
+            raise ValueError("server_response_max_nodes must be a positive integer or None")
 
 
 #: Server-side default — strict on both request and response sides.
