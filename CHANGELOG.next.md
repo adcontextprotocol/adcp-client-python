@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.0.0-beta.27](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.26...v10.0.0-beta.27) (2026-11-25)
+
+
+### Bug Fixes
+
+* page get_reporting_status by max_results and size; validate a server's own large responses ([#1967](https://github.com/adcontextprotocol/adcp-client-python/issues/1967)) ([7f89012](https://github.com/adcontextprotocol/adcp-client-python/commit/7f890124458089504909340d4e9ee582cce50c92))
+* **version:** retire the 3.3-rc.0 -&gt; 3.3-rc.3 bridge alias ([#1971](https://github.com/adcontextprotocol/adcp-client-python/issues/1971)) ([fcf3525](https://github.com/adcontextprotocol/adcp-client-python/commit/fcf3525e3ad7930255a4b9431f4479fdb9576d98))
+
 ## [10.0.0-beta.26](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.25...v10.0.0-beta.26) (2026-11-25)
 
 
