@@ -849,6 +849,7 @@
       "ConsumerStatusRecord": "adcp.reporting.ledger.models",
       "ConsumerStatusValue": "union[value:'content_mismatch',value:'obligation_missing',value:'received',value:'revision_missing',value:'unreadable']",
       "CurrencyResolver": "union[instance:builtins:list,union[builtins:str,union[builtins:str]]]",
+      "DEFAULT_STATUS_PAGE_NODE_BUDGET": "value:8000",
       "FixedCurrencyResolver": "adcp.reporting.ledger.producer",
       "InMemoryReportingLedgerStore": "adcp.reporting.ledger.store",
       "InMemoryReportingReconciliationStore": "adcp.reporting.ledger.delivery",
