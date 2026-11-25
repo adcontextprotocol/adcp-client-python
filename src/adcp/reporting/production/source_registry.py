@@ -72,7 +72,7 @@ class ReportingProductionSourceRegistry:
     def __init__(self, *, account_context: ReportingContextResolver) -> None:
         self._resolve = account_context
         self._entries: dict[str, _Registration] = {}
-        self._offerings: dict[str, tuple[ReportingProductionOffering, ...]] = {}
+        self._offerings: tuple[ReportingProductionOffering, ...] = ()
         self._frozen = False
 
     def register(self, adapter: str, producer: ReportingProducer) -> None:
@@ -87,18 +87,14 @@ class ReportingProductionSourceRegistry:
         )
 
     def freeze(self, offerings: tuple[ReportingProductionOffering, ...]) -> None:
-        self._offerings = {}
         for offering in offerings:
             self._registration(offering)
-            self._offerings[offering.offering_id] = (
-                *self._offerings.get(offering.offering_id, ()),
-                offering,
-            )
         if any(
             not any(entry.producer is offering.producer for offering in offerings)
             for entry in self._entries.values()
         ):
             raise ValueError("registered production source profile has no offering")
+        self._offerings = offerings
         self._frozen = True
 
     def _registration(self, offering: ReportingProductionOffering) -> _Registration:
@@ -145,7 +141,7 @@ class ReportingProductionSourceRegistry:
             if type(context) is ReportingAccountContext
             else None
         )
-        shared = self._offerings.get(offering.offering_id, ())
+        shared = tuple(item for item in self._offerings if item.offering_id == offering.offering_id)
         shared_context = False
         if profile is not None and len(shared) == 2:
             source_ids = {
