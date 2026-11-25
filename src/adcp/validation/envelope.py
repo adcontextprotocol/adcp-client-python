@@ -82,9 +82,8 @@ def detect_wire_version(
 
     1. ``payload['adcp_version']`` — string, normalized to release
        precision (``"3.0.7"`` → ``"3.0"``). Must be in ``supported`` or
-       raises :class:`UnsupportedVersionError`. The explicit compatibility
-       aliases resolve to their targets (``3.2-rc.7`` to ``3.2``,
-       ``3.3-rc.0`` to ``3.3-rc.3``).
+       raises :class:`UnsupportedVersionError`. The explicit ``3.2-rc.7``
+       compatibility alias resolves to ``3.2``.
     2. ``payload['adcp_major_version']`` — int. Prefer ``MAJOR.0`` when
        supported because this legacy field predates release-precision
        negotiation and the 3.1 response envelope split. If ``MAJOR.0`` is

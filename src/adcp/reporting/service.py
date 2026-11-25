@@ -2042,8 +2042,8 @@ class ReliableReportingService:
 
                     # Leave out compatibility aliases that never reach
                     # subscriptions (3.2-rc.7), never the packaged release,
-                    # which can itself be a candidate (3.3-rc.3), nor an alias
-                    # of it (3.3-rc.0) that buyers still pin.
+                    # which can itself be a candidate (3.3-rc.3), nor an
+                    # alias of it that buyers still pin.
                     adcp["supported_versions"] = [
                         item
                         for item in get_supported_adcp_versions()

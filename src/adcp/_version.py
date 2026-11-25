@@ -29,22 +29,11 @@ import re
 # definition, so making them part of the pin is a category error.
 COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2", "3.3")
 
-# Explicit compatibility bridges. Other prereleases retain their own schema
-# contracts; never infer aliases by pattern.
-#
-# - 3.2-rc.7: buyers shipped with adcp 8.0.0rc3. rc.7 requests remain valid
-#   under the additive 3.2.1 contract.
-# - 3.3-rc.0: buyers still pinned to the first 3.3 release candidate, so a
-#   seller can serve rc.0 and rc.3 buyers during a lockstep preview move.
-#   rc.0 requests validate against rc.3 except performance-standard
-#   ``metric_id``, which rc.3 withdrew: the compact standard on buy_products
-#   purchases rejects it, and package standards and get_products filters
-#   accept it but no longer act on it. Responses are rc.3-shaped; rc.0 reads
-#   them except values rc.3 added to closed enums (reporting dimension
-#   ``postal_area``), so a bridging seller must not emit those.
-#
+# Explicit compatibility bridge for buyers shipped with adcp 8.0.0rc3.
+# rc.7 requests remain valid under the additive 3.2.1 contract. Other
+# prereleases retain their own schema contracts; never infer aliases by pattern.
 # An alias is advertised only while its target is.
-_ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2", "3.3-rc.0": "3.3-rc.3"}
+_ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2"}
 
 
 def resolve_adcp_version_alias(version: str) -> str:
@@ -216,8 +205,7 @@ def resolve_adcp_version(pin: str | None) -> str:
       is advertised by this SDK.
     - Cross-major pin → raises :class:`ConfigurationError`.
     - Unparseable string → raises :class:`ConfigurationError`.
-    - The explicit compatibility aliases resolve to their targets:
-      ``3.2-rc.7`` to ``3.2`` and ``3.3-rc.0`` to ``3.3-rc.3``.
+    - The explicit ``3.2-rc.7`` compatibility alias resolves to ``3.2``.
 
     All resolved pins are normalized to release-precision before being
     returned, per the spec's wire-value rule
