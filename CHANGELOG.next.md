@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-beta.26](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.25...v10.0.0-beta.26) (2026-11-25)
+
+
+### Features
+
+* **version:** accept 3.3-rc.0 as an explicit alias for 3.3-rc.3 ([#1964](https://github.com/adcontextprotocol/adcp-client-python/issues/1964)) ([64dfa3c](https://github.com/adcontextprotocol/adcp-client-python/commit/64dfa3c97526273519e8e6031e185596c15edc75))
+
 ## [10.0.0-beta.25](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.24...v10.0.0-beta.25) (2026-11-24)
 
 
