@@ -404,8 +404,15 @@ The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility
 alias for buyers shipped with `adcp==8.0.0rc3`. These requests use the stable
 3.2 validators and responses retain the `"3.2-rc.7"` alias so strict rc3
 clients can select their bundled response validator.
-Constructor pins to that alias resolve to `"3.2"`. Other prereleases are
-not automatically aliased.
+Constructor pins to that alias resolve to `"3.2"`.
+
+`"3.3-rc.0"` is likewise an explicit alias for `"3.3-rc.3"`, so a seller can
+serve buyers still pinned to the first 3.3 release candidate while both sides
+move to rc.3. rc.0 requests are validated against rc.3 and responses echo
+`"3.3-rc.0"`. rc.3 withdrew one rc.0 field, performance-standard `metric_id`;
+a request that sends it on a `buy_products` purchase fails validation. The
+alias is advertised only while rc.3 is the packaged release. Other prereleases
+are not automatically aliased.
 
 If you talk to an agent on a newer spec than this SDK validates, the response
 still parses — unknown fields are preserved on the model (but not surfaced as

@@ -29,10 +29,18 @@ import re
 # definition, so making them part of the pin is a category error.
 COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2", "3.3")
 
-# Explicit compatibility bridge for buyers shipped with adcp 8.0.0rc3.
-# rc.7 requests remain valid under the additive 3.2.1 contract. Other
-# prereleases retain their own schema contracts; never infer aliases by pattern.
-_ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2"}
+# Explicit compatibility bridges. Other prereleases retain their own schema
+# contracts; never infer aliases by pattern.
+#
+# - 3.2-rc.7: buyers shipped with adcp 8.0.0rc3. rc.7 requests remain valid
+#   under the additive 3.2.1 contract.
+# - 3.3-rc.0: buyers still pinned to the first 3.3 release candidate, so a
+#   seller can serve rc.0 and rc.3 buyers during a lockstep preview move.
+#   rc.3 accepts rc.0 requests except one field rc.3 withdrew:
+#   performance-standard ``metric_id``, which the compact performance
+#   standard on buy_products purchases rejects.
+#   An alias is advertised only while its target is the packaged release.
+_ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2", "3.3-rc.0": "3.3-rc.3"}
 
 
 def resolve_adcp_version_alias(version: str) -> str:
