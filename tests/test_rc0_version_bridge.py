@@ -267,11 +267,6 @@ def test_create_media_buy_package_performance_standard_validates() -> None:
 # --- 7. reporting ------------------------------------------------------------
 
 
-@pytest.mark.parametrize("version", [ALIAS, "3.3.0-rc.0", TARGET])
-def test_reporting_subscriptions_are_served_to_rc0_claims(version: str) -> None:
-    assert serves_subscriptions(version)
-
-
 def test_reporting_subscription_advertisement_is_not_withheld_from_rc0() -> None:
     options = SimpleNamespace(engine=SimpleNamespace(support=ReportingSubscriptionSupport()))
     response = {"adcp": {"principal": {"supported_sections": []}}, "experimental_features": []}

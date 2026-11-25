@@ -633,6 +633,18 @@ async def test_issue_1771_managed_capabilities_pass_the_sdk_response_validation(
 
 
 @pytest.mark.asyncio
+async def test_managed_capabilities_advertise_the_rc0_bridge_but_not_rc7() -> None:
+    world = _World()
+    served = await world.platform.get_adcp_capabilities({"adcp_version": "3.3-rc.0"}, _ctx())
+    supported = served["adcp"]["supported_versions"]
+    # Buyers still pinned to 3.3-rc.0 reach subscriptions through the alias;
+    # 3.2-rc.7 never serves them, so it stays out of the fallback.
+    assert "3.3-rc.0" in supported
+    assert "3.3-rc.3" in supported
+    assert "3.2-rc.7" not in supported
+
+
+@pytest.mark.asyncio
 async def test_issue_1771_status_is_served_to_a_plain_mcp_caller() -> None:
     from adcp.server.base import ToolContext
 
