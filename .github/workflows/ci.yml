@@ -205,7 +205,7 @@ jobs:
           # Without the published-upgrade module it runs about 16-25 minutes
           # on next; with it, 27-45 minutes, and slow runners hit 45 (#1977).
           - lane: core
-            timeout_minutes: 45
+            timeout_minutes: 60
           - lane: process
             timeout_minutes: 15
           # Installs the published adcp / adcp-reporting-storage wheels from
