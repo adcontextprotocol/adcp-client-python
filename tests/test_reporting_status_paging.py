@@ -11,7 +11,7 @@ offset under one ``ledger_snapshot_id``.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -191,3 +191,52 @@ async def test_invalid_handler_limits_are_refused(kwargs: dict[str, Any]) -> Non
 
 def test_the_default_budget_leaves_room_under_the_buyers_validation_limit() -> None:
     assert DEFAULT_STATUS_PAGE_NODE_BUDGET == DEFAULT_MAX_PAYLOAD_NODES * 4 // 5
+
+
+async def _re_versioned_ledger(generations: int, *, buys: int) -> InMemoryReportingLedgerStore:
+    """One delivery config re-versioned every hour; each generation reported its one period."""
+    store = _store()
+    first = datetime(2026, 9, 1, 0, 20, tzinfo=timezone.utc)
+    for version in range(1, generations + 1):
+        configuration = _configuration(
+            delivery_config_version=version,
+            activated_at=first + timedelta(hours=version - 1),
+            deactivated_at=(first + timedelta(hours=version) if version < generations else None),
+            media_buy_ids=tuple(f"mb_{i:03d}" for i in range(buys)),
+        )
+        await store.put_configuration(configuration)
+        obligation = await store.commit_obligation(
+            _obligation(configuration, reporting_obligation_id=f"rpo_{version}")
+        )
+        revision, rows = _revision(obligation, reporting_revision_id=f"rpr_{version}")
+        await store.commit_revision(revision, rows)
+    return store
+
+
+@pytest.mark.slow
+async def test_a_heavily_re_versioned_account_pages_within_budget_and_completely() -> None:
+    # Staging's account 6082151998 had 334 generations. Every page repeats the
+    # scope (the whole evaluated denominator) and, for a horizon that starts
+    # before ledger_retained_from, one HISTORY_UNAVAILABLE issue per generation.
+    # Neither shrinks with the page, so the records must make room for them.
+    store = await _re_versioned_ledger(334, buys=8)
+    request = {
+        "view": "periods",
+        "period": {"start": "2026-08-01T00:00:00Z", "end": "2026-09-30T00:00:00Z"},
+        "pagination": {"max_results": 100},
+    }
+    pages = await _walk(ReportingStatusHandler(store), request)
+
+    # The budget, not max_results, ends the first page.
+    assert _records_on(pages[0]) < 100
+    for page in pages:
+        assert count_payload_nodes(page) <= DEFAULT_STATUS_PAGE_NODE_BUDGET
+        # The denominator is the same on every page of one walk.
+        assert page["scope"] == pages[0]["scope"]
+        assert page["issues"] == pages[0]["issues"]
+        assert page["ledger_snapshot_id"] == pages[0]["ledger_snapshot_id"]
+    assert len(pages[0]["scope"]["delivery_config_generations"]) == 334
+    # Today's per-generation horizon issue (follow-up: #1968).
+    assert sum(i["code"] == "HISTORY_UNAVAILABLE" for i in pages[0]["issues"]) == 334
+    seen = [record for page in pages for record in _record_ids(page)]
+    assert len(seen) == len(set(seen)) == pages[0]["pagination"]["total_count"] == 668
