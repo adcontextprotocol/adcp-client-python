@@ -154,6 +154,34 @@ with the issue that tracks it, and the list only shrinks:
   reject a request. The dispatcher preserves their structured fields; other
   hook exceptions produce `INVALID_REQUEST` with the failing hook's name.
 
+### Payload size
+
+Schema validation cost grows with payload size (about 15 µs per JSON node), so
+the validator bounds what it will walk. The bound depends on whose payload it
+is.
+
+- **Input from a peer** — every request a server receives, and every response
+  a client parses — is refused at `DEFAULT_MAX_PAYLOAD_NODES` (10,000) JSON
+  nodes with a `payload_size` issue, before any schema work. This guards
+  against a hostile peer spending the receiver's CPU and is not configurable.
+- **A server's own responses** are validated in full up to
+  `ValidationHookConfig.server_response_max_nodes` (default 100,000), so strict
+  mode still refuses any schema violation in a large response. A response at
+  or over that budget is sent without schema validation and logged at ERROR
+  with `extra={"adcp_validation": "response_over_budget"}`; it is never refused
+  for size alone. `server_response_max_nodes=None` validates every response in
+  full.
+
+Because a buyer's SDK applies the 10,000-node cap to what it receives, a
+seller should still page large lists below it. `count_payload_nodes(payload)`
+counts nodes the way the validator does:
+
+```python
+from adcp.validation import DEFAULT_MAX_PAYLOAD_NODES, count_payload_nodes
+
+assert count_payload_nodes(page) < DEFAULT_MAX_PAYLOAD_NODES
+```
+
 Directly constructed models can be checked ergonomically without converting
 them to dictionaries first:
 
