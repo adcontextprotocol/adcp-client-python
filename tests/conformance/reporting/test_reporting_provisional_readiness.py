@@ -22,8 +22,8 @@ DAMAGE = {
     ),
     "partial_extension": "DROP TABLE reporting_provisional_acquisitions CASCADE",
     "absent_extension": (
-        "DROP TABLE reporting_provisional_observations,reporting_provisional_acquisitions;"
-        " DROP FUNCTION reporting_provisional_immutable()"
+        "DROP TABLE reporting_provisional_observations,reporting_provisional_acquisitions CASCADE;"
+        " DROP FUNCTION reporting_provisional_immutable() CASCADE"
     ),
 }
 
