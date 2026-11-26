@@ -56,6 +56,11 @@ from adcp.reporting.currency import (
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
 from adcp.reporting.ledger.coverage import _covered_subset_publishable, build_reporting_coverage
+from adcp.reporting.ledger.coverage_guard import (
+    ReportingRowCoverageError,
+    _package_scope_conflict,
+    _require_rows_within_frozen_coverage,
+)
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.media_buy_scope import (
     CompleteMediaBuyScope,
@@ -422,18 +427,25 @@ def _require_covered_rows(
     assert coverage is not None
     buys = frozenset(coverage.fully_covered_media_buy_ids)
     packages = frozenset(coverage.covered_package_ids)
+    outside_buys: set[str] = set()
+    outside_packages: set[str] = set()
+    unattributed = 0
     for row in rows:
         buy = row.get("media_buy_id")
         package = row.get("package_id")
-        if (
-            (buy is None and package is None)
-            or (buy is not None and buy not in buys)
-            or (package is not None and package not in packages)
-        ):
-            raise LedgerConflictError(
-                "ROW_COVERAGE_MISMATCH",
-                "a partial-coverage row must name only covered media buys and packages",
-            )
+        if buy is None and package is None:
+            unattributed += 1
+        if buy is not None and buy not in buys:
+            outside_buys.add(str(buy))
+        if package is not None and package not in packages:
+            outside_packages.add(str(package))
+    if outside_buys or outside_packages or unattributed:
+        raise ReportingRowCoverageError(
+            obligation,
+            media_buy_ids=outside_buys,
+            package_ids=outside_packages,
+            unattributed_rows=unattributed,
+        )
 
 
 def _zero_buy_snapshot(obligation: ReportingObligationRecord) -> bool:
@@ -828,6 +840,14 @@ class ReportingProducer:
                     why="package roster resolver broke its contract",
                 )
                 break
+            conflict = _package_scope_conflict(
+                scoped.media_buy_ids,
+                roster,
+                package_grain="package" in self._offerings.requested_dimensions,
+            )
+            if conflict is not None:
+                self._note_unclosed_period(configuration, boundary, turn, now=now, why=conflict)
+                break
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
@@ -949,6 +969,7 @@ class ReportingProducer:
         if isinstance(self._store, ReportingProducerProgress):
             await self._acquire_progress(self._store, configuration, turn, now=now)
             return
+        refused: ReportingRowCoverageError | None = None
         for boundary in self._elapsed_periods(configuration, now=now):
             obligation = await self._store.find_obligation(
                 account_id=configuration.account_id,
@@ -976,6 +997,9 @@ class ReportingProducer:
                         turn=turn,
                         now=now,
                     )
+            except ReportingRowCoverageError as error:
+                refused = refused or error
+                await self._park_rows_outside_coverage(error, obligation, turn, now=now)
             except (ReportingCurrencyError, LedgerConflictError) as error:
                 if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
                     raise
@@ -989,6 +1013,8 @@ class ReportingProducer:
                 )
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
+        if refused is not None:
+            raise refused
 
     async def _acquire_owed_set(
         self, configuration: ReportingConfiguration, turn: WorkerTurn, *, now: datetime
@@ -1006,6 +1032,7 @@ class ReportingProducer:
                 "UNSUPPORTED_STORE", "this store cannot hold reporting-subscription owed sets"
             )
         worked = 0
+        refused: ReportingRowCoverageError | None = None
         for obligation in await self._store.list_generation_obligations(
             configuration.generation_key
         ):
@@ -1030,11 +1057,16 @@ class ReportingProducer:
                     await self._acquire_with_settling_policy(
                         configuration, obligation, policy=policy, turn=turn, now=now
                     )
+            except ReportingRowCoverageError as error:
+                refused = refused or error
+                await self._park_rows_outside_coverage(error, obligation, turn, now=now)
             except (ReportingCurrencyError, LedgerConflictError) as error:
                 if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
                     raise
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
+        if refused is not None:
+            raise refused
 
     async def _acquire_progress(
         self,
@@ -1047,6 +1079,7 @@ class ReportingProducer:
         identifiers = await progress.next_producer_obligations(
             configuration, now=now, limit=self._max_periods_per_turn
         )
+        refused: ReportingRowCoverageError | None = None
         for identifier in identifiers:
             obligation = await self._store.get_obligation(
                 account_id=configuration.account_id, reporting_obligation_id=identifier
@@ -1071,6 +1104,12 @@ class ReportingProducer:
                     finished = await self._acquire_with_settling_policy(
                         configuration, obligation, policy=policy, turn=turn, now=now
                     )
+            except ReportingRowCoverageError as error:
+                # Immutable coverage cannot admit these rows on any later read:
+                # retire the work item, as for other parked ledger conflicts.
+                refused = refused or error
+                await self._park_rows_outside_coverage(error, obligation, turn, now=now)
+                finished = True
             except (ReportingCurrencyError, LedgerConflictError) as error:
                 if isinstance(error, LedgerConflictError) and error.code not in {
                     "HISTORY_UNAVAILABLE",
@@ -1089,6 +1128,35 @@ class ReportingProducer:
                 await progress.finish_producer_acquisition(
                     configuration, reporting_obligation_id=identifier
                 )
+        if refused is not None:
+            raise refused
+
+    async def _park_rows_outside_coverage(
+        self,
+        error: ReportingRowCoverageError,
+        obligation: ReportingObligationRecord,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+    ) -> None:
+        """Park one obligation whose rows fall outside its frozen coverage.
+
+        Nothing was committed. Its coverage is immutable, so re-reading the
+        source on every turn cannot help: the slice is blocked until a manual
+        replay, and escalates like any failed slice. The worker loop keeps
+        going so later periods still publish, then re-raises the first such
+        error at the end of the turn, so ``run_worker`` and
+        ``run_configuration`` callers see it rather than a quiet failure.
+        """
+        logger.warning(
+            "reporting revision refused obligation=%s code=%s: %s",
+            obligation.reporting_obligation_id,
+            error.code,
+            error,
+        )
+        turn.slices_failed.append(obligation.reporting_obligation_id)
+        await self._schedule_retry(obligation, turn, now=now, blocked=True)
+        self._note_escalation(obligation, turn, now=now)
 
     async def _close_without_source(
         self,
@@ -1698,6 +1766,10 @@ class ReportingProducer:
         rows = await self._read_rows(request, manifest)
         if _covered_subset_publishable(configuration.coverage_requirement, obligation.coverage):
             _require_covered_rows(obligation, rows)
+        # Every acquisition: the source's rows stay inside the frozen coverage.
+        _require_rows_within_frozen_coverage(
+            obligation, rows, package_grain="package" in self._offerings.requested_dimensions
+        )
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         # Every successful scheduled read, even unchanged content, reaches the
