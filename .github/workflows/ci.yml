@@ -202,11 +202,16 @@ jobs:
       matrix:
         include:
           # Core also builds and installs the reporting wheel/sdist fixtures.
-          # It runs 25-29 minutes on main, so 30 cancelled it on slow runners.
+          # Without the published-upgrade module it runs about 16-25 minutes
+          # on next; with it, 27-45 minutes, and slow runners hit 45 (#1977).
           - lane: core
             timeout_minutes: 45
           - lane: process
             timeout_minutes: 15
+          # Installs the published adcp / adcp-reporting-storage wheels from
+          # PyPI and upgrades their ledgers: 11-18 minutes on its own.
+          - lane: published-upgrade
+            timeout_minutes: 30
     services:
       postgres:
         # CI-local ephemeral database. POSTGRES_HOST_AUTH_METHOD=trust
@@ -289,10 +294,14 @@ jobs:
                      --ignore=tests/conformance/reporting/test_reporting_tier_projection.py \
                      --ignore=tests/conformance/reporting/test_reporting_schedule_schema.py \
                      --ignore=tests/conformance/reporting/test_reporting_rc6_rolling.py \
+                     --ignore=tests/conformance/reporting/test_reporting_storage_published_upgrade_pg.py \
                      -v -ra
               ;;
             process)
               python scripts/reporting_test_harness.py pytest tests/conformance/reporting/test_reporting_notification_process_matrix.py -v -ra
+              ;;
+            published-upgrade)
+              python scripts/reporting_test_harness.py pytest tests/conformance/reporting/test_reporting_storage_published_upgrade_pg.py -v -ra
               ;;
             *)
               echo "Unknown Postgres conformance lane"
