@@ -35,7 +35,7 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -120,12 +120,23 @@ class LedgerConflictError(RuntimeError):
     matching on prose.
     """
 
-    def __init__(self, code: str, message: str, *, field: str | None = None) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        field: str | None = None,
+        details: Mapping[str, str | int | float | bool | None] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         #: The request field the error is about, carried to the wire error's
         #: ``field`` (``reporting_revision_id`` for an unknown revision).
         self.field = field
+        #: Structured facts carried to the wire error's ``details``.
+        self.details: dict[str, str | int | float | bool | None] | None = (
+            dict(details) if details is not None else None
+        )
 
 
 @dataclass(frozen=True)

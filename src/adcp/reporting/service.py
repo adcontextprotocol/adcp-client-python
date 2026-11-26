@@ -28,6 +28,12 @@ from adcp.reporting._errors import (
     installed_reporting_call,
 )
 from adcp.reporting._source_authorization import source_turn
+from adcp.reporting.definition_versions import (
+    ReportDefinitionContractVersion,
+    ReportDefinitionVersions,
+    UndeclaredReportDefinitions,
+    served_reporting_delivery,
+)
 from adcp.reporting.inline_source import (
     InlineFetchResult,
     InlineReportingSource,
@@ -536,6 +542,8 @@ class ReliableReportingService:
         reporting_subscriptions: ReportingSubscriptionServiceOptions | None = None,
         subscriptions: SubscriptionOptions | None = None,
         storage: ReportingStorage | None = None,
+        report_definition_versions: Mapping[str, ReportDefinitionContractVersion] | None = None,
+        undeclared_report_definitions: UndeclaredReportDefinitions = "assume_pre_1_2",
     ) -> None:
         """``staging``/``seals`` are the default source stores adapters register with;
         ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
@@ -565,7 +573,23 @@ class ReliableReportingService:
         to ``worker_error_handler`` and retried; it never fails a buyer's call.
         It needs a store that records issue events (the in-memory store, or
         adcp-reporting-storage 0.2.0b4+ with migration ``0008``) and a
-        scheduled worker turn somewhere. See :mod:`adcp.reporting.issue_events`."""
+        scheduled worker turn somewhere. See :mod:`adcp.reporting.issue_events`.
+
+        ``report_definition_versions`` maps each advertised offering's
+        ``report_definition_sha256`` to its definition's ``contract_version``.
+        Buyers pinned below AdCP 3.3 accept only ``1.0`` and ``1.1``
+        definitions, so a ``1.2`` offering is left out of their capabilities
+        and a configuration they send that names one is refused
+        (``UNSUPPORTED_FEATURE``). A production graph reads the version from
+        its verifier's definition bytes instead, and refuses at boot a
+        ``1.2`` offering under a protocol pin below 3.3. An offering whose
+        version is neither declared nor readable is served to everyone under
+        ``undeclared_report_definitions="assume_pre_1_2"`` (the default, with
+        a boot warning naming it), or withheld from buyers below 3.3 under
+        ``"withhold_from_pre_3_3"``. Product catalogs are the seller's own:
+        leave ``1.2`` offering ids out of ``reporting_delivery_offering_ids``
+        on products served to buyers below 3.3. See
+        :mod:`adcp.reporting.definition_versions`."""
         if storage is not None:
             from adcp.storage import ReportingStorage
 
@@ -585,6 +609,10 @@ class ReliableReportingService:
                 "pass storage=memory_storage() or postgres_storage(...), or a ledger store="
             )
         self._storage = storage
+        self._definition_versions = ReportDefinitionVersions(
+            report_definition_versions, undeclared=undeclared_report_definitions
+        )
+        self._warned_definitions: set[str] = set()
         if production is not None and (
             caller_resolver is not None
             or producer_factory is not ReportingProducer
@@ -780,6 +808,8 @@ class ReliableReportingService:
             owned_resources=(*owned_resources, ReportingServiceResource(close=production.aclose)),
         )
         service._production = production
+        # The graph read its definitions' versions when it was built.
+        service._definition_versions = production.definition_versions
         production._service_lifecycle = service._lifecycle
         return service
 
@@ -987,6 +1017,7 @@ class ReliableReportingService:
             authorize_subscription_delivery=(
                 subscriptions.engine.authorizes_delivery if subscriptions is not None else None
             ),
+            definition_versions=self._definition_versions,
         )
         self._production._service_lifecycle = self._lifecycle
         if subscriptions is not None:
@@ -1132,8 +1163,18 @@ class ReliableReportingService:
         if self._production is not None:
             await self._production.aclose()
 
-    async def configure(self, configuration: ReportingConfiguration) -> None:
-        """Resolve trusted account facts once and freeze this generation's route."""
+    async def configure(
+        self, configuration: ReportingConfiguration, *, adcp_version: str | None = None
+    ) -> None:
+        """Resolve trusted account facts once and freeze this generation's route.
+
+        Pass ``adcp_version`` as the release the buyer's ``sync_accounts`` was
+        served at (``context.resolved_adcp_version``). A configuration whose
+        offering's report definition that release cannot accept (a ``1.2``
+        definition below AdCP 3.3) is refused with ``UNSUPPORTED_FEATURE``
+        before anything is installed. Without it the buyer is taken to be on
+        the SDK's release.
+        """
         if self._production is not None or self._production_options is not None:
             raise ReliableReportingConfigurationError(
                 "production requires typed sync_accounts admission"
@@ -1150,9 +1191,28 @@ class ReliableReportingService:
 
         async def configure() -> None:
             async with self._configuration_lock:
-                await self._configure(configuration)
+                await self._configure(configuration, adcp_version=adcp_version)
 
         await self._lifecycle.call(configure, before_start=True)
+
+    def _refuse_unserved_offering(
+        self,
+        configuration: ReportingConfiguration,
+        offering: Mapping[str, Any],
+        adcp_version: str | None,
+    ) -> None:
+        """Refuse a configuration naming an offering the caller's release cannot accept."""
+        public = _thaw(offering)
+        if self._definition_versions.serves(public, adcp_version):
+            return
+        offering_id = str(public.get("offering_id"))
+        raise LedgerConflictError(
+            "UNSUPPORTED_FEATURE",
+            self._definition_versions.refusal_message(public),
+            field="reporting_delivery_configs",
+            # Server-held values only: details reach the caller's model context.
+            details={"offering_id": offering_id},
+        )
 
     async def _configure(
         self,
@@ -1161,10 +1221,14 @@ class ReliableReportingService:
         persist: bool = True,
         recovering: bool = False,
         retrying: bool = False,
+        adcp_version: str | None = None,
     ) -> None:
         key = configuration.generation_key
         existing = self._bindings.get(key)
         if existing is not None:
+            self._refuse_unserved_offering(
+                configuration, existing.context.capability_offering, adcp_version
+            )
             if existing.configuration != configuration:
                 raise ReliableReportingConfigurationError(
                     f"configuration {key.delivery_config_id}@{key.delivery_config_version} "
@@ -1210,6 +1274,7 @@ class ReliableReportingService:
             )
         try:
             self._validate_offerings(configuration, context, registration)
+            self._refuse_unserved_offering(configuration, context.capability_offering, adcp_version)
             offerings = context.producer_offerings()
             if not isinstance(offerings, ProducerOfferings):
                 raise TypeError("producer_offerings must return ProducerOfferings")
@@ -1245,6 +1310,8 @@ class ReliableReportingService:
             ),
         )
         binding = _Binding(configuration=configuration, context=context, producer=producer)
+        if context.capability_offering:
+            self._warn_undeclared_definitions([_thaw(context.capability_offering)])
         if persist:
             if self._initialized:
                 await self.store.put_configuration(configuration)
@@ -1457,6 +1524,8 @@ class ReliableReportingService:
                         raise ReliableReportingConfigurationError(
                             "consumer_receipt offerings require reconciled billing"
                         )
+        self._record_production_definitions()
+        self._warn_undeclared_definitions()
 
     def _validate_subscriptions(self) -> None:
         assert self._subscriptions is not None
@@ -1549,6 +1618,8 @@ class ReliableReportingService:
                 if callable(enumerate_configurations):
                     for configuration in await enumerate_configurations():
                         await self._recover_configuration(configuration)
+                # Recovered account contexts can advertise offerings of their own.
+                self._warn_undeclared_definitions()
             self.sources.freeze()
             if self._production is not None:
                 await self._production.start()
@@ -1932,10 +2003,13 @@ class ReliableReportingService:
         """Project only components and offerings this service actually installed.
 
         ``adcp_version`` is the release the response is served at; it decides
-        which reporting-subscription fields appear when subscriptions are served.
+        which reporting-subscription fields appear when subscriptions are served,
+        and leaves out offerings whose report definition that release cannot
+        accept (a ``1.2`` definition below AdCP 3.3). With no offering left the
+        block is empty and no reporting capability is advertised.
         """
         self._compose_managed()
-        block = self._capability_block()
+        block = self._served_offerings(self._capability_block(), adcp_version)
         if self._subscriptions is None or not block:
             return block
         from adcp.reporting.service_subscriptions import subscription_capability_block
@@ -1946,6 +2020,75 @@ class ReliableReportingService:
             )
         except (KeyError, ValueError) as error:
             raise ReliableReportingConfigurationError(str(error)) from None
+
+    def _served_offerings(self, block: dict[str, Any], adcp_version: str | None) -> dict[str, Any]:
+        """``block`` without the offerings a caller at ``adcp_version`` cannot accept."""
+        self._record_production_definitions()
+        return served_reporting_delivery(block, self._definition_versions, adcp_version)
+
+    def _record_production_definitions(self) -> None:
+        """Take the versions production verifiers read from definition bytes.
+
+        A declaration the bytes contradict raises; ``validate()`` runs this.
+        """
+        if self._production is not None:
+            if self._production.definition_versions is self._definition_versions:
+                return
+            for sha256, version in self._production.definition_versions.known().items():
+                self._definition_versions.record(
+                    sha256, version, source="its production verifier's definition bytes"
+                )
+        elif self._production_options is not None:
+            self._definition_versions.record_verified(
+                self._production_options.registry,
+                (item.verification_key for item in self._production_options.offerings),
+            )
+
+    def _refuse_unservable_pin(self, platform: Any) -> None:
+        """Refuse a server pinned below AdCP 3.3 that advertises a 3.3-only offering.
+
+        Every caller of such a server is below 3.3, so the offering could never
+        be served. A production graph checks its own pin when it is built.
+        """
+        from adcp.reporting.definition_versions import caller_accepts_1_2
+        from adcp.server.version_policy import handler_adcp_version_pin
+
+        pin = handler_adcp_version_pin(platform)
+        if pin is None or caller_accepts_1_2(pin) or self._production is not None:
+            return
+        self._record_production_definitions()
+        offerings = self._capability_block().get("offerings") or []
+        unservable = sorted(
+            str(offering.get("offering_id"))
+            for offering in offerings
+            if isinstance(offering, Mapping) and not self._definition_versions.serves(offering, pin)
+        )
+        if unservable:
+            raise ReliableReportingConfigurationError(
+                f"the server is pinned to AdCP {pin}, whose callers accept only 1.0 and 1.1 "
+                f"report definitions; offerings {unservable} serve AdCP 3.3 callers only"
+            )
+
+    def _warn_undeclared_definitions(
+        self, offerings: Sequence[Mapping[str, Any]] | None = None
+    ) -> None:
+        """Name, once each, advertised offerings whose definition version is unknown.
+
+        Runs at validation, after startup recovery, and for each newly bound
+        account context, so offerings first seen there are named too.
+        """
+        if offerings is None:
+            try:
+                block = self._capability_block()
+            # The warning is advisory: an offering that cannot be projected is
+            # reported where the block is served, never by failing startup.
+            except Exception:  # noqa: BLE001
+                return
+            listed = block.get("offerings") if isinstance(block, Mapping) else None
+            offerings = [item for item in listed or () if isinstance(item, Mapping)]
+        self._warned_definitions.update(
+            self._definition_versions.warn_undeclared(offerings, skip=self._warned_definitions)
+        )
 
     def _capability_block(self) -> dict[str, Any]:
         if self._production is not None:
@@ -2003,6 +2146,38 @@ class ReliableReportingService:
             payload["receipt_task"] = "sync_reporting_receipts"
         return payload
 
+    def _served_base_block(
+        self, payload: dict[str, Any], adcp_version: str | None
+    ) -> dict[str, Any]:
+        """Filter a reporting block the base response declared on its own.
+
+        When this service contributes no block for ``adcp_version`` (none
+        installed, or every one withheld), a block the application or its
+        ``DecisioningCapabilities`` declared still reaches the buyer, so its
+        offerings get the same version rule; with none left, the block and its
+        experimental feature are removed.
+        """
+        media_buy = payload.get("media_buy")
+        existing = media_buy.get("reporting_delivery") if isinstance(media_buy, Mapping) else None
+        if not isinstance(existing, Mapping):
+            return payload
+        self._record_production_definitions()
+        served = served_reporting_delivery(existing, self._definition_versions, adcp_version)
+        if served == dict(existing):
+            return payload
+        media_buy = dict(media_buy) if isinstance(media_buy, Mapping) else {}
+        if served:
+            media_buy["reporting_delivery"] = served
+        else:
+            media_buy.pop("reporting_delivery", None)
+            experimental = payload.get("experimental_features")
+            if isinstance(experimental, list):
+                payload["experimental_features"] = [
+                    item for item in experimental if item != "media_buy.reporting_delivery"
+                ]
+        payload["media_buy"] = media_buy
+        return payload
+
     def inject_capabilities(
         self, response: Any, *, adcp_version: str | None = None
     ) -> dict[str, Any]:
@@ -2010,7 +2185,7 @@ class ReliableReportingService:
         payload = _wire(response)
         block = self.capability_block(adcp_version=adcp_version)
         if not block:
-            return payload
+            return self._served_base_block(payload, adcp_version)
         media_buy = dict(payload.get("media_buy") or {})
         media_buy["reporting_delivery"] = block
         payload["media_buy"] = media_buy
@@ -2071,6 +2246,7 @@ class ReliableReportingService:
         """
         self._compose_managed()
         self._compose_production()
+        self._refuse_unservable_pin(platform)
         if self._production is not None:
             if self._managed is not None:
                 # The production handler delegates ordinary tasks to the
