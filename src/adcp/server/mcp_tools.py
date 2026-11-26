@@ -3640,6 +3640,7 @@ def create_tool_caller(
         log_conversion_summary,
     )
     from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
+    from adcp.platform_ids import _dual_emit_platform_ids
     from adcp.server._creative_batch import (
         normalize_lenient_creative_batch,
         partial_creative_batch,
@@ -4427,6 +4428,18 @@ def create_tool_caller(
                     application_version if convert_minor_version else response_validator_version
                 ),
             )
+            if "adcp_error" not in result:
+                # AdCP 3.3 dual emission of event source and audience platform
+                # IDs, projected for the release the caller is served (#1639).
+                try:
+                    _dual_emit_platform_ids(
+                        method_name, result, adcp_version=wire_version or application_version
+                    )
+                except ValueError as exc:
+                    raise ADCPTaskError(
+                        operation=method_name,
+                        errors=[Error(code="INTERNAL_ERROR", message=str(exc))],
+                    ) from exc
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``
             # (so it sees the credential-stripped echo envelope and can't

@@ -739,6 +739,7 @@
       "normalize_identifier": "adcp.identifiers",
       "normalize_mutation_outcome": "adcp.exceptions",
       "parse_managerdomains": "adcp.adagents",
+      "platform_id_of": "adcp.platform_ids",
       "project_available_actions": "adcp.media_buy_actions",
       "properties_for_publisher_domain": "adcp.adagents",
       "reassess_media_buy_action": "adcp.media_buy_actions",
