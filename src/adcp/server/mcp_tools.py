@@ -68,7 +68,11 @@ shape for clients that do not resolve references.
 """
 
 _SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
-_SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset({"const", "default", "examples"})
+#: Keywords whose value is not a schema: instances, and ``dependentRequired``'s
+#: map of property names to name lists. Copied untouched by every transform.
+_SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset(
+    {"const", "default", "examples", "dependentRequired"}
+)
 #: Subschemas whose meaning inverts under compaction. Pruning only ever
 #: *loosens* a subschema (an optional nested field is dropped and re-admitted
 #: as ``true``), which is sound for a positive assertion but not for a negated
