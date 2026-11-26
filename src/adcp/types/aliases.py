@@ -2278,12 +2278,6 @@ from adcp.types.domains.signals.get_signals_response import (
 from adcp.types.domains.sponsored_intelligence.si_sponsored_context import (
     DeclaredBy as SiSponsoredContextDeclaredBy,
 )
-from adcp.types.domains.trusted_match.identity_match_response import (
-    TmpxMacro as IdentityMatchTmpxMacro,
-)
-from adcp.types.domains.trusted_match.provider_registration import (
-    TmpxMacro as ProviderRegistrationTmpxMacro,
-)
 
 ListCreativesCreative: TypeAlias = ListCreativesLegacyCreative
 ListCreativesCreativeItem: TypeAlias = ListCreativesLegacyCreative | ListCreativesCanonicalCreative
@@ -2404,9 +2398,6 @@ __all__ = [
     "CapabilitiesPreviewRenderingOrigin",
     "PublisherPreviewRoute",
     "CapabilitiesPreviewRoute",
-    # TmpxMacro
-    "IdentityMatchTmpxMacro",
-    "ProviderRegistrationTmpxMacro",
     # Unit
     "DurationUnit",
     "BudgetChangeConstraints",

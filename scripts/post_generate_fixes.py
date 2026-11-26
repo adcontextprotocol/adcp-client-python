@@ -4950,40 +4950,19 @@ def fix_beta3_adagents_renderer_constraints() -> None:
 
 
 def restore_trusted_match_compatibility_aliases() -> None:
-    """Keep 3.1.8 Trusted Match imports available after the 3.1.10 rename.
+    """Keep the 3.1.8 ``IdentityMatchResponse`` name after the 3.1.10 rename.
 
     AdCP 3.1.10 replaced provider-supplied macro names with publisher-owned
-    slot mappings.  The new wire types must be primary, but the SDK's public
-    collision aliases still promise the old ``TmpxMacro`` helper classes and
-    ``IdentityMatchResponse`` name.  Retain those helpers as compatibility
-    models; they are intentionally not referenced by the 3.1.10 response
-    fields.
+    slot mappings and renamed the router response. The old response name
+    stays an alias of the new class. The 3.1.8 ``TmpxMacro`` helper models
+    are no longer fabricated (#1894): no schema in a bundled release states
+    their constraints, and SDK 10.0 removes ``IdentityMatchTmpxMacro`` and
+    ``ProviderRegistrationTmpxMacro``.
     """
 
     identity_match_response = OUTPUT_DIR / "trusted_match" / "identity_match_response.py"
     if identity_match_response.exists():
         source = identity_match_response.read_text()
-        changed = False
-        if "class TmpxMacro(" not in source:
-            compatibility_model = """
-class TmpxMacro(AdCPBaseModel):
-    \"\"\"Deprecated 3.1.8 TMPX macro/value compatibility model.\"\"\"
-
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: Annotated[
-        str,
-        Field(max_length=64, min_length=1, pattern='^[A-Z][A-Z0-9_]*$'),
-    ]
-    value: Annotated[str, Field(max_length=1024, min_length=1)]
-
-
-"""
-            source = source.replace(
-                "class TmpxProviders(", compatibility_model + "class TmpxProviders(", 1
-            )
-            changed = True
         if (
             "class IdentityMatchResponseRouterPublisher(" in source
             and "IdentityMatchResponse = IdentityMatchResponseRouterPublisher" not in source
@@ -4992,36 +4971,10 @@ class TmpxMacro(AdCPBaseModel):
                 source.rstrip()
                 + "\n\n\nIdentityMatchResponse = IdentityMatchResponseRouterPublisher\n"
             )
-            changed = True
-        if changed:
             identity_match_response.write_text(source)
-            print("  trusted_match/identity_match_response.py: restored compatibility aliases")
+            print("  trusted_match/identity_match_response.py: restored compatibility alias")
         else:
-            print(
-                "  trusted_match/identity_match_response.py compatibility aliases already restored"
-            )
-
-    provider_registration = OUTPUT_DIR / "trusted_match" / "provider_registration.py"
-    if provider_registration.exists():
-        source = provider_registration.read_text()
-        if "class TmpxMacro(" not in source:
-            compatibility_model = """
-class TmpxMacro(RootModel[str]):
-    \"\"\"Deprecated 3.1.8 registered macro-name compatibility model.\"\"\"
-
-    root: Annotated[str, Field(max_length=64, min_length=1, pattern='^[A-Z][A-Z0-9_]*$')]
-
-
-"""
-            source = source.replace("class TmpxSlot(", compatibility_model + "class TmpxSlot(", 1)
-            provider_registration.write_text(source)
-            print(
-                "  trusted_match/provider_registration.py: restored TmpxMacro compatibility model"
-            )
-        else:
-            print(
-                "  trusted_match/provider_registration.py TmpxMacro compatibility model already restored"
-            )
+            print("  trusted_match/identity_match_response.py compatibility alias already restored")
 
 
 def fix_publisher_tmpx_mapping_key_constraints() -> None:

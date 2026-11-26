@@ -1071,9 +1071,6 @@ __all__ = [
     "ReferenceRenderer",
     "ReferenceRendererProvenance",
     "SiSponsoredContextDeclaredBy",
-    # TmpxMacro
-    "IdentityMatchTmpxMacro",
-    "ProviderRegistrationTmpxMacro",
     # Unit
     "DurationUnit",
     "OverlayUnit",
@@ -1642,7 +1639,6 @@ if TYPE_CHECKING:
         Identifier,
         IdentityMatchRequest,
         IdentityMatchResponse,
-        IdentityMatchTmpxMacro,
         ImageContent,
         ImageFormatAsset,
         ImageFormatGroupAsset,
@@ -1888,7 +1884,6 @@ if TYPE_CHECKING:
         ProvidePerformanceFeedbackResponse,
         ProvidePerformanceFeedbackResponse1,
         ProvidePerformanceFeedbackSuccessResponse,
-        ProviderRegistrationTmpxMacro,
         PublishedPostAsset,
         PublisherDesignatedPreviewProvider,
         PublisherDomain,

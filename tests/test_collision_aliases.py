@@ -139,9 +139,6 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     ),
     ("PublisherPreviewRoute", "core.preview_provider", "Route"),
     ("CapabilitiesPreviewRoute", "protocol.get_adcp_capabilities_response", "Route"),
-    # TmpxMacro — 2 variants
-    ("IdentityMatchTmpxMacro", "trusted_match.identity_match_response", "TmpxMacro"),
-    ("ProviderRegistrationTmpxMacro", "trusted_match.provider_registration", "TmpxMacro"),
     # Unit — 3 remaining inline variants. DurationUnit has a dedicated
     # compatibility test because its schema source can be inline or shared.
     ("OverlayUnit", "core.overlay", "Unit"),
@@ -271,9 +268,6 @@ def test_distinct_variants_are_distinct_classes() -> None:
     assert a.PreviewRenderingOrigin is not a.CapabilitiesPreviewRenderingOrigin
     assert a.PublisherPreviewRoute is not a.CapabilitiesPreviewRoute
 
-    # TmpxMacro: emitted macro/value pairs vs registered macro-name strings.
-    assert a.IdentityMatchTmpxMacro is not a.ProviderRegistrationTmpxMacro
-
     # Compact proposal guidance requires currency and forbids unknown fields;
     # the legacy proposal shape keeps currency optional and allows extensions.
     assert a.CanonicalProposalTotalBudgetGuidance is not a.LegacyProposalTotalBudgetGuidance
@@ -397,21 +391,3 @@ def test_list_creatives_response_enforces_format_reference_xor() -> None:
         ListCreativesResponse.model_validate(_minimal_list_creatives_response(both))
     with pytest.raises(ValidationError):
         ListCreativesResponse.model_validate(_minimal_list_creatives_response(neither))
-
-
-def test_tmpx_macro_aliases_cover_distinct_shapes() -> None:
-    """TMPX macro aliases distinguish emitted values from registered names.
-
-    The emitted value is an object with ``name``/``value``. The registered
-    macro name is a scalar root, so it is a constrained ``str`` rather than a
-    model with a ``root`` field — see #1277.
-    """
-    from adcp.types import aliases as a
-    from adcp.types._scalar import ScalarStr
-
-    assert set(a.IdentityMatchTmpxMacro.model_fields) == {"name", "value"}
-
-    assert issubclass(a.ProviderRegistrationTmpxMacro, ScalarStr)
-    assert a.ProviderRegistrationTmpxMacro("CLICK_URL") == "CLICK_URL"
-    with pytest.raises(ValidationError):
-        a.ProviderRegistrationTmpxMacro("lowercase_is_not_a_macro_name")
