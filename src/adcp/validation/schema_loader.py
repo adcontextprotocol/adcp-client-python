@@ -1122,6 +1122,37 @@ def get_bundle_adcp_version(*, version: str | None = None) -> str | None:
     return declared if isinstance(declared, str) else None
 
 
+#: Where the protocol publishes each release's schemas.
+_PUBLISHED_SCHEMA_BASE = "https://adcontextprotocol.org/schemas"
+
+
+def get_schema_url(
+    tool_name: str,
+    direction: Literal["request", "sync"],
+    *,
+    version: str | None = None,
+) -> str | None:
+    """Return the published URL of a tool's schema in a resolved bundle.
+
+    The URL names the bundle's exact release
+    (``https://adcontextprotocol.org/schemas/3.3.0-rc.3/media-buy/...``), the
+    same form the bundle's own cross-document ``$ref`` values use. ``None``
+    when the bundle or the tool's source schema is not available.
+    """
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    source = state.source_index.get((tool_name, direction))
+    release = get_bundle_adcp_version(version=version)
+    if source is None or release is None:
+        return None
+    try:
+        relative = source.relative_to(state.root.root)
+    except ValueError:
+        return None
+    return f"{_PUBLISHED_SCHEMA_BASE}/{release}/{relative.as_posix()}"
+
+
 def _reference_file(state: _LoaderState, current_file: Path, reference: str) -> Path:
     parsed = urlparse(reference)
     if parsed.scheme or parsed.path.startswith("/schemas/"):

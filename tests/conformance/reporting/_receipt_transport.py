@@ -1,5 +1,6 @@
 """Real unified production mounts, with deterministic trusted auth adapters."""
 
+import inspect
 import json
 from contextlib import asynccontextmanager
 
@@ -128,6 +129,13 @@ class MountedReceipts:
 
     @asynccontextmanager
     async def client(self, **options):
+        # These mounts assert the exact compact request rules and the response
+        # schema, neither of which the lean, output-free default lists. The
+        # installed-artifact cells also run this helper against releases that
+        # predate both options.
+        if "advertise_output_schemas" in inspect.signature(_build_mcp_and_a2a_app).parameters:
+            options.setdefault("schema_mode", "compact")
+            options.setdefault("advertise_output_schemas", True)
         app = _build_mcp_and_a2a_app(
             self.handler,
             name="receipt-ingress",

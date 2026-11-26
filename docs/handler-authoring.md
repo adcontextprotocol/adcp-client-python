@@ -57,12 +57,31 @@ storyboards, agents that deliberately signal
 
 ### MCP schema modes
 
-The default MCP ``schema_mode="compact"`` keeps ``tools/list`` responses
-small by using local JSON Schema ``$ref`` entries and ``$defs``. It applies
-to **both** ``inputSchema`` and ``outputSchema``. MCP clients must resolve
-those references before inspecting nested fields. If a client does not
-resolve local JSON Schema references, use the compatibility escape hatch when
-constructing the MCP server:
+AdCP asks agents to keep each ``tools/list`` page under 128 KiB and not to
+publish response schemas there. The defaults follow it:
+
+* **No ``outputSchema``.** Tools still return their result as
+  ``structuredContent``; only the listing omits the response schema, as the
+  TypeScript SDK's framework tools do. Pass ``advertise_output_schemas=True``
+  to ``serve()`` / ``create_mcp_server()`` / ``get_tools_for_handler()`` to
+  publish them again.
+* **``schema_mode="lean"``** inputs. Every root field keeps its name. A field
+  the root schema or a branch of its root rules requires (``packages`` on
+  ``create_media_buy``), and every scalar or scalar-list field, keeps its
+  schema; every other optional object or array field keeps only its type and
+  description. Descriptions keep their first sentence, ``title`` /
+  ``examples`` are dropped, and ``x-adcp-schema`` gives the published schema's
+  URL for a client that wants the full shape. A 14-tool sales agent lists
+  about 95 KB, against 540 KB with the previous defaults.
+
+The server validates every request against the exact bundled contract in
+every mode, so a leaner listing never admits a request the contract refuses.
+``schema_mode="compact"`` restores the previous default, which keeps each
+optional root field's bounded schema (about 285 KB for the same agent without
+output schemas). It uses local JSON Schema ``$ref`` entries and ``$defs``, as
+``"lean"`` does; MCP clients must resolve those references before inspecting
+nested fields. If a client does not resolve local JSON Schema references, use
+the compatibility escape hatch when constructing the MCP server:
 
 ```python
 from adcp.server import create_mcp_server
@@ -85,7 +104,7 @@ and needs the complete, unpruned Pydantic schema graph.
 **Pinned servers.** A server with an ``adcp_version`` pin, or with
 ``supported_versions`` (which pins it to the newest listed release),
 advertises the bundled wire schemas of that release rather than the Pydantic
-graph. ``schema_mode`` applies there too: ``"compact"`` keeps every root field
+graph. ``schema_mode`` applies there too: ``"lean"`` bounds it as above, and ``"compact"`` keeps every root field
 with its description and rules, every required nested field, every scalar
 with its constraints, and re-admits each dropped optional nested field as
 ``true``, while dropping nested cross-field rules (``if``/``then``/``else``,

@@ -138,10 +138,9 @@ class _StubHandler(ADCPHandler):
     """Minimal handler — we only need ``tools/list``, not actual tool calls."""
 
 
-@pytest.fixture
-async def mcp_client() -> Any:
+async def _client_for(**kwargs: Any) -> Any:
     handler = _StubHandler()
-    mcp = create_mcp_server(handler, name="test-output-schema", advertise_all=True)
+    mcp = create_mcp_server(handler, name="test-output-schema", advertise_all=True, **kwargs)
     mcp.settings.stateless_http = True
     mcp.settings.json_response = True
     mcp.settings.transport_security.allowed_hosts = ["localhost", "127.0.0.1"]
@@ -154,6 +153,20 @@ async def mcp_client() -> Any:
             follow_redirects=True,
         ) as client:
             yield client
+
+
+@pytest.fixture
+async def mcp_client() -> Any:
+    """Client for a server that opted in to listing ``outputSchema``."""
+    async for client in _client_for(advertise_output_schemas=True):
+        yield client
+
+
+@pytest.fixture
+async def default_mcp_client() -> Any:
+    """Client for a server with default settings (no ``outputSchema``)."""
+    async for client in _client_for():
+        yield client
 
 
 async def _initialize_session(client: httpx.AsyncClient) -> None:
@@ -231,3 +244,15 @@ async def test_tools_list_input_and_output_schemas_are_distinct(mcp_client: Any)
     tool = tools["get_products"]
 
     assert tool["inputSchema"] != tool["outputSchema"]
+
+
+@pytest.mark.asyncio
+async def test_tools_list_omits_output_schema_by_default(default_mcp_client: Any) -> None:
+    """The discovery page stays small: response schemas are opt-in."""
+    await _initialize_session(default_mcp_client)
+    payload = await _list_tools(default_mcp_client)
+
+    tools = payload["result"]["tools"]
+    assert tools
+    for tool in tools:
+        assert "outputSchema" not in tool, tool["name"]

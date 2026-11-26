@@ -213,7 +213,7 @@ def test_default_reporting_mount_uses_current_status_schema():
 
     handler = ReportingReceiptHandler(InMemoryReportingFeedStore(), resolve_account=resolve_account)
     assert handler.get_adcp_version() == WIRE_VERSION
-    tools = MCPToolSet(handler)
+    tools = MCPToolSet(handler, advertise_output_schemas=True)
     output = next(
         tool["outputSchema"]
         for tool in tools.tool_definitions

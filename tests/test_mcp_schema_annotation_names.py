@@ -291,7 +291,9 @@ _PRODUCT: dict[str, Any] = {
 def test_served_get_products_output_schema_accepts_product_description() -> None:
     # The SDK's name for the discovery tool a 3.2 handler advertises is
     # ``get_products``; ``list_products`` is the bundle's sync-schema name.
-    tools = mcp_tools.get_tools_for_handler(_PinnedHandler("3.2.0-rc.6"))
+    tools = mcp_tools.get_tools_for_handler(
+        _PinnedHandler("3.2.0-rc.6"), advertise_output_schemas=True
+    )
     tool = next(t for t in tools if t["name"] == "get_products")
     output_schema = tool["outputSchema"]
 
@@ -310,7 +312,9 @@ def test_served_list_products_output_schema_accepts_product_description() -> Non
     # Unlike ``get_products``, the ``list_products`` output schema is the
     # compact sync schema, where #1900 dropped ``description`` from a closed
     # product and made this valid response fail.
-    tools = mcp_tools.get_tools_for_handler(ADCPHandler(), advertise_all=True, adcp_version="3.2")
+    tools = mcp_tools.get_tools_for_handler(
+        ADCPHandler(), advertise_all=True, adcp_version="3.2", advertise_output_schemas=True
+    )
     tool = next(t for t in tools if t["name"] == "list_products")
     output_schema = tool["outputSchema"]
 

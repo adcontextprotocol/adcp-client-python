@@ -1484,7 +1484,8 @@ class TestRegisterTestController:
         from adcp.validation.schema_loader import get_mcp_schema
 
         mcp = MCPServer("test")
-        register_test_controller(mcp, MinimalStore())
+        # The exact schema is the "inline" listing; the default is lean.
+        register_test_controller(mcp, MinimalStore(), schema_mode="inline")
 
         tool = mcp._tool_manager._tools["comply_test_controller"]
         assert tool.parameters == get_mcp_schema("comply_test_controller", "request")
