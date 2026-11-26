@@ -43,7 +43,9 @@ from adcp._version import (
 )
 from adcp.accounts import (
     ACCOUNT_POLICIES,
+    ACCOUNT_REFERENCE_MODES,
     AccountPolicy,
+    AccountReferenceMode,
     AccountRegistry,
     AccountStorage,
     has_natural_reference,
@@ -775,6 +777,7 @@ class ADCPClient:
         httpx_client_factory: MCPHttpxClientFactory | None = None,
         account_policy: AccountPolicy | None = None,
         account_storage: AccountStorage | None = None,
+        account_reference_mode: AccountReferenceMode = "auto",
         raise_account_errors: bool | None = None,
         experimental_agent_identity: bool = False,
         product_property_policy: ProductPropertyPolicy | None = None,
@@ -815,6 +818,13 @@ class ADCPClient:
                 ``auto`` in the next major release.
             account_storage: Async provisioning-record storage, private to the
                 authenticated buyer. Defaults to in-memory storage.
+            account_reference_mode: ``auto`` (the default) sends
+                ``{"account_id": ...}`` in place of a natural key the
+                registry holds an ``account_id`` for, on account-scoped
+                tasks negotiated at AdCP 3.3 or later; an older seller keeps
+                getting the natural key. ``natural_key`` always sends the
+                reference as written. ``sync_accounts`` entries and
+                ``list_accounts`` filters are never rewritten.
             raise_account_errors: When True, seller-returned account errors
                 (``ACCOUNT_NOT_FOUND``, ``ACCOUNT_REQUIRED``,
                 ``ACCOUNT_SETUP_REQUIRED``, ``ACCOUNT_PAYMENT_REQUIRED``) raise
@@ -959,6 +969,9 @@ class ADCPClient:
         self.agent_config = agent_config
         if account_policy is not None and account_policy not in ACCOUNT_POLICIES:
             raise ValueError("account_policy must be 'off', 'auto', or 'strict'")
+        if account_reference_mode not in ACCOUNT_REFERENCE_MODES:
+            raise ValueError("account_reference_mode must be 'auto' or 'natural_key'")
+        self.account_reference_mode: AccountReferenceMode = account_reference_mode
         if raise_account_errors is not None and type(raise_account_errors) is not bool:
             raise TypeError("raise_account_errors must be a bool")
         self._account_policy_explicit = account_policy is not None
