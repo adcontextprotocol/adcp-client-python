@@ -83,13 +83,14 @@ def test_storage_distribution_version_matches_its_manifest_entry() -> None:
     assert config["packages"]["."]["exclude-paths"] == ["packages/adcp-reporting-storage"]
 
 
-def test_release_please_keeps_next_on_the_beta_channel() -> None:
-    """The next line releases only ``10.0.0-beta.N`` pre-releases.
+def test_release_please_keeps_next_on_the_rc_channel() -> None:
+    """The next line releases only ``10.0.0-rc.N`` pre-releases of adcp.
 
-    The channel switch commit on next ends with ``Release-As: 10.0.0-beta.0``
-    (it superseded the alpha proposal, #1533); later commits increment the
-    beta number. next's workflow uses its own config and manifest so that
-    merging main into next never changes them.
+    Betas ran from ``10.0.0-beta.0`` to ``-beta.27``. The channel switch commit
+    on next ends with ``Release-As: 10.0.0-rc.1``; later commits increment the
+    rc number. adcp-reporting-storage stays on its beta line. next's workflow
+    uses its own config and manifest so that merging main into next never
+    changes them.
     """
     config_path = ROOT / "release-please-config.next.json"
     if not config_path.exists():
@@ -97,7 +98,7 @@ def test_release_please_keeps_next_on_the_beta_channel() -> None:
     config = json.loads(config_path.read_text())
     package = config["packages"]["."]
     assert package["versioning"] == "prerelease"
-    assert package["prerelease-type"] == "beta"
+    assert package["prerelease-type"] == "rc"
     assert package["prerelease"] is True
     assert package["changelog-path"] != "CHANGELOG.md"
     workflow = (ROOT / ".github/workflows/release-please-next.yml").read_text()
