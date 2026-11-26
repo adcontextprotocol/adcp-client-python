@@ -154,6 +154,56 @@ graph declares no durable production tier; Core memory services still declare
 their inline offerings. `ReportingProductionSupport.reporting_delivery()` keeps
 its runtime readiness check for operator and admission callers.
 
+## Report definitions at contract_version 1.2 (AdCP 3.3)
+
+AdCP 3.3 adds report-definition `contract_version` `1.2`. Buyers pinned below
+3.3 accept only `1.0` and `1.1`, so a seller must not serve them an offering
+whose definition is `1.2`. An offering pins its definition only by
+`report_definition_uri` and `report_definition_sha256`, so tell the service
+each definition's version, keyed by that digest:
+
+```python
+service = ReliableReportingService(
+    storage=storage,
+    account_context=resolve_account,
+    report_definition_versions={
+        "9f2c...e41a": "1.1",  # media-buy definition without package_id
+        "07b1...c3d0": "1.2",  # per-package definition, 3.3 buyers only
+    },
+)
+```
+
+With the versions known, for a buyer below 3.3 the service:
+
+* leaves `1.2` offerings out of `media_buy.reporting_delivery.offerings` in
+  `get_adcp_capabilities` (and leaves the reporting capability out entirely
+  when no offering remains);
+* refuses a configuration naming a `1.2` offering with `UNSUPPORTED_FEATURE`,
+  `field: "reporting_delivery_configs"` and
+  `details: {offering_id}`. Pass the buyer's release to
+  `configure(configuration, adcp_version=context.resolved_adcp_version)` from
+  your `sync_accounts`; production graphs check it themselves.
+
+AdCP 3.3 and every 3.3 prerelease count as 3.3. A production graph reads each
+version from the definition bytes its verifier already proves, so it needs no
+declaration, and a declaration that contradicts the bytes fails at boot. A
+server pinned below 3.3 that advertises a `1.2` offering fails at boot too,
+since none of its callers could use it.
+
+An offering whose version the service can neither read nor find declared is
+served to every buyer by default
+(`undeclared_report_definitions="assume_pre_1_2"`): every definition published
+before AdCP 3.3 is `1.0` or `1.1`. Startup logs and warns once, naming each
+such offering's `offering_id`, digest and URI and the exact
+`report_definition_versions` entry to add. Pass
+`undeclared_report_definitions="withhold_from_pre_3_3"` to withhold undeclared
+offerings from buyers below 3.3 instead.
+
+Product catalogs are yours: leave `1.2` offering ids out of
+`reporting_capabilities.reporting_delivery_offering_ids` on products served to
+buyers below 3.3. `get_reporting_status` and the account readback are not
+filtered; a configuration a buyer created at 3.3 remains visible to it.
+
 ## Decisioning platforms and lazy routers
 
 Core `install()` accepts a `DecisioningPlatform`, including `LazyPlatformRouter`:
@@ -746,6 +796,34 @@ observer yet ([#1873](https://github.com/adcontextprotocol/adcp-client-python/is
 Composing the ledger without the service? Schedule
 `ReportingIssueEventDispatcher(store, observer, escalation=...).run_once()`
 yourself.
+
+## Status page size
+
+A `get_reporting_status` periods page carries at most the buyer's
+`pagination.max_results` records: the schema default of 50 when the buyer
+omits it, and never more than 100. A value outside 1-100 is refused with
+`INVALID_PAGE_SIZE`.
+
+Each record names every media buy in its configuration generation, so the
+handler also bounds a page by rendered size. It stops adding records once the
+page would pass `DEFAULT_STATUS_PAGE_NODE_BUDGET` (8,000) JSON nodes, four
+fifths of the 10,000-node cap a buyer's SDK applies to responses. A shorter
+page is a correct step of the walk: `pagination.cursor` continues from the
+next record under the same `ledger_snapshot_id`, and every page carries at
+least one record. A single record that does not fit on its own is still
+served, with a warning naming the account and node counts.
+
+`ReportingStatusHandler` takes both limits for a seller that builds the handler
+itself:
+
+```python
+from adcp.reporting.ledger import ReportingStatusHandler
+
+handler = ReportingStatusHandler(store, page_size=25, page_node_budget=6_000)
+```
+
+`page_size` caps what a buyer may ask for; `page_node_budget=None` bounds pages
+by record count alone. The service's handler uses the defaults.
 
 ## Advanced composition
 

@@ -35,7 +35,7 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -120,12 +120,23 @@ class LedgerConflictError(RuntimeError):
     matching on prose.
     """
 
-    def __init__(self, code: str, message: str, *, field: str | None = None) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        field: str | None = None,
+        details: Mapping[str, str | int | float | bool | None] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         #: The request field the error is about, carried to the wire error's
         #: ``field`` (``reporting_revision_id`` for an unknown revision).
         self.field = field
+        #: Structured facts carried to the wire error's ``details``.
+        self.details: dict[str, str | int | float | bool | None] | None = (
+            dict(details) if details is not None else None
+        )
 
 
 @dataclass(frozen=True)
@@ -2439,8 +2450,24 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
             "period_anchor": (
                 _utc(schedule.period_anchor).isoformat() if schedule.period_anchor else None
             ),
+            **_coverage_requirement_terms(configuration),
         },
     }
+
+
+def _coverage_requirement_terms(configuration: ReportingConfiguration) -> dict[str, str]:
+    """The ``coverage_requirement`` member of a generation's stored ``schedule`` terms.
+
+    The requirement is immutable generation content, like the schedule, so it is
+    retained in the generation's existing ``schedule`` document. That keeps the
+    storage contract unchanged: a reader that predates it ignores the member and
+    treats the generation as ``full``, so it withholds a partial period and never
+    over-publishes. Only ``allow_partial`` is written, so every ``full``
+    generation keeps its exact stored bytes and content digest.
+    """
+    if configuration.coverage_requirement == "full":
+        return {}
+    return {"coverage_requirement": configuration.coverage_requirement}
 
 
 def validate_revision_currency(

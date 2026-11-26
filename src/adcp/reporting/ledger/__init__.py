@@ -85,6 +85,10 @@ from adcp.reporting.ledger.coverage import (
     ReportingCoverageRecord,
     build_reporting_coverage,
 )
+from adcp.reporting.ledger.coverage_guard import (
+    ReportingPackageScopeError,
+    ReportingRowCoverageError,
+)
 from adcp.reporting.ledger.delivery import (
     InMemoryReportingReconciliationStore,
     ReportingDestinationStore,
@@ -199,6 +203,7 @@ from adcp.reporting.ledger.row_storage_errors import (
     ReportingRowStoreErrorCode,
 )
 from adcp.reporting.ledger.status import (
+    DEFAULT_STATUS_PAGE_NODE_BUDGET,
     ReportingStatusCaller,
     ReportingStatusHandler,
     ReportingStatusView,
@@ -246,6 +251,7 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "DEFAULT_STATUS_PAGE_NODE_BUDGET",
     "CompleteMediaBuyScope",
     "CompletePackageRoster",
     "MediaBuyScopeResolver",
@@ -255,6 +261,8 @@ __all__ = [
     "PerMediaBuyPackageRoster",
     "ReportingCoverageLimitation",
     "ReportingCoverageRecord",
+    "ReportingPackageScopeError",
+    "ReportingRowCoverageError",
     "ReportingScopeBuy",
     "UnsupportedMediaBuyRoster",
     "build_reporting_coverage",

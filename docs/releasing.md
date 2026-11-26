@@ -77,12 +77,28 @@ On a merge, `release-please.yml` queues `release-publish.yml` with
 wheel from `packages/adcp-reporting-storage` and publishes them through the same
 `release-publish` environment approval. The storage wheel's `adcp` floor is
 the first `adcp` release of the storage contract it implements
-(`adcp_reporting_storage.contract`); publish that `adcp` release first.
+(`adcp_reporting_storage.contract`).
 Both publishes run the companion gate (`scripts/check_companion_releases.py`):
 the wheel just built is installed beside the published companion in a private
 environment and `scripts/companion_smoke.py` must pass there, so a pair whose
 storage contracts differ, or whose ledger does not round-trip on PostgreSQL,
 never reaches PyPI (#1763).
+
+A storage contract bump releases both packages from one change, and neither
+side's companion is on PyPI yet. While the storage floor is newer than every
+`adcp` on PyPI, the storage gate smokes the storage wheel with the `adcp` wheel
+built from the same release commit, and refuses unless that wheel is the floor
+(#1947). Release a contract bump in this order:
+
+1. Merge the `adcp` release PR. Its publish fails at the companion gate,
+   because no published storage implements the new contract.
+2. Merge the storage release PR, whose floor is that `adcp` version, before any
+   later `adcp` release PR. Its gate smokes it with the same-commit `adcp`
+   wheel, and it publishes.
+3. Re-run the failed `adcp` publish. The gate now finds the published storage
+   of its contract.
+
+[RELEASING.md](../RELEASING.md) has the full sequence for `next`.
 
 One-time setup, before the first storage release:
 

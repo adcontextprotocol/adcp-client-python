@@ -35,10 +35,17 @@ from adcp.validation.schema_loader import Direction, ResponseVariant, get_valida
 # human caller would ever debug against.
 _MAX_ISSUES = 50
 
-# Cap input size before validation. Protects against a peer posting a
-# multi-megabyte object designed to chew CPU in ``iter_errors``. Transport
-# layers typically enforce their own limits; this is defense-in-depth.
-_MAX_PAYLOAD_NODES = 10_000
+#: Default cap on payload size before validation, in JSON nodes (every
+#: object, array and scalar counts as one; see :func:`count_payload_nodes`).
+#: Protects against a peer posting a multi-megabyte object designed to chew
+#: CPU in ``iter_errors``. Transport layers typically enforce their own
+#: limits; this is defense-in-depth. It applies to every request, and to every
+#: response a client parses: both arrive from a peer that may be hostile.
+#: A server checking its *own* outbound responses applies
+#: ``ValidationHookConfig.server_response_max_nodes`` instead.
+DEFAULT_MAX_PAYLOAD_NODES = 10_000
+# Pre-10.0 private spelling; kept so existing imports keep working.
+_MAX_PAYLOAD_NODES = DEFAULT_MAX_PAYLOAD_NODES
 
 _REQUIRED_MSG = re.compile(r"^'(?P<name>.+)' is a required property$")
 
@@ -347,25 +354,50 @@ def _format_error(
     )
 
 
-def _count_nodes(payload: Any, limit: int) -> int:
-    """Count payload nodes up to ``limit``; stops early once the cap is hit.
+def count_payload_nodes(payload: Any, limit: int | None = None) -> int:
+    """Count the JSON nodes in ``payload`` the way the validator's size cap does.
 
-    Works as a cheap proxy for "how much work will jsonschema do on this
-    tree" — good enough to reject obviously-hostile payloads before
-    ``iter_errors`` walks them.
+    Every dict, list and scalar is one node; dict keys are not counted.
+    With ``limit``, counting stops as soon as it reaches ``limit`` and
+    returns ``limit``, so checking a payload against a cap costs at most
+    ``limit`` steps whatever its size.
+
+    A cheap proxy for "how much work will jsonschema do on this tree".
+    Sellers can use it to keep a page under :data:`DEFAULT_MAX_PAYLOAD_NODES`,
+    the cap a buyer's SDK applies when it parses a response.
     """
     stack: list[Any] = [payload]
     n = 0
     while stack:
         node = stack.pop()
         n += 1
-        if n >= limit:
+        if limit is not None and n >= limit:
             return n
         if isinstance(node, dict):
             stack.extend(node.values())
-        elif isinstance(node, list):
+        elif isinstance(node, (list, tuple)):
             stack.extend(node)
     return n
+
+
+def _count_nodes(payload: Any, limit: int) -> int:
+    """Pre-10.0 private spelling of :func:`count_payload_nodes`."""
+    return count_payload_nodes(payload, limit)
+
+
+def _oversized_outcome(max_nodes: int, variant: str) -> ValidationOutcome:
+    return ValidationOutcome(
+        valid=False,
+        issues=[
+            ValidationIssue(
+                pointer="/",
+                message=f"payload exceeds validator size limit ({max_nodes} nodes)",
+                keyword="payload_size",
+                schema_path="",
+            )
+        ],
+        variant=variant,
+    )
 
 
 def _iter_errors_bounded(validator: Any, payload: Any) -> list[Any]:
@@ -404,19 +436,8 @@ def validate_request(
         if missing is not None:
             return missing
         return _OK_SKIPPED
-    if _count_nodes(payload, _MAX_PAYLOAD_NODES) >= _MAX_PAYLOAD_NODES:
-        return ValidationOutcome(
-            valid=False,
-            issues=[
-                ValidationIssue(
-                    pointer="/",
-                    message=f"payload exceeds validator size limit ({_MAX_PAYLOAD_NODES} nodes)",
-                    keyword="payload_size",
-                    schema_path="",
-                )
-            ],
-            variant="request",
-        )
+    if count_payload_nodes(payload, DEFAULT_MAX_PAYLOAD_NODES) >= DEFAULT_MAX_PAYLOAD_NODES:
+        return _oversized_outcome(DEFAULT_MAX_PAYLOAD_NODES, "request")
     errors = _iter_errors_bounded(validator, payload)
     if not errors:
         return ValidationOutcome(valid=True, issues=[], variant="request")
@@ -475,11 +496,18 @@ def validate_response(
     payload: Any,
     *,
     version: str | None = None,
+    max_nodes: int | None = DEFAULT_MAX_PAYLOAD_NODES,
 ) -> ValidationOutcome:
     """Validate an incoming response, selecting the variant by payload shape.
 
     ``version`` semantics match :func:`validate_request` — defaults to the
     SDK pin; pass a wire version to validate against a legacy schema.
+
+    ``max_nodes`` refuses a payload of that many nodes or more with a
+    ``payload_size`` issue, before any schema work. The default suits a
+    response received from a peer. ``None`` validates a payload of any size
+    in full: only for a payload this process produced itself, such as a
+    server checking its own response under its own budget.
     """
     payload = _normalize_response_for_validation(tool_name, _as_wire_payload(payload), version)
     variant: ResponseVariant = _select_response_variant(payload)
@@ -493,19 +521,8 @@ def validate_response(
         if missing is not None:
             return missing
         return _OK_SKIPPED
-    if _count_nodes(payload, _MAX_PAYLOAD_NODES) >= _MAX_PAYLOAD_NODES:
-        return ValidationOutcome(
-            valid=False,
-            issues=[
-                ValidationIssue(
-                    pointer="/",
-                    message=f"payload exceeds validator size limit ({_MAX_PAYLOAD_NODES} nodes)",
-                    keyword="payload_size",
-                    schema_path="",
-                )
-            ],
-            variant=used_variant,
-        )
+    if max_nodes is not None and count_payload_nodes(payload, max_nodes) >= max_nodes:
+        return _oversized_outcome(max_nodes, used_variant)
     errors = _iter_errors_bounded(validator, payload)
     if not errors:
         return ValidationOutcome(valid=True, issues=[], variant=used_variant)

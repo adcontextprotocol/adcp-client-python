@@ -5,9 +5,10 @@ Release identity values below come from the signed 3.3.0-rc.3 release and its
 that depends on them fails loudly instead of passing vacuously. A prerelease keeps
 its full identifier as wire value and bundle key (``3.3-rc.3`` / ``3.3.0-rc.3``):
 buyers opt into the exact prerelease they validated against (DR-0024). The superseded
-``3.3-beta.0`` through ``3.3-beta.6`` and ``3.3-rc.0`` are no longer advertised or accepted as pins,
+``3.3-beta.0`` through ``3.3-beta.6`` are no longer advertised or accepted as pins,
 like the 3.2 candidates before them; their caches stay in the source tree as history
-but leave the wheel.
+but leave the wheel. ``3.3-rc.0`` served as an alias for ``3.3-rc.3`` while
+agentic-api moved from rc.0 to rc.3 and is refused again now that it has.
 """
 
 from __future__ import annotations
@@ -59,7 +60,13 @@ def test_current_pin_and_historical_roots():
     assert resolve_adcp_version(None) == resolve_adcp_version(VERSION) == WIRE_VERSION
     assert resolve_adcp_version(WIRE_VERSION) == WIRE_VERSION
     # The 3.3 line is advertised as its exact prerelease, never as a stable "3.3".
-    assert set(get_supported_adcp_versions()) == {"3.0", "3.1", "3.2", WIRE_VERSION, "3.2-rc.7"}
+    assert set(get_supported_adcp_versions()) == {
+        "3.0",
+        "3.1",
+        "3.2",
+        WIRE_VERSION,
+        "3.2-rc.7",
+    }
     with pytest.raises(ConfigurationError):
         resolve_adcp_version("3.3")
     assert schema_loader._resolve_schema_root(VERSION) is not None

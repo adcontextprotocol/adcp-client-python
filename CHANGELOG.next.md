@@ -1,5 +1,32 @@
 # Changelog
 
+## [10.0.0-beta.27](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.26...v10.0.0-beta.27) (2026-11-25)
+
+
+### Bug Fixes
+
+* page get_reporting_status by max_results and size; validate a server's own large responses ([#1967](https://github.com/adcontextprotocol/adcp-client-python/issues/1967)) ([7f89012](https://github.com/adcontextprotocol/adcp-client-python/commit/7f890124458089504909340d4e9ee582cce50c92))
+* **version:** retire the 3.3-rc.0 -&gt; 3.3-rc.3 bridge alias ([#1971](https://github.com/adcontextprotocol/adcp-client-python/issues/1971)) ([fcf3525](https://github.com/adcontextprotocol/adcp-client-python/commit/fcf3525e3ad7930255a4b9431f4479fdb9576d98))
+
+## [10.0.0-beta.26](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.25...v10.0.0-beta.26) (2026-11-25)
+
+
+### Features
+
+* **version:** accept 3.3-rc.0 as an explicit alias for 3.3-rc.3 ([#1964](https://github.com/adcontextprotocol/adcp-client-python/issues/1964)) ([64dfa3c](https://github.com/adcontextprotocol/adcp-client-python/commit/64dfa3c97526273519e8e6031e185596c15edc75))
+
+## [10.0.0-beta.25](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.24...v10.0.0-beta.25) (2026-11-24)
+
+
+### Features
+
+* **reporting:** publish allow_partial periods over the covered denominator ([#1963](https://github.com/adcontextprotocol/adcp-client-python/issues/1963)) ([ab27a72](https://github.com/adcontextprotocol/adcp-client-python/commit/ab27a72e6c9315362d4c34af6206fbabbe5e50c7)), closes [#1961](https://github.com/adcontextprotocol/adcp-client-python/issues/1961)
+
+
+### Bug Fixes
+
+* **release:** let a storage contract bump pass the companion gate ([#1948](https://github.com/adcontextprotocol/adcp-client-python/issues/1948)) ([58116d6](https://github.com/adcontextprotocol/adcp-client-python/commit/58116d6e5fcf2f6687e40c02a8bf8981d7bc98a1)), closes [#1947](https://github.com/adcontextprotocol/adcp-client-python/issues/1947)
+
 ## [10.0.0-beta.24](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.23...v10.0.0-beta.24) (2026-11-24)
 
 

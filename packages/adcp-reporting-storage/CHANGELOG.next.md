@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.4...adcp-reporting-storage-v0.2.0-beta.5) (2026-11-24)
+
+
+### Features
+
+* **reporting:** notify the adopter when a reporting issue opens, escalates or resolves ([#1875](https://github.com/adcontextprotocol/adcp-client-python/issues/1875)) ([74bbe6f](https://github.com/adcontextprotocol/adcp-client-python/commit/74bbe6facd8c4108e803babc23e979e7b2b5c3a9))
+* **reporting:** support reporting scope all_media_buys for sellers ([#1945](https://github.com/adcontextprotocol/adcp-client-python/issues/1945)) ([f386ba7](https://github.com/adcontextprotocol/adcp-client-python/commit/f386ba7fdf35ad7d321e4957059a66ed1f20caf8))
+
+
+### Bug Fixes
+
+* **release:** let a storage contract bump pass the companion gate ([#1948](https://github.com/adcontextprotocol/adcp-client-python/issues/1948)) ([58116d6](https://github.com/adcontextprotocol/adcp-client-python/commit/58116d6e5fcf2f6687e40c02a8bf8981d7bc98a1)), closes [#1947](https://github.com/adcontextprotocol/adcp-client-python/issues/1947)
+
 ## [0.2.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.3...adcp-reporting-storage-v0.2.0-beta.4) (2026-11-08)
 
 

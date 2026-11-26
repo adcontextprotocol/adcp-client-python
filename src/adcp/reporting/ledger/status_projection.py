@@ -24,6 +24,7 @@ from adcp.reporting.ledger.consumer_status import (
     stale_received_grace_deadline,
     waiver_covers_mismatch,
 )
+from adcp.reporting.ledger.coverage import _covered_subset_publishable
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.health import (
     ObligationProjection,
@@ -634,7 +635,14 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             scope_closed=snapshot.as_of >= obligation.period.end,
         )
         local = list(projection.issues)
-        if obligation.coverage_status != "full":
+        # A full generation requires full coverage. An allow_partial one
+        # publishes a partial period over its covered packages and is judged by
+        # that delivery; its coverage still says partial on every record.
+        generation = generations.get(obligation.generation_key)
+        if obligation.coverage_status != "full" and not (
+            generation is not None
+            and _covered_subset_publishable(generation.coverage_requirement, obligation.coverage)
+        ):
             local.append(
                 ReportingIssue(
                     issue_id=issue_id_for(
@@ -662,7 +670,6 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             and (snapshot.as_of >= obligation.automated_recovery_deadline_at)
         ):
             pending += 1
-        generation = generations.get(obligation.generation_key)
         sla = iso_duration_to_timedelta(
             (generation.schedule if generation else obligation.schedule).delivery_sla
         )
