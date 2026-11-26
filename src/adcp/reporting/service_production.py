@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from adcp.reporting.definition_versions import ReportDefinitionVersions
 from adcp.reporting.ledger import ProducerOfferings, ReportingDeliveryEscalation, ReportingProducer
 from adcp.reporting.materializer import (
     ReportingDestinationIO,
@@ -134,6 +135,7 @@ class ReportingProductionOptions:
         escalation: ReportingDeliveryEscalation,
         consumer_status_enabled: bool,
         authorize_subscription_delivery: SubscriptionDeliveryAuthority | None = None,
+        definition_versions: ReportDefinitionVersions | None = None,
     ) -> ReportingProductionSupport:
         if set(sources.names) != {item.adapter for item in self.offerings}:
             raise ValueError("every registered production adapter must have an offering")
@@ -205,4 +207,5 @@ class ReportingProductionOptions:
             status_retention_days=self.status_retention_days,
             notification_workers=workers,
             poll_seconds=self.poll_seconds,
+            definition_versions=definition_versions,
         )

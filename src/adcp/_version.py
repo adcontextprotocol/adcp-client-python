@@ -32,6 +32,7 @@ COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2", "3.3")
 # Explicit compatibility bridge for buyers shipped with adcp 8.0.0rc3.
 # rc.7 requests remain valid under the additive 3.2.1 contract. Other
 # prereleases retain their own schema contracts; never infer aliases by pattern.
+# An alias is advertised only while its target is.
 _ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2"}
 
 

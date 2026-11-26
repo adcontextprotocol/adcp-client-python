@@ -312,6 +312,27 @@ def _whole_complete(
     )
 
 
+def _covered_subset_publishable(
+    coverage_requirement: str, coverage: ReportingCoverageRecord | None
+) -> bool:
+    """Whether an ``allow_partial`` period publishes over its fully covered buys.
+
+    ``coverage_requirement`` admits a partial period's covered packages
+    (``core/reporting-delivery-config.json``). Publication is over the fully
+    covered buys: no source constituent names only a buy's covered packages,
+    so a period with a partially covered buy is withheld, as are ``none`` and
+    ``unknown`` periods, which cover nothing. :func:`build_reporting_coverage`
+    never produces a partially covered buy.
+    """
+    return (
+        coverage_requirement == "allow_partial"
+        and coverage is not None
+        and coverage.status == "partial"
+        and bool(coverage.fully_covered_media_buy_ids)
+        and not coverage.partially_covered_media_buy_ids
+    )
+
+
 __all__ = [
     "ReportingCoverageLimitation",
     "ReportingCoverageRecord",

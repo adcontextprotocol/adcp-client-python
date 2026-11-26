@@ -104,6 +104,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "expected_confirmation_at",
         "next_status_check_delay",
     ),
+    "adcp.platform_ids": ("platform_id_of",),
     "adcp.property_lists": (
         "MCPPropertyListFetcher",
         "ResolvedPropertyList",
@@ -1050,6 +1051,7 @@ __all__ = [
     "validate_publisher_domain",
     "expected_confirmation_at",
     "next_status_check_delay",
+    "platform_id_of",
     "MCPPropertyListFetcher",
     "ProductPropertyAssessment",
     "ProductPropertyPolicy",
@@ -2038,6 +2040,7 @@ if TYPE_CHECKING:
         start_oauth_authorization,
     )
     from adcp.observability import get_tracer, inject_trace_headers, is_tracing_available
+    from adcp.platform_ids import platform_id_of
     from adcp.principal import (
         DestinationSetupSnapshot,
         PrincipalClient,

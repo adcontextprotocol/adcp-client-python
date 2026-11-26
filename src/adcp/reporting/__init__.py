@@ -84,6 +84,12 @@ if TYPE_CHECKING:
     from adcp.reporting import service_production as service_production
     from adcp.reporting import source as source
     from adcp.reporting import testing as testing
+    from adcp.reporting.definition_versions import (
+        ReportDefinitionContractVersion as ReportDefinitionContractVersion,
+    )
+    from adcp.reporting.definition_versions import (
+        UndeclaredReportDefinitions as UndeclaredReportDefinitions,
+    )
     from adcp.reporting.issue_events import (
         ReportingIssueEvent as ReportingIssueEvent,
     )
@@ -204,6 +210,8 @@ _LAZY_EXPORTS = {
     "ReportingIssueEventDispatcher": ("issue_events", "ReportingIssueEventDispatcher"),
     "ReportingIssueEventKind": ("issue_events", "ReportingIssueEventKind"),
     "ReportingIssueObserver": ("issue_events", "ReportingIssueObserver"),
+    "ReportDefinitionContractVersion": ("definition_versions", "ReportDefinitionContractVersion"),
+    "UndeclaredReportDefinitions": ("definition_versions", "UndeclaredReportDefinitions"),
     "ReportingProductionOptions": ("service_production", "ReportingProductionOptions"),
     "ReportingServiceOffering": ("service_production", "ReportingServiceOffering"),
     "SubscriptionOptions": ("service_subscriptions", "SubscriptionOptions"),
@@ -264,6 +272,8 @@ __all__ = [
     "ReportingIssueEventDispatcher",
     "ReportingIssueEventKind",
     "ReportingIssueObserver",
+    "ReportDefinitionContractVersion",
+    "UndeclaredReportDefinitions",
     "ReportingProductionOptions",
     "ReportingServiceOffering",
     "PrincipalRef",

@@ -278,12 +278,15 @@ For publisher manifest sync, resolve the agent's selectors with
 inventory. It keeps publisher subdomains and wildcard domain inventory, and
 excludes domainless inventory (bundle-only apps, venues) unless
 `include_domainless=True`. Permissive resolution requires `publisher_domain=`
-from the trusted fetch origin (`allow_any_domain=True` skips the gate for
-diagnostics). Use `await verify_cross_domain_properties(properties,
-source_domain=..., agent_url=...)` before trusting claims about another
-publisher's domain; its `CrossDomainVerification` result separates
-`verified`, `unverified` and `domainless` properties. All three helpers are
-exported from `adcp`. See `docs/adagents-discovery.md`.
+from the trusted fetch origin (`allow_any_domain=True` skips the gate; diff
+the two results to see what it excludes). Use
+`await verify_cross_domain_properties(properties, source_domain=...,
+agent_url=...)` before trusting claims about another publisher's domain; its
+`CrossDomainVerification` result separates `verified`, `unverified` (a
+publisher refused the claim), `undetermined` (a fetch failed or the
+`max_domains` budget ran out; not checked yet) and `domainless`
+properties. All three helpers are exported from `adcp`. See
+`docs/adagents-discovery.md`.
 
 Import `MCPPropertyListFetcher`, `ProductPropertyPolicy`, and
 `check_property_list_reference` from `adcp`. The default seller fetcher resolves

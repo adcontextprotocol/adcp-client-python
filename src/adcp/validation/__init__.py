@@ -21,6 +21,7 @@ schema validation is therefore authoritative at wire boundaries.
 from __future__ import annotations
 
 from adcp.validation.client_hooks import (
+    DEFAULT_SERVER_RESPONSE_MAX_NODES,
     SERVER_DEFAULT_VALIDATION,
     DebugLogEntry,
     UnknownFieldPolicy,
@@ -55,10 +56,12 @@ from adcp.validation.schema_loader import (
     list_validator_keys,
 )
 from adcp.validation.schema_validator import (
+    DEFAULT_MAX_PAYLOAD_NODES,
     RequestValidationError,
     SchemaValidationError,
     ValidationIssue,
     ValidationOutcome,
+    count_payload_nodes,
     format_issues,
     validate_request,
     validate_response,
@@ -73,12 +76,14 @@ __all__ = [
     "validate_publisher_properties_item",
     "validate_revoked_publisher_domain_entry",
     # Schema core
+    "DEFAULT_MAX_PAYLOAD_NODES",
     "Direction",
     "ResponseVariant",
     "RequestValidationError",
     "SchemaValidationError",
     "ValidationIssue",
     "ValidationOutcome",
+    "count_payload_nodes",
     "format_issues",
     "get_bundle_adcp_version",
     "get_mcp_schema",
@@ -94,6 +99,7 @@ __all__ = [
     "build_adcp_validation_error_payload",
     "build_validation_error",
     # Client hooks
+    "DEFAULT_SERVER_RESPONSE_MAX_NODES",
     "DebugLogEntry",
     "SERVER_DEFAULT_VALIDATION",
     "UnknownFieldPolicy",

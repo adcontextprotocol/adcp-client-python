@@ -32,9 +32,9 @@ PINS = ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-beta.6")
 # ``hashlib.sha256(canonical(public_definitions(version))).hexdigest()`` when
 # the compaction rules change deliberately.
 EXPECTED_PUBLIC_SHA256 = {
-    "3.2.0-rc.3": "38078a94e57b1a6c6ed7b07ff5b240f88fa666ddd420aee34735b2e68799e236",
-    "3.2.0-rc.6": "14a611b33e5641fc37a784fc9efd122cbdafbcc98497df93af13802f3681988e",
-    "3.2.0-beta.6": "df13e396034d18c8c851d8fe77356da8fe587ec4dc5b3b120026af9a02f48f82",
+    "3.2.0-rc.3": "b59788cea97fed24cf12afe52ab2086dcf1fec01401537f6789b5b2c7ab96da8",
+    "3.2.0-rc.6": "cd5f1aa405bf838c223374435203d0b7fa4d40953435693608a88b05186cd829",
+    "3.2.0-beta.6": "3a3e5ce2de500c0bfe5fc90d1941aae01dc8449a9f148318798e1b4a5abd3823",
 }
 
 

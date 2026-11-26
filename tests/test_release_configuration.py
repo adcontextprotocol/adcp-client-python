@@ -152,6 +152,12 @@ def test_release_publish_gates_both_packages_on_a_working_companion() -> None:
     assert "if" not in companion, "both packages are gated"
     assert "--dist dist/adcp-*.whl" in companion["run"]
     assert '--package "$PACKAGE" --dist dist/adcp_reporting_storage-*.whl' in companion["run"]
+    # A storage contract bump: the storage is smoked with the adcp wheel of the
+    # same release commit while its floor is unpublished (#1947). That wheel is
+    # built outside dist/, so the storage publish never uploads adcp.
+    assert '--adcp-dist "$RUNNER_TEMP"/adcp-dist/adcp-*.whl' in companion["run"]
+    build = next(step["run"] for step in steps if "python -m build" in step.get("run", ""))
+    assert 'python -m build --wheel --outdir "$RUNNER_TEMP/adcp-dist" .' in build
     assert companion["env"]["ADCP_PG_TEST_URL"].startswith("postgresql://")
     build_steps = [
         index for index, step in enumerate(steps) if "python -m build" in step.get("run", "")
@@ -165,14 +171,15 @@ def test_storage_distribution_pins_one_adcp_major() -> None:
 
     The floor is the first adcp release of the storage contract the package
     implements (``adcp_reporting_storage.contract``): on next that is
-    10.0.0b4, which added ``offering_id`` to the ledger column lists; a wider
-    floor let 10.0.0b4 install beside a storage release that lacked the
-    column (#1763). The ceiling stays the next major (see RELEASING.md).
+    10.0.0b24, the first to read ``media_buy_scope`` (contract 3). A floor
+    below the contract lets an adcp of another contract install beside the
+    storage and fail every reporting turn, as 10.0.0b4 did beside 0.2.0b0
+    (#1763). The ceiling stays the next major (see RELEASING.md).
     """
     pyproject = (STORAGE / "pyproject.toml").read_text()
     if (ROOT / "release-please-config.next.json").exists():
         assert re.search(
-            r'"adcp>=10\.0\.0b4,<11"', pyproject
+            r'"adcp>=10\.0\.0b24,<11"', pyproject
         ), "next's storage floor is the first adcp of its storage contract"
     else:
         assert re.search(r'"adcp>=9\.0\.0(?:b\d+)?,<10"', pyproject), "adcp range must be one major"

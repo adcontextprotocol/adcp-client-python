@@ -20,6 +20,15 @@ and round-trips records on PostgreSQL. ``--package adcp-reporting-storage``
 gates the companion in the other direction: the built storage distribution is
 smoked with both the oldest and the newest published ``adcp`` its own
 requirement accepts.
+
+A storage-contract bump changes both sides at once, so neither can publish
+first: the new ``adcp`` has no published storage of its contract, and the new
+storage's floor (the first ``adcp`` of that contract) is not on PyPI yet
+(adcp-client-python#1947). For that case the storage gate takes
+``--adcp-dist``, the ``adcp`` wheel built from the same release commit: while
+the floor is newer than every ``adcp`` on PyPI, that wheel must *be* the floor
+and the pair must pass the smoke. Once any published ``adcp`` satisfies the
+floor, the published releases are smoked as before and the wheel is unused.
 """
 
 from __future__ import annotations
@@ -107,6 +116,25 @@ def compatible_release(companion: str, adcp_version: Version, fetch: Fetch = _py
     return None
 
 
+def unreleased_floor(requirement: Requirement, fetch: Fetch = _pypi) -> Version | None:
+    """The requirement's ``>=`` floor when it is newer than every ``adcp`` on PyPI.
+
+    That is a floor waiting on the ``adcp`` release of the same commit. A yanked
+    release still counts as on PyPI: it cannot be published again.
+    """
+    floors = [Version(spec.version) for spec in requirement.specifier if spec.operator == ">="]
+    if not floors:
+        return None
+    on_pypi = []
+    for raw in (fetch("https://pypi.org/pypi/adcp/json") or {}).get("releases") or {}:
+        try:
+            on_pypi.append(Version(raw))
+        except InvalidVersion:
+            continue
+    floor = max(floors)
+    return floor if all(version < floor for version in on_pypi) else None
+
+
 def accepted_adcp_releases(requirement: Requirement, fetch: Fetch = _pypi) -> list[str]:
     """Published, non-yanked ``adcp`` releases the requirement accepts, oldest first."""
     project = fetch("https://pypi.org/pypi/adcp/json")
@@ -118,15 +146,26 @@ def accepted_adcp_releases(requirement: Requirement, fetch: Fetch = _pypi) -> li
     return [str(version) for version in sorted(accepted)]
 
 
-def wheel_adcp_requirement(distribution: Path) -> Requirement:
-    """The ``adcp`` requirement a built companion wheel declares."""
+def _wheel_metadata(distribution: Path) -> Any:
     with zipfile.ZipFile(distribution) as wheel:
         metadata = next(name for name in wheel.namelist() if name.endswith(".dist-info/METADATA"))
-        headers = HeaderParser().parsestr(wheel.read(metadata).decode("utf-8"))
-    requirement = _adcp_requirement(headers.get_all("Requires-Dist"))
+        return HeaderParser().parsestr(wheel.read(metadata).decode("utf-8"))
+
+
+def wheel_adcp_requirement(distribution: Path) -> Requirement:
+    """The ``adcp`` requirement a built companion wheel declares."""
+    requirement = _adcp_requirement(_wheel_metadata(distribution).get_all("Requires-Dist"))
     if requirement is None:
         raise SystemExit(f"{distribution.name} declares no adcp requirement")
     return requirement
+
+
+def wheel_adcp_version(distribution: Path) -> Version | None:
+    """The version of a built ``adcp`` wheel, or ``None`` for another distribution's."""
+    headers = _wheel_metadata(distribution)
+    if canonicalize_name(headers.get("Name", "")) != "adcp":
+        return None
+    return Version(headers["Version"])
 
 
 def smoke(requirements: list[str], *, label: str, run: Run = _run) -> bool:
@@ -192,9 +231,23 @@ def gate_adcp(
     return 0
 
 
-def gate_companion(distribution: Path, fetch: Fetch = _pypi, run: Run = _run) -> int:
-    """A companion release must work with the oldest and newest adcp its range accepts."""
+def gate_companion(
+    distribution: Path,
+    fetch: Fetch = _pypi,
+    run: Run = _run,
+    adcp_distribution: Path | None = None,
+) -> int:
+    """A companion release must work with the oldest and newest adcp its range accepts.
+
+    When its floor is newer than every ``adcp`` on PyPI (a storage contract
+    bump, whose two releases wait on each other), no published ``adcp`` can
+    vouch for it, so the pair is proven with ``adcp_distribution`` instead: the
+    ``adcp`` wheel built from the same release commit, which must be the floor.
+    """
     requirement = wheel_adcp_requirement(distribution)
+    floor = unreleased_floor(requirement, fetch)
+    if floor is not None:
+        return _gate_unreleased_floor(distribution, requirement, floor, adcp_distribution, run)
     accepted = accepted_adcp_releases(requirement, fetch)
     if not accepted:
         print(
@@ -221,6 +274,52 @@ def gate_companion(distribution: Path, fetch: Fetch = _pypi, run: Run = _run) ->
     return 0
 
 
+def _gate_unreleased_floor(
+    distribution: Path,
+    requirement: Requirement,
+    floor: Version,
+    adcp_distribution: Path | None,
+    run: Run,
+) -> int:
+    """Smoke the companion with the floor adcp built from the same release commit."""
+    unpublished = (
+        f"adcp {floor}, the floor of {distribution.name} ({requirement}), is not published"
+    )
+    if adcp_distribution is None:
+        print(
+            f"{unpublished}. Publish adcp first, or pass --adcp-dist with the adcp wheel built "
+            "from this release commit.",
+            file=sys.stderr,
+        )
+        return 1
+    built = wheel_adcp_version(adcp_distribution)
+    if built != floor:
+        found = f"adcp {built}" if built else f"{adcp_distribution.name}, not an adcp wheel"
+        print(
+            f"{unpublished}, and the adcp wheel built from this release commit is {found}. "
+            "Release the storage package from the commit whose adcp version is its floor, or "
+            "move the floor to the first adcp of its storage contract.",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"{distribution.name} ({requirement}) floors at the unpublished adcp {floor}; "
+        f"smoking it with {adcp_distribution.name}, built from this release commit"
+    )
+    if not smoke(
+        [str(adcp_distribution), f"{distribution}[{STORAGE_EXTRA}]"],
+        label=f"{distribution.name} + adcp {floor} (this release commit)",
+        run=run,
+    ):
+        print(
+            f"{distribution.name} does not work with adcp {floor}, its floor, built from this "
+            "release commit. Their storage contracts must match.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None, fetch: Fetch = _pypi, run: Run = _run) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -237,14 +336,24 @@ def main(argv: list[str] | None = None, fetch: Fetch = _pypi, run: Run = _run) -
         type=Path,
         help="the built wheel of that distribution; when given, the pair is installed and smoked",
     )
+    parser.add_argument(
+        "--adcp-dist",
+        type=Path,
+        help=(
+            "for a companion package: the adcp wheel built from the same release commit, "
+            "smoked in place of its floor adcp when that release is not published yet"
+        ),
+    )
     args = parser.parse_args(argv)
     if args.package == "adcp":
         if not args.adcp_version:
             parser.error("the adcp version is required for --package adcp")
+        if args.adcp_dist is not None:
+            parser.error("--adcp-dist is only for a companion package")
         return gate_adcp(Version(args.adcp_version), args.dist, fetch, run)
     if args.dist is None:
         parser.error(f"--dist is required for --package {args.package}")
-    return gate_companion(args.dist, fetch, run)
+    return gate_companion(args.dist, fetch, run, args.adcp_dist)
 
 
 if __name__ == "__main__":
