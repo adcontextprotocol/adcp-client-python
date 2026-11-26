@@ -1000,18 +1000,18 @@ async def test_historical_unchanged_replay_validates_stored_observation_origin(
         async with store.storage_identity.connection() as connection, connection.transaction():
             # Simulate an already inconsistent historical row in this fixture's private schema.
             await connection.execute(
-                "ALTER TABLE reporting_provisional_observations DISABLE TRIGGER "
-                "reporting_provisional_observation_immutable"
+                "ALTER TABLE adcp_reporting_reused_observations DISABLE TRIGGER "
+                "adcp_reporting_reused_observation_immutable"
             )
             await connection.execute(
-                "UPDATE reporting_provisional_observations SET payload = "
+                "UPDATE adcp_reporting_reused_observations SET payload = "
                 "jsonb_set(payload, '{revision_publication_id}', to_jsonb(%s::text)) "
                 "WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=1",
                 (wrong_id, config.account_id, obligation.reporting_obligation_id),
             )
             await connection.execute(
-                "ALTER TABLE reporting_provisional_observations ENABLE TRIGGER "
-                "reporting_provisional_observation_immutable"
+                "ALTER TABLE adcp_reporting_reused_observations ENABLE TRIGGER "
+                "adcp_reporting_reused_observation_immutable"
             )
     else:
         store._provisional_observations[(config.account_id, obligation.reporting_obligation_id)][
