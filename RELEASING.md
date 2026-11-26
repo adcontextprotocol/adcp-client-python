@@ -12,7 +12,7 @@ releases ([#1525](https://github.com/adcontextprotocol/adcp-client-python/issues
 | --- | --- | --- |
 | `main` | Work against the latest ratified AdCP version (3.2.x today) | The current major (9.x), through release-please |
 | `release/N.x` (`release/8.x`, `release/7.x`) | Fixes for an older major | Patch releases of that major, from the branch's own release workflow |
-| `next` | SDK 10 on AdCP 3.3 (the 3.3.0-rc.3 bundle, agent identity, Web Bot Auth) | Pre-releases only (`10.0.0-beta.N`), from its own release-please configuration |
+| `next` | SDK 10 on AdCP 3.3 (the 3.3.0-rc.3 bundle, agent identity, Web Bot Auth) | Pre-releases only (`10.0.0-rc.N`, after `10.0.0-beta.0` to `-beta.27`), from its own release-please configuration |
 
 Open a PR against the branch that carries the spec it implements. Code written
 to an unratified spec (an open adcontextprotocol/adcp PR or a draft) targets
@@ -50,7 +50,7 @@ limited:
   `.github/workflows/release-please-next.yml` exist only on `next`. `main`
   never changes them.
 - The `[project] version` line in `pyproject.toml` conflicts after both lines
-  have released. Keep `next`'s version (`10.0.0aN`).
+  have released. Keep `next`'s version (`10.0.0rcN`).
 
 ## Releasing from `next`
 
@@ -60,30 +60,33 @@ so that merges in either direction never change the other line's release flow:
 - `.github/workflows/release-please-next.yml` runs on pushes to `next` only,
   with its own concurrency group and `target-branch: next`.
 - `release-please-config.next.json` sets `versioning: prerelease`,
-  `prerelease-type: beta`, and `prerelease: true`, and writes
+  `prerelease-type: rc`, and `prerelease: true` for `adcp`, and writes
   `CHANGELOG.next.md`. `.release-please-manifest.next.json` holds `next`'s
   current version.
 - The channel moved from alpha to beta with the AdCP 3.3.0-beta.0 adoption:
   the commit that switched it ends with `Release-As: 10.0.0-beta.0`, so the
   first SDK 10 release is `10.0.0-beta.0` (the earlier `10.0.0-alpha.0`
-  proposal, #1533, was closed unreleased). Every later release increments the
-  beta number (`10.0.0-beta.1`, ...), whatever the commit type. Don't merge a
-  `next` release PR that proposes a version without `-beta.N`. A `Release-As:`
-  footer must survive the squash: paste it into the squash commit message when
-  merging the PR that carries it.
+  proposal, #1533, was closed unreleased). Betas ran to `10.0.0-beta.27`.
+- The channel moved from beta to rc ahead of AdCP 3.3 GA: the commit that
+  switched it ends with `Release-As: 10.0.0-rc.1`, so the first SDK 10 release
+  candidate is `10.0.0-rc.1` (PEP 440 `10.0.0rc1`). Every later release
+  increments the rc number (`10.0.0-rc.2`, ...), whatever the commit type.
+  Don't merge a `next` release PR that proposes a version without `-rc.N`. A
+  `Release-As:` footer must survive the squash: paste it into the squash commit
+  message when merging the PR that carries it.
 - After release-please opens or updates the release PR, the workflow runs
   `scripts/normalize_pyproject_prerelease --release-prs --target-branch next`
-  to rewrite `pyproject.toml` to PEP 440 (`10.0.0b0`). The normalizer accepts
+  to rewrite `pyproject.toml` to PEP 440 (`10.0.0rc1`). The normalizer accepts
   only `release-please--branches--next--components--adcp` PRs into `next`.
-- When the release PR merges, release-please tags `v10.0.0-beta.N`, creates a
+- When the release PR merges, release-please tags `v10.0.0-rc.N`, creates a
   GitHub release marked as a pre-release, and dispatches `release-publish.yml`
   with `--ref next`. That workflow waits for `next`'s CI at the release commit,
   then publishes to PyPI after the `release-publish` environment approval.
-  PyPI treats `10.0.0bN` as a pre-release: `pip install adcp` keeps resolving
+  PyPI treats `10.0.0rcN` as a pre-release: `pip install adcp` keeps resolving
   to `main`'s releases, and adopters opt in with `pip install --pre adcp` or
-  `adcp==10.0.0b0`.
+  `adcp==10.0.0rc1`.
 
-- `next` releases two components, like `main`: `adcp` (`10.0.0-beta.N`) and
+- `next` releases two components, like `main`: `adcp` (`10.0.0-rc.N`) and
   its SDK 10 companion `adcp-reporting-storage` (`0.2.0-beta.N`, tags
   `adcp-reporting-storage-v0.2.0-beta.N`, changelog
   `packages/adcp-reporting-storage/CHANGELOG.next.md`). The root package
@@ -181,7 +184,7 @@ When the draft spec that `next` tracks is ratified:
    `release-please-config.json`'s channel to match (see `docs/releasing.md`).
    This must be the newest `Release-As:` commit. Release-please uses the
    newest footer it finds, so it overrides `next`'s earlier
-   `Release-As: 10.0.0-beta.0`.
+   `Release-As: 10.0.0-rc.1`.
 6. If the 9.x line still needs fixes, create `release/9.x` from `main`, with
    its own release-please workflow like `release/8.x`'s.
 7. Open a PR from `next` into `main` and merge it with **Create a merge
