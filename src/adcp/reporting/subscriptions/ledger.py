@@ -38,6 +38,7 @@ from typing import Any
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import validate_currency
 from adcp.reporting.ledger.coverage import build_reporting_coverage
+from adcp.reporting.ledger.coverage_guard import ReportingPackageScopeError, _package_scope_conflict
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.models import (
     STUB_PERIOD_KEY_SUFFIX,
@@ -372,6 +373,11 @@ class SubscriptionObligationPlanner:
                         "HISTORY_UNAVAILABLE",
                         "empty subscription buy scope requires complete package roster evidence",
                     )
+            conflict = _package_scope_conflict(
+                period.media_buy_ids, roster, package_grain="package" in offering.dimensions
+            )
+            if conflict is not None:
+                raise ReportingPackageScopeError(conflict)
             coverage = build_reporting_coverage(period.media_buy_ids, roster, end)
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=subscription_obligation_id(

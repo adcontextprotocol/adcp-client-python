@@ -40,14 +40,20 @@ from adcp.types import (
     unwrap_enum_value,
 )
 from adcp.types.error_narrowing import narrow_union_errors
+from adcp.validation import schema_validator as _schema_validator
 from adcp.validation._response_envelope import uses_task_status_envelope
-from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfig
+from adcp.validation.client_hooks import (
+    DEFAULT_SERVER_RESPONSE_MAX_NODES,
+    UnknownFieldPolicy,
+    ValidationHookConfig,
+)
 from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 from adcp.validation.schema_loader import (
     get_mcp_schema,
     get_validator,
     list_validator_keys,
 )
+from adcp.validation.schema_validator import ValidationOutcome, count_payload_nodes
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +68,11 @@ shape for clients that do not resolve references.
 """
 
 _SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
-_SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset({"const", "default", "examples"})
+#: Keywords whose value is not a schema: instances, and ``dependentRequired``'s
+#: map of property names to name lists. Copied untouched by every transform.
+_SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset(
+    {"const", "default", "examples", "dependentRequired"}
+)
 #: Subschemas whose meaning inverts under compaction. Pruning only ever
 #: *loosens* a subschema (an optional nested field is dropped and re-admitted
 #: as ``true``), which is sound for a positive assertion but not for a negated
@@ -3451,6 +3461,47 @@ def mark_not_applied(exc: BaseException) -> None:
         exc.__dict__.pop("error_info", None)
 
 
+def _validate_own_response(
+    method_name: str,
+    payload: dict[str, Any],
+    *,
+    version: str | None,
+    budget: int | None,
+    stage: str,
+) -> ValidationOutcome | None:
+    """Validate a response this server built, within its node budget.
+
+    The validator's fixed ``DEFAULT_MAX_PAYLOAD_NODES`` cap guards against a
+    hostile peer making ``iter_errors`` walk a huge payload. A server checking
+    what it is about to send is not parsing hostile input, so refusing a large
+    valid response there only denies the buyer a correct answer. Under
+    ``budget`` the response is validated in full, so strict mode still refuses
+    any schema violation. At or over it, validation would block the event loop
+    for too long; the response is sent unvalidated and the skip is logged at
+    ERROR so it is never silent. Returns ``None`` for that case.
+    """
+    if budget is not None and count_payload_nodes(payload, budget) >= budget:
+        logger.error(
+            "Schema validation skipped (%s) for %s: the response is at least %d JSON"
+            " nodes, the server's validation budget, and was sent without schema"
+            " validation. Page or trim the response, or raise"
+            " ValidationHookConfig.server_response_max_nodes (None validates every"
+            " response in full).",
+            stage,
+            method_name,
+            budget,
+            extra={
+                "adcp_validation": "response_over_budget",
+                "adcp_tool": method_name,
+                "adcp_validation_budget": budget,
+            },
+        )
+        return None
+    return _schema_validator.validate_response(
+        method_name, payload, version=version, max_nodes=None
+    )
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
@@ -3589,6 +3640,7 @@ def create_tool_caller(
         log_conversion_summary,
     )
     from adcp.exceptions import ADCPFeatureUnsupportedError, ADCPTaskError
+    from adcp.platform_ids import _dual_emit_platform_ids
     from adcp.server._creative_batch import (
         normalize_lenient_creative_batch,
         partial_creative_batch,
@@ -3607,7 +3659,6 @@ def create_tool_caller(
     from adcp.validation.schema_validator import (
         format_issues,
         validate_request,
-        validate_response,
     )
 
     adopter_method_name = {
@@ -3631,6 +3682,11 @@ def create_tool_caller(
     # ``createAdcpServer`` is the same: validation is an explicit opt-in.
     request_mode = validation.requests if validation is not None else None
     response_mode = validation.responses if validation is not None else None
+    response_node_budget = (
+        validation.server_response_max_nodes
+        if validation is not None
+        else DEFAULT_SERVER_RESPONSE_MAX_NODES
+    )
     unknown_field_policy = _normalize_unknown_field_policy(
         validation.unknown_fields if validation is not None else None
     )
@@ -4372,6 +4428,18 @@ def create_tool_caller(
                     application_version if convert_minor_version else response_validator_version
                 ),
             )
+            if "adcp_error" not in result:
+                # AdCP 3.3 dual emission of event source and audience platform
+                # IDs, projected for the release the caller is served (#1639).
+                try:
+                    _dual_emit_platform_ids(
+                        method_name, result, adcp_version=wire_version or application_version
+                    )
+                except ValueError as exc:
+                    raise ADCPTaskError(
+                        operation=method_name,
+                        errors=[Error(code="INTERNAL_ERROR", message=str(exc))],
+                    ) from exc
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``
             # (so it sees the credential-stripped echo envelope and can't
@@ -4400,10 +4468,14 @@ def create_tool_caller(
             # schema refuses is reported against the handler's field paths
             # rather than silently projected for the buyer.
             if response_mode is not None and response_mode != "off":
-                application_outcome = validate_response(
-                    method_name, result, version=application_version
+                application_outcome = _validate_own_response(
+                    method_name,
+                    result,
+                    version=application_version,
+                    budget=response_node_budget,
+                    stage="application response",
                 )
-                if not application_outcome.valid:
+                if application_outcome is not None and not application_outcome.valid:
                     logger.warning(
                         "Schema validation warning (application response, %s) for %s: %s",
                         application_version,
@@ -4444,9 +4516,15 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(method_name, result, version=response_validator_version)
-                if not outcome.valid:
-                    summary = format_issues(outcome.issues)
+                response_outcome = _validate_own_response(
+                    method_name,
+                    result,
+                    version=response_validator_version,
+                    budget=response_node_budget,
+                    stage="response",
+                )
+                if response_outcome is not None and not response_outcome.valid:
+                    summary = format_issues(response_outcome.issues)
                     logger.warning(
                         "Schema validation warning (response) for %s: %s",
                         method_name,
@@ -4454,7 +4532,7 @@ def create_tool_caller(
                     )
                     if response_mode == "strict":
                         payload = build_adcp_validation_error_payload(
-                            method_name, "response", outcome.issues
+                            method_name, "response", response_outcome.issues
                         )
                         raise ADCPTaskError(
                             operation=method_name,

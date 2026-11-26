@@ -479,6 +479,12 @@ class ReportingConfiguration:
     #: producer hands the package roster resolver a per-period copy carrying
     #: that period's frozen buys.
     media_buy_scope: Literal["media_buy_ids", "all_media_buys"] = "media_buy_ids"
+    #: ``full`` publishes a period only when its frozen coverage is full.
+    #: ``allow_partial`` also publishes a ``partial`` period, over the fully
+    #: covered buys only: its revision carries the partial coverage, and its
+    #: rows cover only ``covered_package_ids``. A ``none`` or ``unknown``
+    #: period publishes nothing under either requirement.
+    coverage_requirement: Literal["full", "allow_partial"] = "full"
 
     def __post_init__(self) -> None:
         principal_reference(self.account_id)
@@ -494,6 +500,10 @@ class ReportingConfiguration:
             raise ValueError("media_buy_scope must be media_buy_ids or all_media_buys")
         if self.media_buy_scope == "all_media_buys" and self.subscription is not None:
             raise ValueError("a subscription owed set has no all_media_buys scope")
+        if self.coverage_requirement not in ("full", "allow_partial"):
+            raise ValueError("coverage_requirement must be full or allow_partial")
+        if self.coverage_requirement == "allow_partial" and self.subscription is not None:
+            raise ValueError("a subscription owed set requires full coverage")
 
     @property
     def owed_set(self) -> bool:

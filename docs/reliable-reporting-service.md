@@ -747,6 +747,34 @@ Composing the ledger without the service? Schedule
 `ReportingIssueEventDispatcher(store, observer, escalation=...).run_once()`
 yourself.
 
+## Status page size
+
+A `get_reporting_status` periods page carries at most the buyer's
+`pagination.max_results` records: the schema default of 50 when the buyer
+omits it, and never more than 100. A value outside 1-100 is refused with
+`INVALID_PAGE_SIZE`.
+
+Each record names every media buy in its configuration generation, so the
+handler also bounds a page by rendered size. It stops adding records once the
+page would pass `DEFAULT_STATUS_PAGE_NODE_BUDGET` (8,000) JSON nodes, four
+fifths of the 10,000-node cap a buyer's SDK applies to responses. A shorter
+page is a correct step of the walk: `pagination.cursor` continues from the
+next record under the same `ledger_snapshot_id`, and every page carries at
+least one record. A single record that does not fit on its own is still
+served, with a warning naming the account and node counts.
+
+`ReportingStatusHandler` takes both limits for a seller that builds the handler
+itself:
+
+```python
+from adcp.reporting.ledger import ReportingStatusHandler
+
+handler = ReportingStatusHandler(store, page_size=25, page_node_budget=6_000)
+```
+
+`page_size` caps what a buyer may ask for; `page_node_budget=None` bounds pages
+by record count alone. The service's handler uses the defaults.
+
 ## Advanced composition
 
 `postgres_reliable_reporting_service()` (from `adcp_reporting_storage`) without

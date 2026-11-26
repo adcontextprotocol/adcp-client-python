@@ -2439,8 +2439,24 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
             "period_anchor": (
                 _utc(schedule.period_anchor).isoformat() if schedule.period_anchor else None
             ),
+            **_coverage_requirement_terms(configuration),
         },
     }
+
+
+def _coverage_requirement_terms(configuration: ReportingConfiguration) -> dict[str, str]:
+    """The ``coverage_requirement`` member of a generation's stored ``schedule`` terms.
+
+    The requirement is immutable generation content, like the schedule, so it is
+    retained in the generation's existing ``schedule`` document. That keeps the
+    storage contract unchanged: a reader that predates it ignores the member and
+    treats the generation as ``full``, so it withholds a partial period and never
+    over-publishes. Only ``allow_partial`` is written, so every ``full``
+    generation keeps its exact stored bytes and content digest.
+    """
+    if configuration.coverage_requirement == "full":
+        return {}
+    return {"coverage_requirement": configuration.coverage_requirement}
 
 
 def validate_revision_currency(

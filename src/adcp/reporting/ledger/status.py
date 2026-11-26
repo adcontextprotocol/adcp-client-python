@@ -30,6 +30,7 @@ shape, because a distinguishable "not found" is an enumeration oracle.
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -71,16 +72,43 @@ from adcp.reporting.ledger.store import (
     decode_cursor,
     encode_cursor,
 )
+from adcp.validation.schema_validator import DEFAULT_MAX_PAYLOAD_NODES, count_payload_nodes
 
 __all__ = [
+    "DEFAULT_STATUS_PAGE_NODE_BUDGET",
     "ReportingStatusCaller",
     "ReportingStatusHandler",
     "ReportingStatusView",
 ]
 
+logger = logging.getLogger(__name__)
+
 ReportingStatusView = Literal["summary", "periods", "revision"]
 
+# The most records a periods page carries, whatever the buyer asks for: the
+# schema's ``pagination.max_results`` maximum. Also the batch size for reading
+# a store that does not capture snapshots itself.
 _DEFAULT_PAGE_SIZE = 100
+# ``pagination.max_results`` bounds and default, from core/pagination-request.json.
+_MAX_RESULTS_MIN = 1
+_MAX_RESULTS_MAX = 100
+_MAX_RESULTS_DEFAULT = 50
+
+#: Default largest periods page, in JSON nodes as
+#: :func:`adcp.validation.count_payload_nodes` counts them. A buyer's SDK
+#: refuses a response of :data:`~adcp.validation.DEFAULT_MAX_PAYLOAD_NODES`
+#: nodes or more as untrusted input, so a page must stay under that whatever
+#: the seller's own validation allows. Four fifths of it leaves room for what
+#: is added after the page is rendered: version conversion, subscription
+#: coverage, and a seller's response enhancer.
+DEFAULT_STATUS_PAGE_NODE_BUDGET = DEFAULT_MAX_PAYLOAD_NODES * 4 // 5
+
+_PAGE_RECORD_KEYS = {
+    "obligation": "periods",
+    "revision": "revisions",
+    "adjustment": "adjustments",
+    "consumer_status": "consumer_statuses",
+}
 
 
 def _utc(value: datetime) -> datetime:
@@ -111,20 +139,73 @@ class ReportingStatusCaller:
 
 
 class ReportingStatusHandler:
-    """Render one captured status snapshot using the same pure projection as push."""
+    """Render one captured status snapshot using the same pure projection as push.
+
+    A ``periods`` page carries at most ``pagination.max_results`` records
+    (schema default 50, maximum 100), and never more than ``page_size``.
+    It is also cut short once its rendered size would pass
+    ``page_node_budget`` JSON nodes, because a record names every media buy
+    in its generation and a page of large generations can otherwise exceed
+    what a buyer's SDK will parse. A shorter page is a correct step of the
+    walk: the cursor carries the absolute offset of the next record under the
+    same ``ledger_snapshot_id``. A page always carries at least one record,
+    so a walk always ends.
+
+    Args:
+        store: The reporting ledger.
+        page_size: The most records the seller serves on one page; a buyer's
+            larger ``max_results`` is lowered to it. Also the batch size for
+            reading a store that does not capture snapshots itself.
+        page_node_budget: The most JSON nodes a periods page may hold, or
+            ``None`` to bound pages by record count alone. Defaults to
+            :data:`DEFAULT_STATUS_PAGE_NODE_BUDGET`.
+        consumer_status_enabled: Include the caller's consumer statuses.
+        escalation: Seller escalation contact projected into issues.
+    """
 
     def __init__(
         self,
         store: ReportingLedgerStore,
         *,
         page_size: int = _DEFAULT_PAGE_SIZE,
+        page_node_budget: int | None = DEFAULT_STATUS_PAGE_NODE_BUDGET,
         consumer_status_enabled: bool = False,
         escalation: ReportingDeliveryEscalation | None = None,
     ) -> None:
+        if type(page_size) is not int or page_size < 1:
+            raise ValueError("page_size must be a positive integer")
+        if page_node_budget is not None and (
+            type(page_node_budget) is not int or page_node_budget < 1
+        ):
+            raise ValueError("page_node_budget must be a positive integer or None")
         self._store = store
         self._page_size = page_size
+        self._page_node_budget = page_node_budget
         self._consumer_status_enabled = consumer_status_enabled
         self._escalation = escalation
+
+    @property
+    def page_size(self) -> int:
+        """The most records the seller serves on one periods page."""
+        return self._page_size
+
+    @property
+    def page_node_budget(self) -> int | None:
+        """The most JSON nodes a periods page may hold; ``None`` when unbounded."""
+        return self._page_node_budget
+
+    def _page_limit(self, request: Mapping[str, Any]) -> int:
+        """The buyer's ``max_results`` within the schema, lowered to ``page_size``."""
+        requested = (request.get("pagination") or {}).get("max_results")
+        if requested is None:
+            requested = _MAX_RESULTS_DEFAULT
+        if type(requested) is not int or not _MAX_RESULTS_MIN <= requested <= _MAX_RESULTS_MAX:
+            raise LedgerConflictError(
+                "INVALID_PAGE_SIZE",
+                f"pagination.max_results must be an integer from {_MAX_RESULTS_MIN}"
+                f" to {_MAX_RESULTS_MAX}",
+            )
+        return min(requested, self._page_size)
 
     async def handle(
         self, request: dict[str, Any], *, caller: ReportingStatusCaller
@@ -476,18 +557,41 @@ class ReportingStatusHandler:
             for seq, kind, record_id, _ in sorted(snapshot.changes)
             if seq > lower and (kind, record_id) in records
         ]
-        window = selected[offset : offset + self._page_size]
-        has_more = offset + self._page_size < len(selected)
-        periods = []
-        for kind, record in window:
-            if kind != "obligation":
-                continue
-            scoped = project_status_scope(
-                replace(value, scope=ReportingStatusScope.for_obligation(record, scope.consumer_id))
-            )
-            item = scoped.obligations[0]
-            periods.append(
-                _obligation_to_wire(
+        limit = self._page_limit(request)
+        page: dict[str, list[dict[str, Any]]] = {
+            "periods": [],
+            "revisions": [],
+            "adjustments": [],
+            "consumer_statuses": [],
+        }
+        payload = {
+            **common,
+            "health": result.health,
+            "issues": [issue.to_wire() for issue in result.issues],
+            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence, caller=caller),
+            "periods": page["periods"],
+            "revisions": page["revisions"],
+            "adjustments": page["adjustments"],
+            "materializations": [],
+            "receipts": [],
+            # Sized at its largest, with a cursor, so the budget holds either way.
+            "pagination": {"total_count": 0, "has_more": True, "cursor": ""},
+        }
+        if self._consumer_status_enabled:
+            payload["consumer_statuses"] = page["consumer_statuses"]
+        budget = self._page_node_budget
+        base_nodes = count_payload_nodes(payload)
+        page_nodes = base_nodes
+        taken = 0
+        for kind, record in selected[offset : offset + limit]:
+            if kind == "obligation":
+                scoped = project_status_scope(
+                    replace(
+                        value, scope=ReportingStatusScope.for_obligation(record, scope.consumer_id)
+                    )
+                )
+                item = scoped.obligations[0]
+                wire = _obligation_to_wire(
                     record,
                     revisions=item.revisions,
                     health=scoped.health,
@@ -495,47 +599,52 @@ class ReportingStatusHandler:
                     issues=scoped.issues,
                     statuses=item.statuses,
                 )
+            elif kind == "revision":
+                wire = _revision_to_wire(record, owners.get(record.reporting_obligation_id))
+            elif kind == "adjustment":
+                wire = _adjustment_to_wire(record)
+            else:
+                wire = _consumer_status_to_wire(record)
+            nodes = count_payload_nodes(wire)
+            if budget is not None and taken and page_nodes + nodes > budget:
+                break
+            page[_PAGE_RECORD_KEYS[kind]].append(wire)
+            page_nodes += nodes
+            taken += 1
+        if budget is not None and page_nodes > budget:
+            # Progress beats refusal: one record is served even when it does not
+            # fit, and validation downstream decides what happens to the page.
+            logger.warning(
+                "get_reporting_status periods page for account %s is %d nodes (%d of"
+                " scope and issues, %d record(s)), over the %d page node budget",
+                caller.account_id,
+                page_nodes,
+                base_nodes,
+                taken,
+                budget,
             )
-        payload = {
-            **common,
-            "health": result.health,
-            "issues": [issue.to_wire() for issue in result.issues],
-            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence, caller=caller),
-            "periods": periods,
-            "revisions": [
-                _revision_to_wire(r, owners.get(r.reporting_obligation_id))
-                for kind, r in window
-                if kind == "revision"
-            ],
-            "adjustments": [_adjustment_to_wire(a) for kind, a in window if kind == "adjustment"],
-            "materializations": [],
-            "receipts": [],
-            "pagination": {
-                "total_count": len(selected),
-                "has_more": has_more,
-                **(
-                    {
-                        "cursor": encode_cursor(
-                            {
-                                "ownership": 2,
-                                "account": caller.account_id,
-                                "consumer": caller.consumer_id,
-                                "snapshot": snapshot_id,
-                                "offset": offset + self._page_size,
-                                "lower": lower,
-                                "as_of": snapshot.as_of.isoformat(),
-                            }
-                        )
-                    }
-                    if has_more
-                    else {}
-                ),
-            },
+        has_more = offset + taken < len(selected)
+        payload["pagination"] = {
+            "total_count": len(selected),
+            "has_more": has_more,
+            **(
+                {
+                    "cursor": encode_cursor(
+                        {
+                            "ownership": 2,
+                            "account": caller.account_id,
+                            "consumer": caller.consumer_id,
+                            "snapshot": snapshot_id,
+                            "offset": offset + taken,
+                            "lower": lower,
+                            "as_of": snapshot.as_of.isoformat(),
+                        }
+                    )
+                }
+                if has_more
+                else {}
+            ),
         }
-        if self._consumer_status_enabled:
-            payload["consumer_statuses"] = [
-                _consumer_status_to_wire(s) for kind, s in window if kind == "consumer_status"
-            ]
         return payload
 
 

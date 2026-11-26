@@ -597,14 +597,19 @@ class InMemoryTaskRegistry(_TaskLifecycleObservers):
         # entirely. The strip is method-gated by ``record.task_type``
         # (the wire verb name persisted at ``issue()``) and idempotent
         # on already-stripped payloads, so the dispatcher-side double
-        # strip is a no-op.
+        # strip is a no-op. The same boundary emits AdCP 3.3 event source and
+        # audience platform IDs under both names (a mismatch raises
+        # ValueError), for the same reason.
         from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+        from adcp.platform_ids import _dual_emitted
 
         async with self._lock:
             record = self._records.get(task_id)
             if record is None:
                 raise ValueError(f"Task {task_id!r} not found")
-            stripped = strip_credentials_from_wire_result(record.task_type, result)
+            stripped = _dual_emitted(
+                record.task_type, strip_credentials_from_wire_result(record.task_type, result)
+            )
             if record.state == "completed":
                 if record.result == stripped:
                     return  # idempotent

@@ -633,6 +633,16 @@ async def test_issue_1771_managed_capabilities_pass_the_sdk_response_validation(
 
 
 @pytest.mark.asyncio
+async def test_managed_capabilities_leave_out_the_rc7_alias() -> None:
+    world = _World()
+    served = await world.platform.get_adcp_capabilities({"adcp_version": "3.3-rc.3"}, _ctx())
+    supported = served["adcp"]["supported_versions"]
+    # 3.2-rc.7 never serves subscriptions, so it stays out of the fallback.
+    assert "3.3-rc.3" in supported
+    assert "3.2-rc.7" not in supported
+
+
+@pytest.mark.asyncio
 async def test_issue_1771_status_is_served_to_a_plain_mcp_caller() -> None:
     from adcp.server.base import ToolContext
 
