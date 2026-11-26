@@ -1,5 +1,35 @@
 # Changelog
 
+## [10.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.27...v10.0.0-rc.1) (2026-11-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **accounts:** NaturalKeyAccounts(loader, ...) without loader_by_id raises TypeError, and NaturalKeyAccounts.resolves_account_ids is removed. ADCPClient sends account_id references to 3.3 sellers once provisioned.
+* **server:** MCP tools/list omits outputSchema unless advertise_output_schemas=True, and the default schema_mode is "lean".
+* **types:** `IdentityMatchTmpxMacro`, `ProviderRegistrationTmpxMacro`, `trusted_match.identity_match_response.TmpxMacro` and `trusted_match.provider_registration.TmpxMacro` are removed. See MIGRATION_v9_to_v10.md for the 3.1.10 replacements.
+* **adagents:** code that read `fetch_failed` or `domain_limit` from `CrossDomainVerification.unverified` reads `undetermined`. The result shape is new in the 10.0 betas.
+
+### ci
+
+* **release:** cut 10.0.0-rc.N release candidates from next ([#1976](https://github.com/adcontextprotocol/adcp-client-python/issues/1976)) ([6db5d24](https://github.com/adcontextprotocol/adcp-client-python/commit/6db5d24d20ec2d27bebb2f874f983e2835471803))
+
+
+### Features
+
+* **accounts:** reference accounts by account_id under AdCP 3.3 ([#1954](https://github.com/adcontextprotocol/adcp-client-python/issues/1954)) ([6bc872e](https://github.com/adcontextprotocol/adcp-client-python/commit/6bc872e18a37e894a9661e350c5df999d2678e22))
+* **adagents:** report unchecked cross-domain claims in undetermined ([#1951](https://github.com/adcontextprotocol/adcp-client-python/issues/1951)) ([47ec1ea](https://github.com/adcontextprotocol/adcp-client-python/commit/47ec1eaee582d016c30d36fef474507ac72a6993))
+* emit platform_id and seller_id together on event sources and audiences ([#1953](https://github.com/adcontextprotocol/adcp-client-python/issues/1953)) ([97a8731](https://github.com/adcontextprotocol/adcp-client-python/commit/97a8731e46ad72b71ccf60b604de37c3cad81f5d))
+* **reporting:** refuse revisions outside an obligation's frozen coverage ([#1974](https://github.com/adcontextprotocol/adcp-client-python/issues/1974)) ([e5503cd](https://github.com/adcontextprotocol/adcp-client-python/commit/e5503cd12da3ed62307284a2bc4f92575a1c6240)), closes [#1973](https://github.com/adcontextprotocol/adcp-client-python/issues/1973)
+* **reporting:** serve 1.2 report definitions only to AdCP 3.3 callers ([#1959](https://github.com/adcontextprotocol/adcp-client-python/issues/1959)) ([9034062](https://github.com/adcontextprotocol/adcp-client-python/commit/9034062f32a775e20c766af293069a93973f98ce))
+* **server:** keep MCP tools/list under the 128 KiB discovery target by default ([#1958](https://github.com/adcontextprotocol/adcp-client-python/issues/1958)) ([16efbf5](https://github.com/adcontextprotocol/adcp-client-python/commit/16efbf5fd6bea278f2ff6c792271f32b48943f5a))
+* **types:** remove the deprecated 3.1.8 TmpxMacro compatibility classes ([#1952](https://github.com/adcontextprotocol/adcp-client-python/issues/1952)) ([c4d398d](https://github.com/adcontextprotocol/adcp-client-python/commit/c4d398dedef7fec735dbb7f4db5bf0eaff640150))
+
+
+### Bug Fixes
+
+* **validation:** keep nested properties named like annotation keywords in MCP schemas ([#1950](https://github.com/adcontextprotocol/adcp-client-python/issues/1950)) ([a381e47](https://github.com/adcontextprotocol/adcp-client-python/commit/a381e47e3ef78469f1a017bd34a7f048a3e98778))
+
 ## [10.0.0-beta.27](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.26...v10.0.0-beta.27) (2026-11-25)
 
 
