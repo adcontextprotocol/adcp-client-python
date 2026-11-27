@@ -2743,6 +2743,11 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
         "media_buy_ids": sorted(configuration.media_buy_ids),
         "definition": configuration.definition.to_storage() if configuration.definition else None,
         **(
+            {"account_binding_sha256": configuration.account_binding_sha256}
+            if configuration.account_binding_sha256 is not None
+            else {}
+        ),
+        **(
             {"subscription": configuration.subscription.to_storage()}
             if configuration.subscription is not None
             else {}

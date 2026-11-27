@@ -28,6 +28,7 @@ from adcp.reporting._errors import (
     installed_reporting_call,
 )
 from adcp.reporting._source_authorization import source_turn
+from adcp.reporting.canonical_json import canonical_json_sha256_v1
 from adcp.reporting.definition_versions import (
     ReportDefinitionContractVersion,
     ReportDefinitionVersions,
@@ -88,6 +89,7 @@ from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
+    iso_duration_milliseconds_v1,
 )
 from adcp.types import ReportingDeliveryOffering
 
@@ -218,6 +220,53 @@ def _matches_public_contract(
     )
 
 
+def _validate_account_source_requirements(
+    configuration: ReportingConfiguration,
+    context: ReportingAccountContext,
+    offerings: Sequence[ProvisionalSnapshotOfferingV1 | AuthoritativeOfferingV1],
+) -> None:
+    """Reject account declarations that cannot serve any configured period."""
+    try:
+        period_ms = iso_duration_milliseconds_v1(configuration.schedule.period_duration)
+        source_timezone = configuration.schedule.timezone_name(context.account_timezone)
+    except ValueError as error:
+        raise ReliableReportingConfigurationError(
+            "reporting schedule cannot be served by the account source"
+        ) from error
+    for offering in offerings:
+        if configuration.report_definition_id not in offering.product_ids:
+            raise ReliableReportingConfigurationError(
+                "report definition is outside the account source offering products"
+            )
+        if offering.source_timezone is not None and offering.source_timezone != source_timezone:
+            raise ReliableReportingConfigurationError(
+                "account source timezone does not match the reporting schedule"
+            )
+        minimum_ms = iso_duration_milliseconds_v1(offering.windowing.minimum_window)
+        maximum_ms = iso_duration_milliseconds_v1(offering.windowing.maximum_window)
+        provider_maximum_ms = (
+            offering.provider_execution.maximum_window_days_per_request * 24 + 2
+        ) * 3_600_000
+        if not minimum_ms <= period_ms <= maximum_ms or period_ms > provider_maximum_ms:
+            raise ReliableReportingConfigurationError(
+                "reporting period is outside the account source window bounds"
+            )
+        requestable_metrics = {
+            metric.name for metric in offering.metrics if metric.support in {"exact", "partial"}
+        }
+        if not set(context.requested_metrics).issubset(requestable_metrics):
+            raise ReliableReportingConfigurationError(
+                "requested metrics are unavailable in the account source offering"
+            )
+        exact_dimensions = {
+            dimension.name for dimension in offering.dimensions if dimension.support == "exact"
+        }
+        if not set(context.requested_dimensions).issubset(exact_dimensions):
+            raise ReliableReportingConfigurationError(
+                "requested dimensions are unavailable in the account source offering"
+            )
+
+
 async def _resolve(value: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
 
@@ -258,6 +307,7 @@ class ReportingAccountContext:
     capability_offering: Mapping[str, Any] = field(default_factory=dict)
     publication_namespace: str = "reporting-source:default"
     slice_timeout: timedelta = timedelta(minutes=10)
+    source_capabilities: ReportingSourceCapabilitiesV1 | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_metrics", tuple(self.requested_metrics))
@@ -297,6 +347,33 @@ class ReportingAccountContext:
             currency=self.currency,
             source_scope=_thaw(self.source_scope),
             slice_timeout=self.slice_timeout,
+        )
+
+    def binding_sha256(self) -> str:
+        """Digest the account facts and complete public and source declarations."""
+        if self.source_capabilities is None:
+            raise ReliableReportingConfigurationError(
+                "account binding digest requires source_capabilities"
+            )
+        public = ReportingDeliveryOffering.model_validate(
+            _thaw(self.capability_offering)
+        ).model_dump(mode="json", exclude_none=True)
+        return canonical_json_sha256_v1(
+            {
+                "account_id": self.account_id,
+                "adapter": self.adapter,
+                "currency": self.currency,
+                "source_scope": _thaw(self.source_scope),
+                "account_timezone": self.account_timezone,
+                "snapshot_offering_id": self.snapshot_offering_id,
+                "official_offering_id": self.official_offering_id,
+                "requested_metrics": self.requested_metrics,
+                "requested_dimensions": self.requested_dimensions,
+                "capability_offering": public,
+                "publication_namespace": self.publication_namespace,
+                "slice_timeout_microseconds": self.slice_timeout // timedelta(microseconds=1),
+                "source_capabilities_sha256": self.source_capabilities.capabilities_sha256,
+            }
         )
 
 
@@ -464,6 +541,60 @@ class ReportingAdapterRegistry:
             raise ReliableReportingConfigurationError(
                 f"configuration names unregistered reporting adapter {name!r}"
             ) from error
+
+    def bind_capabilities(
+        self,
+        registration: AdapterRegistration,
+        capabilities: ReportingSourceCapabilitiesV1,
+    ) -> AdapterRegistration:
+        """Bind account capabilities to the registered source and its shared stores."""
+        source = registration.executor
+        if not isinstance(capabilities, ReportingSourceCapabilitiesV1):
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities must be a checksummed declaration"
+            )
+        try:
+            capabilities = ReportingSourceCapabilitiesV1.model_validate(
+                capabilities.model_dump(mode="json")
+            )
+        except ValueError as error:
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities checksum does not match its declaration"
+            ) from error
+        if not isinstance(source, InlineReportingSource) or type(source) not in (
+            InlineReportingSource,
+            _AuthorizedInlineSource,
+        ):
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities require a registered inline source"
+            )
+        if capabilities.adapter_build != source.capabilities.adapter_build:
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities adapter build differs from the registered source"
+            )
+        source_type = type(source)
+        try:
+            bound = source_type(
+                capabilities=capabilities,
+                fetch=source._fetch,
+                staging=source._staging,
+                seals=source._seals,
+                constituent_of=source._constituent_of,
+                staged_commit_prefix=source._staged_commit_prefix,
+                include_exception_detail=source.include_exception_detail,
+                monetary_metrics=source._monetary,
+                clock=source._clock,
+                **(
+                    {"configuration_binding": source._configuration_binding}
+                    if isinstance(source, _AuthorizedInlineSource)
+                    else {}
+                ),
+            )
+        except ValueError as error:
+            raise ReliableReportingConfigurationError(
+                "account source_capabilities cannot be served by the registered inline source"
+            ) from error
+        return replace(registration, executor=bound)
 
     def freeze(self) -> None:
         self._frozen = True
@@ -1311,6 +1442,18 @@ class ReliableReportingService:
                     "resolved account timezone does not match the configuration timezone"
                 )
             registration = self.sources.get(context.adapter)
+            if context.source_capabilities is not None:
+                registration = self.sources.bind_capabilities(
+                    registration, context.source_capabilities
+                )
+                if configuration.account_binding_sha256 != context.binding_sha256():
+                    raise ReliableReportingConfigurationError(
+                        "account binding does not match the frozen configuration generation"
+                    )
+            elif configuration.account_binding_sha256 is not None:
+                raise ReliableReportingConfigurationError(
+                    "account binding requires source_capabilities"
+                )
         except Exception as error:
             if retrying:
                 raise _AccountContextResolutionError(error, permanent=True) from error
@@ -1556,6 +1699,13 @@ class ReliableReportingService:
                 )
             selected.append(official)
         for offering in selected:
+            if (
+                context.source_capabilities is not None
+                and offering.publication_namespace != context.publication_namespace
+            ):
+                raise ReliableReportingConfigurationError(
+                    "source offering publication namespace does not match the account context"
+                )
             if isinstance(
                 registration.executor, InlineReportingSource
             ) and not registration.executor.supports_output_format(offering.formats):
@@ -1569,6 +1719,15 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "source offering contract does not match the reporting configuration"
                 )
+            if configuration.definition is not None and any(
+                getattr(offering.contract, name) != value
+                for name, value in configuration.definition.to_wire().items()
+            ):
+                raise ReliableReportingConfigurationError(
+                    "source offering contract does not match the pinned report definition"
+                )
+        if context.source_capabilities is not None:
+            _validate_account_source_requirements(configuration, context, selected)
         if configuration.required_finality == "snapshot" and snapshot is None:
             raise ReliableReportingConfigurationError(
                 "snapshot configuration requires a matching snapshot source offering"
@@ -1617,13 +1776,6 @@ class ReliableReportingService:
                     raise ReliableReportingConfigurationError(
                         "official source formats must be JSON or NDJSON with gzip or no compression"
                     )
-                if any(
-                    getattr(used_offering.contract, name) != value
-                    for name, value in definition.to_wire().items()
-                ):
-                    raise ReliableReportingConfigurationError(
-                        "source offering contract does not match the pinned report definition"
-                    )
             if not _matches_public_contract(source.contract, context.capability_offering):
                 raise ReliableReportingConfigurationError(
                     "selected policy's source contract does not match the public offering"
@@ -1649,13 +1801,76 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "advertised capability offering does not support the required finality"
             )
-        if registration.capability_offerings:
-            public = ReportingDeliveryOffering.model_validate(
-                _thaw(context.capability_offering)
-            ).model_dump(mode="json", exclude_none=True)
-            if not any(_thaw(item) == public for item in registration.capability_offerings):
+        if context.source_capabilities is not None or registration.capability_offerings:
+            try:
+                public = ReportingDeliveryOffering.model_validate(
+                    _thaw(context.capability_offering)
+                ).model_dump(mode="json", exclude_none=True)
+            except ValueError as error:
                 raise ReliableReportingConfigurationError(
-                    "account capability offering must match a registered public offering"
+                    "account capability offering is not a valid reporting delivery offering"
+                ) from error
+            if context.source_capabilities is not None and any(
+                not _matches_public_contract(offering.contract, public) for offering in selected
+            ):
+                raise ReliableReportingConfigurationError(
+                    "account source contract does not match the public offering"
+                )
+            if context.source_capabilities is not None:
+                schedule = public["schedule"]
+                configured_schedule = configuration.schedule
+                if any(
+                    schedule.get(name) != getattr(configured_schedule, name)
+                    for name in ("period_duration", "delivery_sla", "alignment")
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "account capability schedule does not match the reporting configuration"
+                    )
+                if schedule.get("period_timezone") is not None and (
+                    schedule["period_timezone"] != configured_schedule.period_timezone
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "account capability timezone does not match the reporting configuration"
+                    )
+                advertised_anchor = schedule.get("period_anchor")
+                if advertised_anchor is not None and (
+                    configured_schedule.period_anchor is None
+                    or datetime.fromisoformat(advertised_anchor.replace("Z", "+00:00"))
+                    != configured_schedule.period_anchor
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "account capability anchor does not match the reporting configuration"
+                    )
+                if public.get("method") is not None and self._materialization_worker is None:
+                    raise ReliableReportingConfigurationError(
+                        "managed delivery offering requires a materialization worker"
+                    )
+                if (
+                    public["reconciliation_mode"] == "consumer_receipt"
+                    and not self._reconciled_billing
+                ):
+                    raise ReliableReportingConfigurationError(
+                        "receipt offering requires reconciled billing"
+                    )
+                available_finality = {"snapshot"} if snapshot is not None else set()
+                if policy is not None:
+                    available_finality.add("official")
+                if not set(public["supported_finality"]).issubset(available_finality):
+                    raise ReliableReportingConfigurationError(
+                        "account capability advertises unavailable finality"
+                    )
+            declarations = (
+                (
+                    item
+                    for name in self.sources.names
+                    for item in self.sources.get(name).capability_offerings
+                )
+                if context.source_capabilities is not None
+                else iter(registration.capability_offerings)
+            )
+            if not any(_thaw(item) == public for item in declarations):
+                raise ReliableReportingConfigurationError(
+                    "capability offering must match a registered public offering for the agent"
                 )
         return policy
 
@@ -2281,10 +2496,10 @@ class ReliableReportingService:
             for name in self.sources.names
             for item in self.sources.get(name).capability_offerings
         ]
-        # Preserve pre-registration callers that only supplied their offering
-        # with each account context. New declarations are ready at first boot.
         declarations.extend(
-            binding.context.capability_offering for binding in self._bindings.values()
+            binding.context.capability_offering
+            for binding in self._bindings.values()
+            if binding.context.source_capabilities is None
         )
         for declaration in declarations:
             offering = ReportingDeliveryOffering.model_validate(_thaw(declaration)).model_dump(
@@ -2354,7 +2569,10 @@ class ReliableReportingService:
         return payload
 
     def inject_capabilities(
-        self, response: Any, *, adcp_version: str | None = None
+        self,
+        response: Any,
+        *,
+        adcp_version: str | None = None,
     ) -> dict[str, Any]:
         """Merge the truthful reporting block into a base capability response."""
         payload = _wire(response)
@@ -2508,7 +2726,8 @@ class ReliableReportingService:
             ) -> Any:
                 result = await _resolve(original.get_adcp_capabilities(instance, params, context))
                 return service.inject_capabilities(
-                    result, adcp_version=getattr(context, "resolved_adcp_version", None)
+                    result,
+                    adcp_version=getattr(context, "resolved_adcp_version", None),
                 )
 
             async def get_media_buy_delivery(
