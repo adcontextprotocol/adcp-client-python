@@ -1,5 +1,18 @@
 # Changelog
 
+## [10.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-rc.1...v10.0.0-rc.2) (2026-11-27)
+
+
+### Features
+
+* **reporting:** port policy-bound official finality to 10.x ([#1960](https://github.com/adcontextprotocol/adcp-client-python/issues/1960)) ([e70d0c1](https://github.com/adcontextprotocol/adcp-client-python/commit/e70d0c1d94e89643233bffab20eaa8bde73d19bc))
+
+
+### Bug Fixes
+
+* **compat:** preserve installment collection identity on downgrade ([#1956](https://github.com/adcontextprotocol/adcp-client-python/issues/1956)) ([ddf83c5](https://github.com/adcontextprotocol/adcp-client-python/commit/ddf83c5ca1b01e379b6494e1f83424b6e002c6aa))
+* **server:** pass HTTP request context to compliance controllers on next ([#1955](https://github.com/adcontextprotocol/adcp-client-python/issues/1955)) ([24b8c4d](https://github.com/adcontextprotocol/adcp-client-python/commit/24b8c4d22b7a194880d8016bc87da76a49a88e13))
+
 ## [10.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-beta.27...v10.0.0-rc.1) (2026-11-26)
 
 
