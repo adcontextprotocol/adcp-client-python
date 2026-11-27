@@ -312,40 +312,39 @@ ledger that admits official work must implement
 publication for that account across workers. Exact reads and replays retain
 the original policy fields of previously published official revisions.
 
-## Account source offerings
+## Agent offerings and account sources
 
-`ReportingAccountContext.source_capabilities` may supply the checksummed
-`effective_account` declaration for one configuration generation. The service
-binds that declaration to the registered inline adapter's fetch function,
-staging store, replay seals, currency rules, and production authority. Its
+Register the agent's public reporting contracts with `capability_offerings` on
+its source adapter. The agent advertises the same offerings to every caller;
+separate serving agents can register different offerings. Context offerings from
+configurations without `source_capabilities` are also included in the agent's
+list. A configuration with `source_capabilities` must select an exact registered
+public contract. Per-account offering lists are unsupported; the negotiated AdCP
+version determines which definitions can be served.
+
+`ReportingAccountContext.source_capabilities` may supply a checksummed
+`effective_account` source declaration for a configuration generation. This
+scope is the source contract's wire value and describes access to source data;
+it does not scope the agent's public capability document. The service binds the
+source declaration to the registered inline adapter's fetch function, staging
+store, replay seals, currency rules, and production authority. Its
 `adapter_build` must identify the registered adapter. The context's
 `source_scope`, selected source offering, pinned report definition, and public
 `capability_offering` must agree with the declaration. Admission also checks
 the configured period against the source window, requested metrics and
-dimensions, and the source timezone. An offering ID cannot describe different
-public contracts for the same account. A custom source executor cannot be
+dimensions, and the source timezone. A custom source executor cannot be
 rebound this way.
-
-The trusted account resolver must reproduce the same declaration when a stored
-generation is recovered. Derive it from the generation's pinned definition and
-the seller rule that applied to that generation. A tenant rule edit requires a
-separate configuration generation and distinct offering identity; it cannot
-rewrite a retained generation's source contract. Advertise the account's
-public offering to its authenticated caller before admitting the configuration.
-The service's static registered offerings can cover first boot, while account
-offerings bind each generation without changing the frozen source registry.
 
 Set `ReportingConfiguration.account_binding_sha256` to
 `ReportingAccountContext.binding_sha256()` before admission. The digest covers
 the account, source scope, selected source offerings, source capability checksum,
 public offering, schedule context, currency, and publication namespace. It is
-stored with the pinned definition and checked on restart. An edited rule or
-offering must create another configuration generation. Deploy readers that
-understand this definition metadata before a writer persists account bindings.
+stored with the pinned definition and checked on restart. The trusted account
+resolver must reproduce the same declaration when a stored generation is
+recovered. A changed rule or offering requires a distinct configuration
+generation. Deploy readers that understand this definition metadata before a
+writer persists account bindings. Generations without an account binding digest
+continue to recover using their established configuration checks.
 
-`capability_block(account_id=...)` and `inject_capabilities(..., account_id=...)`
-include only that account's bound offerings plus globally registered offerings.
-Without an account ID they include globally registered offerings only. The
-installed handler takes the account ID from its trusted context. An adopter
-whose capability response is generated outside this handler must pass its
-authenticated account ID when injecting the reporting block.
+`capability_block()` and `inject_capabilities()` project the serving agent's
+registered offerings without an account argument.

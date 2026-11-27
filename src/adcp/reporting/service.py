@@ -1859,33 +1859,18 @@ class ReliableReportingService:
                     raise ReliableReportingConfigurationError(
                         "account capability advertises unavailable finality"
                     )
-                offering_id = str(public["offering_id"])
-                declarations = [
+            declarations = (
+                (
                     item
                     for name in self.sources.names
                     for item in self.sources.get(name).capability_offerings
-                ]
-                declarations.extend(
-                    binding.context.capability_offering
-                    for binding in (*self._bindings.values(), *self._pending_bindings.values())
-                    if binding.configuration.account_id == configuration.account_id
                 )
-                if any(
-                    item["offering_id"] == offering_id
-                    and ReportingDeliveryOffering.model_validate(_thaw(item)).model_dump(
-                        mode="json", exclude_none=True
-                    )
-                    != public
-                    for item in declarations
-                ):
-                    raise ReliableReportingConfigurationError(
-                        f"capability offering {offering_id!r} has conflicting declarations"
-                    )
-            if context.source_capabilities is None and not any(
-                _thaw(item) == public for item in registration.capability_offerings
-            ):
+                if context.source_capabilities is not None
+                else iter(registration.capability_offerings)
+            )
+            if not any(_thaw(item) == public for item in declarations):
                 raise ReliableReportingConfigurationError(
-                    "account capability offering must match a registered public offering"
+                    "capability offering must match a registered public offering for the agent"
                 )
         return policy
 
@@ -2404,9 +2389,7 @@ class ReliableReportingService:
             response["context"] = payload["context"]
         return response
 
-    def capability_block(
-        self, *, adcp_version: str | None = None, account_id: str | None = None
-    ) -> dict[str, Any]:
+    def capability_block(self, *, adcp_version: str | None = None) -> dict[str, Any]:
         """Project only components and offerings this service actually installed.
 
         ``adcp_version`` is the release the response is served at; it decides
@@ -2416,7 +2399,7 @@ class ReliableReportingService:
         block is empty and no reporting capability is advertised.
         """
         self._compose_managed()
-        block = self._served_offerings(self._capability_block(account_id=account_id), adcp_version)
+        block = self._served_offerings(self._capability_block(), adcp_version)
         if self._subscriptions is None or not block:
             return block
         from adcp.reporting.service_subscriptions import subscription_capability_block
@@ -2497,7 +2480,7 @@ class ReliableReportingService:
             self._definition_versions.warn_undeclared(offerings, skip=self._warned_definitions)
         )
 
-    def _capability_block(self, *, account_id: str | None = None) -> dict[str, Any]:
+    def _capability_block(self) -> dict[str, Any]:
         if self._production is not None:
             return dict(self._production._declared_capabilities()["reporting_delivery"])
         if self._production_options is not None:
@@ -2516,8 +2499,7 @@ class ReliableReportingService:
         declarations.extend(
             binding.context.capability_offering
             for binding in self._bindings.values()
-            if (account_id is None and binding.context.source_capabilities is None)
-            or (account_id is not None and binding.configuration.account_id == account_id)
+            if binding.context.source_capabilities is None
         )
         for declaration in declarations:
             offering = ReportingDeliveryOffering.model_validate(_thaw(declaration)).model_dump(
@@ -2532,11 +2514,7 @@ class ReliableReportingService:
             offerings[offering_id] = offering
         if not offerings:
             return {}
-        configurations = [
-            binding.configuration
-            for binding in self._bindings.values()
-            if account_id is None or binding.configuration.account_id == account_id
-        ]
+        configurations = [binding.configuration for binding in self._bindings.values()]
         payload = _advertised_reporting_delivery(
             escalation=self._escalation,
             consumer_status_task=self._consumer_status_enabled,
@@ -2595,11 +2573,10 @@ class ReliableReportingService:
         response: Any,
         *,
         adcp_version: str | None = None,
-        account_id: str | None = None,
     ) -> dict[str, Any]:
         """Merge the truthful reporting block into a base capability response."""
         payload = _wire(response)
-        block = self.capability_block(adcp_version=adcp_version, account_id=account_id)
+        block = self.capability_block(adcp_version=adcp_version)
         if not block:
             return self._served_base_block(payload, adcp_version)
         media_buy = dict(payload.get("media_buy") or {})
@@ -2751,7 +2728,6 @@ class ReliableReportingService:
                 return service.inject_capabilities(
                     result,
                     adcp_version=getattr(context, "resolved_adcp_version", None),
-                    account_id=getattr(context, "account_id", None),
                 )
 
             async def get_media_buy_delivery(

@@ -320,8 +320,10 @@ async def test_service_routes_two_frozen_generations_and_resolves_each_once() ->
     service = ReliableReportingService.memory(account_context=resolve, clock=clock)
     gam = ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)])
     freewheel = ScriptedReportingAdapter(redacted_capabilities(), [_rows(20)])
-    service.sources.register("gam", gam)
-    service.sources.register("freewheel", freewheel)
+    service.sources.register("gam", gam, capability_offerings=[_capability_offering("gam")])
+    service.sources.register(
+        "freewheel", freewheel, capability_offerings=[_capability_offering("freewheel")]
+    )
     gam_config = _configuration("gam")
     freewheel_config = _configuration("freewheel")
     await service.configure(gam_config)
@@ -341,42 +343,103 @@ async def test_service_routes_two_frozen_generations_and_resolves_each_once() ->
     assert freewheel.calls[0].identity.delivery_config_id == "freewheel-delivery"
 
 
-async def test_account_capabilities_bind_distinct_offerings_with_shared_source_storage() -> None:
+async def test_agent_rejects_an_offering_not_registered_for_the_agent() -> None:
     first, first_context, first_capabilities, first_public = _account_binding("c")
-    second, second_context, second_capabilities, _ = _account_binding("d")
-    second = replace(second, automated_recovery_window=timedelta(days=2), status_retention_days=100)
+    second, second_context, _, _ = _account_binding("d")
+    contexts = {first.account_id: first_context, second.account_id: second_context}
+    service = ReliableReportingService.memory(
+        account_context=lambda configuration: contexts[configuration.account_id]
+    )
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(first_capabilities, []), capability_offerings=[first_public]
+    )
+    await service.configure(first)
+    with pytest.raises(ReliableReportingConfigurationError, match="registered public offering"):
+        await service.configure(second)
+
+
+async def test_account_source_can_use_an_offering_registered_by_the_agent() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    service.sources.register(
+        "another-source", ScriptedReportingAdapter(capabilities, []), capability_offerings=[public]
+    )
+    await service.configure(configuration)
+    assert service.capability_block()["offerings"] == [public]
+
+
+async def test_capabilities_use_agent_offerings_for_every_account() -> None:
+    configuration, context, capabilities, public = _account_binding("c")
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(capabilities, []), capability_offerings=[public]
+    )
+    await service.configure(configuration)
+    other = ReliableReportingService.memory(account_context=lambda _: context)
+    _, _, other_capabilities, other_public = _account_binding("d")
+    other.sources.register(
+        "gam", ScriptedReportingAdapter(other_capabilities, []), capability_offerings=[other_public]
+    )
+    first = service.capability_block()
+    assert first["offerings"] == [public]
+    assert other.capability_block()["offerings"] == [other_public]
+
+
+async def test_context_offerings_are_shared_and_deduplicated_across_callers() -> None:
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), []),
+        capability_offerings=[_capability_offering("gam")],
+    )
+    service.sources.register("freewheel", ScriptedReportingAdapter(redacted_capabilities(), []))
+    await service.configure(_configuration("gam", account_id="account-a"))
+    await service.configure(_configuration("freewheel", account_id="account-b"))
+
+    class Seller(ADCPHandler):
+        async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
+            return {"supported_protocols": ["media_buy"]}
+
+    handler = service.install(Seller())
+    first = await handler.get_adcp_capabilities(
+        {}, SimpleNamespace(account_id="account-a", resolved_adcp_version="3.3-rc.3")
+    )
+    second = await handler.get_adcp_capabilities(
+        {}, SimpleNamespace(account_id="account-b", resolved_adcp_version="3.3-rc.3")
+    )
+    expected = [_capability_offering("freewheel"), _capability_offering("gam")]
+    assert first["media_buy"]["reporting_delivery"]["offerings"] == expected
+    assert second["media_buy"]["reporting_delivery"]["offerings"] == expected
+
+
+async def test_account_sources_share_storage_and_use_the_agent_offering() -> None:
+    first, first_context, capabilities, public = _account_binding("c")
+    second_context = replace(first_context, account_id="account-other")
+    second = replace(
+        first,
+        account_id=second_context.account_id,
+        account_binding_sha256=second_context.binding_sha256(),
+        automated_recovery_window=timedelta(days=2),
+        status_retention_days=500,
+    )
     contexts = {first.account_id: first_context, second.account_id: second_context}
     service = ReliableReportingService.memory(
         account_context=lambda configuration: contexts[configuration.account_id]
     )
     service.sources.register(
         "gam",
-        ScriptedReportingAdapter(first_capabilities, [_rows(10), _rows(20)]),
+        ScriptedReportingAdapter(capabilities, [_rows(10), _rows(20)]),
+        capability_offerings=[public],
     )
-
     await service.configure(first)
     await service.configure(second)
-
     first_source = service._bindings[first.generation_key].producer._source
     second_source = service._bindings[second.generation_key].producer._source
-    assert first_source.capabilities == first_capabilities
-    assert second_source.capabilities == second_capabilities
+    assert first_source.capabilities == second_source.capabilities == capabilities
     assert first_source._staging is second_source._staging
     assert first_source._seals is second_source._seals
-    assert [
-        item["offering_id"]
-        for item in service.capability_block(account_id=first.account_id)["offerings"]
-    ] == [first_public["offering_id"]]
-    assert [
-        item["offering_id"]
-        for item in service.capability_block(account_id=second.account_id)["offerings"]
-    ] == [second_context.capability_offering["offering_id"]]
-    first_block = service.capability_block(account_id=first.account_id)
-    assert first_block["automated_recovery_window_seconds"] == int(
-        first.automated_recovery_window.total_seconds()
-    )
-    assert first_block["status_retention_days"] == first.status_retention_days
-    assert service.capability_block() == {}
+    assert service.capability_block()["offerings"] == [public]
 
 
 async def test_account_capability_rejects_a_conflicting_registered_offering_id() -> None:
@@ -389,7 +452,7 @@ async def test_account_capability_rejects_a_conflicting_registered_offering_id()
         capability_offerings=[conflicting],
     )
 
-    with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
+    with pytest.raises(ReliableReportingConfigurationError, match="registered public offering"):
         await service.configure(configuration)
 
 
@@ -408,10 +471,12 @@ async def test_account_capability_rejects_reusing_an_offering_id_for_another_gen
     service = ReliableReportingService.memory(
         account_context=lambda configuration: contexts[configuration.delivery_config_version]
     )
-    service.sources.register("gam", ScriptedReportingAdapter(capabilities, []))
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(capabilities, []), capability_offerings=[public]
+    )
     await service.configure(first)
 
-    with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
+    with pytest.raises(ReliableReportingConfigurationError, match="registered public offering"):
         await service.configure(second)
     assert first.generation_key in service._pending_bindings
     assert second.generation_key not in service._pending_bindings
@@ -465,6 +530,7 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
     service.sources.register(
         "gam",
         ScriptedReportingAdapter(capabilities, []),
+        capability_offerings=[context.capability_offering],
     )
 
     await service.configure(configuration)
@@ -474,23 +540,23 @@ async def test_account_capabilities_bind_a_selected_official_source() -> None:
     assert configuration.generation_key in service._bindings
 
 
-async def test_decisioning_capabilities_include_only_the_resolved_account_offering() -> None:
+async def test_decisioning_capabilities_are_identical_for_two_accounts() -> None:
     from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform, SingletonAccounts
     from adcp.decisioning.capabilities import Account, SupportedProtocol
     from adcp.decisioning.serve import create_adcp_server_from_platform
     from adcp.server import AccountAwareToolContext
 
-    first, first_context, _first_source, first_public = _account_binding("a")
-    second, second_context, _second_source, second_public = _account_binding("b")
-    contexts = {first.account_id: first_context, second.account_id: second_context}
-    service = ReliableReportingService.memory(account_context=lambda item: contexts[item.account_id])
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), []))
+    first, context, capabilities, public = _account_binding("a")
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(capabilities, []), capability_offerings=[public]
+    )
     await service.configure(first)
-    await service.configure(second)
 
     class Seller(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
-            supported_protocols=[SupportedProtocol.media_buy], account=Account(supported_billing=["agent"])
+            supported_protocols=[SupportedProtocol.media_buy],
+            account=Account(supported_billing=["agent"]),
         )
         accounts = SingletonAccounts(account_id=first.account_id)
 
@@ -498,18 +564,20 @@ async def test_decisioning_capabilities_include_only_the_resolved_account_offeri
         service.install(Seller()), validate_at_init=False, auto_emit_completion_webhooks=False
     )
     try:
-        response = await handler.get_adcp_capabilities(
-            {}, AccountAwareToolContext(account_id=first.account_id)
+        first_response = await handler.get_adcp_capabilities(
+            {},
+            AccountAwareToolContext(account_id=first.account_id, resolved_adcp_version="3.3-rc.3"),
+        )
+        second_response = await handler.get_adcp_capabilities(
+            {},
+            AccountAwareToolContext(account_id="account-other", resolved_adcp_version="3.3-rc.3"),
         )
     finally:
         executor.shutdown(wait=True)
         await service.close()
 
-    offering_ids = {
-        item["offering_id"] for item in response["media_buy"]["reporting_delivery"]["offerings"]
-    }
-    assert first_public["offering_id"] in offering_ids
-    assert second_public["offering_id"] not in offering_ids
+    assert first_response["media_buy"]["reporting_delivery"]["offerings"] == [public]
+    assert second_response["media_buy"]["reporting_delivery"]["offerings"] == [public]
 
 
 @pytest.mark.parametrize(
@@ -642,12 +710,14 @@ async def test_account_capabilities_recover_the_original_generation_contract() -
     configuration = replace(configuration, account_binding_sha256=context.binding_sha256())
     store = InMemoryReportingLedgerStore()
 
-    def service_for(resolved: ReportingAccountContext) -> ReliableReportingService:
+    def service_for(
+        resolved: ReportingAccountContext, offering: dict[str, Any] = public
+    ) -> ReliableReportingService:
         service = ReliableReportingService(store=store, account_context=lambda _: resolved)
         service.sources.register(
             "gam",
             ScriptedReportingAdapter(capabilities, []),
-            capability_offerings=[public],
+            capability_offerings=[offering],
         )
         return service
 
@@ -677,11 +747,33 @@ async def test_account_capabilities_recover_the_original_generation_contract() -
     with pytest.raises(ReliableReportingConfigurationError):
         await service_for(changed_source).initialize()
 
-    changed_public = replace(
-        context, capability_offering={**public, "standard_dimensions": ["campaign_id"]}
-    )
+    changed_offering = {**public, "standard_dimensions": ["campaign_id"]}
+    changed_public = replace(context, capability_offering=changed_offering)
     with pytest.raises(ReliableReportingConfigurationError):
-        await service_for(changed_public).initialize()
+        await service_for(changed_public, changed_offering).initialize()
+    assert await store.list_all_configurations() == (configuration,)
+
+
+async def test_recovery_preserves_a_generation_without_a_binding_digest() -> None:
+    configuration = _configuration()
+    assert configuration.account_binding_sha256 is None
+    store = InMemoryReportingLedgerStore()
+
+    def service_for() -> ReliableReportingService:
+        service = ReliableReportingService(store=store, account_context=_account_context)
+        service.sources.register(
+            "gam",
+            ScriptedReportingAdapter(redacted_capabilities(), []),
+            capability_offerings=[_capability_offering("gam")],
+        )
+        return service
+
+    original = service_for()
+    await original.configure(configuration)
+    await original.initialize()
+    recovered = service_for()
+    await recovered.initialize()
+    assert recovered._bindings[configuration.generation_key].configuration == configuration
     assert await store.list_all_configurations() == (configuration,)
 
 
@@ -690,7 +782,11 @@ async def test_service_exposes_first_read_jitter_control(window: timedelta | Non
     service = ReliableReportingService.memory(
         account_context=_account_context, read_jitter_window=window
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
     assert service._bindings[_generation_key("gam")].producer._read_jitter_window == (
         timedelta(minutes=5) if window is None else window
@@ -721,7 +817,11 @@ async def test_default_jitter_preserves_existing_custom_producer_factory_signatu
     service = ReliableReportingService.memory(
         account_context=_account_context, producer_factory=factory
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
     assert service._bindings[_generation_key("gam")].producer._read_jitter_window == timedelta(
         minutes=5
@@ -737,7 +837,11 @@ async def test_service_serves_status_and_exact_revision_content() -> None:
         ),
         clock=clock,
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(17)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(17)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
     turn = await service.run_worker(now=NOW)
     revision_id = turn.configurations[_generation_key("gam")].revisions_committed[0]
@@ -767,7 +871,11 @@ async def test_install_preserves_handlers_and_intercepts_only_exact_reads() -> N
         ),
         clock=clock,
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(7)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(7)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
     turn = await service.run_worker(now=NOW)
     revision_id = turn.configurations[_generation_key("gam")].revisions_committed[0]
@@ -802,13 +910,17 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
     service = ReliableReportingService.memory(
         account_context=_account_context, consumer_status_enabled=consumer_status_enabled
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
-    assert service.capability_block(account_id="account-redacted")["offerings"]
+    assert service.capability_block()["offerings"]
     await service.initialize()
-    assert service.capability_block(account_id="account-redacted")["offerings"]
+    assert service.capability_block()["offerings"]
     await service.start()
-    block = service.capability_block(account_id="account-redacted")
+    block = service.capability_block()
 
     assert block["managed_delivery"] is False
     assert block["reconciled_billing"] is False
@@ -883,7 +995,7 @@ async def test_worker_isolates_configuration_and_extension_errors_and_retries() 
         worker_error_handler=lambda component, error: errors.append((component, error)),
     )
     adapter = ScriptedReportingAdapter(redacted_capabilities(), [_rows(10), _rows(20)])
-    service.sources.register("gam", adapter)
+    service.sources.register("gam", adapter, capability_offerings=[_capability_offering("gam")])
     failed_config = _configuration(account_id="account-a")
     healthy_config = _configuration(account_id="account-b")
     await service.configure(failed_config)
@@ -962,7 +1074,11 @@ async def test_configuration_rejects_unregistered_routes_and_mutated_generations
     with pytest.raises(ReliableReportingConfigurationError, match="unregistered"):
         await service.configure(_configuration())
 
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     configuration = _configuration()
     await service.configure(configuration)
     changed = ReportingConfiguration(
@@ -1217,7 +1333,11 @@ async def test_sdk_delivery_floats_publish_canonical_revision(with_packages: boo
         caller_resolver=lambda *_: ReportingStatusCaller("account-redacted", "buyer-1"),
         clock=lambda: NOW,
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [response]))
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), [response]),
+        capability_offerings=[_capability_offering("gam")],
+    )
     await service.configure(_configuration())
     try:
         turn = await service.run_worker()

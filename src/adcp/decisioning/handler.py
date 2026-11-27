@@ -2466,13 +2466,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
-            account_id = getattr(context, "account_id", None)
-            if account_id is None:
-                account_id = getattr(getattr(context, "account", None), "id", None)
             response = reporting.inject_capabilities(
                 response,
                 adcp_version=context.resolved_adcp_version if context is not None else None,
-                account_id=account_id,
             )
 
         signing = response.get("webhook_signing", {})
