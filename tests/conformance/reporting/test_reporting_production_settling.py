@@ -13,7 +13,7 @@ from adcp.reporting.source import (
 
 from ._generation_support import END
 from ._materializer_support import reference_rows
-from ._production_support import Source, SQLiteSeals, production_harness
+from ._production_support import Source, SQLiteSeals, production_harness, reference_source_final
 from .test_reporting_production_lock_order import source_turn
 
 
@@ -32,7 +32,9 @@ class SettlingSource(Source):
         if close_officially:
             official = Source(key, path.with_name("official-contract"), rows, official=True)
             self.official_source_id = official.source_id
-            raw["offerings"].append(official.capabilities.offerings[0].model_dump(mode="json"))
+            official_offering = official.capabilities.offerings[0].model_dump(mode="json")
+            official_offering["source_local_ready_time"] = "05:00"
+            raw["offerings"].append(official_offering)
         raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
         self.capabilities = ReportingSourceCapabilitiesV1.model_validate(raw)
         self.official_ready = False
@@ -82,6 +84,7 @@ async def test_progress_retains_policy_until_terminal_publication(
         source_publication=True,
         periods=1,
         source_factory=partial(SettlingSource, close_officially=close_officially),
+        finality_policy=reference_source_final() if close_officially else None,
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)
         source = h.production.offerings[0].producer._source
@@ -96,7 +99,7 @@ async def test_progress_retains_policy_until_terminal_publication(
         assert len(source.requests) == 1
         h.source_clock.now = END + timedelta(hours=1)
         unchanged = await source_turn(h.production)
-        assert len(unchanged.revisions_committed) == 1
+        assert len(unchanged.revisions_committed) == (0 if close_officially else 1)
         assert len(source.requests) == 2
         checkpoint = await h.store.get_restatement_checkpoint(
             account_id=h.item.config.account_id,
@@ -111,9 +114,10 @@ async def test_progress_retains_policy_until_terminal_publication(
         changed = await source_turn(h.production)
         assert len(changed.revisions_committed) == 1
         history = await revisions(h)
-        assert len(history) == 3
+        assert len(history) == (2 if close_officially else 3)
         assert history[1].supersedes_reporting_revision_id == history[0].reporting_revision_id
-        assert history[2].supersedes_reporting_revision_id == history[1].reporting_revision_id
+        if not close_officially:
+            assert history[2].supersedes_reporting_revision_id == history[1].reporting_revision_id
 
         h.source_clock.now = END + timedelta(hours=3)
         await source_turn(h.production)
@@ -137,7 +141,6 @@ async def test_progress_retains_policy_until_terminal_publication(
         assert [r.finality for r in await revisions(h)] == [
             "snapshot",
             "snapshot",
-            "snapshot",
             "official",
         ]
         production_operation_4 = await pending(h)
@@ -157,13 +160,14 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
         source_publication=True,
         periods=1,
         source_factory=SettlingSource,
+        finality_policy=reference_source_final(),
     ) as h:
         await h.production.activate(account_id=h.item.config.account_id)
         initial = await source_turn(h.production)
         assert len(initial.revisions_committed) == 1
         h.source_clock.now = END + timedelta(hours=1)
         noop = await source_turn(h.production)
-        assert len(noop.revisions_committed) == 1
+        assert not noop.revisions_committed
         original_source = h.production.offerings[0].producer._source
         assert len(original_source.requests) == 2
         prior_keys = {r.identity.source_execution_key for r in original_source.requests}
@@ -176,6 +180,7 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
             source_publication=True,
             periods=1,
             source_factory=SettlingSource,
+            finality_policy=reference_source_final(),
             **existing,
         ) as fresh:
             source = fresh.production.offerings[0].producer._source
@@ -199,6 +204,6 @@ async def test_settling_checkpoint_and_pending_work_survive_fresh_service(backen
                 reporting_obligation_id=fresh.item.obligation.reporting_obligation_id,
             )
             assert checkpoint is not None and checkpoint.next_observation == 3
-            assert len(await revisions(fresh)) == 3
+            assert len(await revisions(fresh)) == 2
             unfinished = await pending(fresh)
             assert unfinished == (fresh.item.obligation.reporting_obligation_id,)

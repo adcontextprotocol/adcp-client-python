@@ -12,24 +12,33 @@ import pytest
 
 from adcp.reporting.conformance import ReportingSourceConformanceError
 from adcp.reporting.fixtures import (
+    OFFICIAL_OFFERING_ID,
     SNAPSHOT_OFFERING_ID,
     redacted_capabilities,
     redacted_snapshot_request,
 )
+from adcp.reporting.inline_source import InlineFetchResult
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
+    ReportingContractualCutoffPolicy,
     ReportingDefinitionBinding,
+    ReportingProducer,
     ReportingScheduleSpec,
     ReportingStatusCaller,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service import (
+    ProducerFactory,
     ReliableReportingConfigurationError,
     ReliableReportingService,
     ReliableReportingState,
     ReportingAccountContext,
+)
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    reporting_source_capabilities_sha256_v1,
 )
 from adcp.reporting.testing import (
     DeterministicReportingClock,
@@ -133,6 +142,120 @@ def _rows(impressions: int) -> list[dict[str, Any]]:
             "spend": "1.25",
         }
     ]
+
+
+def _finality_service(
+    configuration: ReportingConfiguration,
+    *,
+    snapshot: bool,
+    official: bool,
+    close: bool = False,
+    store: InMemoryReportingLedgerStore | None = None,
+    producer_factory: ProducerFactory = ReportingProducer,
+    results: tuple[InlineFetchResult | None, ...] = (),
+    clock: DeterministicReportingClock | None = None,
+    source_format: str | None = None,
+    cadence: str | None = None,
+    products: tuple[str, ...] = (),
+    adapter_type: type[ScriptedReportingAdapter] = ScriptedReportingAdapter,
+) -> ReliableReportingService:
+    public = _capability_offering("gam")
+    public["supported_finality"] = [configuration.required_finality]
+    context = replace(
+        _account_context(configuration),
+        snapshot_offering_id=SNAPSHOT_OFFERING_ID if snapshot else None,
+        official_offering_id=OFFICIAL_OFFERING_ID if official else None,
+        capability_offering=public,
+    )
+    raw = redacted_capabilities().model_dump(mode="json")
+    for offering in raw["offerings"]:
+        offering.update(
+            source_timezone="UTC", product_ids=products or [configuration.report_definition_id]
+        )
+        offering["windowing"]["minimum_window"] = "PT1H"
+    if close:
+        raw["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    if cadence is not None:
+        raw["offerings"][0].update(restatement_window="P1D", restatement_cadence=cadence)
+    raw["offerings"] = [
+        offering for offering, enabled in zip(raw["offerings"], (snapshot, official)) if enabled
+    ]
+    if source_format:
+        for offering in raw["offerings"]:
+            offering["formats"] = [{"media_type": source_format, "compression": "none"}]
+    raw["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(raw)
+    adapter = adapter_type(ReportingSourceCapabilitiesV1.model_validate(raw), results)
+    service = ReliableReportingService(
+        store=store or InMemoryReportingLedgerStore(),
+        account_context=lambda _: context,
+        producer_factory=producer_factory,
+        clock=clock,
+    )
+    service.sources.register("gam", adapter, capability_offerings=[public])
+    return service
+
+
+async def test_official_configuration_requires_a_selected_finality_policy() -> None:
+    configuration = replace(_configuration(), required_finality="official")
+    public = {**_capability_offering("gam"), "supported_finality": ["official"]}
+    context = replace(
+        _account_context(configuration),
+        snapshot_offering_id=None,
+        official_offering_id=OFFICIAL_OFFERING_ID,
+        capability_offering=public,
+    )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(redacted_capabilities(), []), capability_offerings=[public]
+    )
+
+    with pytest.raises(ReliableReportingConfigurationError, match="selected finality policy"):
+        await service.configure(configuration)
+
+    snapshot = await service.store.read_status_snapshot(
+        caller=ReportingStatusCaller(configuration.account_id, configuration.consumer_id)
+    )
+    assert snapshot.configurations == ()
+
+
+async def test_snapshot_close_requires_a_selected_finality_policy() -> None:
+    configuration = _configuration()
+    capabilities = redacted_capabilities().model_dump(mode="json")
+    capabilities["offerings"][0].update(restatement_window="P1D", official_close_lag="P2D")
+    capabilities["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(capabilities)
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(ReportingSourceCapabilitiesV1.model_validate(capabilities), []),
+    )
+
+    with pytest.raises(ReliableReportingConfigurationError, match="selected finality policy"):
+        await service.configure(configuration)
+
+
+async def test_cutoff_policy_rejects_an_authoritative_only_source() -> None:
+    configuration = replace(
+        _configuration(),
+        required_finality="official",
+        definition=replace(
+            DEFINITION,
+            finality_policy=ReportingContractualCutoffPolicy("cutoff-v1", "P2D"),
+        ),
+    )
+    public = {**_capability_offering("gam"), "supported_finality": ["official"]}
+    context = replace(
+        _account_context(configuration),
+        snapshot_offering_id=None,
+        official_offering_id=OFFICIAL_OFFERING_ID,
+        capability_offering=public,
+    )
+    service = ReliableReportingService.memory(account_context=lambda _: context)
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(redacted_capabilities(), []), capability_offerings=[public]
+    )
+
+    with pytest.raises(ReliableReportingConfigurationError, match="snapshot source offering"):
+        await service.configure(configuration)
 
 
 async def test_service_routes_two_frozen_generations_and_resolves_each_once() -> None:

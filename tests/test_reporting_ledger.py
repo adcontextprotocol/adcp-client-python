@@ -21,11 +21,13 @@ from adcp.reporting.ledger import (
     ProducerOfferings,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingDeliveryEscalation,
     ReportingObligationRecord,
     ReportingProducer,
     ReportingRevisionRecord,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
     aggregate_reporting_health,
@@ -36,32 +38,20 @@ from adcp.reporting.ledger import (
     revision_content_sha256,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+from tests.reporting_offering import HOURLY_SNAPSHOT_OFFERING as _OFFERING
 
 ACCOUNT = "acct_1"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_1")
 
-_OFFERING: dict[str, Any] = {
-    "offering_id": "HOURLY_SNAPSHOT_V1",
-    "feed_purpose": "analytics",
-    "report_definition_id": "daily_delivery_v1",
-    "report_definition_uri": "https://contracts.example.test/reporting/daily-delivery-v1",
-    "report_definition_sha256": "a" * 64,
-    "reporting_profile": {
-        "id": "paid_media_delivery",
-        "version": "1.0.0",
-        "schema_uri": "https://contracts.example.test/reporting/rows-v1.json",
-        "schema_sha256": "b" * 64,
-        "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
-        "schema_ref_policy": "local_fragment_only",
-        "grain": "one row per media buy per period",
-        "primary_keys": ["media_buy_id"],
-    },
-    "schedule": {"period_duration": "PT1H", "delivery_sla": "PT1H", "alignment": "utc"},
-    "supported_finality": ["snapshot"],
-    "reconciliation_mode": "delivery_only",
-}
-
 HOURLY = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT1H", alignment="utc")
+_OFFICIAL_DEFINITION = ReportingDefinitionBinding(
+    report_definition_uri=_OFFERING["report_definition_uri"],
+    report_definition_sha256=_OFFERING["report_definition_sha256"],
+    schema_version=_OFFERING["reporting_profile"]["version"],
+    schema_uri=_OFFERING["reporting_profile"]["schema_uri"],
+    schema_sha256=_OFFERING["reporting_profile"]["schema_sha256"],
+    finality_policy=ReportingSourceFinalPolicy("daily-close", "delivery.closed"),
+)
 
 
 def _configuration(**overrides) -> ReportingConfiguration:
@@ -80,6 +70,8 @@ def _configuration(**overrides) -> ReportingConfiguration:
         automated_recovery_window=timedelta(hours=6),
     )
     defaults.update(overrides)
+    if defaults["required_finality"] == "official" and "definition" not in overrides:
+        defaults["definition"] = _OFFICIAL_DEFINITION
     return ReportingConfiguration(**defaults)  # type: ignore[arg-type]
 
 
@@ -102,6 +94,7 @@ def _obligation(
         scope_resolved_at=boundary.end,
         media_buy_ids=configuration.media_buy_ids,
         required_finality=configuration.required_finality,
+        definition=configuration.definition,
         automated_recovery_deadline_at=boundary.expected_at
         + configuration.automated_recovery_window,
         schedule=configuration.schedule,
@@ -220,9 +213,13 @@ def test_periods_track_wall_clock_across_a_dst_transition() -> None:
 # -- obligations before reports ---------------------------------------------
 
 
-async def test_an_obligation_is_committed_before_any_source_data_exists() -> None:
+@pytest.mark.parametrize("finality", ["snapshot", "official"])
+async def test_an_obligation_is_committed_before_any_source_data_exists(finality: str) -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(
+        required_finality=finality,
+        definition=_OFFICIAL_DEFINITION if finality == "official" else None,
+    )
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     committed = await producer.close_elapsed_periods(
@@ -244,7 +241,7 @@ async def test_an_obligation_is_committed_before_any_source_data_exists() -> Non
 
 async def test_closing_periods_twice_commits_each_obligation_once() -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(definition=_OFFICIAL_DEFINITION)
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     now = datetime(2026, 9, 1, 5, 0, tzinfo=timezone.utc)
@@ -255,7 +252,7 @@ async def test_closing_periods_twice_commits_each_obligation_once() -> None:
 
 async def test_a_period_that_has_not_closed_is_not_obligated() -> None:
     store = InMemoryReportingLedgerStore()
-    configuration = _configuration()
+    configuration = _configuration(definition=_OFFICIAL_DEFINITION)
     await store.put_configuration(configuration)
     producer = ReportingProducer(source=_NullSource(), offerings=ProducerOfferings(), store=store)
     # Exactly at the boundary: the obligation appears in the first snapshot

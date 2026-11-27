@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -26,6 +26,7 @@ from adcp.reporting.ledger import (
     ReportingStatusCaller,
     ReportingStatusHandler,
 )
+from adcp.reporting.ledger.finality import manifest_finality_proof
 from adcp.reporting.materializer import ReportingWriterCapability, reference_verifier
 from adcp.reporting.source import SourceBatchManifestV1, parse_verified_source_batch_manifest_v1
 from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse
@@ -33,7 +34,7 @@ from adcp.types.core import TaskResult
 from adcp.validation.schema_loader import get_named_validator
 
 from ._generation_support import END, START, isolated_reporting_pool
-from ._production_support import Source
+from ._production_support import Source, reference_source_final
 
 TURN = END + timedelta(hours=1)
 PUBLISHED = TURN + timedelta(seconds=2)
@@ -96,6 +97,11 @@ async def setup(
         )
     )
     key = verifier.key
+    if finality == "official":
+        key = replace(
+            key, definition=replace(key.definition, finality_policy=reference_source_final())
+        )
+        verifier = replace(verifier, key=key)
     clock = Clock()
     source = RecordedSource(
         key,
@@ -234,7 +240,9 @@ async def test_real_clock_observation_after_dispatch_is_definitive(store, tmp_pa
     revision = outcome.ledger.revisions[0]
     assert outcome.definitive, [o.reasons for o in outcome.obligations]
     assert request.period.source_read_cutoff_at < manifest.observed_at <= revision.created_at
-    assert revision.observed_at == revision.finalized_at == manifest.observed_at
+    assert revision.observed_at == manifest.observed_at
+    assert revision.finalized_at == manifest.finality_evidence.observed_at
+    assert request.period.source_read_cutoff_at < revision.finalized_at <= revision.observed_at
 
 
 @pytest.mark.parametrize(
@@ -304,6 +312,7 @@ async def test_same_publication_replay_preserves_committed_time_and_source_evide
     if finality == "snapshot":
         clock.now = PUBLISHED + timedelta(minutes=1)
         reader.complete = lambda: None
+        source.rows = [dict(ROWS[0], impressions=6)]
         restated = await producer.acquire_obligation(config, obligation, restate=True)
         assert restated is not None
         assert restated.supersedes_reporting_revision_id == first.reporting_revision_id
@@ -400,7 +409,12 @@ async def test_direct_commit_uses_explicit_publication_time_before_any_write(
         monkeypatch.setattr(store, "commit_revision", record_write)
         with pytest.raises(LedgerConflictError) as raised:
             await producer.commit_revision_from_manifest(
-                obligations[0], manifest, rows=ROWS, finality="official", now=PUBLISHED
+                obligations[0],
+                manifest,
+                rows=ROWS,
+                finality="official",
+                now=PUBLISHED,
+                finality_proof=manifest_finality_proof(obligations[0], manifest, PUBLISHED),
             )
         assert raised.value.code == "PUBLICATION_TIME_INVALID"
         assert not writes
@@ -414,7 +428,12 @@ async def test_direct_commit_uses_explicit_publication_time_before_any_write(
         assert correction_condition_3
     else:
         committed = await producer.commit_revision_from_manifest(
-            obligations[0], manifest, rows=ROWS, finality="official", now=PUBLISHED
+            obligations[0],
+            manifest,
+            rows=ROWS,
+            finality="official",
+            now=PUBLISHED,
+            finality_proof=manifest_finality_proof(obligations[0], manifest, PUBLISHED),
         )
         assert committed.created_at == PUBLISHED
         assert committed.observed_at == committed.finalized_at == TURN

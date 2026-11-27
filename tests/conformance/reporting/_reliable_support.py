@@ -35,6 +35,9 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 import pytest
 
+if TYPE_CHECKING:
+    from adcp.reporting.ledger.finality import FinalityProof
+
 if _storage_split():  # wheels before the storage split (#1510)
     from adcp.reporting.ledger import PgReportingReconciliationStore
     from adcp.reporting.outbox import PgReportingOutbox
@@ -425,6 +428,16 @@ def capabilities() -> ReportingSourceCapabilitiesV1:
                     update={
                         "source_timezone": "UTC",
                         "product_ids": [redacted_contract_identity.report_definition_id],
+                        **(
+                            {
+                                "grain": "fixed_window",
+                                "windowing": offering.windowing.model_copy(
+                                    update={"minimum_window": "PT1H"}
+                                ),
+                            }
+                            if offering.offering_id == OFFICIAL_OFFERING_ID
+                            else {}
+                        ),
                         "metrics": [
                             MetricOfferingV1(
                                 name=metric,
@@ -649,6 +662,7 @@ class ReliableHarness:
         result: ReportingSourceExecutorResult,
         *,
         finality: str = "snapshot",
+        finality_proof: FinalityProof | None = None,
     ) -> ReportingRevisionRecord:
         manifest = verified(result)
         self.manifests[(obligation.account_id, manifest.content_fingerprint)] = manifest
@@ -657,6 +671,7 @@ class ReliableHarness:
             manifest,
             rows=await producer._read_rows(request, manifest),
             finality=finality,
+            **({"finality_proof": finality_proof} if finality_proof is not None else {}),
         )
 
     async def restart(self) -> None:

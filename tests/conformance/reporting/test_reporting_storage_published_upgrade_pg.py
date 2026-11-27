@@ -265,7 +265,7 @@ def _rest(*, contract: bool = True) -> list[str]:
 #: The contract steps: applied to an expanded ledger only with ``contract=True``.
 CONTRACT_VERSIONS = ["0007"]
 #: Additive migrations after the contract step: applied even while it is held.
-ADDITIVE_AFTER_CONTRACT = ["0008", "0009"]
+ADDITIVE_AFTER_CONTRACT = ["0008", "0009", "0010"]
 #: The objects that exist only while a ledger is expanded (catalog lines).
 EXPANDED_LEDGER = {
     "constraint reporting_configurations reporting_configurations_generation_key",
@@ -1017,18 +1017,21 @@ async def test_a_ledger_the_published_0_2_0b1_widened_counts_as_contracted(
         store = PgReportingLedgerStore(pool=pool, notifications=True)
         await seed.create_schema(pool, store, notifications=True)  # boots, does not re-expand
         booted = await _catalog(pool)
-        # The boot adds only the all_media_buys columns and their checks.
+        # The boot adds all_media_buys columns and private finality evidence.
         assert set(before) <= set(booted)
         assert all(
             "media_buy_scope" in line
             or "reporting_obligations.coverage" in line
             or "coverage_check" in line
+            or "adcp_reporting_reused_observations" in line
+            or "adcp_reporting_provisional_history" in line
+            or "adcp_reporting_stabilization_checkpoints" in line
             for line in set(booted) - set(before)
         ), sorted(set(booted) - set(before))
         before = booted
         # The contract step is recorded without --contract: it changes nothing here.
         applied = [item.version for item in await migrate(pool)]
-        assert applied[-3:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
+        assert applied[-4:] == [*CONTRACT_VERSIONS, *ADDITIVE_AFTER_CONTRACT]
         await postgres_storage(pool=pool).check_schema()
         after = await _catalog(pool)  # 0004 and 0005 add their own tables
         assert set(before) <= set(after) and _expand_only(after) == set()
@@ -1062,6 +1065,7 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         assert "would apply 0007" not in planned  # held
         assert "would apply 0008 reporting_issue_events\n" in planned  # additive: not held
         assert "would apply 0009 reporting_all_media_buys\n" in planned
+        assert "would apply 0010 reporting_finality_evidence\n" in planned
         assert (
             "not applied 0007 reporting_contract_generation_keys (contract): run"
             f' "python -m adcp migrate --contract" {when}'
@@ -1073,21 +1077,23 @@ async def test_migrate_holds_the_contract_step_and_status_says_when_to_run_it(
         assert "\napplied 0007" not in applied
         assert "applied 0008 reporting_issue_events\n" in applied
         assert "applied 0009 reporting_all_media_buys\n" in applied
+        assert "applied 0010 reporting_finality_evidence\n" in applied
         assert "not applied 0007 reporting_contract_generation_keys (contract)" in applied
         await postgres_storage(pool=pool).check_schema()  # starts: only the contract pends
 
         assert await _run(dsn, status=True, dry_run=False) == 0
         status = capsys.readouterr().out.strip().splitlines()
-        assert status[-4] == (
+        assert status[-5] == (
             "0007 reporting_contract_generation_keys: pending  [contract: run"
             f" {when}: python -m adcp migrate --contract]"
         )
-        assert status[-3].startswith("0008 reporting_issue_events: applied ")
-        assert status[-2].startswith("0009 reporting_all_media_buys: applied ")
+        assert status[-4].startswith("0008 reporting_issue_events: applied ")
+        assert status[-3].startswith("0009 reporting_all_media_buys: applied ")
+        assert status[-2].startswith("0010 reporting_finality_evidence: applied ")
         assert status[-1] == (
             f'up to date except the contract step: run "python -m adcp migrate --contract" {when}'
         )
-        assert describe(await migration_status(pool))[-3] == status[-4]
+        assert describe(await migration_status(pool))[-4] == status[-5]
         _all_ok(await _old_pod(python, pool, workspace, notifications=False, ordinal=2))
 
         assert await _run(dsn, status=False, dry_run=False, contract=True) == 0

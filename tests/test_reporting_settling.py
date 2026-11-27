@@ -21,16 +21,20 @@ from adcp.reporting.inline_source import (
 )
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
+    LedgerConflictError,
     ProducerOfferings,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     ReportingStatusCaller,
     ReportingStatusHandler,
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.source import (
     ProvisionalSnapshotOfferingV1,
+    ReportingFinalityEvidenceV1,
     ReportingSourceCapabilitiesV1,
     reporting_source_capabilities_sha256_v1,
 )
@@ -40,6 +44,7 @@ CONFIG_ID = "settling-config"
 DEFINITION_ID = "PAID_MEDIA_DAILY_V1"
 SCHEDULE = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT10M", alignment="utc")
 ACTIVATED_AT = datetime(2026, 11, 1, 0, 20, tzinfo=timezone.utc)
+SOURCE_FINAL_POLICY = ReportingSourceFinalPolicy("source-close-v1", "seller-close-signal")
 
 
 def _capabilities(
@@ -47,6 +52,7 @@ def _capabilities(
     restatement_window: str | None,
     restatement_cadence: str | None = None,
     official_close_lag: str | None = None,
+    official_availability_lag: str = "PT0S",
 ) -> ReportingSourceCapabilitiesV1:
     base = redacted_capabilities()
     snapshot = base.offering(SNAPSHOT_OFFERING_ID)
@@ -72,12 +78,14 @@ def _capabilities(
         for item in base.offerings
     ]
     for offering in payload["offerings"]:
+        offering.update(source_timezone="UTC", product_ids=[DEFINITION_ID])
+        offering["windowing"]["minimum_window"] = "PT1H"
         if offering["offering_id"] == OFFICIAL_OFFERING_ID:
             # Policy fixtures make authoritative data ready independently of
             # the configured close cadence, just like the snapshot above.
             offering.update(
-                expected_availability_lag="PT0S",
-                worst_case_availability_lag="PT0S",
+                expected_availability_lag=official_availability_lag,
+                worst_case_availability_lag=official_availability_lag,
                 source_timezone="UTC",
                 days_after_period_end=0,
                 source_local_ready_time="00:00",
@@ -91,6 +99,8 @@ class _MutableFetch:
         self.impressions = 10
         self.provisional_until: datetime | None = None
         self.calls: list[str] = []
+        self.finality_evidence: ReportingFinalityEvidenceV1 | None = None
+        self.source_signal: str | None = None
 
     def __call__(self, request: Any) -> InlineFetchResult:
         self.calls.append(request.publication_class)
@@ -108,6 +118,16 @@ class _MutableFetch:
                 if request.publication_class == "PROVISIONAL_SNAPSHOT"
                 else None
             ),
+            finality_evidence=self.finality_evidence
+            or (
+                ReportingFinalityEvidenceV1(
+                    basis="provider_declared",
+                    observed_at=request.period.source_read_cutoff_at,
+                    evidence_ref=self.source_signal,
+                )
+                if request.publication_class == "AUTHORITATIVE" and self.source_signal
+                else None
+            ),
         )
 
 
@@ -116,6 +136,8 @@ async def _harness(
     *,
     store_factory: Any = None,
     read_jitter_window: timedelta = timedelta(0),
+    finality_policy: ReportingSourceFinalPolicy | None = None,
+    required_finality: str = "snapshot",
 ) -> tuple[
     ReportingProducer,
     InMemoryReportingLedgerStore,
@@ -124,6 +146,7 @@ async def _harness(
 ]:
     clock = [datetime(2026, 11, 1, 2, 10, tzinfo=timezone.utc)]
     fetch = _MutableFetch()
+    fetch.source_signal = finality_policy.source_signal if finality_policy else None
     staging = InMemoryStagingStore()
     source = InlineReportingSource(
         capabilities=capabilities,
@@ -138,6 +161,7 @@ async def _harness(
         else store_factory(lambda: clock[0])
     )
     await store.create_schema()
+    contract = capabilities.offering(OFFICIAL_OFFERING_ID).contract
     configuration = ReportingConfiguration(
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
@@ -147,9 +171,21 @@ async def _harness(
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
         schedule=SCHEDULE,
-        required_finality="snapshot",
+        required_finality=required_finality,
         activated_at=ACTIVATED_AT,
         media_buy_ids=("media-buy-redacted",),
+        definition=(
+            ReportingDefinitionBinding(
+                report_definition_uri=contract.report_definition_uri,
+                report_definition_sha256=contract.report_definition_sha256,
+                schema_version=contract.schema_version,
+                schema_uri=contract.schema_uri,
+                schema_sha256=contract.schema_sha256,
+                finality_policy=finality_policy,
+            )
+            if finality_policy is not None
+            else None
+        ),
     )
     await store.put_configuration(configuration)
     producer = ReportingProducer(
@@ -209,13 +245,70 @@ async def _revisions(store: InMemoryReportingLedgerStore):
     )
 
 
+async def test_source_final_publication_uses_selected_policy_and_provider_signal() -> None:
+    policy = SOURCE_FINAL_POLICY
+    producer, store, fetch, clock = await _harness(
+        _capabilities(restatement_window=None),
+        finality_policy=policy,
+        required_finality="official",
+    )
+    fetch.finality_evidence = ReportingFinalityEvidenceV1(
+        basis="provider_declared",
+        observed_at=clock[0],
+        evidence_ref="seller-close-signal",
+    )
+
+    turn = await producer.run_worker()
+
+    assert len(turn.revisions_committed) == 1
+    revision = (await _revisions(store))[0]
+    assert revision.finality == "official"
+    assert revision.finality_basis == "source_final"
+    assert revision.finality_policy_id == policy.finality_policy_id
+    assert revision.finalized_at == clock[0]
+    assert fetch.calls == ["AUTHORITATIVE"]
+
+
+async def test_source_final_publication_rejects_another_provider_signal() -> None:
+    policy = SOURCE_FINAL_POLICY
+    producer, store, fetch, clock = await _harness(
+        _capabilities(restatement_window=None),
+        finality_policy=policy,
+        required_finality="official",
+    )
+    fetch.finality_evidence = ReportingFinalityEvidenceV1(
+        basis="provider_declared",
+        observed_at=clock[0],
+        evidence_ref="unrelated-signal",
+    )
+
+    with pytest.raises(LedgerConflictError, match="selected source signal"):
+        await producer.run_worker()
+
+    assert await _revisions(store) == ()
+
+
+async def test_official_acquisition_requires_selected_policy_before_source_read() -> None:
+    producer, store, fetch, _ = await _harness(
+        _capabilities(restatement_window=None), required_finality="official"
+    )
+
+    with pytest.raises(LedgerConflictError, match="selected policy"):
+        await producer.run_worker()
+
+    assert fetch.calls == []
+    assert store._obligations == {}
+
+
 async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> None:
     producer, store, fetch, clock = await _harness(
         _capabilities(
             restatement_window="P3D",
             restatement_cadence="PT1H",
             official_close_lag="P3D",
-        )
+            official_availability_lag="P3D",
+        ),
+        finality_policy=SOURCE_FINAL_POLICY,
     )
     first = await producer.run_worker()
     assert len(first.revisions_committed) == 1
@@ -226,9 +319,9 @@ async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> 
 
     clock[0] += timedelta(minutes=1)
     unchanged = await producer.run_worker()
-    assert len(unchanged.revisions_committed) == 1
+    assert unchanged.revisions_committed == []
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 2
+    assert [revision.finality for revision in await _revisions(store)] == ["snapshot"]
 
     # The successful observation advances both the cadence clock and execution
     # ordinal, so an immediate worker turn neither polls nor replays it.
@@ -248,7 +341,9 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
             restatement_window="P3D",
             restatement_cadence="PT1H",
             official_close_lag="P3D",
-        )
+            official_availability_lag="P3D",
+        ),
+        finality_policy=SOURCE_FINAL_POLICY,
     )
     await producer.run_worker()
     first = (await _revisions(store))[0]
@@ -271,7 +366,8 @@ async def test_changed_refresh_supersedes_snapshot_and_window_expiry_closes_offi
         "snapshot",
         "official",
     ]
-    assert revisions[-1].finality_basis == "stabilized"
+    assert revisions[-1].finality_basis == "source_final"
+    assert revisions[-1].finality_policy_id == SOURCE_FINAL_POLICY.finality_policy_id
     status = await ReportingStatusHandler(store).handle(
         {"view": "periods"},
         caller=ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer-settling"),
@@ -294,7 +390,9 @@ async def test_slice_provisional_until_overrides_declared_window() -> None:
             restatement_window="P3D",
             restatement_cadence="P1D",
             official_close_lag="P3D",
-        )
+            official_availability_lag="P4D",
+        ),
+        finality_policy=SOURCE_FINAL_POLICY,
     )
     await producer.run_worker()
     obligation = await _only_obligation(store)
@@ -320,10 +418,10 @@ async def test_source_without_a_window_retains_its_final_default_read() -> None:
     producer, store, fetch, clock = await _harness(_capabilities(restatement_window=None))
     await producer.run_worker()
     obligation = await _only_obligation(store)
-    clock[0] = obligation.period.end + timedelta(days=10)
+    clock[0] = obligation.period.end + timedelta(days=120)
     await producer.run_worker()
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 2
+    assert [revision.finality for revision in await _revisions(store)] == ["snapshot"]
     checkpoint = await store.get_restatement_checkpoint(
         account_id=ACCOUNT,
         reporting_obligation_id=obligation.reporting_obligation_id,
@@ -331,6 +429,21 @@ async def test_source_without_a_window_retains_its_final_default_read() -> None:
     assert checkpoint is not None and checkpoint.next_observation == 2
     await producer.run_worker()
     assert len(fetch.calls) == 2
+
+
+async def test_source_without_a_window_keeps_unchanged_observations_before_expiry() -> None:
+    producer, store, fetch, clock = await _harness(_capabilities(restatement_window=None))
+    await producer.run_worker()
+    obligation = await _only_obligation(store)
+    clock[0] = obligation.period.end + timedelta(hours=1, minutes=10)
+
+    await producer.run_worker()
+
+    assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
+    assert [revision.finality for revision in await _revisions(store)] == [
+        "snapshot",
+        "snapshot",
+    ]
 
 
 def test_settling_options_require_a_declared_window_and_safe_cadence() -> None:

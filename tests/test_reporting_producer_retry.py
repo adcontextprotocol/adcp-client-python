@@ -19,8 +19,10 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     ProducerOfferings,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingProducer,
     ReportingScheduleSpec,
+    ReportingSourceFinalPolicy,
     RetryScheduleEntry,
     WorkerTurn,
 )
@@ -32,15 +34,18 @@ from adcp.reporting.source import (
 )
 
 NOW = datetime(2026, 11, 1, 2, 10, tzinfo=timezone.utc)
+CONTRACT = redacted_capabilities().offering(OFFICIAL_OFFERING_ID).contract
 
 
 def _ready_capabilities():
     """Retry tests begin after data readiness, without an availability delay."""
     payload = redacted_capabilities().model_dump(mode="json")
     for offering in payload["offerings"]:
+        offering.update(source_timezone="UTC", product_ids=["PAID_MEDIA_DAILY_V1"])
         offering.update(expected_availability_lag="PT0S", worst_case_availability_lag="PT0S")
         if offering["offering_id"] == OFFICIAL_OFFERING_ID:
             offering.update(source_local_ready_time="00:00", days_after_period_end=0)
+            offering["windowing"]["minimum_window"] = "PT1H"
     payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     return ReportingSourceCapabilitiesV1.model_validate(payload)
 
@@ -92,6 +97,14 @@ def configuration(account: str = "account-1", config: str = "config-1") -> Repor
         required_finality="official",
         activated_at=datetime(2026, 11, 1, 0, 20, tzinfo=timezone.utc),
         media_buy_ids=("media-buy-1",),
+        definition=ReportingDefinitionBinding(
+            report_definition_uri=CONTRACT.report_definition_uri,
+            report_definition_sha256=CONTRACT.report_definition_sha256,
+            schema_version=CONTRACT.schema_version,
+            schema_uri=CONTRACT.schema_uri,
+            schema_sha256=CONTRACT.schema_sha256,
+            finality_policy=ReportingSourceFinalPolicy("retry-close", "seller-close-signal"),
+        ),
     )
 
 
@@ -101,7 +114,10 @@ def producer(source, store, *, clock=None, **kwargs):
         store=store,
         offerings=ProducerOfferings(
             official_offering_id=OFFICIAL_OFFERING_ID,
-            publication_namespace="reporting-source:retry-test",
+            publication_namespace=source.capabilities.offering(
+                OFFICIAL_OFFERING_ID
+            ).publication_namespace,
+            source_scope=dict(source.capabilities.source_scope),
         ),
         clock=clock or (lambda: NOW),
         **kwargs,
@@ -360,14 +376,20 @@ async def test_turn_keeps_retry_that_became_due_during_later_fetch():
     assert turn.earliest_retry_at == first_due
 
 
-async def test_provisional_manual_replay_marks_restored_request():
+async def test_provisional_manual_replay_preserves_the_reserved_trigger():
     store = InMemoryReportingLedgerStore()
     source = FailingSource(code="AUTHENTICATION_FAILED", retry="terminal")
     config = replace(configuration(), required_finality="snapshot")
     worker = ReportingProducer(
         source=source,
         store=store,
-        offerings=ProducerOfferings(snapshot_offering_id=SNAPSHOT_OFFERING_ID),
+        offerings=ProducerOfferings(
+            snapshot_offering_id=SNAPSHOT_OFFERING_ID,
+            publication_namespace=source.capabilities.offering(
+                SNAPSHOT_OFFERING_ID
+            ).publication_namespace,
+            source_scope=dict(source.capabilities.source_scope),
+        ),
         clock=lambda: NOW,
     )
     obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
@@ -380,4 +402,4 @@ async def test_provisional_manual_replay_marks_restored_request():
         manual_replay=True,
     )
     assert source.calls == 2
-    assert source.requests[-1].trigger == "manual_replay"
+    assert source.requests[-1].trigger == source.requests[0].trigger == "scheduled_poll"

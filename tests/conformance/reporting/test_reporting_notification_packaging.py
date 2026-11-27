@@ -124,6 +124,21 @@ def redacted_stage_stderr(stderr):
     )
 
 
+def signal_owned_group(process: subprocess.Popen[str], sig: signal.Signals) -> None:
+    """Signal an installed task and fall back to its direct child when group signals are denied."""
+    try:
+        os.killpg(process.pid, sig)
+    except ProcessLookupError:
+        # The owned group already exited; still drain its pipes and reap the child below.
+        pass
+    except PermissionError:
+        if process.poll() is None:
+            try:
+                process.send_signal(sig)
+            except ProcessLookupError:
+                pass
+
+
 def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
     started = time.monotonic()
     environment = {key: item for key, item in os.environ.items() if key != "PYTHONPATH"}
@@ -166,11 +181,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
         # Give only this task-owned process group a bounded graceful shutdown,
         # then escalate. A timeout is a failing gate, never an implicit retry.
         cleanup = "terminated"
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            # The owned group already exited; still drain its pipes and reap the child below.
-            pass
+        signal_owned_group(process, signal.SIGTERM)
         if progress is not None:
             progress.signal_owned(signal.SIGTERM)
         try:
@@ -180,10 +191,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
             if progress is not None:
                 progress.signal_owned(signal.SIGKILL)
             if progress is None or not progress.supervised:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                signal_owned_group(process, signal.SIGKILL)
             try:
                 stdout, stderr = process.communicate(timeout=5)
             except subprocess.TimeoutExpired as error:
