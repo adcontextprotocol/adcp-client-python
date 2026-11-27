@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.5...adcp-reporting-storage-v0.2.0-beta.6) (2026-11-27)
+
+
+### Features
+
+* **reporting:** port policy-bound official finality to 10.x ([#1960](https://github.com/adcontextprotocol/adcp-client-python/issues/1960)) ([e70d0c1](https://github.com/adcontextprotocol/adcp-client-python/commit/e70d0c1d94e89643233bffab20eaa8bde73d19bc))
+
 ## [0.2.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/adcp-reporting-storage-v0.2.0-beta.4...adcp-reporting-storage-v0.2.0-beta.5) (2026-11-24)
 
 
