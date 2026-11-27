@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.0-rc.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-rc.2...v10.0.0-rc.3) (2026-11-27)
+
+
+### Features
+
+* **reporting:** Bind account offerings per configuration generation ([#1962](https://github.com/adcontextprotocol/adcp-client-python/issues/1962)) ([530572b](https://github.com/adcontextprotocol/adcp-client-python/commit/530572b309c087a5907dc338a32137f1d6cc4758))
+
 ## [10.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v10.0.0-rc.1...v10.0.0-rc.2) (2026-11-27)
 
 
