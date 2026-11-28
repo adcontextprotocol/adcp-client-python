@@ -17,7 +17,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, runtime_checkable
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -168,6 +168,22 @@ class ReportingReceiptHandler(Protocol):
 ReportingContextResolver = Callable[
     [ReportingConfiguration], "ReportingAccountContext | Awaitable[ReportingAccountContext]"
 ]
+ReportingAgentOfferings = Sequence[ReportingDeliveryOffering | Mapping[str, Any]]
+ReportingAgentOfferingsResolver = Callable[
+    [str], ReportingAgentOfferings | Awaitable[ReportingAgentOfferings]
+]
+ReportingAgentResolver = Callable[[Any | None], str | Awaitable[str]]
+ReportingAgentDefinitionVersions = Callable[
+    [str],
+    Mapping[str, ReportDefinitionContractVersion]
+    | Awaitable[Mapping[str, ReportDefinitionContractVersion]],
+]
+ReportingOfferingSupport = Callable[
+    [str, ReportingConfiguration, "ReportingAccountContext"], bool | Awaitable[bool]
+]
+ReportingOfferingDeactivation = Callable[
+    [str, ReportingConfiguration, "ReportingAccountContext"], None | Awaitable[None]
+]
 ReportingCallerResolver = Callable[
     [Any, Any | None], "ReportingStatusCaller | Awaitable[ReportingStatusCaller]"
 ]
@@ -308,6 +324,7 @@ class ReportingAccountContext:
     publication_namespace: str = "reporting-source:default"
     slice_timeout: timedelta = timedelta(minutes=10)
     source_capabilities: ReportingSourceCapabilitiesV1 | None = None
+    serving_agent_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_metrics", tuple(self.requested_metrics))
@@ -349,9 +366,9 @@ class ReportingAccountContext:
             slice_timeout=self.slice_timeout,
         )
 
-    def binding_sha256(self) -> str:
+    def binding_sha256(self, *, include_serving_agent: bool = True) -> str:
         """Digest the account facts and complete public and source declarations."""
-        if self.source_capabilities is None:
+        if self.source_capabilities is None and self.serving_agent_id is None:
             raise ReliableReportingConfigurationError(
                 "account binding digest requires source_capabilities"
             )
@@ -372,7 +389,16 @@ class ReportingAccountContext:
                 "capability_offering": public,
                 "publication_namespace": self.publication_namespace,
                 "slice_timeout_microseconds": self.slice_timeout // timedelta(microseconds=1),
-                "source_capabilities_sha256": self.source_capabilities.capabilities_sha256,
+                "source_capabilities_sha256": (
+                    self.source_capabilities.capabilities_sha256
+                    if self.source_capabilities is not None
+                    else None
+                ),
+                **(
+                    {"serving_agent_id": self.serving_agent_id}
+                    if include_serving_agent and self.serving_agent_id is not None
+                    else {}
+                ),
             }
         )
 
@@ -604,6 +630,20 @@ class ReportingAdapterRegistry:
         return tuple(sorted(self._registrations))
 
 
+class _AgentDefinitionVersions(ReportDefinitionVersions):
+    def __init__(self, base: ReportDefinitionVersions, registered: Sequence[Mapping[str, Any]]):
+        super().__init__(base.known(), undeclared="withhold_from_pre_3_3")
+        self._base = base
+        self._registered = registered
+
+    def serves(self, offering: Mapping[str, Any], adcp_version: str | None) -> bool:
+        if self.version(offering.get("report_definition_sha256")) is None and any(
+            _thaw(item) == offering for item in self._registered
+        ):
+            return self._base.serves(offering, adcp_version)
+        return super().serves(offering, adcp_version)
+
+
 @dataclass(frozen=True)
 class _Binding:
     configuration: ReportingConfiguration
@@ -721,6 +761,12 @@ class ReliableReportingService:
         storage: ReportingStorage | None = None,
         report_definition_versions: Mapping[str, ReportDefinitionContractVersion] | None = None,
         undeclared_report_definitions: UndeclaredReportDefinitions = "assume_pre_1_2",
+        agent_offerings: ReportingAgentOfferingsResolver | None = None,
+        serving_agent: ReportingAgentResolver | None = None,
+        agent_definition_versions: ReportingAgentDefinitionVersions | None = None,
+        capability_projection: Literal["installed", "manual"] = "installed",
+        supports_frozen_offering: ReportingOfferingSupport | None = None,
+        deactivate_unserved_generation: ReportingOfferingDeactivation | None = None,
     ) -> None:
         """``staging``/``seals`` are the default source stores adapters register with;
         ``initialize_source_storage`` runs once at startup, after ``store.create_schema()``,
@@ -785,7 +831,39 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "pass storage=memory_storage() or postgres_storage(...), or a ledger store="
             )
+        if capability_projection not in ("installed", "manual"):
+            raise ReliableReportingConfigurationError("invalid capability_projection")
+        if agent_offerings is not None and (
+            production is not None
+            or subscriptions is not None
+            or reporting_subscriptions is not None
+        ):
+            raise ReliableReportingConfigurationError(
+                "agent offerings require a core service without managed production or subscriptions"
+            )
+        if agent_offerings is not None:
+            from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+
+            if supports_frozen_offering is None or deactivate_unserved_generation is None:
+                raise ReliableReportingConfigurationError(
+                    "agent offerings require supports_frozen_offering and "
+                    "deactivate_unserved_generation"
+                )
+            if (
+                producer_factory is not ReportingProducer
+                or not callable(getattr(store, "commit_agent_obligation", None))
+                or isinstance(store, ReportingProducerProgress)
+            ):
+                raise ReliableReportingConfigurationError(
+                    "agent offerings require a core ledger with lifecycle fencing"
+                )
         self._storage = storage
+        self._agent_offerings = agent_offerings
+        self._capability_projection = capability_projection
+        self._serving_agent = serving_agent
+        self._agent_definition_versions_resolver = agent_definition_versions
+        self._supports_frozen_offering = supports_frozen_offering
+        self._deactivate_unserved_generation = deactivate_unserved_generation
         self._definition_versions = ReportDefinitionVersions(
             report_definition_versions, undeclared=undeclared_report_definitions
         )
@@ -884,6 +962,10 @@ class ReliableReportingService:
         self._initialization_errors: dict[ReportingConfigurationGenerationKey, Exception] = {}
         self._pending_recovery: dict[
             ReportingConfigurationGenerationKey, ReportingConfiguration
+        ] = {}
+        self._pending_deactivations: dict[
+            ReportingConfigurationGenerationKey,
+            tuple[ReportingConfiguration, ReportingAccountContext],
         ] = {}
         self._turn_lock = asyncio.Lock()
         self._subscriptions = reporting_subscriptions
@@ -1339,7 +1421,11 @@ class ReliableReportingService:
             await self._production.aclose()
 
     async def configure(
-        self, configuration: ReportingConfiguration, *, adcp_version: str | None = None
+        self,
+        configuration: ReportingConfiguration,
+        *,
+        adcp_version: str | None = None,
+        serving_agent_id: str | None = None,
     ) -> None:
         """Resolve trusted account facts once and freeze this generation's route.
 
@@ -1366,7 +1452,9 @@ class ReliableReportingService:
 
         async def configure() -> None:
             async with self._configuration_lock:
-                await self._configure(configuration, adcp_version=adcp_version)
+                await self._configure(
+                    configuration, adcp_version=adcp_version, serving_agent_id=serving_agent_id
+                )
 
         await self._lifecycle.call(configure, before_start=True)
 
@@ -1375,15 +1463,18 @@ class ReliableReportingService:
         configuration: ReportingConfiguration,
         offering: Mapping[str, Any],
         adcp_version: str | None,
+        *,
+        versions: ReportDefinitionVersions | None = None,
     ) -> None:
         """Refuse a configuration naming an offering the caller's release cannot accept."""
         public = _thaw(offering)
-        if self._definition_versions.serves(public, adcp_version):
+        versions = versions or self._definition_versions
+        if versions.serves(public, adcp_version):
             return
         offering_id = str(public.get("offering_id"))
         raise LedgerConflictError(
             "UNSUPPORTED_FEATURE",
-            self._definition_versions.refusal_message(public),
+            versions.refusal_message(public),
             field="reporting_delivery_configs",
             # Server-held values only: details reach the caller's model context.
             details={"offering_id": offering_id},
@@ -1397,10 +1488,15 @@ class ReliableReportingService:
         recovering: bool = False,
         retrying: bool = False,
         adcp_version: str | None = None,
+        serving_agent_id: str | None = None,
     ) -> None:
         key = configuration.generation_key
         existing = self._bindings.get(key) or self._pending_bindings.get(key)
         if existing is not None:
+            if self._agent_offerings is not None and not recovering:
+                await self._check_agent_offering(
+                    configuration, serving_agent_id, existing.context, adcp_version
+                )
             self._refuse_unserved_offering(
                 configuration, existing.context.capability_offering, adcp_version
             )
@@ -1446,16 +1542,71 @@ class ReliableReportingService:
                 registration = self.sources.bind_capabilities(
                     registration, context.source_capabilities
                 )
-                if configuration.account_binding_sha256 != context.binding_sha256():
+                digest = configuration.account_binding_sha256
+                if digest != context.binding_sha256() and not (
+                    recovering
+                    and self._agent_offerings is not None
+                    and digest == context.binding_sha256(include_serving_agent=False)
+                ):
                     raise ReliableReportingConfigurationError(
                         "account binding does not match the frozen configuration generation"
                     )
-            elif configuration.account_binding_sha256 is not None:
+            elif configuration.account_binding_sha256 is not None and (
+                self._agent_offerings is None or not context.serving_agent_id
+            ):
                 raise ReliableReportingConfigurationError(
                     "account binding requires source_capabilities"
                 )
+            elif configuration.account_binding_sha256 is not None and (
+                configuration.account_binding_sha256 != context.binding_sha256()
+            ):
+                raise ReliableReportingConfigurationError(
+                    "account binding does not match the frozen configuration generation"
+                )
+            if self._agent_offerings is not None:
+                if recovering and configuration.account_binding_sha256 is None:
+                    pass
+                elif not context.serving_agent_id or configuration.account_binding_sha256 is None:
+                    raise ReliableReportingConfigurationError(
+                        "agent offering requires a pinned generation"
+                    )
+                elif recovering:
+                    if self._supports_frozen_offering is None:
+                        raise ReliableReportingConfigurationError(
+                            "recovery requires supports_frozen_offering"
+                        )
+                    try:
+                        supported = await _resolve(
+                            self._supports_frozen_offering(
+                                context.serving_agent_id, configuration, context
+                            )
+                        )
+                    except Exception as error:
+                        raise _AccountContextResolutionError(error, permanent=False) from error
+                    if type(supported) is not bool:
+                        raise _AccountContextResolutionError(
+                            TypeError("supports_frozen_offering must return a boolean"),
+                            permanent=False,
+                        )
+                    if not supported:
+                        if configuration.deactivated_at is None:
+                            self._pending_deactivations[key] = (configuration, context)
+                        raise _AccountContextResolutionError(
+                            RuntimeError("frozen offering cannot be served"),
+                            permanent=False,
+                        )
+                else:
+                    await self._check_agent_offering(
+                        configuration, serving_agent_id, context, adcp_version
+                    )
+        except _AccountContextResolutionError:
+            raise
         except Exception as error:
-            if retrying:
+            if retrying or (
+                recovering
+                and self._agent_offerings is not None
+                and isinstance(error, ReliableReportingConfigurationError)
+            ):
                 raise _AccountContextResolutionError(error, permanent=True) from error
             raise
         # Check registered source facts separately from the returned account
@@ -1503,6 +1654,11 @@ class ReliableReportingService:
                 else {}
             ),
             **(
+                {"configuration_fence": getattr(self.store, "commit_agent_obligation")}
+                if self._agent_offerings is not None
+                else {}
+            ),
+            **(
                 {"package_roster_resolver": self._package_roster_resolver}
                 if self._package_roster_resolver is not None
                 else {}
@@ -1524,7 +1680,16 @@ class ReliableReportingService:
                 frozen = await producer._recover_stabilization_schedule(
                     configuration, required=producer._stabilization_requested(configuration)
                 )
-            policy = self._validate_offerings(configuration, context, registration, frozen=frozen)
+            policy = self._validate_offerings(
+                configuration,
+                context,
+                registration,
+                frozen=frozen,
+                check_declaration=(
+                    self._agent_offerings is None
+                    or (recovering and configuration.account_binding_sha256 is None)
+                ),
+            )
             if isinstance(policy, ReportingStabilizedPolicy):
                 producer._stabilization_store()
             elif policy is not None:
@@ -1546,6 +1711,7 @@ class ReliableReportingService:
             await self._install_binding(binding, persist=persist)
         self._initialization_errors.pop(key, None)
         self._pending_recovery.pop(key, None)
+        self._pending_deactivations.pop(key, None)
 
     async def _install_binding(self, binding: _Binding, *, persist: bool) -> None:
         configuration = binding.configuration
@@ -1657,6 +1823,96 @@ class ReliableReportingService:
             # Detailed failures remain available through the read-only property.
             logger.warning("Reliable Reporting stored account context could not be resolved")
 
+    async def _deactivate_unserved_configurations(self) -> None:
+        for key, (configuration, context) in tuple(self._pending_deactivations.items()):
+            try:
+                callback = self._deactivate_unserved_generation
+                if callback is None:
+                    raise ReliableReportingConfigurationError(
+                        "historical offering cannot be served; deactivation is required"
+                    )
+                assert context.serving_agent_id is not None
+                await _resolve(callback(context.serving_agent_id, configuration, context))
+                async with self._configuration_lock:
+                    retained = await self.store.list_configurations(
+                        caller=ReportingStatusCaller(
+                            configuration.account_id, configuration.consumer_id
+                        ),
+                        delivery_config_ids=[configuration.delivery_config_id],
+                    )
+                    deactivated = next(
+                        (
+                            item
+                            for item in retained
+                            if item.generation_key == key and item.deactivated_at is not None
+                        ),
+                        None,
+                    )
+                    if deactivated is None:
+                        raise ReliableReportingConfigurationError(
+                            "historical offering deactivation was not persisted"
+                        )
+                    binding = self._bindings.get(key) or self._pending_bindings.get(key)
+                    if binding is not None:
+                        expected = replace(
+                            binding.configuration,
+                            activated_at=deactivated.activated_at,
+                            deactivated_at=deactivated.deactivated_at,
+                            automated_recovery_window=deactivated.automated_recovery_window,
+                            status_retention_days=deactivated.status_retention_days,
+                        )
+                        if expected != deactivated:
+                            self._bindings.pop(key, None)
+                            self._pending_bindings.pop(key, None)
+                            raise ReliableReportingConfigurationError(
+                                "deactivated configuration differs from its frozen binding"
+                            )
+                        updated = replace(binding, configuration=deactivated)
+                        if key in self._bindings:
+                            self._bindings[key] = updated
+                        if key in self._pending_bindings:
+                            self._pending_bindings[key] = updated
+                        self._pending_recovery.pop(key, None)
+                        self._initialization_errors.pop(key, None)
+                    else:
+                        self._pending_recovery[key] = deactivated
+                    self._pending_deactivations.pop(key, None)
+            except Exception as error:
+                self._initialization_errors[key] = error
+                logger.warning("Reliable Reporting stored configuration could not be deactivated")
+
+    async def _refresh_agent_bindings(self) -> None:
+        retained = {
+            item.generation_key: item for item in await self.store.list_all_configurations()
+        }
+        for key, binding in tuple(self._bindings.items()):
+            current = retained.get(key)
+            if current is None:
+                self._bindings.pop(key, None)
+                self._initialization_errors[key] = ReliableReportingConfigurationError(
+                    "stored configuration generation is unavailable"
+                )
+                continue
+            expected = replace(
+                binding.configuration,
+                activated_at=current.activated_at,
+                deactivated_at=current.deactivated_at,
+                automated_recovery_window=current.automated_recovery_window,
+                status_retention_days=current.status_retention_days,
+            )
+            if expected != current:
+                self._bindings.pop(key, None)
+                self._initialization_errors[key] = ReliableReportingConfigurationError(
+                    "stored configuration differs from its frozen binding"
+                )
+                continue
+            self._bindings[key] = replace(binding, configuration=current)
+        for key in tuple(self._pending_recovery):
+            if key in retained:
+                self._pending_recovery[key] = retained[key]
+                if retained[key].deactivated_at is not None:
+                    self._pending_deactivations.pop(key, None)
+
     def _validate_offerings(
         self,
         configuration: ReportingConfiguration,
@@ -1664,6 +1920,7 @@ class ReliableReportingService:
         registration: AdapterRegistration,
         *,
         frozen: ProvisionalPolicy | None = None,
+        check_declaration: bool = True,
     ) -> ReportingFinalityPolicy | None:
         capabilities = registration.executor.capabilities
         if capabilities.source_scope != _thaw(context.source_scope):
@@ -1801,7 +2058,8 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "advertised capability offering does not support the required finality"
             )
-        if context.source_capabilities is not None or registration.capability_offerings:
+        strict_public = context.source_capabilities is not None or not check_declaration
+        if strict_public or registration.capability_offerings:
             try:
                 public = ReportingDeliveryOffering.model_validate(
                     _thaw(context.capability_offering)
@@ -1810,13 +2068,13 @@ class ReliableReportingService:
                 raise ReliableReportingConfigurationError(
                     "account capability offering is not a valid reporting delivery offering"
                 ) from error
-            if context.source_capabilities is not None and any(
+            if strict_public and any(
                 not _matches_public_contract(offering.contract, public) for offering in selected
             ):
                 raise ReliableReportingConfigurationError(
                     "account source contract does not match the public offering"
                 )
-            if context.source_capabilities is not None:
+            if strict_public:
                 schedule = public["schedule"]
                 configured_schedule = configuration.schedule
                 if any(
@@ -1868,7 +2126,7 @@ class ReliableReportingService:
                 if context.source_capabilities is not None
                 else iter(registration.capability_offerings)
             )
-            if not any(_thaw(item) == public for item in declarations):
+            if check_declaration and not any(_thaw(item) == public for item in declarations):
                 raise ReliableReportingConfigurationError(
                     "capability offering must match a registered public offering for the agent"
                 )
@@ -2014,6 +2272,7 @@ class ReliableReportingService:
             if self._production is not None:
                 await self._production.start()
             self._initialized = True
+        await self._deactivate_unserved_configurations()
 
     async def start(self) -> None:
         await self.initialize()
@@ -2113,12 +2372,22 @@ class ReliableReportingService:
             # turn. It must not start fresh work after that turn has drained.
             self._lifecycle.require_ready()
             turn = ReliableReportingTurn()
-            async with self._configuration_lock:
-                for configuration in tuple(self._pending_recovery.values()):
-                    if self._lifecycle.stopping:
-                        break
-                    await self._recover_configuration(configuration, retrying=True)
-                turn.configuration_errors.update(self._initialization_errors)
+            try:
+                async with self._configuration_lock:
+                    if self._agent_offerings is not None:
+                        await self._refresh_agent_bindings()
+                    for configuration in tuple(self._pending_recovery.values()):
+                        if self._lifecycle.stopping:
+                            break
+                        await self._recover_configuration(configuration, retrying=True)
+            except Exception as error:
+                if self._agent_offerings is None:
+                    raise
+                turn.extension_errors["configuration_refresh"] = error
+                await self._report_worker_error("configuration_refresh", error)
+                return turn
+            await self._deactivate_unserved_configurations()
+            turn.configuration_errors.update(self._initialization_errors)
             if self._subscriptions is not None and not self._lifecycle.stopping:
                 instant = now or self._clock()
                 if self._managed is not None:
@@ -2398,6 +2667,10 @@ class ReliableReportingService:
         accept (a ``1.2`` definition below AdCP 3.3). With no offering left the
         block is empty and no reporting capability is advertised.
         """
+        if self._agent_offerings is not None:
+            raise ReliableReportingConfigurationError(
+                "agent offerings require inject_agent_capabilities"
+            )
         self._compose_managed()
         block = self._served_offerings(self._capability_block(), adcp_version)
         if self._subscriptions is None or not block:
@@ -2568,6 +2841,196 @@ class ReliableReportingService:
         payload["media_buy"] = media_buy
         return payload
 
+    async def _agent_catalog(
+        self, agent_id: str
+    ) -> tuple[list[dict[str, Any]], _AgentDefinitionVersions]:
+        if not agent_id or self._agent_offerings is None:
+            raise ReliableReportingConfigurationError("serving agent identity is required")
+        declared = await _resolve(self._agent_offerings(agent_id))
+        versions = self._agent_versions(agent_id)
+        if self._agent_definition_versions_resolver is not None:
+            definitions = await _resolve(self._agent_definition_versions_resolver(agent_id))
+            for digest, version in definitions.items():
+                if version not in ("1.0", "1.1", "1.2"):
+                    raise ReliableReportingConfigurationError("invalid report definition version")
+                versions.record(digest, version, source="the agent catalog")
+        offerings: dict[str, dict[str, Any]] = {}
+        for item in declared:
+            value = ReportingDeliveryOffering.model_validate(_wire(item)).model_dump(
+                mode="json", exclude_none=True
+            )
+            offering_id = value["offering_id"]
+            if value.get("method") is not None and self._materialization_worker is None:
+                raise ReliableReportingConfigurationError(
+                    "managed delivery offering requires a materialization worker"
+                )
+            if value["reconciliation_mode"] == "consumer_receipt" and not self._reconciled_billing:
+                raise ReliableReportingConfigurationError(
+                    "receipt offering requires reconciled billing"
+                )
+            if offering_id in offerings and offerings[offering_id] != value:
+                raise ReliableReportingConfigurationError(
+                    f"capability offering {offering_id!r} has conflicting declarations"
+                )
+            offerings[offering_id] = value
+        ordered = [offerings[key] for key in sorted(offerings)]
+        registered = [
+            item
+            for item in ordered
+            if item in versions._registered
+            and versions.version(item.get("report_definition_sha256")) is None
+        ]
+        dynamic = [item for item in ordered if item not in versions._registered]
+        self._warn_undeclared_definitions(registered)
+        self._warned_definitions.update(
+            versions.warn_undeclared(dynamic, skip=self._warned_definitions)
+        )
+        return ordered, versions
+
+    def _agent_versions(self, agent_id: str) -> _AgentDefinitionVersions:
+        registered = [
+            _thaw(item)
+            for name in self.sources.names
+            for item in self.sources.get(name).capability_offerings
+        ]
+        registered.extend(
+            _thaw(binding.context.capability_offering)
+            for binding in (*self._bindings.values(), *self._pending_bindings.values())
+            if binding.context.source_capabilities is None
+            and binding.context.serving_agent_id == agent_id
+        )
+        return _AgentDefinitionVersions(self._definition_versions, registered)
+
+    async def _check_agent_offering(
+        self,
+        configuration: ReportingConfiguration,
+        agent_id: str | None,
+        context: ReportingAccountContext,
+        adcp_version: str | None,
+    ) -> None:
+        if not agent_id or context.serving_agent_id != agent_id:
+            raise ReliableReportingConfigurationError("serving agent identity does not match")
+        public = ReportingDeliveryOffering.model_validate(
+            _thaw(context.capability_offering)
+        ).model_dump(mode="json", exclude_none=True)
+        offerings, versions = await self._agent_catalog(agent_id)
+        if public not in offerings:
+            raise ReliableReportingConfigurationError(
+                "offering is not advertised by the serving agent"
+            )
+        self._refuse_unserved_offering(configuration, public, adcp_version, versions=versions)
+
+    async def agent_capabilities_version(
+        self, agent_id: str, *, base_version: str | None = None
+    ) -> str:
+        """Return the current agent revision for use in capability notifications."""
+        offerings, versions = await self._agent_catalog(agent_id)
+        return self._agent_capabilities_version(
+            agent_id, self._agent_reporting_block(offerings), base_version, versions
+        )
+
+    def _agent_capabilities_version(
+        self,
+        agent_id: str,
+        block: dict[str, Any],
+        base_version: str | None,
+        versions: _AgentDefinitionVersions,
+    ) -> str:
+        definitions = [
+            {
+                "offering_id": item["offering_id"],
+                "digest": item["report_definition_sha256"],
+                "version": versions.version(item["report_definition_sha256"]),
+                "served_before_3_3": versions.serves(item, "3.2.1"),
+            }
+            for item in block.get("offerings", ())
+        ]
+        return canonical_json_sha256_v1(
+            {
+                "agent_id": agent_id,
+                "base_version": base_version,
+                "reporting": block,
+                "definitions": definitions,
+            }
+        )
+
+    def _agent_reporting_block(self, offerings: list[dict[str, Any]]) -> dict[str, Any]:
+        if not offerings:
+            return {}
+        block = _advertised_reporting_delivery(
+            escalation=self._escalation,
+            consumer_status_task=self._consumer_status_enabled,
+            offerings=offerings,
+            automated_recovery_window=self._automated_recovery_window,
+            status_retention_days=self._status_retention_days,
+        )
+        block["managed_delivery"] = self._materialization_worker is not None
+        block["reconciled_billing"] = self._reconciled_billing
+        if self._reconciled_billing:
+            block["receipt_task"] = "sync_reporting_receipts"
+        return block
+
+    async def inject_agent_capabilities(
+        self, response: Any, *, agent_id: str | None, adcp_version: str | None = None
+    ) -> dict[str, Any]:
+        """Project the current reporting offerings of one serving agent."""
+        if self._agent_offerings is None:
+            return self.inject_capabilities(response, adcp_version=adcp_version)
+        if not agent_id:
+            raise ReliableReportingConfigurationError("serving agent identity is required")
+        offerings, versions = await self._agent_catalog(agent_id)
+        full_block = self._agent_reporting_block(offerings)
+        block = served_reporting_delivery(full_block, versions, adcp_version)
+        payload = _wire(response)
+        media_buy = dict(payload.get("media_buy") or {})
+        if block:
+            media_buy["reporting_delivery"] = block
+            payload["supported_protocols"] = list(
+                dict.fromkeys([*(payload.get("supported_protocols") or []), "media_buy"])
+            )
+            payload["experimental_features"] = list(
+                dict.fromkeys(
+                    [*(payload.get("experimental_features") or []), "media_buy.reporting_delivery"]
+                )
+            )
+        else:
+            media_buy.pop("reporting_delivery", None)
+            payload["experimental_features"] = [
+                item
+                for item in payload.get("experimental_features", ())
+                if item != "media_buy.reporting_delivery"
+            ]
+        if media_buy:
+            payload["media_buy"] = media_buy
+        else:
+            payload.pop("media_buy", None)
+        adcp = dict(payload.get("adcp") or {})
+        changes = dict(adcp.get("capability_changes") or {})
+        previous = changes.pop("capabilities_version", None)
+        adcp["capability_changes"] = changes
+        payload["adcp"] = adcp
+        changes["capabilities_version"] = self._agent_capabilities_version(
+            agent_id, full_block, previous, versions
+        )
+        return payload
+
+    async def inject_context_capabilities(
+        self, response: Any, context: Any | None
+    ) -> dict[str, Any]:
+        """Project reporting capabilities using the adopter's trusted serving-agent identity."""
+        if self._serving_agent is None:
+            raise ReliableReportingConfigurationError("agent offerings require serving_agent")
+        agent_id = await _resolve(self._serving_agent(context))
+        if not isinstance(agent_id, str) or not agent_id:
+            raise ReliableReportingConfigurationError(
+                "serving_agent must resolve an agent identity"
+            )
+        return await self.inject_agent_capabilities(
+            response,
+            agent_id=agent_id,
+            adcp_version=getattr(context, "resolved_adcp_version", None),
+        )
+
     def inject_capabilities(
         self,
         response: Any,
@@ -2725,6 +3188,10 @@ class ReliableReportingService:
                 instance: Any, params: Any, context: Any | None = None
             ) -> Any:
                 result = await _resolve(original.get_adcp_capabilities(instance, params, context))
+                if service._agent_offerings is not None:
+                    if service._capability_projection == "manual":
+                        return result
+                    return await service.inject_context_capabilities(result, context)
                 return service.inject_capabilities(
                     result,
                     adcp_version=getattr(context, "resolved_adcp_version", None),

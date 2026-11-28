@@ -604,6 +604,13 @@ class ReportingProducer:
         post_deadline_retry_interval: timedelta = timedelta(hours=1),
         retry_store: RetryScheduleStore | None = None,
         read_jitter_window: timedelta = timedelta(minutes=5),
+        configuration_fence: (
+            Callable[
+                [ReportingConfiguration, ReportingObligationRecord],
+                Awaitable[ReportingObligationRecord],
+            ]
+            | None
+        ) = None,
     ) -> None:
         if read_jitter_window < timedelta(0):
             raise ValueError("read jitter window must be nonnegative")
@@ -622,6 +629,7 @@ class ReportingProducer:
         self._source = source
         self._offerings = offerings
         self._store = store
+        self._configuration_fence = configuration_fence
         self._object_reader = object_reader
         self._escalation = escalation or ReportingDeliveryEscalation()
         self._worker_id = worker_id
@@ -898,6 +906,10 @@ class ReportingProducer:
         if isinstance(selected, ReportingStabilizedPolicy):
             frozen = await self._recover_stabilization_schedule(configuration, required=False)
         progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
+        if progress is not None and self._configuration_fence is not None:
+            raise LedgerConflictError(
+                "UNSUPPORTED_FEATURE", "configuration fencing requires the core ledger"
+            )
         after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
         for boundary in self._elapsed_periods(configuration, now=now, after=after):
@@ -1051,13 +1063,14 @@ class ReportingProducer:
             resolved = self._currency_resolver(configuration, obligation)
             currency = await resolved if inspect.isawaitable(resolved) else resolved
             obligation = replace(obligation, currency=validate_currency(currency))
-            stored = (
-                await self._store.commit_obligation(obligation)
-                if progress is None
-                else await progress.commit_producer_period(
+            if self._configuration_fence is not None:
+                stored = await self._configuration_fence(configuration, obligation)
+            elif progress is None:
+                stored = await self._store.commit_obligation(obligation)
+            else:
+                stored = await progress.commit_producer_period(
                     configuration, obligation, previous_end=after
                 )
-            )
             after = boundary.end
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)

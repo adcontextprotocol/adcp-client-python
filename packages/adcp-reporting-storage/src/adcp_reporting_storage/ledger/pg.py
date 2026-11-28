@@ -1348,6 +1348,30 @@ class PgReportingLedgerStore:
 
     # -- obligations ------------------------------------------------------
 
+    async def commit_agent_obligation(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> ReportingObligationRecord:
+        """Commit only while the generation's lifecycle remains the observed one."""
+        key = configuration.generation_key
+        async with self.transaction(), self._connection() as connection:
+            await self._lock_account(connection, key.account_id)
+            retained = await self._list_configurations_on(
+                connection,
+                account_id=key.account_id,
+                consumer_id=key.consumer_id,
+                delivery_config_ids=[key.delivery_config_id],
+            )
+            current = next((item for item in retained if item.generation_key == key), None)
+            if (
+                current is None
+                or obligation.generation_key != key
+                or configuration_lifecycle(current) != configuration_lifecycle(configuration)
+            ):
+                raise LedgerConflictError(
+                    "CONFIGURATION_LIFECYCLE_CHANGED", "configuration changed"
+                )
+            return await self.commit_obligation(obligation)
+
     async def _period_is_tombstoned(
         self, connection: Any, obligation: ReportingObligationRecord
     ) -> bool:
@@ -2382,9 +2406,9 @@ class PgReportingLedgerStore:
             checked_at=_utc(row[2]),
             next_observation=int(row[3]),
             provisional_until=_utc(row[4]) if row[4] else None,
-            stabilization_policy=provisional_models.ProvisionalPolicy.from_wire(row[5])
-            if row[5]
-            else None,
+            stabilization_policy=(
+                provisional_models.ProvisionalPolicy.from_wire(row[5]) if row[5] else None
+            ),
             next_stabilization_due_at=_utc(row[6]) if row[6] else None,
         )
 
