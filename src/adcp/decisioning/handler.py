@@ -2466,10 +2466,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
-            response = reporting.inject_capabilities(
-                response,
-                adcp_version=context.resolved_adcp_version if context is not None else None,
-            )
+            if getattr(reporting, "_agent_offerings", None) is not None:
+                if reporting._capability_projection != "manual":
+                    response = await reporting.inject_context_capabilities(response, context)
+            else:
+                response = reporting.inject_capabilities(
+                    response,
+                    adcp_version=context.resolved_adcp_version if context is not None else None,
+                )
 
         signing = response.get("webhook_signing", {})
         signing_supported = isinstance(signing, dict) and signing.get("supported") is True

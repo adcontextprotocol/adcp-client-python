@@ -139,8 +139,8 @@ Missing authentication is rejected. Supply
 `caller_resolver` for a different trusted identity model; never choose consumer
 identity from the request body.
 
-`capability_block()` and installed capability discovery describe registered
-reporting offerings and installed components throughout the service lifetime.
+Without `agent_offerings`, `capability_block()` and installed capability
+discovery describe registered reporting offerings and installed components throughout the service lifetime.
 They are available before startup and remain stable while stopping, after
 closure, and after worker failure. An unconfigured service declares no reporting
 block. Use `service.ready` for local work admission; buyer tools report runtime
@@ -153,6 +153,100 @@ does not construct the production graph. The development memory production
 graph declares no durable production tier; Core memory services still declare
 their inline offerings. `ReportingProductionSupport.reporting_delivery()` keeps
 its runtime readiness check for operator and admission callers.
+
+### Serving multiple agents from one core service
+
+AdCP's `protocol/get-adcp-capabilities-response.json` describes
+`adcp.capability_changes` as the agent-wide capability document, not
+per-caller authorization or account-scoped settings. A service shared by
+multiple agents can resolve the current reporting offerings for each serving
+agent with `agent_offerings`. The resolver receives the trusted serving-agent
+ID, not the buyer account, and returns the entire list for that agent. The list
+must be the same for every caller at the same negotiated AdCP version. The SDK
+still filters definitions by negotiated version.
+
+```python
+from dataclasses import replace
+
+reporting = ReliableReportingService(
+    store=ledger_store,
+    account_context=resolve_reporting_context,
+    agent_offerings=resolve_agent_offerings,
+    serving_agent=resolve_serving_agent,
+    agent_definition_versions=resolve_agent_definition_versions,
+    supports_frozen_offering=can_serve_frozen_generation,
+    deactivate_unserved_generation=deactivate_generation,
+)
+reporting.sources.register("gam", gam_adapter)
+
+# The generation's digest covers its serving agent and capability offering.
+context = await resolve_reporting_context(generation)
+generation = replace(generation, account_binding_sha256=context.binding_sha256())
+await reporting.configure(generation, serving_agent_id=agent_id, adcp_version=version)
+
+```
+
+The resolvers may be sync or async. `serving_agent(context)` extracts the agent
+identity from trusted request routing; installed handlers call it for every
+capability request. It must not derive the identity from the caller's account
+or authentication scope. The offerings resolver is consulted on discovery and admission;
+the admitted offering must exactly match the current agent catalog. Pass the
+serving agent identity from trusted routing context, and serialize catalog edits
+with admission if the application requires their commits to be ordered. Include
+all public offerings for that agent in the resolver, even offerings also named
+in adapter registrations. `capability_block()` and `inject_capabilities()`
+cannot select an agent and therefore refuse this configuration.
+
+Installed handlers project capabilities once using `serving_agent`. An
+application that projects its own capability response sets
+`capability_projection="manual"` and calls
+`await reporting.inject_agent_capabilities(response, agent_id=agent_id,
+adcp_version=version)` itself. Do not project the same response twice: the
+SDK treats the supplied base `capabilities_version` as an opaque token.
+
+`agent_definition_versions(agent_id)` returns a mapping from definition
+SHA-256 to its `contract_version` (`1.0`, `1.1`, or `1.2`), including definitions
+introduced after startup. Unknown dynamic definitions are withheld from callers
+below AdCP 3.3. Startup-registered declarations retain the configured
+`undeclared_report_definitions` policy. The resolver should advertise only
+offerings the agent can serve; the SDK verifies managed-delivery and receipt
+components and validates source facts when a configuration is admitted.
+
+At recovery, `account_context` must reconstruct the generation's original
+offering and source facts from retained data, even if the current catalog no
+longer advertises them. The stored digest is checked before
+`supports_frozen_offering(agent_id, generation, context)` is called. That
+callback confirms the adopter can still serve the frozen report definition.
+When it declines, `deactivate_unserved_generation(agent_id, generation, context)`
+must persist deactivation through the application's normal lifecycle; the
+service retains the generation and reports it in `initialization_errors`.
+The callback runs outside the configuration lock and is retried on worker turns
+if it fails. The support check continues on worker turns after deactivation, so
+the retained generation can resume its owed periods if the adopter can serve it
+again. Configuration generations without a binding digest keep their existing
+recovery path.
+
+Both recovery callbacks are required with `agent_offerings`; a failed support
+check is retried without deactivation. Before enabling the resolver, drain
+workers running SDK or storage versions without lifecycle fencing. Those workers
+cannot enforce the cutoff fence or recover agent-bound digests. Once the cutover
+is complete, changes to an agent's catalog need no service restart.
+
+The response's `adcp.capability_changes.capabilities_version` changes when the
+agent's catalog changes. Supply a base `capabilities_version` when other
+capabilities can change; it participates in the revision. If the application
+advertises `capabilities.changed` notifications, it owns the durable notification
+trigger and should use `await reporting.agent_capabilities_version(agent_id,
+base_version=base_version)` as the notification's read-after-notify fence. The
+SDK exposes a webhook sender but does not automatically watch the adopter's
+catalog for changes.
+
+This resolver applies to core services; managed-production and reporting
+subscription graphs require fixed offering and verifier registrations and do
+not accept it. The ledger must support `commit_agent_obligation`, which fences
+obligation creation against concurrent configuration changes. Use the matching
+storage distribution containing that method. Omitting the resolver preserves
+the registered agent-wide offerings and recovery behavior described above.
 
 ## Report definitions at contract_version 1.2 (AdCP 3.3)
 

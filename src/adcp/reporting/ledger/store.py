@@ -1322,6 +1322,22 @@ class InMemoryReportingLedgerStore:
                 )
             return obligation
 
+    async def commit_agent_obligation(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> ReportingObligationRecord:
+        """Commit only while the generation's lifecycle remains the observed one."""
+        async with self._mutation():
+            retained = self._configurations.get(configuration.generation_key)
+            if (
+                retained is None
+                or obligation.generation_key != configuration.generation_key
+                or configuration_lifecycle(retained) != configuration_lifecycle(configuration)
+            ):
+                raise LedgerConflictError(
+                    "CONFIGURATION_LIFECYCLE_CHANGED", "configuration changed"
+                )
+            return await self.commit_obligation(obligation)
+
     async def get_obligation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ReportingObligationRecord | None:
